@@ -204,13 +204,17 @@ Deno.serve(async (req) => {
     // CRITICAL: The credit (cash_in) MUST be platform-scope. If it stays at the default
     // wallet scope and the partner == wallet owner, the two entries net-zero and the
     // wallet never reduces. Money has left the user's wallet → it now sits with the platform.
+    // NOTE (2026-05): `wallet_deduction` was retired. We use `partner_funding` for the
+    // wallet leg — same pattern as coo-create-portfolio / coo-invest-for-partner — which
+    // is the allow-listed category for wallet→portfolio capital moves. This is NOT a CFO
+    // debit (no debt obligation should be created); it's an internal capital reallocation.
     const { data: ledgerTxnGroupId, error: deductErr } = await supabase.rpc("create_ledger_transaction", {
       entries: [
         {
           user_id: walletOwnerId,
           amount: topupAmount,
           direction: "cash_out",
-          category: "wallet_deduction",
+          category: "partner_funding",
           ledger_scope: "wallet",
           description: `Wallet deduction for ${accountLabel} top-up`,
           source_table: "investor_portfolios",
