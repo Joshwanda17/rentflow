@@ -32,6 +32,7 @@ async function sendSMS(phone: string, message: string) {
     username,
     to: formattedPhone,
     message,
+    from: "WELILE",
   });
 
   const res = await fetch(baseUrl, {

@@ -33,9 +33,8 @@ async function sendSMS(phone: string, message: string): Promise<boolean> {
       username,
       to: formattedPhone,
       message,
+      from: "WELILE",
     };
-    // NOTE: 'from' / sender ID removed — "WELILE" is not yet approved on Africa's Talking.
-    // Re-enable once the sender ID is approved on the AT dashboard.
     const body = new URLSearchParams(params);
 
     const res = await fetch(baseUrl, {
