@@ -364,6 +364,8 @@ export const template = {
     topup_amount: 500_000,
     previous_portfolio_value: 1_000_000,
     new_total_partnership_value: 1_500_000,
+    roi_percentage: 12,
+    monthly_return_amount: 180_000,
     currency: 'UGX',
     company_name: 'Welile',
     logo_url: 'https://welilereceipts.com/welile-logo.png',
