@@ -61,12 +61,24 @@ function getNextPayoutDate(nextRoiDate: string | null, createdAt: string, payout
   if (nextRoiDate) {
     d = dateOnlyToLocalDate(nextRoiDate);
   } else {
-    const base = createdDate;
-    d = new Date(base.getFullYear(), base.getMonth() + 1, day);
+    // Walk forward from creation in monthly hops until we land on today or the future.
+    // This covers portfolios whose `next_roi_date` was never written: their first payout
+    // is created_at + 1 month on `payout_day`, and subsequent ones are monthly thereafter.
+    d = new Date(createdDate.getFullYear(), createdDate.getMonth() + 1, day);
+    while (d.getTime() < today.getTime()) {
+      d = new Date(d.getFullYear(), d.getMonth() + 1, day);
+    }
   }
   // Do NOT roll forward — preserve the actual stored date so overdue/missed dates remain visible.
   // Date only advances when CFO approves the payout.
   return formatLocalDateOnly(d);
+}
+
+/** Single source of truth for "is this portfolio's Next Payout Date today?".
+ *  Compares YYYY-MM-DD strings in local TZ — DST/midnight safe. */
+function isPortfolioDueToday(p: { next_roi_date: string | null; created_at: string; payout_day: number | null }): boolean {
+  const next = getNextPayoutDate(p.next_roi_date, p.created_at, p.payout_day ?? 15);
+  return next === formatLocalDateOnly(new Date());
 }
 import { RenewPortfolioDialog } from '@/components/manager/RenewPortfolioDialog';
 import { FundInvestmentAccountDialog } from '@/components/manager/FundInvestmentAccountDialog';
