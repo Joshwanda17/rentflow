@@ -1,70 +1,84 @@
 ## Goal
+Make the **Nearing Payout** card on COO → Partner Management show an accurate count of portfolios whose **Next Payout Date falls on today**, derived from the same `getNextPayoutDate` logic the rest of the page uses, with no schema changes.
 
-Single edge function `validate-deposit-reference` that mirrors the `guard_deposit_reference_uniqueness` trigger so the UI can pre-flight a TID before submit and show the exact same outcome the DB would return — without a duplicate insert ever hitting the trigger.
+## Current behaviour (audit)
 
-## Endpoint
+File: `src/components/coo/COOPartnersPage.tsx`
 
-`POST /functions/v1/validate-deposit-reference`
+- `fetchNearingPayoutsAsync` (lines 600–645) loads **every active portfolio owned by a supporter**, then for each one computes:
+  - `effectiveNextDate = getNextPayoutDate(p.next_roi_date, p.created_at, p.payout_day ?? 15)` (lines 53–70 — never rolls forward, preserves overdue dates).
+  - `daysUntil = ceil((effectiveNextDate − today) / 1 day)`.
+- `NearingPayoutsCard` (lines 3275–3334) already filters `daysUntil === 0` and labels the tile **"Payouts Due Today"**.
 
-Auth: required (`getClaims` on bearer token). Anyone authenticated can call it for their own pre-flight; admins use it from reconciliation tools.
+So the count *intends* to be "today only", but three integrity issues remain:
 
-### Request
-```json
-{
-  "transaction_id": "string (required)",
-  "exclude_deposit_id": "uuid (optional, for edit-mode pre-flight)"
+1. **Time-zone drift.** `roiDate.getTime() − now.getTime()` divided by 86 400 000 then `Math.ceil` gives wrong buckets across DST/timezone boundaries. For a portfolio whose `next_roi_date = 2026-05-12` evaluated at 23:30 UG time, `Math.ceil` can return `0` or `1` inconsistently. Should compare on `YYYY-MM-DD` strings instead.
+2. **Excluded portfolios that should count.** Anything with `next_roi_date IS NULL` and `created_at` not yet one month old is silently skipped (line 611). For a portfolio created on the 12th of last month with `payout_day = 12` and null `next_roi_date`, today *is* the first payout but the card misses it.
+3. **Status filter is too narrow.** Only `status === 'active'` counts. A portfolio in `pending_approval` / `processing` whose payout date is today is silently dropped from the count even though it shows in the dialog.
+
+## Plan (UI / presentation layer only)
+
+All edits stay inside `src/components/coo/COOPartnersPage.tsx` and `src/lib/supabaseBatchUtils.ts`. No new tables, no schema changes, no RLS work.
+
+### 1. Single source of truth for "is this portfolio due today?"
+
+Add one small helper next to `getNextPayoutDate`:
+
+```ts
+function isDueToday(p: PortfolioRow): boolean {
+  const next = getNextPayoutDate(p.next_roi_date, p.created_at, p.payout_day ?? 15);
+  return next === formatLocalDateOnly(new Date()); // string compare in local TZ → no DST drift
 }
 ```
 
-### Response — 200 always (validation result, not HTTP error)
-```json
-{
-  "valid": true | false,
-  "reason": "ok" | "placeholder" | "duplicate_transaction_id" | "duplicate_in_notes",
-  "message": "human-readable string identical in shape to the trigger's RAISE",
-  "conflict": {                       // only when valid:false and not placeholder
-    "deposit_id": "uuid",
-    "status": "pending|approved|...",
-    "matched_field": "transaction_id" | "notes"
-  } | null
-}
-```
+Reuse it in:
+- `NearingPayoutsCard` (replace `daysUntil === 0` filter).
+- `fetchNearingPayoutsAsync` enrichment (still build `daysUntil` for the dialog, but compute `dueToday: boolean` once via the helper so card and dialog can never disagree).
 
-400 only for malformed body. 401 for missing/invalid JWT. 500 for unexpected DB error.
+### 2. Fix the data-fetch gaps in `fetchAllNearingPayoutPortfolios`
 
-## Validation logic (1:1 with the trigger)
+In `src/lib/supabaseBatchUtils.ts`:
 
-1. Trim + null-coerce `transaction_id`. If empty → `valid:true, reason:"placeholder"`.
-2. Uppercase compare against placeholder set: `NONE, N/A, NA, PENDING, TBD, UNKNOWN` → `valid:true, reason:"placeholder"`.
-3. Query `deposit_requests` for `UPPER(TRIM(transaction_id)) = UPPER(:ref)`, excluding `exclude_deposit_id`. Match → `valid:false, reason:"duplicate_transaction_id"` with conflict row + trigger-style message.
-4. Query `deposit_requests` for `POSITION(LOWER(:ref) IN LOWER(notes)) > 0`, same exclusion. Match → `valid:false, reason:"duplicate_in_notes"`.
-5. Otherwise `valid:true, reason:"ok"`.
+- Drop the `.eq('status', 'active')` filter and instead pass the status through; `NearingPayoutPortfolio` already carries `status`. The card will count portfolios whose status is `active` **or** `awaiting_payout` / `processing_payout` (whatever pending payout states exist — confirm with one `SELECT DISTINCT status FROM investor_portfolios` before coding).
+- Keep the dedupe block as-is.
 
-Implementation: two `select … limit 1` calls via the service-role client (RLS would otherwise hide other users' deposits — the trigger uses SECURITY DEFINER, so the function must too). No writes. No new tables/columns/RPCs.
+### 3. Use the helper inside the enrichment loop
 
-## Frontend integration (no behavior change, just one wiring point)
+In `fetchNearingPayoutsAsync` (lines 600–645):
+- Remove the `if (!p.next_roi_date) return;` early exit so portfolios with null `next_roi_date` but a derivable first payout are included.
+- Compute `dueToday` via the helper instead of `daysUntil === 0`.
+- Keep the `daysUntil` field for sorting + the dialog ranges.
 
-- `src/lib/invokeEdgeFunction` already exists — use it.
-- Replace the inline debounced duplicate-check in `DepositFlow.tsx` (and the float-payout `transaction_id` check in `FloatPayoutVerification.tsx`) with a single helper `validateDepositReference(tid, excludeId?)` in `src/lib/depositReferenceValidator.ts`.
-- Helper is called:
-  - On debounced (400ms) change of the TID input → disables Submit + shows inline error.
-  - On Submit click as a final guard (defense in depth) before invoking `agent-deposit` / `approve-deposit`.
-- The DB trigger remains the source of truth; `23505` error handling in `PaymentConfirmationForm.tsx` stays unchanged as the last-line defense.
+### 4. Card display
 
-## Files
+In `NearingPayoutsCard`:
+- Filter on `p.dueToday === true`.
+- Keep the existing label ("Payouts Due Today") and the existing total-amount sum, but compute the amount from a single helper so card + dialog match.
+- Tooltip / aria-label: `"<n> portfolio(s) reach their Next Payout Date today (<formatted today date>)"` so the user can verify what "today" resolves to in the browser TZ.
 
-New:
-- `supabase/functions/validate-deposit-reference/index.ts`
-- `src/lib/depositReferenceValidator.ts`
-- `supabase/config.toml` block: `[functions.validate-deposit-reference] verify_jwt = false` (in-code JWT validation, matching project convention).
+### 5. Integrity guard rails
 
-Modified:
-- `src/components/payments/DepositFlow.tsx` — swap inline lookup for helper.
-- `src/components/agent/FloatPayoutVerification.tsx` — same swap.
+- After computing the list, log to console (dev only) `console.debug('[NearingPayout] today=%s, dueToday=%d, totalActive=%d', todayStr, dueTodayCount, portfolios.length)` so we can spot regressions in the live preview without adding analytics.
+- Add a unit-style sanity assertion in dev: if any portfolio has `dueToday === true` but `daysUntil !== 0`, log a warning — that means the helper and the diff drifted.
+
+## Verification
+
+1. Open `/coo-dashboard` → Partner Management. The tile should show the count for today.
+2. Cross-check with read-only SQL:
+   ```sql
+   SELECT count(*) FROM investor_portfolios
+   WHERE status = 'active'
+     AND coalesce(next_roi_date::date,
+                  (date_trunc('month', created_at) + interval '1 month'
+                   + (least(coalesce(payout_day,15),28) - 1) * interval '1 day')::date)
+         = current_date;
+   ```
+   Numbers must match the card.
+3. Open the dialog → "Today" filter → row count must equal the card number.
+4. Pick one portfolio whose `next_roi_date = today` and confirm it appears; pick one with `next_roi_date = today − 1` and confirm it does **not** count toward the card (still listed under "Overdue" in the dialog).
 
 ## Out of scope
 
-- No DB schema changes (no tables, no columns, no indexes, no RPCs).
-- No change to the trigger itself.
-- No changes to `agent-deposit` / `approve-deposit` write path.
-- No retroactive scan of historical duplicates.
+- No schema changes, no new tables.
+- No changes to payout execution / ledger logic.
+- Overdue handling in the dialog stays exactly as-is.

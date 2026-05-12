@@ -61,12 +61,24 @@ function getNextPayoutDate(nextRoiDate: string | null, createdAt: string, payout
   if (nextRoiDate) {
     d = dateOnlyToLocalDate(nextRoiDate);
   } else {
-    const base = createdDate;
-    d = new Date(base.getFullYear(), base.getMonth() + 1, day);
+    // Walk forward from creation in monthly hops until we land on today or the future.
+    // This covers portfolios whose `next_roi_date` was never written: their first payout
+    // is created_at + 1 month on `payout_day`, and subsequent ones are monthly thereafter.
+    d = new Date(createdDate.getFullYear(), createdDate.getMonth() + 1, day);
+    while (d.getTime() < today.getTime()) {
+      d = new Date(d.getFullYear(), d.getMonth() + 1, day);
+    }
   }
   // Do NOT roll forward — preserve the actual stored date so overdue/missed dates remain visible.
   // Date only advances when CFO approves the payout.
   return formatLocalDateOnly(d);
+}
+
+/** Single source of truth for "is this portfolio's Next Payout Date today?".
+ *  Compares YYYY-MM-DD strings in local TZ — DST/midnight safe. */
+function isPortfolioDueToday(p: { next_roi_date: string | null; created_at: string; payout_day: number | null }): boolean {
+  const next = getNextPayoutDate(p.next_roi_date, p.created_at, p.payout_day ?? 15);
+  return next === formatLocalDateOnly(new Date());
 }
 import { RenewPortfolioDialog } from '@/components/manager/RenewPortfolioDialog';
 import { FundInvestmentAccountDialog } from '@/components/manager/FundInvestmentAccountDialog';
@@ -106,6 +118,7 @@ interface NearingPayoutPortfolio {
   createdAt: string;
   daysUntil: number;
   nextPayoutDate: string;
+  dueToday: boolean;
 }
 
 interface PortfolioRow {
@@ -606,17 +619,20 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       const now = new Date();
       now.setHours(0, 0, 0, 0);
       const nearingList: NearingPayoutPortfolio[] = [];
+      const todayStr = formatLocalDateOnly(new Date());
       portfolios.forEach(p => {
         if (p.status !== 'active') return;
-        if (!p.next_roi_date) return;
         const ownerId = p.investor_id && supporterIds.has(p.investor_id) ? p.investor_id
           : p.agent_id && supporterIds.has(p.agent_id) ? p.agent_id : null;
         if (!ownerId) return;
 
+        // Single source of truth for the Next Payout Date — handles null next_roi_date
+        // by deriving from created_at + payout_day, and is timezone-safe.
         const effectiveNextDate = getNextPayoutDate(p.next_roi_date, p.created_at, p.payout_day ?? 15);
         const roiDate = dateOnlyToLocalDate(effectiveNextDate);
         const diffMs = roiDate.getTime() - now.getTime();
-        const du = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+        const du = Math.round(diffMs / (1000 * 60 * 60 * 24));
+        const dueToday = effectiveNextDate === todayStr;
         const prof = profileMap.get(ownerId);
         const effectivePayoutDay = p.payout_day || roiDate.getDate();
         nearingList.push({
@@ -633,9 +649,17 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           createdAt: p.created_at,
           daysUntil: du,
           nextPayoutDate: effectiveNextDate,
+          dueToday,
         });
       });
       nearingList.sort((a, b) => a.daysUntil - b.daysUntil);
+      if (import.meta.env.DEV) {
+        const dueCount = nearingList.filter(n => n.dueToday).length;
+        // eslint-disable-next-line no-console
+        console.debug('[NearingPayout] today=%s dueToday=%d totalActive=%d', todayStr, dueCount, nearingList.length);
+        const drift = nearingList.find(n => n.dueToday && n.daysUntil !== 0);
+        if (drift) console.warn('[NearingPayout] dueToday/daysUntil drift on', drift.portfolioId, drift);
+      }
       setAllPortfoliosForPayout(nearingList);
     } catch (e) {
       console.error('Nearing payouts fetch error:', e);
@@ -3274,15 +3298,16 @@ function MiniKPI({ icon, label, value, variant }: {
 
 /* ─── Nearing Payouts Card ─── */
 function NearingPayoutsCard({ portfolios, onClick }: { portfolios: NearingPayoutPortfolio[]; onClick: () => void }) {
-  // Only count payouts whose ROI date is TODAY (daysUntil === 0).
-  // Overdue (<0) and upcoming (>0) are excluded from this card; the dialog still lists everything.
-  const dueToday = portfolios.filter(p => p.daysUntil === 0);
+  // Single source of truth: portfolios whose Next Payout Date == today (local TZ string compare).
+  // Overdue (<today) and upcoming (>today) are excluded from this card; the dialog still lists everything.
+  const dueToday = portfolios.filter(p => p.dueToday);
   const dueTodayCount = dueToday.length;
   const totalAmount = dueToday.reduce((s, p) => s + Math.round(p.investmentAmount * p.roiPercentage / 100), 0);
   const hasPayouts = dueTodayCount > 0;
   const overdueCount = 0; // styling flag retained, but card is scoped to "today"
+  const todayLabel = new Date().toLocaleDateString('en-UG', { weekday: 'short', day: 'numeric', month: 'short' });
   return (
-    <button onClick={onClick} className={cn(
+    <button onClick={onClick} aria-label={`${dueTodayCount} portfolio(s) reach Next Payout Date today (${todayLabel})`} className={cn(
       'rounded-2xl border p-4 space-y-2.5 text-left w-full transition-all hover:shadow-lg active:scale-[0.98]',
       overdueCount > 0
         ? 'border-destructive/40 bg-destructive/5 ring-2 ring-destructive/25 shadow-sm'
@@ -3303,15 +3328,15 @@ function NearingPayoutsCard({ portfolios, onClick }: { portfolios: NearingPayout
               'text-xs font-bold uppercase tracking-wider',
               overdueCount > 0 ? 'text-destructive' : hasPayouts ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'
             )}>
-              Payouts Due Today
+              Nearing Payout · Today
             </span>
             <p className={cn(
               'text-[11px] leading-snug mt-0.5',
               overdueCount > 0 ? 'text-destructive/80 font-medium' : hasPayouts ? 'text-amber-600/80 font-medium' : 'text-muted-foreground'
             )}>
               {hasPayouts
-                ? `~${formatUGX(totalAmount)} due today`
-                : 'No payouts due today'}
+                ? `${todayLabel} · ~${formatUGX(totalAmount)} due`
+                : `${todayLabel} · no payouts due`}
             </p>
           </div>
         </div>
