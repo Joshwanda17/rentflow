@@ -3527,6 +3527,54 @@ export type Database = {
           },
         ]
       }
+      cfo_debit_obligations: {
+        Row: {
+          amount: number
+          auto_recover: boolean
+          created_at: string
+          created_by: string
+          id: string
+          ledger_group_id: string | null
+          ledger_reference_id: string | null
+          metadata: Json
+          reason: string
+          recovered_amount: number
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          auto_recover?: boolean
+          created_at?: string
+          created_by: string
+          id?: string
+          ledger_group_id?: string | null
+          ledger_reference_id?: string | null
+          metadata?: Json
+          reason: string
+          recovered_amount?: number
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          auto_recover?: boolean
+          created_at?: string
+          created_by?: string
+          id?: string
+          ledger_group_id?: string | null
+          ledger_reference_id?: string | null
+          metadata?: Json
+          reason?: string
+          recovered_amount?: number
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       cfo_threshold_alerts: {
         Row: {
           acknowledged: boolean | null
