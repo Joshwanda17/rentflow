@@ -234,7 +234,7 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
                 { label: 'Total Payment', value: formatUGX(amountNum) },
               ]}
               fees={[
-                { label: 'Landlord receives', value: formatUGX(landlordPortion) },
+                { label: 'Applied to tenant rent', value: formatUGX(landlordPortion) },
                 { label: 'Your commission (10%)', value: formatUGX(commission) },
               ]}
               total={{ label: 'Deducted from Operational Float', value: formatUGX(amountNum) }}
@@ -363,7 +363,7 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
                        <span className="font-semibold text-success">{formatUGX(commission)}</span>
                      </div>
                      <div className="flex justify-between text-muted-foreground">
-                       <span>Landlord receives</span>
+                        <span>Applied to tenant rent</span>
                        <span className="font-semibold">{formatUGX(landlordPortion)}</span>
                      </div>
                    </div>
