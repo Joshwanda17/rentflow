@@ -139,6 +139,31 @@ Deno.serve(async (req) => {
       targetUserId = profile.id;
     }
 
+    // ── CUSTODY-V2 GUARD: block proxy partner withdrawals on this path ──
+    // After the proxy custody cutoff, supporter withdrawals initiated by an
+    // agent MUST flow through AgentProxyWithdrawalDialog → withdrawal_requests
+    // (user_id = partner, initiated_by = agent), so FinOps sees and approves
+    // every release. This generic agent-withdrawal endpoint is only for the
+    // tenant/landlord cash-out workflow.
+    if (targetUserId && targetUserId !== agentId) {
+      const { data: targetIsSupporter } = await adminClient
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', targetUserId)
+        .eq('role', 'supporter')
+        .maybeSingle();
+      if (targetIsSupporter) {
+        return new Response(
+          JSON.stringify({
+            error: 'PROXY_CUSTODY_BLOCKED',
+            code: 'use_initiate_proxy_withdrawal',
+            detail: 'Supporter withdrawals must be initiated via the proxy partner withdrawal flow so Financial Ops can approve. The agent wallet may not be debited on behalf of a supporter.',
+          }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     // ── Balance check (ledger-derived via sync trigger) ──
     const { data: userWallet } = await adminClient
       .from('wallets')
