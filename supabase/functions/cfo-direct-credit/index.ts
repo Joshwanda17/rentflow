@@ -323,6 +323,38 @@ Deno.serve(async (req) => {
         console.error("[cfo-direct-credit] Debit ledger error:", rpcErr.message);
         throw new Error(`Ledger error: ${rpcErr.message}`);
       }
+
+      // Fix 3 (Float Permanent Fix Plan): every CFO debit must leave a
+      // traceable liability. The ledger leg alone is invisible to recovery
+      // workflows, so we record the obligation atomically. auto_recover stays
+      // false by default — CFO clears manually via reversal or write-off,
+      // so future user deposits are NOT silently swallowed.
+      const { error: oblErr } = await adminClient
+        .from('cfo_debit_obligations')
+        .insert({
+          user_id: target_user_id,
+          amount,
+          reason,
+          created_by: user.id,
+          auto_recover: false,
+          ledger_reference_id: refId,
+          ledger_group_id: groupId,
+          metadata: {
+            wallet_category: walletCat,
+            platform_category: platformCat,
+            wallet_bucket: walletBucket,
+            recipient_type,
+            financial_impact: impact,
+            category_label: category_label || walletCat,
+            sub_category: sub_category || null,
+          },
+        });
+      if (oblErr) {
+        // Hard fail: a debit without an obligation row is exactly the bug
+        // we are eliminating. Surface it instead of silently continuing.
+        console.error("[cfo-direct-credit] cfo_debit_obligations insert failed:", oblErr.message);
+        throw new Error(`Obligation record error: ${oblErr.message}`);
+      }
     }
 
     // Audit log
