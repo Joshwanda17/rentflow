@@ -24,6 +24,7 @@ import {
 } from '@/lib/depositPurposeGuard';
 import { parseSMS } from '@/utils/smsParser';
 import { cn } from '@/lib/utils';
+import { validateDepositReference } from '@/lib/depositReferenceValidator';
 
 /**
  * Extract a Mobile Money / bank reference from arbitrary SMS text.
@@ -702,15 +703,13 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     let ignored = false;
     const t = setTimeout(async () => {
       try {
-        const { data } = await supabase
-          .from('deposit_requests')
-          .select('id, status')
-          .ilike('transaction_id', ref)
-          .not('status', 'in', '(rejected,cancelled,failed)')
-          .limit(1);
+        // Single source of truth — calls the edge fn that mirrors the
+        // `guard_deposit_reference_uniqueness` trigger, including the
+        // notes-substring rule the inline ilike used to miss.
+        const result = await validateDepositReference(ref);
         if (ignored) return;
-        if (data && data.length > 0) {
-          setDuplicateTidStatus((data[0] as { status: string }).status);
+        if (!result.valid && result.conflict) {
+          setDuplicateTidStatus(result.conflict.status);
         } else {
           setDuplicateTidStatus(null);
         }
@@ -934,16 +933,10 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       // catch it — never block on a transient error.
       if (normalizedRef && !isEditMode) {
         try {
-          const { data: existing } = await supabase
-            .from('deposit_requests')
-            .select('id, status, amount, created_at')
-            .ilike('transaction_id', normalizedRef)
-            .not('status', 'in', '(rejected,cancelled,failed)')
-            .limit(1);
-          if (existing && existing.length > 0) {
-            const dup = existing[0] as { status: string; amount: number };
+          const result = await validateDepositReference(normalizedRef);
+          if (!result.valid) {
             toast.error('Duplicate transaction blocked', {
-              description: `This reference (${normalizedRef}) has already been submitted (status: ${dup.status}). Each Transaction ID can only be used once.`,
+              description: result.message,
               duration: 8000,
             });
             setStep('form');

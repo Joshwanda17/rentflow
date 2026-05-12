@@ -1,70 +1,70 @@
-## Why one-line patches keep failing
+## Goal
 
-40+ edge functions call `create_ledger_transaction`; only 5 pass `recipient_type`. Every other caller is one omission away from re-creating Muwanguzi Fred's bug. The defect is structural and must be fixed at the database boundary, not per-caller.
+Single edge function `validate-deposit-reference` that mirrors the `guard_deposit_reference_uniqueness` trigger so the UI can pre-flight a TID before submit and show the exact same outcome the DB would return — without a duplicate insert ever hitting the trigger.
 
-Constraints from the user: **no reseed**, **no new tables**.
+## Endpoint
 
-## Permanent solution — DB-only, reuses existing tables
+`POST /functions/v1/validate-deposit-reference`
 
-### 1. Hardcode the category → recipient_type mapping inside `create_ledger_transaction`
+Auth: required (`getClaims` on bearer token). Anyone authenticated can call it for their own pre-flight; admins use it from reconciliation tools.
 
-Add a `CASE` block that derives `recipient_type` for every `ledger_scope='wallet'` entry whose direction is `cash_in`/`cash_out`. The allowlist already exists (32 production categories). Map them in-function:
-
-```text
-operational_wallet (float bucket):
-  agent_float_deposit, agent_float_settlement, agent_float_used_for_rent,
-  partner_float_topup, …
-
-user (withdrawable bucket):
-  wallet_deposit, agent_commission_earned, partner_commission,
-  roi_wallet_credit, landlord_rent_disbursement, payroll_credit,
-  wallet_transfer_in/out, business_advance_disbursement, …
+### Request
+```json
+{
+  "transaction_id": "string (required)",
+  "exclude_deposit_id": "uuid (optional, for edit-mode pre-flight)"
+}
 ```
 
-Resolution rules inside the function:
-1. If caller passed `recipient_type` → validate it matches the CASE default. On mismatch, log to existing `wallet_routing_violations` and use the CASE default (table-of-truth wins, never the caller).
-2. If caller omitted `recipient_type` → fill it from the CASE default automatically.
-3. If category is unknown to the CASE block → `RAISE EXCEPTION 'ROUTING_REQUIRED for category %'`. No silent path.
-4. Always set `recipient_id := entry.user_id` for wallet-scope legs.
+### Response — 200 always (validation result, not HTTP error)
+```json
+{
+  "valid": true | false,
+  "reason": "ok" | "placeholder" | "duplicate_transaction_id" | "duplicate_in_notes",
+  "message": "human-readable string identical in shape to the trigger's RAISE",
+  "conflict": {                       // only when valid:false and not placeholder
+    "deposit_id": "uuid",
+    "status": "pending|approved|...",
+    "matched_field": "transaction_id" | "notes"
+  } | null
+}
+```
 
-This single migration converts the 35+ unpatched callers from "silently broken" to "correct by construction" without touching any edge function code.
+400 only for malformed body. 401 for missing/invalid JWT. 500 for unexpected DB error.
 
-### 2. Make `apply_wallet_movement` loud
+## Validation logic (1:1 with the trigger)
 
-- Remove the silent early-return when `route='none'`. Replace with `RAISE EXCEPTION`.
-- Existing `wallet_unrouted_movements` table stays as the audit trail; in production it should now stay empty.
-- This guarantees that if step 1 ever has a gap, the transaction fails fast instead of silently freezing a wallet cache.
+1. Trim + null-coerce `transaction_id`. If empty → `valid:true, reason:"placeholder"`.
+2. Uppercase compare against placeholder set: `NONE, N/A, NA, PENDING, TBD, UNKNOWN` → `valid:true, reason:"placeholder"`.
+3. Query `deposit_requests` for `UPPER(TRIM(transaction_id)) = UPPER(:ref)`, excluding `exclude_deposit_id`. Match → `valid:false, reason:"duplicate_transaction_id"` with conflict row + trigger-style message.
+4. Query `deposit_requests` for `POSITION(LOWER(:ref) IN LOWER(notes)) > 0`, same exclusion. Match → `valid:false, reason:"duplicate_in_notes"`.
+5. Otherwise `valid:true, reason:"ok"`.
 
-### 3. Backstop trigger on `general_ledger`
+Implementation: two `select … limit 1` calls via the service-role client (RLS would otherwise hide other users' deposits — the trigger uses SECURITY DEFINER, so the function must too). No writes. No new tables/columns/RPCs.
 
-Add `trg_enforce_wallet_leg_routing` (BEFORE INSERT) that re-checks: every `ledger_scope='wallet'` row must have `recipient_type IN ('user','operational_wallet')` and `recipient_id = user_id`. Even if a future migration bypasses `create_ledger_transaction`, the wallet bucket cannot be left un-routed. Same defense-in-depth pattern as `trg_enforce_production_april_cutoff` and `enforce_wallet_ledger_only` — no new table, just a trigger.
+## Frontend integration (no behavior change, just one wiring point)
 
-### 4. Observability — reuse what exists
+- `src/lib/invokeEdgeFunction` already exists — use it.
+- Replace the inline debounced duplicate-check in `DepositFlow.tsx` (and the float-payout `transaction_id` check in `FloatPayoutVerification.tsx`) with a single helper `validateDepositReference(tid, excludeId?)` in `src/lib/depositReferenceValidator.ts`.
+- Helper is called:
+  - On debounced (400ms) change of the TID input → disables Submit + shows inline error.
+  - On Submit click as a final guard (defense in depth) before invoking `agent-deposit` / `approve-deposit`.
+- The DB trigger remains the source of truth; `23505` error handling in `PaymentConfirmationForm.tsx` stays unchanged as the last-line defense.
 
-- Surface `wallet_routing_violations` count (last 24h) inside the existing CFO `PhantomDriftPanel` as a new row. No new table, no new view file required — direct count query.
-- Existing `wallet_unrouted_movements` already has the RLS + UI hook from the sole-writer rule.
+## Files
 
-### 5. Edge-function cleanup (optional, no urgency)
+New:
+- `supabase/functions/validate-deposit-reference/index.ts`
+- `src/lib/depositReferenceValidator.ts`
+- `supabase/config.toml` block: `[functions.validate-deposit-reference] verify_jwt = false` (in-code JWT validation, matching project convention).
 
-After steps 1–3 ship, edge functions are correct by construction. Updating them to pass `recipient_type` explicitly becomes documentation, not a bugfix, and can happen one PR at a time. `approve-deposit` will be patched in the same PR as the migration purely for clarity.
-
-## Forward-only stance (per "DO NOT RESEED")
-
-- Muwanguzi Fred's historical ledger entries remain the source of truth and continue to surface in `v_user_wallet_strict` / `get_user_wallet_view` / the PDF.
-- Every deposit / commission / withdrawal posted **after** the migration moves his cached buckets correctly via the sole-writer path.
-- No retroactive cache adjustment, no reseed call, no ledger rewrite.
-
-## Migration order (single PR)
-
-1. Migration: rewrite `create_ledger_transaction` body with the CASE mapping + violation logging using existing `wallet_routing_violations`.
-2. Migration: rewrite `apply_wallet_movement` to RAISE on unrouted instead of return.
-3. Migration: add `trg_enforce_wallet_leg_routing` BEFORE INSERT trigger on `general_ledger`.
-4. Edge fn: `approve-deposit` adds explicit `recipient_type` for clarity (not for correctness — DB now enforces it).
-5. Smoke test: dry-run a float deposit + a wallet deposit + a commission credit → confirm `wallets.float_balance` and `withdrawable_balance` move and `wallet_routing_violations` stays empty.
+Modified:
+- `src/components/payments/DepositFlow.tsx` — swap inline lookup for helper.
+- `src/components/agent/FloatPayoutVerification.tsx` — same swap.
 
 ## Out of scope
 
-- No new tables.
-- No `reseed_anchored_*` calls.
-- No retroactive ledger rewrites.
-- No UI redesign (only a single counter added to the existing CFO panel).
+- No DB schema changes (no tables, no columns, no indexes, no RPCs).
+- No change to the trigger itself.
+- No changes to `agent-deposit` / `approve-deposit` write path.
+- No retroactive scan of historical duplicates.
