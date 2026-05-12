@@ -377,10 +377,15 @@ Deno.serve(async (req) => {
             }
           }
 
-          // Ensure wallet row exists (sync_wallet_from_ledger handles actual balance).
-          // We intentionally do NOT mark the request 'approved' yet — only after the
-          // wallet-deposit ledger RPC succeeds. This prevents a "phantom-approved"
-          // request with no corresponding wallet credit if the RPC fails.
+          // Ensure wallet row exists. The wallet bucket is NOT credited by any
+          // trigger (sync_wallet_from_ledger has been a permanent no-op since
+          // 2026-04-23 — see Wallet sole-writer rule). The actual bucket credit
+          // happens via the explicit apply_wallet_movement RPC call below, AFTER
+          // the ledger post + status flip succeed.
+          //
+          // We intentionally do NOT mark the request 'approved' yet — only after
+          // the wallet-deposit ledger RPC succeeds. This prevents a "phantom-
+          // approved" request with no corresponding wallet credit if the RPC fails.
           await supabaseAdmin
             .from("wallets")
             .upsert({ user_id: depositRequest.user_id, balance: 0, updated_at: new Date().toISOString() }, { onConflict: "user_id", ignoreDuplicates: true });
