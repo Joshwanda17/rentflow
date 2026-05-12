@@ -53,28 +53,42 @@ export interface AgentRejectedRequest {
 }
 
 export const STAGE_LABEL: Record<string, string> = {
-  pending: 'Tenant Ops',
-  tenant_ops_approved: 'Agent Ops',
-  agent_verified: 'Landlord Ops',
+  // Label = the desk that REJECTED at this stage (i.e. the next reviewer
+  // after the stored "approved" status). Keep aligned with RentPipelineTracker.
+  pending: 'Agent Ops',
+  agent_ops_approved: 'Tenant Ops',
+  tenant_ops_approved: 'Landlord Ops',
+  agent_verified: 'Landlord Ops', // legacy alias
   landlord_ops_approved: 'COO',
   coo_approved: 'CFO',
 };
 
+function humanizeStage(stage: string | null | undefined): string {
+  if (!stage) return 'Reviewer';
+  if (STAGE_LABEL[stage]) return STAGE_LABEL[stage];
+  return stage
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 function reviewerForStage(r: any): { id: string | null; at: string | null; label: string } {
   const stage = r.rejected_at_stage ?? 'pending';
+  const label = humanizeStage(stage);
   switch (stage) {
     case 'pending':
-      return { id: r.tenant_ops_reviewed_by, at: r.tenant_ops_reviewed_at, label: STAGE_LABEL.pending };
+      // Agent Ops triage — no dedicated reviewer column; fall back to tenant_ops.
+      return { id: r.tenant_ops_reviewed_by, at: r.tenant_ops_reviewed_at, label };
+    case 'agent_ops_approved':
+      return { id: r.tenant_ops_reviewed_by, at: r.tenant_ops_reviewed_at, label };
     case 'tenant_ops_approved':
-      return { id: r.agent_verified_by, at: r.agent_verified_at, label: STAGE_LABEL.tenant_ops_approved };
     case 'agent_verified':
-      return { id: r.landlord_ops_reviewed_by, at: r.landlord_ops_reviewed_at, label: STAGE_LABEL.agent_verified };
+      return { id: r.landlord_ops_reviewed_by ?? r.agent_verified_by, at: r.landlord_ops_reviewed_at ?? r.agent_verified_at, label };
     case 'landlord_ops_approved':
-      return { id: r.coo_reviewed_by, at: r.coo_reviewed_at, label: STAGE_LABEL.landlord_ops_approved };
+      return { id: r.coo_reviewed_by, at: r.coo_reviewed_at, label };
     case 'coo_approved':
-      return { id: r.cfo_reviewed_by, at: r.cfo_reviewed_at, label: STAGE_LABEL.coo_approved };
+      return { id: r.cfo_reviewed_by, at: r.cfo_reviewed_at, label };
     default:
-      return { id: null, at: null, label: stage };
+      return { id: null, at: null, label };
   }
 }
 
