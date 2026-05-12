@@ -158,22 +158,31 @@ export function UserDepositRequests() {
   }
 
   const pendingCount = requests.filter(r => r.status === 'pending').length;
+  const rejectedCount = requests.filter(r => r.status === 'rejected').length;
 
   return (
     <>
-    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+    <Collapsible
+      open={isOpen || rejectedCount > 0}
+      onOpenChange={setIsOpen}
+    >
       <CollapsibleTrigger asChild>
         <Button
           variant="ghost"
           size="sm"
-          className="w-full justify-between hover:bg-muted/50"
+          className={`w-full justify-between hover:bg-muted/50 ${rejectedCount > 0 ? 'bg-destructive/5' : ''}`}
         >
           <span className="flex items-center gap-2">
-            <Wallet className="h-4 w-4 text-primary" />
+            <Wallet className={`h-4 w-4 ${rejectedCount > 0 ? 'text-destructive' : 'text-primary'}`} />
             <span className="text-sm font-medium">Deposit Requests</span>
+            {rejectedCount > 0 && (
+              <Badge variant="destructive" className="text-xs">
+                {rejectedCount} rejected
+              </Badge>
+            )}
             {pendingCount > 0 && (
               <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-600 text-xs">
-                {pendingCount}
+                {pendingCount} pending
               </Badge>
             )}
           </span>
