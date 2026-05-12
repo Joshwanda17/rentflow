@@ -155,12 +155,33 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
       } else if (/only rejected requests/i.test(raw)) {
         title = 'Already moved on';
         description = raw;
-      } else if (/at least 10 characters/i.test(raw)) {
+      } else if (/at least 10 characters/i.test(raw) || /resubmission note must/i.test(raw)) {
+        const have = note.trim().length;
         title = 'Note too short';
-        description = 'Resubmission note must be at least 10 characters.';
-      } else if (/duration must be|invalid rent|invalid number of payments/i.test(raw)) {
-        title = 'Invalid values';
-        description = raw;
+        description = `Reviewer note must be at least 10 characters (you wrote ${have}). Add a sentence explaining what you changed and why.`;
+      } else if (/duration must be between/i.test(raw)) {
+        title = 'Duration out of range';
+        description = `Duration must be between 7 and 120 days (you set ${duration || '—'}). Adjust the days field, then resubmit.`;
+      } else if (/invalid rent amount/i.test(raw)) {
+        title = 'Invalid rent amount';
+        description = `Rent must be greater than 0 (you set ${rent || '—'}). Enter a positive UGX amount, then resubmit.`;
+      } else if (/invalid number of payments/i.test(raw)) {
+        const np = (patch as any).number_of_payments ?? '—';
+        title = 'Invalid number of payments';
+        description = `Number of payments must be between 1 and the duration in days (you set ${np} for a ${duration || '—'}-day plan). Lower the payments or extend the duration.`;
+      } else if (/landlord/i.test(raw) && /not.*found|invalid/i.test(raw)) {
+        title = 'Landlord missing';
+        description = 'Pick a landlord from the list before resubmitting.';
+      } else if (code === '23502') {
+        // not-null violation — surface the offending column
+        const m = (raw + ' ' + details).match(/column "([^"]+)"/i);
+        title = 'Required field missing';
+        description = m
+          ? `"${m[1]}" can't be empty. Fill it in, then resubmit.`
+          : 'A required field is empty. Check the highlighted inputs and resubmit.';
+      } else if (code === '23514') {
+        title = 'Value not allowed';
+        description = 'One of the values breaks a database rule. Double-check rent, duration, payments, and meter numbers.';
       } else if (/permission denied|rls|row-level security/i.test(blob)) {
         title = 'Permission denied';
         description = 'Your account is not allowed to resubmit this request. Sign in as the original agent or contact a manager.';
