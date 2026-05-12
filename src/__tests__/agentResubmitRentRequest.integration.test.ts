@@ -36,9 +36,10 @@ describe.runIf(canRun)('agent_resubmit_rent_request (integration)', () => {
   it('rebuilds totals and flips status to pending without errors', () => {
     let output = '';
     try {
+      // psql NOTICE/RAISE goes to stderr — merge both into one buffer.
       output = execFileSync(
-        'psql',
-        ['-v', 'ON_ERROR_STOP=1', '-f', sqlPath],
+        'bash',
+        ['-c', `psql -v ON_ERROR_STOP=1 -f ${JSON.stringify(sqlPath)} 2>&1`],
         { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
       );
     } catch (e: any) {
