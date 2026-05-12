@@ -17,6 +17,7 @@ interface PartnerCompoundProps {
   compound_date?: string
   initial_partnership_amount?: string | number
   roi_return?: string
+  roi_percentage?: number | string
   return_amount?: string | number
   new_total_partnership_value?: string | number
   currency?: string
@@ -38,7 +39,8 @@ export function PartnerCompound({
   portfolio_id = 'PF-XXXXXXXX',
   compound_date = '',
   initial_partnership_amount = 0,
-  roi_return = '15%',
+  roi_return,
+  roi_percentage,
   return_amount = 0,
   new_total_partnership_value = 0,
   currency = 'UGX',
@@ -51,6 +53,30 @@ export function PartnerCompound({
   const formattedInitial = formatAmount(initial_partnership_amount, currency)
   const formattedReturn = formatAmount(return_amount, currency)
   const formattedNewTotal = formatAmount(new_total_partnership_value, currency)
+
+  // Resolve actual ROI % for this portfolio. Priority:
+  //   1. explicit roi_percentage prop (numeric, sourced from portfolio config)
+  //   2. legacy roi_return string (back-compat with older payloads)
+  //   3. derived from return_amount / initial_partnership_amount
+  // This guarantees the email shows the partner's REAL rate, not a hardcoded 15%.
+  const initNum = Number(String(initial_partnership_amount).replace(/,/g, '')) || 0
+  const retNum = Number(String(return_amount).replace(/,/g, '')) || 0
+  const explicitPct = roi_percentage === undefined || roi_percentage === null || roi_percentage === ''
+    ? NaN
+    : Number(roi_percentage)
+  let resolvedRoiLabel: string
+  if (Number.isFinite(explicitPct) && explicitPct > 0) {
+    const r = Math.round(explicitPct * 100) / 100
+    resolvedRoiLabel = `${r}%`
+  } else if (typeof roi_return === 'string' && roi_return.trim().length > 0) {
+    resolvedRoiLabel = roi_return
+  } else if (initNum > 0) {
+    const r = Math.round((retNum / initNum) * 10000) / 100
+    resolvedRoiLabel = `${r}%`
+  } else {
+    resolvedRoiLabel = '0%'
+  }
+  const roiLabel = resolvedRoiLabel
 
   return (
     <Html>
