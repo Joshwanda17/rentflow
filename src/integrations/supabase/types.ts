@@ -5284,13 +5284,16 @@ export type Database = {
           idempotency_key: string | null
           ledger_scope: string
           linked_party: string | null
+          recipient_type: string | null
           reference_id: string | null
+          routing_source: string | null
           running_balance: number | null
           source_id: string | null
           source_table: string
           transaction_date: string
           transaction_group_id: string | null
           user_id: string | null
+          wallet_bucket: string | null
           wallet_id: string | null
         }
         Insert: {
@@ -5306,13 +5309,16 @@ export type Database = {
           idempotency_key?: string | null
           ledger_scope?: string
           linked_party?: string | null
+          recipient_type?: string | null
           reference_id?: string | null
+          routing_source?: string | null
           running_balance?: number | null
           source_id?: string | null
           source_table: string
           transaction_date?: string
           transaction_group_id?: string | null
           user_id?: string | null
+          wallet_bucket?: string | null
           wallet_id?: string | null
         }
         Update: {
@@ -5328,13 +5334,16 @@ export type Database = {
           idempotency_key?: string | null
           ledger_scope?: string
           linked_party?: string | null
+          recipient_type?: string | null
           reference_id?: string | null
+          routing_source?: string | null
           running_balance?: number | null
           source_id?: string | null
           source_table?: string
           transaction_date?: string
           transaction_group_id?: string | null
           user_id?: string | null
+          wallet_bucket?: string | null
           wallet_id?: string | null
         }
         Relationships: []
