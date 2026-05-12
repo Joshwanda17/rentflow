@@ -38,8 +38,8 @@ Deno.serve(async (req) => {
           username: AT_USERNAME!,
           to: formatPhone(to),
           message,
+          from: "WELILE",
         });
-        if (AT_SENDER) params.append("from", AT_SENDER);
 
         await fetch("https://api.africastalking.com/version1/messaging", {
           method: "POST",
