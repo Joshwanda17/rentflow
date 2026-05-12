@@ -16,6 +16,8 @@ interface PartnershipTopupProps {
   topup_amount?: string | number
   previous_portfolio_value?: string | number
   new_total_partnership_value?: string | number
+  roi_percentage?: number | string
+  monthly_return_amount?: string | number
   currency?: string
   company_name?: string
   logo_url?: string
@@ -35,6 +37,8 @@ export function PartnershipTopup({
   topup_amount = 0,
   previous_portfolio_value = 0,
   new_total_partnership_value = 0,
+  roi_percentage,
+  monthly_return_amount,
   currency = 'UGX',
   company_name = 'Welile',
   logo_url = 'https://welilereceipts.com/welile-logo.png',
@@ -45,6 +49,19 @@ export function PartnershipTopup({
   const formattedTopup = formatAmount(topup_amount, currency)
   const formattedPrevious = formatAmount(previous_portfolio_value, currency)
   const formattedNewTotal = formatAmount(new_total_partnership_value, currency)
+
+  // Resolve real ROI % so top-up email shows the partner's true rate, not 15%.
+  const explicitPct = roi_percentage === undefined || roi_percentage === null || roi_percentage === ''
+    ? NaN
+    : Number(roi_percentage)
+  const showRoi = Number.isFinite(explicitPct) && explicitPct > 0
+  const roiPctLabel = showRoi ? `${Math.round(explicitPct * 100) / 100}%` : ''
+  const newTotalNum = Number(String(new_total_partnership_value).replace(/,/g, '')) || 0
+  const monthlyNum = monthly_return_amount === undefined || monthly_return_amount === null || monthly_return_amount === ''
+    ? (showRoi && newTotalNum > 0 ? Math.round(newTotalNum * (explicitPct / 100)) : 0)
+    : Number(String(monthly_return_amount).replace(/,/g, '')) || 0
+  const showMonthly = monthlyNum > 0
+  const formattedMonthly = formatAmount(monthlyNum, currency)
 
   return (
     <Html>
@@ -88,6 +105,11 @@ export function PartnershipTopup({
                     <Text style={{ ...introText, margin: 0 }}>
                       We confirm receipt of your top-up partnership of <strong>{formattedTopup}</strong> with {company_name} Technologies Limited. This contribution has been added to your existing portfolio of <strong>{formattedPrevious}</strong>.
                     </Text>
+                    {showRoi ? (
+                      <Text style={{ ...introText, margin: '15px 0 0 0' }}>
+                        Your agreed monthly return rate of <strong>{roiPctLabel}</strong> now applies to the new total of <strong>{formattedNewTotal}</strong>{showMonthly ? <> — approximately <strong>{formattedMonthly}</strong> per month going forward</> : null}.
+                      </Text>
+                    ) : null}
                   </td>
                 </tr>
 
@@ -342,6 +364,8 @@ export const template = {
     topup_amount: 500_000,
     previous_portfolio_value: 1_000_000,
     new_total_partnership_value: 1_500_000,
+    roi_percentage: 12,
+    monthly_return_amount: 180_000,
     currency: 'UGX',
     company_name: 'Welile',
     logo_url: 'https://welilereceipts.com/welile-logo.png',

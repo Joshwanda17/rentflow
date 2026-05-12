@@ -211,7 +211,9 @@ Deno.serve(async (req) => {
                   portfolioId: reinvestInfo.portfolio_id,
                   paymentNumber,
                   initialAmount: prevAmount,
-                  roiPercentage: 15,
+                  // roiPercentage intentionally omitted — helper derives the
+                  // exact rate from returnAmount/initialAmount so partners on
+                  // non-15% portfolios see their REAL rate.
                   returnAmount: roiAmount,
                   newTotal: newAmount,
                   compoundDateIso: now.toISOString(),
@@ -285,6 +287,9 @@ Deno.serve(async (req) => {
                   transactionId: `ROI-${rr.id.slice(0, 8).toUpperCase()}-${paymentNumber}`,
                   walletIdLast4: walletLast4,
                   payoutMethod: 'Wallet',
+                  // Pass principal so template derives the actual ROI %
+                  // (e.g. 12% / 15%) instead of falling back to a static label.
+                  principalAmount: Number(rr.rent_amount) || undefined,
                 }),
                 'process-supporter-roi',
               );

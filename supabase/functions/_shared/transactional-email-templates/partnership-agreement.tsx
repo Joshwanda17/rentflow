@@ -19,6 +19,7 @@ interface PartnershipAgreementProps {
   total_projected_return?: string | number
   first_payment_date?: string
   roi_payment_day?: number | string
+  roi_percentage?: number | string
   currency?: string
   company_name?: string
   logo_url?: string
@@ -51,6 +52,7 @@ export function PartnershipAgreement({
   total_projected_return = 0,
   first_payment_date = '',
   roi_payment_day = 1,
+  roi_percentage,
   currency = 'UGX',
   company_name = 'Welile',
   logo_url = 'https://wirntoujqoyjobfhyelc.supabase.co/storage/v1/object/public/email-assets/welile-logo.png',
@@ -63,6 +65,20 @@ export function PartnershipAgreement({
   const formattedTotal = formatAmount(total_projected_return, currency)
   const dayNum = typeof roi_payment_day === 'number' ? roi_payment_day : Number(roi_payment_day) || 1
   const daySuffix = ordinalSuffix(dayNum)
+
+  // Resolve the actual agreed monthly ROI %. Prefer the explicitly passed
+  // value (sourced from investor_portfolios.roi_percentage); otherwise derive
+  // from the agreed monthly return / principal so the email NEVER
+  // hardcodes 15% for partners on different rates.
+  const principalNum = Number(String(partnership_amount).replace(/,/g, '')) || 0
+  const monthlyNum = Number(String(monthly_return_amount).replace(/,/g, '')) || 0
+  const explicitPct = roi_percentage === undefined || roi_percentage === null || roi_percentage === ''
+    ? NaN
+    : Number(roi_percentage)
+  const derivedPct = principalNum > 0 ? (monthlyNum / principalNum) * 100 : 0
+  const resolvedPct = Number.isFinite(explicitPct) && explicitPct > 0 ? explicitPct : derivedPct
+  const roundedPct = Math.round(resolvedPct * 100) / 100
+  const roiPctLabel = `${roundedPct}%`
 
   return (
     <Html>
@@ -140,7 +156,7 @@ export function PartnershipAgreement({
                                       <tbody>
                                         <tr>
                                           <td width="50%" style={kvKey}>Agreed Monthly Return</td>
-                                          <td width="50%" align="right" style={kvVal}>15%</td>
+                                          <td width="50%" align="right" style={kvVal}>{roiPctLabel}</td>
                                         </tr>
                                         <tr>
                                           <td width="50%" style={kvKey}>Monthly Return Amount</td>

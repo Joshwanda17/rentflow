@@ -805,7 +805,7 @@ Deno.serve(async (req) => {
 
         const { data: portfolio } = await admin
           .from("investor_portfolios")
-          .select("portfolio_code")
+         .select("portfolio_code, roi_percentage, investment_amount")
           .eq("investor_id", partnerId)
           .order("created_at", { ascending: false })
           .limit(1)
@@ -863,6 +863,8 @@ Deno.serve(async (req) => {
             : payment_method,
           isManagedByAgent: isProxyPayout && fundingUserId !== partnerId,
           agentName,
+          roiPercentage: Number((portfolio as any)?.roi_percentage) || undefined,
+          principalAmount: Number((portfolio as any)?.investment_amount) || undefined,
         });
         dispatchTransactionalEmail(supabaseUrl, serviceKey, emailReq, "approve-withdrawal");
 
@@ -883,6 +885,8 @@ Deno.serve(async (req) => {
             payoutMethod: `${payment_method} — Proxy payout for ${partnerProfile.full_name || "funder"}`,
             isManagedByAgent: true,
             agentName,
+            roiPercentage: Number((portfolio as any)?.roi_percentage) || undefined,
+            principalAmount: Number((portfolio as any)?.investment_amount) || undefined,
           });
           dispatchTransactionalEmail(supabaseUrl, serviceKey, agentEmailReq, "approve-withdrawal");
         }

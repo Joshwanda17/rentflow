@@ -310,6 +310,7 @@ Deno.serve(async (req) => {
             contributionDateIso: contributionDate.toISOString(),
             firstPayoutDateIso: fmt(nextRoiDate),
             payoutDay,
+            roiPercentage: body.roi_percentage,
           }),
           "coo-create-portfolio",
         );

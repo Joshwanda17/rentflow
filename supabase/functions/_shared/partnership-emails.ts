@@ -33,9 +33,22 @@ export interface PartnershipAgreementInput {
   contributionDateIso: string;
   firstPayoutDateIso: string;
   payoutDay: number;
+  /**
+   * Agreed monthly ROI % for THIS portfolio (e.g. 15, 12.5, 10).
+   * Optional — when omitted the template derives it from monthlyReward/amount.
+   * Pass the actual investor_portfolios.roi_percentage so partners on
+   * non-15% rates see their real rate in the email.
+   */
+  roiPercentage?: number;
 }
 
 export function buildPartnershipAgreementRequest(input: PartnershipAgreementInput) {
+  const derivedPct = input.amount > 0
+    ? Math.round((input.monthlyReward / input.amount) * 10000) / 100
+    : 0;
+  const pct = typeof input.roiPercentage === 'number' && input.roiPercentage > 0
+    ? input.roiPercentage
+    : derivedPct;
   return {
     templateName: "partnership-agreement",
     recipientEmail: input.recipientEmail,
@@ -46,6 +59,7 @@ export function buildPartnershipAgreementRequest(input: PartnershipAgreementInpu
       contribution_date: formatLongDate(input.contributionDateIso),
       monthly_return_amount: input.monthlyReward,
       total_projected_return: input.monthlyReward * 12,
+      roi_percentage: pct,
       first_payment_date: formatLongDate(input.firstPayoutDateIso),
       roi_payment_day: input.payoutDay,
       currency: CURRENCY,
@@ -64,6 +78,10 @@ export interface PartnershipTopupInput {
   topupAmount: number;
   previousPortfolioValue: number;
   newTotalPartnershipValue: number;
+  /** Agreed monthly ROI % for the portfolio receiving this top-up. */
+  roiPercentage?: number;
+  /** Optional: monthly reward AMOUNT after top-up (UGX). Derived from roiPercentage * newTotal when omitted. */
+  monthlyReturnAmount?: number;
 }
 
 export function buildPartnershipTopupRequest(input: PartnershipTopupInput) {
@@ -76,6 +94,12 @@ export function buildPartnershipTopupRequest(input: PartnershipTopupInput) {
       topup_amount: input.topupAmount,
       previous_portfolio_value: input.previousPortfolioValue,
       new_total_partnership_value: input.newTotalPartnershipValue,
+      roi_percentage: typeof input.roiPercentage === 'number' && input.roiPercentage > 0
+        ? input.roiPercentage
+        : undefined,
+      monthly_return_amount: typeof input.monthlyReturnAmount === 'number' && input.monthlyReturnAmount > 0
+        ? input.monthlyReturnAmount
+        : undefined,
       currency: CURRENCY,
       company_name: COMPANY_NAME,
       logo_url: LOGO_URL,
@@ -92,7 +116,7 @@ export interface PartnerCompoundInput {
   portfolioId: string;           // idempotency scoping + shown in email
   paymentNumber: number;         // idempotency scoping (one email per cycle)
   initialAmount: number;         // portfolio value before compounding
-  roiPercentage: number;         // e.g. 15 for "15%"
+  roiPercentage?: number;        // e.g. 15 for "15%"; derived from amounts when omitted
   returnAmount: number;          // monetary amount earned this cycle
   newTotal: number;              // portfolio value after compounding
   compoundDateIso?: string;      // defaults to now
@@ -125,6 +149,12 @@ function shortPortfolioId(portfolioId: string): string {
 
 export function buildPartnerCompoundRequest(input: PartnerCompoundInput) {
   const compoundIso = input.compoundDateIso || new Date().toISOString();
+  const derivedPct = input.initialAmount > 0
+    ? Math.round((input.returnAmount / input.initialAmount) * 10000) / 100
+    : 0;
+  const pct = typeof input.roiPercentage === 'number' && input.roiPercentage > 0
+    ? input.roiPercentage
+    : derivedPct;
   return {
     templateName: "partner-compound",
     recipientEmail: input.recipientEmail,
@@ -134,7 +164,8 @@ export function buildPartnerCompoundRequest(input: PartnerCompoundInput) {
       portfolio_id: shortPortfolioId(input.portfolioId),
       compound_date: formatOrdinalDate(compoundIso),
       initial_partnership_amount: input.initialAmount,
-      roi_return: `${input.roiPercentage}%`,
+      roi_return: `${pct}%`,
+      roi_percentage: pct,
       return_amount: input.returnAmount,
       new_total_partnership_value: input.newTotal,
       currency: CURRENCY,
@@ -158,6 +189,10 @@ export interface ReturnsDisbursementInput {
   payoutMethod?: string;         // e.g. "Wallet" / "Mobile Money"
   isManagedByAgent?: boolean;
   agentName?: string;
+  /** Agreed monthly ROI % of the source portfolio (e.g. 15, 12, 10). */
+  roiPercentage?: number;
+  /** Source portfolio principal (UGX). Enables % derivation if roiPercentage is omitted. */
+  principalAmount?: number;
 }
 
 export function buildReturnsDisbursementRequest(input: ReturnsDisbursementInput) {
@@ -182,6 +217,12 @@ export function buildReturnsDisbursementRequest(input: ReturnsDisbursementInput)
       logo_url: LOGO_URL,
       is_managed_by_agent: !!input.isManagedByAgent,
       agent_name: input.agentName || "",
+      roi_percentage: typeof input.roiPercentage === 'number' && input.roiPercentage > 0
+        ? input.roiPercentage
+        : undefined,
+      principal_amount: typeof input.principalAmount === 'number' && input.principalAmount > 0
+        ? input.principalAmount
+        : undefined,
       unsubscribe_url: UNSUBSCRIBE_URL,
       contact_url: CONTACT_URL,
     },
