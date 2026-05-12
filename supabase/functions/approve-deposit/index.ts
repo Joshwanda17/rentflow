@@ -527,6 +527,73 @@ Deno.serve(async (req) => {
             );
           }
 
+          // ── PERMANENT WALLET BUCKET CREDIT ───────────────────────────
+          // The ledger has the truth; the wallet cache must now be moved.
+          // `apply_wallet_movement` is the SOLE writer of wallet buckets
+          // (Wallet sole-writer rule, 2026-04-23). `recipient_type` is the
+          // SOLE bucket router (Wallet Routing v2):
+          //   'operational_wallet' → wallets.float_balance
+          //   'user'               → wallets.withdrawable_balance
+          // Without this call, ledger and wallet drift forever — that is
+          // the bug that left agent float deposits ledger-only / wallet-zero
+          // since the sync trigger was retired.
+          const recipientType: 'user' | 'operational_wallet' =
+            isFloatDeposit ? 'operational_wallet' : 'user';
+          const { error: walletWriterErr } = await withRetry(
+            'apply_wallet_movement',
+            depositRequest.id,
+            () => supabaseAdmin.rpc('apply_wallet_movement', {
+              p_user_id: depositRequest.user_id,
+              p_category: depositCategory,
+              p_amount: depositRequest.amount,
+              p_direction: 'cash_in',
+              p_recipient_type: recipientType,
+            }),
+          );
+          if (walletWriterErr) {
+            // Ledger is already posted and the request is already approved.
+            // Do NOT roll those back — double-entry stays the source of truth.
+            // Surface loudly: audit + system_event so CFO drift monitors
+            // (phantom_wallet_drift cron, wallet_withdrawable_drift_alerts)
+            // pick this up and the operator gets a hard signal.
+            console.error(
+              `[approve-deposit] CRITICAL: apply_wallet_movement failed for ${depositRequest.id} ` +
+              `(ledger already posted, request already approved): ${walletWriterErr.message}`,
+            );
+            await supabaseAdmin.from('audit_logs').insert({
+              user_id: user.id,
+              action_type: 'approve_wallet_writer_failed',
+              table_name: 'deposit_requests',
+              record_id: depositRequest.id,
+              metadata: {
+                amount: depositRequest.amount,
+                target_user_id: depositRequest.user_id,
+                category: depositCategory,
+                recipient_type: recipientType,
+                error: String(walletWriterErr.message ?? walletWriterErr).slice(0, 500),
+                ledger_already_posted: true,
+                request_already_approved: true,
+              },
+            });
+            await logSystemEvent(
+              supabaseAdmin,
+              'wallet.writer_failed',
+              depositRequest.user_id,
+              'deposit_requests',
+              depositRequest.id,
+              {
+                amount: depositRequest.amount,
+                category: depositCategory,
+                recipient_type: recipientType,
+                error: String(walletWriterErr.message ?? walletWriterErr).slice(0, 500),
+              },
+            );
+            throw new Error(
+              `Deposit approved + ledger posted but wallet bucket credit failed: ${walletWriterErr.message}. ` +
+              `Run reconciliation against v_user_wallet_strict.`,
+            );
+          }
+
           // ── STRICT BACKEND-AUTHORITY CONTRACT ───────────────────────
           // Every approved deposit lands in `withdrawable_balance`. Period.
           //
@@ -543,7 +610,7 @@ Deno.serve(async (req) => {
           // ────────────────────────────────────────────────────────────
 
           // ── Step 1: Auto-deduct rent repayment ──
-          // The sync_wallet_from_ledger trigger has now credited the wallet.
+          // apply_wallet_movement (above) has now credited the wallet bucket.
           let repaymentApplied = 0;
           let rentRequestId: string | null = null;
           let newOutstanding = 0;
