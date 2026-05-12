@@ -26,6 +26,8 @@ interface ReturnsDisbursementConfirmationProps {
   logo_url?: string
   is_managed_by_agent?: boolean
   agent_name?: string
+  roi_percentage?: number | string
+  principal_amount?: number | string
   unsubscribe_url?: string
   contact_url?: string
 }
@@ -54,12 +56,33 @@ export function ReturnsDisbursementConfirmation({
   logo_url = 'https://wirntoujqoyjobfhyelc.supabase.co/storage/v1/object/public/email-assets/welile-logo.png',
   is_managed_by_agent = false,
   agent_name = '',
+  roi_percentage,
+  principal_amount,
   unsubscribe_url = 'https://welile.com/unsubscribe',
   contact_url = 'https://welile.com/contact',
 }: ReturnsDisbursementConfirmationProps) {
   const year = new Date().getFullYear()
   const formattedAmount = formatAmount(amount, currency)
   const referenceLabel = portfolio_code || transaction_id
+
+  // Resolve actual ROI %. Prefer the explicitly passed rate (sourced from
+  // investor_portfolios.roi_percentage); otherwise derive from amount /
+  // principal so this disbursement email reflects the partner's REAL agreed
+  // rate instead of a hardcoded value.
+  const principalNum = principal_amount === undefined || principal_amount === null || principal_amount === ''
+    ? 0
+    : Number(String(principal_amount).replace(/,/g, '')) || 0
+  const amountNum = Number(String(amount).replace(/,/g, '')) || 0
+  const explicitPct = roi_percentage === undefined || roi_percentage === null || roi_percentage === ''
+    ? NaN
+    : Number(roi_percentage)
+  const derivedPct = principalNum > 0 ? (amountNum / principalNum) * 100 : NaN
+  const resolvedPct = Number.isFinite(explicitPct) && explicitPct > 0
+    ? explicitPct
+    : (Number.isFinite(derivedPct) && derivedPct > 0 ? derivedPct : NaN)
+  const showRoiRow = Number.isFinite(resolvedPct) && resolvedPct > 0
+  const roiPctLabel = showRoiRow ? `${Math.round(resolvedPct * 100) / 100}%` : ''
+  const showPrincipalRow = principalNum > 0
 
   return (
     <Html>
