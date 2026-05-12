@@ -933,16 +933,10 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       // catch it — never block on a transient error.
       if (normalizedRef && !isEditMode) {
         try {
-          const { data: existing } = await supabase
-            .from('deposit_requests')
-            .select('id, status, amount, created_at')
-            .ilike('transaction_id', normalizedRef)
-            .not('status', 'in', '(rejected,cancelled,failed)')
-            .limit(1);
-          if (existing && existing.length > 0) {
-            const dup = existing[0] as { status: string; amount: number };
+          const result = await validateDepositReference(normalizedRef);
+          if (!result.valid) {
             toast.error('Duplicate transaction blocked', {
-              description: `This reference (${normalizedRef}) has already been submitted (status: ${dup.status}). Each Transaction ID can only be used once.`,
+              description: result.message,
               duration: 8000,
             });
             setStep('form');
