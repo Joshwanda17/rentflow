@@ -90,6 +90,21 @@ Deno.serve(async (req) => {
     // end-user wallet view filter out — that filter caused CFO direct credits
     // to silently disappear from users' wallets even though the cached
     // `wallets.balance` updated. See plan: Atuhaire Carolyne 26.5M repair.
+    // Hard guard: when the operator chose `operational_wallet` (Float) we must
+    // NEVER fall back to `wallet_deposit` (which routes to Withdrawable). If
+    // the submitted category isn't in the allow-list for that path, reject
+    // outright so the bug can never silently re-appear.
+    const FLOAT_ROUTE_CATEGORIES = new Set([
+      'agent_float_deposit', 'agent_float_assignment', 'agent_float_topup',
+      'agent_float_funding', 'rent_float_funding', 'rent_disbursement',
+    ]);
+    if (op === 'credit' && recipient_type === 'operational_wallet') {
+      if (!wallet_category || !FLOAT_ROUTE_CATEGORIES.has(wallet_category)) {
+        return new Response(JSON.stringify({
+          error: `INVALID_ROUTING: wallet_category '${wallet_category ?? '(none)'}' does not route to Float. Operational Wallet credits require one of: ${[...FLOAT_ROUTE_CATEGORIES].join(', ')}.`,
+        }), { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
     const walletCatRaw = ALLOWED_CATEGORIES.includes(wallet_category) ? wallet_category : 'wallet_deposit';
     const platformCat = ALLOWED_CATEGORIES.includes(platform_category) ? platform_category : 'system_balance_correction';
 
