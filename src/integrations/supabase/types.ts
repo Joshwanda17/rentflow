@@ -15241,6 +15241,7 @@ export type Database = {
         | "ledger_classification_backfilled"
         | "wallet_historical_drift_absorbed"
         | "rent_request_force_approved"
+        | "rent_request.resubmitted_by_agent"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -15491,6 +15492,7 @@ export const Constants = {
         "ledger_classification_backfilled",
         "wallet_historical_drift_absorbed",
         "rent_request_force_approved",
+        "rent_request.resubmitted_by_agent",
       ],
     },
   },
