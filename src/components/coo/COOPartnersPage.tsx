@@ -118,6 +118,7 @@ interface NearingPayoutPortfolio {
   createdAt: string;
   daysUntil: number;
   nextPayoutDate: string;
+  dueToday: boolean;
 }
 
 interface PortfolioRow {
