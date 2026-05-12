@@ -211,7 +211,9 @@ Deno.serve(async (req) => {
                   portfolioId: reinvestInfo.portfolio_id,
                   paymentNumber,
                   initialAmount: prevAmount,
-                  roiPercentage: 15,
+                  // roiPercentage intentionally omitted — helper derives the
+                  // exact rate from returnAmount/initialAmount so partners on
+                  // non-15% portfolios see their REAL rate.
                   returnAmount: roiAmount,
                   newTotal: newAmount,
                   compoundDateIso: now.toISOString(),
