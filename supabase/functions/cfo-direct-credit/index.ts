@@ -64,8 +64,34 @@ Deno.serve(async (req) => {
       : Number(String(rawAmount ?? "").replace(/[, _]/g, ""));
     const op = operation === "debit" ? "debit" : "credit";
     const callerRoles = (roles || []).map((r: any) => r.role);
-    const walletBucket = recipient_type === "operational_wallet" ? "float" : "withdrawable";
-    const routingSource = op === "credit" ? "cfo_direct_credit_explicit_bucket" : "cfo_direct_debit_explicit_bucket";
+
+    // ── HARD CATEGORY → BUCKET LOCKS (Wallet Routing v2.1) ───────────────
+    // These categories are the ONLY signal that decides the wallet bucket.
+    // recipient_type must agree, otherwise the request is rejected. No
+    // fallback, no inference — if the operator picks the wrong recipient
+    // for one of these locked categories the request fails fast.
+    //
+    //   agent_float_deposit       → ALWAYS Float        (operational_wallet)
+    //   agent_commission_earned   → ALWAYS Withdrawable (user)
+    //
+    const CATEGORY_BUCKET_LOCK: Record<string, { bucket: 'float' | 'withdrawable'; recipient: 'user' | 'operational_wallet'; label: string }> = {
+      agent_float_deposit:     { bucket: 'float',        recipient: 'operational_wallet', label: 'Agent Float Allocation' },
+      agent_commission_earned: { bucket: 'withdrawable', recipient: 'user',               label: 'Agent Commission' },
+    };
+
+    const lock = wallet_category && CATEGORY_BUCKET_LOCK[wallet_category as string];
+    if (lock && recipient_type !== lock.recipient) {
+      return new Response(JSON.stringify({
+        error: `INVALID_ROUTING: '${lock.label}' is locked to ${lock.bucket === 'float' ? 'Operational Wallet (Float)' : 'User (Withdrawable)'}. Got recipient_type='${recipient_type}'.`,
+      }), { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const walletBucket = lock
+      ? lock.bucket
+      : (recipient_type === "operational_wallet" ? "float" : "withdrawable");
+    const routingSource = lock
+      ? `cfo_direct_${op}_locked_${wallet_category}`
+      : (op === "credit" ? "cfo_direct_credit_explicit_bucket" : "cfo_direct_debit_explicit_bucket");
 
     // ── Wallet Routing v2: recipient_type is the SOLE routing signal ───────
     // user                → money goes to withdrawable_balance (user owns it)
