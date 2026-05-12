@@ -56,15 +56,25 @@ export function AgentProxyWithdrawalDialog({
             : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       }
       const clientRequestId = clientRequestIdRef.current;
-      // Insert with agent's user_id so the deduction trigger hits the AGENT's wallet
-      // (where ROI funds actually sit), and tag the partner via proxy_partner_id
+      // CUSTODY-V2: partner is the legal owner of the funds.
+      // user_id  = partner (so v_user_wallet_strict auto-deducts partner.withdrawable
+      //            and existing approve-withdrawal flow debits the partner's wallet).
+      // initiated_by / agent_id = agent (audit trail; trg_force_proxy_finops_visibility
+      //            forces auto_dispatched=false so FinOps always sees the row).
+      // beneficiary_id = partner (legal owner, matches user_id).
+      // No `linked_party` is set — that field is reserved for legacy custody rows
+      // and is now blocked at the ledger level by trg_block_proxy_custody_writes.
       const { error } = await supabase.from('withdrawal_requests').insert({
-        user_id: user.id,
+        user_id: funderId,
+        agent_id: user.id,
+        initiated_by: user.id,
+        beneficiary_id: funderId,
         amount,
         status: 'pending' as const,
-        reason: `[Agent proxy: ${user.id}] ${reason.trim()}`,
+        reason: `[Proxy initiated by agent ${user.id}] ${reason.trim()}`,
         proxy_partner_id: funderId,
         client_request_id: clientRequestId,
+        auto_dispatched: false,
       } as any);
       if (error) {
         // 23505 = unique_violation. Either the idempotency key collided
@@ -94,8 +104,8 @@ export function AgentProxyWithdrawalDialog({
       const { data: newRow } = await supabase
         .from('withdrawal_requests')
         .select('id')
-        .eq('user_id', user.id)
-        .eq('proxy_partner_id', funderId)
+        .eq('user_id', funderId)
+        .eq('initiated_by', user.id)
         .eq('status', 'pending')
         .order('created_at', { ascending: false })
         .limit(1)
