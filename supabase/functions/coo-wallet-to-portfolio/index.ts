@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
     // Fetch portfolio
     const { data: portfolio, error: pErr } = await supabase
       .from("investor_portfolios")
-      .select("id, investor_id, agent_id, investment_amount, status, portfolio_code, account_name")
+      .select("id, investor_id, agent_id, investment_amount, status, portfolio_code, account_name, roi_percentage")
       .eq("id", portfolio_id)
       .single();
 
@@ -336,6 +336,7 @@ Deno.serve(async (req) => {
             topupAmount,
             previousPortfolioValue: previousValue,
             newTotalPartnershipValue: previousValue + topupAmount,
+            roiPercentage: Number((portfolio as any).roi_percentage) || undefined,
           }),
           "coo-wallet-to-portfolio",
         );
