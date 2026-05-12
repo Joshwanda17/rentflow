@@ -105,6 +105,11 @@ export function PartnershipTopup({
                     <Text style={{ ...introText, margin: 0 }}>
                       We confirm receipt of your top-up partnership of <strong>{formattedTopup}</strong> with {company_name} Technologies Limited. This contribution has been added to your existing portfolio of <strong>{formattedPrevious}</strong>.
                     </Text>
+                    {showRoi ? (
+                      <Text style={{ ...introText, margin: '15px 0 0 0' }}>
+                        Your agreed monthly return rate of <strong>{roiPctLabel}</strong> now applies to the new total of <strong>{formattedNewTotal}</strong>{showMonthly ? <> — approximately <strong>{formattedMonthly}</strong> per month going forward</> : null}.
+                      </Text>
+                    ) : null}
                   </td>
                 </tr>
 
