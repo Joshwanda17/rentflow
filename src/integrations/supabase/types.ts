@@ -13595,6 +13595,21 @@ export type Database = {
         }
         Relationships: []
       }
+      v_pivot_drift: {
+        Row: {
+          advance_delta: number | null
+          float_delta: number | null
+          pivot_advance: number | null
+          pivot_float: number | null
+          pivot_withdrawable: number | null
+          strict_advance: number | null
+          strict_float: number | null
+          strict_withdrawable_pre_holds: number | null
+          user_id: string | null
+          withdrawable_delta: number | null
+        }
+        Relationships: []
+      }
       v_user_wallet_strict: {
         Row: {
           advance_balance: number | null
