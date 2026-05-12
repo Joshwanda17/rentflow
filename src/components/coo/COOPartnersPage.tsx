@@ -3298,15 +3298,16 @@ function MiniKPI({ icon, label, value, variant }: {
 
 /* ─── Nearing Payouts Card ─── */
 function NearingPayoutsCard({ portfolios, onClick }: { portfolios: NearingPayoutPortfolio[]; onClick: () => void }) {
-  // Only count payouts whose ROI date is TODAY (daysUntil === 0).
-  // Overdue (<0) and upcoming (>0) are excluded from this card; the dialog still lists everything.
-  const dueToday = portfolios.filter(p => p.daysUntil === 0);
+  // Single source of truth: portfolios whose Next Payout Date == today (local TZ string compare).
+  // Overdue (<today) and upcoming (>today) are excluded from this card; the dialog still lists everything.
+  const dueToday = portfolios.filter(p => p.dueToday);
   const dueTodayCount = dueToday.length;
   const totalAmount = dueToday.reduce((s, p) => s + Math.round(p.investmentAmount * p.roiPercentage / 100), 0);
   const hasPayouts = dueTodayCount > 0;
   const overdueCount = 0; // styling flag retained, but card is scoped to "today"
+  const todayLabel = new Date().toLocaleDateString('en-UG', { weekday: 'short', day: 'numeric', month: 'short' });
   return (
-    <button onClick={onClick} className={cn(
+    <button onClick={onClick} aria-label={`${dueTodayCount} portfolio(s) reach Next Payout Date today (${todayLabel})`} className={cn(
       'rounded-2xl border p-4 space-y-2.5 text-left w-full transition-all hover:shadow-lg active:scale-[0.98]',
       overdueCount > 0
         ? 'border-destructive/40 bg-destructive/5 ring-2 ring-destructive/25 shadow-sm'
@@ -3327,15 +3328,15 @@ function NearingPayoutsCard({ portfolios, onClick }: { portfolios: NearingPayout
               'text-xs font-bold uppercase tracking-wider',
               overdueCount > 0 ? 'text-destructive' : hasPayouts ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'
             )}>
-              Payouts Due Today
+              Nearing Payout · Today
             </span>
             <p className={cn(
               'text-[11px] leading-snug mt-0.5',
               overdueCount > 0 ? 'text-destructive/80 font-medium' : hasPayouts ? 'text-amber-600/80 font-medium' : 'text-muted-foreground'
             )}>
               {hasPayouts
-                ? `~${formatUGX(totalAmount)} due today`
-                : 'No payouts due today'}
+                ? `${todayLabel} · ~${formatUGX(totalAmount)} due`
+                : `${todayLabel} · no payouts due`}
             </p>
           </div>
         </div>
