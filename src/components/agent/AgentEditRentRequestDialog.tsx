@@ -128,7 +128,48 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
       onOpenChange(false);
       onResubmitted();
     } catch (e: any) {
-      toast.error(e.message ?? 'Failed to resubmit');
+      const raw = (e?.message ?? '') as string;
+      const code = e?.code as string | undefined;
+      const details = (e?.details ?? '') as string;
+      const hint = (e?.hint ?? '') as string;
+      const blob = `${raw} ${details} ${hint}`.toLowerCase();
+
+      let title = 'Failed to resubmit';
+      let description: string | undefined;
+
+      if (code === '42P01' || /relation .* does not exist/.test(blob)) {
+        const m = blob.match(/relation "([^"]+)" does not exist/);
+        title = 'Resubmit blocked — backend table missing';
+        description = m
+          ? `Required table "${m[1]}" is not deployed. Share this with support so they can run the missing migration.`
+          : 'A required backend table is not deployed. Share this error with support so they can run the missing migration.';
+      } else if (code === '42883' || /function .* does not exist/.test(blob)) {
+        title = 'Resubmit blocked — backend function missing';
+        description = 'The agent_resubmit_rent_request function is not deployed. Contact support to redeploy it.';
+      } else if (/reopen limit reached/i.test(raw)) {
+        title = 'Reopen limit reached';
+        description = 'You have already resubmitted this request 3 times. A manager must reopen it.';
+      } else if (/only the agent who created/i.test(raw)) {
+        title = 'Not your request';
+        description = 'Only the agent who created this request can resubmit it.';
+      } else if (/only rejected requests/i.test(raw)) {
+        title = 'Already moved on';
+        description = raw;
+      } else if (/at least 10 characters/i.test(raw)) {
+        title = 'Note too short';
+        description = 'Resubmission note must be at least 10 characters.';
+      } else if (/duration must be|invalid rent|invalid number of payments/i.test(raw)) {
+        title = 'Invalid values';
+        description = raw;
+      } else if (/permission denied|rls|row-level security/i.test(blob)) {
+        title = 'Permission denied';
+        description = 'Your account is not allowed to resubmit this request. Sign in as the original agent or contact a manager.';
+      } else if (raw) {
+        description = raw;
+      }
+
+      toast.error(title, description ? { description } : undefined);
+      console.error('[agent_resubmit_rent_request] failed', { code, raw, details, hint });
     } finally {
       setSubmitting(false);
     }
