@@ -24,6 +24,7 @@ import {
 } from '@/lib/depositPurposeGuard';
 import { parseSMS } from '@/utils/smsParser';
 import { cn } from '@/lib/utils';
+import { validateDepositReference } from '@/lib/depositReferenceValidator';
 
 /**
  * Extract a Mobile Money / bank reference from arbitrary SMS text.
