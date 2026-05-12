@@ -287,6 +287,9 @@ Deno.serve(async (req) => {
                   transactionId: `ROI-${rr.id.slice(0, 8).toUpperCase()}-${paymentNumber}`,
                   walletIdLast4: walletLast4,
                   payoutMethod: 'Wallet',
+                  // Pass principal so template derives the actual ROI %
+                  // (e.g. 12% / 15%) instead of falling back to a static label.
+                  principalAmount: Number(rr.rent_amount) || undefined,
                 }),
                 'process-supporter-roi',
               );
