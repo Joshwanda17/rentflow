@@ -81,6 +81,9 @@ Deno.serve(async (req) => {
       'access_fee_collected', 'registration_fee_collected',
       'marketing_expense', 'payroll_expense', 'general_admin_expense',
       'research_development_expense', 'tax_expense', 'interest_expense', 'equipment_expense',
+      // Agent float top-ups initiated by CFO when the standard agent deposit
+      // approval path is unavailable. Routes to operational_wallet → float.
+      'agent_float_deposit', 'rent_disbursement',
     ];
     // Default the wallet leg to `wallet_deposit` (user-visible) instead of
     // `system_balance_correction`, which `v_user_wallet_strict` and every
