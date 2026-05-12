@@ -283,6 +283,7 @@ Deno.serve(async (req) => {
               topupAmount: totalAmount,
               previousPortfolioValue: currentInvestment,
               newTotalPartnershipValue: currentInvestment + totalAmount,
+              roiPercentage: Number((portfolio as any).roi_percentage) || undefined,
             }),
             "approve-portfolio-topup",
           );
