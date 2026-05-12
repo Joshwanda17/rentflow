@@ -863,6 +863,8 @@ Deno.serve(async (req) => {
             : payment_method,
           isManagedByAgent: isProxyPayout && fundingUserId !== partnerId,
           agentName,
+          roiPercentage: Number((portfolio as any)?.roi_percentage) || undefined,
+          principalAmount: Number((portfolio as any)?.investment_amount) || undefined,
         });
         dispatchTransactionalEmail(supabaseUrl, serviceKey, emailReq, "approve-withdrawal");
 
@@ -883,6 +885,8 @@ Deno.serve(async (req) => {
             payoutMethod: `${payment_method} — Proxy payout for ${partnerProfile.full_name || "funder"}`,
             isManagedByAgent: true,
             agentName,
+            roiPercentage: Number((portfolio as any)?.roi_percentage) || undefined,
+            principalAmount: Number((portfolio as any)?.investment_amount) || undefined,
           });
           dispatchTransactionalEmail(supabaseUrl, serviceKey, agentEmailReq, "approve-withdrawal");
         }
