@@ -619,17 +619,20 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       const now = new Date();
       now.setHours(0, 0, 0, 0);
       const nearingList: NearingPayoutPortfolio[] = [];
+      const todayStr = formatLocalDateOnly(new Date());
       portfolios.forEach(p => {
         if (p.status !== 'active') return;
-        if (!p.next_roi_date) return;
         const ownerId = p.investor_id && supporterIds.has(p.investor_id) ? p.investor_id
           : p.agent_id && supporterIds.has(p.agent_id) ? p.agent_id : null;
         if (!ownerId) return;
 
+        // Single source of truth for the Next Payout Date — handles null next_roi_date
+        // by deriving from created_at + payout_day, and is timezone-safe.
         const effectiveNextDate = getNextPayoutDate(p.next_roi_date, p.created_at, p.payout_day ?? 15);
         const roiDate = dateOnlyToLocalDate(effectiveNextDate);
         const diffMs = roiDate.getTime() - now.getTime();
-        const du = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+        const du = Math.round(diffMs / (1000 * 60 * 60 * 24));
+        const dueToday = effectiveNextDate === todayStr;
         const prof = profileMap.get(ownerId);
         const effectivePayoutDay = p.payout_day || roiDate.getDate();
         nearingList.push({
@@ -646,9 +649,17 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           createdAt: p.created_at,
           daysUntil: du,
           nextPayoutDate: effectiveNextDate,
+          dueToday,
         });
       });
       nearingList.sort((a, b) => a.daysUntil - b.daysUntil);
+      if (import.meta.env.DEV) {
+        const dueCount = nearingList.filter(n => n.dueToday).length;
+        // eslint-disable-next-line no-console
+        console.debug('[NearingPayout] today=%s dueToday=%d totalActive=%d', todayStr, dueCount, nearingList.length);
+        const drift = nearingList.find(n => n.dueToday && n.daysUntil !== 0);
+        if (drift) console.warn('[NearingPayout] dueToday/daysUntil drift on', drift.portfolioId, drift);
+      }
       setAllPortfoliosForPayout(nearingList);
     } catch (e) {
       console.error('Nearing payouts fetch error:', e);
