@@ -216,6 +216,26 @@ export function ReturnsDisbursementConfirmation({
                                     </td>
                                   </tr>
                                 ) : null}
+                                {showPrincipalRow ? (
+                                  <tr>
+                                    <td style={ledgerRow}>
+                                      <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation"><tbody><tr>
+                                        <td className="td-block" width="40%" style={ledgerKey}>Principal</td>
+                                        <td className="td-block" width="60%" align="right" style={ledgerVal}>{formatAmount(principal_amount, currency)}</td>
+                                      </tr></tbody></table>
+                                    </td>
+                                  </tr>
+                                ) : null}
+                                {showRoiRow ? (
+                                  <tr>
+                                    <td style={ledgerRowLast}>
+                                      <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation"><tbody><tr>
+                                        <td className="td-block" width="40%" style={ledgerKey}>Agreed Monthly ROI</td>
+                                        <td className="td-block" width="60%" align="right" style={ledgerVal}>{roiPctLabel}</td>
+                                      </tr></tbody></table>
+                                    </td>
+                                  </tr>
+                                ) : null}
                               </tbody>
                             </table>
                           </td>
