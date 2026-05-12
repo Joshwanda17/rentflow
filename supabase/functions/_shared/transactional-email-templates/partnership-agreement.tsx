@@ -156,7 +156,7 @@ export function PartnershipAgreement({
                                       <tbody>
                                         <tr>
                                           <td width="50%" style={kvKey}>Agreed Monthly Return</td>
-                                          <td width="50%" align="right" style={kvVal}>15%</td>
+                                          <td width="50%" align="right" style={kvVal}>{roiPctLabel}</td>
                                         </tr>
                                         <tr>
                                           <td width="50%" style={kvKey}>Monthly Return Amount</td>
