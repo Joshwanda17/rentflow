@@ -81,7 +81,7 @@ Deno.serve(async (req) => {
     // Fetch portfolio
     const { data: portfolio, error: pErr } = await supabase
       .from("investor_portfolios")
-      .select("id, investor_id, agent_id, investment_amount, portfolio_code, account_name, status")
+      .select("id, investor_id, agent_id, investment_amount, portfolio_code, account_name, status, roi_percentage")
       .eq("id", portfolio_id)
       .single();
 
