@@ -13604,7 +13604,7 @@ export type Database = {
           pivot_withdrawable: number | null
           strict_advance: number | null
           strict_float: number | null
-          strict_withdrawable: number | null
+          strict_withdrawable_pre_holds: number | null
           user_id: string | null
           withdrawable_delta: number | null
         }
