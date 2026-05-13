@@ -140,6 +140,7 @@ export function TenantOverviewList({ data, loading, initialCategory, onSelectTen
       repaying: 0,
       fully_repaid: 0,
       defaulted: 0,
+      no_request: 0,
     };
     for (const row of data) {
       for (const [cat, statuses] of Object.entries(STATUS_MAP)) {
