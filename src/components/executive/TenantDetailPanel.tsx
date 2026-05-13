@@ -48,6 +48,11 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
   const [savingRequest, setSavingRequest] = useState(false);
   const [requestEdit, setRequestEdit] = useState({ rent_amount: '', duration_days: '', reason: '' });
 
+  // Outstanding stat inline-edit state
+  const [editingOutstanding, setEditingOutstanding] = useState(false);
+  const [savingOutstanding, setSavingOutstanding] = useState(false);
+  const [outstandingEdit, setOutstandingEdit] = useState({ amount: '', reason: '' });
+
   const { data, isLoading } = useQuery({
     queryKey: ['tenant-detail', tenantId],
     queryFn: async () => {
@@ -95,6 +100,73 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
       : Number(r.rent_amount || 0);
   const totalRent = requests.reduce((s, r) => s + obligationFor(r), 0);
   const totalRepaid = requests.reduce((s, r) => s + Number(r.amount_repaid || 0), 0);
+  const outstandingTotal = totalRent - totalRepaid;
+
+  // Inline editing on the Outstanding card targets a single outstanding_balance request.
+  const outstandingReqs = requests.filter(r => (r as any).registration_type === 'outstanding_balance');
+  const editableOutstandingReq = outstandingReqs.length === 1 ? outstandingReqs[0] : null;
+
+  const startEditOutstanding = () => {
+    if (!editableOutstandingReq) return;
+    setOutstandingEdit({
+      amount: String(Number((editableOutstandingReq as any).total_repayment || 0) - Number(editableOutstandingReq.amount_repaid || 0)),
+      reason: '',
+    });
+    setEditingOutstanding(true);
+  };
+
+  const saveOutstanding = async () => {
+    if (!editableOutstandingReq) return;
+    const remaining = Number(outstandingEdit.amount);
+    const reason = outstandingEdit.reason.trim();
+    if (!Number.isFinite(remaining) || remaining < 0) { toast.error('Enter a valid outstanding amount'); return; }
+    if (reason.length < 10) { toast.error('Reason must be at least 10 characters'); return; }
+
+    const repaid = Number(editableOutstandingReq.amount_repaid || 0);
+    const days = Number(editableOutstandingReq.duration_days || 0) || 1;
+    const newTotal = repaid + remaining; // remaining = newTotal - repaid
+    const newDaily = Math.round(newTotal / days);
+
+    setSavingOutstanding(true);
+    try {
+      const before = {
+        total_repayment: Number((editableOutstandingReq as any).total_repayment || 0),
+        daily_repayment: Number(editableOutstandingReq.daily_repayment || 0),
+      };
+      const after = { total_repayment: newTotal, daily_repayment: newDaily };
+
+      const { error } = await supabase.from('rent_requests').update(after).eq('id', editableOutstandingReq.id);
+      if (error) throw error;
+
+      const startDate = new Date(editableOutstandingReq.created_at);
+      const newEnd = new Date(startDate);
+      newEnd.setDate(newEnd.getDate() + days);
+      const { error: subErr } = await supabase
+        .from('subscription_charges')
+        .update({ charge_amount: newDaily, end_date: newEnd.toISOString().slice(0, 10) })
+        .eq('rent_request_id', editableOutstandingReq.id)
+        .in('status', ['active', 'pending']);
+      if (subErr) console.warn('Subscription charge sync warning:', subErr);
+
+      await supabase.from('audit_logs').insert({
+        action_type: 'tenant_ops_outstanding_correction',
+        user_id: user?.id || null,
+        record_id: editableOutstandingReq.id,
+        table_name: 'rent_requests',
+        metadata: { tenant_id: tenantId, before, after, reason, remaining_entered: remaining },
+      });
+
+      queryClient.invalidateQueries({ queryKey: ['tenant-detail', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['exec-tenant-ops'] });
+      queryClient.invalidateQueries({ queryKey: ['coo-tenant-balances'] });
+      toast.success(`Outstanding updated — daily charge UGX ${newDaily.toLocaleString()}`);
+      setEditingOutstanding(false);
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to save');
+    } finally {
+      setSavingOutstanding(false);
+    }
+  };
 
   // --- Profile edit handlers ---
   const startEditProfile = () => {
@@ -330,8 +402,50 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
               <p className="text-[10px] text-muted-foreground">Total Repaid</p>
             </CardContent></Card>
             <Card><CardContent className="p-3 text-center">
-              <p className="text-lg font-extrabold text-amber-600">UGX {(totalRent - totalRepaid).toLocaleString()}</p>
-              <p className="text-[10px] text-muted-foreground">Outstanding</p>
+              {editingOutstanding && editableOutstandingReq ? (
+                <div className="space-y-1.5 text-left">
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    value={outstandingEdit.amount}
+                    onChange={e => setOutstandingEdit(v => ({ ...v, amount: e.target.value }))}
+                    placeholder="Remaining (UGX)"
+                    className="h-8 text-sm"
+                  />
+                  <Textarea
+                    value={outstandingEdit.reason}
+                    onChange={e => setOutstandingEdit(v => ({ ...v, reason: e.target.value }))}
+                    placeholder="Reason (min 10 chars)"
+                    className="text-[11px] min-h-[44px]"
+                  />
+                  <div className="flex items-center justify-end gap-1">
+                    <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setEditingOutstanding(false)} disabled={savingOutstanding}>
+                      <X className="h-3 w-3" />
+                    </Button>
+                    <Button size="sm" className="h-7 px-2 text-xs gap-1" onClick={saveOutstanding} disabled={savingOutstanding}>
+                      {savingOutstanding ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                      Save
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-center gap-1">
+                    <p className="text-lg font-extrabold text-amber-600">UGX {outstandingTotal.toLocaleString()}</p>
+                    {editableOutstandingReq && (
+                      <button
+                        type="button"
+                        onClick={startEditOutstanding}
+                        className="text-muted-foreground hover:text-foreground"
+                        aria-label="Edit outstanding"
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Outstanding</p>
+                </>
+              )}
             </CardContent></Card>
           </div>
 
