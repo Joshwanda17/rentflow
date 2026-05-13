@@ -149,16 +149,42 @@ Deno.serve(async (req) => {
       reasonLooksProxy &&
       ((wr.linked_party && wr.linked_party !== wr.user_id) || isProxyAgent);
 
-    const fundingUserId = wr.user_id;
+    const amount = Number(wr.amount);
     const beneficiaryUserId =
       isProxyPayout && wr.linked_party && wr.linked_party !== wr.user_id
         ? wr.linked_party
         : wr.user_id;
-    const amount = Number(wr.amount);
+    let fundingUserId = wr.user_id;
+    let directPartnerFundingAvailable: number | null = null;
+
+    // CUSTODY-V2: newer partner ROI/returns are credited directly to the
+    // partner wallet. Some pending proxy withdrawal rows were created by the
+    // legacy agent-custody UI (user_id=agent, linked_party=partner), so the
+    // approval path must detect when the selected partner is now the actual
+    // funding wallet and debit that wallet instead of looking for agent-held
+    // linked funds that no longer exist.
+    if (isProxyPayout && beneficiaryUserId && beneficiaryUserId !== wr.user_id) {
+      const { data: directAvailable, error: directErr } = await admin.rpc(
+        "get_user_available_balance",
+        { p_user_id: beneficiaryUserId },
+      );
+      if (directErr) {
+        console.warn(
+          "[approve-withdrawal] direct partner balance check failed:",
+          directErr.message,
+        );
+      } else {
+        directPartnerFundingAvailable = Math.max(0, Number(directAvailable ?? 0));
+        if (directPartnerFundingAvailable >= amount) {
+          fundingUserId = beneficiaryUserId;
+        }
+      }
+    }
 
     console.log(
       `[approve-withdrawal] withdrawal ${withdrawal_id}: isProxyPayout=${isProxyPayout}, ` +
-      `submitter=${wr.user_id}, debiting=${fundingUserId}, beneficiary=${beneficiaryUserId}, amount=${amount}`
+      `request_owner=${wr.user_id}, debiting=${fundingUserId}, beneficiary=${beneficiaryUserId}, ` +
+      `direct_partner_available=${directPartnerFundingAvailable ?? "n/a"}, amount=${amount}`
     );
 
     // Trust the ledger: reconcile the funding wallet from general_ledger before
