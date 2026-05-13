@@ -496,19 +496,76 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
                   </div>
               </div>
 
-              <Button
-                type="button"
-                onClick={startAutoDisburse}
-                disabled={isDisbursing || !phoneValid || !amountValid}
-                className="w-full gap-2 h-12 rounded-xl"
-              >
-                {isDisbursing ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Landmark className="h-4 w-4" />
-                )}
-                Pay Landlord Now
-              </Button>
+              {!landlordOtp.otpSent ? (
+                <Button
+                  type="button"
+                  onClick={handleSendOtp}
+                  disabled={landlordOtp.otpLoading || !phoneValid || !amountValid}
+                  className="w-full gap-2 h-12 rounded-xl"
+                >
+                  {landlordOtp.otpLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Phone className="h-4 w-4" />
+                  )}
+                  Send OTP to Landlord ({landlordPhone || '—'})
+                </Button>
+              ) : (
+                <div className="space-y-3 p-3 rounded-xl border-2 border-chart-4/30 bg-chart-4/5">
+                  <div className="text-center space-y-1">
+                    <p className="text-xs font-semibold text-chart-4">
+                      OTP sent to {landlordPhone}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Ask the landlord to read the 6-digit code from their SMS.
+                    </p>
+                  </div>
+                  <div className="flex justify-center">
+                    <InputOTP
+                      maxLength={6}
+                      value={otpCode}
+                      onChange={handleVerifyOtp}
+                      disabled={landlordOtp.otpLoading || isDisbursing || landlordOtp.otpVerified}
+                    >
+                      <InputOTPGroup>
+                        <InputOTPSlot index={0} />
+                        <InputOTPSlot index={1} />
+                        <InputOTPSlot index={2} />
+                        <InputOTPSlot index={3} />
+                        <InputOTPSlot index={4} />
+                        <InputOTPSlot index={5} />
+                      </InputOTPGroup>
+                    </InputOTP>
+                  </div>
+                  {(landlordOtp.otpLoading || isDisbursing) && (
+                    <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      {isDisbursing ? 'Sending money…' : 'Verifying…'}
+                    </div>
+                  )}
+                  {landlordOtp.otpError && (
+                    <p className="text-[11px] text-destructive text-center">{landlordOtp.otpError}</p>
+                  )}
+                  <div className="flex items-center justify-between text-[11px]">
+                    <button
+                      type="button"
+                      onClick={handleResendOtp}
+                      disabled={resendCooldown > 0 || landlordOtp.otpLoading}
+                      className="text-chart-4 font-medium disabled:text-muted-foreground inline-flex items-center gap-1"
+                    >
+                      <RefreshCw className="h-3 w-3" />
+                      {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend OTP'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { landlordOtp.resetOtp(); setOtpCode(''); }}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      Wrong number? Edit
+                    </button>
+                  </div>
+                </div>
+              )}
               {disburseError && (
                 <p className="text-xs text-destructive text-center">{disburseError}</p>
               )}
