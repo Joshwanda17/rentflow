@@ -170,10 +170,24 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
         const newDaily = Math.round(newTotal / days);
 
         const before = {
+          rent_amount: Number((req as any).rent_amount || 0),
           total_repayment: Number((req as any).total_repayment || 0),
           daily_repayment: Number(req.daily_repayment || 0),
         };
-        const after = { total_repayment: newTotal, daily_repayment: newDaily };
+        // Display formula uses `rent_amount` as the obligation for every
+        // registration_type EXCEPT 'outstanding_balance' (which reads
+        // `total_repayment`). To make the Outstanding card reflect the new
+        // figure for all registration types, mirror the new obligation onto
+        // `rent_amount` for non-outstanding_balance requests. For
+        // outstanding_balance requests, `rent_amount` is the property's
+        // monthly rent kept for context — leave it alone.
+        const after: Record<string, number> = {
+          total_repayment: newTotal,
+          daily_repayment: newDaily,
+        };
+        if (String((req as any).registration_type || '') !== 'outstanding_balance') {
+          after.rent_amount = newTotal;
+        }
 
         const { error } = await supabase.from('rent_requests').update(after).eq('id', req.id);
         if (error) throw error;
