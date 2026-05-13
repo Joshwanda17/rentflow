@@ -3758,7 +3758,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         if (proxyData) {
           const agentName = (proxyData.agent as any)?.full_name || 'Agent';
           setManagedInfo(prev => ({ ...prev, [p.portfolioId]: { isManaged: !!proxyData.is_managed_account, agentName, agentId: proxyData.agent_id, hasProxy: true } }));
-          if (proxyData.is_managed_account) setSplitPayMode('agent_wallet');
+          if (proxyData.is_managed_account) setSplitPayMode('wallet');
         } else {
           setManagedInfo(prev => ({ ...prev, [p.portfolioId]: null }));
         }
@@ -3768,7 +3768,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         setCheckingManagedStep2(false);
       }
     } else if (managedInfo[p.portfolioId]?.isManaged) {
-      setSplitPayMode('agent_wallet');
+      setSplitPayMode('wallet');
     }
   };
 
