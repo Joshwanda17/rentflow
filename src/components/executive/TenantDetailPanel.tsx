@@ -53,7 +53,7 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
     queryFn: async () => {
       const [profileRes, requestsRes, walletRes, collectionsRes] = await Promise.all([
         supabase.from('profiles').select('id, full_name, phone, city, created_at').eq('id', tenantId).maybeSingle(),
-        supabase.from('rent_requests').select('id, status, rent_amount, amount_repaid, daily_repayment, duration_days, access_fee, request_fee, total_repayment, created_at, landlord_id, agent_id, assigned_agent_id').eq('tenant_id', tenantId).order('created_at', { ascending: false }),
+        supabase.from('rent_requests').select('id, status, rent_amount, amount_repaid, daily_repayment, duration_days, access_fee, request_fee, total_repayment, registration_type, created_at, landlord_id, agent_id, assigned_agent_id').eq('tenant_id', tenantId).order('created_at', { ascending: false }),
         supabase.from('wallet_transactions').select('id, amount, type, created_at, description').or(`sender_id.eq.${tenantId},recipient_id.eq.${tenantId}`).order('created_at', { ascending: false }).limit(10),
         supabase.from('agent_collections').select('id, amount, created_at, agent_id, payment_method').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(10),
       ]);
@@ -88,7 +88,12 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
 
   const profile = data?.profile;
   const requests = data?.requests || [];
-  const totalRent = requests.reduce((s, r) => s + Number(r.rent_amount || 0), 0);
+  // For outstanding_balance registrations, the true obligation is total_repayment (not rent_amount, which is the property's monthly rent kept for context).
+  const obligationFor = (r: any) =>
+    r.registration_type === 'outstanding_balance'
+      ? Number(r.total_repayment || 0)
+      : Number(r.rent_amount || 0);
+  const totalRent = requests.reduce((s, r) => s + obligationFor(r), 0);
   const totalRepaid = requests.reduce((s, r) => s + Number(r.amount_repaid || 0), 0);
 
   // --- Profile edit handlers ---
@@ -423,7 +428,7 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                         ) : (
                           <>
                             <div className="flex items-center justify-between text-sm">
-                              <span className="font-semibold">UGX {Number(req.rent_amount || 0).toLocaleString()}</span>
+                              <span className="font-semibold">UGX {obligationFor(req).toLocaleString()}</span>
                               <span className="text-muted-foreground">
                                 Repaid: UGX {Number(req.amount_repaid || 0).toLocaleString()}
                               </span>
