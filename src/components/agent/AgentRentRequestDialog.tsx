@@ -650,7 +650,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
               </h3>
               <p className="text-muted-foreground text-sm">
                 {incomeType === 'outstanding'
-                  ? `Outstanding balance of ${formatUGX(amount)} has been recorded for ${tenantName}`
+                  ? `Outstanding balance of ${formatUGX(amount)} recorded for ${tenantName}. Now active in your Owing tab — no approval needed.`
                   : 'The rent request is now visible to supporters'}
               </p>
               {incomeType === 'outstanding' && (
