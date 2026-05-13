@@ -109,62 +109,111 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
     const status = String((r as any).status || '').toLowerCase();
     return status !== 'completed' && status !== 'closed' && status !== 'cancelled' && status !== 'rejected';
   });
-  const editableOutstandingReq = activeReqs.length === 1 ? activeReqs[0] : null;
+  // Allow editing the summary outstanding whenever there's at least one active request.
+  // Single active req → edit it directly. Multiple → distribute the new outstanding
+  // proportionally across all active requests (preserving each request's repaid amount).
+  const editableOutstandingReq = activeReqs.length >= 1 ? activeReqs[0] : null;
 
   const startEditOutstanding = () => {
-    if (!editableOutstandingReq) return;
+    if (activeReqs.length === 0) return;
     setOutstandingEdit({
-      amount: String(Number((editableOutstandingReq as any).total_repayment || 0) - Number(editableOutstandingReq.amount_repaid || 0)),
+      amount: String(Math.max(0, outstandingTotal)),
       reason: '',
     });
     setEditingOutstanding(true);
   };
 
   const saveOutstanding = async () => {
-    if (!editableOutstandingReq) return;
+    if (activeReqs.length === 0) return;
     const remaining = Number(outstandingEdit.amount);
     const reason = outstandingEdit.reason.trim();
     if (!Number.isFinite(remaining) || remaining < 0) { toast.error('Enter a valid outstanding amount'); return; }
     if (reason.length < 10) { toast.error('Reason must be at least 10 characters'); return; }
 
-    const repaid = Number(editableOutstandingReq.amount_repaid || 0);
-    const days = Number(editableOutstandingReq.duration_days || 0) || 1;
-    const newTotal = repaid + remaining; // remaining = newTotal - repaid
-    const newDaily = Math.round(newTotal / days);
+    // Build per-request shares of the new total `remaining`.
+    // Distribute proportionally to each active req's current outstanding.
+    // If all current outstandings are 0, split evenly. Each req's new total
+    // must be >= its already-repaid amount.
+    const reqInfos = activeReqs.map(r => {
+      const repaid = Number(r.amount_repaid || 0);
+      const currentTotal = Number((r as any).total_repayment || 0);
+      const currentOutstanding = Math.max(0, currentTotal - repaid);
+      return { req: r, repaid, currentOutstanding };
+    });
+    const sumCurrent = reqInfos.reduce((s, x) => s + x.currentOutstanding, 0);
+
+    let shares: number[];
+    if (sumCurrent > 0) {
+      shares = reqInfos.map(x => Math.round((x.currentOutstanding / sumCurrent) * remaining));
+    } else {
+      const each = Math.round(remaining / reqInfos.length);
+      shares = reqInfos.map(() => each);
+    }
+    // Fix rounding drift on the last share
+    const drift = remaining - shares.reduce((s, n) => s + n, 0);
+    if (shares.length > 0) shares[shares.length - 1] += drift;
+
+    // Validate: no share can push total below repaid
+    for (let i = 0; i < reqInfos.length; i++) {
+      if (shares[i] < 0) {
+        toast.error('Computed share is negative — adjust the outstanding amount');
+        return;
+      }
+    }
 
     setSavingOutstanding(true);
     try {
-      const before = {
-        total_repayment: Number((editableOutstandingReq as any).total_repayment || 0),
-        daily_repayment: Number(editableOutstandingReq.daily_repayment || 0),
-      };
-      const after = { total_repayment: newTotal, daily_repayment: newDaily };
+      for (let i = 0; i < reqInfos.length; i++) {
+        const { req, repaid } = reqInfos[i];
+        const days = Number(req.duration_days || 0) || 1;
+        const newTotal = repaid + shares[i];
+        const newDaily = Math.round(newTotal / days);
 
-      const { error } = await supabase.from('rent_requests').update(after).eq('id', editableOutstandingReq.id);
-      if (error) throw error;
+        const before = {
+          total_repayment: Number((req as any).total_repayment || 0),
+          daily_repayment: Number(req.daily_repayment || 0),
+        };
+        const after = { total_repayment: newTotal, daily_repayment: newDaily };
 
-      const startDate = new Date(editableOutstandingReq.created_at);
-      const newEnd = new Date(startDate);
-      newEnd.setDate(newEnd.getDate() + days);
-      const { error: subErr } = await supabase
-        .from('subscription_charges')
-        .update({ charge_amount: newDaily, end_date: newEnd.toISOString().slice(0, 10) })
-        .eq('rent_request_id', editableOutstandingReq.id)
-        .in('status', ['active', 'pending']);
-      if (subErr) console.warn('Subscription charge sync warning:', subErr);
+        const { error } = await supabase.from('rent_requests').update(after).eq('id', req.id);
+        if (error) throw error;
 
-      await supabase.from('audit_logs').insert({
-        action_type: 'tenant_ops_outstanding_correction',
-        user_id: user?.id || null,
-        record_id: editableOutstandingReq.id,
-        table_name: 'rent_requests',
-        metadata: { tenant_id: tenantId, before, after, reason, remaining_entered: remaining },
-      });
+        const startDate = new Date(req.created_at);
+        const newEnd = new Date(startDate);
+        newEnd.setDate(newEnd.getDate() + days);
+        const { error: subErr } = await supabase
+          .from('subscription_charges')
+          .update({ charge_amount: newDaily, end_date: newEnd.toISOString().slice(0, 10) })
+          .eq('rent_request_id', req.id)
+          .in('status', ['active', 'pending']);
+        if (subErr) console.warn('Subscription charge sync warning:', subErr);
+
+        await supabase.from('audit_logs').insert({
+          action_type: 'tenant_ops_outstanding_correction',
+          user_id: user?.id || null,
+          record_id: req.id,
+          table_name: 'rent_requests',
+          metadata: {
+            tenant_id: tenantId,
+            before,
+            after,
+            reason,
+            remaining_entered: remaining,
+            distributed_share: shares[i],
+            distribution_method: sumCurrent > 0 ? 'proportional' : 'even',
+            active_request_count: reqInfos.length,
+          },
+        });
+      }
 
       queryClient.invalidateQueries({ queryKey: ['tenant-detail', tenantId] });
       queryClient.invalidateQueries({ queryKey: ['exec-tenant-ops'] });
       queryClient.invalidateQueries({ queryKey: ['coo-tenant-balances'] });
-      toast.success(`Outstanding updated — daily charge UGX ${newDaily.toLocaleString()}`);
+      toast.success(
+        reqInfos.length === 1
+          ? `Outstanding updated`
+          : `Outstanding distributed across ${reqInfos.length} active rent requests`
+      );
       setEditingOutstanding(false);
     } catch (e: any) {
       toast.error(e.message || 'Failed to save');
@@ -441,20 +490,13 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                         "text-lg font-extrabold text-amber-600",
                         activeReqs.length > 0 && "cursor-pointer border-b border-dotted border-amber-600/50 hover:opacity-80"
                       )}
-                      onClick={() => {
-                        if (editableOutstandingReq) {
-                          startEditOutstanding();
-                        } else if (activeReqs.length > 1) {
-                          toast.info('Tap the pencil on a specific rent request below to edit it.');
-                          document.getElementById('rent-requests-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        }
-                      }}
+                      onClick={activeReqs.length > 0 ? startEditOutstanding : undefined}
                       title={
-                        editableOutstandingReq
-                          ? "Tap to edit outstanding"
-                          : activeReqs.length > 1
-                            ? "Multiple active requests — edit each below"
-                            : undefined
+                        activeReqs.length === 0
+                          ? undefined
+                          : activeReqs.length === 1
+                            ? "Tap to edit outstanding"
+                            : `Tap to edit — change is split across ${activeReqs.length} active requests`
                       }
                     >
                       UGX {outstandingTotal.toLocaleString()}
@@ -462,14 +504,7 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                     {activeReqs.length > 0 && (
                       <button
                         type="button"
-                        onClick={() => {
-                          if (editableOutstandingReq) {
-                            startEditOutstanding();
-                          } else {
-                            toast.info('Tap the pencil on a specific rent request below to edit it.');
-                            document.getElementById('rent-requests-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                          }
-                        }}
+                        onClick={startEditOutstanding}
                         className="text-muted-foreground hover:text-foreground"
                         aria-label="Edit outstanding"
                       >
