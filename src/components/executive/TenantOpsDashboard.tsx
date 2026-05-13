@@ -876,7 +876,7 @@ export function TenantOpsDashboard() {
     queryKey: ['exec-tenant-ops'],
     queryFn: async () => {
       const { data } = await supabase.from('rent_requests')
-        .select('id, status, rent_amount, amount_repaid, created_at, tenant_id, landlord_id, agent_id')
+        .select('id, status, rent_amount, total_repayment, amount_repaid, registration_type, created_at, tenant_id, landlord_id, agent_id')
         .order('created_at', { ascending: false }).limit(200);
       const items = data || [];
 
@@ -1046,8 +1046,20 @@ export function TenantOpsDashboard() {
       };
       return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${colors[String(v)] || 'bg-muted'}`}>{String(v).replace(/_/g, ' ')}</span>;
     }},
-    { key: 'rent_amount', label: 'Amount', render: (v) => Number(v || 0).toLocaleString() },
-    { key: 'amount_repaid', label: 'Repaid', render: (v) => Number(v || 0).toLocaleString() },
+    { key: 'rent_amount', label: 'Amount', render: (v, row: any) => {
+      // Outstanding-balance registrations: obligation = arrears (total_repayment), not monthly rent
+      const amount = row?.registration_type === 'outstanding_balance'
+        ? Number(row?.total_repayment || 0)
+        : Number(v || 0);
+      return amount.toLocaleString();
+    }},
+    { key: 'amount_repaid', label: 'Remaining', render: (_v, row: any) => {
+      const obligation = row?.registration_type === 'outstanding_balance'
+        ? Number(row?.total_repayment || 0)
+        : Number(row?.total_repayment || row?.rent_amount || 0);
+      const remaining = Math.max(0, obligation - Number(row?.amount_repaid || 0));
+      return remaining.toLocaleString();
+    }},
     { key: 'agent_name', label: 'Current Agent', render: (v) => (
       <span className={`text-xs ${v === 'Unassigned' ? 'text-muted-foreground italic' : 'font-medium'}`}>
         {String(v ?? '—')}
