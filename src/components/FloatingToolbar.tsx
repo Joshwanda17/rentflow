@@ -1,9 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Share2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { hapticTap } from '@/lib/haptics';
 import WelileAIChatDrawer from './ai-chat/WelileAIChatDrawer';
 
 const GeminiSparkle = ({ size = 28 }: { size?: number }) => (
@@ -17,7 +14,6 @@ const GeminiSparkle = ({ size = 28 }: { size?: number }) => (
 
 export default function FloatingToolbar() {
   const [aiOpen, setAiOpen] = useState(false);
-  const navigate = useNavigate();
 
   // Hide the floating FABs whenever a Radix Dialog/Sheet/AlertDialog is open
   // so they can never overlap a modal's sticky footer (e.g. the Deposit
@@ -52,18 +48,6 @@ export default function FloatingToolbar() {
         transition={{ delay: 0.5, type: 'spring', stiffness: 200 }}
         className="fixed bottom-6 right-4 z-[60] hidden md:flex flex-col items-center gap-3"
       >
-        {/* Share Button */}
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => { hapticTap(); navigate('/install'); }}
-          className="h-11 w-11 rounded-full bg-gradient-to-r from-success to-success/80 text-success-foreground shadow-lg flex items-center justify-center"
-          style={{ boxShadow: '0 4px 14px hsl(var(--success) / 0.3)' }}
-          aria-label="Share App"
-        >
-          <Share2 className="h-4 w-4" />
-        </motion.button>
-
         {/* WhatsApp Button */}
         <motion.a
           href="https://wa.me/256777607640"
