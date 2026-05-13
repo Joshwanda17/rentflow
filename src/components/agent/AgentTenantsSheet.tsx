@@ -391,7 +391,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         const tenantIds = tenantList.map(t => t.id);
         const { data: rentRequests } = await supabase
           .from('rent_requests')
-          .select('tenant_id, total_repayment, amount_repaid, daily_repayment, status, created_at, landlord:landlords(name, property_address, latitude, longitude)')
+          .select('tenant_id, total_repayment, amount_repaid, daily_repayment, status, created_at, registration_type, initial_outstanding_balance, outstanding_grace_days, duration_days, landlord:landlords(name, property_address, latitude, longitude)')
           .in('tenant_id', tenantIds)
           .in('status', ['pending', 'approved', 'funded', 'disbursed', 'repaying', 'completed'])
           .order('created_at', { ascending: false });
@@ -403,14 +403,15 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         const ctx: Record<string, { landlordName: string; propertyAddress: string; completedCount: number; totalRequests: number }> = {};
         const locs: Record<string, { lat: number; lng: number; address: string }> = {};
         (rentRequests || []).forEach((rr: any) => {
-          const owing = (rr.total_repayment || 0) - (rr.amount_repaid || 0);
+          const effective = getEffectiveRentRequestAmounts(rr);
+          const owing = effective.totalRepayment - (rr.amount_repaid || 0);
           balances[rr.tenant_id] = (balances[rr.tenant_id] || 0) + Math.max(0, owing);
           // Sum daily expected only from active (still-owing) cycles
           if (owing > 0 && ['approved', 'funded', 'disbursed', 'repaying'].includes(rr.status)) {
-            daily[rr.tenant_id] = (daily[rr.tenant_id] || 0) + Number(rr.daily_repayment || 0);
+            daily[rr.tenant_id] = (daily[rr.tenant_id] || 0) + effective.dailyRepayment;
           }
           const prev = totals[rr.tenant_id] || { total: 0, paid: 0 };
-          totals[rr.tenant_id] = { total: prev.total + (rr.total_repayment || 0), paid: prev.paid + (rr.amount_repaid || 0) };
+          totals[rr.tenant_id] = { total: prev.total + effective.totalRepayment, paid: prev.paid + (rr.amount_repaid || 0) };
           if (!statusMap[rr.tenant_id]) statusMap[rr.tenant_id] = new Set();
           if (rr.status) statusMap[rr.tenant_id].add(rr.status);
           // Latest-first context (first hit wins thanks to descending order)
@@ -432,7 +433,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           ctx[rr.tenant_id].totalRequests += 1;
           // Only count a rent plan as truly completed when the tenant has fully
           // repaid — guards against rows mis-marked 'completed' upstream.
-          const totalRep = Number(rr.total_repayment || 0);
+          const totalRep = effective.totalRepayment;
           const repaid = Number(rr.amount_repaid || 0);
           if (rr.status === 'completed' && totalRep > 0 && repaid >= totalRep) {
             ctx[rr.tenant_id].completedCount += 1;
