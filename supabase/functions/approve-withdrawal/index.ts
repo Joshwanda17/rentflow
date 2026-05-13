@@ -524,7 +524,9 @@ Deno.serve(async (req) => {
     const nowIso = new Date().toISOString();
 
     const proxyFloatPortion = isProxyPayout
-      ? Math.min(amount, Math.max(0, walletFloat), partnerLinkedFloatAvailable)
+      ? fundingUserId === beneficiaryUserId
+        ? 0
+        : Math.min(amount, Math.max(0, walletFloat), partnerLinkedFloatAvailable)
       : 0;
     const proxyWithdrawablePortion = isProxyPayout ? amount - proxyFloatPortion : 0;
     const withdrawablePortion = isProxyPayout ? proxyWithdrawablePortion : amount;
