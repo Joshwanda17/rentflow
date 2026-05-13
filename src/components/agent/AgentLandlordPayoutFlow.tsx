@@ -63,6 +63,9 @@ export function AgentLandlordPayoutFlow({ open, onOpenChange }: AgentLandlordPay
       return data;
     },
     enabled: !!user && open,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 
   // Fetch disbursed rent requests for landlords assigned to this agent
