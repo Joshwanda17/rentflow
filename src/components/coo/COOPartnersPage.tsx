@@ -3620,13 +3620,15 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
 
       // Date stays unchanged — only advances when CFO approves the payout
 
-      const operationType = mode === 'agent_wallet' ? 'roi_agent_wallet_credit' : mode === 'wallet' ? 'roi_wallet_credit' : 'roi_already_paid';
-      const modeLabel = mode === 'agent_wallet' ? 'Agent Wallet' : mode === 'wallet' ? 'Pay to Wallet' : 'Cash';
+      // Proxy Partner Custody v2 (cutoff 2026-05-12):
+      // ROI payouts ALWAYS land in the partner's own wallet — never parked in
+      // an agent's wallet. The proxy agent is recorded in metadata for audit.
+      const operationType = mode === 'wallet' ? 'roi_wallet_credit' : 'roi_already_paid';
+      const modeLabel = mode === 'wallet' ? 'Partner Wallet' : 'Cash';
       const managed = managedInfo[p.portfolioId];
       const txnGroupId = crypto.randomUUID();
+      const hasProxy = !!managed;
 
-      // All modes go through pending pipeline — CFO must approve before wallet is credited
-      const isProxyAgent = mode === 'agent_wallet' && managed;
       const { error: pendErr } = await supabase.from('pending_wallet_operations').insert({
         user_id: p.investorId,
         amount: roiAmount,
@@ -3637,9 +3639,9 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         reference_id: refId,
         operation_type: operationType,
         transaction_group_id: txnGroupId,
-        target_wallet_user_id: isProxyAgent ? managed.agentId : null,
-        description: isProxyAgent
-          ? `[Agent Wallet] ROI payout of ${formatUGX(roiAmount)} to ${managed.agentName}'s agent wallet on behalf of ${p.name}. Portfolio: ${p.portfolioId.slice(0, 8)}. Reason: ${reason}`
+        target_wallet_user_id: null,
+        description: hasProxy
+          ? `[Partner Wallet via Proxy] ROI payout of ${formatUGX(roiAmount)} to ${p.name}'s partner wallet (proxy agent: ${managed.agentName}). Portfolio: ${p.portfolioId.slice(0, 8)}. Reason: ${reason}`
           : `[${modeLabel}] ROI payout of ${formatUGX(roiAmount)} to ${p.name}'s wallet. Portfolio: ${p.portfolioId.slice(0, 8)}. Reason: ${reason}`,
         linked_party: user.id,
         status: 'pending_coo_approval',
@@ -3650,12 +3652,12 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
           initiated_by: user.id,
           reason,
           pay_mode: mode,
-          ...(isProxyAgent ? { target_agent_name: managed.agentName, target_agent_id: managed.agentId } : {}),
+          ...(hasProxy ? { proxy_agent_name: managed.agentName, proxy_agent_id: managed.agentId, custody_route: 'partner_wallet_v2' } : {}),
         },
       });
       if (pendErr) throw pendErr;
 
-      const auditAction = mode === 'agent_wallet' ? 'roi_agent_wallet_requested' : mode === 'wallet' ? 'roi_payout_requested' : 'roi_already_paid_logged';
+      const auditAction = mode === 'wallet' ? 'roi_payout_requested' : 'roi_already_paid_logged';
       await supabase.from('audit_logs').insert({
         user_id: user.id,
         action_type: auditAction,
@@ -3663,16 +3665,14 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         record_id: p.portfolioId,
         metadata: {
           roi_amount: roiAmount, reference: refId, partner_id: p.investorId, partner_name: p.name, reason, pay_mode: mode,
-          ...(isProxyAgent ? { target_agent_id: managed.agentId, target_agent_name: managed.agentName } : {}),
+          ...(hasProxy ? { proxy_agent_id: managed.agentId, proxy_agent_name: managed.agentName, custody_route: 'partner_wallet_v2' } : {}),
         },
       });
 
       await supabase.from('notifications').insert({
         user_id: p.investorId,
-        title: isProxyAgent ? 'ROI Payout Initiated (Agent Wallet)' : mode === 'wallet' ? 'ROI Payout Initiated' : 'ROI Payment Recorded',
-        message: isProxyAgent
-          ? `An ROI payout of ${formatUGX(roiAmount)} has been initiated for ${managed.agentName}'s agent wallet. Pending COO approval. Ref: ${refId}`
-          : `An ROI payout of ${formatUGX(roiAmount)} has been ${mode === 'wallet' ? 'initiated for your wallet' : 'recorded as already paid'}. Pending approval. Ref: ${refId}`,
+        title: mode === 'wallet' ? 'ROI Payout Initiated' : 'ROI Payment Recorded',
+        message: `An ROI payout of ${formatUGX(roiAmount)} has been ${mode === 'wallet' ? 'initiated for your partner wallet' : 'recorded as already paid'}. Pending approval. Ref: ${refId}`,
         type: 'payout_initiated',
         metadata: { portfolio_id: p.portfolioId, roi_amount: roiAmount, reference: refId, pay_mode: mode },
       });
@@ -3684,8 +3684,8 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
           cooUsers.map(c => ({
             user_id: c.user_id,
             title: 'ROI Payout Awaiting COO Approval',
-            message: isProxyAgent
-              ? `[Agent Wallet] ${p.name} → ${managed.agentName}: ${formatUGX(roiAmount)} pending COO approval. Ref: ${refId}`
+            message: hasProxy
+              ? `[Partner Wallet via Proxy ${managed.agentName}] ${p.name}: ${formatUGX(roiAmount)} pending COO approval. Ref: ${refId}`
               : `[${modeLabel}] ${p.name} has an ROI payout of ${formatUGX(roiAmount)} pending COO approval. Ref: ${refId}`,
             type: 'approval_required',
             metadata: { portfolio_id: p.portfolioId, partner_id: p.investorId, roi_amount: roiAmount, reference: refId, pay_mode: mode },
