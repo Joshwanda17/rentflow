@@ -4413,11 +4413,11 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {selectedManaged?.isManaged || selectedManaged?.hasProxy ? (
-                        <SelectItem value="agent_wallet">Agent Wallet ({selectedManaged?.agentName})</SelectItem>
-                      ) : (
-                        <SelectItem value="wallet">Pay to Wallet</SelectItem>
-                      )}
+                      <SelectItem value="wallet">
+                        {selectedManaged?.isManaged || selectedManaged?.hasProxy
+                          ? `Partner Wallet (proxy: ${selectedManaged?.agentName})`
+                          : 'Pay to Partner Wallet'}
+                      </SelectItem>
                       <SelectItem value="already_paid">Cash (already/to be paid externally)</SelectItem>
                     </SelectContent>
                   </Select>
