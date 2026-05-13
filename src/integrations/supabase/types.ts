@@ -10160,6 +10160,7 @@ export type Database = {
           landlord_ops_reviewed_at: string | null
           landlord_ops_reviewed_by: string | null
           landlord_verification_method: string | null
+          last_resubmitted_at: string | null
           lc1_id: string | null
           manager_verified: boolean | null
           manager_verified_at: string | null
@@ -10185,8 +10186,10 @@ export type Database = {
           request_fee: number
           request_latitude: number | null
           request_longitude: number | null
+          resubmission_count: number
           resubmitted_at: string | null
           resubmitted_note: string | null
+          returned_at: string | null
           roi_payments_count: number | null
           schedule_status: string | null
           status: string | null
@@ -10244,6 +10247,7 @@ export type Database = {
           landlord_ops_reviewed_at?: string | null
           landlord_ops_reviewed_by?: string | null
           landlord_verification_method?: string | null
+          last_resubmitted_at?: string | null
           lc1_id?: string | null
           manager_verified?: boolean | null
           manager_verified_at?: string | null
@@ -10269,8 +10273,10 @@ export type Database = {
           request_fee: number
           request_latitude?: number | null
           request_longitude?: number | null
+          resubmission_count?: number
           resubmitted_at?: string | null
           resubmitted_note?: string | null
+          returned_at?: string | null
           roi_payments_count?: number | null
           schedule_status?: string | null
           status?: string | null
@@ -10328,6 +10334,7 @@ export type Database = {
           landlord_ops_reviewed_at?: string | null
           landlord_ops_reviewed_by?: string | null
           landlord_verification_method?: string | null
+          last_resubmitted_at?: string | null
           lc1_id?: string | null
           manager_verified?: boolean | null
           manager_verified_at?: string | null
@@ -10353,8 +10360,10 @@ export type Database = {
           request_fee?: number
           request_latitude?: number | null
           request_longitude?: number | null
+          resubmission_count?: number
           resubmitted_at?: string | null
           resubmitted_note?: string | null
+          returned_at?: string | null
           roi_payments_count?: number | null
           schedule_status?: string | null
           status?: string | null
@@ -14962,6 +14971,10 @@ export type Database = {
       resolve_welile_ai_id: { Args: { ai_id: string }; Returns: string }
       resubmit_rejected_deposit: {
         Args: { p_id: string; p_payload: Json }
+        Returns: string
+      }
+      return_rent_request_for_correction: {
+        Args: { p_reason: string; p_request_id: string; p_stage: string }
         Returns: string
       }
       run_layer_a_bulk: { Args: { p_dry_run?: boolean }; Returns: Json }

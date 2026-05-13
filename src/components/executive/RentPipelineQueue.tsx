@@ -543,28 +543,29 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
       toast({ title: 'Rejection reason is required', variant: 'destructive' });
       return;
     }
+    if (comment.trim().length < 10) {
+      toast({ title: 'Reason must be at least 10 characters', variant: 'destructive' });
+      return;
+    }
 
     setProcessing(true);
     try {
-      const updateData: any = {
-        status: 'rejected',
-        rejected_reason: comment.trim(),
-        rejected_at_stage: stage,
-        rejected_at: new Date().toISOString(),
+      const { error } = await supabase.rpc('return_rent_request_for_correction', {
+        p_request_id: selectedRequest.id,
+        p_stage: stage,
+        p_reason: comment.trim(),
+      });
+      if (error) throw error;
+
+      // Stamp reviewer + stage-specific comment column for audit trail
+      const reviewerPatch: any = {
         [config.reviewerColumn]: user.id,
         [config.reviewerAtColumn]: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
       };
-      if (config.commentColumn) {
-        updateData[config.commentColumn] = comment.trim();
-      }
-      const { error } = await supabase
-        .from('rent_requests')
-        .update(updateData)
-        .eq('id', selectedRequest.id);
+      if (config.commentColumn) reviewerPatch[config.commentColumn] = comment.trim();
+      await supabase.from('rent_requests').update(reviewerPatch).eq('id', selectedRequest.id);
 
-      if (error) throw error;
-      toast({ title: 'Request rejected — sent back to Agent Ops & originating Agent' });
+      toast({ title: 'Returned for correction — sent to Agent Ops & originating Agent' });
       setSelectedRequest(null);
       setComment('');
       queryClient.invalidateQueries({ queryKey: ['rent-pipeline'] });
