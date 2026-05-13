@@ -264,7 +264,12 @@ Deno.serve(async (req) => {
         return acc;
       }, 0);
 
-      if (isProxyPayout && wr.linked_party && wr.linked_party !== wr.user_id) {
+      if (isProxyPayout && fundingUserId === beneficiaryUserId) {
+        // Direct partner-funded proxy payout: the agent initiated the row, but
+        // the partner wallet now holds the ROI. Use the same strict available
+        // figure that user-facing wallets and withdrawal approval gates use.
+        ledgerAvailable = Math.max(0, Number(directPartnerFundingAvailable ?? 0));
+      } else if (isProxyPayout && wr.linked_party && wr.linked_party !== wr.user_id) {
         const { data: linkedRows, error: linkedErr } = await admin
           .from("general_ledger")
           .select("amount, direction, category, account")
