@@ -3620,13 +3620,15 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
 
       // Date stays unchanged — only advances when CFO approves the payout
 
-      const operationType = mode === 'agent_wallet' ? 'roi_agent_wallet_credit' : mode === 'wallet' ? 'roi_wallet_credit' : 'roi_already_paid';
-      const modeLabel = mode === 'agent_wallet' ? 'Agent Wallet' : mode === 'wallet' ? 'Pay to Wallet' : 'Cash';
+      // Proxy Partner Custody v2 (cutoff 2026-05-12):
+      // ROI payouts ALWAYS land in the partner's own wallet — never parked in
+      // an agent's wallet. The proxy agent is recorded in metadata for audit.
+      const operationType = mode === 'wallet' ? 'roi_wallet_credit' : 'roi_already_paid';
+      const modeLabel = mode === 'wallet' ? 'Partner Wallet' : 'Cash';
       const managed = managedInfo[p.portfolioId];
       const txnGroupId = crypto.randomUUID();
+      const hasProxy = !!managed;
 
-      // All modes go through pending pipeline — CFO must approve before wallet is credited
-      const isProxyAgent = mode === 'agent_wallet' && managed;
       const { error: pendErr } = await supabase.from('pending_wallet_operations').insert({
         user_id: p.investorId,
         amount: roiAmount,
@@ -3637,9 +3639,9 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         reference_id: refId,
         operation_type: operationType,
         transaction_group_id: txnGroupId,
-        target_wallet_user_id: isProxyAgent ? managed.agentId : null,
-        description: isProxyAgent
-          ? `[Agent Wallet] ROI payout of ${formatUGX(roiAmount)} to ${managed.agentName}'s agent wallet on behalf of ${p.name}. Portfolio: ${p.portfolioId.slice(0, 8)}. Reason: ${reason}`
+        target_wallet_user_id: null,
+        description: hasProxy
+          ? `[Partner Wallet via Proxy] ROI payout of ${formatUGX(roiAmount)} to ${p.name}'s partner wallet (proxy agent: ${managed.agentName}). Portfolio: ${p.portfolioId.slice(0, 8)}. Reason: ${reason}`
           : `[${modeLabel}] ROI payout of ${formatUGX(roiAmount)} to ${p.name}'s wallet. Portfolio: ${p.portfolioId.slice(0, 8)}. Reason: ${reason}`,
         linked_party: user.id,
         status: 'pending_coo_approval',
@@ -3650,12 +3652,12 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
           initiated_by: user.id,
           reason,
           pay_mode: mode,
-          ...(isProxyAgent ? { target_agent_name: managed.agentName, target_agent_id: managed.agentId } : {}),
+          ...(hasProxy ? { proxy_agent_name: managed.agentName, proxy_agent_id: managed.agentId, custody_route: 'partner_wallet_v2' } : {}),
         },
       });
       if (pendErr) throw pendErr;
 
-      const auditAction = mode === 'agent_wallet' ? 'roi_agent_wallet_requested' : mode === 'wallet' ? 'roi_payout_requested' : 'roi_already_paid_logged';
+      const auditAction = mode === 'wallet' ? 'roi_payout_requested' : 'roi_already_paid_logged';
       await supabase.from('audit_logs').insert({
         user_id: user.id,
         action_type: auditAction,
@@ -3663,16 +3665,14 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         record_id: p.portfolioId,
         metadata: {
           roi_amount: roiAmount, reference: refId, partner_id: p.investorId, partner_name: p.name, reason, pay_mode: mode,
-          ...(isProxyAgent ? { target_agent_id: managed.agentId, target_agent_name: managed.agentName } : {}),
+          ...(hasProxy ? { proxy_agent_id: managed.agentId, proxy_agent_name: managed.agentName, custody_route: 'partner_wallet_v2' } : {}),
         },
       });
 
       await supabase.from('notifications').insert({
         user_id: p.investorId,
-        title: isProxyAgent ? 'ROI Payout Initiated (Agent Wallet)' : mode === 'wallet' ? 'ROI Payout Initiated' : 'ROI Payment Recorded',
-        message: isProxyAgent
-          ? `An ROI payout of ${formatUGX(roiAmount)} has been initiated for ${managed.agentName}'s agent wallet. Pending COO approval. Ref: ${refId}`
-          : `An ROI payout of ${formatUGX(roiAmount)} has been ${mode === 'wallet' ? 'initiated for your wallet' : 'recorded as already paid'}. Pending approval. Ref: ${refId}`,
+        title: mode === 'wallet' ? 'ROI Payout Initiated' : 'ROI Payment Recorded',
+        message: `An ROI payout of ${formatUGX(roiAmount)} has been ${mode === 'wallet' ? 'initiated for your partner wallet' : 'recorded as already paid'}. Pending approval. Ref: ${refId}`,
         type: 'payout_initiated',
         metadata: { portfolio_id: p.portfolioId, roi_amount: roiAmount, reference: refId, pay_mode: mode },
       });
@@ -3684,8 +3684,8 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
           cooUsers.map(c => ({
             user_id: c.user_id,
             title: 'ROI Payout Awaiting COO Approval',
-            message: isProxyAgent
-              ? `[Agent Wallet] ${p.name} → ${managed.agentName}: ${formatUGX(roiAmount)} pending COO approval. Ref: ${refId}`
+            message: hasProxy
+              ? `[Partner Wallet via Proxy ${managed.agentName}] ${p.name}: ${formatUGX(roiAmount)} pending COO approval. Ref: ${refId}`
               : `[${modeLabel}] ${p.name} has an ROI payout of ${formatUGX(roiAmount)} pending COO approval. Ref: ${refId}`,
             type: 'approval_required',
             metadata: { portfolio_id: p.portfolioId, partner_id: p.investorId, roi_amount: roiAmount, reference: refId, pay_mode: mode },
@@ -3758,7 +3758,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         if (proxyData) {
           const agentName = (proxyData.agent as any)?.full_name || 'Agent';
           setManagedInfo(prev => ({ ...prev, [p.portfolioId]: { isManaged: !!proxyData.is_managed_account, agentName, agentId: proxyData.agent_id, hasProxy: true } }));
-          if (proxyData.is_managed_account) setSplitPayMode('agent_wallet');
+          if (proxyData.is_managed_account) setSplitPayMode('wallet');
         } else {
           setManagedInfo(prev => ({ ...prev, [p.portfolioId]: null }));
         }
@@ -3768,7 +3768,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         setCheckingManagedStep2(false);
       }
     } else if (managedInfo[p.portfolioId]?.isManaged) {
-      setSplitPayMode('agent_wallet');
+      setSplitPayMode('wallet');
     }
   };
 
@@ -3785,8 +3785,9 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       if (!user) throw new Error('Not authenticated');
 
       const managed = managedInfo[p.portfolioId];
-      const isProxyAgent = payMode === 'agent_wallet' && managed;
-      const modeLabel = payMode === 'agent_wallet' ? 'Agent Wallet' : payMode === 'wallet' ? 'Wallet' : 'Cash';
+      // Proxy Partner Custody v2: cash portion always lands in the partner's wallet.
+      const hasProxy = !!managed;
+      const modeLabel = payMode === 'wallet' ? 'Partner Wallet' : payMode === 'agent_wallet' ? 'Partner Wallet (via Proxy)' : 'Cash';
       const txnGroupId = crypto.randomUUID();
 
       // Date stays unchanged — only advances when CFO approves the payout
@@ -3850,7 +3851,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       if (ledgerErr) throw ledgerErr;
 
       // ── Cash portion: submit to pending_wallet_operations for CFO approval ──
-      const operationType = payMode === 'agent_wallet' ? 'roi_split_agent_wallet' : payMode === 'wallet' ? 'roi_split_cash' : 'roi_split_already_paid';
+      const operationType = payMode === 'agent_wallet' || payMode === 'wallet' ? 'roi_split_cash' : 'roi_split_already_paid';
       const { error: pendErr } = await supabase.from('pending_wallet_operations').insert({
         user_id: p.investorId,
         amount: cashAmount,
@@ -3861,9 +3862,9 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         reference_id: refId,
         operation_type: operationType,
         transaction_group_id: txnGroupId,
-        target_wallet_user_id: isProxyAgent ? managed.agentId : null,
-        description: isProxyAgent
-          ? `[Split ROI → Agent Wallet] Cash portion ${formatUGX(cashAmount)} to ${managed.agentName}'s agent wallet. Reinvested: ${formatUGX(reinvestAmount)}. Total ROI: ${formatUGX(roiAmount)}. Reason: ${reason}`
+        target_wallet_user_id: null,
+        description: hasProxy
+          ? `[Split ROI → Partner Wallet via Proxy ${managed.agentName}] Cash portion ${formatUGX(cashAmount)} to ${p.name}'s partner wallet. Reinvested: ${formatUGX(reinvestAmount)}. Total ROI: ${formatUGX(roiAmount)}. Reason: ${reason}`
           : `[Split ROI → ${modeLabel}] Cash portion ${formatUGX(cashAmount)} to ${p.name}'s wallet. Reinvested: ${formatUGX(reinvestAmount)}. Total ROI: ${formatUGX(roiAmount)}. Reason: ${reason}`,
         linked_party: user.id,
         status: 'pending',
@@ -3879,7 +3880,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
           reinvest_amount: reinvestAmount,
           total_roi: roiAmount,
           new_principal: newPrincipal,
-          ...(isProxyAgent ? { target_agent_name: managed.agentName, target_agent_id: managed.agentId } : {}),
+          ...(hasProxy ? { proxy_agent_name: managed.agentName, proxy_agent_id: managed.agentId, custody_route: 'partner_wallet_v2' } : {}),
         },
       });
       if (pendErr) throw pendErr;
@@ -3894,7 +3895,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
           roi_amount: roiAmount, cash_amount: cashAmount, reinvest_amount: reinvestAmount,
           new_principal: newPrincipal, reference: refId, partner_id: p.investorId, partner_name: p.name,
           reason, pay_mode: payMode, reinvest_mode: reinvestMode,
-          ...(isProxyAgent ? { target_agent_id: managed.agentId, target_agent_name: managed.agentName } : {}),
+          ...(hasProxy ? { proxy_agent_id: managed.agentId, proxy_agent_name: managed.agentName, custody_route: 'partner_wallet_v2' } : {}),
         },
       });
 
@@ -4229,21 +4230,21 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
               ) : selectedManaged?.isManaged ? (
                 /* ─── Managed Account ─── */
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2 rounded-xl bg-primary/10 border border-primary/20 px-3 py-2.5">
-                    <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold text-primary">Managed Account</p>
-                      <p className="text-[10px] text-primary/70">Funds will be sent to <strong>{selectedManaged.agentName}</strong>'s agent wallet</p>
-                    </div>
-                  </div>
-                  <Button
-                    className="w-full gap-2"
-                    disabled={!!selectedProcessing}
-                    onClick={() => handlePay(selectedPayout, selectedReason, 'agent_wallet')}
-                  >
-                    {selectedProcessing === 'pay' ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-                    Send to Agent Wallet
-                  </Button>
+                   <div className="flex items-center gap-2 rounded-xl bg-primary/10 border border-primary/20 px-3 py-2.5">
+                     <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
+                     <div className="min-w-0">
+                       <p className="text-xs font-semibold text-primary">Managed Account</p>
+                       <p className="text-[10px] text-primary/70">Funds land in the <strong>partner's wallet</strong>. Proxy agent <strong>{selectedManaged.agentName}</strong> is recorded for audit.</p>
+                     </div>
+                   </div>
+                   <Button
+                     className="w-full gap-2"
+                     disabled={!!selectedProcessing}
+                     onClick={() => handlePay(selectedPayout, selectedReason, 'wallet')}
+                   >
+                     {selectedProcessing === 'pay' ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                     Pay to Partner Wallet
+                   </Button>
                 </div>
               ) : (
                 /* ─── Standard or Non-Managed Proxy Account ─── */
@@ -4269,7 +4270,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                         "focus:outline-none focus:ring-2 focus:ring-primary/30"
                       )}
                       disabled={!!selectedProcessing}
-                      onClick={() => handlePay(selectedPayout, selectedReason, selectedManaged?.hasProxy ? 'agent_wallet' : 'wallet')}
+                       onClick={() => handlePay(selectedPayout, selectedReason, 'wallet')}
                     >
                       {selectedProcessing === 'pay' ? (
                         <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -4278,10 +4279,10 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                       ) : (
                         <Wallet className="h-6 w-6 text-primary" />
                       )}
-                      <span className="text-xs font-semibold">{selectedManaged?.hasProxy ? 'Credit Agent Wallet' : 'Pay to Wallet'}</span>
-                      <span className="text-[10px] text-muted-foreground leading-tight text-center">
-                        {selectedManaged?.hasProxy ? `Send to ${selectedManaged.agentName}'s wallet` : "Credit partner's digital wallet"}
-                      </span>
+                       <span className="text-xs font-semibold">Pay to Partner Wallet</span>
+                       <span className="text-[10px] text-muted-foreground leading-tight text-center">
+                         {selectedManaged?.hasProxy ? `Lands in partner's wallet (proxy: ${selectedManaged.agentName})` : "Credit partner's digital wallet"}
+                       </span>
                     </button>
                     <button
                       className={cn(
@@ -4412,11 +4413,11 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {selectedManaged?.isManaged || selectedManaged?.hasProxy ? (
-                        <SelectItem value="agent_wallet">Agent Wallet ({selectedManaged?.agentName})</SelectItem>
-                      ) : (
-                        <SelectItem value="wallet">Pay to Wallet</SelectItem>
-                      )}
+                      <SelectItem value="wallet">
+                        {selectedManaged?.isManaged || selectedManaged?.hasProxy
+                          ? `Partner Wallet (proxy: ${selectedManaged?.agentName})`
+                          : 'Pay to Partner Wallet'}
+                      </SelectItem>
                       <SelectItem value="already_paid">Cash (already/to be paid externally)</SelectItem>
                     </SelectContent>
                   </Select>
