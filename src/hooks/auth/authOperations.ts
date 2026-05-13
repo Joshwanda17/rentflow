@@ -152,6 +152,7 @@ export async function signInWithApple() {
 
 export async function signOutUser(userId: string | undefined) {
   // Activity log insert stubbed for performance
+  try { localStorage.removeItem('welile_remember_until'); } catch { /* non-critical */ }
   await supabase.auth.signOut();
 }
 

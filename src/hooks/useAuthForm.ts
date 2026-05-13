@@ -147,7 +147,17 @@ export function useAuthForm() {
         errorMessage = 'No account found with this email, or the password is incorrect. If you signed in with Google, please use the "Continue with Google" button instead.';
       }
       toast({ title: 'Sign In Failed', description: errorMessage, variant: 'destructive' });
+      return;
     }
+    // Same 24h "Remember me" window as the phone-login path
+    try {
+      if (rememberMe) {
+        const until = Date.now() + 24 * 60 * 60 * 1000;
+        localStorage.setItem('welile_remember_until', String(until));
+      } else {
+        localStorage.removeItem('welile_remember_until');
+      }
+    } catch { /* non-critical */ }
   };
 
   // SMS reset state
@@ -425,6 +435,17 @@ export function useAuthForm() {
       setLoginError(null);
       setFailedAttempts(0);
       saveLocationInBackground();
+        // "Remember me" → keep the user signed in for 24h with no
+        // re-prompts (inactivity lock, PIN, biometric, etc. all honor
+        // this window). Cleared on explicit sign-out.
+        try {
+          if (rememberMe) {
+            const until = Date.now() + 24 * 60 * 60 * 1000;
+            localStorage.setItem('welile_remember_until', String(until));
+          } else {
+            localStorage.removeItem('welile_remember_until');
+          }
+        } catch { /* non-critical */ }
       // Save user name for returning-user greeting
       try {
         const { data: { user: currentUser } } = await supabase.auth.getUser();
