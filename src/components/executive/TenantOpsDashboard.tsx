@@ -1229,6 +1229,18 @@ export function TenantOpsDashboard() {
             transition={{ duration: 0.15 }}
             className="space-y-3"
           >
+            {/* Tenant List - top of page */}
+            <TenantOverviewList
+              data={rows}
+              loading={isLoading}
+              initialCategory={overviewFilter}
+              onSelectTenant={(id, name) => {
+                setSelectedTenant({ id, name });
+                setActiveView('tenant-detail');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
+
             {/* Headline: Daily Collection Monitoring Dashboard */}
             <DailyCollectionMonitoringDashboard mode="editable" title="Daily Collection Monitoring" />
 
@@ -1386,17 +1398,6 @@ export function TenantOpsDashboard() {
               })}
             </div>
             </div>
-            {/* Tenant List */}
-            <TenantOverviewList
-              data={rows}
-              loading={isLoading}
-              initialCategory={overviewFilter}
-              onSelectTenant={(id, name) => {
-                setSelectedTenant({ id, name });
-                setActiveView('tenant-detail');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-            />
           </motion.div>
         ) : (
           <motion.div
