@@ -68,6 +68,11 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
       return Number.isFinite(n) ? n : 0;
     },
     enabled: !!user && open,
+    // High-stakes mutation gate — never trust the cache; the trigger reads
+    // the live row and will reject if we render a stale figure.
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 
   const { data: assignedRequests = [], isLoading } = useQuery({
