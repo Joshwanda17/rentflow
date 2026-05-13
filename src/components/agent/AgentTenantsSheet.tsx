@@ -114,6 +114,11 @@ const RISK_ORDER: Record<'good' | 'standard' | 'caution' | 'new', number> = {
   new: 3,
 };
 
+const TENANT_DUE_REQUEST_FILTER =
+  'status.in.(pending,approved,funded,disbursed,repaying,completed),and(status.eq.rejected,registration_type.eq.outstanding_balance)';
+const TENANT_DETAIL_REQUEST_FILTER =
+  'status.in.(pending,approved,disbursed,repaying,completed),and(status.eq.rejected,registration_type.eq.outstanding_balance)';
+
 // Escape regex special characters before building a search-highlight pattern.
 function escapeRegex(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -393,7 +398,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           .from('rent_requests')
           .select('tenant_id, total_repayment, amount_repaid, daily_repayment, status, created_at, registration_type, initial_outstanding_balance, outstanding_grace_days, duration_days, landlord:landlords(name, property_address, latitude, longitude)')
           .in('tenant_id', tenantIds)
-          .in('status', ['pending', 'approved', 'funded', 'disbursed', 'repaying', 'completed'])
+          .or(TENANT_DUE_REQUEST_FILTER)
           .order('created_at', { ascending: false });
 
         const balances: Record<string, number> = {};
@@ -476,7 +481,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         .from('rent_requests')
         .select('id, rent_amount, total_repayment, duration_days, daily_repayment, amount_repaid, status, created_at, disbursed_at, registration_type, initial_outstanding_balance, outstanding_grace_days, landlord_id, lc1_id, house_category, tenant_no_smartphone, request_latitude, request_longitude, landlord:landlords(name, property_address, house_category, latitude, longitude)')
         .eq('tenant_id', tenantId)
-        .in('status', ['pending', 'approved', 'disbursed', 'repaying', 'completed'])
+        .or(TENANT_DETAIL_REQUEST_FILTER)
         .order('created_at', { ascending: false })
         .limit(5);
 
