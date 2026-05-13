@@ -92,8 +92,8 @@ export function LandlordPayoutsQueue() {
 
   const handleMarkDisbursed = async () => {
     if (!disburse) return;
-    if (momoRef.trim().length < 4) {
-      toast.error('MoMo confirmation code must be at least 4 characters');
+    if (momoRef.trim().length < 6) {
+      toast.error('MoMo TID must be at least 6 characters');
       return;
     }
     setSubmitting(true);
@@ -209,10 +209,13 @@ export function LandlordPayoutsQueue() {
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-bold flex items-center gap-2">
           <Banknote className="h-4 w-4 text-orange-600" />
-          Landlord Payouts — Awaiting Disbursement
+          Landlord Payouts — Approve with MoMo TID
           <Badge variant="secondary">{payouts.length}</Badge>
         </h3>
       </div>
+      <p className="text-xs text-muted-foreground -mt-2">
+        Agent has paid the landlord via MoMo (OTP-verified). Enter the MoMo TID to settle the withdrawal and release the agent's float ledger lock.
+      </p>
 
       <div className="space-y-3">
         {payouts.map(p => (
@@ -272,10 +275,10 @@ export function LandlordPayoutsQueue() {
 
             <div className="flex gap-2">
               <Button className="flex-1" onClick={() => setDisburse(p)}>
-                <CheckCircle2 className="h-4 w-4 mr-1" /> Mark Disbursed
+                <CheckCircle2 className="h-4 w-4 mr-1" /> Approve with TID
               </Button>
               <Button variant="outline" onClick={() => setReject(p)}>
-                <XCircle className="h-4 w-4 mr-1" /> Reject
+                <XCircle className="h-4 w-4 mr-1" /> Reject & Refund
               </Button>
             </div>
           </Card>
@@ -286,14 +289,14 @@ export function LandlordPayoutsQueue() {
       <Dialog open={!!disburse} onOpenChange={open => !open && closeAll()}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirm landlord payment</DialogTitle>
+            <DialogTitle>Approve landlord payout with MoMo TID</DialogTitle>
             <DialogDescription>
-              Enter the MoMo confirmation code you received after sending {disburse && formatUGX(disburse.amount)} to {disburse?.landlord_name}.
+              The agent paid {disburse && formatUGX(disburse.amount)} to {disburse?.landlord_name} via {disburse?.mobile_money_provider}. Enter the MoMo Transaction ID (TID) from the agent's MoMo confirmation to settle this payout.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <Label htmlFor="momo-ref">MoMo confirmation code *</Label>
+              <Label htmlFor="momo-ref">MoMo Transaction ID (TID) *</Label>
               <Input
                 id="momo-ref"
                 value={momoRef}
@@ -301,6 +304,7 @@ export function LandlordPayoutsQueue() {
                 placeholder="e.g. CK230420.1542.A12345"
                 autoFocus
               />
+              <p className="text-[11px] text-muted-foreground mt-1">Minimum 6 characters. Must match the agent's MoMo confirmation.</p>
             </div>
             <div>
               <Label htmlFor="momo-notes">Notes (optional)</Label>
@@ -315,8 +319,8 @@ export function LandlordPayoutsQueue() {
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={closeAll} disabled={submitting}>Cancel</Button>
-            <Button onClick={handleMarkDisbursed} disabled={submitting || momoRef.trim().length < 4}>
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Confirm Disbursement'}
+            <Button onClick={handleMarkDisbursed} disabled={submitting || momoRef.trim().length < 6}>
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Approve with TID'}
             </Button>
           </DialogFooter>
         </DialogContent>

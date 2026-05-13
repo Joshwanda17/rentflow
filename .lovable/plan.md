@@ -1,40 +1,64 @@
-## Advance Recovery Isolation — Wallet Routing v2 Enforcement (no new tables / columns)
+## Goal
 
-Constraint acknowledged: zero schema additions. We use only existing primitives (`get_user_available_balance`, `apply_wallet_movement`, `system_events`, `wallet_routing_violations`, `create_ledger_transaction`).
+Make the CFO `wallet-payout` tab and the agent + FinOps screens reflect this single canonical flow:
 
-### 1. Cron edge function — `supabase/functions/process-agent-advance-deductions/index.ts`
-- Replace the `wallets.balance` read with `supabase.rpc('get_user_available_balance', { p_user_id: agent_id })`. This is the strict, ledger-anchored withdrawable figure.
-- Cap deduction at `min(available, balanceAfterInterest)`. If `available <= 0`, write the daily `agent_advance_ledger` row with `deduction_status='none'`, `amount_deducted=0`, skip the ledger transaction, and emit `repayment_skipped_insufficient_balance` system event.
-- For successful deductions, keep the existing balanced double-leg `create_ledger_transaction` call but extend each entry with explicit Wallet Routing v2 metadata so it can never silently land in float:
-  - wallet leg: `recipient_type: 'user'` (forces withdrawable bucket)
-  - platform leg: `recipient_type: 'operational_wallet'`
-  - both legs: `metadata: { source: 'cron_advance_deduction', advance_id, withdrawable_snapshot, bucket_intent: 'advance_balance_recovery' }`
-- Emit `system_events`: `repayment_attempted`, `repayment_successful`, `repayment_failed` (in catch).
+```text
+CFO          →  funds Agent's Landlord Payout Float (no landlord touched yet)
+Agent        →  opens float → picks landlord → MoMo + Withdraw
+                → OTP sent to LANDLORD's phone
+                → Agent enters OTP → money moves to landlord's MoMo
+FinOps       →  uses the MoMo TID to approve / settle the withdrawal
+```
 
-### 2. Deposit sweep — `supabase/functions/approve-wallet-operation/index.ts`
-- Same treatment for the FIFO `agent_repayment` legs it posts: add `recipient_type` to both legs and `metadata.bucket_intent`.
-- The sweep already operates on freshly-deposited withdrawable funds, but adding the explicit routing tag makes the intent enforceable end-to-end and consistent with rule (4) of the request.
+The backend already supports this end-to-end (`fund-agent-landlord-float`, `issue-landlord-payout-otp`, `verify-landlord-payout-otp`, `landlord-payout-disburse`, `submit-landlord-payout-receipt`). The work is **UI alignment + a couple of small backend tightenings** so the screens stop implying CFO pays the landlord directly.
 
-### 3. Database migration — guards only, no new tables / columns
-Single migration that updates existing functions:
-- **`apply_wallet_movement`**: at the top, if `p_category = 'agent_repayment'`:
-  - `IF p_recipient_type IS NULL THEN RAISE EXCEPTION 'agent_repayment requires explicit recipient_type'`.
-  - Force the wallet-side movement to `withdrawable_balance`. If resolution would land on `float_balance`, log to existing `wallet_routing_violations` and `RAISE EXCEPTION 'Advance repayment cannot touch float balance'`.
-- **No trigger, no audit table** — the guard inside the sole writer (`apply_wallet_movement`) is sufficient because per the Wallet Sole Writer rule it is the only path that mutates buckets.
-- All other audit needs (snapshot of withdrawable, deducted amount, source) flow into existing `system_events` payloads — no new audit table.
+## Changes
 
-### 4. Tests — `src/__tests__/advanceRepaymentIsolation.integration.test.ts`
-Vitest integration tests against the live DB seeding existing tables only:
-- **A — Float untouchable**: agent with `withdrawable=0`, `float=500k`, outstanding=100k → invoke cron → assert advance unchanged, float unchanged, ledger row with `deduction_status='none'`, `repayment_skipped_insufficient_balance` event present.
-- **B — Withdrawable deducted**: `withdrawable=70k`, `float=900k`, outstanding=100k → invoke cron → assert outstanding=30k, withdrawable=0, float unchanged, balanced ledger pair tagged `agent_repayment` with `recipient_type='user'` on the wallet leg.
-- **C — Missing recipient_type**: direct `create_ledger_transaction` call with `category='agent_repayment'` and no `recipient_type` → assert exception.
+### 1. CFO — Rent Disbursement Queue (`src/components/cfo/RentDisbursementQueue.tsx`)
+Currently labelled "Pay" / "Rent Disbursement Queue" with copy "ready for CFO disbursement", which reads as if CFO pays the landlord. Behind the scenes it already calls `fund-agent-landlord-float`.
 
-### Out of scope (per user)
-- New tables (e.g., `advance_repayment_audit`) — dropped.
-- Adding columns to `general_ledger`, `wallets`, `agent_advances` — none.
-- Issuance ledger posting and top-up ledger posting — separate work, not in this fix.
+- Rename header to **"Fund Agent Landlord Payout Float"**.
+- Subcopy: *"COO-approved rent. Funding moves cash into the assigned agent's Landlord Payout Float — the agent then pays the landlord via MoMo + OTP."*
+- Per-row button: **"Fund Agent Float"** (not "Pay"). Add small helper text under the agent chip: *"Will land in {agentName}'s Landlord Payout Float."*
+- Batch button: **"Fund {n} Agent Floats"**.
+- Success toast: *"Funded agent float — agent will complete the MoMo payout."*
 
-### Technical notes
-- `get_user_available_balance` already enforces the Withdrawable Strict Rule, so reading it makes the cron compliant in one line.
-- `wallet_routing_violations` already exists per Wallet Routing v2; we reuse it for the float-touch attempts, no schema change.
-- Cron schedule and edge function URLs are unchanged.
+### 2. Agent — Landlord Payout Float card (`src/components/wallet/AgentLandlordFloatCard.tsx` + `PayLandlordDialog`)
+Already uses OTP flow. Tighten the wording so it matches the redefinition:
+
+- Primary action label on each per-tenant/landlord row: **"Withdraw to Landlord MoMo"**.
+- Step 1 of dialog: pick landlord (auto when drilled from allocation), choose MoMo provider (MTN / Airtel), confirm landlord phone.
+- Step 2: tap **Send OTP** → calls `issue-landlord-payout-otp` (OTP goes to landlord's phone, 2-min TTL).
+- Step 3: agent enters 6-digit OTP → `verify-landlord-payout-otp` → `landlord-payout-disburse` debits the float and creates a `landlord_payouts` row in `pending_finops_disbursement`.
+- Show the `payout_id` + amount + landlord MoMo on the success screen so the agent can reference it.
+
+No new backend endpoints; just confirm copy and that `mobile_money_provider` is required before OTP.
+
+### 3. FinOps — TID Approval Queue (`src/components/financial-ops/LandlordPayoutsQueue.tsx`)
+Already lists `pending_finops_disbursement` rows. Make TID the explicit gate:
+
+- Each row shows: agent, landlord, MoMo (provider + phone), amount, OTP-verified time.
+- Action button: **"Approve with TID"** → modal that REQUIRES:
+  - `momo_transaction_id` (TID, mandatory, 6+ chars)
+  - optional screenshot upload
+- Submit calls existing `submit-landlord-payout-receipt` with the TID → marks payout `settled`, emits `landlord_payout_settled` event.
+- Add a "Reject / Refund" path that calls `refund_agent_float_for_payout` (already exists via SLA monitor) so FinOps can return cash to the agent's float if the MoMo failed.
+
+### 4. Small backend tightening
+- `landlord-payout-disburse`: keep status `pending_finops_disbursement` (already does). No MoMo gateway call.
+- `submit-landlord-payout-receipt`: enforce non-empty `momo_transaction_id` server-side and reject duplicates per `payout_id`.
+- Emit `landlord_payout_settled` system event with `{ payout_id, tid, finops_user_id }` for the trust/audit trail (CONSTITUTION compliance).
+
+### 5. Copy / docs
+Update the in-app helper tooltip on the CFO tab and the agent float card to state the 4-step flow above so all three roles see the same definition.
+
+## Out of scope
+- No schema changes — `landlord_payouts`, `landlord_payout_otp_challenges`, `agent_landlord_float_allocations` already model this.
+- No change to wallet routing (`recipient_type='operational_wallet'` → float) or sole-writer rule.
+- No automatic MoMo gateway call; this stays human-in-the-loop on the FinOps side via the TID.
+
+## Acceptance
+- CFO clicking "Fund Agent Float" never debits a landlord directly; it only increases an agent's Landlord Payout Float.
+- Agent cannot withdraw without (a) MoMo provider selected, (b) OTP entered within 2 min.
+- FinOps cannot mark a payout settled without a TID.
+- Every settled payout produces: `landlord_payouts.status='settled'`, an `agent_visit` (GPS + AI ID), and a `landlord_payout_settled` system event.

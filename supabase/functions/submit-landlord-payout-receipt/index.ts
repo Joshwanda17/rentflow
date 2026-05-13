@@ -35,8 +35,8 @@ Deno.serve(async (req) => {
     if (!payout_id || typeof payout_id !== "string") {
       return json({ error: "payout_id required" }, 400);
     }
-    if (!receipt_number || typeof receipt_number !== "string" || receipt_number.trim().length < 4) {
-      return json({ error: "Receipt number must be at least 4 characters" }, 400);
+    if (!receipt_number || typeof receipt_number !== "string" || receipt_number.trim().length < 6) {
+      return json({ error: "MoMo TID must be at least 6 characters" }, 400);
     }
     if (!receipt_image_url || typeof receipt_image_url !== "string") {
       return json({ error: "Receipt image is required" }, 400);
