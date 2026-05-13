@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import {
   ArrowLeft, Users, CheckCircle2, PieChart as PieIcon, AlertTriangle, TrendingUp,
   Wallet, Banknote, ShieldAlert, Phone, MapPin, Calendar, UserCog, Printer, Download,
-  Building2, XCircle, Clock, ArrowUpRight, ArrowDownRight, Activity, Target, FileText,
+  XCircle, Clock, ArrowUpRight, Activity, Target, FileText,
   AlertCircle, Gauge,
 } from 'lucide-react';
 import {
@@ -11,120 +13,14 @@ import {
   PieChart, Pie, Cell,
 } from 'recharts';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import welileLogo from '@/assets/welile-logo.png';
 import { cn } from '@/lib/utils';
-
-// ============= DUMMY DATA =============
-const agent = {
-  name: 'Akampurira Onesmus',
-  id: 'AGT-0021',
-  branch: 'Kampala Central',
-  phone: '+256 776 123 456',
-  joined: '15 Jan 2024',
-  supervisor: 'Nakanwagi Brenda',
-  avatar: '',
-};
-
-const period = { range: 'May 7 – May 13, 2026', generated: 'May 13, 2026 09:45' };
-
-const summaryKpis = [
-  { label: 'Active Tenants', value: '43', icon: Users, tone: 'blue' },
-  { label: 'Paying Tenants Today', value: '21', icon: CheckCircle2, tone: 'green' },
-  { label: 'Portfolio Occupancy', value: '48.8%', icon: PieIcon, tone: 'blue' },
-  { label: 'Total Outstanding Debt', value: 'UGX 14,320,000', icon: FileText, tone: 'red' },
-  { label: 'Weekly Collection Rate', value: '62%', icon: TrendingUp, tone: 'amber' },
-  { label: 'Wallet Balance', value: 'UGX 231,400', icon: Wallet, tone: 'blue' },
-  { label: 'Float Balance', value: 'UGX 150,000', icon: Banknote, tone: 'green' },
-  { label: 'Risk Status', value: 'CRITICAL', icon: ShieldAlert, tone: 'red' },
-] as const;
-
-const dailyKpis = [
-  { label: 'Expected Today', value: 'UGX 480,000', tone: 'blue' },
-  { label: 'Collected Today', value: 'UGX 312,000', tone: 'green' },
-  { label: 'Daily Gap', value: 'UGX 168,000', tone: 'red' },
-  { label: 'Collection Efficiency', value: '65%', tone: 'amber' },
-  { label: 'Tenants Expected Today', value: '18', tone: 'blue' },
-  { label: 'Tenants Who Paid', value: '11', tone: 'green' },
-  { label: 'Missed Payments', value: '7', tone: 'red' },
-  { label: 'Partial Payments', value: '3', tone: 'amber' },
-];
-
-const dailyTenants = [
-  { tenant: 'John Doe', unit: 'B12', expected: 20000, paid: 20000, balance: 0, status: 'Paid' },
-  { tenant: 'Sarah Namuli', unit: 'A04', expected: 15000, paid: 0, balance: 15000, status: 'Missed' },
-  { tenant: 'Peter Kato', unit: 'C10', expected: 25000, paid: 10000, balance: 15000, status: 'Partial' },
-  { tenant: 'Mariam N.', unit: 'A07', expected: 20000, paid: 20000, balance: 0, status: 'Paid' },
-  { tenant: 'David S.', unit: 'B08', expected: 18000, paid: 0, balance: 18000, status: 'Missed' },
-];
-
-const weeklyKpis = [
-  { label: 'Weekly Expected', value: 'UGX 3,200,000', tone: 'blue' },
-  { label: 'Weekly Collected', value: 'UGX 2,140,000', tone: 'green' },
-  { label: 'Weekly Outstanding', value: 'UGX 1,060,000', tone: 'red' },
-  { label: 'Weekly Efficiency', value: '66.8%', tone: 'amber' },
-  { label: 'Weekly Growth', value: '+12% ↑', tone: 'green' },
-  { label: 'Arrears Recovered', value: 'UGX 540,000', tone: 'green' },
-];
-
-const weeklyTrend = [
-  { day: 'May 7', Expected: 400000, Collected: 280000 },
-  { day: 'May 8', Expected: 450000, Collected: 320000 },
-  { day: 'May 9', Expected: 480000, Collected: 300000 },
-  { day: 'May 10', Expected: 520000, Collected: 340000 },
-  { day: 'May 11', Expected: 500000, Collected: 280000 },
-  { day: 'May 12', Expected: 450000, Collected: 300000 },
-  { day: 'May 13', Expected: 400000, Collected: 312000 },
-];
-
-const debtSummary = [
-  { label: 'Total Outstanding Debt', value: 'UGX 14,320,000', icon: FileText, tone: 'red' },
-  { label: 'Current Month Arrears', value: 'UGX 4,100,000', icon: Calendar, tone: 'amber' },
-  { label: 'Old Arrears (> 30 Days)', value: 'UGX 10,220,000', icon: Clock, tone: 'red' },
-  { label: 'Highest Debtor', value: 'UGX 1,200,000', icon: AlertTriangle, tone: 'red' },
-  { label: 'Recovery Rate (This Month)', value: '23%', icon: Activity, tone: 'amber' },
-];
-
-const debtAging = [
-  { name: '0–30 Days', value: 4100000, color: '#3b82f6' },
-  { name: '31–60 Days', value: 3600000, color: '#f59e0b' },
-  { name: '61–90 Days', value: 2900000, color: '#fbbf24' },
-  { name: '90+ Days', value: 3720000, color: '#ef4444' },
-];
-
-const topDefaulters = [
-  { tenant: 'Isaac Mutebi', debt: 1200000, daysLate: 48, last: 'Apr 2, 2026' },
-  { tenant: 'Brian Ssemanda', debt: 860000, daysLate: 31, last: 'Apr 18, 2026' },
-  { tenant: 'Frank N.', debt: 750000, daysLate: 29, last: 'Apr 20, 2026' },
-  { tenant: 'Mariam N.', debt: 620000, daysLate: 27, last: 'Apr 22, 2026' },
-  { tenant: 'David S.', debt: 580000, daysLate: 25, last: 'Apr 24, 2026' },
-];
-
-const debtKpiStrip = [
-  { label: 'Tenants in Arrears', value: '22', sub: '(51.2%)', icon: Users, tone: 'red' },
-  { label: 'Avg. Debt per Tenant', value: 'UGX 333,023', icon: Banknote, tone: 'amber' },
-  { label: '% of Portfolio in Arrears', value: '33.3%', icon: Target, tone: 'red' },
-  { label: 'Debt Trend (vs Last Week)', value: '+5.6%', icon: ArrowUpRight, tone: 'red' },
-];
-
-const kpiScorecard = [
-  { kpi: 'Daily Collection Efficiency', weight: 35, score: 65 },
-  { kpi: 'Weekly Performance', weight: 25, score: 66.8 },
-  { kpi: 'Debt Recovery', weight: 20, score: 43 },
-  { kpi: 'Tenant Retention', weight: 10, score: 80 },
-  { kpi: 'Missed Payment Rate', weight: 10, score: 40 },
-];
-
-const statusGuide = [
-  { range: '85 – 100', status: 'Excellent', desc: 'Outstanding performance', color: 'text-emerald-600' },
-  { range: '70 – 84', status: 'Good', desc: 'Good performance', color: 'text-green-600' },
-  { range: '50 – 69', status: 'Warning', desc: 'Needs improvement', color: 'text-amber-600' },
-  { range: 'Below 50', status: 'Critical', desc: 'Immediate action required', color: 'text-red-600' },
-];
+import { format, startOfDay, endOfDay, subDays, differenceInDays } from 'date-fns';
 
 // ============= STYLING HELPERS =============
 const toneText: Record<string, string> = {
@@ -140,7 +36,14 @@ const toneBg: Record<string, string> = {
   amber: 'bg-amber-50',
 };
 
-const fmtUGX = (n: number) => `UGX ${n.toLocaleString()}`;
+const fmtUGX = (n: number) => `UGX ${Math.round(n).toLocaleString()}`;
+
+const statusGuide = [
+  { range: '85 – 100', status: 'Excellent', desc: 'Outstanding performance', color: 'text-emerald-600' },
+  { range: '70 – 84', status: 'Good', desc: 'Good performance', color: 'text-green-600' },
+  { range: '50 – 69', status: 'Warning', desc: 'Needs improvement', color: 'text-amber-600' },
+  { range: 'Below 50', status: 'Critical', desc: 'Immediate action required', color: 'text-red-600' },
+];
 
 // ============= REUSABLE COMPONENTS =============
 function SectionCard({ index, title, right, children }: { index: number; title: string; right?: React.ReactNode; children: React.ReactNode }) {
@@ -177,11 +80,10 @@ function KpiCard({ icon: Icon, label, value, tone = 'blue', sub }: { icon?: any;
   );
 }
 
-function MiniMetric({ label, value, tone = 'blue', currency }: { label: string; value: string; tone?: string; currency?: boolean }) {
+function MiniMetric({ label, value, tone = 'blue' }: { label: string; value: string; tone?: string }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-3 hover:shadow-sm transition-all">
       <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wide leading-tight">{label}</p>
-      {currency && <p className="text-[10px] text-slate-400 mt-1.5">UGX</p>}
       <p className={cn('text-lg sm:text-xl font-bold mt-0.5 leading-tight', toneText[tone])}>{value}</p>
     </div>
   );
@@ -200,7 +102,6 @@ function StatusBadge({ s }: { s: string }) {
   );
 }
 
-// ============= GAUGE =============
 function PerformanceGauge({ score }: { score: number }) {
   const angle = (score / 100) * 180;
   const rad = (180 - angle) * (Math.PI / 180);
@@ -209,7 +110,6 @@ function PerformanceGauge({ score }: { score: number }) {
   const needleY = cy - r * Math.sin(rad);
   const status = score >= 85 ? 'EXCELLENT' : score >= 70 ? 'GOOD' : score >= 50 ? 'WARNING' : 'CRITICAL';
   const statusColor = score >= 85 ? 'text-emerald-600' : score >= 70 ? 'text-green-600' : score >= 50 ? 'text-amber-600' : 'text-red-600';
-
   return (
     <div className="flex flex-col items-center">
       <svg viewBox="0 0 220 140" className="w-full max-w-[260px]">
@@ -220,17 +120,13 @@ function PerformanceGauge({ score }: { score: number }) {
             <stop offset="100%" stopColor="#10b981" />
           </linearGradient>
         </defs>
-        {/* Track */}
         <path d={`M 30 110 A 80 80 0 0 1 190 110`} fill="none" stroke="#e2e8f0" strokeWidth="18" strokeLinecap="round" />
-        {/* Colored arc */}
         <path d={`M 30 110 A 80 80 0 0 1 190 110`} fill="none" stroke="url(#gaugeGrad)" strokeWidth="18" strokeLinecap="round" />
-        {/* Tick labels */}
         <text x="20" y="130" className="fill-slate-500" fontSize="10">0</text>
         <text x="50" y="40" className="fill-slate-500" fontSize="10">25</text>
         <text x="105" y="22" className="fill-slate-500" fontSize="10">50</text>
         <text x="160" y="40" className="fill-slate-500" fontSize="10">75</text>
         <text x="190" y="130" className="fill-slate-500" fontSize="10">100</text>
-        {/* Needle */}
         <line x1={cx} y1={cy} x2={needleX} y2={needleY} stroke="#0f172a" strokeWidth="3" strokeLinecap="round" />
         <circle cx={cx} cy={cy} r="6" fill="#0f172a" />
       </svg>
@@ -242,18 +138,311 @@ function PerformanceGauge({ score }: { score: number }) {
   );
 }
 
+// ============= DATA HOOK =============
+async function fetchAgentReport(agentId: string) {
+  const now = new Date();
+  const todayStart = startOfDay(now);
+  const todayEnd = endOfDay(now);
+  const weekStart = startOfDay(subDays(now, 6));
+
+  // Agent profile + wallet
+  const [profileRes, walletRes] = await Promise.all([
+    supabase.from('profiles').select('id, full_name, phone, created_at, city, country').eq('id', agentId).maybeSingle(),
+    supabase.from('wallets').select('withdrawable_balance, float_balance, balance').eq('user_id', agentId).maybeSingle(),
+  ]);
+
+  // All rent_requests assigned to this agent (paginate to be safe)
+  const rrAll: any[] = [];
+  let from = 0;
+  const PAGE = 1000;
+  while (true) {
+    const { data, error } = await supabase
+      .from('rent_requests')
+      .select('id, tenant_id, status, tenancy_status, registration_type, rent_amount, daily_repayment, total_repayment, amount_repaid, created_at, disbursed_at, request_city, house_category')
+      .or(`agent_id.eq.${agentId},assigned_agent_id.eq.${agentId}`)
+      .order('created_at', { ascending: false })
+      .range(from, from + PAGE - 1);
+    if (error) throw error;
+    if (!data?.length) break;
+    rrAll.push(...data);
+    if (data.length < PAGE) break;
+    from += PAGE;
+  }
+
+  // Tenant profiles
+  const tenantIds = [...new Set(rrAll.map(r => r.tenant_id))];
+  const tenantNameMap = new Map<string, string>();
+  for (let i = 0; i < tenantIds.length; i += 500) {
+    const slice = tenantIds.slice(i, i + 500);
+    const { data } = await supabase.from('profiles').select('id, full_name').in('id', slice);
+    (data || []).forEach(p => tenantNameMap.set(p.id, p.full_name || 'Tenant'));
+  }
+
+  // Repayments for these rent_requests, last 7 days only (for trend + today)
+  const rrIds = rrAll.map(r => r.id);
+  const repayments: any[] = [];
+  if (rrIds.length) {
+    for (let i = 0; i < rrIds.length; i += 300) {
+      const slice = rrIds.slice(i, i + 300);
+      const { data } = await supabase
+        .from('repayments')
+        .select('rent_request_id, tenant_id, amount, created_at')
+        .in('rent_request_id', slice)
+        .gte('created_at', weekStart.toISOString());
+      if (data) repayments.push(...data);
+    }
+  }
+
+  return {
+    profile: profileRes.data,
+    wallet: walletRes.data,
+    rentRequests: rrAll,
+    tenantNameMap,
+    repayments,
+    now,
+    todayStart,
+    todayEnd,
+    weekStart,
+  };
+}
+
 // ============= MAIN PAGE =============
 export default function AgentPerformanceReport() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
+  const agentId = params.get('id') || params.get('agent_id') || '';
   const overrideName = params.get('name');
-  const displayAgent = { ...agent, name: overrideName || agent.name };
 
-  const totalDebt = useMemo(() => debtAging.reduce((s, d) => s + d.value, 0), []);
-  const totalScore = useMemo(
-    () => Math.round(kpiScorecard.reduce((s, r) => s + (r.score * r.weight) / 100, 0)),
-    []
-  );
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['agent-perf-report', agentId],
+    queryFn: () => fetchAgentReport(agentId),
+    enabled: !!agentId,
+    staleTime: 60_000,
+  });
+
+  const computed = useMemo(() => {
+    if (!data) return null;
+    const { profile, wallet, rentRequests, tenantNameMap, repayments, now, todayStart, todayEnd, weekStart } = data;
+
+    const ACTIVE_STATUSES = new Set(['active', 'disbursed', 'funded', 'approved', 'repaying']);
+    const activeRR = rentRequests.filter(
+      r => r.tenancy_status === 'active' && (ACTIVE_STATUSES.has(r.status) || (r.amount_repaid || 0) < (r.total_repayment || 0))
+    );
+
+    const uniqueActiveTenants = new Set(activeRR.map(r => r.tenant_id));
+    const uniqueAllTenants = new Set(rentRequests.map(r => r.tenant_id));
+
+    // Today
+    const todayPayments = repayments.filter(p => {
+      const t = new Date(p.created_at).getTime();
+      return t >= todayStart.getTime() && t <= todayEnd.getTime();
+    });
+    const collectedToday = todayPayments.reduce((s, p) => s + Number(p.amount || 0), 0);
+    const expectedToday = activeRR.reduce((s, r) => s + Number(r.daily_repayment || 0), 0);
+    const tenantsPaidToday = new Set(todayPayments.map(p => p.tenant_id)).size;
+    const tenantsExpectedToday = activeRR.length;
+
+    // Per-tenant today breakdown
+    const todayByRR = new Map<string, number>();
+    todayPayments.forEach(p => {
+      todayByRR.set(p.rent_request_id, (todayByRR.get(p.rent_request_id) || 0) + Number(p.amount || 0));
+    });
+    const dailyTenants = activeRR.slice(0, 50).map(r => {
+      const expected = Number(r.daily_repayment || 0);
+      const paid = todayByRR.get(r.id) || 0;
+      const balance = Math.max(0, expected - paid);
+      const status = paid >= expected && expected > 0 ? 'Paid' : paid > 0 ? 'Partial' : 'Missed';
+      return {
+        tenant: tenantNameMap.get(r.tenant_id) || 'Tenant',
+        unit: (r.house_category || '—').slice(0, 6),
+        expected,
+        paid,
+        balance,
+        status,
+      };
+    });
+    const totalExpectedToday = dailyTenants.reduce((s, t) => s + t.expected, 0);
+    const totalPaidToday = dailyTenants.reduce((s, t) => s + t.paid, 0);
+    const totalBalanceToday = dailyTenants.reduce((s, t) => s + t.balance, 0);
+    const missedToday = dailyTenants.filter(t => t.status === 'Missed').length;
+    const partialToday = dailyTenants.filter(t => t.status === 'Partial').length;
+
+    // Week (last 7 days)
+    const weeklyExpected = activeRR.reduce((s, r) => s + Number(r.daily_repayment || 0) * 7, 0);
+    const weeklyCollected = repayments.reduce((s, p) => s + Number(p.amount || 0), 0);
+    const weeklyOutstanding = Math.max(0, weeklyExpected - weeklyCollected);
+    const weeklyEfficiency = weeklyExpected > 0 ? (weeklyCollected / weeklyExpected) * 100 : 0;
+
+    const weeklyTrend: { day: string; Expected: number; Collected: number }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = subDays(now, i);
+      const ds = startOfDay(d).getTime();
+      const de = endOfDay(d).getTime();
+      const collected = repayments
+        .filter(p => {
+          const t = new Date(p.created_at).getTime();
+          return t >= ds && t <= de;
+        })
+        .reduce((s, p) => s + Number(p.amount || 0), 0);
+      const expected = activeRR.reduce((s, r) => s + Number(r.daily_repayment || 0), 0);
+      weeklyTrend.push({ day: format(d, 'MMM d'), Expected: expected, Collected: collected });
+    }
+
+    // Outstanding per active rr
+    const rrWithOutstanding = activeRR.map(r => {
+      const outstanding = Math.max(0, Number(r.total_repayment || 0) - Number(r.amount_repaid || 0));
+      const ageDays = differenceInDays(now, new Date(r.disbursed_at || r.created_at));
+      return { rr: r, outstanding, ageDays };
+    });
+    const totalOutstanding = rrWithOutstanding.reduce((s, x) => s + x.outstanding, 0);
+    const tenantsInArrears = rrWithOutstanding.filter(x => x.outstanding > 0).length;
+    const portfolioPctArrears = activeRR.length > 0 ? (tenantsInArrears / activeRR.length) * 100 : 0;
+    const avgDebtPerTenant = tenantsInArrears > 0 ? totalOutstanding / tenantsInArrears : 0;
+    const highestDebt = rrWithOutstanding.reduce((m, x) => Math.max(m, x.outstanding), 0);
+
+    // Aging buckets
+    const buckets = { '0–30 Days': 0, '31–60 Days': 0, '61–90 Days': 0, '90+ Days': 0 } as Record<string, number>;
+    rrWithOutstanding.forEach(x => {
+      if (x.outstanding <= 0) return;
+      if (x.ageDays <= 30) buckets['0–30 Days'] += x.outstanding;
+      else if (x.ageDays <= 60) buckets['31–60 Days'] += x.outstanding;
+      else if (x.ageDays <= 90) buckets['61–90 Days'] += x.outstanding;
+      else buckets['90+ Days'] += x.outstanding;
+    });
+    const debtAging = [
+      { name: '0–30 Days', value: buckets['0–30 Days'], color: '#3b82f6' },
+      { name: '31–60 Days', value: buckets['31–60 Days'], color: '#f59e0b' },
+      { name: '61–90 Days', value: buckets['61–90 Days'], color: '#fbbf24' },
+      { name: '90+ Days', value: buckets['90+ Days'], color: '#ef4444' },
+    ];
+
+    // Top defaulters
+    const lastPaymentByRR = new Map<string, string>();
+    repayments.forEach(p => {
+      const prev = lastPaymentByRR.get(p.rent_request_id);
+      if (!prev || new Date(p.created_at) > new Date(prev)) lastPaymentByRR.set(p.rent_request_id, p.created_at);
+    });
+    const topDefaulters = [...rrWithOutstanding]
+      .filter(x => x.outstanding > 0)
+      .sort((a, b) => b.outstanding - a.outstanding)
+      .slice(0, 5)
+      .map(x => ({
+        tenant: tenantNameMap.get(x.rr.tenant_id) || 'Tenant',
+        debt: x.outstanding,
+        daysLate: x.ageDays,
+        last: lastPaymentByRR.get(x.rr.id) ? format(new Date(lastPaymentByRR.get(x.rr.id) as string), 'MMM d, yyyy') : '—',
+      }));
+
+    // Scoring
+    const dailyEff = expectedToday > 0 ? Math.min(100, (collectedToday / expectedToday) * 100) : 0;
+    const recoveryScore = activeRR.length > 0
+      ? Math.max(0, 100 - portfolioPctArrears)
+      : 0;
+    const retention = uniqueAllTenants.size > 0 ? (uniqueActiveTenants.size / uniqueAllTenants.size) * 100 : 0;
+    const missedRate = tenantsExpectedToday > 0 ? 100 - (tenantsPaidToday / tenantsExpectedToday) * 100 : 0;
+
+    const kpiScorecard = [
+      { kpi: 'Daily Collection Efficiency', weight: 35, score: Math.round(dailyEff) },
+      { kpi: 'Weekly Performance', weight: 25, score: Math.round(weeklyEfficiency) },
+      { kpi: 'Debt Recovery', weight: 20, score: Math.round(recoveryScore) },
+      { kpi: 'Tenant Retention', weight: 10, score: Math.round(retention) },
+      { kpi: 'Missed Payment Rate', weight: 10, score: Math.round(Math.max(0, 100 - missedRate)) },
+    ];
+    const totalScore = Math.round(kpiScorecard.reduce((s, r) => s + (r.score * r.weight) / 100, 0));
+    const riskStatus = totalScore >= 70 ? 'HEALTHY' : totalScore >= 50 ? 'WARNING' : 'CRITICAL';
+    const riskTone = totalScore >= 70 ? 'green' : totalScore >= 50 ? 'amber' : 'red';
+
+    const summaryKpis = [
+      { label: 'Active Tenants', value: String(uniqueActiveTenants.size), icon: Users, tone: 'blue' },
+      { label: 'Paying Tenants Today', value: String(tenantsPaidToday), icon: CheckCircle2, tone: 'green' },
+      { label: 'Portfolio Occupancy', value: uniqueAllTenants.size ? `${((uniqueActiveTenants.size / uniqueAllTenants.size) * 100).toFixed(1)}%` : '—', icon: PieIcon, tone: 'blue' },
+      { label: 'Total Outstanding Debt', value: fmtUGX(totalOutstanding), icon: FileText, tone: 'red' },
+      { label: 'Weekly Collection Rate', value: `${weeklyEfficiency.toFixed(0)}%`, icon: TrendingUp, tone: 'amber' },
+      { label: 'Wallet Balance', value: fmtUGX(Number(wallet?.withdrawable_balance || 0)), icon: Wallet, tone: 'blue' },
+      { label: 'Float Balance', value: fmtUGX(Number(wallet?.float_balance || 0)), icon: Banknote, tone: 'green' },
+      { label: 'Risk Status', value: riskStatus, icon: ShieldAlert, tone: riskTone },
+    ] as const;
+
+    const dailyKpis = [
+      { label: 'Expected Today', value: fmtUGX(expectedToday), tone: 'blue' },
+      { label: 'Collected Today', value: fmtUGX(collectedToday), tone: 'green' },
+      { label: 'Daily Gap', value: fmtUGX(Math.max(0, expectedToday - collectedToday)), tone: 'red' },
+      { label: 'Collection Efficiency', value: `${dailyEff.toFixed(0)}%`, tone: 'amber' },
+      { label: 'Tenants Expected Today', value: String(tenantsExpectedToday), tone: 'blue' },
+      { label: 'Tenants Who Paid', value: String(tenantsPaidToday), tone: 'green' },
+      { label: 'Missed Payments', value: String(missedToday), tone: 'red' },
+      { label: 'Partial Payments', value: String(partialToday), tone: 'amber' },
+    ];
+
+    const weeklyKpis = [
+      { label: 'Weekly Expected', value: fmtUGX(weeklyExpected), tone: 'blue' },
+      { label: 'Weekly Collected', value: fmtUGX(weeklyCollected), tone: 'green' },
+      { label: 'Weekly Outstanding', value: fmtUGX(weeklyOutstanding), tone: 'red' },
+      { label: 'Weekly Efficiency', value: `${weeklyEfficiency.toFixed(1)}%`, tone: 'amber' },
+      { label: 'Avg Daily Collected', value: fmtUGX(weeklyCollected / 7), tone: 'green' },
+      { label: 'Active Plans', value: String(activeRR.length), tone: 'blue' },
+    ];
+
+    const debtSummary = [
+      { label: 'Total Outstanding Debt', value: fmtUGX(totalOutstanding), icon: FileText, tone: 'red' },
+      { label: 'Current Month Arrears', value: fmtUGX(buckets['0–30 Days']), icon: Calendar, tone: 'amber' },
+      { label: 'Old Arrears (> 30 Days)', value: fmtUGX(buckets['31–60 Days'] + buckets['61–90 Days'] + buckets['90+ Days']), icon: Clock, tone: 'red' },
+      { label: 'Highest Debtor', value: fmtUGX(highestDebt), icon: AlertTriangle, tone: 'red' },
+      { label: 'Recovery Rate (Week)', value: `${weeklyEfficiency.toFixed(0)}%`, icon: Activity, tone: 'amber' },
+    ];
+
+    const debtKpiStrip = [
+      { label: 'Tenants in Arrears', value: String(tenantsInArrears), sub: `(${portfolioPctArrears.toFixed(1)}%)`, icon: Users, tone: 'red' },
+      { label: 'Avg. Debt per Tenant', value: fmtUGX(avgDebtPerTenant), icon: Banknote, tone: 'amber' },
+      { label: '% of Portfolio in Arrears', value: `${portfolioPctArrears.toFixed(1)}%`, icon: Target, tone: 'red' },
+      { label: 'Active Plans', value: String(activeRR.length), icon: ArrowUpRight, tone: 'blue' },
+    ];
+
+    const periodLabel = `${format(weekStart, 'MMM d')} – ${format(now, 'MMM d, yyyy')}`;
+    const generatedLabel = format(now, 'MMM d, yyyy HH:mm');
+
+    return {
+      profile,
+      summaryKpis,
+      dailyKpis,
+      dailyTenants,
+      totals: { totalExpectedToday, totalPaidToday, totalBalanceToday },
+      weeklyKpis,
+      weeklyTrend,
+      weeklyExpected,
+      weeklyCollected,
+      weeklyEfficiency,
+      debtSummary,
+      debtAging,
+      topDefaulters,
+      debtKpiStrip,
+      kpiScorecard,
+      totalScore,
+      recoveryScore: Math.round(recoveryScore),
+      totalDebt: totalOutstanding,
+      periodLabel,
+      generatedLabel,
+    };
+  }, [data]);
+
+  const displayName = computed?.profile?.full_name || overrideName || 'Agent';
+  const period = computed ? { range: computed.periodLabel, generated: computed.generatedLabel } : { range: '—', generated: '—' };
+  const totalScore = computed?.totalScore ?? 0;
+  const recoveryScore = computed?.recoveryScore ?? 0;
+  const totalDebt = computed?.totalDebt ?? 0;
+
+  if (!agentId) {
+    return (
+      <div className="min-h-screen bg-slate-50/60 flex items-center justify-center p-6">
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-6 max-w-md text-center">
+          <AlertCircle className="h-8 w-8 text-amber-600 mx-auto mb-2" />
+          <h1 className="text-lg font-bold text-slate-900">No agent selected</h1>
+          <p className="text-sm text-slate-600 mt-1">Open this report from an agent row to load real data. Expected URL: <code>?id=AGENT_UUID</code></p>
+          <Button className="mt-4" onClick={() => navigate(-1)}>Go Back</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50/60 print:bg-white">
@@ -289,43 +478,52 @@ export default function AgentPerformanceReport() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-5">
+        {error && (
+          <div className="rounded-xl border border-red-300 bg-red-50 p-4 flex items-start gap-3">
+            <XCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-bold text-red-900">Failed to load agent data</p>
+              <p className="text-xs text-red-800 mt-0.5">{(error as Error).message}</p>
+            </div>
+          </div>
+        )}
+
         {/* ===== SECTION 1: AGENT SUMMARY ===== */}
         <SectionCard index={1} title="Agent Summary">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-            {/* Profile */}
             <div className="lg:col-span-4 rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4 flex flex-col sm:flex-row lg:flex-col items-center sm:items-start lg:items-center gap-4 text-center sm:text-left lg:text-center">
               <div className="h-24 w-24 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center text-3xl font-bold shrink-0 ring-4 ring-blue-100">
-                {displayAgent.name.split(' ').map(n => n[0]).slice(0, 2).join('')}
+                {displayName.split(' ').map(n => n[0]).slice(0, 2).join('')}
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="text-lg font-bold text-slate-900">{displayAgent.name}</h3>
-                <p className="text-sm text-slate-500">Agent ID: <span className="text-blue-600 font-semibold">{displayAgent.id}</span></p>
+                <h3 className="text-lg font-bold text-slate-900">{displayName}</h3>
+                <p className="text-sm text-slate-500">Agent ID: <span className="text-blue-600 font-semibold">{agentId.slice(0, 8).toUpperCase()}</span></p>
                 <ul className="mt-3 space-y-1.5 text-sm text-slate-600 text-left">
-                  <li className="flex items-center gap-2"><MapPin className="h-3.5 w-3.5 text-slate-400" /> Branch: {displayAgent.branch}</li>
-                  <li className="flex items-center gap-2"><Phone className="h-3.5 w-3.5 text-slate-400" /> {displayAgent.phone}</li>
-                  <li className="flex items-center gap-2"><Calendar className="h-3.5 w-3.5 text-slate-400" /> Joined: {displayAgent.joined}</li>
-                  <li className="flex items-center gap-2"><UserCog className="h-3.5 w-3.5 text-slate-400" /> Supervisor: {displayAgent.supervisor}</li>
+                  <li className="flex items-center gap-2"><MapPin className="h-3.5 w-3.5 text-slate-400" /> Branch: {computed?.profile?.city || '—'}</li>
+                  <li className="flex items-center gap-2"><Phone className="h-3.5 w-3.5 text-slate-400" /> {computed?.profile?.phone || '—'}</li>
+                  <li className="flex items-center gap-2"><Calendar className="h-3.5 w-3.5 text-slate-400" /> Joined: {computed?.profile?.created_at ? format(new Date(computed.profile.created_at), 'd MMM yyyy') : '—'}</li>
+                  <li className="flex items-center gap-2"><UserCog className="h-3.5 w-3.5 text-slate-400" /> Country: {computed?.profile?.country || '—'}</li>
                 </ul>
               </div>
             </div>
-            {/* KPI grid */}
             <div className="lg:col-span-8">
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                {summaryKpis.map(k => (
-                  <KpiCard key={k.label} icon={k.icon} label={k.label} value={k.value} tone={k.tone} />
-                ))}
+                {isLoading || !computed
+                  ? Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-[88px] rounded-xl" />)
+                  : computed.summaryKpis.map(k => (
+                      <KpiCard key={k.label} icon={k.icon} label={k.label} value={k.value} tone={k.tone} />
+                    ))}
               </div>
             </div>
           </div>
 
-          {/* Score bars */}
           <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-100">
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-xs font-semibold text-slate-700">Recovery Score</span>
-                <span className="text-xs font-bold text-red-600">43/100</span>
+                <span className="text-xs font-bold text-red-600">{recoveryScore}/100</span>
               </div>
-              <Progress value={43} className="h-2 [&>div]:bg-red-500" />
+              <Progress value={recoveryScore} className="h-2 [&>div]:bg-red-500" />
             </div>
             <div>
               <div className="flex items-center justify-between mb-1.5">
@@ -337,12 +535,13 @@ export default function AgentPerformanceReport() {
           </div>
         </SectionCard>
 
-        {/* ===== SECTIONS 2 & 3 SIDE BY SIDE: Daily / Weekly ===== */}
+        {/* ===== SECTIONS 2 & 3 ===== */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-          {/* SECTION 2: DAILY */}
-          <SectionCard index={2} title="Daily Performance" right={<span className="text-xs text-slate-500 hidden sm:inline">Date: May 13, 2026 (Today)</span>}>
+          <SectionCard index={2} title="Daily Performance" right={<span className="text-xs text-slate-500 hidden sm:inline">Date: {format(new Date(), 'MMM d, yyyy')} (Today)</span>}>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {dailyKpis.map(k => <MiniMetric key={k.label} label={k.label} value={k.value} tone={k.tone} />)}
+              {isLoading || !computed
+                ? Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-[68px] rounded-xl" />)
+                : computed.dailyKpis.map(k => <MiniMetric key={k.label} label={k.label} value={k.value} tone={k.tone} />)}
             </div>
 
             <div className="mt-5">
@@ -352,7 +551,7 @@ export default function AgentPerformanceReport() {
                   <TableHeader className="bg-slate-50 sticky top-0 z-10">
                     <TableRow>
                       <TableHead className="text-xs">Tenant</TableHead>
-                      <TableHead className="text-xs">Unit</TableHead>
+                      <TableHead className="text-xs">Type</TableHead>
                       <TableHead className="text-xs text-right">Expected</TableHead>
                       <TableHead className="text-xs text-right">Paid</TableHead>
                       <TableHead className="text-xs text-right">Balance</TableHead>
@@ -360,68 +559,72 @@ export default function AgentPerformanceReport() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {dailyTenants.map((t, i) => (
+                    {(computed?.dailyTenants || []).map((t, i) => (
                       <TableRow key={i} className={cn('hover:bg-blue-50/40', i % 2 === 1 && 'bg-slate-50/60')}>
                         <TableCell className="font-medium text-sm">{t.tenant}</TableCell>
                         <TableCell className="text-sm text-slate-600">{t.unit}</TableCell>
-                        <TableCell className="text-right text-sm tabular-nums">{t.expected.toLocaleString()}</TableCell>
-                        <TableCell className="text-right text-sm tabular-nums">{t.paid.toLocaleString()}</TableCell>
-                        <TableCell className="text-right text-sm tabular-nums font-semibold">{t.balance.toLocaleString()}</TableCell>
+                        <TableCell className="text-right text-sm tabular-nums">{Math.round(t.expected).toLocaleString()}</TableCell>
+                        <TableCell className="text-right text-sm tabular-nums">{Math.round(t.paid).toLocaleString()}</TableCell>
+                        <TableCell className="text-right text-sm tabular-nums font-semibold">{Math.round(t.balance).toLocaleString()}</TableCell>
                         <TableCell><StatusBadge s={t.status} /></TableCell>
                       </TableRow>
                     ))}
-                    <TableRow className="bg-blue-50/50 font-bold">
-                      <TableCell colSpan={2} className="text-blue-700 text-sm">TOTAL</TableCell>
-                      <TableCell className="text-right text-sm tabular-nums text-blue-700">98,000</TableCell>
-                      <TableCell className="text-right text-sm tabular-nums text-blue-700">50,000</TableCell>
-                      <TableCell className="text-right text-sm tabular-nums text-blue-700">48,000</TableCell>
-                      <TableCell></TableCell>
-                    </TableRow>
+                    {computed && (
+                      <TableRow className="bg-blue-50/50 font-bold">
+                        <TableCell colSpan={2} className="text-blue-700 text-sm">TOTAL</TableCell>
+                        <TableCell className="text-right text-sm tabular-nums text-blue-700">{Math.round(computed.totals.totalExpectedToday).toLocaleString()}</TableCell>
+                        <TableCell className="text-right text-sm tabular-nums text-blue-700">{Math.round(computed.totals.totalPaidToday).toLocaleString()}</TableCell>
+                        <TableCell className="text-right text-sm tabular-nums text-blue-700">{Math.round(computed.totals.totalBalanceToday).toLocaleString()}</TableCell>
+                        <TableCell></TableCell>
+                      </TableRow>
+                    )}
+                    {computed && computed.dailyTenants.length === 0 && (
+                      <TableRow><TableCell colSpan={6} className="text-center text-sm text-slate-500 py-6">No active tenants for this agent.</TableCell></TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </div>
             </div>
           </SectionCard>
 
-          {/* SECTION 3: WEEKLY */}
           <SectionCard index={3} title="Weekly Performance" right={<span className="text-xs text-slate-500 hidden sm:inline">{period.range}</span>}>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {weeklyKpis.map(k => <MiniMetric key={k.label} label={k.label} value={k.value} tone={k.tone} />)}
+              {isLoading || !computed
+                ? Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-[68px] rounded-xl" />)
+                : computed.weeklyKpis.map(k => <MiniMetric key={k.label} label={k.label} value={k.value} tone={k.tone} />)}
             </div>
 
             <div className="mt-5">
               <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide mb-2">Weekly Collection Trend</h4>
               <div className="rounded-xl border border-slate-200 bg-white p-3">
                 <ResponsiveContainer width="100%" height={260}>
-                  <LineChart data={weeklyTrend} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                  <LineChart data={computed?.weeklyTrend || []} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                     <XAxis dataKey="day" stroke="#94a3b8" fontSize={11} />
-                    <YAxis stroke="#94a3b8" fontSize={11} tickFormatter={(v) => `${v / 1000}K`} />
-                    <Tooltip
-                      formatter={(v: number) => fmtUGX(v)}
-                      contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }}
-                    />
+                    <YAxis stroke="#94a3b8" fontSize={11} tickFormatter={(v) => `${Math.round(v / 1000)}K`} />
+                    <Tooltip formatter={(v: number) => fmtUGX(v)} contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }} />
                     <Legend wrapperStyle={{ fontSize: 12 }} />
                     <Line type="monotone" dataKey="Expected" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 4, fill: '#3b82f6' }} activeDot={{ r: 6 }} />
                     <Line type="monotone" dataKey="Collected" stroke="#10b981" strokeWidth={2.5} dot={{ r: 4, fill: '#10b981' }} activeDot={{ r: 6 }} />
                   </LineChart>
                 </ResponsiveContainer>
-                <div className="flex flex-wrap items-center gap-x-5 gap-y-1 pt-2 px-2 text-xs border-t border-slate-100 mt-2">
-                  <span className="text-slate-500">Total Expected: <span className="font-bold text-blue-600">UGX 3,200,000</span></span>
-                  <span className="text-slate-500">Total Collected: <span className="font-bold text-emerald-600">UGX 2,140,000</span></span>
-                  <span className="text-slate-500">Efficiency: <span className="font-bold text-amber-600">66.8%</span></span>
-                </div>
+                {computed && (
+                  <div className="flex flex-wrap items-center gap-x-5 gap-y-1 pt-2 px-2 text-xs border-t border-slate-100 mt-2">
+                    <span className="text-slate-500">Total Expected: <span className="font-bold text-blue-600">{fmtUGX(computed.weeklyExpected)}</span></span>
+                    <span className="text-slate-500">Total Collected: <span className="font-bold text-emerald-600">{fmtUGX(computed.weeklyCollected)}</span></span>
+                    <span className="text-slate-500">Efficiency: <span className="font-bold text-amber-600">{computed.weeklyEfficiency.toFixed(1)}%</span></span>
+                  </div>
+                )}
               </div>
             </div>
           </SectionCard>
         </div>
 
-        {/* ===== SECTION 4: DEBT SUMMARY ===== */}
+        {/* ===== SECTION 4: DEBT ===== */}
         <SectionCard index={4} title="Outstanding Balance / Debt Summary">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-            {/* Left */}
             <div className="lg:col-span-4 space-y-2.5">
-              {debtSummary.map(d => (
+              {(computed?.debtSummary || []).map(d => (
                 <div key={d.label} className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 bg-white hover:shadow-sm transition-all">
                   <div className={cn('h-9 w-9 rounded-lg flex items-center justify-center shrink-0', toneBg[d.tone])}>
                     <d.icon className={cn('h-4 w-4', toneText[d.tone])} />
@@ -433,14 +636,13 @@ export default function AgentPerformanceReport() {
                 </div>
               ))}
             </div>
-            {/* Center: Pie */}
             <div className="lg:col-span-4">
               <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide mb-2 text-center">Debt Aging Analysis</h4>
               <div className="relative">
                 <ResponsiveContainer width="100%" height={240}>
                   <PieChart>
-                    <Pie data={debtAging} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={2}>
-                      {debtAging.map((d, i) => <Cell key={i} fill={d.color} />)}
+                    <Pie data={computed?.debtAging || []} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={2}>
+                      {(computed?.debtAging || []).map((d, i) => <Cell key={i} fill={d.color} />)}
                     </Pie>
                     <Tooltip formatter={(v: number) => fmtUGX(v)} contentStyle={{ borderRadius: 12, fontSize: 12 }} />
                   </PieChart>
@@ -451,18 +653,17 @@ export default function AgentPerformanceReport() {
                 </div>
               </div>
               <ul className="mt-2 space-y-1">
-                {debtAging.map(d => {
-                  const pct = ((d.value / totalDebt) * 100).toFixed(1);
+                {(computed?.debtAging || []).map(d => {
+                  const pct = totalDebt > 0 ? ((d.value / totalDebt) * 100).toFixed(1) : '0.0';
                   return (
                     <li key={d.name} className="flex items-center justify-between text-xs">
                       <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full" style={{ background: d.color }} />{d.name}</span>
-                      <span className="tabular-nums text-slate-600"><span className="font-semibold text-slate-900">{d.value.toLocaleString()}</span> ({pct}%)</span>
+                      <span className="tabular-nums text-slate-600"><span className="font-semibold text-slate-900">{Math.round(d.value).toLocaleString()}</span> ({pct}%)</span>
                     </li>
                   );
                 })}
               </ul>
             </div>
-            {/* Right: Top defaulters */}
             <div className="lg:col-span-4">
               <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide mb-2">Top Defaulters</h4>
               <div className="rounded-xl border border-slate-200 overflow-hidden">
@@ -476,34 +677,35 @@ export default function AgentPerformanceReport() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {topDefaulters.map((t, i) => (
+                    {(computed?.topDefaulters || []).map((t, i) => (
                       <TableRow key={i} className="hover:bg-red-50/30">
                         <TableCell className="text-sm font-medium">{t.tenant}</TableCell>
-                        <TableCell className="text-right text-sm tabular-nums font-semibold">{t.debt.toLocaleString()}</TableCell>
+                        <TableCell className="text-right text-sm tabular-nums font-semibold">{Math.round(t.debt).toLocaleString()}</TableCell>
                         <TableCell className="text-right text-sm tabular-nums">
                           <span className={cn('font-bold', t.daysLate >= 40 ? 'text-red-600' : t.daysLate >= 30 ? 'text-orange-600' : 'text-amber-600')}>{t.daysLate}</span>
                         </TableCell>
                         <TableCell className="text-xs text-slate-600">{t.last}</TableCell>
                       </TableRow>
                     ))}
+                    {computed && computed.topDefaulters.length === 0 && (
+                      <TableRow><TableCell colSpan={4} className="text-center text-sm text-slate-500 py-6">No defaulters.</TableCell></TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </div>
             </div>
           </div>
 
-          {/* Bottom KPI strip */}
           <div className="mt-5 pt-5 border-t border-slate-100 grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {debtKpiStrip.map(k => (
+            {(computed?.debtKpiStrip || []).map(k => (
               <KpiCard key={k.label} icon={k.icon} label={k.label} value={k.value} tone={k.tone} sub={k.sub} />
             ))}
           </div>
         </SectionCard>
 
-        {/* ===== SECTION 5: PERFORMANCE SCORING ===== */}
+        {/* ===== SECTION 5 ===== */}
         <SectionCard index={5} title="Performance Scoring">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-            {/* Left: KPI Scorecard */}
             <div>
               <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide mb-2">KPI Scorecard</h4>
               <div className="rounded-xl border border-slate-200 overflow-hidden">
@@ -517,7 +719,7 @@ export default function AgentPerformanceReport() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {kpiScorecard.map((r, i) => (
+                    {(computed?.kpiScorecard || []).map((r, i) => (
                       <TableRow key={i} className="hover:bg-slate-50/60">
                         <TableCell className="text-sm font-medium">{r.kpi}</TableCell>
                         <TableCell className="text-right text-sm tabular-nums">{r.weight}%</TableCell>
@@ -533,14 +735,12 @@ export default function AgentPerformanceReport() {
                 </Table>
               </div>
             </div>
-            {/* Center: Gauge */}
             <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4">
               <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide mb-2 text-center flex items-center justify-center gap-1.5">
                 <Gauge className="h-3.5 w-3.5" /> Performance Gauge
               </h4>
               <PerformanceGauge score={totalScore} />
             </div>
-            {/* Right: Status guide */}
             <div>
               <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide mb-2">Performance Status Guide</h4>
               <div className="rounded-xl border border-slate-200 overflow-hidden">
@@ -567,13 +767,17 @@ export default function AgentPerformanceReport() {
           </div>
         </SectionCard>
 
-        {/* ===== INSIGHT BAR ===== */}
-        <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 flex items-start gap-3">
-          <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-          <p className="text-sm text-amber-900">
-            <span className="font-bold">Insight:</span> Collections below target and high outstanding debt require immediate action.
-          </p>
-        </div>
+        {computed && (
+          <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+            <p className="text-sm text-amber-900">
+              <span className="font-bold">Insight:</span>{' '}
+              {totalScore >= 70
+                ? `${displayName} is performing well — keep momentum on collections.`
+                : `${displayName} needs attention — collection efficiency is ${computed.weeklyEfficiency.toFixed(0)}% with ${fmtUGX(totalDebt)} outstanding.`}
+            </p>
+          </div>
+        )}
 
         <footer className="flex items-center justify-between text-[11px] text-slate-500 pt-2 pb-6">
           <span>Generated by Welile</span>
