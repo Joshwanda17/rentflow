@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { generateWelileAiId, getRiskTierLabel } from '@/lib/welileAiId';
 import { formatUGX, calculateRentRepayment } from '@/lib/rentCalculations';
+import { getEffectiveRentRequestAmounts } from '@/lib/rentRequestAmounts';
 import { useAgentLandlordFloat } from '@/hooks/useAgentLandlordFloat';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -58,6 +59,9 @@ interface RentRequestRow {
   daily_repayment: number;
   landlord_id?: string | null;
   lc1_id?: string | null;
+  registration_type?: string | null;
+  initial_outstanding_balance?: number | null;
+  outstanding_grace_days?: number | null;
   house_category?: string | null;
   tenant_no_smartphone?: boolean | null;
   request_latitude?: number | null;
