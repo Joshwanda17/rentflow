@@ -146,6 +146,12 @@ Deno.serve(async (req) => {
         const walletLinkedParty = isRoiWalletPayout
           ? ledgerUserId
           : op.linked_party;
+        const displayDescription = isRoiWalletPayout && op.description
+          ? String(op.description)
+              .replace(/\[Agent Wallet\]/gi, '[Partner Wallet via Proxy]')
+              .replace(/'s agent wallet/gi, "'s partner wallet")
+              .replace(/to agent wallet/gi, 'to partner wallet')
+          : op.description;
         if (requestedManaged) {
           console.log(`[approve-wallet-op] Proxy custody v2: ignoring target_wallet_user_id=${op.target_wallet_user_id}; crediting partner ${op.user_id} directly for op ${op.id}`);
         }
@@ -213,8 +219,8 @@ Deno.serve(async (req) => {
                 : op.category,
               ledger_scope: scopeForCategory,
               description: isManaged
-                ? `[Managed Payout] ${op.description || ''} — on behalf of partner ${op.user_id}`
-                : op.description,
+                ? `[Managed Payout] ${displayDescription || ''} — on behalf of partner ${op.user_id}`
+                : displayDescription,
               source_table: op.source_table,
               source_id: op.source_id,
               linked_party: walletLinkedParty,
@@ -861,11 +867,13 @@ Deno.serve(async (req) => {
           });
         } else {
           // Standard notification for non-investment operations
-          const notifTitle = op.direction === "cash_in" ? "Wallet Credited ✅" : "Wallet Debited ✅";
+          const notifTitle = isRoiWalletPayout && op.direction === "cash_in"
+            ? "Partner Wallet Credited ✅"
+            : op.direction === "cash_in" ? "Wallet Credited ✅" : "Wallet Debited ✅";
           await adminClient.from("notifications").insert({
             user_id: op.user_id,
             title: notifTitle,
-            message: `UGX ${op.amount.toLocaleString()} - ${op.description || op.category}. Approved by admin.`,
+            message: `UGX ${op.amount.toLocaleString()} - ${displayDescription || op.category}. Approved by admin.`,
             type: "success",
             metadata: { operation_id: op.id, amount: op.amount, direction: op.direction },
           });
