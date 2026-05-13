@@ -5,7 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Check, Type, Vibrate, RotateCcw, LogIn, Volume2, RefreshCw, Scale, Lock, Eye, EyeOff, LayoutDashboard, Unlock, Settings as SettingsIcon, Palette, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Check, Type, Vibrate, RotateCcw, LogIn, Volume2, RefreshCw, Scale, Lock, Eye, EyeOff, LayoutDashboard, Unlock, Settings as SettingsIcon, Palette, ShieldCheck, Globe, DollarSign } from 'lucide-react';
+import { useLanguage } from '@/hooks/useLanguage';
+import { useCurrency, currencies as ALL_CURRENCIES } from '@/hooks/useCurrency';
+import { Language, languageNames, languageFlags } from '@/i18n/translations';
 import { useHapticSettings, hapticIntensityOptions } from '@/hooks/useHapticSettings';
 import { hapticSelection } from '@/lib/haptics';
 import { useAuth, AppRole } from '@/hooks/useAuth';
@@ -34,6 +37,7 @@ const StaffAccessCard = lazy(() => import('@/components/settings/StaffAccessCard
 const ResidenceAddressForm = lazy(() => import('@/components/profile/ResidenceAddressForm'));
 const EmailEditor = lazy(() => import('@/components/profile/EmailEditor'));
 const ShareCardThemeSettings = lazy(() => import('@/components/agent/ShareCardThemeSettings'));
+const CurrencyConverter = lazy(() => import('@/components/CurrencyConverter').then(m => ({ default: m.CurrencyConverter })));
 
 class SectionBoundary extends Component<{ children: ReactNode; name: string }, { hasError: boolean }> {
   state = { hasError: false };
