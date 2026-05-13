@@ -197,6 +197,14 @@ export function CFOROIRequests() {
             const isProxy = !!op.target_wallet_user_id;
             const rejReason = rejectionReasons[op.id] || '';
 
+            // Normalize legacy descriptions that still say "Agent Wallet" — money now lands in Partner Wallet.
+            const displayDescription = op.description
+              ? op.description
+                  .replace(/\[Agent Wallet\]/gi, '[Partner Wallet via Proxy]')
+                  .replace(/'s agent wallet/gi, "'s partner wallet (via proxy agent)")
+                  .replace(/to agent wallet/gi, 'to partner wallet (via proxy agent)')
+              : '';
+
             return (
               <Card key={op.id} className="border-l-4" style={{
                 borderLeftColor: op.status === 'pending' ? 'hsl(var(--warning))' : op.status === 'approved' ? 'hsl(var(--primary))' : 'hsl(var(--destructive))',
@@ -209,10 +217,13 @@ export function CFOROIRequests() {
                         <span className="font-semibold">{meta?.partner_name || getName(op.user_id)}</span>
                         {isProxy && (
                           <>
-                            <span className="text-muted-foreground">→</span>
-                            <Wallet className="h-4 w-4 text-primary" />
-                            <span className="font-semibold text-primary">{meta?.target_agent_name || getName(op.target_wallet_user_id)}</span>
-                            <Badge variant="outline" className="text-xs">Proxy Agent</Badge>
+                            <Badge variant="outline" className="text-xs">
+                              <Wallet className="h-3 w-3 mr-1" />
+                              Partner Wallet
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">
+                              via proxy: {meta?.target_agent_name || getName(op.target_wallet_user_id)}
+                            </span>
                           </>
                         )}
                       </div>
@@ -221,7 +232,7 @@ export function CFOROIRequests() {
                         {format(new Date(op.created_at), 'dd MMM yyyy, HH:mm')} · Ref: {op.reference_id || '—'}
                       </p>
                       {op.description && (
-                        <p className="text-sm text-muted-foreground mt-1">{op.description}</p>
+                        <p className="text-sm text-muted-foreground mt-1">{displayDescription}</p>
                       )}
                     </div>
                     <Badge variant={op.status === 'pending' ? 'secondary' : op.status === 'approved' ? 'default' : 'destructive'}>
