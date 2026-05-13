@@ -102,9 +102,14 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
   const totalRepaid = requests.reduce((s, r) => s + Number(r.amount_repaid || 0), 0);
   const outstandingTotal = totalRent - totalRepaid;
 
-  // Inline editing on the Outstanding card targets a single outstanding_balance request.
-  const outstandingReqs = requests.filter(r => (r as any).registration_type === 'outstanding_balance');
-  const editableOutstandingReq = outstandingReqs.length === 1 ? outstandingReqs[0] : null;
+  // Inline editing on the Outstanding card targets any single active rent request,
+  // regardless of registration_type. When the tenant has multiple requests, edit
+  // them individually from the Rent Requests list below.
+  const activeReqs = requests.filter(r => {
+    const status = String((r as any).status || '').toLowerCase();
+    return status !== 'completed' && status !== 'closed' && status !== 'cancelled' && status !== 'rejected';
+  });
+  const editableOutstandingReq = activeReqs.length === 1 ? activeReqs[0] : null;
 
   const startEditOutstanding = () => {
     if (!editableOutstandingReq) return;
