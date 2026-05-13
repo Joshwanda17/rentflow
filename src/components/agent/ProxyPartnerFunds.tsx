@@ -426,25 +426,15 @@ export function ProxyPartnerFunds() {
     const groupMap: Record<string, { partnerId: string; portfolioId: string | null; totalAmount: number }> = {};
 
     approvedOps.forEach((op) => {
-      const meta = op.metadata || {};
-      // Determine partner ID: BEST source is portfolio investor_id, then metadata, then linked_party
-      let partnerId: string | null = null;
-      // 1. Portfolio investor_id (most reliable)
-      if (op.source_id && portfolioMap[op.source_id]) {
-        partnerId = portfolioMap[op.source_id].investor_id;
-      }
-      // 2. metadata.initiated_by (if not self)
-      if (!partnerId) {
-        const initiatedBy = meta.initiated_by as string | null;
-        if (initiatedBy && initiatedBy !== user.id) partnerId = initiatedBy;
-      }
-      // 3. linked_party (if not self)
-      if (!partnerId && op.linked_party && op.linked_party !== user.id) {
-        partnerId = op.linked_party;
-      }
-      if (!partnerId) return;
+      // STRICT: partner identity is the portfolio investor_id. No fallbacks.
+      // Anything else would let a non-CFO-approved entry leak in.
+      if (!op.source_id) return;
+      const portfolio = portfolioMap[op.source_id];
+      if (!portfolio) return;
+      const partnerId = portfolio.investor_id;
+      if (!partnerId || partnerId === user.id) return;
 
-      const key = `${partnerId}-${op.source_id || 'no_portfolio'}`;
+      const key = `${partnerId}-${op.source_id}`;
       if (!groupMap[key]) {
         groupMap[key] = { partnerId, portfolioId: op.source_id, totalAmount: 0 };
       }
