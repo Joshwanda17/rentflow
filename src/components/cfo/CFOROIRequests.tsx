@@ -92,7 +92,9 @@ export function CFOROIRequests() {
         record_id: opId,
         metadata: {
           amount: op?.amount,
-          target_user_id: op?.target_wallet_user_id || op?.user_id,
+          target_user_id: op?.user_id,
+          proxy_agent_id: op?.target_wallet_user_id || null,
+          custody_route: op?.target_wallet_user_id ? 'partner_wallet_v2' : 'direct_partner_wallet',
           description: op?.description,
         },
       });
@@ -122,7 +124,9 @@ export function CFOROIRequests() {
         record_id: opId,
         metadata: {
           amount: op?.amount,
-          target_user_id: op?.target_wallet_user_id || op?.user_id,
+          target_user_id: op?.user_id,
+          proxy_agent_id: op?.target_wallet_user_id || null,
+          custody_route: op?.target_wallet_user_id ? 'partner_wallet_v2' : 'direct_partner_wallet',
           reason,
         },
       });
