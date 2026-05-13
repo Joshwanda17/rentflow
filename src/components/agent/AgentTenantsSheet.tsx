@@ -117,7 +117,7 @@ const RISK_ORDER: Record<'good' | 'standard' | 'caution' | 'new', number> = {
 const TENANT_DUE_REQUEST_FILTER =
   'status.in.(pending,approved,funded,disbursed,repaying,completed),and(status.eq.rejected,registration_type.eq.outstanding_balance)';
 const TENANT_DETAIL_REQUEST_FILTER =
-  'status.in.(pending,approved,disbursed,repaying,completed),and(status.eq.rejected,registration_type.eq.outstanding_balance)';
+  'status.in.(pending,approved,funded,disbursed,repaying,completed),and(status.eq.rejected,registration_type.eq.outstanding_balance)';
 
 // Escape regex special characters before building a search-highlight pattern.
 function escapeRegex(s: string) {
