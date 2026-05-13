@@ -6,7 +6,6 @@ import { roleToSlug, slugToRole } from '@/lib/roleRoutes';
 import { useProfile } from '@/hooks/useProfile';
 import AddRoleDialog from '@/components/AddRoleDialog';
 import BottomRoleSwitcher from '@/components/BottomRoleSwitcher';
-import PersonaShareSheet from '@/components/PersonaShareSheet';
 // FloatingChatButton removed — chat accessible only via nav
 
 import { ISOLATED_ROLES, roleDashboardRoutes } from '@/components/layout/executiveSidebarConfig';
