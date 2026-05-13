@@ -15,12 +15,15 @@ import {
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import welileLogo from '@/assets/welile-logo.png';
 import { cn } from '@/lib/utils';
 import { format, startOfDay, endOfDay, subDays, differenceInDays } from 'date-fns';
+import { useState } from 'react';
+import { Search } from 'lucide-react';
 
 // ============= STYLING HELPERS =============
 const toneText: Record<string, string> = {
@@ -432,16 +435,7 @@ export default function AgentPerformanceReport() {
   const totalDebt = computed?.totalDebt ?? 0;
 
   if (!agentId) {
-    return (
-      <div className="min-h-screen bg-slate-50/60 flex items-center justify-center p-6">
-        <div className="rounded-xl border border-amber-300 bg-amber-50 p-6 max-w-md text-center">
-          <AlertCircle className="h-8 w-8 text-amber-600 mx-auto mb-2" />
-          <h1 className="text-lg font-bold text-slate-900">No agent selected</h1>
-          <p className="text-sm text-slate-600 mt-1">Open this report from an agent row to load real data. Expected URL: <code>?id=AGENT_UUID</code></p>
-          <Button className="mt-4" onClick={() => navigate(-1)}>Go Back</Button>
-        </div>
-      </div>
-    );
+    return <AgentPicker onPick={(id) => navigate(`/agent-performance-report?id=${id}`)} onBack={() => navigate(-1)} />;
   }
 
   return (
@@ -784,6 +778,112 @@ export default function AgentPerformanceReport() {
           <span>Page 1 of 1</span>
         </footer>
       </main>
+    </div>
+  );
+}
+
+// ============= AGENT PICKER (fallback when no ?id) =============
+function AgentPicker({ onPick, onBack }: { onPick: (id: string) => void; onBack: () => void }) {
+  const [search, setSearch] = useState('');
+
+  const { data: agents, isLoading } = useQuery({
+    queryKey: ['agent-picker-list'],
+    queryFn: async () => {
+      // Get user_ids of agents from user_roles
+      const { data: roles } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'agent')
+        .limit(2000);
+      const ids = [...new Set((roles || []).map((r) => r.user_id))];
+      if (!ids.length) return [];
+      const profiles: any[] = [];
+      for (let i = 0; i < ids.length; i += 500) {
+        const slice = ids.slice(i, i + 500);
+        const { data } = await supabase
+          .from('profiles')
+          .select('id, full_name, phone, city')
+          .in('id', slice);
+        if (data) profiles.push(...data);
+      }
+      return profiles.sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''));
+    },
+    staleTime: 300_000,
+  });
+
+  const filtered = (agents || []).filter((a) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      (a.full_name || '').toLowerCase().includes(q) ||
+      (a.phone || '').toLowerCase().includes(q) ||
+      (a.city || '').toLowerCase().includes(q)
+    );
+  });
+
+  return (
+    <div className="min-h-screen bg-slate-50/60 p-4 sm:p-6">
+      <div className="max-w-3xl mx-auto">
+        <div className="flex items-center gap-3 mb-4">
+          <Button variant="ghost" size="icon" onClick={onBack}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-xl font-bold text-slate-900">Select an Agent</h1>
+            <p className="text-sm text-slate-500">Pick an agent to view their performance report.</p>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+          <div className="p-3 border-b border-slate-100 bg-slate-50/60">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by name, phone, or city…"
+                className="pl-9"
+                autoFocus
+              />
+            </div>
+          </div>
+          <div className="max-h-[70vh] overflow-y-auto">
+            {isLoading ? (
+              <div className="p-4 space-y-2">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Skeleton key={i} className="h-14 w-full rounded-lg" />
+                ))}
+              </div>
+            ) : filtered.length === 0 ? (
+              <p className="text-sm text-slate-500 text-center py-10">No agents found.</p>
+            ) : (
+              <ul className="divide-y divide-slate-100">
+                {filtered.map((a) => (
+                  <li key={a.id}>
+                    <button
+                      type="button"
+                      onClick={() => onPick(a.id)}
+                      className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-blue-50/60 transition-colors"
+                    >
+                      <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center font-bold text-sm shrink-0">
+                        {(a.full_name || '?').split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-slate-900 truncate">{a.full_name || 'Unnamed'}</p>
+                        <p className="text-xs text-slate-500 truncate">{a.phone || '—'} {a.city ? `· ${a.city}` : ''}</p>
+                      </div>
+                      <span className="text-xs text-blue-600 font-semibold shrink-0">Open →</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div className="px-4 py-2 border-t border-slate-100 text-[11px] text-slate-500">
+            {filtered.length} agent{filtered.length === 1 ? '' : 's'}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
