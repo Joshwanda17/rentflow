@@ -175,17 +175,16 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
           daily_repayment: Number(req.daily_repayment || 0),
         };
         // Display formula uses `rent_amount` as the obligation for every
-        // registration_type EXCEPT 'outstanding_balance' (which reads
-        // `total_repayment`). To make the Outstanding card reflect the new
-        // figure for all registration types, mirror the new obligation onto
-        // `rent_amount` for non-outstanding_balance requests. For
-        // outstanding_balance requests, `rent_amount` is the property's
-        // monthly rent kept for context — leave it alone.
+        // registration_type EXCEPT 'outstanding_balance'. The database also
+        // enforces outstanding-balance totals from `initial_outstanding_balance`,
+        // so update that source field or the trigger will restore the old value.
         const after: Record<string, number> = {
           total_repayment: newTotal,
           daily_repayment: newDaily,
         };
-        if (String((req as any).registration_type || '') !== 'outstanding_balance') {
+        if (String((req as any).registration_type || '') === 'outstanding_balance') {
+          after.initial_outstanding_balance = newTotal;
+        } else {
           after.rent_amount = newTotal;
         }
 
