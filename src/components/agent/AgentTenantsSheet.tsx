@@ -11,6 +11,7 @@ import { PropertyMapView } from './PropertyMapView';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
 import { formatUGX, calculateRentRepayment } from '@/lib/rentCalculations';
+import { getEffectiveRentRequestAmounts } from '@/lib/rentRequestAmounts';
 import { generateWelileAiId, getRiskTierLabel } from '@/lib/welileAiId';
 import { format, startOfDay, formatDistanceToNowStrict } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -150,27 +151,6 @@ function Highlight({ text, query }: { text?: string | null; query: string }) {
       )}
     </>
   );
-}
-
-function getEffectiveRentRequestAmounts(req: {
-  registration_type?: string | null;
-  initial_outstanding_balance?: number | null;
-  outstanding_grace_days?: number | null;
-  duration_days?: number | null;
-  total_repayment?: number | null;
-  daily_repayment?: number | null;
-}) {
-  const storedTotal = Number(req.total_repayment || 0);
-  const storedDaily = Number(req.daily_repayment || 0);
-  const principal = Number(req.initial_outstanding_balance || 0);
-
-  if (req.registration_type === 'outstanding_balance' && principal > 0 && storedTotal <= principal) {
-    const days = Math.max(Number(req.outstanding_grace_days || req.duration_days || 30), 7);
-    const computed = calculateRentRepayment(principal, days);
-    return { totalRepayment: computed.totalRepayment, dailyRepayment: computed.dailyRepayment };
-  }
-
-  return { totalRepayment: storedTotal, dailyRepayment: storedDaily };
 }
 
 export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps) {

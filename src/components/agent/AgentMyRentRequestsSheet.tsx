@@ -7,7 +7,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { calculateRentRepayment, formatUGX } from '@/lib/rentCalculations';
+import { formatUGX } from '@/lib/rentCalculations';
+import { getEffectiveRentRequestAmounts } from '@/lib/rentRequestAmounts';
 import { VerifyTenantButton, VerifyLandlordButton } from '@/components/verification';
 import {
   FileText, User, Building, MapPin, Calendar, Banknote,
@@ -51,20 +52,6 @@ interface AgentRentRequest {
     latitude: number | null;
     longitude: number | null;
   } | null;
-}
-
-function getEffectiveRentRequestAmounts(req: AgentRentRequest) {
-  const storedTotal = Number(req.total_repayment || 0);
-  const storedDaily = Number(req.daily_repayment || 0);
-  const principal = Number(req.initial_outstanding_balance || 0);
-
-  if (req.registration_type === 'outstanding_balance' && principal > 0 && storedTotal <= principal) {
-    const days = Math.max(Number(req.outstanding_grace_days || req.duration_days || 30), 7);
-    const computed = calculateRentRepayment(principal, days);
-    return { totalRepayment: computed.totalRepayment, dailyRepayment: computed.dailyRepayment };
-  }
-
-  return { totalRepayment: storedTotal, dailyRepayment: storedDaily };
 }
 
 interface AgentMyRentRequestsSheetProps {
