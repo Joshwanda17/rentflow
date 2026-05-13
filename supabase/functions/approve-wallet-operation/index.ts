@@ -140,8 +140,12 @@ Deno.serve(async (req) => {
         // where it is operationally meaningful, but for wallet credits we always
         // credit the partner/owner directly. The agent merely initiated the op.
         const requestedManaged = !!op.target_wallet_user_id && op.target_wallet_user_id !== op.user_id;
+        const isRoiWalletPayout = op.category === 'roi_payout' || op.category === 'supporter_platform_rewards';
         const ledgerUserId = op.user_id;
         const isManaged = false; // never park into an agent wallet post-cutoff
+        const walletLinkedParty = requestedManaged && isRoiWalletPayout
+          ? ledgerUserId
+          : op.linked_party;
         if (requestedManaged) {
           console.log(`[approve-wallet-op] Proxy custody v2: ignoring target_wallet_user_id=${op.target_wallet_user_id}; crediting partner ${op.user_id} directly for op ${op.id}`);
         }
@@ -213,7 +217,7 @@ Deno.serve(async (req) => {
                 : op.description,
               source_table: op.source_table,
               source_id: op.source_id,
-              linked_party: isManaged ? op.user_id : op.linked_party,
+              linked_party: walletLinkedParty,
               reference_id: op.reference_id,
               account: resolvedAccount,
               currency: 'UGX',
