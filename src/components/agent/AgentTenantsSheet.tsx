@@ -45,6 +45,8 @@ interface TenantRentRequest {
   created_at: string;
   disbursed_at: string | null;
   registration_type: string | null;
+  initial_outstanding_balance?: number | null;
+  outstanding_grace_days?: number | null;
   landlord_id?: string | null;
   lc1_id?: string | null;
   house_category?: string | null;
@@ -145,6 +147,27 @@ function Highlight({ text, query }: { text?: string | null; query: string }) {
   );
 }
 
+function getEffectiveRentRequestAmounts(req: {
+  registration_type?: string | null;
+  initial_outstanding_balance?: number | null;
+  outstanding_grace_days?: number | null;
+  duration_days?: number | null;
+  total_repayment?: number | null;
+  daily_repayment?: number | null;
+}) {
+  const storedTotal = Number(req.total_repayment || 0);
+  const storedDaily = Number(req.daily_repayment || 0);
+  const principal = Number(req.initial_outstanding_balance || 0);
+
+  if (req.registration_type === 'outstanding_balance' && principal > 0 && storedTotal <= principal) {
+    const days = Math.max(Number(req.outstanding_grace_days || req.duration_days || 30), 7);
+    const computed = calculateRentRepayment(principal, days);
+    return { totalRepayment: computed.totalRepayment, dailyRepayment: computed.dailyRepayment };
+  }
+
+  return { totalRepayment: storedTotal, dailyRepayment: storedDaily };
+}
+
 export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -215,7 +238,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const fetchLatestRentStatement = useCallback(async (tenant: Tenant) => {
     const { data, error } = await supabase
       .from('rent_requests')
-      .select('id, rent_amount, total_repayment, amount_repaid, daily_repayment, duration_days, status, created_at, landlord:landlords(name, property_address)')
+        .select('id, rent_amount, total_repayment, amount_repaid, daily_repayment, duration_days, status, created_at, registration_type, initial_outstanding_balance, outstanding_grace_days, landlord:landlords(name, property_address)')
       .eq('tenant_id', tenant.id)
       .order('created_at', { ascending: false })
       .limit(1)
@@ -228,9 +251,9 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
       landlordName: req.landlord?.name || 'N/A',
       propertyAddress: req.landlord?.property_address,
       rentAmount: Number(req.rent_amount || 0),
-      totalRepayment: Number(req.total_repayment || 0),
+      totalRepayment: getEffectiveRentRequestAmounts(req).totalRepayment,
       amountRepaid: Number(req.amount_repaid || 0),
-      dailyRepayment: Number(req.daily_repayment || 0),
+      dailyRepayment: getEffectiveRentRequestAmounts(req).dailyRepayment,
       durationDays: Number(req.duration_days || 0),
       status: req.status || 'approved',
       createdAt: req.created_at,
@@ -368,7 +391,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         const tenantIds = tenantList.map(t => t.id);
         const { data: rentRequests } = await supabase
           .from('rent_requests')
-          .select('tenant_id, total_repayment, amount_repaid, daily_repayment, status, created_at, landlord:landlords(name, property_address, latitude, longitude)')
+          .select('tenant_id, total_repayment, amount_repaid, daily_repayment, status, created_at, registration_type, initial_outstanding_balance, outstanding_grace_days, duration_days, landlord:landlords(name, property_address, latitude, longitude)')
           .in('tenant_id', tenantIds)
           .in('status', ['pending', 'approved', 'funded', 'disbursed', 'repaying', 'completed'])
           .order('created_at', { ascending: false });
@@ -380,14 +403,15 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         const ctx: Record<string, { landlordName: string; propertyAddress: string; completedCount: number; totalRequests: number }> = {};
         const locs: Record<string, { lat: number; lng: number; address: string }> = {};
         (rentRequests || []).forEach((rr: any) => {
-          const owing = (rr.total_repayment || 0) - (rr.amount_repaid || 0);
+          const effective = getEffectiveRentRequestAmounts(rr);
+          const owing = effective.totalRepayment - (rr.amount_repaid || 0);
           balances[rr.tenant_id] = (balances[rr.tenant_id] || 0) + Math.max(0, owing);
           // Sum daily expected only from active (still-owing) cycles
           if (owing > 0 && ['approved', 'funded', 'disbursed', 'repaying'].includes(rr.status)) {
-            daily[rr.tenant_id] = (daily[rr.tenant_id] || 0) + Number(rr.daily_repayment || 0);
+            daily[rr.tenant_id] = (daily[rr.tenant_id] || 0) + effective.dailyRepayment;
           }
           const prev = totals[rr.tenant_id] || { total: 0, paid: 0 };
-          totals[rr.tenant_id] = { total: prev.total + (rr.total_repayment || 0), paid: prev.paid + (rr.amount_repaid || 0) };
+          totals[rr.tenant_id] = { total: prev.total + effective.totalRepayment, paid: prev.paid + (rr.amount_repaid || 0) };
           if (!statusMap[rr.tenant_id]) statusMap[rr.tenant_id] = new Set();
           if (rr.status) statusMap[rr.tenant_id].add(rr.status);
           // Latest-first context (first hit wins thanks to descending order)
@@ -409,7 +433,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           ctx[rr.tenant_id].totalRequests += 1;
           // Only count a rent plan as truly completed when the tenant has fully
           // repaid — guards against rows mis-marked 'completed' upstream.
-          const totalRep = Number(rr.total_repayment || 0);
+          const totalRep = effective.totalRepayment;
           const repaid = Number(rr.amount_repaid || 0);
           if (rr.status === 'completed' && totalRep > 0 && repaid >= totalRep) {
             ctx[rr.tenant_id].completedCount += 1;
@@ -450,14 +474,22 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     try {
       const { data, error } = await supabase
         .from('rent_requests')
-        .select('id, rent_amount, total_repayment, duration_days, daily_repayment, amount_repaid, status, created_at, disbursed_at, registration_type, landlord_id, lc1_id, house_category, tenant_no_smartphone, request_latitude, request_longitude, landlord:landlords(name, property_address, house_category, latitude, longitude)')
+        .select('id, rent_amount, total_repayment, duration_days, daily_repayment, amount_repaid, status, created_at, disbursed_at, registration_type, initial_outstanding_balance, outstanding_grace_days, landlord_id, lc1_id, house_category, tenant_no_smartphone, request_latitude, request_longitude, landlord:landlords(name, property_address, house_category, latitude, longitude)')
         .eq('tenant_id', tenantId)
         .in('status', ['pending', 'approved', 'disbursed', 'repaying', 'completed'])
         .order('created_at', { ascending: false })
         .limit(5);
 
       if (error) throw error;
-      setTenantRequests(prev => ({ ...prev, [tenantId]: (data as unknown as TenantRentRequest[]) || [] }));
+      const normalized = ((data as unknown as TenantRentRequest[]) || []).map((req) => {
+        const effective = getEffectiveRentRequestAmounts(req);
+        return {
+          ...req,
+          total_repayment: effective.totalRepayment,
+          daily_repayment: effective.dailyRepayment,
+        };
+      });
+      setTenantRequests(prev => ({ ...prev, [tenantId]: normalized }));
     } catch (err) {
       console.error('Failed to fetch tenant requests:', err);
     } finally {
