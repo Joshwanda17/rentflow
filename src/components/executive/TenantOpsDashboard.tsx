@@ -875,33 +875,67 @@ export function TenantOpsDashboard() {
   const { data: rentRequests, isLoading } = useQuery({
     queryKey: ['exec-tenant-ops'],
     queryFn: async () => {
-      const { data } = await supabase.from('rent_requests')
-        .select('id, status, rent_amount, total_repayment, amount_repaid, registration_type, created_at, tenant_id, landlord_id, agent_id')
-        .order('created_at', { ascending: false }).limit(200);
-      const items = data || [];
+      // 1) All tenant user_ids (paginated past the 1000-row default cap)
+      const tenantUserIds: string[] = [];
+      let from = 0;
+      const PAGE = 1000;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { data, error } = await supabase
+          .from('user_roles')
+          .select('user_id')
+          .eq('role', 'tenant')
+          .range(from, from + PAGE - 1);
+        if (error || !data || data.length === 0) break;
+        tenantUserIds.push(...data.map((r: any) => r.user_id));
+        if (data.length < PAGE) break;
+        from += PAGE;
+      }
+      const uniqueTenantIds = [...new Set(tenantUserIds.filter(Boolean))];
 
-      const tenantIds = [...new Set(items.map(r => r.tenant_id).filter(Boolean))];
-      const landlordIds = [...new Set(items.map(r => r.landlord_id).filter(Boolean))];
-      const agentIds = [...new Set(items.map(r => r.agent_id).filter(Boolean))];
+      // 2) Hydrate tenant profiles (batched to stay under URL/in() limits)
+      const tenantProfiles: { id: string; full_name: string | null; phone: string | null; tenant_status: string | null }[] = [];
+      for (let i = 0; i < uniqueTenantIds.length; i += 500) {
+        const slice = uniqueTenantIds.slice(i, i + 500);
+        const { data } = await supabase
+          .from('profiles')
+          .select('id, full_name, phone, tenant_status')
+          .in('id', slice);
+        if (data) tenantProfiles.push(...(data as any));
+      }
+      const activeTenantProfiles = tenantProfiles.filter(p => (p.tenant_status ?? 'active') !== 'inactive');
+      const profileMap = new Map(activeTenantProfiles.map(p => [p.id, p]));
 
-      const [profilesRes, landlordsRes, agentsRes] = await Promise.all([
-        tenantIds.length > 0
-          ? supabase.from('profiles').select('id, full_name, phone, tenant_status').in('id', tenantIds.slice(0, 100))
-          : { data: [] },
+      // 3) Fetch rent_requests for those tenants (batched), newest first
+      const requests: any[] = [];
+      const activeIds = activeTenantProfiles.map(p => p.id);
+      for (let i = 0; i < activeIds.length; i += 500) {
+        const slice = activeIds.slice(i, i + 500);
+        const { data } = await supabase
+          .from('rent_requests')
+          .select('id, status, rent_amount, total_repayment, amount_repaid, registration_type, created_at, tenant_id, landlord_id, agent_id')
+          .in('tenant_id', slice)
+          .order('created_at', { ascending: false });
+        if (data) requests.push(...data);
+      }
+
+      // 4) Hydrate landlord + agent names
+      const landlordIds = [...new Set(requests.map(r => r.landlord_id).filter(Boolean))] as string[];
+      const agentIds = [...new Set(requests.map(r => r.agent_id).filter(Boolean))] as string[];
+      const [landlordsRes, agentsRes] = await Promise.all([
         landlordIds.length > 0
-          ? supabase.from('landlords').select('id, name, phone').in('id', landlordIds.slice(0, 100))
-          : { data: [] },
+          ? supabase.from('landlords').select('id, name, phone').in('id', landlordIds)
+          : Promise.resolve({ data: [] as any[] }),
         agentIds.length > 0
-          ? supabase.from('profiles').select('id, full_name').in('id', agentIds.slice(0, 100))
-          : { data: [] },
+          ? supabase.from('profiles').select('id, full_name').in('id', agentIds)
+          : Promise.resolve({ data: [] as any[] }),
       ]);
-
-      const profileMap = new Map((profilesRes.data || []).map(p => [p.id, p]));
-      const landlordMap = new Map((landlordsRes.data || []).map(l => [l.id, l]));
+      const landlordMap = new Map((landlordsRes.data || []).map((l: any) => [l.id, l]));
       const agentMap = new Map((agentsRes.data || []).map((a: any) => [a.id, a]));
 
-      return items
-        .filter(r => profileMap.get(r.tenant_id)?.tenant_status !== 'inactive')
+      // 5) Hydrated rent_request rows (filtered to active tenants only)
+      const reqRows = requests
+        .filter(r => profileMap.has(r.tenant_id))
         .map(r => ({
           ...r,
           tenant_name: profileMap.get(r.tenant_id)?.full_name || '—',
@@ -910,6 +944,30 @@ export function TenantOpsDashboard() {
           landlord_phone: landlordMap.get(r.landlord_id)?.phone || '—',
           agent_name: r.agent_id ? (agentMap.get(r.agent_id)?.full_name || '—') : 'Unassigned',
         }));
+
+      // 6) Stub rows for tenants with NO rent_request — so every tenant appears
+      const tenantsWithRequests = new Set(requests.map(r => r.tenant_id).filter(Boolean));
+      const stubRows = activeTenantProfiles
+        .filter(p => !tenantsWithRequests.has(p.id))
+        .map(p => ({
+          id: `stub-${p.id}`,
+          status: 'no_request',
+          rent_amount: 0,
+          total_repayment: 0,
+          amount_repaid: 0,
+          registration_type: null,
+          created_at: new Date(0).toISOString(),
+          tenant_id: p.id,
+          landlord_id: null,
+          agent_id: null,
+          tenant_name: p.full_name || '—',
+          tenant_phone: p.phone || '—',
+          landlord_name: '—',
+          landlord_phone: '—',
+          agent_name: 'Unassigned',
+        }));
+
+      return [...reqRows, ...stubRows];
     },
     staleTime: 600000,
   });
