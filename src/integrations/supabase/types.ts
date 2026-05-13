@@ -13979,6 +13979,19 @@ export type Database = {
         }[]
       }
       compute_daily_stats: { Args: never; Returns: undefined }
+      compute_outstanding_repayment: {
+        Args: {
+          p_duration_days: number
+          p_monthly_rate?: number
+          p_principal: number
+        }
+        Returns: {
+          access_fee: number
+          daily_repayment: number
+          request_fee: number
+          total_repayment: number
+        }[]
+      }
       compute_rent_repayment: {
         Args: { p_duration_days: number; p_rent_amount: number }
         Returns: {
