@@ -132,9 +132,19 @@ Deno.serve(async (req) => {
         // Ensure transaction_group_id is always set so sync_wallet_from_ledger trigger fires
         const effectiveTxGroupId = op.transaction_group_id || crypto.randomUUID();
 
-        // Determine target wallet: if managed payout, route to agent's wallet
-        const ledgerUserId = op.target_wallet_user_id || op.user_id;
-        const isManaged = !!op.target_wallet_user_id && op.target_wallet_user_id !== op.user_id;
+        // Proxy Partner Custody v2 (cutoff 2026-05-12):
+        // Wallet-scope credits MUST land on the original owner (op.user_id).
+        // Parking partner funds in an agent wallet via target_wallet_user_id +
+        // linked_party=partner is now blocked by trg_block_proxy_custody_writes.
+        // We keep target_wallet_user_id only for non-wallet (bridge/platform) entries
+        // where it is operationally meaningful, but for wallet credits we always
+        // credit the partner/owner directly. The agent merely initiated the op.
+        const requestedManaged = !!op.target_wallet_user_id && op.target_wallet_user_id !== op.user_id;
+        const ledgerUserId = op.user_id;
+        const isManaged = false; // never park into an agent wallet post-cutoff
+        if (requestedManaged) {
+          console.log(`[approve-wallet-op] Proxy custody v2: ignoring target_wallet_user_id=${op.target_wallet_user_id}; crediting partner ${op.user_id} directly for op ${op.id}`);
+        }
 
         // Insert into general_ledger (this triggers wallet balance update via existing trigger)
         // Determine ledger_scope for the USER-FACING entry (entry[0])
