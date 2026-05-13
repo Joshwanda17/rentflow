@@ -384,7 +384,6 @@ function DashboardContent() {
       <Suspense fallback={<DashboardLoadingFallback />}>
         {renderDashboard()}
       </Suspense>
-      <PersonaShareSheet currentSlug={roleToSlug(displayRole)} />
       {isPublicRole && (
         <BottomRoleSwitcher currentRole={displayRole} onRoleChange={handlePublicRoleSwitch} />
       )}
