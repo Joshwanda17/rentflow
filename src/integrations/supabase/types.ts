@@ -4584,6 +4584,7 @@ export type Database = {
       }
       e2e_landlord_payout_results: {
         Row: {
+          action: string | null
           challenge_id: string | null
           deduct_result: Json | null
           final_challenge_status: string | null
@@ -4594,6 +4595,7 @@ export type Database = {
           run_at: string | null
         }
         Insert: {
+          action?: string | null
           challenge_id?: string | null
           deduct_result?: Json | null
           final_challenge_status?: string | null
@@ -4604,6 +4606,7 @@ export type Database = {
           run_at?: string | null
         }
         Update: {
+          action?: string | null
           challenge_id?: string | null
           deduct_result?: Json | null
           final_challenge_status?: string | null
