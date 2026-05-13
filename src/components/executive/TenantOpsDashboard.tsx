@@ -899,7 +899,7 @@ export function TenantOpsDashboard() {
       const agentIds = [...new Set(items.map(r => r.agent_id).filter(Boolean))] as string[];
 
       // Hydrate names — batched in() calls so nothing is truncated.
-      const fetchInBatches = async <T,>(ids: string[], fn: (batch: string[]) => Promise<{ data: T[] | null }>): Promise<T[]> => {
+      const fetchInBatches = async <T,>(ids: string[], fn: (batch: string[]) => PromiseLike<{ data: T[] | null }>): Promise<T[]> => {
         const out: T[] = [];
         for (let i = 0; i < ids.length; i += 500) {
           const { data } = await fn(ids.slice(i, i + 500));
