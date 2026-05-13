@@ -19,6 +19,7 @@ import { FinancialOverview } from '@/components/manager/FinancialOverview';
 import { CFOPartnerPayoutProcessing } from '@/components/cfo/CFOPartnerPayoutProcessing';
 import { RentDisbursementQueue } from '@/components/cfo/RentDisbursementQueue';
 import { BatchPayoutProcessor } from '@/components/cfo/BatchPayoutProcessor';
+import { LandlordFloatAllocationsPanel } from '@/components/cfo/LandlordFloatAllocationsPanel';
 import { WithdrawalHistoryStatement } from '@/components/financial-ops/WithdrawalHistoryStatement';
 import { RentPipelineQueue } from '@/components/executive/RentPipelineQueue';
 import { RejectedRequestsQueue } from '@/components/executive/RejectedRequestsQueue';
@@ -168,6 +169,7 @@ export default function CFODashboardPage() {
             </div>
             <RentDisbursementQueue />
             <BatchPayoutProcessor />
+            <LandlordFloatAllocationsPanel />
           </div>
         );
       case 'advanced-ledgers':
