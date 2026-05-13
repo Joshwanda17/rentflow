@@ -60,15 +60,27 @@ Deno.serve(async (req) => {
 
       const isOverdue = new Date() > new Date(advance.expires_at);
 
-      const { data: wallet } = await supabase
-        .from('wallets')
-        .select('balance')
-        .eq('user_id', advance.agent_id)
-        .maybeSingle();
+      // STRICT: read withdrawable-only figure (Wallet Withdrawable Strict Rule).
+      // Never read wallets.balance — that aggregate includes float/commission
+      // custody money that must NEVER be touched for advance recovery.
+      const { data: availRaw, error: availErr } = await supabase
+        .rpc('get_user_available_balance', { p_user_id: advance.agent_id });
+      if (availErr) console.error(`[process-agent-advance-deductions] available_balance error for agent ${advance.agent_id}:`, availErr);
+      const withdrawableSnapshot = Math.max(0, Number(availRaw ?? 0));
 
-      const walletBalance = wallet ? Number(wallet.balance) : 0;
+      // emit repayment_attempted
+      await supabase.from('system_events').insert({
+        event_type: 'repayment_attempted',
+        payload: {
+          source: 'cron_advance_deduction',
+          advance_id: advance.id,
+          user_id: advance.agent_id,
+          outstanding_after_interest: balanceAfterInterest,
+          withdrawable_snapshot: withdrawableSnapshot,
+        },
+      }).then(() => {}, () => {});
 
-      const maxDeduction = Math.min(walletBalance, balanceAfterInterest);
+      const maxDeduction = Math.min(withdrawableSnapshot, balanceAfterInterest);
       const amountDeducted = Math.max(0, maxDeduction);
       const closingBalance = balanceAfterInterest - amountDeducted;
 
@@ -102,8 +114,28 @@ Deno.serve(async (req) => {
         access_fee_status: feeStatus,
       }).eq('id', advance.id);
 
-      // Deduct from wallet via balanced RPC
-      if (amountDeducted > 0) {
+      if (amountDeducted <= 0) {
+        // Skipped — no withdrawable to recover from. Float is intentionally untouched.
+        await supabase.from('system_events').insert({
+          event_type: 'repayment_skipped_insufficient_balance',
+          payload: {
+            source: 'cron_advance_deduction',
+            advance_id: advance.id,
+            user_id: advance.agent_id,
+            withdrawable_snapshot: withdrawableSnapshot,
+            outstanding_after_interest: balanceAfterInterest,
+          },
+        }).then(() => {}, () => {});
+      } else {
+        // Deduct from wallet via balanced RPC with EXPLICIT Wallet Routing v2 tags.
+        // wallet leg → recipient_type='user' forces withdrawable bucket;
+        // platform leg → recipient_type='operational_wallet'.
+        const repaymentMeta = {
+          source: 'cron_advance_deduction',
+          advance_id: advance.id,
+          withdrawable_snapshot: withdrawableSnapshot,
+          bucket_intent: 'advance_balance_recovery',
+        };
         const { error: rpcErr } = await supabase.rpc('create_ledger_transaction', {
           entries: [
             {
@@ -112,11 +144,13 @@ Deno.serve(async (req) => {
               direction: 'cash_out',
               amount: amountDeducted,
               category: 'agent_repayment',
+              recipient_type: 'user',
               source_table: 'agent_advances',
               source_id: advance.id,
               description: `Advance daily deduction - Interest: ${interestAccrued}`,
               currency: 'UGX',
               transaction_date: today,
+              metadata: repaymentMeta,
             },
           {
             user_id: advance.agent_id,
@@ -124,15 +158,28 @@ Deno.serve(async (req) => {
             direction: 'cash_in',
             amount: amountDeducted,
             category: 'agent_repayment',
+            recipient_type: 'operational_wallet',
             source_table: 'agent_advances',
             source_id: advance.id,
             description: `Advance repayment received from agent`,
             currency: 'UGX',
             transaction_date: today,
+            metadata: repaymentMeta,
           },
           ],
         });
-        if (rpcErr) console.error(`[process-agent-advance-deductions] RPC error for advance ${advance.id}:`, rpcErr);
+        if (rpcErr) {
+          console.error(`[process-agent-advance-deductions] RPC error for advance ${advance.id}:`, rpcErr);
+          await supabase.from('system_events').insert({
+            event_type: 'repayment_failed',
+            payload: { ...repaymentMeta, user_id: advance.agent_id, error: String(rpcErr.message ?? rpcErr) },
+          }).then(() => {}, () => {});
+        } else {
+          await supabase.from('system_events').insert({
+            event_type: 'repayment_successful',
+            payload: { ...repaymentMeta, user_id: advance.agent_id, amount: amountDeducted },
+          }).then(() => {}, () => {});
+        }
       }
 
       results.push({
