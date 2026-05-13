@@ -814,8 +814,9 @@ export function ProxyPartnerFunds() {
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground px-1">
-        CFO-approved returns ready for delivery to your proxy partners. Nothing here is stuck —
-        balances shown are <span className="font-medium text-foreground">withdrawable now</span>.
+        Mirrors the CFO ROI Payout Queue 1:1 — every card here is a return the CFO
+        has signed off for delivery to your proxy partner. Balances shown are
+        <span className="font-medium text-foreground"> withdrawable now</span>.
       </p>
 
       <div className="flex flex-wrap gap-1.5 px-1">
