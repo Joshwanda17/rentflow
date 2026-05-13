@@ -130,7 +130,7 @@ export function RentDisbursementQueue() {
       if (errors.length) throw new Error(`${errors.length} failed: ${errors[0]}`);
     },
     onSuccess: () => {
-      toast.success(`${selected.size} rent payouts disbursed`);
+      toast.success(`Funded ${selected.size} agent float${selected.size === 1 ? '' : 's'} — agents will complete the MoMo payouts.`);
       setSelected(new Set());
       setBatchRef('');
       qc.invalidateQueries({ queryKey: ['rent-disbursement-queue'] });
@@ -151,7 +151,7 @@ export function RentDisbursementQueue() {
       return data;
     },
     onSuccess: () => {
-      toast.success('Rent payout disbursed');
+      toast.success('Funded agent float — agent will complete the MoMo payout.');
       qc.invalidateQueries({ queryKey: ['rent-disbursement-queue'] });
       qc.invalidateQueries({ queryKey: ['treasury-cash-snapshot'] });
       qc.invalidateQueries({ queryKey: ['cfo-overview'] });
@@ -168,7 +168,7 @@ export function RentDisbursementQueue() {
       <CardHeader className="pb-2">
         <CardTitle className="text-base flex items-center gap-2">
           <Home className="h-4 w-4 text-primary" />
-          Rent Disbursement Queue
+          Fund Agent Landlord Payout Float
           {items.length > 0 && (
             <Badge variant="outline" className="text-[10px] ml-1 bg-primary/10 text-primary border-primary/30">
               {items.length} approved · {fmt(queueTotalRent)}
@@ -177,7 +177,7 @@ export function RentDisbursementQueue() {
         </CardTitle>
         {items.length > 0 && (
           <p className="text-xs text-muted-foreground mt-1">
-            COO-approved rent requests ready for CFO disbursement. Revenue earned: <span className="font-bold text-emerald-600">{fmt(queueTotalRevenue)}</span>
+            COO-approved rent. Funding lands in the assigned agent's <b>Landlord Payout Float</b> — the agent then pays the landlord via MoMo + OTP. Revenue earned: <span className="font-bold text-emerald-600">{fmt(queueTotalRevenue)}</span>
           </p>
         )}
       </CardHeader>
@@ -283,9 +283,10 @@ export function RentDisbursementQueue() {
                     className="shrink-0 text-xs h-7"
                     onClick={() => singleDisburse.mutate(item.id)}
                     disabled={singleDisburse.isPending}
+                    title={`Will land in ${item.agent_name}'s Landlord Payout Float`}
                   >
                     {singleDisburse.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Banknote className="h-3 w-3 mr-1" />}
-                    Pay
+                    Fund Agent Float
                   </Button>
                 </div>
               ))}
@@ -306,7 +307,7 @@ export function RentDisbursementQueue() {
                   disabled={batchDisburse.isPending || !batchRef.trim()}
                 >
                   {batchDisburse.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Banknote className="h-3 w-3 mr-1" />}
-                  Disburse ({selected.size})
+                  Fund {selected.size} Agent Float{selected.size === 1 ? '' : 's'}
                 </Button>
               </div>
             )}
