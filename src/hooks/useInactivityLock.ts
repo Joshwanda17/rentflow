@@ -10,14 +10,24 @@ interface UseInactivityLockOptions {
 }
 
 export function useInactivityLock({ timeout = 5 * 60 * 1000, enabled = true }: UseInactivityLockOptions = {}) {
+  // "Remember me" honors a 24h trust window: while it is active, the
+  // inactivity lock is suppressed entirely so the user is never asked
+  // to re-authenticate (no pre-login prompt).
+  const isWithinRememberWindow = () => {
+    try {
+      const until = parseInt(localStorage.getItem('welile_remember_until') || '0', 10);
+      return Number.isFinite(until) && until > Date.now();
+    } catch { return false; }
+  };
+  const effectiveEnabled = enabled && !isWithinRememberWindow();
   const [isLocked, setIsLocked] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const resetTimer = useCallback(() => {
-    if (!enabled || isLocked) return;
+    if (!effectiveEnabled || isLocked) return;
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => setIsLocked(true), timeout);
-  }, [enabled, timeout, isLocked]);
+  }, [effectiveEnabled, timeout, isLocked]);
 
   const unlock = useCallback(() => {
     setIsLocked(false);
@@ -26,7 +36,7 @@ export function useInactivityLock({ timeout = 5 * 60 * 1000, enabled = true }: U
 
   // Set up activity listeners
   useEffect(() => {
-    if (!enabled || isLocked) return;
+    if (!effectiveEnabled || isLocked) return;
 
     // Start initial timer
     timerRef.current = setTimeout(() => setIsLocked(true), timeout);
@@ -38,7 +48,7 @@ export function useInactivityLock({ timeout = 5 * 60 * 1000, enabled = true }: U
       if (timerRef.current) clearTimeout(timerRef.current);
       ACTIVITY_EVENTS.forEach(evt => window.removeEventListener(evt, handler));
     };
-  }, [enabled, isLocked, timeout, resetTimer]);
+  }, [effectiveEnabled, isLocked, timeout, resetTimer]);
 
   return { isLocked, unlock };
 }
