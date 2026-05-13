@@ -425,6 +425,17 @@ export function useAuthForm() {
       setLoginError(null);
       setFailedAttempts(0);
       saveLocationInBackground();
+        // "Remember me" → keep the user signed in for 24h with no
+        // re-prompts (inactivity lock, PIN, biometric, etc. all honor
+        // this window). Cleared on explicit sign-out.
+        try {
+          if (rememberMe) {
+            const until = Date.now() + 24 * 60 * 60 * 1000;
+            localStorage.setItem('welile_remember_until', String(until));
+          } else {
+            localStorage.removeItem('welile_remember_until');
+          }
+        } catch { /* non-critical */ }
       // Save user name for returning-user greeting
       try {
         const { data: { user: currentUser } } = await supabase.auth.getUser();
