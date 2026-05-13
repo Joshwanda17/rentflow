@@ -51,6 +51,6 @@ BEGIN
   RAISE NOTICE 'PASS: agent_repayment cash_out routes to withdrawable/-1';
 END $$;
 
-RAISE NOTICE 'PASS: advance repayment isolation invariants all green';
+DO $$ BEGIN RAISE NOTICE 'PASS: advance repayment isolation invariants all green'; END $$;
 
 ROLLBACK;
