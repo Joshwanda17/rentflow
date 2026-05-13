@@ -45,6 +45,8 @@ interface TenantRentRequest {
   created_at: string;
   disbursed_at: string | null;
   registration_type: string | null;
+  initial_outstanding_balance?: number | null;
+  outstanding_grace_days?: number | null;
   landlord_id?: string | null;
   lc1_id?: string | null;
   house_category?: string | null;
@@ -145,6 +147,27 @@ function Highlight({ text, query }: { text?: string | null; query: string }) {
   );
 }
 
+function getEffectiveRentRequestAmounts(req: {
+  registration_type?: string | null;
+  initial_outstanding_balance?: number | null;
+  outstanding_grace_days?: number | null;
+  duration_days?: number | null;
+  total_repayment?: number | null;
+  daily_repayment?: number | null;
+}) {
+  const storedTotal = Number(req.total_repayment || 0);
+  const storedDaily = Number(req.daily_repayment || 0);
+  const principal = Number(req.initial_outstanding_balance || 0);
+
+  if (req.registration_type === 'outstanding_balance' && principal > 0 && storedTotal <= principal) {
+    const days = Math.max(Number(req.outstanding_grace_days || req.duration_days || 30), 7);
+    const computed = calculateRentRepayment(principal, days);
+    return { totalRepayment: computed.totalRepayment, dailyRepayment: computed.dailyRepayment };
+  }
+
+  return { totalRepayment: storedTotal, dailyRepayment: storedDaily };
+}
+
 export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -215,7 +238,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const fetchLatestRentStatement = useCallback(async (tenant: Tenant) => {
     const { data, error } = await supabase
       .from('rent_requests')
-      .select('id, rent_amount, total_repayment, amount_repaid, daily_repayment, duration_days, status, created_at, landlord:landlords(name, property_address)')
+        .select('id, rent_amount, total_repayment, amount_repaid, daily_repayment, duration_days, status, created_at, registration_type, initial_outstanding_balance, outstanding_grace_days, landlord:landlords(name, property_address)')
       .eq('tenant_id', tenant.id)
       .order('created_at', { ascending: false })
       .limit(1)
@@ -228,9 +251,9 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
       landlordName: req.landlord?.name || 'N/A',
       propertyAddress: req.landlord?.property_address,
       rentAmount: Number(req.rent_amount || 0),
-      totalRepayment: Number(req.total_repayment || 0),
+      totalRepayment: getEffectiveRentRequestAmounts(req).totalRepayment,
       amountRepaid: Number(req.amount_repaid || 0),
-      dailyRepayment: Number(req.daily_repayment || 0),
+      dailyRepayment: getEffectiveRentRequestAmounts(req).dailyRepayment,
       durationDays: Number(req.duration_days || 0),
       status: req.status || 'approved',
       createdAt: req.created_at,
