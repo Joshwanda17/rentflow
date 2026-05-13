@@ -221,9 +221,9 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
           .single(),
         supabase
           .from('rent_requests')
-          .select('id, rent_amount, total_repayment, amount_repaid, status, created_at, disbursed_at, duration_days, daily_repayment, landlord_id, lc1_id, house_category, tenant_no_smartphone, request_latitude, request_longitude, landlord:landlords(name, property_address, house_category)')
+          .select('id, rent_amount, total_repayment, amount_repaid, status, created_at, disbursed_at, duration_days, daily_repayment, registration_type, initial_outstanding_balance, outstanding_grace_days, landlord_id, lc1_id, house_category, tenant_no_smartphone, request_latitude, request_longitude, landlord:landlords(name, property_address, house_category)')
           .eq('tenant_id', tenantId)
-          .in('status', ['pending', 'approved', 'funded', 'disbursed', 'repaying', 'completed'])
+          .or('status.in.(pending,approved,funded,disbursed,repaying,completed),registration_type.eq.outstanding_balance')
           .order('created_at', { ascending: false }),
         supabase
           .from('repayments')
@@ -257,7 +257,14 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
         setProfile(profileRes.data as unknown as TenantProfile);
       }
 
-      setRequests((rentRes.data as unknown as RentRequestRow[]) || []);
+      setRequests(((rentRes.data as unknown as RentRequestRow[]) || []).map((req) => {
+        const effective = getEffectiveRentRequestAmounts(req);
+        return {
+          ...req,
+          total_repayment: effective.totalRepayment,
+          daily_repayment: effective.dailyRepayment,
+        };
+      }));
       setRepayments((repaymentRes.data as RepaymentRow[]) || []);
 
       const ledgerEntries = (ledgerRes.data || []) as any[];
