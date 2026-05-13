@@ -439,17 +439,37 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                     <p
                       className={cn(
                         "text-lg font-extrabold text-amber-600",
-                        editableOutstandingReq && "cursor-pointer border-b border-dotted border-amber-600/50 hover:opacity-80"
+                        activeReqs.length > 0 && "cursor-pointer border-b border-dotted border-amber-600/50 hover:opacity-80"
                       )}
-                      onClick={editableOutstandingReq ? startEditOutstanding : undefined}
-                      title={editableOutstandingReq ? "Tap to edit outstanding" : undefined}
+                      onClick={() => {
+                        if (editableOutstandingReq) {
+                          startEditOutstanding();
+                        } else if (activeReqs.length > 1) {
+                          toast.info('Tap the pencil on a specific rent request below to edit it.');
+                          document.getElementById('rent-requests-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                      }}
+                      title={
+                        editableOutstandingReq
+                          ? "Tap to edit outstanding"
+                          : activeReqs.length > 1
+                            ? "Multiple active requests — edit each below"
+                            : undefined
+                      }
                     >
                       UGX {outstandingTotal.toLocaleString()}
                     </p>
-                    {editableOutstandingReq && (
+                    {activeReqs.length > 0 && (
                       <button
                         type="button"
-                        onClick={startEditOutstanding}
+                        onClick={() => {
+                          if (editableOutstandingReq) {
+                            startEditOutstanding();
+                          } else {
+                            toast.info('Tap the pencil on a specific rent request below to edit it.');
+                            document.getElementById('rent-requests-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                          }
+                        }}
                         className="text-muted-foreground hover:text-foreground"
                         aria-label="Edit outstanding"
                       >
@@ -464,7 +484,7 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
           </div>
 
           {/* Rent requests */}
-          <Card>
+          <Card id="rent-requests-list">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm">Rent Requests</CardTitle>
             </CardHeader>
