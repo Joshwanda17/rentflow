@@ -143,7 +143,7 @@ Deno.serve(async (req) => {
         const isRoiWalletPayout = op.category === 'roi_payout' || op.category === 'supporter_platform_rewards';
         const ledgerUserId = op.user_id;
         const isManaged = false; // never park into an agent wallet post-cutoff
-        const walletLinkedParty = requestedManaged && isRoiWalletPayout
+        const walletLinkedParty = isRoiWalletPayout
           ? ledgerUserId
           : op.linked_party;
         if (requestedManaged) {
