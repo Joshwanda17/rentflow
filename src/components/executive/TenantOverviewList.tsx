@@ -20,7 +20,7 @@ interface TenantRow {
   created_at: string;
 }
 
-type Category = 'all' | 'pending' | 'in_pipeline' | 'active' | 'repaying' | 'fully_repaid' | 'defaulted' | 'no_request';
+type Category = 'all' | 'pending' | 'in_pipeline' | 'active' | 'repaying' | 'fully_repaid' | 'defaulted';
 
 const CATEGORIES: { value: Category; label: string; color: string }[] = [
   { value: 'all', label: 'All', color: 'bg-muted text-foreground' },
@@ -30,7 +30,6 @@ const CATEGORIES: { value: Category; label: string; color: string }[] = [
   { value: 'repaying', label: 'Repaying', color: 'bg-purple-100 text-purple-700' },
   { value: 'fully_repaid', label: 'Fully Repaid', color: 'bg-green-100 text-green-700' },
   { value: 'defaulted', label: 'Defaulted', color: 'bg-destructive/10 text-destructive' },
-  { value: 'no_request', label: 'No Request', color: 'bg-slate-100 text-slate-600' },
 ];
 
 const STATUS_MAP: Record<Category, string[]> = {
@@ -41,7 +40,6 @@ const STATUS_MAP: Record<Category, string[]> = {
   repaying: ['repaying'],
   fully_repaid: ['fully_repaid'],
   defaulted: ['defaulted'],
-  no_request: ['no_request'],
 };
 
 const statusBadgeColor = (status: string) => {
@@ -56,7 +54,6 @@ const statusBadgeColor = (status: string) => {
     repaying: 'bg-purple-100 text-purple-700',
     fully_repaid: 'bg-emerald-100 text-emerald-700',
     defaulted: 'bg-destructive/10 text-destructive',
-    no_request: 'bg-slate-100 text-slate-600',
   };
   return map[status] || 'bg-muted text-muted-foreground';
 };
@@ -140,7 +137,6 @@ export function TenantOverviewList({ data, loading, initialCategory, onSelectTen
       repaying: 0,
       fully_repaid: 0,
       defaulted: 0,
-      no_request: 0,
     };
     for (const row of data) {
       for (const [cat, statuses] of Object.entries(STATUS_MAP)) {
