@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatUGX } from '@/lib/rentCalculations';
+import { calculateRentRepayment, formatUGX } from '@/lib/rentCalculations';
 import { VerifyTenantButton, VerifyLandlordButton } from '@/components/verification';
 import {
   FileText, User, Building, MapPin, Calendar, Banknote,
@@ -32,6 +32,9 @@ interface AgentRentRequest {
   created_at: string;
   tenant_id: string;
   landlord_id: string;
+  registration_type?: string | null;
+  initial_outstanding_balance?: number | null;
+  outstanding_grace_days?: number | null;
   agent_verified: boolean | null;
   manager_verified: boolean | null;
   request_latitude: number | null;
@@ -48,6 +51,20 @@ interface AgentRentRequest {
     latitude: number | null;
     longitude: number | null;
   } | null;
+}
+
+function getEffectiveRentRequestAmounts(req: AgentRentRequest) {
+  const storedTotal = Number(req.total_repayment || 0);
+  const storedDaily = Number(req.daily_repayment || 0);
+  const principal = Number(req.initial_outstanding_balance || 0);
+
+  if (req.registration_type === 'outstanding_balance' && principal > 0 && storedTotal <= principal) {
+    const days = Math.max(Number(req.outstanding_grace_days || req.duration_days || 30), 7);
+    const computed = calculateRentRepayment(principal, days);
+    return { totalRepayment: computed.totalRepayment, dailyRepayment: computed.dailyRepayment };
+  }
+
+  return { totalRepayment: storedTotal, dailyRepayment: storedDaily };
 }
 
 interface AgentMyRentRequestsSheetProps {
@@ -90,7 +107,7 @@ export function AgentMyRentRequestsSheet({ open, onOpenChange }: AgentMyRentRequ
 
     const { data, error } = await supabase
       .from('rent_requests')
-      .select('id, rent_amount, total_repayment, amount_repaid, duration_days, daily_repayment, status, created_at, tenant_id, landlord_id, agent_verified, manager_verified, request_latitude, request_longitude, request_city, request_country')
+      .select('id, rent_amount, total_repayment, amount_repaid, duration_days, daily_repayment, status, created_at, tenant_id, landlord_id, registration_type, initial_outstanding_balance, outstanding_grace_days, agent_verified, manager_verified, request_latitude, request_longitude, request_city, request_country')
       .or(`agent_id.eq.${user.id},agent_verified_by.eq.${user.id}`)
       .neq('status', 'deleted_by_agent')
       .order('created_at', { ascending: false });
@@ -114,11 +131,16 @@ export function AgentMyRentRequestsSheet({ open, onOpenChange }: AgentMyRentRequ
         : Promise.resolve({ data: [] as any[] }),
     ]);
 
-    const enriched: AgentRentRequest[] = rows.map(r => ({
-      ...r,
-      tenant: profiles?.find((p: any) => p.id === r.tenant_id) || null,
-      landlord: landlords?.find((l: any) => l.id === r.landlord_id) || null,
-    }));
+    const enriched: AgentRentRequest[] = rows.map(r => {
+      const effective = getEffectiveRentRequestAmounts(r as AgentRentRequest);
+      return {
+        ...r,
+        total_repayment: effective.totalRepayment,
+        daily_repayment: effective.dailyRepayment,
+        tenant: profiles?.find((p: any) => p.id === r.tenant_id) || null,
+        landlord: landlords?.find((l: any) => l.id === r.landlord_id) || null,
+      };
+    });
 
     setRequests(enriched);
     setLoading(false);
