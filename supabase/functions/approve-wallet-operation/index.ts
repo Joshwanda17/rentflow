@@ -323,13 +323,11 @@ Deno.serve(async (req) => {
               .order("created_at", { ascending: true });
 
             if (activeAdvances && activeAdvances.length > 0) {
-              const { data: advWallet } = await adminClient
-                .from("wallets")
-                .select("balance")
-                .eq("user_id", op.user_id)
-                .single();
-
-              const walletBalance = advWallet?.balance || 0;
+              // STRICT: only withdrawable funds may be swept toward advance recovery.
+              // Float / commission custody is operationally isolated.
+              const { data: availRaw } = await adminClient
+                .rpc('get_user_available_balance', { p_user_id: op.user_id });
+              const walletBalance = Math.max(0, Number(availRaw ?? 0));
               let advanceBudget = Math.min(Math.floor(op.amount * ADVANCE_REPAYMENT_RATIO), walletBalance);
               let remainingBudget = advanceBudget;
 
@@ -342,6 +340,13 @@ Deno.serve(async (req) => {
                 const advTxGroupId = crypto.randomUUID();
                 const today = new Date().toISOString().split('T')[0];
 
+                const repaymentMeta = {
+                  source: 'deposit_sweep_advance_repayment',
+                  advance_id: advance.id,
+                  bucket_intent: 'advance_balance_recovery',
+                  ratio: ADVANCE_REPAYMENT_RATIO,
+                  withdrawable_snapshot: walletBalance,
+                };
                 const { error: advLedgerErr } = await adminClient.rpc('create_ledger_transaction', {
                   entries: [
                     {
@@ -349,6 +354,7 @@ Deno.serve(async (req) => {
                       amount: deductAmount,
                       direction: 'cash_out',
                       category: 'agent_repayment',
+                      recipient_type: 'user',
                       ledger_scope: 'wallet',
                       source_table: 'agent_advances',
                       source_id: advance.id,
@@ -356,17 +362,20 @@ Deno.serve(async (req) => {
                       reference_id: op.id,
                       currency: 'UGX',
                       transaction_date: new Date().toISOString(),
+                      metadata: repaymentMeta,
                     },
                     {
                       direction: 'cash_in',
                       amount: deductAmount,
                       category: 'agent_repayment',
+                      recipient_type: 'operational_wallet',
                       ledger_scope: 'platform',
                       source_table: 'agent_advances',
                       source_id: advance.id,
                       description: `Platform receives advance repayment`,
                       currency: 'UGX',
                       transaction_date: new Date().toISOString(),
+                      metadata: repaymentMeta,
                     },
                   ],
                 });
