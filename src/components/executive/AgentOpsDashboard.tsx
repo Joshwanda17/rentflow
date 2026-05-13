@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import { AgentOpsHomeView, type DateRange } from './agent-ops-v2/AgentOpsHomeView';
 import { AgentOpsBottomNav, type BottomTab } from './agent-ops-v2/AgentOpsBottomNav';
 import { AdvanceRequestsQueue } from '@/components/ops/AdvanceRequestsQueue';
@@ -195,7 +196,7 @@ export function AgentOpsDashboard() {
   const renderSubView = () => {
     switch (activeView) {
       case 'trust-capture': return <TrustCaptureTab />;
-      case 'performance-report': return <AgentPerformanceReport />;
+      case 'performance-report': return <Navigate to="/agent-performance-report" replace />;
       case 'allocation-report': return <AgentAllocationReport />;
       case 'feature-flags': return <AgentFeatureFlagsPanel onBack={() => setActiveView(null)} />;
       case 'bulk-ops': return <AgentBulkOpsConsole onBack={() => setActiveView(null)} />;
