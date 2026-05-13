@@ -474,14 +474,22 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     try {
       const { data, error } = await supabase
         .from('rent_requests')
-        .select('id, rent_amount, total_repayment, duration_days, daily_repayment, amount_repaid, status, created_at, disbursed_at, registration_type, landlord_id, lc1_id, house_category, tenant_no_smartphone, request_latitude, request_longitude, landlord:landlords(name, property_address, house_category, latitude, longitude)')
+        .select('id, rent_amount, total_repayment, duration_days, daily_repayment, amount_repaid, status, created_at, disbursed_at, registration_type, initial_outstanding_balance, outstanding_grace_days, landlord_id, lc1_id, house_category, tenant_no_smartphone, request_latitude, request_longitude, landlord:landlords(name, property_address, house_category, latitude, longitude)')
         .eq('tenant_id', tenantId)
         .in('status', ['pending', 'approved', 'disbursed', 'repaying', 'completed'])
         .order('created_at', { ascending: false })
         .limit(5);
 
       if (error) throw error;
-      setTenantRequests(prev => ({ ...prev, [tenantId]: (data as unknown as TenantRentRequest[]) || [] }));
+      const normalized = ((data as unknown as TenantRentRequest[]) || []).map((req) => {
+        const effective = getEffectiveRentRequestAmounts(req);
+        return {
+          ...req,
+          total_repayment: effective.totalRepayment,
+          daily_repayment: effective.dailyRepayment,
+        };
+      });
+      setTenantRequests(prev => ({ ...prev, [tenantId]: normalized }));
     } catch (err) {
       console.error('Failed to fetch tenant requests:', err);
     } finally {
