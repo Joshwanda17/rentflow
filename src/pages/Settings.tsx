@@ -385,6 +385,77 @@ export default function Settings() {
                   <SettingsRow label="Skip Welcome Screen" description={preferences.skipSplash ? 'Goes straight to dashboard' : 'Shows welcome first'} icon={RotateCcw}><Switch checked={preferences.skipSplash} onCheckedChange={(c) => { updatePreference('skipSplash', c); toast.success(c ? 'Splash skipped' : 'Splash enabled'); }} /></SettingsRow>
                   </CardContent>
                 </Card>
+                {/* Language preference */}
+                <Card className="border-border/40 rounded-2xl">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center gap-2">
+                      <Globe className="h-4 w-4 text-primary" />
+                      <div>
+                        <CardTitle className="text-sm">Language</CardTitle>
+                        <CardDescription className="text-xs">Choose your preferred language</CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <RadioGroup
+                      value={language}
+                      onValueChange={(v) => { setLanguage(v as Language); toast.success(`Language: ${languageNames[v as Language]}`); }}
+                      className="grid grid-cols-2 gap-2"
+                    >
+                      {(['en', 'sw', 'fr', 'am'] as Language[]).map((lang) => (
+                        <Label
+                          key={lang}
+                          htmlFor={`lang-${lang}`}
+                          className={cn(
+                            "flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer text-sm",
+                            language === lang ? 'border-primary bg-primary/10' : 'border-border/50'
+                          )}
+                        >
+                          <RadioGroupItem value={lang} id={`lang-${lang}`} />
+                          <span className="text-base">{languageFlags[lang]}</span>
+                          <span className="font-medium text-xs">{languageNames[lang]}</span>
+                        </Label>
+                      ))}
+                    </RadioGroup>
+                  </CardContent>
+                </Card>
+
+                {/* Preferred currency */}
+                <Card className="border-border/40 rounded-2xl">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 text-primary" />
+                      <div>
+                        <CardTitle className="text-sm">Preferred Currency</CardTitle>
+                        <CardDescription className="text-xs">Display amounts in this currency (base is UGX)</CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <select
+                      value={currency.code}
+                      onChange={(e) => {
+                        const c = ALL_CURRENCIES.find(x => x.code === e.target.value);
+                        if (c) { setCurrency(c); toast.success(`Currency: ${c.name}`); }
+                      }}
+                      className="w-full h-11 rounded-xl border border-border/50 bg-background px-3 text-sm"
+                    >
+                      {ALL_CURRENCIES.map((c) => (
+                        <option key={c.code} value={c.code}>
+                          {c.flag} {c.code} — {c.name}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-[11px] text-muted-foreground">
+                      Currently displaying in <span className="font-semibold">{currency.flag} {currency.code}</span>
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* Live converter */}
+                <LazySection name="CurrencyConverter">
+                  <CurrencyConverter variant="compact" />
+                </LazySection>
                 {roles.includes('agent') && (
                   <LazySection name="ShareCardTheme">
                     <ShareCardThemeSettings />
