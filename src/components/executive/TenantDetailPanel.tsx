@@ -402,8 +402,50 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
               <p className="text-[10px] text-muted-foreground">Total Repaid</p>
             </CardContent></Card>
             <Card><CardContent className="p-3 text-center">
-              <p className="text-lg font-extrabold text-amber-600">UGX {(totalRent - totalRepaid).toLocaleString()}</p>
-              <p className="text-[10px] text-muted-foreground">Outstanding</p>
+              {editingOutstanding && editableOutstandingReq ? (
+                <div className="space-y-1.5 text-left">
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    value={outstandingEdit.amount}
+                    onChange={e => setOutstandingEdit(v => ({ ...v, amount: e.target.value }))}
+                    placeholder="Remaining (UGX)"
+                    className="h-8 text-sm"
+                  />
+                  <Textarea
+                    value={outstandingEdit.reason}
+                    onChange={e => setOutstandingEdit(v => ({ ...v, reason: e.target.value }))}
+                    placeholder="Reason (min 10 chars)"
+                    className="text-[11px] min-h-[44px]"
+                  />
+                  <div className="flex items-center justify-end gap-1">
+                    <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setEditingOutstanding(false)} disabled={savingOutstanding}>
+                      <X className="h-3 w-3" />
+                    </Button>
+                    <Button size="sm" className="h-7 px-2 text-xs gap-1" onClick={saveOutstanding} disabled={savingOutstanding}>
+                      {savingOutstanding ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                      Save
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-center gap-1">
+                    <p className="text-lg font-extrabold text-amber-600">UGX {outstandingTotal.toLocaleString()}</p>
+                    {editableOutstandingReq && (
+                      <button
+                        type="button"
+                        onClick={startEditOutstanding}
+                        className="text-muted-foreground hover:text-foreground"
+                        aria-label="Edit outstanding"
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Outstanding</p>
+                </>
+              )}
             </CardContent></Card>
           </div>
 
