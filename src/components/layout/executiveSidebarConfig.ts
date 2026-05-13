@@ -66,6 +66,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
       title: 'Money Out',
       items: [
         { label: 'Rent Payouts', icon: Banknote, id: 'rent-payouts' },
+        { label: 'Landlord Payout Float', icon: Home, id: 'landlord-payout-float' },
         { label: 'Agent Commissions', icon: Banknote, id: 'commissions' },
         { label: 'Withdrawals', icon: Wallet, id: 'withdrawals' },
         { label: 'Withdrawal History', icon: ClipboardList, id: 'withdrawal-history' },

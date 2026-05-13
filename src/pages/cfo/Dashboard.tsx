@@ -17,6 +17,8 @@ import { WithdrawalRequestsManager } from '@/components/manager/WithdrawalReques
 import { GeneralLedger } from '@/components/manager/GeneralLedger';
 import { FinancialOverview } from '@/components/manager/FinancialOverview';
 import { CFOPartnerPayoutProcessing } from '@/components/cfo/CFOPartnerPayoutProcessing';
+import { RentDisbursementQueue } from '@/components/cfo/RentDisbursementQueue';
+import { BatchPayoutProcessor } from '@/components/cfo/BatchPayoutProcessor';
 import { WithdrawalHistoryStatement } from '@/components/financial-ops/WithdrawalHistoryStatement';
 import { RentPipelineQueue } from '@/components/executive/RentPipelineQueue';
 import { RejectedRequestsQueue } from '@/components/executive/RejectedRequestsQueue';
@@ -151,6 +153,21 @@ export default function CFODashboardPage() {
               Review and sign off on agent-to-landlord MoMo payouts after Landlord Ops approval.
             </p>
             <LandlordOpsPayoutReview reviewRole="cfo" />
+          </div>
+        );
+      case 'landlord-payout-float':
+        return (
+          <div className="space-y-4">
+            <div>
+              <h1 className="text-xl font-bold">🏠 Landlord Payout Float</h1>
+              <p className="text-sm text-muted-foreground">
+                Fund agents' Landlord Payout Float from COO-approved rent requests.
+                Each disbursement earmarks money for a specific tenant's landlord —
+                the agent then pays the landlord via MoMo (gated by landlord OTP and Financial Ops sign-off).
+              </p>
+            </div>
+            <RentDisbursementQueue />
+            <BatchPayoutProcessor />
           </div>
         );
       case 'advanced-ledgers':
