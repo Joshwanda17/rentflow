@@ -490,20 +490,13 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                         "text-lg font-extrabold text-amber-600",
                         activeReqs.length > 0 && "cursor-pointer border-b border-dotted border-amber-600/50 hover:opacity-80"
                       )}
-                      onClick={() => {
-                        if (editableOutstandingReq) {
-                          startEditOutstanding();
-                        } else if (activeReqs.length > 1) {
-                          toast.info('Tap the pencil on a specific rent request below to edit it.');
-                          document.getElementById('rent-requests-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        }
-                      }}
+                      onClick={activeReqs.length > 0 ? startEditOutstanding : undefined}
                       title={
-                        editableOutstandingReq
-                          ? "Tap to edit outstanding"
-                          : activeReqs.length > 1
-                            ? "Multiple active requests — edit each below"
-                            : undefined
+                        activeReqs.length === 0
+                          ? undefined
+                          : activeReqs.length === 1
+                            ? "Tap to edit outstanding"
+                            : `Tap to edit — change is split across ${activeReqs.length} active requests`
                       }
                     >
                       UGX {outstandingTotal.toLocaleString()}
@@ -511,14 +504,7 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                     {activeReqs.length > 0 && (
                       <button
                         type="button"
-                        onClick={() => {
-                          if (editableOutstandingReq) {
-                            startEditOutstanding();
-                          } else {
-                            toast.info('Tap the pencil on a specific rent request below to edit it.');
-                            document.getElementById('rent-requests-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                          }
-                        }}
+                        onClick={startEditOutstanding}
                         className="text-muted-foreground hover:text-foreground"
                         aria-label="Edit outstanding"
                       >
