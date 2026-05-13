@@ -15,12 +15,15 @@ import {
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import welileLogo from '@/assets/welile-logo.png';
 import { cn } from '@/lib/utils';
 import { format, startOfDay, endOfDay, subDays, differenceInDays } from 'date-fns';
+import { useState } from 'react';
+import { Search } from 'lucide-react';
 
 // ============= STYLING HELPERS =============
 const toneText: Record<string, string> = {
@@ -432,16 +435,7 @@ export default function AgentPerformanceReport() {
   const totalDebt = computed?.totalDebt ?? 0;
 
   if (!agentId) {
-    return (
-      <div className="min-h-screen bg-slate-50/60 flex items-center justify-center p-6">
-        <div className="rounded-xl border border-amber-300 bg-amber-50 p-6 max-w-md text-center">
-          <AlertCircle className="h-8 w-8 text-amber-600 mx-auto mb-2" />
-          <h1 className="text-lg font-bold text-slate-900">No agent selected</h1>
-          <p className="text-sm text-slate-600 mt-1">Open this report from an agent row to load real data. Expected URL: <code>?id=AGENT_UUID</code></p>
-          <Button className="mt-4" onClick={() => navigate(-1)}>Go Back</Button>
-        </div>
-      </div>
-    );
+    return <AgentPicker onPick={(id) => navigate(`/agent-performance-report?id=${id}`)} onBack={() => navigate(-1)} />;
   }
 
   return (
