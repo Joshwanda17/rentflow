@@ -431,7 +431,16 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
               ) : (
                 <>
                   <div className="flex items-center justify-center gap-1">
-                    <p className="text-lg font-extrabold text-amber-600">UGX {outstandingTotal.toLocaleString()}</p>
+                    <p
+                      className={cn(
+                        "text-lg font-extrabold text-amber-600",
+                        editableOutstandingReq && "cursor-pointer border-b border-dotted border-amber-600/50 hover:opacity-80"
+                      )}
+                      onClick={editableOutstandingReq ? startEditOutstanding : undefined}
+                      title={editableOutstandingReq ? "Tap to edit outstanding" : undefined}
+                    >
+                      UGX {outstandingTotal.toLocaleString()}
+                    </p>
                     {editableOutstandingReq && (
                       <button
                         type="button"
