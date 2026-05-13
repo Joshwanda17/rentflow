@@ -4230,21 +4230,21 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
               ) : selectedManaged?.isManaged ? (
                 /* ─── Managed Account ─── */
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2 rounded-xl bg-primary/10 border border-primary/20 px-3 py-2.5">
-                    <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold text-primary">Managed Account</p>
-                      <p className="text-[10px] text-primary/70">Funds will be sent to <strong>{selectedManaged.agentName}</strong>'s agent wallet</p>
-                    </div>
-                  </div>
-                  <Button
-                    className="w-full gap-2"
-                    disabled={!!selectedProcessing}
-                    onClick={() => handlePay(selectedPayout, selectedReason, 'agent_wallet')}
-                  >
-                    {selectedProcessing === 'pay' ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-                    Send to Agent Wallet
-                  </Button>
+                   <div className="flex items-center gap-2 rounded-xl bg-primary/10 border border-primary/20 px-3 py-2.5">
+                     <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
+                     <div className="min-w-0">
+                       <p className="text-xs font-semibold text-primary">Managed Account</p>
+                       <p className="text-[10px] text-primary/70">Funds land in the <strong>partner's wallet</strong>. Proxy agent <strong>{selectedManaged.agentName}</strong> is recorded for audit.</p>
+                     </div>
+                   </div>
+                   <Button
+                     className="w-full gap-2"
+                     disabled={!!selectedProcessing}
+                     onClick={() => handlePay(selectedPayout, selectedReason, 'wallet')}
+                   >
+                     {selectedProcessing === 'pay' ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                     Pay to Partner Wallet
+                   </Button>
                 </div>
               ) : (
                 /* ─── Standard or Non-Managed Proxy Account ─── */
@@ -4270,7 +4270,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                         "focus:outline-none focus:ring-2 focus:ring-primary/30"
                       )}
                       disabled={!!selectedProcessing}
-                      onClick={() => handlePay(selectedPayout, selectedReason, selectedManaged?.hasProxy ? 'agent_wallet' : 'wallet')}
+                       onClick={() => handlePay(selectedPayout, selectedReason, 'wallet')}
                     >
                       {selectedProcessing === 'pay' ? (
                         <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -4279,10 +4279,10 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                       ) : (
                         <Wallet className="h-6 w-6 text-primary" />
                       )}
-                      <span className="text-xs font-semibold">{selectedManaged?.hasProxy ? 'Credit Agent Wallet' : 'Pay to Wallet'}</span>
-                      <span className="text-[10px] text-muted-foreground leading-tight text-center">
-                        {selectedManaged?.hasProxy ? `Send to ${selectedManaged.agentName}'s wallet` : "Credit partner's digital wallet"}
-                      </span>
+                       <span className="text-xs font-semibold">Pay to Partner Wallet</span>
+                       <span className="text-[10px] text-muted-foreground leading-tight text-center">
+                         {selectedManaged?.hasProxy ? `Lands in partner's wallet (proxy: ${selectedManaged.agentName})` : "Credit partner's digital wallet"}
+                       </span>
                     </button>
                     <button
                       className={cn(
