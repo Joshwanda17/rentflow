@@ -172,16 +172,24 @@ export function ProxyPartnerFunds() {
         setLoading(false);
         return;
       }
-      // Only show records that went through the full Partner Ops → COO → CFO pipeline
-      // These records have coo_approved_by stamped in metadata by the COO approval step
+      // STRICT INVARIANT: this list mirrors the CFO ROI Payout Queue 1:1.
+      // A card may appear here ONLY if:
+      //   - category = 'roi_payout'                    (the queue's category)
+      //   - status   = 'approved'                      (CFO has signed off)
+      //   - reviewed_by ∈ cfo role-holders             (CFO actually approved)
+      //   - metadata.coo_approved_by IS NOT NULL       (full Partner Ops → COO → CFO chain)
+      //   - source_id resolves to an investor_portfolios row
+      //                                                (anchors the partner via investor_id)
+      // No fallback partner inference. No sibling categories. No dummy data.
       const { data: pwoData, error: pwoError } = await supabase
         .from('pending_wallet_operations')
         .select('id, amount, linked_party, source_id, description, metadata, created_at')
         .eq('target_wallet_user_id', user.id)
-        .in('category', ['roi_payout', 'supporter_platform_rewards'])
+        .eq('category', 'roi_payout')
         .eq('status', 'approved')
         .in('reviewed_by', cfoIds)
         .not('metadata->coo_approved_by', 'is', null)
+        .not('source_id', 'is', null)
         .order('created_at', { ascending: false });
 
       if (pwoError) throw pwoError;
@@ -220,25 +228,13 @@ export function ProxyPartnerFunds() {
       const portfolioToInvestor: Record<string, string> = {};
       fetchedPortfolios.forEach(p => { portfolioToInvestor[p.id] = p.investor_id; });
 
-      // Extract unique partner IDs: prefer portfolio investor_id, then metadata.initiated_by (if not self), then linked_party (if not self)
+      // Partner identity is ALWAYS the portfolio's investor_id. Any op whose
+      // source_id no longer maps to a portfolio is dropped — it cannot be
+      // tied to a real CFO-approved partner return.
       const partnerIds = new Set<string>();
       ops.forEach(op => {
-        const meta = op.metadata || {};
-        // Best source: portfolio investor_id
-        if (op.source_id && portfolioToInvestor[op.source_id]) {
-          partnerIds.add(portfolioToInvestor[op.source_id]);
-          return;
-        }
-        // Fallback: metadata.initiated_by if it's not the agent
-        const initiatedBy = meta.initiated_by as string | null;
-        if (initiatedBy && initiatedBy !== user.id) {
-          partnerIds.add(initiatedBy);
-          return;
-        }
-        // Last resort: linked_party if not self
-        if (op.linked_party && op.linked_party !== user.id) {
-          partnerIds.add(op.linked_party);
-        }
+        const investor = op.source_id ? portfolioToInvestor[op.source_id] : null;
+        if (investor && investor !== user.id) partnerIds.add(investor);
       });
 
       const uniquePartnerIds = [...partnerIds];
@@ -430,25 +426,15 @@ export function ProxyPartnerFunds() {
     const groupMap: Record<string, { partnerId: string; portfolioId: string | null; totalAmount: number }> = {};
 
     approvedOps.forEach((op) => {
-      const meta = op.metadata || {};
-      // Determine partner ID: BEST source is portfolio investor_id, then metadata, then linked_party
-      let partnerId: string | null = null;
-      // 1. Portfolio investor_id (most reliable)
-      if (op.source_id && portfolioMap[op.source_id]) {
-        partnerId = portfolioMap[op.source_id].investor_id;
-      }
-      // 2. metadata.initiated_by (if not self)
-      if (!partnerId) {
-        const initiatedBy = meta.initiated_by as string | null;
-        if (initiatedBy && initiatedBy !== user.id) partnerId = initiatedBy;
-      }
-      // 3. linked_party (if not self)
-      if (!partnerId && op.linked_party && op.linked_party !== user.id) {
-        partnerId = op.linked_party;
-      }
-      if (!partnerId) return;
+      // STRICT: partner identity is the portfolio investor_id. No fallbacks.
+      // Anything else would let a non-CFO-approved entry leak in.
+      if (!op.source_id) return;
+      const portfolio = portfolioMap[op.source_id];
+      if (!portfolio) return;
+      const partnerId = portfolio.investor_id;
+      if (!partnerId || partnerId === user.id) return;
 
-      const key = `${partnerId}-${op.source_id || 'no_portfolio'}`;
+      const key = `${partnerId}-${op.source_id}`;
       if (!groupMap[key]) {
         groupMap[key] = { partnerId, portfolioId: op.source_id, totalAmount: 0 };
       }
@@ -828,8 +814,9 @@ export function ProxyPartnerFunds() {
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground px-1">
-        CFO-approved returns ready for delivery to your proxy partners. Nothing here is stuck —
-        balances shown are <span className="font-medium text-foreground">withdrawable now</span>.
+        Mirrors the CFO ROI Payout Queue 1:1 — every card here is a return the CFO
+        has signed off for delivery to your proxy partner. Balances shown are
+        <span className="font-medium text-foreground"> withdrawable now</span>.
       </p>
 
       <div className="flex flex-wrap gap-1.5 px-1">
