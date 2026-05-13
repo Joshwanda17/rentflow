@@ -4582,6 +4582,42 @@ export type Database = {
           },
         ]
       }
+      e2e_landlord_payout_results: {
+        Row: {
+          action: string | null
+          challenge_id: string | null
+          deduct_result: Json | null
+          final_challenge_status: string | null
+          final_payout_status: string | null
+          payout_id: string | null
+          post_float: number | null
+          pre_float: number | null
+          run_at: string | null
+        }
+        Insert: {
+          action?: string | null
+          challenge_id?: string | null
+          deduct_result?: Json | null
+          final_challenge_status?: string | null
+          final_payout_status?: string | null
+          payout_id?: string | null
+          post_float?: number | null
+          pre_float?: number | null
+          run_at?: string | null
+        }
+        Update: {
+          action?: string | null
+          challenge_id?: string | null
+          deduct_result?: Json | null
+          final_challenge_status?: string | null
+          final_payout_status?: string | null
+          payout_id?: string | null
+          post_float?: number | null
+          pre_float?: number | null
+          run_at?: string | null
+        }
+        Relationships: []
+      }
       earning_baselines: {
         Row: {
           avg_daily_earnings: number | null
