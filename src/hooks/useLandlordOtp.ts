@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { cleanPhoneNumber } from '@/lib/phoneUtils';
+import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 
 export function useLandlordOtp() {
   const [otpSent, setOtpSent] = useState(false);
@@ -16,10 +17,8 @@ export function useLandlordOtp() {
         body: { action: 'send', phone: cleanPhoneNumber(phone) },
       });
       if (error) {
-        const errMsg = error?.context
-          ? await error.context.json().then((r: any) => r.error).catch(() => error.message)
-          : error.message;
-        setOtpError(errMsg || 'Failed to send OTP to landlord');
+        const errMsg = await extractFromErrorObject(error, 'Failed to send OTP to landlord');
+        setOtpError(errMsg);
         return false;
       }
       if (data?.error) {
@@ -44,10 +43,8 @@ export function useLandlordOtp() {
         body: { action: 'verify', phone: cleanPhoneNumber(phone), otp },
       });
       if (error) {
-        const errMsg = error?.context
-          ? await error.context.json().then((r: any) => r.error).catch(() => error.message)
-          : error.message;
-        setOtpError(errMsg || 'Verification failed');
+        const errMsg = await extractFromErrorObject(error, 'Verification failed');
+        setOtpError(errMsg);
         return false;
       }
       if (data?.error) {

@@ -208,7 +208,11 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
           gps_match: gpsMatch,
         },
       });
-      if (error) throw error;
+      if (error) {
+        const { extractFromErrorObject } = await import('@/lib/extractEdgeFunctionError');
+        const msg = await extractFromErrorObject(error, 'Disbursement failed to start');
+        throw new Error(msg);
+      }
       if (data?.payout_id) {
         setActivePayoutId(data.payout_id);
         setStep('disburse');
