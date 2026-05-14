@@ -811,12 +811,30 @@ export function ProxyPartnerFunds() {
   };
 
   const handleWithdrawSuccess = () => {
+    // Optimistic lock: instantly disable Withdraw on this partner's card so
+    // the agent can't double-submit before realtime catches up.
+    if (selectedPartnerId) {
+      setSubmittingPartnerIds((prev) => {
+        const next = new Set(prev);
+        next.add(selectedPartnerId);
+        return next;
+      });
+    }
     // Refresh immediately for snappy UX, then again shortly after to catch
     // any trigger-side updates (audit log, status forwarding, etc.) that
     // commit a beat after the insert.
     loadProxyFunds();
     setTimeout(() => loadProxyFunds(), 800);
     setTimeout(() => loadProxyFunds(), 2500);
+    // Release the optimistic lock after a generous window — by then DB
+    // realtime + settlement insert has resolved the card.
+    setTimeout(() => {
+      setSubmittingPartnerIds((prev) => {
+        const next = new Set(prev);
+        if (selectedPartnerId) next.delete(selectedPartnerId);
+        return next;
+      });
+    }, 5000);
   };
 
   const handleCancelRequest = (partner: PartnerBalance) => {
