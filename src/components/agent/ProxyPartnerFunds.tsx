@@ -133,6 +133,9 @@ export function ProxyPartnerFunds() {
   // not the agent — `user_id=eq.<agent>` no longer catches them).
   const [partnerIdsForRealtime, setPartnerIdsForRealtime] = useState<string[]>([]);
   const [portfolioIdsForRealtime, setPortfolioIdsForRealtime] = useState<string[]>([]);
+  // Optimistic submit lock: partner ids whose Withdraw button has just been
+  // submitted. Prevents double-tap before realtime/settlement catches up.
+  const [submittingPartnerIds, setSubmittingPartnerIds] = useState<Set<string>>(new Set());
   const partnerRealtimeKey = partnerIdsForRealtime.join(',');
   const portfolioRealtimeKey = portfolioIdsForRealtime.join(',');
   useEffect(() => {
@@ -198,6 +201,16 @@ export function ProxyPartnerFunds() {
           event: '*',
           schema: 'public',
           table: 'withdrawal_requests',
+          filter: `agent_id=eq.${user.id}`,
+        },
+        reload,
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'proxy_payout_settlements',
           filter: `agent_id=eq.${user.id}`,
         },
         reload,
