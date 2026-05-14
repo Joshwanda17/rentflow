@@ -212,29 +212,78 @@ export function ProxyPartnerFunds() {
         setLoading(false);
         return;
       }
-      // STRICT INVARIANT: this list mirrors the CFO ROI Payout Queue 1:1.
-      // A card may appear here ONLY if:
-      //   - category = 'roi_payout'                    (the queue's category)
-      //   - status   = 'approved'                      (CFO has signed off)
-      //   - reviewed_by ∈ cfo role-holders             (CFO actually approved)
-      //   - metadata.coo_approved_by IS NOT NULL       (full Partner Ops → COO → CFO chain)
-      //   - source_id resolves to an investor_portfolios row
-      //                                                (anchors the partner via investor_id)
-      // No fallback partner inference. No sibling categories. No dummy data.
-      const { data: pwoData, error: pwoError } = await supabase
-        .from('pending_wallet_operations')
-        .select('id, amount, linked_party, source_id, description, metadata, created_at')
-        .eq('target_wallet_user_id', user.id)
-        .eq('category', 'roi_payout')
-        .eq('status', 'approved')
-        .in('reviewed_by', cfoIds)
-        .not('metadata->coo_approved_by', 'is', null)
-        .not('source_id', 'is', null)
-        .order('created_at', { ascending: false });
+      // Two sources of CFO-approved ROI payouts the agent should see:
+      //
+      //   (A) LEGACY custody — `pending_wallet_operations.target_wallet_user_id
+      //       = agent.id`. The credit was parked on the agent's wallet and
+      //       the agent withdraws on behalf of the partner.
+      //
+      //   (B) PROXY CUSTODY v2 — credit lands directly on the partner's
+      //       wallet (target_wallet_user_id IS NULL or = partner.id). The
+      //       agent is bridged to the partner via an active, approved row
+      //       in `proxy_agent_assignments`. Without this branch, partners
+      //       like SSENKAALI PIUS never appear in the proxy list after CFO
+      //       approval.
+      //
+      // Both branches require: category='roi_payout', status='approved',
+      // metadata.coo_approved_by NOT NULL (full Partner Ops → COO → CFO
+      // chain), and source_id resolving to an `investor_portfolios` row.
+      // Branch (A) additionally requires reviewed_by ∈ CFO ids; branch (B)
+      // trusts the proxy_agent_assignments approval as the bridge.
 
-      if (pwoError) throw pwoError;
+      // Resolve active proxy partners delegated to this agent (Custody v2).
+      const { data: proxyAssignments } = await supabase
+        .from('proxy_agent_assignments')
+        .select('beneficiary_id')
+        .eq('agent_id', user.id)
+        .eq('is_active', true)
+        .eq('approval_status', 'approved');
+      const proxyPartnerIds = Array.from(
+        new Set((proxyAssignments || []).map((r: any) => r.beneficiary_id).filter(Boolean)),
+      ) as string[];
 
-      const ops = (pwoData || []) as PwoEntry[];
+      // Source IDs (portfolios) belonging to those proxy partners.
+      let v2PortfolioIds: string[] = [];
+      if (proxyPartnerIds.length > 0) {
+        const { data: v2Portfolios } = await supabase
+          .from('investor_portfolios')
+          .select('id')
+          .in('investor_id', proxyPartnerIds);
+        v2PortfolioIds = (v2Portfolios || []).map((p: any) => p.id);
+      }
+
+      const [legacyRes, v2Res] = await Promise.all([
+        supabase
+          .from('pending_wallet_operations')
+          .select('id, amount, linked_party, source_id, description, metadata, created_at')
+          .eq('target_wallet_user_id', user.id)
+          .eq('category', 'roi_payout')
+          .eq('status', 'approved')
+          .in('reviewed_by', cfoIds)
+          .not('metadata->coo_approved_by', 'is', null)
+          .not('source_id', 'is', null)
+          .order('created_at', { ascending: false }),
+        v2PortfolioIds.length > 0
+          ? supabase
+              .from('pending_wallet_operations')
+              .select('id, amount, linked_party, source_id, description, metadata, created_at')
+              .eq('category', 'roi_payout')
+              .eq('status', 'approved')
+              .not('metadata->coo_approved_by', 'is', null)
+              .in('source_id', v2PortfolioIds)
+              .order('created_at', { ascending: false })
+          : Promise.resolve({ data: [], error: null } as any),
+      ]);
+
+      if (legacyRes.error) throw legacyRes.error;
+      if ((v2Res as any).error) throw (v2Res as any).error;
+
+      const mergedById = new Map<string, PwoEntry>();
+      ((legacyRes.data || []) as PwoEntry[]).forEach((op) => mergedById.set(op.id, op));
+      ((v2Res as any).data || []).forEach((op: PwoEntry) => mergedById.set(op.id, op));
+      const ops = Array.from(mergedById.values()).sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      );
       setApprovedOps(ops);
 
       if (ops.length === 0) {
