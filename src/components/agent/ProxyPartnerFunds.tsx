@@ -130,6 +130,9 @@ export function ProxyPartnerFunds() {
   // realtime channel (withdrawal_requests rows now belong to the partner,
   // not the agent — `user_id=eq.<agent>` no longer catches them).
   const [partnerIdsForRealtime, setPartnerIdsForRealtime] = useState<string[]>([]);
+  const [portfolioIdsForRealtime, setPortfolioIdsForRealtime] = useState<string[]>([]);
+  const partnerRealtimeKey = partnerIdsForRealtime.join(',');
+  const portfolioRealtimeKey = portfolioIdsForRealtime.join(',');
   useEffect(() => {
     if (!user?.id) return;
     loadProxyFunds();
@@ -143,10 +146,40 @@ export function ProxyPartnerFunds() {
   useEffect(() => {
     if (!user?.id) return;
 
-    const reload = () => loadProxyFunds();
+    const reload = () => loadProxyFunds(false);
 
     const agentChannel = supabase
       .channel(`proxy-withdrawal-updates-agent-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'proxy_agent_assignments',
+          filter: `agent_id=eq.${user.id}`,
+        },
+        reload,
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'agent_proxy_card_dismissals',
+          filter: `agent_id=eq.${user.id}`,
+        },
+        reload,
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'pending_wallet_operations',
+          filter: `target_wallet_user_id=eq.${user.id}`,
+        },
+        reload,
+      )
       .on(
         'postgres_changes',
         {
@@ -171,7 +204,7 @@ export function ProxyPartnerFunds() {
 
     // Per-partner channel — re-subscribed whenever the partner set changes.
     let partnerChannel: ReturnType<typeof supabase.channel> | null = null;
-    if (partnerIdsForRealtime.length > 0) {
+    if (partnerIdsForRealtime.length > 0 || portfolioIdsForRealtime.length > 0) {
       partnerChannel = supabase.channel(
         `proxy-withdrawal-updates-partners-${user.id}`,
       );
@@ -187,6 +220,18 @@ export function ProxyPartnerFunds() {
           reload,
         );
       });
+      portfolioIdsForRealtime.forEach((portfolioId) => {
+        partnerChannel!.on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'pending_wallet_operations',
+            filter: `source_id=eq.${portfolioId}`,
+          },
+          reload,
+        );
+      });
       partnerChannel.subscribe();
     }
 
@@ -194,11 +239,11 @@ export function ProxyPartnerFunds() {
       supabase.removeChannel(agentChannel);
       if (partnerChannel) supabase.removeChannel(partnerChannel);
     };
-  }, [user?.id, partnerIdsForRealtime.join(',')]);
+  }, [user?.id, partnerRealtimeKey, portfolioRealtimeKey]);
 
-  const loadProxyFunds = async () => {
+  const loadProxyFunds = async (showSpinner = true) => {
     if (!user?.id) return;
-    setLoading(true);
+    if (showSpinner) setLoading(true);
     try {
       // Step 1: Get ROI payouts explicitly approved by a CFO-role user
       const { getCfoUserIds } = await import('@/lib/cfoUserIds');
@@ -209,6 +254,10 @@ export function ProxyPartnerFunds() {
         setCompletedWithdrawals([]);
         setPortfolios([]);
         setPartnerWithdrawalStatus({});
+        setActiveWithdrawalsByPartner({});
+        setLastTerminalByPartner({});
+        setPartnerIdsForRealtime([]);
+        setPortfolioIdsForRealtime([]);
         setLoading(false);
         return;
       }
@@ -281,23 +330,27 @@ export function ProxyPartnerFunds() {
       const mergedById = new Map<string, PwoEntry>();
       ((legacyRes.data || []) as PwoEntry[]).forEach((op) => mergedById.set(op.id, op));
       ((v2Res as any).data || []).forEach((op: PwoEntry) => mergedById.set(op.id, op));
-      const ops = Array.from(mergedById.values()).sort(
+      const rawOps = Array.from(mergedById.values()).sort(
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
       );
-      setApprovedOps(ops);
+      setPortfolioIdsForRealtime(v2PortfolioIds);
 
-      if (ops.length === 0) {
+      if (rawOps.length === 0) {
         setProfiles({});
         setCompletedWithdrawals([]);
         setPortfolios([]);
         setPartnerWithdrawalStatus({});
+        setActiveWithdrawalsByPartner({});
+        setLastTerminalByPartner({});
+        setPartnerIdsForRealtime([]);
+        setApprovedOps([]);
         setLoading(false);
         return;
       }
 
       // Step 2: Collect portfolio IDs first to resolve actual partner (investor) IDs
       const portfolioIds = new Set<string>();
-      ops.forEach(op => {
+      rawOps.forEach(op => {
         if (op.source_id) portfolioIds.add(op.source_id);
       });
       const uniquePortfolioIds = [...portfolioIds];
@@ -316,6 +369,24 @@ export function ProxyPartnerFunds() {
       // Build portfolio→investor map
       const portfolioToInvestor: Record<string, string> = {};
       fetchedPortfolios.forEach(p => { portfolioToInvestor[p.id] = p.investor_id; });
+
+      const validProxyPartnerIds = new Set(proxyPartnerIds);
+      const ops = rawOps.filter((op) => {
+        const investor = op.source_id ? portfolioToInvestor[op.source_id] : null;
+        return !!investor && investor !== user.id && validProxyPartnerIds.has(investor);
+      });
+      setApprovedOps(ops);
+
+      if (ops.length === 0) {
+        setProfiles({});
+        setCompletedWithdrawals([]);
+        setPartnerWithdrawalStatus({});
+        setActiveWithdrawalsByPartner({});
+        setLastTerminalByPartner({});
+        setPartnerIdsForRealtime([]);
+        setLoading(false);
+        return;
+      }
 
       // Partner identity is ALWAYS the portfolio's investor_id. Any op whose
       // source_id no longer maps to a portfolio is dropped — it cannot be
@@ -888,7 +959,10 @@ export function ProxyPartnerFunds() {
     return { kind: 'fresh' };
   };
 
-  const inFlightCount = partnerBalances.filter((p) => classify(p).kind === 'inflight').length;
+  const inFlightCount = partnerBalances.filter((p) => {
+    const kind = classify(p).kind;
+    return kind === 'inflight' || kind === 'active';
+  }).length;
   const reattemptCount = partnerBalances.filter((p) => classify(p).kind === 'reattempt').length;
   const freshCount = partnerBalances.filter((p) => classify(p).kind === 'fresh').length;
 
@@ -922,10 +996,10 @@ export function ProxyPartnerFunds() {
 
   const visibleBalances = partnerBalances.filter((p) => {
     const c = classify(p);
-    // Default All view hides in-flight cards — once Caro initiates a
+    // Default All view hides in-flight/active cards — once Caro initiates a
     // withdrawal the partner is treated as paid and the card disappears.
-    if (filterMode === 'all') return c.kind !== 'inflight';
-    if (filterMode === 'inflight') return c.kind === 'inflight';
+    if (filterMode === 'all') return c.kind !== 'inflight' && c.kind !== 'active';
+    if (filterMode === 'inflight') return c.kind === 'inflight' || c.kind === 'active';
     if (filterMode === 'reattempt') return c.kind === 'reattempt';
     if (filterMode === 'fresh') return c.kind === 'fresh';
     return true;
