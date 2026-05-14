@@ -507,6 +507,36 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
     }
   };
 
+  const handleReopenRejectedCycle = async () => {
+    if (!summary.activeRequest || summary.activeRequest.status !== 'rejected') return;
+    const reqId = summary.activeRequest.id;
+    setReopening(true);
+    try {
+      const { error } = await supabase
+        .from('rent_requests')
+        .update({ status: 'repaying', rejected_reason: null })
+        .eq('id', reqId);
+      if (error) throw error;
+
+      // Mandatory audit trail (10-char minimum reason).
+      await supabase.from('audit_logs').insert({
+        action_type: 'rent_request_reopened',
+        table_name: 'rent_requests',
+        record_id: reqId,
+        actor_id: user?.id ?? null,
+        reason: 'Agent reopened rejected outstanding-balance cycle to resume collection.',
+        metadata: { previous_status: 'rejected', new_status: 'repaying', tenant_id: tenantId },
+      } as any);
+
+      toast({ title: '✅ Cycle reopened', description: 'You can now collect from your float.' });
+      loadFullProfile();
+    } catch (err: any) {
+      toast({ title: 'Reopen failed', description: err.message, variant: 'destructive' });
+    } finally {
+      setReopening(false);
+    }
+  };
+
   const progressPct = summary.totalFunded > 0 ? Math.min(100, Math.round((summary.totalRepaid / summary.totalFunded) * 100)) : 0;
   const activePct = summary.activeRequest && summary.activeRequest.total_repayment > 0
     ? Math.min(100, Math.round((summary.activeRequest.amount_repaid / summary.activeRequest.total_repayment) * 100))
