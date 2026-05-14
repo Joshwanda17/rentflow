@@ -130,6 +130,7 @@ export function ProxyPartnerFunds() {
   // realtime channel (withdrawal_requests rows now belong to the partner,
   // not the agent — `user_id=eq.<agent>` no longer catches them).
   const [partnerIdsForRealtime, setPartnerIdsForRealtime] = useState<string[]>([]);
+  const [portfolioIdsForRealtime, setPortfolioIdsForRealtime] = useState<string[]>([]);
   useEffect(() => {
     if (!user?.id) return;
     loadProxyFunds();
@@ -143,10 +144,40 @@ export function ProxyPartnerFunds() {
   useEffect(() => {
     if (!user?.id) return;
 
-    const reload = () => loadProxyFunds();
+    const reload = () => loadProxyFunds(false);
 
     const agentChannel = supabase
       .channel(`proxy-withdrawal-updates-agent-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'proxy_agent_assignments',
+          filter: `agent_id=eq.${user.id}`,
+        },
+        reload,
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'agent_proxy_card_dismissals',
+          filter: `agent_id=eq.${user.id}`,
+        },
+        reload,
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'pending_wallet_operations',
+          filter: `target_wallet_user_id=eq.${user.id}`,
+        },
+        reload,
+      )
       .on(
         'postgres_changes',
         {
@@ -187,6 +218,18 @@ export function ProxyPartnerFunds() {
           reload,
         );
       });
+      portfolioIdsForRealtime.forEach((portfolioId) => {
+        partnerChannel!.on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'pending_wallet_operations',
+            filter: `source_id=eq.${portfolioId}`,
+          },
+          reload,
+        );
+      });
       partnerChannel.subscribe();
     }
 
@@ -194,11 +237,11 @@ export function ProxyPartnerFunds() {
       supabase.removeChannel(agentChannel);
       if (partnerChannel) supabase.removeChannel(partnerChannel);
     };
-  }, [user?.id, partnerIdsForRealtime.join(',')]);
+  }, [user?.id, partnerIdsForRealtime.join(','), portfolioIdsForRealtime.join(',')]);
 
-  const loadProxyFunds = async () => {
+  const loadProxyFunds = async (showSpinner = true) => {
     if (!user?.id) return;
-    setLoading(true);
+    if (showSpinner) setLoading(true);
     try {
       // Step 1: Get ROI payouts explicitly approved by a CFO-role user
       const { getCfoUserIds } = await import('@/lib/cfoUserIds');
