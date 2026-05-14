@@ -300,7 +300,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
     };
     verifyRecentRecipient();
     return () => { cancelled = true; };
-  }, [open, user?.id, payoutMode, momoNumber, bankName, bankAccountNumber]);
+  }, [open, user, payoutMode, momoNumber, bankName, bankAccountNumber]);
 
   // Live look-up of the current recipient against the in-session map.
   // Drives the inline notice on the form so the user is warned BEFORE
