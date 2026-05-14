@@ -333,7 +333,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
     if (recipientInfo) {
       const recent = readRecentRecipients(user.id);
       const existing = recent[recipientInfo.key];
-      if (existing && Date.now() - existing.submittedAt < RECENT_WINDOW_MS) {
+      if (existing && activeDuplicate && Date.now() - existing.submittedAt < RECENT_WINDOW_MS) {
         const sameAmount = existing.amount === amount;
         if (sameAmount) {
           // Hard block — explicit confirm required.
