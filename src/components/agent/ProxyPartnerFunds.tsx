@@ -324,23 +324,26 @@ export function ProxyPartnerFunds() {
       const mergedById = new Map<string, PwoEntry>();
       ((legacyRes.data || []) as PwoEntry[]).forEach((op) => mergedById.set(op.id, op));
       ((v2Res as any).data || []).forEach((op: PwoEntry) => mergedById.set(op.id, op));
-      const ops = Array.from(mergedById.values()).sort(
+      const rawOps = Array.from(mergedById.values()).sort(
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
       );
-      setApprovedOps(ops);
+      setPortfolioIdsForRealtime(v2PortfolioIds);
 
-      if (ops.length === 0) {
+      if (rawOps.length === 0) {
         setProfiles({});
         setCompletedWithdrawals([]);
         setPortfolios([]);
         setPartnerWithdrawalStatus({});
+        setActiveWithdrawalsByPartner({});
+        setLastTerminalByPartner({});
+        setApprovedOps([]);
         setLoading(false);
         return;
       }
 
       // Step 2: Collect portfolio IDs first to resolve actual partner (investor) IDs
       const portfolioIds = new Set<string>();
-      ops.forEach(op => {
+      rawOps.forEach(op => {
         if (op.source_id) portfolioIds.add(op.source_id);
       });
       const uniquePortfolioIds = [...portfolioIds];
@@ -359,6 +362,23 @@ export function ProxyPartnerFunds() {
       // Build portfolio→investor map
       const portfolioToInvestor: Record<string, string> = {};
       fetchedPortfolios.forEach(p => { portfolioToInvestor[p.id] = p.investor_id; });
+
+      const validProxyPartnerIds = new Set(proxyPartnerIds);
+      const ops = rawOps.filter((op) => {
+        const investor = op.source_id ? portfolioToInvestor[op.source_id] : null;
+        return !!investor && investor !== user.id && validProxyPartnerIds.has(investor);
+      });
+      setApprovedOps(ops);
+
+      if (ops.length === 0) {
+        setProfiles({});
+        setCompletedWithdrawals([]);
+        setPartnerWithdrawalStatus({});
+        setActiveWithdrawalsByPartner({});
+        setLastTerminalByPartner({});
+        setLoading(false);
+        return;
+      }
 
       // Partner identity is ALWAYS the portfolio's investor_id. Any op whose
       // source_id no longer maps to a portfolio is dropped — it cannot be
