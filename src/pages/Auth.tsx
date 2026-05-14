@@ -842,6 +842,40 @@ export default function Auth() {
                     <p className="text-xs text-muted-foreground flex items-center gap-1 px-1"><Loader2 className="h-3 w-3 animate-spin" />Checking...</p>
                   )}
 
+                  {/* Phone OTP — required only when no email was provided */}
+                  {!signupEmail.trim() && phone.replace(/\D/g, '').length >= 9 && !isDuplicate && (
+                    <div className="rounded-xl border border-border/60 bg-muted/30 p-3 space-y-2">
+                      <p className="text-xs text-muted-foreground">
+                        No email provided — we'll verify your phone instead. No email will be sent.
+                      </p>
+                      <OtpVerificationStep
+                        phone={(() => {
+                          const d = phone.replace(/\D/g, '');
+                          return d.startsWith(countryCode) ? d : countryCode + (d.startsWith('0') ? d.slice(1) : d);
+                        })()}
+                        otpSent={otpSent}
+                        otpVerified={otpVerified}
+                        otpLoading={otpLoading}
+                        otpError={otpError}
+                        onSendOtp={() => {
+                          const d = phone.replace(/\D/g, '');
+                          const full = d.startsWith(countryCode) ? d : countryCode + (d.startsWith('0') ? d.slice(1) : d);
+                          sendOtp(full);
+                        }}
+                        onVerifyOtp={(code) => {
+                          const d = phone.replace(/\D/g, '');
+                          const full = d.startsWith(countryCode) ? d : countryCode + (d.startsWith('0') ? d.slice(1) : d);
+                          verifyOtp(full, code);
+                        }}
+                        onResendOtp={() => {
+                          const d = phone.replace(/\D/g, '');
+                          const full = d.startsWith(countryCode) ? d : countryCode + (d.startsWith('0') ? d.slice(1) : d);
+                          sendOtp(full);
+                        }}
+                      />
+                    </div>
+                  )}
+
                   {/* Password */}
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -882,7 +916,12 @@ export default function Auth() {
                   <Button
                     type="submit"
                     className="w-full h-12 text-base rounded-xl font-semibold touch-manipulation active:scale-[0.98]"
-                    disabled={isLoading || isDuplicate || isCheckingDuplicate}
+                    disabled={
+                      isLoading ||
+                      isDuplicate ||
+                      isCheckingDuplicate ||
+                      (!signupEmail.trim() && !otpVerified)
+                    }
                     style={{ fontSize: '16px', WebkitTapHighlightColor: 'transparent' }}
                   >
                     {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Create Account'}
