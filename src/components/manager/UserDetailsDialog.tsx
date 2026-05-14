@@ -662,19 +662,40 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
     setSavingProfile(true);
     
     try {
-      const { error } = await supabase
+      const emailChanged = (editForm.email || '') !== (user.email || '');
+      const phoneChanged = (editForm.phone || '') !== (user.phone || '');
+
+      // 1. Non-identity profile fields go straight to profiles
+      const { error: profErr } = await supabase
         .from('profiles')
         .update({
           full_name: editForm.full_name,
-          email: editForm.email,
-          phone: editForm.phone,
-          monthly_rent: editForm.monthly_rent ? parseFloat(editForm.monthly_rent) : null
+          monthly_rent: editForm.monthly_rent ? parseFloat(editForm.monthly_rent) : null,
         })
         .eq('id', user.id);
-      
-      if (error) throw error;
-      
-      toast.success('Profile updated successfully');
+      if (profErr) throw profErr;
+
+      // 2. Identity fields (email, phone) MUST go through auth.admin so the
+      //    user can still log in with the new value. Profile mirror happens
+      //    inside the edge function.
+      if (emailChanged || phoneChanged) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) throw new Error('You must be logged in');
+        const resp = await supabase.functions.invoke('admin-update-user-identity', {
+          body: {
+            user_id: user.id,
+            ...(emailChanged ? { email: editForm.email } : {}),
+            ...(phoneChanged ? { phone: editForm.phone } : {}),
+          },
+        });
+        if (resp.error) {
+          const msg = (resp.error as any)?.message || 'Failed to update login identity';
+          throw new Error(msg);
+        }
+        toast.success('Profile + login credentials updated');
+      } else {
+        toast.success('Profile updated successfully');
+      }
       onUserUpdated?.();
     } catch (error: any) {
       console.error('Error updating profile:', error);
