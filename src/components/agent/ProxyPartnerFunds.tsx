@@ -126,17 +126,27 @@ export function ProxyPartnerFunds() {
   const [clearing, setClearing] = useState(false);
   const [hiddenSheetOpen, setHiddenSheetOpen] = useState(false);
   const [restoringKey, setRestoringKey] = useState<string | null>(null);
+  // Custody V2: partner UUIDs we currently render. Used to scope a second
+  // realtime channel (withdrawal_requests rows now belong to the partner,
+  // not the agent — `user_id=eq.<agent>` no longer catches them).
+  const [partnerIdsForRealtime, setPartnerIdsForRealtime] = useState<string[]>([]);
   useEffect(() => {
     if (!user?.id) return;
     loadProxyFunds();
   }, [user?.id]);
 
-  // Real-time subscription: auto-refresh when withdrawal statuses change
+  // Real-time subscription: auto-refresh when withdrawal statuses change.
+  // Covers BOTH legacy agent-owned rows (`user_id = agent`) AND Custody V2
+  // rows where the partner is the legal owner (`user_id = partner`). Without
+  // the second filter, withdrawal cards never disappear after submission
+  // because the partner-owned insert doesn't match the agent filter.
   useEffect(() => {
     if (!user?.id) return;
 
-    const channel = supabase
-      .channel('proxy-withdrawal-updates')
+    const reload = () => loadProxyFunds();
+
+    const agentChannel = supabase
+      .channel(`proxy-withdrawal-updates-agent-${user.id}`)
       .on(
         'postgres_changes',
         {
@@ -145,16 +155,46 @@ export function ProxyPartnerFunds() {
           table: 'withdrawal_requests',
           filter: `user_id=eq.${user.id}`,
         },
-        () => {
-          loadProxyFunds();
-        }
+        reload,
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'withdrawal_requests',
+          filter: `agent_id=eq.${user.id}`,
+        },
+        reload,
       )
       .subscribe();
 
+    // Per-partner channel — re-subscribed whenever the partner set changes.
+    let partnerChannel: ReturnType<typeof supabase.channel> | null = null;
+    if (partnerIdsForRealtime.length > 0) {
+      partnerChannel = supabase.channel(
+        `proxy-withdrawal-updates-partners-${user.id}`,
+      );
+      partnerIdsForRealtime.forEach((pid) => {
+        partnerChannel!.on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'withdrawal_requests',
+            filter: `user_id=eq.${pid}`,
+          },
+          reload,
+        );
+      });
+      partnerChannel.subscribe();
+    }
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(agentChannel);
+      if (partnerChannel) supabase.removeChannel(partnerChannel);
     };
-  }, [user?.id]);
+  }, [user?.id, partnerIdsForRealtime.join(',')]);
 
   const loadProxyFunds = async () => {
     if (!user?.id) return;
@@ -238,6 +278,9 @@ export function ProxyPartnerFunds() {
       });
 
       const uniquePartnerIds = [...partnerIds];
+      // Publish the partner set so the realtime effect can subscribe to
+      // `user_id=eq.<partner>` — that's where Custody V2 rows live.
+      setPartnerIdsForRealtime(uniquePartnerIds);
 
       if (uniquePartnerIds.length === 0) {
         setProfiles({});
@@ -257,25 +300,29 @@ export function ProxyPartnerFunds() {
           .select('id, full_name, phone')
           .in('id', uniquePartnerIds),
         // Completed withdrawals for these partners (already delivered)
+        // Custody V2: partner-owned rows (`user_id = partner`, no
+        // `linked_party`). Legacy: agent-owned rows (`user_id = agent`,
+        // `linked_party = partner`). Pull both, dedupe in JS.
         supabase
           .from('withdrawal_requests')
-          .select('linked_party, amount, status, reason, updated_at, created_at')
-          .eq('user_id', user.id)
+          .select('id, user_id, linked_party, amount, status, reason, updated_at, created_at')
+          .in('user_id', [user.id, ...uniquePartnerIds])
           .in('status', [...COMPLETED_PROXY_WITHDRAWAL_STATUSES])
-          .not('linked_party', 'is', null),
-        // Active (pending/processing) withdrawal requests
+          .or(`linked_party.not.is.null,agent_id.eq.${user.id}`),
+        // Active (pending/processing) withdrawal requests — same dual scope.
         supabase
           .from('withdrawal_requests')
-          .select('id, linked_party, status, reason, amount, updated_at, created_at')
-          .eq('user_id', user.id)
-          .in('status', [...ACTIVE_PROXY_WITHDRAWAL_STATUSES]),
-        // Terminal-unpaid: rejected / expired / cancelled (so we can explain
-        // why a balance is still sitting on the card)
+          .select('id, user_id, linked_party, status, reason, amount, updated_at, created_at, agent_id')
+          .in('user_id', [user.id, ...uniquePartnerIds])
+          .in('status', [...ACTIVE_PROXY_WITHDRAWAL_STATUSES])
+          .or(`linked_party.not.is.null,agent_id.eq.${user.id}`),
+        // Terminal-unpaid: rejected / expired / cancelled.
         supabase
           .from('withdrawal_requests')
-          .select('linked_party, status, rejection_reason, updated_at, created_at')
-          .eq('user_id', user.id)
+          .select('id, user_id, linked_party, status, rejection_reason, updated_at, created_at, agent_id')
+          .in('user_id', [user.id, ...uniquePartnerIds])
           .in('status', [...TERMINAL_UNPAID_STATUSES])
+          .or(`linked_party.not.is.null,agent_id.eq.${user.id}`)
           // Defense-in-depth: only consider terminal events from the last 7 days
           // so old rejections naturally fall off Caro's view.
           .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
@@ -288,7 +335,22 @@ export function ProxyPartnerFunds() {
         profileMap[p.id] = { full_name: p.full_name || 'Unknown', phone: p.phone || '' };
       });
       setProfiles(profileMap);
-      setCompletedWithdrawals((completedRes.data || []).filter(w => uniquePartnerIds.includes(w.linked_party)));
+      // Resolve a partner key for every row: prefer linked_party (legacy
+      // custody), fall back to user_id when it matches a known partner
+      // (Custody V2). Anything that doesn't resolve is dropped.
+      const resolvePartnerKey = (w: any): string | null => {
+        if (w.linked_party && uniquePartnerIds.includes(w.linked_party)) {
+          return w.linked_party;
+        }
+        if (w.user_id && uniquePartnerIds.includes(w.user_id)) {
+          return w.user_id;
+        }
+        return null;
+      };
+      const completedNormalized = (completedRes.data || [])
+        .map((w: any) => ({ ...w, linked_party: resolvePartnerKey(w) }))
+        .filter((w: any) => !!w.linked_party);
+      setCompletedWithdrawals(completedNormalized);
 
       // Build active withdrawal status map + ID map
       const statusMap: Record<string, string> = {};
@@ -300,16 +362,20 @@ export function ProxyPartnerFunds() {
       // can suppress stale terminal banners that have been superseded.
       const lastActiveAtByPartner: Record<string, string> = {};
       (activeWithdrawalRes.data || []).forEach((w: any) => {
-        const portfolioKey = w.linked_party;
+        const partnerKey = resolvePartnerKey(w);
+        // Preserve original portfolio key behavior (legacy uses linked_party
+        // as the per-portfolio key when present; Custody V2 has no portfolio
+        // hint so we fall back to the partner UUID).
+        const portfolioKey = w.linked_party || partnerKey;
         const wAmt = Number(w.amount) || 0;
 
-        if (w.linked_party && uniquePartnerIds.includes(w.linked_party)) {
+        if (partnerKey) {
           const ts = w.updated_at || w.created_at;
-          if (ts && (!lastActiveAtByPartner[w.linked_party] || ts > lastActiveAtByPartner[w.linked_party])) {
-            lastActiveAtByPartner[w.linked_party] = ts;
+          if (ts && (!lastActiveAtByPartner[partnerKey] || ts > lastActiveAtByPartner[partnerKey])) {
+            lastActiveAtByPartner[partnerKey] = ts;
           }
-          activeAmountByPartner[w.linked_party] =
-            (activeAmountByPartner[w.linked_party] || 0) + wAmt;
+          activeAmountByPartner[partnerKey] =
+            (activeAmountByPartner[partnerKey] || 0) + wAmt;
           if (portfolioKey) {
             const existing = statusMap[portfolioKey];
             if (!existing || w.status === 'pending') {
@@ -317,11 +383,12 @@ export function ProxyPartnerFunds() {
               idMap[portfolioKey] = w.id;
             }
           }
-          const existing = statusMap[w.linked_party];
+          const existing = statusMap[partnerKey];
           if (!existing || w.status === 'pending') {
-            statusMap[w.linked_party] = w.status;
-            idMap[w.linked_party] = w.id;
+            statusMap[partnerKey] = w.status;
+            idMap[partnerKey] = w.id;
           }
+          return;
         }
         if (!w.linked_party && w.reason) {
           for (const pid of uniquePartnerIds) {
@@ -351,7 +418,7 @@ export function ProxyPartnerFunds() {
       // re-requested and got paid, so the destructive banner is outdated.
       const lastSuccessAtByPartner: Record<string, string> = {};
       (completedRes.data || []).forEach((w: any) => {
-        const pid = w.linked_party;
+        const pid = resolvePartnerKey(w);
         if (!pid || !uniquePartnerIds.includes(pid)) return;
         const ts = w.updated_at || w.created_at;
         if (!ts) return;
@@ -363,7 +430,7 @@ export function ProxyPartnerFunds() {
       // Build last-terminal map: most recent rejected/expired/cancelled per partner
       const terminalMap: Record<string, LastTerminal> = {};
       (terminalRes.data || []).forEach((w: any) => {
-        const pid = w.linked_party;
+        const pid = resolvePartnerKey(w);
         if (!pid || !uniquePartnerIds.includes(pid)) return;
         if (terminalMap[pid]) return; // already have the most recent (ordered desc)
         terminalMap[pid] = {
@@ -555,8 +622,12 @@ export function ProxyPartnerFunds() {
   };
 
   const handleWithdrawSuccess = () => {
-    // Small delay to ensure DB write is committed before re-fetching
+    // Refresh immediately for snappy UX, then again shortly after to catch
+    // any trigger-side updates (audit log, status forwarding, etc.) that
+    // commit a beat after the insert.
+    loadProxyFunds();
     setTimeout(() => loadProxyFunds(), 800);
+    setTimeout(() => loadProxyFunds(), 2500);
   };
 
   const handleCancelRequest = (partner: PartnerBalance) => {
