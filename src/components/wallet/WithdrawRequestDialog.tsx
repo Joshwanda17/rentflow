@@ -52,6 +52,7 @@ const formatCurrency = formatDynamic;
 // without a network round-trip.
 const RECENT_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 const recentStorageKey = (userId: string) => `welile:withdraw:recent:${userId}`;
+const ACTIVE_DUPLICATE_STATUSES = ['pending', 'requested', 'manager_approved', 'cfo_approved', 'processing'];
 
 type RecentRecipientEntry = {
   amount: number;
@@ -89,6 +90,17 @@ function writeRecentRecipient(
   try {
     const current = readRecentRecipients(userId);
     current[key] = entry;
+    sessionStorage.setItem(recentStorageKey(userId), JSON.stringify(current));
+  } catch {
+    /* sessionStorage full / disabled — non-fatal */
+  }
+}
+
+function deleteRecentRecipient(userId: string, key: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const current = readRecentRecipients(userId);
+    delete current[key];
     sessionStorage.setItem(recentStorageKey(userId), JSON.stringify(current));
   } catch {
     /* sessionStorage full / disabled — non-fatal */
