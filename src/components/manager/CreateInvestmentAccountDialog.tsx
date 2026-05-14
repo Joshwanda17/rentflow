@@ -260,8 +260,26 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, p
 
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs">Amount (UGX) *</Label>
-              <Input type="number" min={50000} value={form.investment_amount} onChange={e => set('investment_amount', e.target.value)} placeholder="5000000" className="h-9" />
+              <Label className="text-xs flex items-center gap-1">
+                <Wallet className="h-3 w-3" /> From Wallet (UGX) *
+              </Label>
+              <Input
+                type="number"
+                min={50000}
+                max={partnerBalance ?? undefined}
+                value={form.investment_amount}
+                onChange={e => set('investment_amount', e.target.value)}
+                placeholder={partnerBalance ? String(Math.floor(partnerBalance)) : '—'}
+                className="h-9"
+                disabled={!selectedUser || balanceLoading}
+              />
+              {selectedUser && (
+                <p className="text-[10px] text-muted-foreground">
+                  {balanceLoading
+                    ? 'Loading partner wallet…'
+                    : `Available: UGX ${(partnerBalance ?? 0).toLocaleString()}`}
+                </p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">ROI %</Label>
@@ -380,7 +398,19 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, p
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleCreate} disabled={saving || !selectedUser || !form.investment_amount || !/^\d{4}$/.test(form.portfolio_pin) || !isApproved}>
+          <Button
+            onClick={handleCreate}
+            disabled={
+              saving ||
+              !selectedUser ||
+              !form.investment_amount ||
+              !/^\d{4}$/.test(form.portfolio_pin) ||
+              !isApproved ||
+              balanceLoading ||
+              partnerBalance === null ||
+              parseFloat(form.investment_amount) > partnerBalance
+            }
+          >
             {saving && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
             {!selectedUser || isApproved ? 'Create Portfolio' : (<><Lock className="h-3.5 w-3.5 mr-1.5" /> Partner Not Approved</>)}
           </Button>
