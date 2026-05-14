@@ -716,6 +716,70 @@ Deno.serve(async (req) => {
       // Ledger entry already exists — log but don't fail the user
     }
 
+    // ── Proxy payout settlements ────────────────────────────────────────
+    // For proxy partner withdrawals, FIFO-close the partner's CFO-approved
+    // unsettled ROI approvals up to the withdrawn amount. This permanently
+    // retires the approval cards from the agent's Proxy Partners list.
+    try {
+      const proxyPartnerId =
+        (wr as any).proxy_partner_id ||
+        (wr.linked_party && wr.linked_party !== wr.user_id ? wr.linked_party : null);
+      if (proxyPartnerId) {
+        const { data: portfolios } = await admin
+          .from("investor_portfolios")
+          .select("id")
+          .eq("investor_id", proxyPartnerId);
+        const portfolioIds = (portfolios || []).map((p: any) => p.id);
+        if (portfolioIds.length > 0) {
+          const { data: openApprovals } = await admin
+            .from("pending_wallet_operations")
+            .select("id, amount, target_wallet_user_id")
+            .eq("category", "roi_payout")
+            .eq("status", "approved")
+            .not("metadata->coo_approved_by", "is", null)
+            .in("source_id", portfolioIds)
+            .order("created_at", { ascending: true });
+
+          // Drop already-settled
+          const { data: existing } = await admin
+            .from("proxy_payout_settlements")
+            .select("approval_id")
+            .in("approval_id", (openApprovals || []).map((o: any) => o.id));
+          const settledIds = new Set((existing || []).map((r: any) => r.approval_id));
+          const unsettled = (openApprovals || []).filter((o: any) => !settledIds.has(o.id));
+
+          let remaining = Number(amount) || 0;
+          const rows: any[] = [];
+          for (const op of unsettled) {
+            if (remaining <= 0) break;
+            const opAmt = Number(op.amount) || 0;
+            const settle = Math.min(opAmt, remaining);
+            rows.push({
+              approval_id: op.id,
+              withdrawal_id: withdrawal_id,
+              partner_id: proxyPartnerId,
+              agent_id: op.target_wallet_user_id || (wr as any).agent_id || user.id,
+              amount_settled: settle,
+              notes: `FIFO-settled by withdrawal ${withdrawal_id}`,
+            });
+            remaining -= opAmt;
+          }
+          if (rows.length > 0) {
+            const { error: settleErr } = await admin
+              .from("proxy_payout_settlements")
+              .insert(rows);
+            if (settleErr) {
+              console.warn("[approve-withdrawal] settlement insert error:", settleErr);
+            } else {
+              console.log(`[approve-withdrawal] settled ${rows.length} proxy approval(s) for partner ${proxyPartnerId}`);
+            }
+          }
+        }
+      }
+    } catch (settleEx) {
+      console.warn("[approve-withdrawal] proxy settlement step failed:", settleEx);
+    }
+
     // ── Read-after-write settlement wait ─────────────────────────────────
     // Wallet bucket triggers fire inside the same txn as the ledger RPC, but
     // downstream readers (UI snapshots, CFO diagnostics, this very response)

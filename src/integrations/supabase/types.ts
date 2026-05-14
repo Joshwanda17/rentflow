@@ -9714,6 +9714,42 @@ export type Database = {
           },
         ]
       }
+      proxy_payout_settlements: {
+        Row: {
+          agent_id: string | null
+          amount_settled: number
+          approval_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          partner_id: string
+          settled_at: string
+          withdrawal_id: string | null
+        }
+        Insert: {
+          agent_id?: string | null
+          amount_settled?: number
+          approval_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          partner_id: string
+          settled_at?: string
+          withdrawal_id?: string | null
+        }
+        Update: {
+          agent_id?: string | null
+          amount_settled?: number
+          approval_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          partner_id?: string
+          settled_at?: string
+          withdrawal_id?: string | null
+        }
+        Relationships: []
+      }
       public_error_logs: {
         Row: {
           created_at: string

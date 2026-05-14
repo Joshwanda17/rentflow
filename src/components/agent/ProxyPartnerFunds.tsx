@@ -133,6 +133,9 @@ export function ProxyPartnerFunds() {
   // not the agent — `user_id=eq.<agent>` no longer catches them).
   const [partnerIdsForRealtime, setPartnerIdsForRealtime] = useState<string[]>([]);
   const [portfolioIdsForRealtime, setPortfolioIdsForRealtime] = useState<string[]>([]);
+  // Optimistic submit lock: partner ids whose Withdraw button has just been
+  // submitted. Prevents double-tap before realtime/settlement catches up.
+  const [submittingPartnerIds, setSubmittingPartnerIds] = useState<Set<string>>(new Set());
   const partnerRealtimeKey = partnerIdsForRealtime.join(',');
   const portfolioRealtimeKey = portfolioIdsForRealtime.join(',');
   useEffect(() => {
@@ -198,6 +201,16 @@ export function ProxyPartnerFunds() {
           event: '*',
           schema: 'public',
           table: 'withdrawal_requests',
+          filter: `agent_id=eq.${user.id}`,
+        },
+        reload,
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'proxy_payout_settlements',
           filter: `agent_id=eq.${user.id}`,
         },
         reload,
@@ -333,9 +346,24 @@ export function ProxyPartnerFunds() {
       const mergedById = new Map<string, PwoEntry>();
       ((legacyRes.data || []) as PwoEntry[]).forEach((op) => mergedById.set(op.id, op));
       ((v2Res as any).data || []).forEach((op: PwoEntry) => mergedById.set(op.id, op));
-      const rawOps = Array.from(mergedById.values()).sort(
+      let rawOps = Array.from(mergedById.values()).sort(
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
       );
+
+      // ── Settlement filter ─────────────────────────────────────────────
+      // Drop any approval already settled by a delivered withdrawal.
+      // This is the SOLE source of truth for "this approval is closed" — no
+      // more guessing from balance math.
+      if (rawOps.length > 0) {
+        const { data: settledRows } = await supabase
+          .from('proxy_payout_settlements')
+          .select('approval_id')
+          .in('approval_id', rawOps.map((o) => o.id));
+        const settledIds = new Set((settledRows || []).map((r: any) => r.approval_id));
+        if (settledIds.size > 0) {
+          rawOps = rawOps.filter((o) => !settledIds.has(o.id));
+        }
+      }
       setPortfolioIdsForRealtime(v2PortfolioIds);
 
       if (rawOps.length === 0) {
@@ -783,12 +811,30 @@ export function ProxyPartnerFunds() {
   };
 
   const handleWithdrawSuccess = () => {
+    // Optimistic lock: instantly disable Withdraw on this partner's card so
+    // the agent can't double-submit before realtime catches up.
+    if (selectedPartnerId) {
+      setSubmittingPartnerIds((prev) => {
+        const next = new Set(prev);
+        next.add(selectedPartnerId);
+        return next;
+      });
+    }
     // Refresh immediately for snappy UX, then again shortly after to catch
     // any trigger-side updates (audit log, status forwarding, etc.) that
     // commit a beat after the insert.
     loadProxyFunds();
     setTimeout(() => loadProxyFunds(), 800);
     setTimeout(() => loadProxyFunds(), 2500);
+    // Release the optimistic lock after a generous window — by then DB
+    // realtime + settlement insert has resolved the card.
+    setTimeout(() => {
+      setSubmittingPartnerIds((prev) => {
+        const next = new Set(prev);
+        if (selectedPartnerId) next.delete(selectedPartnerId);
+        return next;
+      });
+    }, 5000);
   };
 
   const handleCancelRequest = (partner: PartnerBalance) => {
@@ -1156,6 +1202,7 @@ export function ProxyPartnerFunds() {
         const currentStatus = partnerWithdrawalStatus[statusKey];
         const canCancel = currentStatus ? ACTIVE_PROXY_WITHDRAWAL_STATUSES.includes(currentStatus as typeof ACTIVE_PROXY_WITHDRAWAL_STATUSES[number]) : false;
         const classification = classify(partner);
+        const isSubmitting = submittingPartnerIds.has(partner.partnerId);
 
         return (
           <Card
@@ -1262,16 +1309,21 @@ export function ProxyPartnerFunds() {
                 </div>
               )}
 
-              {hasPending && canCancel ? (
+              {(hasPending && canCancel) || isSubmitting ? (
                 <div className="flex gap-2">
                   <Button
                     size="sm"
                     className="flex-1 gap-1"
                     disabled
                   >
-                    <Clock className="h-3.5 w-3.5" />
-                    {currentStatus === 'pending' || currentStatus === 'requested' ? 'Withdrawal Pending' : 'Withdrawal In Progress'}
+                    {isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Clock className="h-3.5 w-3.5" />}
+                    {isSubmitting
+                      ? 'Submitting…'
+                      : currentStatus === 'pending' || currentStatus === 'requested'
+                      ? 'Withdrawal Pending'
+                      : 'Withdrawal In Progress'}
                   </Button>
+                  {hasPending && canCancel && !isSubmitting && (
                   <Button
                     size="sm"
                     variant="destructive"
@@ -1286,13 +1338,14 @@ export function ProxyPartnerFunds() {
                     )}
                     Cancel
                   </Button>
+                  )}
                 </div>
               ) : (
                 <Button
                   size="sm"
                   className="w-full gap-1"
                   onClick={() => handleWithdraw(partner)}
-                  disabled={partner.available <= 0 || hasPending}
+                  disabled={partner.available <= 0 || hasPending || isSubmitting}
                 >
                   <ArrowUpRight className="h-3.5 w-3.5" />
                   {hasPending ? 'Withdrawal In Progress' : `Withdraw ${formatAmount(partner.available)}`}
