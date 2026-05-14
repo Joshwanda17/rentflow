@@ -273,6 +273,19 @@ export function useAuthForm() {
 
     const cleanPhone = phone.replace(/\D/g, '');
     const fullPhone = cleanPhone.startsWith(countryCode) ? cleanPhone : countryCode + (cleanPhone.startsWith('0') ? cleanPhone.slice(1) : cleanPhone);
+    // No email provided → require phone OTP verification before creating
+    // the account (no email confirmation will be sent because the auth
+    // identifier becomes a synthetic @welile.user placeholder and the
+    // project is configured with auto_confirm_email = true).
+    if (!hasRealEmail && !otpVerified) {
+      setIsLoading(false);
+      toast({
+        title: 'Verify your phone',
+        description: 'Please verify your phone number with the code we sent before creating your account.',
+        variant: 'destructive',
+      });
+      return;
+    }
     const authEmail = hasRealEmail ? trimmedEmail : `${fullPhone}@welile.user`;
     const storedReferrerId = referrerIdState || localStorage.getItem('referral_agent_id');
     console.log('[Auth] Signup with referrer:', storedReferrerId, '(state:', referrerIdState, ', localStorage:', localStorage.getItem('referral_agent_id'), ')');
