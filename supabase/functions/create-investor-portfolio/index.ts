@@ -48,6 +48,13 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Only attribute `agent_id` to the creator when they are acting as a field agent
+    // for the partner. COO / Partner Ops / manager / operations / super_admin are
+    // back-office creators — they must NOT own the portfolio, otherwise it shows
+    // up under their personal portfolio list as well as the partner's.
+    const creatorRoles = (roleData || []).map(r => r.role);
+    const creatorIsAgent = creatorRoles.includes('agent');
+
     let body: Record<string, unknown>;
     try { body = await req.json(); } catch {
       return new Response(JSON.stringify({ error: "Invalid request body" }), {
@@ -110,7 +117,11 @@ Deno.serve(async (req) => {
       .insert({
         investor_id: investorId,
         invite_id: inviteId,
-        agent_id: user.id,
+        // agent_id is the field-agent owner. For back-office creators
+        // (COO / Partner Ops / manager / operations / super_admin) we
+        // attribute it to the partner themselves so it does NOT show
+        // under the staff member's portfolio list.
+        agent_id: creatorIsAgent ? user.id : (investorId || user.id),
         portfolio_code: codeData,
         investment_amount: investmentAmount,
         duration_months: durationMonths,
