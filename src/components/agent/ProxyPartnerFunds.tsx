@@ -630,66 +630,84 @@ export function ProxyPartnerFunds() {
   const partnerBalances = useMemo<PartnerBalance[]>(() => {
     if (!user?.id) return [];
 
-    // Group PWO entries by (partnerId, portfolioId)
-    const groupMap: Record<string, { partnerId: string; portfolioId: string | null; totalAmount: number }> = {};
-
+    // Build partner-level approved ROI history, then allocate ONLY the live
+    // unsettled amount (strict withdrawable + in-flight holds) onto the newest
+    // CFO-approved ROI items first. This prevents old paid approvals from being
+    // revived by later balances and showing as stale proxy cards.
+    const opsByPartner: Record<string, Array<{ portfolioId: string; amount: number; createdAt: string; op: PwoEntry }>> = {};
     approvedOps.forEach((op) => {
-      // STRICT: partner identity is the portfolio investor_id. No fallbacks.
-      // Anything else would let a non-CFO-approved entry leak in.
       if (!op.source_id) return;
       const portfolio = portfolioMap[op.source_id];
       if (!portfolio) return;
       const partnerId = portfolio.investor_id;
-      if (!partnerId || partnerId === user.id) return;
-
-      const key = `${partnerId}-${op.source_id}`;
-      if (!groupMap[key]) {
-        groupMap[key] = { partnerId, portfolioId: op.source_id, totalAmount: 0 };
-      }
-      groupMap[key].totalAmount += Number(op.amount) || 0;
+      const amount = Number(op.amount) || 0;
+      if (!partnerId || partnerId === user.id || amount <= 0) return;
+      if (!opsByPartner[partnerId]) opsByPartner[partnerId] = [];
+      opsByPartner[partnerId].push({
+        portfolioId: op.source_id,
+        amount,
+        createdAt: op.created_at,
+        op,
+      });
     });
 
-    // Group completed withdrawals by linked_party
     const withdrawalsByPartner: Record<string, number> = {};
     completedWithdrawals.forEach(w => {
       withdrawalsByPartner[w.linked_party] = (withdrawalsByPartner[w.linked_party] || 0) + (Number(w.amount) || 0);
     });
 
-    // Compute partner-level totals
-    const partnerTotals: Record<string, number> = {};
-    Object.values(groupMap).forEach(g => {
-      partnerTotals[g.partnerId] = (partnerTotals[g.partnerId] || 0) + g.totalAmount;
-    });
+    const groupMap: Record<string, {
+      partnerId: string;
+      portfolioId: string | null;
+      totalAmount: number;
+      availableAmount: number;
+      inFlightAmount: number;
+    }> = {};
 
-    // Single clamp at partner level after subtracting withdrawals
-    const partnerAvailable: Record<string, number> = {};
-    Object.keys(partnerTotals).forEach(partnerId => {
-      const totalWithdrawn = withdrawalsByPartner[partnerId] || 0;
-      // Treat in-flight withdrawals as already paid out — the moment Caro
-      // initiates a withdrawal the card should disappear from the default view.
+    Object.entries(opsByPartner).forEach(([partnerId, rows]) => {
+      const totalApproved = rows.reduce((sum, row) => sum + row.amount, 0);
+      const totalCompleted = withdrawalsByPartner[partnerId] || 0;
       const totalInFlight = activeWithdrawalsByPartner[partnerId] || 0;
-      const computedAvailable = Math.max(
+      const historicalOpen = Math.max(0, totalApproved - totalCompleted);
+      const liveOpen = Math.max(
         0,
-        partnerTotals[partnerId] - totalWithdrawn - totalInFlight,
+        Math.min(historicalOpen, (strictWithdrawableByPartner[partnerId] ?? historicalOpen) + totalInFlight),
       );
-      const strictLiveAvailable = strictWithdrawableByPartner[partnerId] ?? computedAvailable;
-      partnerAvailable[partnerId] = Math.max(0, Math.min(computedAvailable, strictLiveAvailable));
+      if (liveOpen <= 50) return;
+
+      let remainingOpen = liveOpen;
+      let remainingInFlight = Math.min(totalInFlight, liveOpen);
+      rows
+        .slice()
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .forEach((row) => {
+          if (remainingOpen <= 50) return;
+          const allocated = Math.min(row.amount, remainingOpen);
+          const inFlightAllocated = Math.min(allocated, remainingInFlight);
+          const availableAllocated = allocated - inFlightAllocated;
+          remainingOpen -= allocated;
+          remainingInFlight -= inFlightAllocated;
+
+          const key = `${partnerId}-${row.portfolioId}`;
+          if (!groupMap[key]) {
+            groupMap[key] = {
+              partnerId,
+              portfolioId: row.portfolioId,
+              totalAmount: 0,
+              availableAmount: 0,
+              inFlightAmount: 0,
+            };
+          }
+          groupMap[key].totalAmount += allocated;
+          groupMap[key].availableAmount += availableAllocated;
+          groupMap[key].inFlightAmount += inFlightAllocated;
+        });
     });
 
-    // Build display entries — distribute proportionally across portfolio groups
     return Object.entries(groupMap)
       .filter(([, g]) => g.totalAmount > 0)
       .map(([, group]) => {
-        const partnerTotal = partnerTotals[group.partnerId] || 1;
-        const proportion = group.totalAmount / partnerTotal;
-        const available = Math.round(partnerAvailable[group.partnerId] * proportion);
-        const totalWithdrawn = Math.round((withdrawalsByPartner[group.partnerId] || 0) * proportion);
-        const inFlightAmount = Math.round(
-          (activeWithdrawalsByPartner[group.partnerId] || 0) * proportion,
-        );
-
         const pInfo = group.portfolioId ? portfolioMap[group.portfolioId] : null;
-        // Use metadata partner_name as fallback if profile not found
         const partnerName = profiles[group.partnerId]?.full_name
           || approvedOps.find(op => {
             const m = op.metadata || {};
@@ -705,9 +723,9 @@ export function ProxyPartnerFunds() {
           portfolioCode: pInfo?.portfolio_code || null,
           accountName: pInfo?.account_name || null,
           totalReturns: Math.round(group.totalAmount),
-          totalWithdrawn,
-          available,
-          inFlightAmount,
+          totalWithdrawn: 0,
+          available: Math.round(group.availableAmount),
+          inFlightAmount: Math.round(group.inFlightAmount),
         };
       })
       // Auto-hide cards with negligible balance (rounding dust) and apply
