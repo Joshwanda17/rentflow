@@ -149,41 +149,142 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Queue in pending_wallet_operations for manager/COO approval — NOT directly in ledger
     const txGroupId = crypto.randomUUID();
     const agentProfile = await adminClient.from("profiles").select("full_name").eq("id", user.id).single();
     const agentName = agentProfile.data?.full_name || "Agent";
 
-    const { error: pendingErr } = await adminClient.from("pending_wallet_operations").insert({
-      user_id: investorId || user.id,
-      amount: investmentAmount,
-      direction: "cash_in",
-      category: "supporter_facilitation_capital",
-      source_table: "investor_portfolios",
-      source_id: portfolio.id,
-      transaction_group_id: txGroupId,
-      description: `Portfolio ${codeData} created by ${agentName}. UGX ${investmentAmount.toLocaleString()} investment pending approval.`,
-      reference_id: codeData,
-      linked_party: agentName,
-      metadata: {
-        agent_id: user.id,
-        agent_name: agentName,
-        portfolio_code: codeData,
-        roi_percentage: roiPercentage,
-        duration_months: durationMonths,
-      },
-    });
+    // ── Back-office instant-deduct path ──
+    // When a back-office creator (manager / COO / super_admin / operations) creates
+    // a portfolio for an explicit partner (investorId), the money already lives in
+    // the partner's wallet. Skip the approval queue and deduct the wallet
+    // immediately via ledger — same pattern as coo-wallet-to-portfolio.
+    const backOfficeRoles = ['manager', 'coo', 'super_admin', 'operations'];
+    const creatorIsBackOffice = creatorRoles.some(r => backOfficeRoles.includes(r));
+    const instantDeduct = creatorIsBackOffice && !!investorId;
 
-    if (pendingErr) {
-      console.error("Pending wallet op insert failed:", pendingErr);
-      // Cleanup portfolio
-      await adminClient.from("investor_portfolios").delete().eq("id", portfolio.id);
-      return new Response(JSON.stringify({ error: "Failed to queue for approval, portfolio rolled back." }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    if (instantDeduct) {
+      // Verify partner wallet has the funds
+      const { data: wallet, error: wErr } = await adminClient
+        .from("wallets")
+        .select("balance")
+        .eq("user_id", investorId)
+        .single();
+
+      if (wErr || !wallet || Number(wallet.balance) < investmentAmount) {
+        await adminClient.from("investor_portfolios").delete().eq("id", portfolio.id);
+        return new Response(JSON.stringify({
+          error: `Insufficient partner wallet balance. Available: UGX ${Number(wallet?.balance || 0).toLocaleString()}`,
+        }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      // Post double-entry ledger: partner wallet cash_out → pending_portfolio_topup cash_in
+      const { error: ledgerErr } = await adminClient.rpc("create_ledger_transaction", {
+        entries: [
+          {
+            user_id: investorId,
+            amount: investmentAmount,
+            direction: "cash_out",
+            category: "partner_funding",
+            description: `Wallet deduction for portfolio ${codeData}`,
+            source_table: "investor_portfolios",
+            source_id: portfolio.id,
+            linked_party: "platform",
+          },
+          {
+            user_id: investorId,
+            amount: investmentAmount,
+            direction: "cash_in",
+            category: "pending_portfolio_topup",
+            description: `Pending capital for portfolio ${codeData} — applied at activation`,
+            source_table: "investor_portfolios",
+            source_id: portfolio.id,
+            linked_party: investorId,
+          },
+        ],
       });
-    }
 
-    console.log(`Portfolio ${codeData} created (pending_approval): ${investmentAmount} UGX, ${durationMonths}mo, ${roiMode}. Queued for manager approval.`);
+      if (ledgerErr) {
+        console.error("[create-investor-portfolio] LEDGER FAILURE — rolling back portfolio:", ledgerErr);
+        await adminClient.from("investor_portfolios").delete().eq("id", portfolio.id);
+        return new Response(JSON.stringify({
+          error: `Wallet deduction failed: ${(ledgerErr as any).message || 'unknown'}. Portfolio rolled back.`,
+        }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      // Pre-approved pending op for audit trail / topup processor
+      await adminClient.from("pending_wallet_operations").insert({
+        user_id: investorId,
+        amount: investmentAmount,
+        direction: "cash_in",
+        category: "pending_portfolio_topup",
+        source_table: "investor_portfolios",
+        source_id: portfolio.id,
+        transaction_group_id: txGroupId,
+        description: `Portfolio ${codeData} created by ${agentName} — instant wallet deduction`,
+        reference_id: codeData,
+        linked_party: "platform",
+        status: "approved",
+        operation_type: "portfolio_creation",
+        metadata: {
+          initiated_by: user.id,
+          initiated_by_role: creatorRoles[0],
+          agent_name: agentName,
+          portfolio_code: codeData,
+          roi_percentage: roiPercentage,
+          duration_months: durationMonths,
+          pre_approved: true,
+          source: "wallet",
+          wallet_balance_before: Number(wallet.balance),
+        },
+      });
+
+      await adminClient.from("audit_logs").insert({
+        user_id: user.id,
+        action_type: "create_portfolio_instant_wallet_deduct",
+        table_name: "investor_portfolios",
+        record_id: portfolio.id,
+        metadata: {
+          partner_id: investorId,
+          amount: investmentAmount,
+          portfolio_code: codeData,
+          wallet_balance_before: Number(wallet.balance),
+          wallet_balance_after: Number(wallet.balance) - investmentAmount,
+        },
+      });
+
+      console.log(`Portfolio ${codeData} created with INSTANT wallet deduction: ${investmentAmount} UGX from partner ${investorId}.`);
+    } else {
+      // Original path: agent-created or no partner — queue for approval
+      const { error: pendingErr } = await adminClient.from("pending_wallet_operations").insert({
+        user_id: investorId || user.id,
+        amount: investmentAmount,
+        direction: "cash_in",
+        category: "supporter_facilitation_capital",
+        source_table: "investor_portfolios",
+        source_id: portfolio.id,
+        transaction_group_id: txGroupId,
+        description: `Portfolio ${codeData} created by ${agentName}. UGX ${investmentAmount.toLocaleString()} investment pending approval.`,
+        reference_id: codeData,
+        linked_party: agentName,
+        metadata: {
+          agent_id: user.id,
+          agent_name: agentName,
+          portfolio_code: codeData,
+          roi_percentage: roiPercentage,
+          duration_months: durationMonths,
+        },
+      });
+
+      if (pendingErr) {
+        console.error("Pending wallet op insert failed:", pendingErr);
+        await adminClient.from("investor_portfolios").delete().eq("id", portfolio.id);
+        return new Response(JSON.stringify({ error: "Failed to queue for approval, portfolio rolled back." }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      console.log(`Portfolio ${codeData} created (pending_approval): ${investmentAmount} UGX, ${durationMonths}mo, ${roiMode}. Queued for manager approval.`);
+    }
 
     return new Response(JSON.stringify({
       success: true,
