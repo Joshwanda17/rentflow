@@ -1,64 +1,71 @@
 ## Goal
 
-Make the CFO `wallet-payout` tab and the agent + FinOps screens reflect this single canonical flow:
+Eliminate stale proxy partner records permanently by switching from per-approval cards (with fragile balance math) to **one card per partner driven by `v_user_wallet_strict`**, plus a settlement table for audit. Lock the withdraw button immediately on submit.
+
+## End-state behavior
+
+1. Proxy Partners list shows **one card per linked proxy partner** whose live withdrawable (from `v_user_wallet_strict`) > UGX 0 AND who has at least one CFO-approved unsettled ROI approval.
+2. The amount on the card = the partner's strict live withdrawable (ledger truth — cannot be stale).
+3. When a proxy withdrawal is **submitted**, the card's button locks instantly.
+4. When `approve-withdrawal` completes, the function inserts settlement rows linking that withdrawal to the partner's oldest unsettled CFO approvals (FIFO), summing up to the withdrawn amount → those approvals are marked settled and excluded next render.
+5. Only approvals carrying `metadata.coo_approved_by` AND `metadata.cfo_approved_by` (existing CFO-approval gate) are eligible.
+
+## Database (one migration)
+
+Create `proxy_payout_settlements`:
 
 ```text
-CFO          →  funds Agent's Landlord Payout Float (no landlord touched yet)
-Agent        →  opens float → picks landlord → MoMo + Withdraw
-                → OTP sent to LANDLORD's phone
-                → Agent enters OTP → money moves to landlord's MoMo
-FinOps       →  uses the MoMo TID to approve / settle the withdrawal
+id              uuid pk
+approval_id     uuid  -- pending_wallet_operations.id
+withdrawal_id   uuid  -- withdrawal_requests.id
+partner_id      uuid  -- supporter / linked_party
+agent_id        uuid
+amount_settled  numeric
+settled_at      timestamptz default now()
+unique (approval_id)   -- one approval can only be settled once
 ```
 
-The backend already supports this end-to-end (`fund-agent-landlord-float`, `issue-landlord-payout-otp`, `verify-landlord-payout-otp`, `landlord-payout-disburse`, `submit-landlord-payout-receipt`). The work is **UI alignment + a couple of small backend tightenings** so the screens stop implying CFO pays the landlord directly.
+- RLS: agent can SELECT own rows; service role full access; CFO/manager SELECT all.
+- Index on `(agent_id, partner_id)` and `(withdrawal_id)`.
 
-## Changes
+**Backfill for the current 7 stale rows + future-proof:** insert synthetic settlement rows for every existing partner where strict live withdrawable = 0 but unsettled CFO approvals still exist (closes them out without touching ledger).
 
-### 1. CFO — Rent Disbursement Queue (`src/components/cfo/RentDisbursementQueue.tsx`)
-Currently labelled "Pay" / "Rent Disbursement Queue" with copy "ready for CFO disbursement", which reads as if CFO pays the landlord. Behind the scenes it already calls `fund-agent-landlord-float`.
+## Edge function: `approve-withdrawal`
 
-- Rename header to **"Fund Agent Landlord Payout Float"**.
-- Subcopy: *"COO-approved rent. Funding moves cash into the assigned agent's Landlord Payout Float — the agent then pays the landlord via MoMo + OTP."*
-- Per-row button: **"Fund Agent Float"** (not "Pay"). Add small helper text under the agent chip: *"Will land in {agentName}'s Landlord Payout Float."*
-- Batch button: **"Fund {n} Agent Floats"**.
-- Success toast: *"Funded agent float — agent will complete the MoMo payout."*
+After the existing `status: completed` update, when the withdrawal has `proxy_partner_id` (or `linked_party`):
 
-### 2. Agent — Landlord Payout Float card (`src/components/wallet/AgentLandlordFloatCard.tsx` + `PayLandlordDialog`)
-Already uses OTP flow. Tighten the wording so it matches the redefinition:
+1. Fetch all unsettled CFO-approved `pending_wallet_operations` for that partner ordered by `created_at ASC`.
+2. Walk them, accumulate amounts up to the withdrawal's amount, insert one `proxy_payout_settlements` row per approval consumed.
+3. Last partial approval gets a partial-settlement row (still marked settled — splitting approvals is out of scope; FIFO closes the oldest first).
 
-- Primary action label on each per-tenant/landlord row: **"Withdraw to Landlord MoMo"**.
-- Step 1 of dialog: pick landlord (auto when drilled from allocation), choose MoMo provider (MTN / Airtel), confirm landlord phone.
-- Step 2: tap **Send OTP** → calls `issue-landlord-payout-otp` (OTP goes to landlord's phone, 2-min TTL).
-- Step 3: agent enters 6-digit OTP → `verify-landlord-payout-otp` → `landlord-payout-disburse` debits the float and creates a `landlord_payouts` row in `pending_finops_disbursement`.
-- Show the `payout_id` + amount + landlord MoMo on the success screen so the agent can reference it.
+## Frontend: `ProxyPartnerFunds.tsx` rewrite (focused)
 
-No new backend endpoints; just confirm copy and that `mobile_money_provider` is required before OTP.
+Replace the per-approval rendering loop with **partner-aggregated cards**:
 
-### 3. FinOps — TID Approval Queue (`src/components/financial-ops/LandlordPayoutsQueue.tsx`)
-Already lists `pending_finops_disbursement` rows. Make TID the explicit gate:
+1. Query approved CFO ops (existing logic) → group by `partnerId`.
+2. LEFT JOIN with `proxy_payout_settlements` → drop approvals where `id` exists in settlements.
+3. Drop partners whose remaining unsettled approval count = 0.
+4. For each remaining partner, fetch `v_user_wallet_strict.available` → that's the card's "To Withdraw" amount.
+5. Drop partners where strict available ≤ UGX 50 (dust threshold).
+6. Card shows: partner name + portfolio + phone + live withdrawable. Single "Withdraw" button.
+7. On submit: optimistic local `submittingPartnerIds: Set<string>` → button disabled + spinner until refetch confirms partner gone or `in_flight` flag returns true.
+8. Real-time subscription on `proxy_payout_settlements` (INSERT) → refetch list on any new settlement.
 
-- Each row shows: agent, landlord, MoMo (provider + phone), amount, OTP-verified time.
-- Action button: **"Approve with TID"** → modal that REQUIRES:
-  - `momo_transaction_id` (TID, mandatory, 6+ chars)
-  - optional screenshot upload
-- Submit calls existing `submit-landlord-payout-receipt` with the TID → marks payout `settled`, emits `landlord_payout_settled` event.
-- Add a "Reject / Refund" path that calls `refund_agent_float_for_payout` (already exists via SLA monitor) so FinOps can return cash to the agent's float if the MoMo failed.
+## Files
 
-### 4. Small backend tightening
-- `landlord-payout-disburse`: keep status `pending_finops_disbursement` (already does). No MoMo gateway call.
-- `submit-landlord-payout-receipt`: enforce non-empty `momo_transaction_id` server-side and reject duplicates per `payout_id`.
-- Emit `landlord_payout_settled` system event with `{ payout_id, tid, finops_user_id }` for the trust/audit trail (CONSTITUTION compliance).
-
-### 5. Copy / docs
-Update the in-app helper tooltip on the CFO tab and the agent float card to state the 4-step flow above so all three roles see the same definition.
+- **NEW** `supabase/migrations/<ts>_proxy_payout_settlements.sql` — table + RLS + indexes + backfill.
+- **EDIT** `supabase/functions/approve-withdrawal/index.ts` — insert settlement rows after status update.
+- **EDIT** `src/components/agent/ProxyPartnerFunds.tsx` — partner-aggregated cards, submit lock, settlement-aware filter, realtime sub.
 
 ## Out of scope
-- No schema changes — `landlord_payouts`, `landlord_payout_otp_challenges`, `agent_landlord_float_allocations` already model this.
-- No change to wallet routing (`recipient_type='operational_wallet'` → float) or sole-writer rule.
-- No automatic MoMo gateway call; this stays human-in-the-loop on the FinOps side via the TID.
 
-## Acceptance
-- CFO clicking "Fund Agent Float" never debits a landlord directly; it only increases an agent's Landlord Payout Float.
-- Agent cannot withdraw without (a) MoMo provider selected, (b) OTP entered within 2 min.
-- FinOps cannot mark a payout settled without a TID.
-- Every settled payout produces: `landlord_payouts.status='settled'`, an `agent_visit` (GPS + AI ID), and a `landlord_payout_settled` system event.
+- No changes to CFO approval flow.
+- No changes to `pending_wallet_operations` schema (keep settlement out-of-band so audit trail is preserved).
+- No ledger changes (already source of truth).
+
+## Verification
+
+1. After migration runs, the 7 currently-visible cards (Caleb, Olweny, Hellen, Shakilah, Gideon, Musene, Nassanga) are evaluated against `v_user_wallet_strict` — those with 0 withdrawable disappear instantly.
+2. Submit a withdrawal → button locks immediately.
+3. CFO approves → settlement row inserted → card disappears within 1 refresh cycle.
+4. Repeat for the same partner with a fresh CFO approval → card reappears.
