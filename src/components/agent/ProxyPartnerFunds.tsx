@@ -252,6 +252,10 @@ export function ProxyPartnerFunds() {
         setCompletedWithdrawals([]);
         setPortfolios([]);
         setPartnerWithdrawalStatus({});
+        setActiveWithdrawalsByPartner({});
+        setLastTerminalByPartner({});
+        setPartnerIdsForRealtime([]);
+        setPortfolioIdsForRealtime([]);
         setLoading(false);
         return;
       }
@@ -336,6 +340,7 @@ export function ProxyPartnerFunds() {
         setPartnerWithdrawalStatus({});
         setActiveWithdrawalsByPartner({});
         setLastTerminalByPartner({});
+        setPartnerIdsForRealtime([]);
         setApprovedOps([]);
         setLoading(false);
         return;
@@ -376,6 +381,7 @@ export function ProxyPartnerFunds() {
         setPartnerWithdrawalStatus({});
         setActiveWithdrawalsByPartner({});
         setLastTerminalByPartner({});
+        setPartnerIdsForRealtime([]);
         setLoading(false);
         return;
       }
