@@ -15340,6 +15340,7 @@ export type Database = {
         | "wallet_historical_drift_absorbed"
         | "rent_request_force_approved"
         | "rent_request.resubmitted_by_agent"
+        | "rent_request.returned_for_correction"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -15591,6 +15592,7 @@ export const Constants = {
         "wallet_historical_drift_absorbed",
         "rent_request_force_approved",
         "rent_request.resubmitted_by_agent",
+        "rent_request.returned_for_correction",
       ],
     },
   },
