@@ -698,7 +698,7 @@ Deno.serve(async (req) => {
     const { error: updateErr } = await admin
       .from("withdrawal_requests")
       .update({
-        status: "approved",
+        status: "completed",
         fin_ops_reference: reference.trim().toUpperCase(),
         fin_ops_payment_method: payment_method,
         fin_ops_approved_at: new Date().toISOString(),
