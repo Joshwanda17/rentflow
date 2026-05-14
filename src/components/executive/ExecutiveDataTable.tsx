@@ -1,9 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowUpDown, ArrowUp, ArrowDown, Download, FileText, Search } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, Download, FileText, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 // jsPDF loaded dynamically when needed
 
@@ -54,11 +54,12 @@ export function ExecutiveDataTable<T extends Record<string, any>>({
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
+  const [page, setPage] = useState(0);
 
   const selectionEnabled = !!getRowId && !!onSelectionChange;
   const selectedSet = useMemo(() => new Set(selectedIds || []), [selectedIds]);
 
-  const filtered = useMemo(() => {
+  const allFiltered = useMemo(() => {
     let result = [...data];
 
     // Search across all string columns
@@ -94,8 +95,22 @@ export function ExecutiveDataTable<T extends Record<string, any>>({
       });
     }
 
-    return result.slice(0, limit);
-  }, [data, search, sortKey, sortDir, activeFilters, columns, limit]);
+    return result;
+  }, [data, search, sortKey, sortDir, activeFilters, columns]);
+
+  // Reset to first page whenever the filtered set changes shape.
+  useEffect(() => {
+    setPage(0);
+  }, [search, activeFilters, sortKey, sortDir, data.length]);
+
+  const totalPages = Math.max(1, Math.ceil(allFiltered.length / limit));
+  const safePage = Math.min(page, totalPages - 1);
+  const pageStart = safePage * limit;
+  const pageEnd = Math.min(pageStart + limit, allFiltered.length);
+  const filtered = useMemo(
+    () => allFiltered.slice(pageStart, pageEnd),
+    [allFiltered, pageStart, pageEnd],
+  );
 
   const visibleIds = useMemo(
     () => (selectionEnabled ? filtered.map((r) => getRowId!(r)) : []),
@@ -134,7 +149,7 @@ export function ExecutiveDataTable<T extends Record<string, any>>({
 
   const exportCSV = () => {
     const header = columns.map((c) => c.label).join(',');
-    const rows = filtered.map((row) => columns.map((c) => `"${String(row[c.key] ?? '')}"`).join(','));
+    const rows = allFiltered.map((row) => columns.map((c) => `"${String(row[c.key] ?? '')}"`).join(','));
     const csv = [header, ...rows].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -161,7 +176,7 @@ export function ExecutiveDataTable<T extends Record<string, any>>({
     });
 
     // Rows
-    filtered.forEach((row, ri) => {
+    allFiltered.forEach((row, ri) => {
       const y = startY + 6 + ri * 5;
       if (y > doc.internal.pageSize.getHeight() - 10) return;
       doc.setFont('helvetica', 'normal');
@@ -331,9 +346,37 @@ export function ExecutiveDataTable<T extends Record<string, any>>({
             </tbody>
           </table>
         </div>
-        {!loading && filtered.length > 0 && (
-          <div className="px-3 py-2 bg-muted/30 text-xs text-muted-foreground border-t border-border">
-            Showing {filtered.length} of {data.length} records (latest {limit})
+        {!loading && allFiltered.length > 0 && (
+          <div className="px-3 py-2 bg-muted/30 text-xs text-muted-foreground border-t border-border flex items-center justify-between gap-2 flex-wrap">
+            <span>
+              Showing {pageStart + 1}-{pageEnd} of {allFiltered.length.toLocaleString()}
+              {allFiltered.length !== data.length && (
+                <span className="text-muted-foreground/70"> (filtered from {data.length.toLocaleString()})</span>
+              )}
+            </span>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2"
+                disabled={safePage === 0}
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+              >
+                <ChevronLeft className="h-3.5 w-3.5" /> Prev
+              </Button>
+              <span className="text-xs px-2">
+                Page {safePage + 1} / {totalPages}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2"
+                disabled={safePage >= totalPages - 1}
+                onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+              >
+                Next <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
           </div>
         )}
       </div>

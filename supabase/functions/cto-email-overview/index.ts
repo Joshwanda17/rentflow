@@ -91,8 +91,9 @@ Deno.serve(async (req) => {
     }
     const templateSummary = Array.from(tplMap.values()).sort((a, b) => b.total - a.total);
 
-    // Recent emails (cap UI payload)
-    const recent = all.slice(0, 100);
+    // Full recent set (already capped at 5000 by the query above) so the
+    // CTO Emails table can search across every recent email, not just 100.
+    const recent = all;
 
     // Error breakdown — categorize failed/bounced/dlq emails
     const failedRows = all.filter((r) => r.status === "failed" || r.status === "dlq" || r.status === "bounced");
