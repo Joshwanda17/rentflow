@@ -117,7 +117,11 @@ Deno.serve(async (req) => {
       .insert({
         investor_id: investorId,
         invite_id: inviteId,
-        agent_id: creatorIsAgent ? user.id : null,
+        // agent_id is the field-agent owner. For back-office creators
+        // (COO / Partner Ops / manager / operations / super_admin) we
+        // attribute it to the partner themselves so it does NOT show
+        // under the staff member's portfolio list.
+        agent_id: creatorIsAgent ? user.id : (investorId || user.id),
         portfolio_code: codeData,
         investment_amount: investmentAmount,
         duration_months: durationMonths,
