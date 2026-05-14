@@ -177,7 +177,12 @@ Deno.serve(async (req) => {
         }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
-      // Post double-entry ledger: partner wallet cash_out → pending_portfolio_topup cash_in
+      // Double-entry ledger:
+      //  • Wallet leg  → partner cash_out (withdrawable bucket) — actually deducts the wallet
+      //  • Platform leg → actor cash_in, ledger_scope='platform' — does NOT touch the partner wallet
+      // (Mirrors the cfo-direct-credit debit pattern.)
+      const refId = `WPF-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+      const nowIso = new Date().toISOString();
       const { error: ledgerErr } = await adminClient.rpc("create_ledger_transaction", {
         entries: [
           {
@@ -185,19 +190,30 @@ Deno.serve(async (req) => {
             amount: investmentAmount,
             direction: "cash_out",
             category: "partner_funding",
+            ledger_scope: "wallet",
+            recipient_type: "user",
+            wallet_bucket: "withdrawable",
+            routing_source: "create_investor_portfolio",
             description: `Wallet deduction for portfolio ${codeData}`,
             source_table: "investor_portfolios",
             source_id: portfolio.id,
+            reference_id: refId,
+            currency: "UGX",
+            transaction_date: nowIso,
             linked_party: "platform",
           },
           {
-            user_id: investorId,
+            user_id: user.id, // actor (COO/manager/etc) — platform leg, not a wallet credit
             amount: investmentAmount,
             direction: "cash_in",
             category: "pending_portfolio_topup",
-            description: `Pending capital for portfolio ${codeData} — applied at activation`,
+            ledger_scope: "platform",
             source_table: "investor_portfolios",
             source_id: portfolio.id,
+            reference_id: refId,
+            currency: "UGX",
+            transaction_date: nowIso,
+            description: `Capital received for portfolio ${codeData} — applied at activation`,
             linked_party: investorId,
           },
         ],
