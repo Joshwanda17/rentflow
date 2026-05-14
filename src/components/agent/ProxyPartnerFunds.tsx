@@ -202,7 +202,7 @@ export function ProxyPartnerFunds() {
 
     // Per-partner channel — re-subscribed whenever the partner set changes.
     let partnerChannel: ReturnType<typeof supabase.channel> | null = null;
-    if (partnerIdsForRealtime.length > 0) {
+    if (partnerIdsForRealtime.length > 0 || portfolioIdsForRealtime.length > 0) {
       partnerChannel = supabase.channel(
         `proxy-withdrawal-updates-partners-${user.id}`,
       );
