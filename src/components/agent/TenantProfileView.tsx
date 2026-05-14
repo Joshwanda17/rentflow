@@ -176,6 +176,7 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
   const [subAgentDialogOpen, setSubAgentDialogOpen] = useState(false);
 
   const [autoCollecting, setAutoCollecting] = useState(false);
+  const [reopening, setReopening] = useState(false);
 
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
@@ -294,7 +295,16 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
     const totalFunded = requests.reduce((s, r) => s + (r.total_repayment || 0), 0);
     const totalRepaid = requests.reduce((s, r) => s + (r.amount_repaid || 0), 0);
     const completedCount = requests.filter(r => r.status === 'completed').length;
-    const activeRequest = requests.find(r => ['approved', 'funded', 'disbursed', 'repaying'].includes(r.status || ''));
+    // Active = standard funded/repaying cycles, OR an outstanding-balance row that
+    // was rejected (still owes money, agent should be able to reopen + collect).
+    const activeRequest =
+      requests.find(r => ['approved', 'funded', 'disbursed', 'repaying'].includes(r.status || '')) ||
+      requests.find(
+        r =>
+          r.status === 'rejected' &&
+          r.registration_type === 'outstanding_balance' &&
+          (r.total_repayment - r.amount_repaid) > 0,
+      );
     const outstanding = activeRequest ? (activeRequest.total_repayment - activeRequest.amount_repaid) : 0;
     const latest = requests[0];
 
