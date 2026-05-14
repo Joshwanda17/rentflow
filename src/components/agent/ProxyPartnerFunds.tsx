@@ -346,9 +346,24 @@ export function ProxyPartnerFunds() {
       const mergedById = new Map<string, PwoEntry>();
       ((legacyRes.data || []) as PwoEntry[]).forEach((op) => mergedById.set(op.id, op));
       ((v2Res as any).data || []).forEach((op: PwoEntry) => mergedById.set(op.id, op));
-      const rawOps = Array.from(mergedById.values()).sort(
+      let rawOps = Array.from(mergedById.values()).sort(
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
       );
+
+      // ── Settlement filter ─────────────────────────────────────────────
+      // Drop any approval already settled by a delivered withdrawal.
+      // This is the SOLE source of truth for "this approval is closed" — no
+      // more guessing from balance math.
+      if (rawOps.length > 0) {
+        const { data: settledRows } = await supabase
+          .from('proxy_payout_settlements')
+          .select('approval_id')
+          .in('approval_id', rawOps.map((o) => o.id));
+        const settledIds = new Set((settledRows || []).map((r: any) => r.approval_id));
+        if (settledIds.size > 0) {
+          rawOps = rawOps.filter((o) => !settledIds.has(o.id));
+        }
+      }
       setPortfolioIdsForRealtime(v2PortfolioIds);
 
       if (rawOps.length === 0) {
