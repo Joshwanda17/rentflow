@@ -426,7 +426,7 @@ export function ProxyPartnerFunds() {
 
       // Step 4: Fetch profiles, completed withdrawals, active withdrawals, and
       // terminal-unpaid history in parallel
-      const [profileRes, completedRes, activeWithdrawalRes, terminalRes] = await Promise.all([
+      const [profileRes, completedRes, activeWithdrawalRes, terminalRes, strictBalanceRes] = await Promise.all([
         supabase
           .from('profiles')
           .select('id, full_name, phone')
@@ -460,6 +460,10 @@ export function ProxyPartnerFunds() {
           .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
           .order('updated_at', { ascending: false })
           .limit(500),
+        supabase
+          .from('v_user_wallet_strict')
+          .select('user_id, withdrawable')
+          .in('user_id', uniquePartnerIds),
       ]);
 
       const profileMap: Record<string, { full_name: string; phone: string }> = {};
@@ -467,6 +471,11 @@ export function ProxyPartnerFunds() {
         profileMap[p.id] = { full_name: p.full_name || 'Unknown', phone: p.phone || '' };
       });
       setProfiles(profileMap);
+      const strictMap: Record<string, number> = {};
+      (strictBalanceRes.data || []).forEach((row: any) => {
+        strictMap[row.user_id] = Number(row.withdrawable) || 0;
+      });
+      setStrictWithdrawableByPartner(strictMap);
       // Resolve a partner key for every row: prefer linked_party (legacy
       // custody), fall back to user_id when it matches a known partner
       // (Custody V2). Anything that doesn't resolve is dropped.
