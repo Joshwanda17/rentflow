@@ -1202,6 +1202,7 @@ export function ProxyPartnerFunds() {
         const currentStatus = partnerWithdrawalStatus[statusKey];
         const canCancel = currentStatus ? ACTIVE_PROXY_WITHDRAWAL_STATUSES.includes(currentStatus as typeof ACTIVE_PROXY_WITHDRAWAL_STATUSES[number]) : false;
         const classification = classify(partner);
+        const isSubmitting = submittingPartnerIds.has(partner.partnerId);
 
         return (
           <Card
@@ -1308,16 +1309,21 @@ export function ProxyPartnerFunds() {
                 </div>
               )}
 
-              {hasPending && canCancel ? (
+              {(hasPending && canCancel) || isSubmitting ? (
                 <div className="flex gap-2">
                   <Button
                     size="sm"
                     className="flex-1 gap-1"
                     disabled
                   >
-                    <Clock className="h-3.5 w-3.5" />
-                    {currentStatus === 'pending' || currentStatus === 'requested' ? 'Withdrawal Pending' : 'Withdrawal In Progress'}
+                    {isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Clock className="h-3.5 w-3.5" />}
+                    {isSubmitting
+                      ? 'Submitting…'
+                      : currentStatus === 'pending' || currentStatus === 'requested'
+                      ? 'Withdrawal Pending'
+                      : 'Withdrawal In Progress'}
                   </Button>
+                  {hasPending && canCancel && !isSubmitting && (
                   <Button
                     size="sm"
                     variant="destructive"
@@ -1332,13 +1338,14 @@ export function ProxyPartnerFunds() {
                     )}
                     Cancel
                   </Button>
+                  )}
                 </div>
               ) : (
                 <Button
                   size="sm"
                   className="w-full gap-1"
                   onClick={() => handleWithdraw(partner)}
-                  disabled={partner.available <= 0 || hasPending}
+                  disabled={partner.available <= 0 || hasPending || isSubmitting}
                 >
                   <ArrowUpRight className="h-3.5 w-3.5" />
                   {hasPending ? 'Withdrawal In Progress' : `Withdraw ${formatAmount(partner.available)}`}
