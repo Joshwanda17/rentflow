@@ -52,7 +52,7 @@ export async function signUp(
 
 export async function signUpWithoutRole(email: string, password: string, fullName: string, phone: string, referrerId?: string, intendedRole?: string) {
   const redirectUrl = `${window.location.origin}/`;
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -60,7 +60,7 @@ export async function signUpWithoutRole(email: string, password: string, fullNam
       data: { full_name: fullName, phone, referrer_id: referrerId || null, intended_role: intendedRole || null },
     },
   });
-  return { error: error as Error | null };
+  return { data, error: error as Error | null };
 }
 
 export async function signIn(email: string, password: string) {
