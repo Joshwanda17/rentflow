@@ -176,6 +176,7 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
   const [subAgentDialogOpen, setSubAgentDialogOpen] = useState(false);
 
   const [autoCollecting, setAutoCollecting] = useState(false);
+  const [reopening, setReopening] = useState(false);
 
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
@@ -294,7 +295,16 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
     const totalFunded = requests.reduce((s, r) => s + (r.total_repayment || 0), 0);
     const totalRepaid = requests.reduce((s, r) => s + (r.amount_repaid || 0), 0);
     const completedCount = requests.filter(r => r.status === 'completed').length;
-    const activeRequest = requests.find(r => ['approved', 'funded', 'disbursed', 'repaying'].includes(r.status || ''));
+    // Active = standard funded/repaying cycles, OR an outstanding-balance row that
+    // was rejected (still owes money, agent should be able to reopen + collect).
+    const activeRequest =
+      requests.find(r => ['approved', 'funded', 'disbursed', 'repaying'].includes(r.status || '')) ||
+      requests.find(
+        r =>
+          r.status === 'rejected' &&
+          r.registration_type === 'outstanding_balance' &&
+          (r.total_repayment - r.amount_repaid) > 0,
+      );
     const outstanding = activeRequest ? (activeRequest.total_repayment - activeRequest.amount_repaid) : 0;
     const latest = requests[0];
 
@@ -494,6 +504,36 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
       toast({ title: 'Auto-collect failed', description: err.message, variant: 'destructive' });
     } finally {
       setAutoCollecting(false);
+    }
+  };
+
+  const handleReopenRejectedCycle = async () => {
+    if (!summary.activeRequest || summary.activeRequest.status !== 'rejected') return;
+    const reqId = summary.activeRequest.id;
+    setReopening(true);
+    try {
+      const { error } = await supabase
+        .from('rent_requests')
+        .update({ status: 'repaying', rejected_reason: null })
+        .eq('id', reqId);
+      if (error) throw error;
+
+      // Mandatory audit trail (10-char minimum reason).
+      await supabase.from('audit_logs').insert({
+        action_type: 'rent_request_reopened',
+        table_name: 'rent_requests',
+        record_id: reqId,
+        actor_id: user?.id ?? null,
+        reason: 'Agent reopened rejected outstanding-balance cycle to resume collection.',
+        metadata: { previous_status: 'rejected', new_status: 'repaying', tenant_id: tenantId },
+      } as any);
+
+      toast({ title: '✅ Cycle reopened', description: 'You can now collect from your float.' });
+      loadFullProfile();
+    } catch (err: any) {
+      toast({ title: 'Reopen failed', description: err.message, variant: 'destructive' });
+    } finally {
+      setReopening(false);
     }
   };
 
@@ -720,6 +760,28 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
             {/* Paid / Remaining / Target — matches Manager tenant card layout.
                 Target = principal + 33%/30 access fee + registration fee
                 (already encoded in rent_requests.total_repayment). */}
+            {summary.activeRequest.status === 'rejected' && (
+              <div className="rounded-xl border border-warning/40 bg-warning/10 p-3 sm:p-4 flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-warning">This rent cycle was rejected</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                    The tenant still owes <strong className="font-mono">{formatUGX(summary.currentOutstanding)}</strong>.
+                    Reopen the cycle to collect from your float and earn 10% commission.
+                  </p>
+                  <Button
+                    onClick={handleReopenRejectedCycle}
+                    disabled={reopening}
+                    variant="warning"
+                    size="sm"
+                    className="mt-2.5 gap-1.5"
+                  >
+                    {reopening ? <Loader2 className="h-4 w-4 animate-spin" /> : <Undo2 className="h-4 w-4" />}
+                    {reopening ? 'Reopening…' : 'Reopen cycle to collect'}
+                  </Button>
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               <div className="rounded-xl border border-success/30 bg-success/10 p-3 text-center">
                 <p className="text-[11px] uppercase tracking-wider text-success/80 font-semibold">Paid</p>
@@ -936,7 +998,12 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
                 className="w-full gap-2 text-base h-14 font-bold rounded-xl shadow-lg active:scale-[0.97] transition-transform"
                 variant="success"
                 size="xl"
-                disabled={floatLoading || !!floatError || agentFloatBalance < 500}
+                disabled={
+                  floatLoading ||
+                  !!floatError ||
+                  agentFloatBalance < 500 ||
+                  summary.activeRequest?.status === 'rejected'
+                }
               >
                 {floatLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Banknote className="h-6 w-6" />}
                 {floatLoading ? 'Loading float...' : `Pay ${formatUGX(Math.min(summary.currentOutstanding, agentFloatBalance))}`}
