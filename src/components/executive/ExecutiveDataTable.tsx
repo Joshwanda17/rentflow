@@ -346,9 +346,37 @@ export function ExecutiveDataTable<T extends Record<string, any>>({
             </tbody>
           </table>
         </div>
-        {!loading && filtered.length > 0 && (
-          <div className="px-3 py-2 bg-muted/30 text-xs text-muted-foreground border-t border-border">
-            Showing {filtered.length} of {data.length} records (latest {limit})
+        {!loading && allFiltered.length > 0 && (
+          <div className="px-3 py-2 bg-muted/30 text-xs text-muted-foreground border-t border-border flex items-center justify-between gap-2 flex-wrap">
+            <span>
+              Showing {pageStart + 1}-{pageEnd} of {allFiltered.length.toLocaleString()}
+              {allFiltered.length !== data.length && (
+                <span className="text-muted-foreground/70"> (filtered from {data.length.toLocaleString()})</span>
+              )}
+            </span>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2"
+                disabled={safePage === 0}
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+              >
+                <ChevronLeft className="h-3.5 w-3.5" /> Prev
+              </Button>
+              <span className="text-xs px-2">
+                Page {safePage + 1} / {totalPages}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2"
+                disabled={safePage >= totalPages - 1}
+                onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+              >
+                Next <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
           </div>
         )}
       </div>
