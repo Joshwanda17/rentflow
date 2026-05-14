@@ -107,6 +107,7 @@ export function ProxyPartnerFunds() {
   const [selectedPartnerId, setSelectedPartnerId] = useState<string>('');
   const [partnerWithdrawalStatus, setPartnerWithdrawalStatus] = useState<Record<string, string>>({});
   const [partnerWithdrawalIds, setPartnerWithdrawalIds] = useState<Record<string, string>>({});
+  const [strictWithdrawableByPartner, setStrictWithdrawableByPartner] = useState<Record<string, number>>({});
   // Sum of in-flight (pending/processing/manager_approved/cfo_approved/requested)
   // withdrawal amounts per partner. Treated as already-paid for display so the
   // card disappears from the default view the instant Caro initiates.
@@ -257,6 +258,7 @@ export function ProxyPartnerFunds() {
         setPartnerWithdrawalStatus({});
         setActiveWithdrawalsByPartner({});
         setLastTerminalByPartner({});
+        setStrictWithdrawableByPartner({});
         setPartnerIdsForRealtime([]);
         setPortfolioIdsForRealtime([]);
         setLoading(false);
@@ -343,6 +345,7 @@ export function ProxyPartnerFunds() {
         setPartnerWithdrawalStatus({});
         setActiveWithdrawalsByPartner({});
         setLastTerminalByPartner({});
+        setStrictWithdrawableByPartner({});
         setPartnerIdsForRealtime([]);
         setApprovedOps([]);
         setLoading(false);
@@ -391,6 +394,7 @@ export function ProxyPartnerFunds() {
         setPartnerWithdrawalStatus({});
         setActiveWithdrawalsByPartner({});
         setLastTerminalByPartner({});
+        setStrictWithdrawableByPartner({});
         setPartnerIdsForRealtime([]);
         setLoading(false);
         return;
