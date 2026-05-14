@@ -42,6 +42,7 @@ interface PwoEntry {
   amount: number;
   linked_party: string | null;
   source_id: string | null;
+  target_wallet_user_id: string | null;
   description: string | null;
   metadata: Record<string, any> | null;
   created_at: string;
@@ -304,7 +305,7 @@ export function ProxyPartnerFunds() {
       const [legacyRes, v2Res] = await Promise.all([
         supabase
           .from('pending_wallet_operations')
-          .select('id, amount, linked_party, source_id, description, metadata, created_at')
+          .select('id, amount, linked_party, source_id, target_wallet_user_id, description, metadata, created_at')
           .eq('target_wallet_user_id', user.id)
           .eq('category', 'roi_payout')
           .eq('status', 'approved')
@@ -315,7 +316,7 @@ export function ProxyPartnerFunds() {
         v2PortfolioIds.length > 0
           ? supabase
               .from('pending_wallet_operations')
-              .select('id, amount, linked_party, source_id, description, metadata, created_at')
+              .select('id, amount, linked_party, source_id, target_wallet_user_id, description, metadata, created_at')
               .eq('category', 'roi_payout')
               .eq('status', 'approved')
               .not('metadata->coo_approved_by', 'is', null)
@@ -373,7 +374,14 @@ export function ProxyPartnerFunds() {
       const validProxyPartnerIds = new Set(proxyPartnerIds);
       const ops = rawOps.filter((op) => {
         const investor = op.source_id ? portfolioToInvestor[op.source_id] : null;
-        return !!investor && investor !== user.id && validProxyPartnerIds.has(investor);
+        const targetWalletUserId = op.target_wallet_user_id;
+        const belongsToCurrentAgent = !targetWalletUserId
+          || targetWalletUserId === user.id
+          || targetWalletUserId === investor;
+        return !!investor
+          && investor !== user.id
+          && validProxyPartnerIds.has(investor)
+          && belongsToCurrentAgent;
       });
       setApprovedOps(ops);
 
