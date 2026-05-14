@@ -131,6 +131,8 @@ export function ProxyPartnerFunds() {
   // not the agent — `user_id=eq.<agent>` no longer catches them).
   const [partnerIdsForRealtime, setPartnerIdsForRealtime] = useState<string[]>([]);
   const [portfolioIdsForRealtime, setPortfolioIdsForRealtime] = useState<string[]>([]);
+  const partnerRealtimeKey = partnerIdsForRealtime.join(',');
+  const portfolioRealtimeKey = portfolioIdsForRealtime.join(',');
   useEffect(() => {
     if (!user?.id) return;
     loadProxyFunds();
@@ -237,7 +239,7 @@ export function ProxyPartnerFunds() {
       supabase.removeChannel(agentChannel);
       if (partnerChannel) supabase.removeChannel(partnerChannel);
     };
-  }, [user?.id, partnerIdsForRealtime, portfolioIdsForRealtime]);
+  }, [user?.id, partnerRealtimeKey, portfolioRealtimeKey]);
 
   const loadProxyFunds = async (showSpinner = true) => {
     if (!user?.id) return;
