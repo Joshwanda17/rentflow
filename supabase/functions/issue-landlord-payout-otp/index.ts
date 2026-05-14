@@ -10,7 +10,7 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const OTP_TTL_SECONDS = 120;
+const OTP_TTL_SECONDS = 3600;
 
 function generateOtp(): string {
   let s = "";
@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
       const phone = normalizePhone(existing.landlord_phone);
       await sendSms(
         phone,
-        `Welile: You are receiving UGX ${Number(existing.amount).toLocaleString()} as rent. OTP: ${otp}. Valid 2 min. Share with the agent ONLY if you want to receive this money.`,
+        `Welile: You are receiving UGX ${Number(existing.amount).toLocaleString()} as rent. OTP: ${otp}. Valid 1 hour. Share with the agent ONLY if you want to receive this money.`,
       );
       return json({ success: true, challenge_id, expires_at: otp_expires_at });
     }
@@ -180,7 +180,7 @@ Deno.serve(async (req) => {
     const phone = normalizePhone(landlord_phone);
     const sent = await sendSms(
       phone,
-      `Welile: You are receiving UGX ${amt.toLocaleString()} as rent${tenant_name ? ` from ${tenant_name}` : ""}. OTP: ${otp}. Valid 2 min. Share with the agent ONLY if you want to receive this money.`,
+      `Welile: You are receiving UGX ${amt.toLocaleString()} as rent${tenant_name ? ` from ${tenant_name}` : ""}. OTP: ${otp}. Valid 1 hour. Share with the agent ONLY if you want to receive this money.`,
     );
 
     return json({
