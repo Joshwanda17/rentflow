@@ -668,10 +668,12 @@ export function ProxyPartnerFunds() {
       // Treat in-flight withdrawals as already paid out — the moment Caro
       // initiates a withdrawal the card should disappear from the default view.
       const totalInFlight = activeWithdrawalsByPartner[partnerId] || 0;
-      partnerAvailable[partnerId] = Math.max(
+      const computedAvailable = Math.max(
         0,
         partnerTotals[partnerId] - totalWithdrawn - totalInFlight,
       );
+      const strictLiveAvailable = strictWithdrawableByPartner[partnerId] ?? computedAvailable;
+      partnerAvailable[partnerId] = Math.max(0, Math.min(computedAvailable, strictLiveAvailable));
     });
 
     // Build display entries — distribute proportionally across portfolio groups
@@ -730,7 +732,7 @@ export function ProxyPartnerFunds() {
         if (b.totalReturns !== a.totalReturns) return b.totalReturns - a.totalReturns;
         return a.partnerName.localeCompare(b.partnerName);
       });
-  }, [approvedOps, completedWithdrawals, activeWithdrawalsByPartner, profiles, portfolioMap, dismissalMap, user?.id]);
+  }, [approvedOps, completedWithdrawals, activeWithdrawalsByPartner, strictWithdrawableByPartner, profiles, portfolioMap, dismissalMap, user?.id]);
 
   const handleWithdraw = async (partner: PartnerBalance) => {
     setSelectedPartnerId(partner.partnerId);
