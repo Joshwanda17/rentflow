@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
       const phone = normalizePhone(existing.landlord_phone);
       await sendSms(
         phone,
-        `Welile: You are receiving UGX ${Number(existing.amount).toLocaleString()} as rent. OTP: ${otp}. Valid 2 min. Share with the agent ONLY if you want to receive this money.`,
+        `Welile: You are receiving UGX ${Number(existing.amount).toLocaleString()} as rent. OTP: ${otp}. Valid 1 hour. Share with the agent ONLY if you want to receive this money.`,
       );
       return json({ success: true, challenge_id, expires_at: otp_expires_at });
     }
