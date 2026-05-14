@@ -957,7 +957,10 @@ export function ProxyPartnerFunds() {
     return { kind: 'fresh' };
   };
 
-  const inFlightCount = partnerBalances.filter((p) => classify(p).kind === 'inflight').length;
+  const inFlightCount = partnerBalances.filter((p) => {
+    const kind = classify(p).kind;
+    return kind === 'inflight' || kind === 'active';
+  }).length;
   const reattemptCount = partnerBalances.filter((p) => classify(p).kind === 'reattempt').length;
   const freshCount = partnerBalances.filter((p) => classify(p).kind === 'fresh').length;
 
@@ -991,10 +994,10 @@ export function ProxyPartnerFunds() {
 
   const visibleBalances = partnerBalances.filter((p) => {
     const c = classify(p);
-    // Default All view hides in-flight cards — once Caro initiates a
+    // Default All view hides in-flight/active cards — once Caro initiates a
     // withdrawal the partner is treated as paid and the card disappears.
-    if (filterMode === 'all') return c.kind !== 'inflight';
-    if (filterMode === 'inflight') return c.kind === 'inflight';
+    if (filterMode === 'all') return c.kind !== 'inflight' && c.kind !== 'active';
+    if (filterMode === 'inflight') return c.kind === 'inflight' || c.kind === 'active';
     if (filterMode === 'reattempt') return c.kind === 'reattempt';
     if (filterMode === 'fresh') return c.kind === 'fresh';
     return true;
