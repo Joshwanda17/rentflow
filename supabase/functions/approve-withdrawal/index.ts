@@ -181,6 +181,46 @@ Deno.serve(async (req) => {
       }
     }
 
+    // CUSTODY-V2 HARD GATE (2026-05-14):
+    // Proxy payouts MUST debit the partner's wallet. We previously fell
+    // back to debiting the agent (`fundingUserId = wr.user_id`) whenever
+    // the partner's strict available balance fell short of the request.
+    // That silently shifted the cost onto the agent and left the partner
+    // wallet UI untouched — exactly the bug the user reported (Atuhaire
+    // ate UGX 1.44M for NASSAKA's payout, partner balance never moved).
+    //
+    // Reject the approval here and surface a clear, actionable error so
+    // FinOps either tops up the partner directly (CFO Direct Credit) or
+    // reduces the request. The agent's wallet is never touched.
+    if (
+      isProxyPayout &&
+      beneficiaryUserId &&
+      beneficiaryUserId !== wr.user_id &&
+      fundingUserId !== beneficiaryUserId
+    ) {
+      const partnerAvail = directPartnerFundingAvailable ?? 0;
+      console.warn(
+        `[approve-withdrawal] BLOCKED proxy fallback to agent: ` +
+        `request=${withdrawal_id} partner=${beneficiaryUserId} ` +
+        `partner_available=${partnerAvail} amount=${amount}`,
+      );
+      return new Response(
+        JSON.stringify({
+          error: "PARTNER_INSUFFICIENT_BALANCE",
+          message:
+            `Partner wallet has UGX ${partnerAvail.toLocaleString()} available — ` +
+            `request is for UGX ${amount.toLocaleString()}. ` +
+            `Top up the partner via CFO Direct Credit or reduce the amount. ` +
+            `Approval will NOT debit the agent.`,
+          partner_user_id: beneficiaryUserId,
+          partner_available: partnerAvail,
+          requested_amount: amount,
+          code: "partner_insufficient_balance",
+        }),
+        { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     console.log(
       `[approve-withdrawal] withdrawal ${withdrawal_id}: isProxyPayout=${isProxyPayout}, ` +
       `request_owner=${wr.user_id}, debiting=${fundingUserId}, beneficiary=${beneficiaryUserId}, ` +
