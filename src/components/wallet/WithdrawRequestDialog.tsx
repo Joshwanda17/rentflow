@@ -174,6 +174,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
   const [bankAccountName, setBankAccountName] = useState('');
   const [bankAccountNumber, setBankAccountNumber] = useState('');
   const [reason, setReason] = useState('');
+  const [activeDuplicate, setActiveDuplicate] = useState<RecentRecipientEntry | null>(null);
 
   // Prefill from proxy partner funds
   useEffect(() => {
@@ -255,24 +256,56 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
   const meetsMinBalance = availableBalance >= 500;
   const isFormValid = meetsMinBalance && amount >= 500 && amount <= availableBalance && isPayoutValid() && reason.trim().length >= 10 && workingHoursStatus.isOpen;
 
+  useEffect(() => {
+    let cancelled = false;
+    const verifyRecentRecipient = async () => {
+      setActiveDuplicate(null);
+      if (!open || !user || !payoutMode) return;
+      const info = buildRecipientKey({ payoutMode, momoNumber, bankName, bankAccountNumber });
+      if (!info) return;
+      const recent = readRecentRecipients(user.id)[info.key];
+      if (!recent || Date.now() - recent.submittedAt >= RECENT_WINDOW_MS) return;
+      try {
+        let query = supabase
+          .from('withdrawal_requests')
+          .select('id, amount, created_at')
+          .eq('user_id', user.id)
+          .eq('amount', recent.amount)
+          .in('status', ACTIVE_DUPLICATE_STATUSES)
+          .gte('created_at', new Date(recent.submittedAt - 60_000).toISOString())
+          .limit(1);
+
+        if (payoutMode === 'mtn' || payoutMode === 'airtel') {
+          query = query
+            .eq('mobile_money_provider', payoutMode)
+            .eq('mobile_money_number', momoNumber.trim());
+        } else if (payoutMode === 'bank') {
+          query = query
+            .eq('bank_name', bankName)
+            .eq('bank_account_number', bankAccountNumber.trim());
+        } else {
+          query = query.eq('payout_method', 'cash');
+        }
+
+        const { data } = await query;
+        if (cancelled) return;
+        if ((data || []).length > 0) {
+          setActiveDuplicate({ ...recent, recipientLabel: info.label });
+        } else {
+          deleteRecentRecipient(user.id, info.key);
+        }
+      } catch {
+        if (!cancelled) setActiveDuplicate({ ...recent, recipientLabel: info.label });
+      }
+    };
+    verifyRecentRecipient();
+    return () => { cancelled = true; };
+  }, [open, user?.id, payoutMode, momoNumber, bankName, bankAccountNumber]);
+
   // Live look-up of the current recipient against the in-session map.
   // Drives the inline notice on the form so the user is warned BEFORE
   // they hit Submit. Recomputes whenever the recipient inputs change.
-  const recentRecipientMatch = (() => {
-    if (!user || !payoutMode) return null;
-    const info = buildRecipientKey({
-      payoutMode,
-      momoNumber,
-      bankName,
-      bankAccountNumber,
-    });
-    if (!info) return null;
-    const recent = readRecentRecipients(user.id);
-    const hit = recent[info.key];
-    if (!hit) return null;
-    if (Date.now() - hit.submittedAt >= RECENT_WINDOW_MS) return null;
-    return { ...hit, recipientLabel: info.label };
-  })();
+  const recentRecipientMatch = activeDuplicate;
 
   const handleSubmit = async () => {
     if (!user) { toast.error('Please log in first'); return; }
