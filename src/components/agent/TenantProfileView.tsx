@@ -998,7 +998,12 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
                 className="w-full gap-2 text-base h-14 font-bold rounded-xl shadow-lg active:scale-[0.97] transition-transform"
                 variant="success"
                 size="xl"
-                disabled={floatLoading || !!floatError || agentFloatBalance < 500}
+                disabled={
+                  floatLoading ||
+                  !!floatError ||
+                  agentFloatBalance < 500 ||
+                  summary.activeRequest?.status === 'rejected'
+                }
               >
                 {floatLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Banknote className="h-6 w-6" />}
                 {floatLoading ? 'Loading float...' : `Pay ${formatUGX(Math.min(summary.currentOutstanding, agentFloatBalance))}`}
