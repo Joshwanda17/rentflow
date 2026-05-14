@@ -42,6 +42,7 @@ interface PwoEntry {
   amount: number;
   linked_party: string | null;
   source_id: string | null;
+  target_wallet_user_id: string | null;
   description: string | null;
   metadata: Record<string, any> | null;
   created_at: string;
@@ -106,6 +107,7 @@ export function ProxyPartnerFunds() {
   const [selectedPartnerId, setSelectedPartnerId] = useState<string>('');
   const [partnerWithdrawalStatus, setPartnerWithdrawalStatus] = useState<Record<string, string>>({});
   const [partnerWithdrawalIds, setPartnerWithdrawalIds] = useState<Record<string, string>>({});
+  const [strictWithdrawableByPartner, setStrictWithdrawableByPartner] = useState<Record<string, number>>({});
   // Sum of in-flight (pending/processing/manager_approved/cfo_approved/requested)
   // withdrawal amounts per partner. Treated as already-paid for display so the
   // card disappears from the default view the instant Caro initiates.
@@ -256,6 +258,7 @@ export function ProxyPartnerFunds() {
         setPartnerWithdrawalStatus({});
         setActiveWithdrawalsByPartner({});
         setLastTerminalByPartner({});
+        setStrictWithdrawableByPartner({});
         setPartnerIdsForRealtime([]);
         setPortfolioIdsForRealtime([]);
         setLoading(false);
@@ -304,7 +307,7 @@ export function ProxyPartnerFunds() {
       const [legacyRes, v2Res] = await Promise.all([
         supabase
           .from('pending_wallet_operations')
-          .select('id, amount, linked_party, source_id, description, metadata, created_at')
+          .select('id, amount, linked_party, source_id, target_wallet_user_id, description, metadata, created_at')
           .eq('target_wallet_user_id', user.id)
           .eq('category', 'roi_payout')
           .eq('status', 'approved')
@@ -315,7 +318,7 @@ export function ProxyPartnerFunds() {
         v2PortfolioIds.length > 0
           ? supabase
               .from('pending_wallet_operations')
-              .select('id, amount, linked_party, source_id, description, metadata, created_at')
+              .select('id, amount, linked_party, source_id, target_wallet_user_id, description, metadata, created_at')
               .eq('category', 'roi_payout')
               .eq('status', 'approved')
               .not('metadata->coo_approved_by', 'is', null)
@@ -342,6 +345,7 @@ export function ProxyPartnerFunds() {
         setPartnerWithdrawalStatus({});
         setActiveWithdrawalsByPartner({});
         setLastTerminalByPartner({});
+        setStrictWithdrawableByPartner({});
         setPartnerIdsForRealtime([]);
         setApprovedOps([]);
         setLoading(false);
@@ -373,7 +377,14 @@ export function ProxyPartnerFunds() {
       const validProxyPartnerIds = new Set(proxyPartnerIds);
       const ops = rawOps.filter((op) => {
         const investor = op.source_id ? portfolioToInvestor[op.source_id] : null;
-        return !!investor && investor !== user.id && validProxyPartnerIds.has(investor);
+        const targetWalletUserId = op.target_wallet_user_id;
+        const belongsToCurrentAgent = !targetWalletUserId
+          || targetWalletUserId === user.id
+          || targetWalletUserId === investor;
+        return !!investor
+          && investor !== user.id
+          && validProxyPartnerIds.has(investor)
+          && belongsToCurrentAgent;
       });
       setApprovedOps(ops);
 
@@ -383,6 +394,7 @@ export function ProxyPartnerFunds() {
         setPartnerWithdrawalStatus({});
         setActiveWithdrawalsByPartner({});
         setLastTerminalByPartner({});
+        setStrictWithdrawableByPartner({});
         setPartnerIdsForRealtime([]);
         setLoading(false);
         return;
@@ -414,7 +426,7 @@ export function ProxyPartnerFunds() {
 
       // Step 4: Fetch profiles, completed withdrawals, active withdrawals, and
       // terminal-unpaid history in parallel
-      const [profileRes, completedRes, activeWithdrawalRes, terminalRes] = await Promise.all([
+      const [profileRes, completedRes, activeWithdrawalRes, terminalRes, strictBalanceRes] = await Promise.all([
         supabase
           .from('profiles')
           .select('id, full_name, phone')
@@ -448,6 +460,10 @@ export function ProxyPartnerFunds() {
           .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
           .order('updated_at', { ascending: false })
           .limit(500),
+        supabase
+          .from('v_user_wallet_strict')
+          .select('user_id, withdrawable')
+          .in('user_id', uniquePartnerIds),
       ]);
 
       const profileMap: Record<string, { full_name: string; phone: string }> = {};
@@ -455,6 +471,11 @@ export function ProxyPartnerFunds() {
         profileMap[p.id] = { full_name: p.full_name || 'Unknown', phone: p.phone || '' };
       });
       setProfiles(profileMap);
+      const strictMap: Record<string, number> = {};
+      (strictBalanceRes.data || []).forEach((row: any) => {
+        strictMap[row.user_id] = Number(row.withdrawable) || 0;
+      });
+      setStrictWithdrawableByPartner(strictMap);
       // Resolve a partner key for every row: prefer linked_party (legacy
       // custody), fall back to user_id when it matches a known partner
       // (Custody V2). Anything that doesn't resolve is dropped.
@@ -647,10 +668,12 @@ export function ProxyPartnerFunds() {
       // Treat in-flight withdrawals as already paid out — the moment Caro
       // initiates a withdrawal the card should disappear from the default view.
       const totalInFlight = activeWithdrawalsByPartner[partnerId] || 0;
-      partnerAvailable[partnerId] = Math.max(
+      const computedAvailable = Math.max(
         0,
         partnerTotals[partnerId] - totalWithdrawn - totalInFlight,
       );
+      const strictLiveAvailable = strictWithdrawableByPartner[partnerId] ?? computedAvailable;
+      partnerAvailable[partnerId] = Math.max(0, Math.min(computedAvailable, strictLiveAvailable));
     });
 
     // Build display entries — distribute proportionally across portfolio groups
@@ -709,7 +732,7 @@ export function ProxyPartnerFunds() {
         if (b.totalReturns !== a.totalReturns) return b.totalReturns - a.totalReturns;
         return a.partnerName.localeCompare(b.partnerName);
       });
-  }, [approvedOps, completedWithdrawals, activeWithdrawalsByPartner, profiles, portfolioMap, dismissalMap, user?.id]);
+  }, [approvedOps, completedWithdrawals, activeWithdrawalsByPartner, strictWithdrawableByPartner, profiles, portfolioMap, dismissalMap, user?.id]);
 
   const handleWithdraw = async (partner: PartnerBalance) => {
     setSelectedPartnerId(partner.partnerId);
