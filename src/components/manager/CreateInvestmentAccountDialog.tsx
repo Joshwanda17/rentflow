@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { Search, User, Loader2, PlusCircle, Sparkles } from 'lucide-react';
+import { Search, User, Loader2, PlusCircle, Sparkles, Wallet } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { UGANDA_BANKS } from '@/lib/ugandaBanks';
 import { useFunderApprovalStatus } from '@/hooks/useFunderApprovalStatus';
@@ -37,6 +37,9 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, p
   const [selectedUser, setSelectedUser] = useState<UserResult | null>(null);
   const { status: approvalStatus, isApproved, isLoading: approvalLoading } =
     useFunderApprovalStatus(selectedUser?.id);
+
+  const [partnerBalance, setPartnerBalance] = useState<number | null>(null);
+  const [balanceLoading, setBalanceLoading] = useState(false);
 
   const [form, setForm] = useState({
     account_name: '',
@@ -85,6 +88,33 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, p
     if (open && !form.portfolio_pin) generatePin();
   }, [open]);
 
+  // Fetch the selected partner's withdrawable wallet balance — money for the
+  // portfolio MUST come from this balance, not from manual input.
+  useEffect(() => {
+    let cancelled = false;
+    if (!selectedUser) {
+      setPartnerBalance(null);
+      return;
+    }
+    setBalanceLoading(true);
+    setPartnerBalance(null);
+    (async () => {
+      const { data, error } = await supabase.rpc('get_user_available_balance', {
+        p_user_id: selectedUser.id,
+      });
+      if (cancelled) return;
+      const bal = !error && typeof data === 'number' ? data : 0;
+      setPartnerBalance(bal);
+      // Default the amount to the full available balance (capped at sane max).
+      setForm(p => ({
+        ...p,
+        investment_amount: bal > 0 ? String(Math.floor(bal)) : '',
+      }));
+      setBalanceLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [selectedUser?.id]);
+
   const searchUsers = async (q: string) => {
     setSearchTerm(q);
     if (q.length < 3) { setUsers([]); return; }
@@ -108,6 +138,18 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, p
     const amt = parseFloat(form.investment_amount);
     if (isNaN(amt) || amt < 50000) {
       toast({ title: 'Investment must be at least UGX 50,000', variant: 'destructive' });
+      return;
+    }
+    if (partnerBalance === null) {
+      toast({ title: 'Partner wallet balance not loaded yet', variant: 'destructive' });
+      return;
+    }
+    if (amt > partnerBalance) {
+      toast({
+        title: 'Insufficient partner wallet balance',
+        description: `${selectedUser.full_name} has UGX ${partnerBalance.toLocaleString()} available. Top up the partner wallet first.`,
+        variant: 'destructive',
+      });
       return;
     }
     if (!/^\d{4}$/.test(form.portfolio_pin)) {
