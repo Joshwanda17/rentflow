@@ -266,22 +266,20 @@ export function useAuthForm() {
       toast({ title: 'Error', description: validationError, variant: 'destructive' });
       return;
     }
+    setIsLoading(true);
     const trimmedEmail = signupEmail.trim().toLowerCase();
     const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const hasRealEmail = trimmedEmail.length > 0 && EMAIL_RE.test(trimmedEmail) && !trimmedEmail.endsWith('@welile.user') && !trimmedEmail.endsWith('@welile.agent');
 
-    // Phone OTP verification is currently disabled for signup. Users can
-    // register with phone + password directly; optional email is still used
-    // when supplied so confirmation links still work for those users.
     const cleanPhone = phone.replace(/\D/g, '');
-    // Prepend country code if the number doesn't already include it
     const fullPhone = cleanPhone.startsWith(countryCode) ? cleanPhone : countryCode + (cleanPhone.startsWith('0') ? cleanPhone.slice(1) : cleanPhone);
     const authEmail = hasRealEmail ? trimmedEmail : `${fullPhone}@welile.user`;
     const storedReferrerId = referrerIdState || localStorage.getItem('referral_agent_id');
     console.log('[Auth] Signup with referrer:', storedReferrerId, '(state:', referrerIdState, ', localStorage:', localStorage.getItem('referral_agent_id'), ')');
 
-    const { error } = await signUpWithoutRole(authEmail, password, trimmedFullName, fullPhone, storedReferrerId || undefined, preSelectedRole || undefined);
+    const { data, error } = await signUpWithoutRole(authEmail, password, trimmedFullName, fullPhone, storedReferrerId || undefined, preSelectedRole || undefined);
     if (error) {
+      setIsLoading(false);
       let errorMessage = error.message;
       if (error.message.includes('already registered')) {
         errorMessage = 'This phone number is already registered. Please sign in instead.';
@@ -289,13 +287,29 @@ export function useAuthForm() {
         errorMessage = 'This phone number is already linked to another account. Please sign in instead.';
       }
       toast({ title: 'Sign Up Failed', description: errorMessage, variant: 'destructive' });
-    } else {
-      toast({
-        title: 'Account Created!',
-        description: hasRealEmail ? 'Check your email to confirm your account.' : 'Welcome to Welile',
-      });
-      saveLocationInBackground();
+      return;
     }
+
+    toast({
+      title: 'Account Created!',
+      description: 'Welcome to Welile',
+    });
+    saveLocationInBackground();
+
+    // If auto-confirm did not return a session, sign the user in immediately
+    // so the auth-state redirect hooks fire and send them to the dashboard.
+    if (!data?.session) {
+      const { error: signInError } = await signIn(authEmail, password);
+      if (signInError) {
+        setIsLoading(false);
+        toast({
+          title: 'Check your email',
+          description: 'Please confirm your account before signing in.',
+        });
+        return;
+      }
+    }
+    setIsLoading(false);
   };
 
   const handleSignInSubmit = async () => {
