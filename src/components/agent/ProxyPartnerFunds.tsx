@@ -237,7 +237,7 @@ export function ProxyPartnerFunds() {
       supabase.removeChannel(agentChannel);
       if (partnerChannel) supabase.removeChannel(partnerChannel);
     };
-  }, [user?.id, partnerIdsForRealtime.join(','), portfolioIdsForRealtime.join(',')]);
+  }, [user?.id, partnerIdsForRealtime, portfolioIdsForRealtime]);
 
   const loadProxyFunds = async (showSpinner = true) => {
     if (!user?.id) return;
