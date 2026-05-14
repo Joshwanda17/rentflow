@@ -53,7 +53,12 @@ Deno.serve(async (req) => {
     // back-office creators — they must NOT own the portfolio, otherwise it shows
     // up under their personal portfolio list as well as the partner's.
     const creatorRoles = (roleData || []).map(r => r.role);
-    const creatorIsAgent = creatorRoles.includes('agent');
+    const backOfficeRoles = ['manager', 'coo', 'super_admin', 'operations'];
+    const creatorIsBackOffice = creatorRoles.some(r => backOfficeRoles.includes(r));
+    // Back-office staff may also carry the agent role. In that case the action
+    // is still a back-office portfolio creation, so the staff member must not
+    // become the portfolio owner and the wallet deduction must be instant.
+    const creatorIsFieldAgent = creatorRoles.includes('agent') && !creatorIsBackOffice;
 
     let body: Record<string, unknown>;
     try { body = await req.json(); } catch {
@@ -71,6 +76,7 @@ Deno.serve(async (req) => {
     const inviteId = typeof body.invite_id === 'string' && body.invite_id.length > 0 ? body.invite_id : null;
     const investorId = typeof body.investor_id === 'string' && body.investor_id.length > 0 ? body.investor_id : null;
     const payoutDay = typeof body.payout_day === 'number' && body.payout_day >= 1 && body.payout_day <= 31 ? body.payout_day : 15;
+    const instantDeduct = creatorIsBackOffice && !!investorId;
 
     // Payment method fields
     const paymentMethod = typeof body.payment_method === 'string' && ['mobile_money', 'bank'].includes(body.payment_method) ? body.payment_method : null;
@@ -121,7 +127,7 @@ Deno.serve(async (req) => {
         // (COO / Partner Ops / manager / operations / super_admin) we
         // attribute it to the partner themselves so it does NOT show
         // under the staff member's portfolio list.
-        agent_id: creatorIsAgent ? user.id : (investorId || user.id),
+        agent_id: creatorIsFieldAgent ? user.id : (investorId || user.id),
         portfolio_code: codeData,
         investment_amount: investmentAmount,
         duration_months: durationMonths,
@@ -137,7 +143,7 @@ Deno.serve(async (req) => {
         payout_day: payoutDay,
         maturity_date: maturityDate.toISOString().split('T')[0],
         next_roi_date: nextRoiDate.toISOString().split('T')[0],
-        status: 'pending_approval', // Requires manager/COO approval before activation
+        status: instantDeduct ? 'active' : 'pending_approval',
       })
       .select()
       .single();
@@ -158,10 +164,6 @@ Deno.serve(async (req) => {
     // a portfolio for an explicit partner (investorId), the money already lives in
     // the partner's wallet. Skip the approval queue and deduct the wallet
     // immediately via ledger — same pattern as coo-wallet-to-portfolio.
-    const backOfficeRoles = ['manager', 'coo', 'super_admin', 'operations'];
-    const creatorIsBackOffice = creatorRoles.some(r => backOfficeRoles.includes(r));
-    const instantDeduct = creatorIsBackOffice && !!investorId;
-
     if (instantDeduct) {
       // Verify partner wallet has the funds
       const { data: wallet, error: wErr } = await adminClient
