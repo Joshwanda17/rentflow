@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { PayLandlordDialog } from '@/components/wallet/PayLandlordDialog';
+import { AgentFloatPayoutWizard } from '@/components/agent/AgentFloatPayoutWizard';
 
 export default function PayLandlord() {
   const navigate = useNavigate();
@@ -32,7 +32,7 @@ export default function PayLandlord() {
         </div>
       </header>
 
-      <PayLandlordDialog open={dialogOpen} onOpenChange={handleClose} />
+      <AgentFloatPayoutWizard open={dialogOpen} onOpenChange={handleClose} />
     </div>
   );
 }
