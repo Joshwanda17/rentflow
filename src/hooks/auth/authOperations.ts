@@ -42,12 +42,12 @@ export async function signUp(
     // eslint-disable-next-line no-console
     console.warn('[signUp] referrer dropped — not a valid UUID:', trimmedReferrer);
   }
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: { emailRedirectTo: redirectUrl, data },
   });
-  return { error: error as Error | null };
+  return { data, error: error as Error | null };
 }
 
 export async function signUpWithoutRole(email: string, password: string, fullName: string, phone: string, referrerId?: string, intendedRole?: string) {
