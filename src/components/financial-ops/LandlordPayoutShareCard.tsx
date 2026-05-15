@@ -485,36 +485,119 @@ export function LandlordPayoutShareCard({ open, onOpenChange, data }: Props) {
           )}
         </div>
 
-        <div className="grid grid-cols-3 gap-2">
-          <Button onClick={handleNativeShare} disabled={busy !== null} className="gap-2">
-            {busy === 'share' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
-            Share
+        {/* Recipient picker — pick who receives the WhatsApp message */}
+        <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Send to</p>
+          <div className="grid grid-cols-3 gap-1.5">
+            <button
+              type="button"
+              onClick={() => setRecipient('agent')}
+              disabled={!data.agent_phone}
+              className={`text-[11px] rounded-md px-2 py-2 border transition ${
+                recipient === 'agent'
+                  ? 'bg-purple-600 border-purple-600 text-white'
+                  : 'bg-background border-border text-foreground hover:bg-muted'
+              } disabled:opacity-40 disabled:cursor-not-allowed`}
+            >
+              Agent
+              {data.agent_phone && (
+                <span className="block font-mono text-[10px] opacity-80 truncate">
+                  {data.agent_phone}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setRecipient('landlord')}
+              className={`text-[11px] rounded-md px-2 py-2 border transition ${
+                recipient === 'landlord'
+                  ? 'bg-purple-600 border-purple-600 text-white'
+                  : 'bg-background border-border text-foreground hover:bg-muted'
+              }`}
+            >
+              Landlord
+              <span className="block font-mono text-[10px] opacity-80 truncate">
+                {data.landlord_phone}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setRecipient('other')}
+              className={`text-[11px] rounded-md px-2 py-2 border transition ${
+                recipient === 'other'
+                  ? 'bg-purple-600 border-purple-600 text-white'
+                  : 'bg-background border-border text-foreground hover:bg-muted'
+              }`}
+            >
+              Other
+              <span className="block text-[10px] opacity-80">custom #</span>
+            </button>
+          </div>
+          {recipient === 'other' && (
+            <input
+              type="tel"
+              inputMode="tel"
+              placeholder="e.g. 0772123456"
+              value={customPhone}
+              onChange={(e) => setCustomPhone(e.target.value)}
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm font-mono"
+            />
+          )}
+        </div>
+
+        {/* Primary WhatsApp actions — biggest, thumb-friendly buttons for mobile */}
+        <div className="space-y-2">
+          <Button
+            onClick={handleSharePdf}
+            disabled={busy !== null}
+            className="w-full h-12 gap-2 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white text-base font-semibold shadow-lg"
+          >
+            {busy === 'share-pdf' ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <MessageCircle className="h-5 w-5" />
+            )}
+            Share PDF on WhatsApp
           </Button>
-          <Button onClick={handleDownload} variant="outline" disabled={busy !== null} className="gap-2">
-            {busy === 'png' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-            PNG
+          <Button
+            onClick={handleNativeShare}
+            disabled={busy !== null}
+            variant="outline"
+            className="w-full h-11 gap-2 border-emerald-500/40 text-emerald-700 hover:bg-emerald-500/10"
+          >
+            {busy === 'share' ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Share2 className="h-4 w-4" />
+            )}
+            Share image on WhatsApp
           </Button>
-          <Button onClick={handleDownloadPdf} variant="outline" disabled={busy !== null} className="gap-2">
-            {busy === 'pdf' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-            PDF
+          <Button
+            onClick={openWhatsAppText}
+            disabled={!recipientPhone && recipient !== 'other' ? false : recipient === 'other' && !customPhone}
+            variant="outline"
+            className="w-full h-11 gap-2"
+          >
+            <MessageCircle className="h-4 w-4 text-emerald-600" />
+            Open WhatsApp chat · {recipientLabel}
           </Button>
         </div>
-        <Button
-          onClick={handleSharePdf}
-          disabled={busy !== null}
-          className="w-full gap-2 bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-700 hover:to-fuchsia-700 text-white"
-        >
-          {busy === 'share-pdf' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
-          Share PDF to WhatsApp
-        </Button>
-        <Button
-          onClick={openWhatsAppText}
-          variant="outline"
-          className="w-full gap-2 border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10"
-        >
-          <MessageCircle className="h-4 w-4" />
-          Open WhatsApp chat{data.agent_phone ? ` · ${data.agent_phone}` : ''}
-        </Button>
+
+        {/* Secondary: download fallbacks */}
+        <div className="grid grid-cols-2 gap-2">
+          <Button onClick={handleDownload} variant="ghost" size="sm" disabled={busy !== null} className="gap-2">
+            {busy === 'png' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            Save PNG
+          </Button>
+          <Button onClick={handleDownloadPdf} variant="ghost" size="sm" disabled={busy !== null} className="gap-2">
+            {busy === 'pdf' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+            Save PDF
+          </Button>
+        </div>
+
+        <p className="text-[10px] text-muted-foreground text-center">
+          Tip: on Android & iPhone, "Share PDF on WhatsApp" attaches the file directly into the WhatsApp chat picker.
+        </p>
       </DialogContent>
     </Dialog>
   );
