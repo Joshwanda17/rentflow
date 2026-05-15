@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
@@ -223,6 +223,7 @@ function RowCard({
 }
 
 export function AgentRequestPipelineView() {
+  const queryClient = useQueryClient();
   const [tab, setTab] = useState<PipelineTab>('submitted');
   const [submittedPage, setSubmittedPage] = useState(0);
   const [approvedPage, setApprovedPage] = useState(0);
@@ -470,7 +471,11 @@ export function AgentRequestPipelineView() {
         onOpenChange={(o) => { if (!o) setEditing(null); }}
         onResubmitted={() => {
           setEditing(null);
+          // Refresh both lists so the request leaves Rejected and appears under Submitted
           rejectedQuery.refetch();
+          queryClient.invalidateQueries({ queryKey: ['agent-pipeline', 'submitted'] });
+          setSubmittedPage(0);
+          setTab('submitted');
         }}
       />
     </div>
