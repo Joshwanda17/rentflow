@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { format, startOfDay, startOfWeek, startOfMonth, startOfYear, subDays, subMonths, subYears } from 'date-fns';
-import { Loader2, RefreshCw, Calendar, FileSpreadsheet, FileText, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Loader2, RefreshCw, Calendar, FileSpreadsheet, FileText, ArrowUpRight, ArrowDownRight, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -650,13 +651,26 @@ export function ComprehensiveCashMovement() {
                           const isIn = r.direction === 'cash_in';
                           const name = r.user_id ? partyNames[r.user_id] : null;
                           return (
-                            <TableRow key={r.id || `${r.reference_id}-${i}`}>
+                            <TableRow key={r.id || `${r.reference_id}-${i}`} className="group">
                               <TableCell className="text-[11px] whitespace-nowrap align-top">
                                 <div>{format(new Date(r.transaction_date), 'dd MMM yyyy')}</div>
                                 <div className="text-muted-foreground">{format(new Date(r.transaction_date), 'HH:mm:ss')}</div>
                               </TableCell>
                               <TableCell className="text-[11px] align-top">
-                                <div className="font-mono">{r.reference_id || '—'}</div>
+                                <div className="font-mono flex items-center gap-1">
+                                  {r.id ? (
+                                    <Link
+                                      to={`/cfo/ledger/${r.id}`}
+                                      target="_blank"
+                                      rel="noopener"
+                                      className="text-primary hover:underline inline-flex items-center gap-1"
+                                      title="Open ledger entry detail in new tab"
+                                    >
+                                      {r.reference_id || r.id.slice(0, 8) + '…'}
+                                      <ExternalLink className="h-2.5 w-2.5 opacity-60 group-hover:opacity-100" />
+                                    </Link>
+                                  ) : (r.reference_id || '—')}
+                                </div>
                                 {r.transaction_group_id && (
                                   <div className="text-[10px] text-muted-foreground font-mono">grp: {r.transaction_group_id.slice(0, 8)}…</div>
                                 )}
