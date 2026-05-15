@@ -14,8 +14,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatDynamic as formatUGX } from '@/lib/currencyFormat';
 import { CATEGORY_DESCRIPTIONS } from '@/lib/ledgerConstants';
 import { downloadCsv } from '@/lib/csvExport';
+import { useAuth } from '@/hooks/useAuth';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { Lock } from 'lucide-react';
+
+// Roles allowed to drill into individual ledger entries and export raw movement data
+const LEDGER_DETAIL_ROLES = new Set(['cfo', 'ceo', 'coo', 'super_admin', 'cto', 'manager']);
 
 // ─────────────────────────────────────────────────────────────
 // Periods & granularity
@@ -121,6 +126,12 @@ function prettifyCategory(c: string): string {
 // ─────────────────────────────────────────────────────────────
 
 export function ComprehensiveCashMovement() {
+  const { role, roles } = useAuth();
+  const canViewLedgerDetail = useMemo(() => {
+    if (role && LEDGER_DETAIL_ROLES.has(role)) return true;
+    return (roles || []).some(r => LEDGER_DETAIL_ROLES.has(r));
+  }, [role, roles]);
+
   const [period, setPeriod] = useState<PeriodKey>('30d');
   const [granularity, setGranularity] = useState<Granularity>('daily');
   const [includeAdjustments, setIncludeAdjustments] = useState(false);
@@ -257,6 +268,7 @@ export function ComprehensiveCashMovement() {
   }, [rows, granularity, includeAdjustments, scopeFilter]);
 
   const handleExport = () => {
+    if (!canViewLedgerDetail) { toast.error('You do not have permission to export ledger data'); return; }
     if (!aggregates.length) { toast.error('Nothing to export'); return; }
     const headers = ['Category', 'Scope', 'Description', 'Cash In', 'Cash Out', 'Net', 'Entries', ...bucketLabels.flatMap(b => [`${b} In`, `${b} Out`])];
     const data = aggregates.map(a => {
@@ -280,6 +292,7 @@ export function ComprehensiveCashMovement() {
   };
 
   const handleExportPdf = () => {
+    if (!canViewLedgerDetail) { toast.error('You do not have permission to export ledger data'); return; }
     if (!aggregates.length) { toast.error('Nothing to export'); return; }
     const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
     const pageW = doc.internal.pageSize.getWidth();
@@ -365,6 +378,7 @@ export function ComprehensiveCashMovement() {
   };
 
   const handleExportDrill = () => {
+    if (!canViewLedgerDetail) { toast.error('You do not have permission to export ledger data'); return; }
     if (!drill || filteredDrillRows.length === 0) return;
     const headers = ['Date', 'Reference ID', 'Transaction Group', 'Direction', 'Amount', 'Linked Party', 'User ID', 'User Name', 'Source Table', 'Source ID', 'Classification', 'Description'];
     const data = filteredDrillRows.map(r => [
@@ -436,12 +450,29 @@ export function ComprehensiveCashMovement() {
             {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
             {loading ? 'Loading…' : 'Refresh'}
           </Button>
-          <Button onClick={handleExport} variant="outline" size="sm" className="gap-2" disabled={!aggregates.length}>
-            <FileSpreadsheet className="h-3.5 w-3.5" /> Export CSV
+          <Button
+            onClick={handleExport}
+            variant="outline" size="sm" className="gap-2"
+            disabled={!aggregates.length || !canViewLedgerDetail}
+            title={!canViewLedgerDetail ? 'Restricted to finance leadership (CFO / CEO / COO / Manager)' : undefined}
+          >
+            {canViewLedgerDetail ? <FileSpreadsheet className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+            Export CSV
           </Button>
-          <Button onClick={handleExportPdf} variant="outline" size="sm" className="gap-2" disabled={!aggregates.length}>
-            <FileText className="h-3.5 w-3.5" /> Export PDF
+          <Button
+            onClick={handleExportPdf}
+            variant="outline" size="sm" className="gap-2"
+            disabled={!aggregates.length || !canViewLedgerDetail}
+            title={!canViewLedgerDetail ? 'Restricted to finance leadership (CFO / CEO / COO / Manager)' : undefined}
+          >
+            {canViewLedgerDetail ? <FileText className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+            Export PDF
           </Button>
+          {!canViewLedgerDetail && (
+            <span className="text-[11px] text-muted-foreground self-center ml-1 inline-flex items-center gap-1">
+              <Lock className="h-3 w-3" /> Detail & exports restricted
+            </span>
+          )}
           {generatedAt && (
             <span className="text-[11px] text-muted-foreground self-center ml-2">
               Generated {format(generatedAt, 'dd MMM HH:mm')} · {rows.length.toLocaleString()} ledger entries
@@ -491,8 +522,11 @@ export function ComprehensiveCashMovement() {
                 {aggregates.map(a => (
                   <TableRow
                     key={`${a.category}|${a.scope}`}
-                    className="cursor-pointer hover:bg-muted/60"
-                    onClick={() => setDrill({ category: a.category, scope: a.scope, bucket: null })}
+                    className={cn(canViewLedgerDetail ? 'cursor-pointer hover:bg-muted/60' : 'cursor-default')}
+                    onClick={() => {
+                      if (!canViewLedgerDetail) { toast.error('Ledger drill-down restricted to finance leadership'); return; }
+                      setDrill({ category: a.category, scope: a.scope, bucket: null });
+                    }}
                   >
                     <TableCell>
                       <div className="font-medium text-sm">{prettifyCategory(a.category)}</div>
@@ -538,8 +572,11 @@ export function ComprehensiveCashMovement() {
                   {aggregates.map(a => (
                     <TableRow key={`ts-${a.category}|${a.scope}`}>
                       <TableCell
-                        className="sticky left-0 bg-background z-10 cursor-pointer hover:text-primary"
-                        onClick={() => setDrill({ category: a.category, scope: a.scope, bucket: null })}
+                        className={cn('sticky left-0 bg-background z-10', canViewLedgerDetail && 'cursor-pointer hover:text-primary')}
+                        onClick={() => {
+                          if (!canViewLedgerDetail) { toast.error('Ledger drill-down restricted to finance leadership'); return; }
+                          setDrill({ category: a.category, scope: a.scope, bucket: null });
+                        }}
                       >
                         <div className="text-xs font-medium">{prettifyCategory(a.category)}</div>
                         <div className="text-[10px] text-muted-foreground">{SCOPE_LABEL[a.scope] || a.scope}</div>
@@ -551,8 +588,11 @@ export function ComprehensiveCashMovement() {
                         return (
                           <TableCell
                             key={b}
-                            onClick={() => setDrill({ category: a.category, scope: a.scope, bucket: b })}
-                            className={cn('text-right font-mono text-[11px] whitespace-nowrap cursor-pointer hover:bg-primary/10 hover:underline', net >= 0 ? 'text-success' : 'text-destructive')}
+                            onClick={() => {
+                              if (!canViewLedgerDetail) { toast.error('Ledger drill-down restricted to finance leadership'); return; }
+                              setDrill({ category: a.category, scope: a.scope, bucket: b });
+                            }}
+                            className={cn('text-right font-mono text-[11px] whitespace-nowrap', canViewLedgerDetail && 'cursor-pointer hover:bg-primary/10 hover:underline', net >= 0 ? 'text-success' : 'text-destructive')}
                           >
                             {net >= 0 ? '+' : ''}{formatUGX(net)}
                           </TableCell>
@@ -658,7 +698,7 @@ export function ComprehensiveCashMovement() {
                               </TableCell>
                               <TableCell className="text-[11px] align-top">
                                 <div className="font-mono flex items-center gap-1">
-                                  {r.id ? (
+                                  {r.id && canViewLedgerDetail ? (
                                     <Link
                                       to={`/cfo/ledger/${r.id}`}
                                       target="_blank"
