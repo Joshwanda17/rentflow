@@ -19,6 +19,7 @@ import {
   MessageSquare,
   Banknote,
   Pencil,
+  RefreshCw,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -63,6 +64,8 @@ interface PipelineRow {
   disbursed_at: string | null;
   tenant_id: string;
   landlord_id: string;
+  resubmitted_at: string | null;
+  resubmission_count: number | null;
   tenant_name?: string;
   tenant_phone?: string;
   landlord_name?: string;
@@ -85,11 +88,12 @@ function usePipelineRequests(
       const { data, error, count } = await supabase
         .from('rent_requests')
         .select(
-          'id, rent_amount, total_repayment, duration_days, amount_repaid, status, created_at, disbursed_at, tenant_id, landlord_id',
+          'id, rent_amount, total_repayment, duration_days, amount_repaid, status, created_at, disbursed_at, tenant_id, landlord_id, resubmitted_at, resubmission_count',
           { count: 'exact' },
         )
         .eq('agent_id', user!.id)
         .in('status', statuses)
+        .order('resubmitted_at', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false })
         .range(from, to);
       if (error) throw error;
@@ -194,6 +198,20 @@ function RowCard({
               <Badge variant={badgeVariant} className="text-[10px]">
                 {stageLabel}
               </Badge>
+              {(row.resubmission_count ?? 0) > 0 && (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] border-amber-500/60 bg-amber-500/10 text-amber-700 gap-1"
+                  title={
+                    row.resubmitted_at
+                      ? `Resubmitted ${format(new Date(row.resubmitted_at), 'MMM d, h:mm a')}`
+                      : 'Resubmitted'
+                  }
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  Resubmitted{(row.resubmission_count ?? 0) > 1 ? ` ×${row.resubmission_count}` : ''}
+                </Badge>
+              )}
             </div>
             <div className="text-[11px] text-muted-foreground space-y-0.5">
               {row.landlord_name && (
