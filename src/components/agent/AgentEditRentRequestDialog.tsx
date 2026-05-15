@@ -281,6 +281,34 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
             <LandlordSearchSelect value={landlord} onChange={setLandlord} />
           </div>
 
+          {landlord && (
+            <div className="space-y-3 rounded-md border border-primary/30 bg-primary/5 p-3">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-primary">
+                Edit landlord details
+              </p>
+              <div className="space-y-1.5">
+                <Label htmlFor="ll-name">Landlord name</Label>
+                <Input id="ll-name" value={landlordName}
+                  onChange={(e) => setLandlordName(e.target.value)} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="ll-phone">Phone</Label>
+                  <Input id="ll-phone" inputMode="tel" value={landlordPhone}
+                    onChange={(e) => setLandlordPhone(e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ll-addr">Property address</Label>
+                  <Input id="ll-addr" value={landlordAddress}
+                    onChange={(e) => setLandlordAddress(e.target.value)} />
+                </div>
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Saved to the landlord record on resubmit. Affects all rent requests linked to this landlord.
+              </p>
+            </div>
+          )}
+
           <div className="space-y-1.5">
             <Label htmlFor="rent">Rent amount (UGX)</Label>
             <Input id="rent" inputMode="numeric" value={rentAmount}
