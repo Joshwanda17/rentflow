@@ -14095,6 +14095,10 @@ export type Database = {
             }
             Returns: string
           }
+      create_ledger_transaction_accrual_only: {
+        Args: { entries: Json }
+        Returns: Json
+      }
       credit_agent_event_bonus:
         | {
             Args: {
