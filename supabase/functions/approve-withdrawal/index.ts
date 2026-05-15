@@ -172,7 +172,7 @@ Deno.serve(async (req) => {
       // Re-fetch current status so the operator sees what blocked them.
       const { data: now } = await admin
         .from("withdrawal_requests")
-        .select("status, fin_ops_reference, external_reference")
+        .select("status, fin_ops_reference")
         .eq("id", withdrawal_id)
         .maybeSingle();
       return new Response(
@@ -182,7 +182,7 @@ Deno.serve(async (req) => {
             `This withdrawal is already being processed by another operator ` +
             `(current status: ${now?.status ?? "unknown"}). Refresh the queue before retrying.`,
           current_status: now?.status ?? null,
-          existing_reference: now?.fin_ops_reference ?? now?.external_reference ?? null,
+          existing_reference: now?.fin_ops_reference ?? null,
           code: "already_being_processed",
         }),
         { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
