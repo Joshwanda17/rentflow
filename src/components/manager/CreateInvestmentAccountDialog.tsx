@@ -99,11 +99,18 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, p
     setBalanceLoading(true);
     setPartnerBalance(null);
     (async () => {
-      const { data, error } = await supabase.rpc('get_user_available_balance', {
-        p_user_id: selectedUser.id,
-      });
+      // Portfolios are funded from the partner's TOTAL wallet (withdrawable +
+      // float). Partner deposits land in `float_balance`, so the strict
+      // withdrawable RPC would always show 0. The backend
+      // (`create-investor-portfolio`, instant-deduct path) gates on
+      // `wallets.balance`, so mirror that here.
+      const { data, error } = await supabase
+        .from('wallets')
+        .select('balance')
+        .eq('user_id', selectedUser.id)
+        .maybeSingle();
       if (cancelled) return;
-      const bal = !error && typeof data === 'number' ? data : 0;
+      const bal = !error && data ? Number(data.balance) || 0 : 0;
       setPartnerBalance(bal);
       // Default the amount to the full available balance (capped at sane max).
       setForm(p => ({
