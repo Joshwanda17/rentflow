@@ -1354,15 +1354,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                       </div>
                     )}
 
-                    <div className="grid grid-cols-3 gap-2 mt-3">
-                      <Button
-                        size="sm"
-                        onClick={(e) => { e.stopPropagation(); setFieldCollectTarget(tenant); }}
-                        className="h-9 gap-1.5 rounded-lg text-xs"
-                      >
-                        <CreditCard className="h-3.5 w-3.5" />
-                        Collect
-                      </Button>
+                    <div className="grid grid-cols-2 gap-2 mt-3">
                       <Button
                         size="sm"
                         variant="outline"
