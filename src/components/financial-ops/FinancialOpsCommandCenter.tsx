@@ -5,7 +5,6 @@ import { TransactionSearch } from './TransactionSearch';
 import { ReconciliationDashboard } from './ReconciliationDashboard';
 import { AuditFeed } from './AuditFeed';
 import { ScaleDashboard } from './ScaleDashboard';
-import { FloatPayoutVerification } from './FloatPayoutVerification';
 import { FinOpsWithdrawalVerification } from './FinOpsWithdrawalVerification';
 import { LandlordPayoutsQueue } from './LandlordPayoutsQueue';
 import { LedgerHub } from '@/components/ledgers/LedgerHub';
@@ -152,7 +151,6 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
             <LandlordPayoutsQueue />
             <FinOpsWithdrawalVerification />
             <PendingWalletOperationsWidget requirePaymentRef={requirePaymentRef} />
-            <FloatPayoutVerification />
             {/* Portfolio top-ups parked at status='awaiting_verification' —
                 e.g. partner wallet → portfolio top-ups. Without this panel
                 FinOps had no surface to approve them. */}
