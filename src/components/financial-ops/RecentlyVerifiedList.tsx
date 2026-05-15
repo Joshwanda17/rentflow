@@ -434,10 +434,12 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
           <div className="py-6 flex justify-center">
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
           </div>
-        ) : rows.length === 0 ? (
+        ) : filteredRows.length === 0 ? (
           <div className="py-6 flex flex-col items-center text-center text-muted-foreground">
             <Inbox className="h-6 w-6 mb-1.5 opacity-50" />
-            <p className="text-xs">No deposits verified yet.</p>
+            <p className="text-xs">
+              {search ? 'No deposits match your search.' : 'No deposits verified yet.'}
+            </p>
           </div>
         ) : (
           <ScrollArea className="max-h-[40vh]">
@@ -452,7 +454,7 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => {
+                {filteredRows.map((r) => {
                   const approved = r.status === 'approved';
                   return (
                     <tr key={r.id} className="border-t">
