@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { format, startOfDay, startOfWeek, startOfMonth, startOfYear, subDays, subMonths, subYears } from 'date-fns';
-import { Loader2, RefreshCw, Calendar, FileSpreadsheet, ArrowUpRight, ArrowDownRight, X, ExternalLink } from 'lucide-react';
+import { Loader2, RefreshCw, Calendar, FileSpreadsheet, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
