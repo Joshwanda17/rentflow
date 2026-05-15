@@ -19,6 +19,7 @@ import { WithdrawalHistoryStatement } from './WithdrawalHistoryStatement';
 import { PortfolioTopUpVerification } from './PortfolioTopUpVerification';
 import { WalletBreakdownReadOnly } from './WalletBreakdownReadOnly';
 import { EmailTransactionsPanel } from './EmailTransactionsPanel';
+import { FundedTenantsList } from './FundedTenantsList';
 
 
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
@@ -26,7 +27,7 @@ import { AgentRequisitionForm } from './AgentRequisitionForm';
 import { 
   ShieldCheck, Banknote, ArrowLeft, ChevronDown,
   ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, FileText,
-  WifiOff, MoreHorizontal, AlertTriangle, ScanLine, Receipt, Mail
+  WifiOff, MoreHorizontal, AlertTriangle, ScanLine, Receipt, Mail, Home as HomeIcon
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 
@@ -36,7 +37,7 @@ type Tool =
   | 'ops' | 'queue' | 'search' | 'recon' | 'ledgers' | 'audit'
   | 'withdrawals' | 'opportunities' | 'requisitions'
   | 'mismatch_metrics' | 'recon_review' | 'withdrawal_history' | 'wallet_breakdown'
-  | 'email_tx';
+  | 'email_tx' | 'funded_tenants';
 
 /**
  * Items hidden behind the "More" button. Per CFO mandate the dashboard
@@ -49,6 +50,7 @@ type MoreAction =
 
 const moreActions: MoreAction[] = [
   { kind: 'view', id: 'offline_collections', label: 'Offline Collections', desc: 'Drafts agents submitted with proof', icon: WifiOff },
+  { kind: 'tool', id: 'funded_tenants', label: 'Funded Landlords & Tenants', desc: 'Tenants whose landlords have been paid — share to agent on WhatsApp', icon: HomeIcon },
   { kind: 'tool', id: 'withdrawal_history', label: 'Withdrawal History', desc: 'Statement of every withdrawal — balance before & after', icon: Receipt },
   { kind: 'tool', id: 'ledgers', label: 'Ledger', desc: 'Full record of all wallet activity', icon: BookOpen },
   { kind: 'tool', id: 'ops', label: 'Ops Center', desc: 'Automation & monitoring', icon: Gauge },
@@ -172,6 +174,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         )}
         {activeTool === 'mismatch_metrics' && <MismatchMetricsPanel />}
         {activeTool === 'withdrawal_history' && <WithdrawalHistoryStatement />}
+        {activeTool === 'funded_tenants' && <FundedTenantsList />}
       </div>
     );
   }
