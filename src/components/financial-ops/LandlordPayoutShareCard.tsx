@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -7,7 +7,20 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Download, MessageCircle, Share2, CheckCircle2, Loader2, FileDown, FileText } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import {
+  Download,
+  MessageCircle,
+  Share2,
+  CheckCircle2,
+  Loader2,
+  FileDown,
+  FileText,
+  RotateCcw,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 export interface LandlordPayoutShareData {
@@ -33,19 +46,31 @@ function formatWhatsAppNumber(phone: string): string {
   return cleaned;
 }
 
-function buildAgentMessage(d: LandlordPayoutShareData): string {
-  const lines = [
-    `✅ *Welile — Landlord Paid*`,
-    ``,
-    `*${formatUGX(d.amount)}* sent to *${d.landlord_name}*`,
-    `📱 ${d.mobile_money_provider}: ${d.landlord_phone}`,
-    `🏠 Tenant: ${d.tenant_name || 'Unallocated'}`,
-    `🧾 MoMo TID: ${d.momo_reference}`,
-    `🕒 ${new Date(d.paid_at).toLocaleString('en-UG')}`,
-    ``,
-    `Please confirm with the landlord and upload the receipt in your Welile app.`,
-  ];
-  return lines.join('\n');
+const CAPTION_TEMPLATE_KEY = 'welile.landlordPayout.captionTemplate.v1';
+
+export const DEFAULT_PAYOUT_CAPTION_TEMPLATE =
+  `✅ *Welile — Landlord Paid*\n\n` +
+  `*{amount}* sent to *{landlord}*\n` +
+  `📱 {provider}: {phone}\n` +
+  `🏠 Tenant: {tenant}\n` +
+  `🧾 MoMo TID: {tid}\n` +
+  `🕒 {date}\n\n` +
+  `Please confirm with the landlord and upload the receipt in your Welile app.`;
+
+function renderCaption(template: string, d: LandlordPayoutShareData): string {
+  const map: Record<string, string> = {
+    amount: formatUGX(d.amount),
+    landlord: d.landlord_name,
+    tenant: d.tenant_name || 'Unallocated',
+    tid: d.momo_reference,
+    provider: d.mobile_money_provider,
+    phone: d.landlord_phone,
+    agent: d.agent_name || '',
+    date: new Date(d.paid_at).toLocaleString('en-UG'),
+  };
+  return template.replace(/\{(\w+)\}/g, (_, k: string) =>
+    Object.prototype.hasOwnProperty.call(map, k) ? map[k] : `{${k}}`,
+  );
 }
 
 interface Props {
@@ -57,8 +82,35 @@ interface Props {
 export function LandlordPayoutShareCard({ open, onOpenChange, data }: Props) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState<'png' | 'pdf' | 'share' | 'share-pdf' | null>(null);
+  const [captionTemplate, setCaptionTemplate] = useState<string>(DEFAULT_PAYOUT_CAPTION_TEMPLATE);
+  const [showTemplate, setShowTemplate] = useState(false);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(CAPTION_TEMPLATE_KEY);
+      if (stored && stored.trim()) setCaptionTemplate(stored);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const persistTemplate = (next: string) => {
+    setCaptionTemplate(next);
+    try {
+      localStorage.setItem(CAPTION_TEMPLATE_KEY, next);
+    } catch {
+      // ignore
+    }
+  };
+
+  const resetTemplate = () => {
+    persistTemplate(DEFAULT_PAYOUT_CAPTION_TEMPLATE);
+    toast.success('Caption reset to default');
+  };
 
   if (!data) return null;
+
+  const captionText = renderCaption(captionTemplate, data);
 
   const renderImage = async () => {
     if (!cardRef.current) return null;
@@ -160,7 +212,7 @@ export function LandlordPayoutShareCard({ open, onOpenChange, data }: Props) {
       if (!blob) return;
       const fileName = `welile-landlord-payout-${data.momo_reference}.pdf`;
       const file = new File([blob], fileName, { type: 'application/pdf' });
-      const text = buildAgentMessage(data);
+      const text = captionText;
       const nav = navigator as any;
       if (nav.canShare && nav.canShare({ files: [file] })) {
         await nav.share({ files: [file], text, title: 'Welile — Landlord Paid' });
@@ -194,7 +246,7 @@ export function LandlordPayoutShareCard({ open, onOpenChange, data }: Props) {
       const file = new File([blob], `welile-landlord-payout-${data.momo_reference}.png`, {
         type: 'image/png',
       });
-      const text = buildAgentMessage(data);
+      const text = captionText;
       const nav = navigator as any;
       if (nav.canShare && nav.canShare({ files: [file] })) {
         await nav.share({ files: [file], text, title: 'Welile — Landlord Paid' });
@@ -216,7 +268,7 @@ export function LandlordPayoutShareCard({ open, onOpenChange, data }: Props) {
   };
 
   const openWhatsAppText = () => {
-    const text = encodeURIComponent(buildAgentMessage(data));
+    const text = encodeURIComponent(captionText);
     const phone = data.agent_phone ? formatWhatsAppNumber(data.agent_phone) : '';
     const base = phone ? `https://wa.me/${phone}` : `https://wa.me/`;
     window.open(`${base}?text=${text}`, '_blank');
@@ -305,6 +357,64 @@ export function LandlordPayoutShareCard({ open, onOpenChange, data }: Props) {
               Powered by Welile · welilereceipts.com
             </p>
           </div>
+        </div>
+
+        {/* WhatsApp caption template editor */}
+        <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+          <button
+            type="button"
+            onClick={() => setShowTemplate((s) => !s)}
+            className="w-full flex items-center justify-between text-xs font-medium text-foreground"
+          >
+            <span className="flex items-center gap-2">
+              <MessageCircle className="h-3.5 w-3.5 text-purple-600" />
+              WhatsApp caption {showTemplate ? '(editing)' : '(preview)'}
+            </span>
+            {showTemplate ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
+
+          {!showTemplate && (
+            <p className="text-[11px] text-muted-foreground whitespace-pre-wrap line-clamp-3 font-mono">
+              {captionText}
+            </p>
+          )}
+
+          {showTemplate && (
+            <div className="space-y-2">
+              <Label htmlFor="payout-caption" className="text-[11px] text-muted-foreground">
+                Use placeholders:{' '}
+                <code className="font-mono text-[10px]">
+                  {'{landlord} {tenant} {tid} {amount} {provider} {phone} {agent} {date}'}
+                </code>
+              </Label>
+              <Textarea
+                id="payout-caption"
+                value={captionTemplate}
+                onChange={(e) => persistTemplate(e.target.value)}
+                rows={7}
+                className="font-mono text-xs"
+                placeholder={DEFAULT_PAYOUT_CAPTION_TEMPLATE}
+              />
+              <div className="rounded-md bg-background border border-border/60 p-2">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                  Preview
+                </p>
+                <p className="text-[11px] whitespace-pre-wrap font-mono text-foreground">
+                  {captionText}
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={resetTemplate}
+                className="h-7 px-2 text-[11px] gap-1"
+              >
+                <RotateCcw className="h-3 w-3" />
+                Reset to default
+              </Button>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-3 gap-2">
