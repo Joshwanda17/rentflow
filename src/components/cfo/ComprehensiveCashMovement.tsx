@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { format, startOfDay, startOfWeek, startOfMonth, startOfYear, subDays, subMonths, subYears } from 'date-fns';
-import { Loader2, RefreshCw, Calendar, FileSpreadsheet, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Loader2, RefreshCw, Calendar, FileSpreadsheet, FileText, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatDynamic as formatUGX } from '@/lib/currencyFormat';
 import { CATEGORY_DESCRIPTIONS } from '@/lib/ledgerConstants';
 import { downloadCsv } from '@/lib/csvExport';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 // ─────────────────────────────────────────────────────────────
 // Periods & granularity
@@ -249,6 +251,91 @@ export function ComprehensiveCashMovement() {
     toast.success('CSV downloaded');
   };
 
+  const handleExportPdf = () => {
+    if (!aggregates.length) { toast.error('Nothing to export'); return; }
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+    const pageW = doc.internal.pageSize.getWidth();
+    const periodLabel = PERIODS.find(p => p.value === period)?.label || period;
+    const granLabel = GRANULARITIES.find(g => g.value === granularity)?.label || granularity;
+
+    doc.setFontSize(14); doc.setFont('helvetica', 'bold');
+    doc.text('Welile · Comprehensive Cash Movement', 40, 36);
+    doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+    doc.text(`Period: ${periodLabel}  ·  Bucket: ${granLabel}  ·  Scope: ${scopeFilter === 'all' ? 'All' : (SCOPE_LABEL[scopeFilter] || scopeFilter)}  ·  Adjustments: ${includeAdjustments ? 'Included' : 'Excluded'}`, 40, 52);
+    doc.text(rangeLabel, 40, 66);
+    doc.text(`Generated ${format(new Date(), 'dd MMM yyyy HH:mm')}  ·  ${rows.length.toLocaleString()} ledger entries`, 40, 80);
+
+    // Totals strip
+    autoTable(doc, {
+      startY: 92,
+      head: [['Total Cash In', 'Total Cash Out', 'Net Movement']],
+      body: [[formatUGX(totals.cashIn), `(${formatUGX(totals.cashOut)})`, `${totals.net >= 0 ? '+' : ''}${formatUGX(totals.net)}`]],
+      theme: 'grid',
+      styles: { fontSize: 10, halign: 'right' },
+      headStyles: { fillColor: [30, 30, 30], halign: 'right' },
+      margin: { left: 40, right: 40 },
+    });
+
+    // Category breakdown
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable.finalY + 16,
+      head: [['Category', 'Scope', 'Cash In', 'Cash Out', 'Net', 'Entries']],
+      body: aggregates.map(a => [
+        prettifyCategory(a.category),
+        SCOPE_LABEL[a.scope] || a.scope,
+        a.cashIn ? formatUGX(a.cashIn) : '—',
+        a.cashOut ? `(${formatUGX(a.cashOut)})` : '—',
+        `${a.net >= 0 ? '+' : ''}${formatUGX(a.net)}`,
+        String(a.count),
+      ]),
+      theme: 'striped',
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [30, 30, 30] },
+      columnStyles: { 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' } },
+      margin: { left: 40, right: 40 },
+    });
+
+    // Time-series net matrix (chunked across pages if many buckets)
+    if (bucketLabels.length > 0) {
+      const CHUNK = 12;
+      for (let i = 0; i < bucketLabels.length; i += CHUNK) {
+        const slice = bucketLabels.slice(i, i + CHUNK);
+        doc.addPage();
+        doc.setFontSize(11); doc.setFont('helvetica', 'bold');
+        doc.text(`${granLabel} Net Movement by Category  (${i + 1}–${Math.min(i + CHUNK, bucketLabels.length)} of ${bucketLabels.length})`, 40, 36);
+        autoTable(doc, {
+          startY: 48,
+          head: [['Category · Scope', ...slice]],
+          body: aggregates.map(a => [
+            `${prettifyCategory(a.category)} · ${SCOPE_LABEL[a.scope] || a.scope}`,
+            ...slice.map(b => {
+              const c = a.buckets[b];
+              if (!c || (c.in === 0 && c.out === 0)) return '·';
+              const net = (c.in || 0) - (c.out || 0);
+              return `${net >= 0 ? '+' : ''}${formatUGX(net)}`;
+            }),
+          ]),
+          theme: 'grid',
+          styles: { fontSize: 7, cellPadding: 3 },
+          headStyles: { fillColor: [30, 30, 30], fontSize: 7 },
+          columnStyles: Object.fromEntries(slice.map((_, k) => [k + 1, { halign: 'right' }])) as any,
+          margin: { left: 40, right: 40 },
+        });
+      }
+    }
+
+    // Footer page numbers
+    const pageCount = doc.getNumberOfPages();
+    for (let p = 1; p <= pageCount; p++) {
+      doc.setPage(p);
+      doc.setFontSize(8); doc.setFont('helvetica', 'normal');
+      doc.text(`Welile Cash Movement · Page ${p} / ${pageCount}`, pageW - 40, doc.internal.pageSize.getHeight() - 16, { align: 'right' });
+    }
+
+    doc.save(`welile-cash-movement-${period}-${granularity}-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+    toast.success('PDF downloaded');
+  };
+
   const handleExportDrill = () => {
     if (!drill || drillRows.length === 0) return;
     const headers = ['Date', 'Reference ID', 'Transaction Group', 'Direction', 'Amount', 'Linked Party', 'User ID', 'User Name', 'Source Table', 'Source ID', 'Classification', 'Description'];
@@ -323,6 +410,9 @@ export function ComprehensiveCashMovement() {
           </Button>
           <Button onClick={handleExport} variant="outline" size="sm" className="gap-2" disabled={!aggregates.length}>
             <FileSpreadsheet className="h-3.5 w-3.5" /> Export CSV
+          </Button>
+          <Button onClick={handleExportPdf} variant="outline" size="sm" className="gap-2" disabled={!aggregates.length}>
+            <FileText className="h-3.5 w-3.5" /> Export PDF
           </Button>
           {generatedAt && (
             <span className="text-[11px] text-muted-foreground self-center ml-2">
