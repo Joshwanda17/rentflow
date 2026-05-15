@@ -951,16 +951,26 @@ Deno.serve(async (req) => {
         // ── Returns-source guard ──────────────────────────────────────────
         // The "Returns Disbursement Confirmation" template must ONLY be sent
         // when this withdrawal is actually backed by Supporter returns/ROI
-        // credits. A plain wallet/commission/float cashout — even from a
-        // user who happens to have an `investor_portfolios` row — must NOT
-        // receive this email (incident: tcollines004@gmail.com, 2026-05-08).
+        // credits paid out on behalf of a funder.
         //
-        // Discriminator: beneficiary must have (a) an investor portfolio
-        // AND (b) at least one ROI credit leg in the general_ledger
-        // (`roi_payout` or `roi_wallet_credit`). This holds for both
-        // self-withdrawals by partners and proxy-agent withdrawals on
-        // behalf of a partner, because `partnerId === beneficiaryUserId`
-        // in either case.
+        // Per Wallet Routing v2 + Supporter Withdrawal Policy, proxy
+        // partners can no longer self-withdraw their ROI returns — those
+        // funds can only leave the platform through their assigned proxy
+        // agent. Therefore a SELF withdrawal can never be a returns
+        // disbursement, even if the user happens to have a portfolio and
+        // historical ROI credits (incident: regular wallet cashouts were
+        // wrongly triggering this email for any user with any past ROI
+        // leg, 2026-05-15).
+        //
+        // Discriminator: must be a proxy payout (agent acting for partner)
+        // AND the partner must have an investor portfolio AND at least one
+        // ROI credit leg in the general_ledger.
+        if (!isProxyPayout || fundingUserId === partnerId) {
+          console.log(
+            `[approve-withdrawal] Skipping returns-disbursement email: not a proxy payout (partner=${partnerId}, funder=${fundingUserId})`,
+          );
+          break sendReturnsEmail;
+        }
         if (!portfolio?.portfolio_code) {
           console.log(
             `[approve-withdrawal] Skipping returns-disbursement email: beneficiary ${partnerId} has no investor portfolio`,
