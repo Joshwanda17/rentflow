@@ -36,12 +36,12 @@ export function HeroBalanceCard({
           {/* Header row */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
+              <div className="p-2 rounded-xl bg-white/20">
                 <TrendingUp className="h-4 w-4 text-white" />
               </div>
               <span className="text-sm font-medium text-white/80">Total Portfolio</span>
             </div>
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/20 backdrop-blur-sm">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/20">
               <Sparkles className="h-3 w-3 text-amber-300" />
               <span className="text-xs font-bold text-white">{roiRate}% ROI</span>
             </div>
@@ -62,15 +62,15 @@ export function HeroBalanceCard({
 
           {/* Stats row */}
           <div className="grid grid-cols-3 gap-2 mb-5">
-            <div className="p-3 rounded-2xl bg-white/10 backdrop-blur-sm text-center">
+            <div className="p-3 rounded-2xl bg-white/10 text-center">
               <p className="text-lg font-black text-white">{formatUGX(completedRewards)}</p>
               <p className="text-[10px] font-medium text-white/70 uppercase tracking-wider">Earned</p>
             </div>
-            <div className="p-3 rounded-2xl bg-white/10 backdrop-blur-sm text-center">
+            <div className="p-3 rounded-2xl bg-white/10 text-center">
               <p className="text-lg font-black text-white">{activeFundings}</p>
               <p className="text-[10px] font-medium text-white/70 uppercase tracking-wider">Active</p>
             </div>
-            <div className="p-3 rounded-2xl bg-white/10 backdrop-blur-sm text-center">
+            <div className="p-3 rounded-2xl bg-white/10 text-center">
               <p className="text-lg font-black text-amber-300">{roiRate}%</p>
               <p className="text-[10px] font-medium text-white/70 uppercase tracking-wider">Rate</p>
             </div>

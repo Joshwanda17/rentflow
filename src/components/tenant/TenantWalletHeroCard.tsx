@@ -38,14 +38,14 @@ export function TenantWalletHeroCard({
           {/* Top Label Bar */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-primary-foreground/15 backdrop-blur-sm">
+              <div className="p-1.5 rounded-lg bg-primary-foreground/15">
                 <CreditCard className="h-3.5 w-3.5 text-primary-foreground/90" />
               </div>
               <span className="text-[11px] font-semibold text-primary-foreground/70 uppercase tracking-[0.12em]">
                 Rent Wallet
               </span>
             </div>
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary-foreground/10 backdrop-blur-sm">
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary-foreground/10">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               <span className="text-[9px] font-bold text-emerald-300 uppercase tracking-wider">Active</span>
             </div>

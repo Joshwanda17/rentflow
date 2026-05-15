@@ -34,12 +34,12 @@ export function AngelHeroCard({ onInvest, onViewPool }: AngelHeroCardProps) {
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
+              <div className="p-2 rounded-xl bg-white/20">
                 <TrendingUp className="h-4 w-4 text-white" />
               </div>
               <span className="text-sm font-medium text-white/80">Angel Pool</span>
             </div>
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/20 backdrop-blur-sm">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/20">
               <Sparkles className="h-3 w-3 text-amber-300" />
               <span className="text-xs font-bold text-white">{POOL_PERCENT}% Equity</span>
             </div>
@@ -60,15 +60,15 @@ export function AngelHeroCard({ onInvest, onViewPool }: AngelHeroCardProps) {
 
           {/* Stats row */}
           <div className="grid grid-cols-3 gap-2 mb-5">
-            <div className="p-3 rounded-2xl bg-white/10 backdrop-blur-sm text-center">
+            <div className="p-3 rounded-2xl bg-white/10 text-center">
               <p className="text-lg font-black text-white">{sharesSold.toLocaleString()}</p>
               <p className="text-[10px] font-medium text-white/70 uppercase tracking-wider">Sold</p>
             </div>
-            <div className="p-3 rounded-2xl bg-white/10 backdrop-blur-sm text-center">
+            <div className="p-3 rounded-2xl bg-white/10 text-center">
               <p className="text-lg font-black text-amber-300">{sharesRemaining.toLocaleString()}</p>
               <p className="text-[10px] font-medium text-white/70 uppercase tracking-wider">Left</p>
             </div>
-            <div className="p-3 rounded-2xl bg-white/10 backdrop-blur-sm text-center">
+            <div className="p-3 rounded-2xl bg-white/10 text-center">
               <p className="text-lg font-black text-white">{formatCompact(PRICE_PER_SHARE)}</p>
               <p className="text-[10px] font-medium text-white/70 uppercase tracking-wider">/Share</p>
             </div>
