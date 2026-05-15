@@ -18,6 +18,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuCheckboxItem,
 } from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
 import { formatUGX } from '@/lib/rentCalculations';
 import { formatDistanceToNow, format } from 'date-fns';
 import {
@@ -33,8 +34,15 @@ import {
   Columns3,
   Search,
   X,
+  CalendarIcon,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { Calendar } from '@/components/ui/calendar';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { useFinOpsAutoRefresh } from '@/hooks/useFinOpsAutoRefresh';
 import { downloadCsv, csvTimestamp } from '@/lib/csvExport';
 import { downloadAuditPdf, pdfTimestampLabel } from '@/lib/pdfAuditReport';
@@ -78,6 +86,8 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
   const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [search, setSearch] = useState('');
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
 
   // Single source of truth for table columns. Drives both render and CSV
   // export so the file always matches what the operator sees.
@@ -107,6 +117,14 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
         .order('updated_at', { ascending: false })
         .limit(limit);
       if (verifierId) q = q.eq('processed_by', verifierId);
+      if (dateFrom) {
+        const fromIso = new Date(dateFrom.getFullYear(), dateFrom.getMonth(), dateFrom.getDate(), 0, 0, 0).toISOString();
+        q = q.gte('updated_at', fromIso);
+      }
+      if (dateTo) {
+        const toIso = new Date(dateTo.getFullYear(), dateTo.getMonth(), dateTo.getDate(), 23, 59, 59, 999).toISOString();
+        q = q.lte('updated_at', toIso);
+      }
       const { data, error } = await q;
       if (error) throw error;
 
@@ -145,7 +163,7 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
       setLoading(false);
       setRefreshing(false);
     }
-  }, [limit, verifierId]);
+  }, [limit, verifierId, dateFrom, dateTo]);
 
   useEffect(() => {
     load();
@@ -169,8 +187,14 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
         .order('updated_at', { ascending: false })
         .limit(1000);
     if (verifierId) q = q.eq('processed_by', verifierId);
-    if (exportFromIso) q = q.gte('updated_at', exportFromIso);
-    if (exportToIso) q = q.lte('updated_at', exportToIso);
+    if (dateFrom) {
+      const fromIso = new Date(dateFrom.getFullYear(), dateFrom.getMonth(), dateFrom.getDate(), 0, 0, 0).toISOString();
+      q = q.gte('updated_at', fromIso);
+    }
+    if (dateTo) {
+      const toIso = new Date(dateTo.getFullYear(), dateTo.getMonth(), dateTo.getDate(), 23, 59, 59, 999).toISOString();
+      q = q.lte('updated_at', toIso);
+    }
     const { data, error } = await q;
     if (error) throw error;
     const list = (data ?? []) as any[];
@@ -407,23 +431,86 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
             </Button>
           </div>
         </div>
-        <div className="relative mt-2 max-w-xs">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <Input
-            placeholder="Search verified person…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-8 h-8 text-xs"
-          />
-          {search && (
-            <button
-              type="button"
-              onClick={() => setSearch('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
+        <div className="flex flex-col sm:flex-row gap-2 mt-2">
+          <div className="relative max-w-xs flex-1">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              placeholder="Search verified person…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8 h-8 text-xs"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={cn(
+                    'h-8 text-xs justify-start text-left font-normal w-[130px]',
+                    !dateFrom && 'text-muted-foreground',
+                  )}
+                >
+                  <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
+                  {dateFrom ? format(dateFrom, 'PP') : 'From'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={dateFrom}
+                  onSelect={setDateFrom}
+                  initialFocus
+                  className={cn('p-3 pointer-events-auto')}
+                />
+              </PopoverContent>
+            </Popover>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={cn(
+                    'h-8 text-xs justify-start text-left font-normal w-[130px]',
+                    !dateTo && 'text-muted-foreground',
+                  )}
+                >
+                  <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
+                  {dateTo ? format(dateTo, 'PP') : 'To'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={dateTo}
+                  onSelect={setDateTo}
+                  initialFocus
+                  className={cn('p-3 pointer-events-auto')}
+                />
+              </PopoverContent>
+            </Popover>
+            {(dateFrom || dateTo) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}
+                className="h-8 px-2 text-xs text-muted-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline ml-1">Clear</span>
+              </Button>
+            )}
+          </div>
         </div>
         <p className="text-[11px] text-muted-foreground mt-2">
           Audit trail — who approved or rejected each user deposit.
