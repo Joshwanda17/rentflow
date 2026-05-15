@@ -266,7 +266,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (action === "send_custom") {
+    if (action === "send_custom" || action === "custom") {
       const message = (body.message as string || "").trim();
       if (!message) {
         return new Response(JSON.stringify({ error: "Message required" }), {
@@ -287,7 +287,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ error: "Invalid action. Use 'send' or 'verify'." }), {
+    return new Response(JSON.stringify({ error: "Invalid action. Use 'send', 'verify', or 'custom'." }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
