@@ -431,23 +431,86 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
             </Button>
           </div>
         </div>
-        <div className="relative mt-2 max-w-xs">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <Input
-            placeholder="Search verified person…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-8 h-8 text-xs"
-          />
-          {search && (
-            <button
-              type="button"
-              onClick={() => setSearch('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
+        <div className="flex flex-col sm:flex-row gap-2 mt-2">
+          <div className="relative max-w-xs flex-1">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              placeholder="Search verified person…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8 h-8 text-xs"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={cn(
+                    'h-8 text-xs justify-start text-left font-normal w-[130px]',
+                    !dateFrom && 'text-muted-foreground',
+                  )}
+                >
+                  <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
+                  {dateFrom ? format(dateFrom, 'PP') : 'From'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={dateFrom}
+                  onSelect={setDateFrom}
+                  initialFocus
+                  className={cn('p-3 pointer-events-auto')}
+                />
+              </PopoverContent>
+            </Popover>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={cn(
+                    'h-8 text-xs justify-start text-left font-normal w-[130px]',
+                    !dateTo && 'text-muted-foreground',
+                  )}
+                >
+                  <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
+                  {dateTo ? format(dateTo, 'PP') : 'To'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={dateTo}
+                  onSelect={setDateTo}
+                  initialFocus
+                  className={cn('p-3 pointer-events-auto')}
+                />
+              </PopoverContent>
+            </Popover>
+            {(dateFrom || dateTo) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}
+                className="h-8 px-2 text-xs text-muted-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline ml-1">Clear</span>
+              </Button>
+            )}
+          </div>
         </div>
         <p className="text-[11px] text-muted-foreground mt-2">
           Audit trail — who approved or rejected each user deposit.
