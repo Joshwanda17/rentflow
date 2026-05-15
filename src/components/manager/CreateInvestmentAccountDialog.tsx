@@ -12,6 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { UGANDA_BANKS } from '@/lib/ugandaBanks';
 import { useFunderApprovalStatus } from '@/hooks/useFunderApprovalStatus';
 import { Shield, Lock } from 'lucide-react';
+import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
 
 interface CreateInvestmentAccountDialogProps {
   open: boolean;
@@ -166,7 +167,7 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, p
 
     setSaving(true);
     try {
-      const { data, error } = await supabase.functions.invoke('create-investor-portfolio', {
+      const response = await supabase.functions.invoke('create-investor-portfolio', {
         body: {
           investor_id: selectedUser.id,
           investment_amount: amt,
@@ -185,8 +186,14 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, p
         },
       });
 
-      if (error) throw new Error(error.message || 'Failed to create portfolio');
-      if (data?.error) throw new Error(data.error);
+      if (response.error || response.data?.error) {
+        // Surfaces the real backend message (e.g. "Insufficient ledger
+        // balance … Available: 0, Required: 60000") instead of the generic
+        // "Edge Function returned a non-2xx status code".
+        const msg = await extractEdgeFunctionError(response, 'Failed to create portfolio');
+        throw new Error(msg);
+      }
+      const data = response.data;
 
       const code = data?.portfolio?.portfolio_code || '';
       toast({ title: `Portfolio ${code} created — pending approval` });
