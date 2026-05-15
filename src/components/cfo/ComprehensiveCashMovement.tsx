@@ -433,6 +433,96 @@ export function ComprehensiveCashMovement() {
     toast.success('Ledger entries exported');
   };
 
+  // PDF export of the currently filtered drill-down ledger entries
+  const handleExportDrillPdf = () => {
+    if (!canViewLedgerDetail) { toast.error('You do not have permission to export ledger data'); return; }
+    if (!drill || filteredDrillRows.length === 0) return;
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const periodLabel = PERIODS.find(p => p.value === period)?.label || period;
+    const granLabel = GRANULARITIES.find(g => g.value === granularity)?.label || granularity;
+
+    let cIn = 0, cOut = 0;
+    for (const r of filteredDrillRows) {
+      const a = Number(r.amount) || 0;
+      if (r.direction === 'cash_in') cIn += a; else cOut += a;
+    }
+    const net = cIn - cOut;
+
+    doc.setFontSize(14); doc.setFont('helvetica', 'bold');
+    doc.text('Welile · Ledger Drill-Down', 40, 36);
+    doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+    doc.text(
+      `Category: ${prettifyCategory(drill.category)}  ·  Scope: ${SCOPE_LABEL[drill.scope] || drill.scope}` +
+      (drill.bucket ? `  ·  Bucket: ${drill.bucket}` : '') +
+      `  ·  Period: ${periodLabel}  ·  Granularity: ${granLabel}`,
+      40, 52,
+    );
+    if (debouncedDrillQuery) {
+      doc.text(`Search filter: "${debouncedDrillQuery}"`, 40, 66);
+    }
+    doc.text(
+      `Generated ${format(new Date(), 'dd MMM yyyy HH:mm')}  ·  ${filteredDrillRows.length.toLocaleString()} of ${drillRows.length.toLocaleString()} entries`,
+      40, debouncedDrillQuery ? 80 : 66,
+    );
+
+    const startY = debouncedDrillQuery ? 92 : 78;
+    autoTable(doc, {
+      startY,
+      head: [['Cash In', 'Cash Out', 'Net']],
+      body: [[formatUGX(cIn), `(${formatUGX(cOut)})`, `${net >= 0 ? '+' : ''}${formatUGX(net)}`]],
+      theme: 'grid',
+      styles: { fontSize: 10, halign: 'right' },
+      headStyles: { fillColor: [30, 30, 30], halign: 'right' },
+      margin: { left: 40, right: 40 },
+    });
+
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable.finalY + 16,
+      head: [['Date', 'Reference / Tx', 'Party', 'Source', 'Dir', 'Amount']],
+      body: filteredDrillRows.map(r => {
+        const isIn = r.direction === 'cash_in';
+        const amt = Number(r.amount) || 0;
+        const partyName = (r.user_id && partyNames[r.user_id]) || (r.linked_party ? prettifyCategory(r.linked_party) : '—');
+        const refLine = r.reference_id || (r.id ? r.id.slice(0, 8) + '…' : '—');
+        const grp = r.transaction_group_id ? `\ngrp: ${r.transaction_group_id.slice(0, 8)}…` : '';
+        const src = [r.source_table, r.source_id ? r.source_id.slice(0, 8) + '…' : ''].filter(Boolean).join(':') || '—';
+        return [
+          format(new Date(r.transaction_date), 'dd MMM yyyy HH:mm'),
+          `${refLine}${grp}`,
+          `${partyName}${r.user_id ? `\n${r.user_id.slice(0, 8)}…` : ''}`,
+          src,
+          isIn ? 'IN' : 'OUT',
+          `${isIn ? '+' : '−'}${formatUGX(amt)}`,
+        ];
+      }),
+      theme: 'striped',
+      styles: { fontSize: 7, cellPadding: 3, overflow: 'linebreak' },
+      headStyles: { fillColor: [30, 30, 30], fontSize: 7 },
+      columnStyles: {
+        0: { cellWidth: 90 },
+        1: { cellWidth: 150 },
+        2: { cellWidth: 160 },
+        3: { cellWidth: 130 },
+        4: { cellWidth: 30, halign: 'center' },
+        5: { halign: 'right' },
+      },
+      margin: { left: 40, right: 40 },
+    });
+
+    const pageCount = doc.getNumberOfPages();
+    for (let p = 1; p <= pageCount; p++) {
+      doc.setPage(p);
+      doc.setFontSize(8); doc.setFont('helvetica', 'normal');
+      doc.text(`Welile Ledger Drill-Down · Page ${p} / ${pageCount}`, pageW - 40, pageH - 16, { align: 'right' });
+    }
+
+    const tag = `${drill.category}_${drill.scope}${drill.bucket ? '_' + drill.bucket : ''}`;
+    doc.save(`welile-ledger-${tag}-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+    toast.success('PDF downloaded');
+  };
+
   // Export the full drill-down (raw ledger entries) for the currently selected
   // period, granularity, scope and adjustments toggle — bypassing any open drill.
   const handleExportAllEntries = () => {
@@ -743,9 +833,14 @@ export function ComprehensiveCashMovement() {
                     {filteredDrillRows.length.toLocaleString()} of {drillRows.length.toLocaleString()} ledger entr{drillRows.length === 1 ? 'y' : 'ies'}
                     {drillQuery && <span className="ml-1 text-primary">· filtered by "{drillQuery}"</span>}
                   </div>
-                  <Button size="sm" variant="outline" className="gap-2 text-xs h-7" onClick={handleExportDrill} disabled={filteredDrillRows.length === 0}>
-                    <FileSpreadsheet className="h-3.5 w-3.5" /> Export CSV
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="outline" className="gap-2 text-xs h-7" onClick={handleExportDrill} disabled={filteredDrillRows.length === 0}>
+                      <FileSpreadsheet className="h-3.5 w-3.5" /> Export CSV
+                    </Button>
+                    <Button size="sm" variant="outline" className="gap-2 text-xs h-7" onClick={handleExportDrillPdf} disabled={filteredDrillRows.length === 0}>
+                      <FileText className="h-3.5 w-3.5" /> Export PDF
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="relative mb-2">
