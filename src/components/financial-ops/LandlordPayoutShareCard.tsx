@@ -7,7 +7,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Download, MessageCircle, Share2, CheckCircle2, Loader2 } from 'lucide-react';
+import { Download, MessageCircle, Share2, CheckCircle2, Loader2, FileDown } from 'lucide-react';
 import { toast } from 'sonner';
 
 export interface LandlordPayoutShareData {
@@ -56,7 +56,7 @@ interface Props {
 
 export function LandlordPayoutShareCard({ open, onOpenChange, data }: Props) {
   const cardRef = useRef<HTMLDivElement>(null);
-  const [busy, setBusy] = useState<'png' | 'share' | null>(null);
+  const [busy, setBusy] = useState<'png' | 'pdf' | 'share' | null>(null);
 
   if (!data) return null;
 
@@ -80,6 +80,69 @@ export function LandlordPayoutShareCard({ open, onOpenChange, data }: Props) {
       toast.success('Card downloaded');
     } catch (e: any) {
       toast.error(e?.message ?? 'Failed to download card');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    setBusy('pdf');
+    try {
+      const dataUrl = await renderImage();
+      if (!dataUrl) return;
+      const { jsPDF } = await import('jspdf');
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const margin = 12;
+
+      // Header
+      pdf.setFontSize(16);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Welile — Landlord Payout Confirmation', margin, margin + 6);
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(100, 100, 100);
+      pdf.text(
+        `Generated: ${new Date().toLocaleString('en-UG')}  ·  MoMo TID: ${data.momo_reference}`,
+        margin,
+        margin + 12,
+      );
+      pdf.setTextColor(0, 0, 0);
+
+      // Embed card image, fit to page width
+      const img = new Image();
+      img.src = dataUrl;
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('Failed to render card image'));
+      });
+      const imgWidth = pageWidth - margin * 2;
+      const imgHeight = (img.height * imgWidth) / img.width;
+      pdf.addImage(dataUrl, 'PNG', margin, margin + 18, imgWidth, imgHeight, undefined, 'FAST');
+
+      // Footer
+      const footerY = margin + 18 + imgHeight + 8;
+      pdf.setFontSize(9);
+      pdf.setTextColor(80, 80, 80);
+      pdf.text(
+        'This is an internal Welile payout confirmation. Please retain for reconciliation.',
+        margin,
+        footerY,
+      );
+      pdf.text('welilereceipts.com', margin, footerY + 5);
+
+      const blob = pdf.output('blob');
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `welile-landlord-payout-${data.momo_reference}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+      toast.success('PDF downloaded');
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Failed to generate PDF');
     } finally {
       setBusy(null);
     }
@@ -207,14 +270,18 @@ export function LandlordPayoutShareCard({ open, onOpenChange, data }: Props) {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           <Button onClick={handleNativeShare} disabled={busy !== null} className="gap-2">
             {busy === 'share' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
-            Share to WhatsApp
+            Share
           </Button>
           <Button onClick={handleDownload} variant="outline" disabled={busy !== null} className="gap-2">
             {busy === 'png' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-            Download PNG
+            PNG
+          </Button>
+          <Button onClick={handleDownloadPdf} variant="outline" disabled={busy !== null} className="gap-2">
+            {busy === 'pdf' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+            PDF
           </Button>
         </div>
         <Button
