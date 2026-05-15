@@ -187,8 +187,14 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
         .order('updated_at', { ascending: false })
         .limit(1000);
     if (verifierId) q = q.eq('processed_by', verifierId);
-    if (exportFromIso) q = q.gte('updated_at', exportFromIso);
-    if (exportToIso) q = q.lte('updated_at', exportToIso);
+    if (dateFrom) {
+      const fromIso = new Date(dateFrom.getFullYear(), dateFrom.getMonth(), dateFrom.getDate(), 0, 0, 0).toISOString();
+      q = q.gte('updated_at', fromIso);
+    }
+    if (dateTo) {
+      const toIso = new Date(dateTo.getFullYear(), dateTo.getMonth(), dateTo.getDate(), 23, 59, 59, 999).toISOString();
+      q = q.lte('updated_at', toIso);
+    }
     const { data, error } = await q;
     if (error) throw error;
     const list = (data ?? []) as any[];
