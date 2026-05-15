@@ -51,6 +51,8 @@ interface Row {
   resolved_at: string | null;
   processed_by_id: string | null;
   processed_by_name: string | null;
+  depositor_id: string | null;
+  depositor_name: string | null;
   rejection_reason: string | null;
 }
 
