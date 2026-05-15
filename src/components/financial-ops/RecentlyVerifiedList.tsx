@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Tooltip,
@@ -30,6 +31,8 @@ import {
   Download,
   FileText,
   Columns3,
+  Search,
+  X,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useFinOpsAutoRefresh } from '@/hooks/useFinOpsAutoRefresh';
@@ -74,6 +77,7 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [search, setSearch] = useState('');
 
   // Single source of truth for table columns. Drives both render and CSV
   // export so the file always matches what the operator sees.
@@ -301,6 +305,15 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
     }
   };
 
+  const searchNorm = search.trim().toLowerCase();
+  const filteredRows = searchNorm
+    ? rows.filter(
+        (r) =>
+          (r.depositor_name?.toLowerCase() ?? '').includes(searchNorm) ||
+          (r.depositor_id?.toLowerCase() ?? '').includes(searchNorm),
+      )
+    : rows;
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -394,7 +407,25 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
             </Button>
           </div>
         </div>
-        <p className="text-[11px] text-muted-foreground">
+        <div className="relative mt-2 max-w-xs">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            placeholder="Search verified person…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-8 h-8 text-xs"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+        <p className="text-[11px] text-muted-foreground mt-2">
           Audit trail — who approved or rejected each user deposit.
         </p>
       </CardHeader>
@@ -403,10 +434,12 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
           <div className="py-6 flex justify-center">
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
           </div>
-        ) : rows.length === 0 ? (
+        ) : filteredRows.length === 0 ? (
           <div className="py-6 flex flex-col items-center text-center text-muted-foreground">
             <Inbox className="h-6 w-6 mb-1.5 opacity-50" />
-            <p className="text-xs">No deposits verified yet.</p>
+            <p className="text-xs">
+              {search ? 'No deposits match your search.' : 'No deposits verified yet.'}
+            </p>
           </div>
         ) : (
           <ScrollArea className="max-h-[40vh]">
@@ -421,7 +454,7 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => {
+                {filteredRows.map((r) => {
                   const approved = r.status === 'approved';
                   return (
                     <tr key={r.id} className="border-t">
