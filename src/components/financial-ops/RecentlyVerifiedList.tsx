@@ -30,6 +30,8 @@ import {
   Download,
   FileText,
   Columns3,
+  Search,
+  X,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useFinOpsAutoRefresh } from '@/hooks/useFinOpsAutoRefresh';
