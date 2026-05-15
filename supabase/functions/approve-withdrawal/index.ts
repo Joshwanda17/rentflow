@@ -128,7 +128,7 @@ Deno.serve(async (req) => {
     const { data: dupRefRows } = await admin
       .from("withdrawal_requests")
       .select("id, status, user_id, amount")
-      .or(`fin_ops_reference.eq.${refTrimmed},external_reference.eq.${refTrimmed}`)
+      .eq("fin_ops_reference", refTrimmed)
       .neq("id", withdrawal_id)
       .in("status", ["completed", "processing", "paid", "disbursed"])
       .limit(1);
