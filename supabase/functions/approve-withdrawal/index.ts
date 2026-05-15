@@ -294,6 +294,7 @@ Deno.serve(async (req) => {
         `request=${withdrawal_id} partner=${beneficiaryUserId} ` +
         `partner_available=${partnerAvail} amount=${amount}`,
       );
+      await releaseClaim();
       return new Response(
         JSON.stringify({
           error: "PARTNER_INSUFFICIENT_BALANCE",
@@ -720,6 +721,7 @@ Deno.serve(async (req) => {
             "Wallet/pivot drift exceeds threshold after self-heal; withdrawal blocked.",
             "BALANCE_MISMATCH",
           );
+          await releaseClaim();
           return new Response(
             JSON.stringify({ error: "BALANCE_MISMATCH", detail: recheck }),
             { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -771,6 +773,7 @@ Deno.serve(async (req) => {
       if (isInsufficientBalance) {
         await auditFailedWithdrawalAttempt(failureReason, "INSUFFICIENT_WITHDRAWABLE");
       }
+      await releaseClaim();
       return new Response(JSON.stringify({
         success: false,
         error: failureReason,
