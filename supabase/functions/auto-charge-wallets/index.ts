@@ -546,18 +546,38 @@ Deno.serve(async (req) => {
         // shares recognised as revenue. NO wallets table is touched.
         const accrualSplit = await getFeeSplit(supabase, charge.rent_request_id, chargeAmount);
 
-        const { error: accrualErr } = await supabase.rpc("create_ledger_transaction", {
-          entries: buildAccrualEntriesNoWallet(
-            charge.tenant_id,
-            landlordIdForAccrual,
-            chargeAmount,
-            accrualSplit,
-            charge.id,
-            charge.rent_request_id,
-            `${charge.frequency} instalment for ${tenantName}`,
-            now,
-          ),
-        });
+        // HARD WALLET GUARD: route through `create_ledger_transaction_accrual_only`
+        // which (1) refuses any wallet-scoped leg in the payload and
+        // (2) sets `wallet.accrual_lock=on` for the transaction so any
+        // cascading trigger that tries to mutate a wallet bucket is rejected
+        // by `enforce_wallet_ledger_only`. Wallets cannot be touched here.
+        const accrualEntries = buildAccrualEntriesNoWallet(
+          charge.tenant_id,
+          landlordIdForAccrual,
+          chargeAmount,
+          accrualSplit,
+          charge.id,
+          charge.rent_request_id,
+          `${charge.frequency} instalment for ${tenantName}`,
+          now,
+        );
+
+        // Defensive client-side check — must never include a wallet leg.
+        const walletLegs = accrualEntries.filter(
+          (e: any) => String(e?.ledger_scope ?? "").toLowerCase() === "wallet",
+        );
+        if (walletLegs.length > 0) {
+          console.error(
+            `[auto-charge-wallets] BLOCKED: accrual payload for ${charge.tenant_id} contained ${walletLegs.length} wallet leg(s); refusing to post.`,
+          );
+          results.errors.push(`${charge.id}: wallet leg in accrual payload`);
+          continue;
+        }
+
+        const { error: accrualErr } = await supabase.rpc(
+          "create_ledger_transaction_accrual_only",
+          { entries: accrualEntries },
+        );
 
         if (accrualErr) {
           console.error(`[auto-charge-wallets] Accrual RPC error for ${charge.tenant_id}:`, accrualErr);
