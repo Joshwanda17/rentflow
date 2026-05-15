@@ -833,9 +833,14 @@ export function ComprehensiveCashMovement() {
                     {filteredDrillRows.length.toLocaleString()} of {drillRows.length.toLocaleString()} ledger entr{drillRows.length === 1 ? 'y' : 'ies'}
                     {drillQuery && <span className="ml-1 text-primary">· filtered by "{drillQuery}"</span>}
                   </div>
-                  <Button size="sm" variant="outline" className="gap-2 text-xs h-7" onClick={handleExportDrill} disabled={filteredDrillRows.length === 0}>
-                    <FileSpreadsheet className="h-3.5 w-3.5" /> Export CSV
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="outline" className="gap-2 text-xs h-7" onClick={handleExportDrill} disabled={filteredDrillRows.length === 0}>
+                      <FileSpreadsheet className="h-3.5 w-3.5" /> Export CSV
+                    </Button>
+                    <Button size="sm" variant="outline" className="gap-2 text-xs h-7" onClick={handleExportDrillPdf} disabled={filteredDrillRows.length === 0}>
+                      <FileText className="h-3.5 w-3.5" /> Export PDF
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="relative mb-2">
