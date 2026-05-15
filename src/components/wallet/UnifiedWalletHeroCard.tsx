@@ -95,15 +95,15 @@ export function UnifiedWalletHeroCard({
         {/* Header row */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-primary-foreground/15 backdrop-blur-sm">
+            <div className="p-1.5 rounded-lg bg-primary-foreground/20">
               <Wallet className="h-3.5 w-3.5 text-primary-foreground/90" />
             </div>
             <span className="text-[11px] font-semibold text-primary-foreground/60 uppercase tracking-[0.12em]">
               {ROLE_LABELS[role]}
             </span>
           </div>
-          <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary-foreground/10 backdrop-blur-sm">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary-foreground/15">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
             <span className="text-[9px] font-bold text-emerald-300 uppercase tracking-wider">Active</span>
           </div>
         </div>
@@ -116,7 +116,7 @@ export function UnifiedWalletHeroCard({
           >
             <div className="grid grid-cols-2 gap-3">
               {/* Float section */}
-              <div className="bg-primary-foreground/10 backdrop-blur-sm rounded-xl p-3">
+              <div className="bg-primary-foreground/15 rounded-xl p-3">
                 <div className="flex items-center gap-1.5 mb-1.5">
                   <PiggyBank className="h-3 w-3 text-primary-foreground/50" />
                   <p className="text-[9px] uppercase tracking-[0.15em] font-semibold text-primary-foreground/50">Float</p>
@@ -130,7 +130,7 @@ export function UnifiedWalletHeroCard({
               {/* Withdrawable section — STRICT ledger-backed value only.
                   Must NEVER display commissionBalance here: commission is
                   earnings history, not necessarily currently withdrawable. */}
-              <div className="bg-primary-foreground/10 backdrop-blur-sm rounded-xl p-3">
+              <div className="bg-primary-foreground/15 rounded-xl p-3">
                 <div className="flex items-center gap-1.5 mb-1.5">
                   <Coins className="h-3 w-3 text-emerald-400/70" />
                   <p className="text-[9px] uppercase tracking-[0.15em] font-semibold text-emerald-300/70">Withdrawable</p>
@@ -183,7 +183,7 @@ export function UnifiedWalletHeroCard({
           <div className="grid grid-cols-3 gap-2">
             <button
               onClick={() => { hapticTap(); onHousesTap?.(); }}
-              className="bg-primary-foreground/10 backdrop-blur-sm rounded-xl p-2.5 text-center active:scale-[0.95] transition-transform"
+              className="bg-primary-foreground/15 rounded-xl p-2.5 text-center active:scale-[0.95] transition-transform"
             >
               <Home className="h-3.5 w-3.5 text-primary-foreground/60 mx-auto mb-1" />
               <p className="text-[9px] uppercase tracking-wider text-primary-foreground/50 font-medium">Houses</p>
@@ -191,7 +191,7 @@ export function UnifiedWalletHeroCard({
             </button>
             <button
               onClick={() => { hapticTap(); onReturnTap?.(); }}
-              className="bg-primary-foreground/10 backdrop-blur-sm rounded-xl p-2.5 text-center active:scale-[0.95] transition-transform"
+              className="bg-primary-foreground/15 rounded-xl p-2.5 text-center active:scale-[0.95] transition-transform"
             >
               <TrendingUp className="h-3.5 w-3.5 text-primary-foreground/60 mx-auto mb-1" />
               <p className="text-[9px] uppercase tracking-wider text-primary-foreground/50 font-medium">Return/Mo</p>
@@ -199,7 +199,7 @@ export function UnifiedWalletHeroCard({
             </button>
             <button
               onClick={() => { hapticTap(); onDeployedTap?.(); }}
-              className="bg-primary-foreground/10 backdrop-blur-sm rounded-xl p-2.5 text-center active:scale-[0.95] transition-transform"
+              className="bg-primary-foreground/15 rounded-xl p-2.5 text-center active:scale-[0.95] transition-transform"
             >
               <Rocket className="h-3.5 w-3.5 text-primary-foreground/60 mx-auto mb-1" />
               <p className="text-[9px] uppercase tracking-wider text-primary-foreground/50 font-medium">Deployed</p>
