@@ -130,6 +130,8 @@ export function ComprehensiveCashMovement() {
   const [drill, setDrill] = useState<null | { category: string; scope: string; bucket: string | null }>(null);
   const [partyNames, setPartyNames] = useState<Record<string, string>>({});
   const [drillQuery, setDrillQuery] = useState('');
+  const [drillPage, setDrillPage] = useState(0);
+  const [drillPageSize, setDrillPageSize] = useState<number>(100);
 
   const generate = async () => {
     setLoading(true);
@@ -167,8 +169,9 @@ export function ComprehensiveCashMovement() {
 
   useEffect(() => { generate(); /* eslint-disable-next-line */ }, [period]);
 
-  // Reset search when opening a new drill
-  useEffect(() => { setDrillQuery(''); }, [drill?.category, drill?.scope, drill?.bucket]);
+  // Reset search + pagination when opening a new drill
+  useEffect(() => { setDrillQuery(''); setDrillPage(0); }, [drill?.category, drill?.scope, drill?.bucket]);
+  useEffect(() => { setDrillPage(0); }, [drillQuery, drillPageSize]);
 
   // Drill-down filtered rows
   const drillRows = useMemo(() => {
@@ -640,7 +643,9 @@ export function ComprehensiveCashMovement() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredDrillRows.slice(0, 500).map((r, i) => {
+                        {filteredDrillRows
+                          .slice(drillPage * drillPageSize, drillPage * drillPageSize + drillPageSize)
+                          .map((r, i) => {
                           const amt = Number(r.amount) || 0;
                           const isIn = r.direction === 'cash_in';
                           const name = r.user_id ? partyNames[r.user_id] : null;
@@ -679,11 +684,38 @@ export function ComprehensiveCashMovement() {
                         })}
                       </TableBody>
                     </Table>
-                    {filteredDrillRows.length > 500 && (
-                      <div className="text-[10px] text-muted-foreground text-center py-2 border-t border-border">
-                        Showing first 500 of {filteredDrillRows.length.toLocaleString()}. Export CSV for full list.
-                      </div>
-                    )}
+                    {(() => {
+                      const total = filteredDrillRows.length;
+                      const totalPages = Math.max(1, Math.ceil(total / drillPageSize));
+                      const page = Math.min(drillPage, totalPages - 1);
+                      const start = page * drillPageSize;
+                      const end = Math.min(start + drillPageSize, total);
+                      return (
+                        <div className="flex items-center justify-between gap-2 py-2 px-3 border-t border-border bg-muted/20">
+                          <div className="text-[10px] text-muted-foreground">
+                            Showing <span className="font-mono">{(start + 1).toLocaleString()}–{end.toLocaleString()}</span> of <span className="font-mono">{total.toLocaleString()}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] text-muted-foreground mr-1">Per page:</span>
+                            {[50, 100, 250, 500].map(size => (
+                              <Button key={size} size="sm" variant={drillPageSize === size ? 'default' : 'outline'}
+                                className="h-6 px-2 text-[10px]" onClick={() => setDrillPageSize(size)}>
+                                {size}
+                              </Button>
+                            ))}
+                            <Button size="sm" variant="outline" className="h-6 px-2 text-[10px] ml-2"
+                              disabled={page === 0} onClick={() => setDrillPage(0)}>« First</Button>
+                            <Button size="sm" variant="outline" className="h-6 px-2 text-[10px]"
+                              disabled={page === 0} onClick={() => setDrillPage(p => Math.max(0, p - 1))}>‹ Prev</Button>
+                            <span className="text-[10px] text-muted-foreground px-1 font-mono">{page + 1} / {totalPages}</span>
+                            <Button size="sm" variant="outline" className="h-6 px-2 text-[10px]"
+                              disabled={page >= totalPages - 1} onClick={() => setDrillPage(p => Math.min(totalPages - 1, p + 1))}>Next ›</Button>
+                            <Button size="sm" variant="outline" className="h-6 px-2 text-[10px]"
+                              disabled={page >= totalPages - 1} onClick={() => setDrillPage(totalPages - 1)}>Last »</Button>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
               </>
