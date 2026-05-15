@@ -36,6 +36,8 @@ interface ExecutiveDataTableProps<T> {
   onSelectionChange?: (ids: string[]) => void;
   /** Optional toolbar element rendered when at least one row is selected. */
   bulkActions?: (selectedIds: string[]) => React.ReactNode;
+  /** Optional click handler — when set, rows become clickable. */
+  onRowClick?: (row: T) => void;
 }
 
 export function ExecutiveDataTable<T extends Record<string, any>>({
@@ -49,6 +51,7 @@ export function ExecutiveDataTable<T extends Record<string, any>>({
   selectedIds,
   onSelectionChange,
   bulkActions,
+  onRowClick,
 }: ExecutiveDataTableProps<T>) {
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<string | null>(null);
@@ -315,7 +318,9 @@ export function ExecutiveDataTable<T extends Record<string, any>>({
                     className={cn(
                       'border-b border-border last:border-0 hover:bg-muted/30 transition-colors',
                       isSelected && 'bg-primary/5',
+                      onRowClick && 'cursor-pointer',
                     )}
+                    onClick={onRowClick ? () => onRowClick(row) : undefined}
                   >
                     {selectionEnabled && (
                       <td className="px-3 py-2.5 w-10 sticky left-0 bg-background z-10">
