@@ -522,8 +522,11 @@ export function ComprehensiveCashMovement() {
                 {aggregates.map(a => (
                   <TableRow
                     key={`${a.category}|${a.scope}`}
-                    className="cursor-pointer hover:bg-muted/60"
-                    onClick={() => setDrill({ category: a.category, scope: a.scope, bucket: null })}
+                    className={cn(canViewLedgerDetail ? 'cursor-pointer hover:bg-muted/60' : 'cursor-default')}
+                    onClick={() => {
+                      if (!canViewLedgerDetail) { toast.error('Ledger drill-down restricted to finance leadership'); return; }
+                      setDrill({ category: a.category, scope: a.scope, bucket: null });
+                    }}
                   >
                     <TableCell>
                       <div className="font-medium text-sm">{prettifyCategory(a.category)}</div>
@@ -569,8 +572,11 @@ export function ComprehensiveCashMovement() {
                   {aggregates.map(a => (
                     <TableRow key={`ts-${a.category}|${a.scope}`}>
                       <TableCell
-                        className="sticky left-0 bg-background z-10 cursor-pointer hover:text-primary"
-                        onClick={() => setDrill({ category: a.category, scope: a.scope, bucket: null })}
+                        className={cn('sticky left-0 bg-background z-10', canViewLedgerDetail && 'cursor-pointer hover:text-primary')}
+                        onClick={() => {
+                          if (!canViewLedgerDetail) { toast.error('Ledger drill-down restricted to finance leadership'); return; }
+                          setDrill({ category: a.category, scope: a.scope, bucket: null });
+                        }}
                       >
                         <div className="text-xs font-medium">{prettifyCategory(a.category)}</div>
                         <div className="text-[10px] text-muted-foreground">{SCOPE_LABEL[a.scope] || a.scope}</div>
@@ -582,8 +588,11 @@ export function ComprehensiveCashMovement() {
                         return (
                           <TableCell
                             key={b}
-                            onClick={() => setDrill({ category: a.category, scope: a.scope, bucket: b })}
-                            className={cn('text-right font-mono text-[11px] whitespace-nowrap cursor-pointer hover:bg-primary/10 hover:underline', net >= 0 ? 'text-success' : 'text-destructive')}
+                            onClick={() => {
+                              if (!canViewLedgerDetail) { toast.error('Ledger drill-down restricted to finance leadership'); return; }
+                              setDrill({ category: a.category, scope: a.scope, bucket: b });
+                            }}
+                            className={cn('text-right font-mono text-[11px] whitespace-nowrap', canViewLedgerDetail && 'cursor-pointer hover:bg-primary/10 hover:underline', net >= 0 ? 'text-success' : 'text-destructive')}
                           >
                             {net >= 0 ? '+' : ''}{formatUGX(net)}
                           </TableCell>
