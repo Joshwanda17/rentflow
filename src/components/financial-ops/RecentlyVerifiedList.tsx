@@ -51,6 +51,8 @@ interface Row {
   resolved_at: string | null;
   processed_by_id: string | null;
   processed_by_name: string | null;
+  depositor_id: string | null;
+  depositor_name: string | null;
   rejection_reason: string | null;
 }
 
@@ -75,15 +77,16 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
 
   // Single source of truth for table columns. Drives both render and CSV
   // export so the file always matches what the operator sees.
-  type ColKey = 'status' | 'amount' | 'verified_by' | 'verified_at';
+  type ColKey = 'status' | 'amount' | 'depositor' | 'verified_by' | 'verified_at';
   const COLUMNS: { key: ColKey; label: string; csvHeaders: string[] }[] = [
     { key: 'status', label: 'Status', csvHeaders: ['Outcome', 'Rejection reason'] },
     { key: 'amount', label: 'Amount', csvHeaders: ['Amount (UGX)'] },
+    { key: 'depositor', label: 'Verified person', csvHeaders: ['Depositor (ID)', 'Depositor'] },
     { key: 'verified_by', label: 'Verified by', csvHeaders: ['Verified by (ID)', 'Verified by'] },
     { key: 'verified_at', label: 'Verified at', csvHeaders: ['Verified at'] },
   ];
   const [visibleCols, setVisibleCols] = useState<Record<ColKey, boolean>>({
-    status: true, amount: true, verified_by: true, verified_at: true,
+    status: true, amount: true, depositor: true, verified_by: true, verified_at: true,
   });
   const isVisible = (k: ColKey) => visibleCols[k];
   const toggleCol = (k: ColKey) => setVisibleCols((p) => ({ ...p, [k]: !p[k] }));
@@ -94,7 +97,7 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
       let q = supabase
         .from('deposit_requests')
         .select(
-          'id, amount, status, approved_at, rejected_at, processed_by, rejection_reason',
+          'id, amount, status, approved_at, rejected_at, processed_by, user_id, rejection_reason',
         )
         .in('status', ['approved', 'rejected'])
         .order('updated_at', { ascending: false })
@@ -105,7 +108,10 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
 
       const list = (data ?? []) as any[];
       const ids = Array.from(
-        new Set(list.map((r) => r.processed_by).filter(Boolean)),
+        new Set([
+          ...list.map((r) => r.processed_by).filter(Boolean),
+          ...list.map((r) => r.user_id).filter(Boolean),
+        ]),
       );
       const nameMap = new Map<string, string | null>();
       if (ids.length > 0) {
@@ -124,6 +130,8 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
           resolved_at: r.status === 'approved' ? r.approved_at : r.rejected_at,
           processed_by_id: r.processed_by ?? null,
           processed_by_name: r.processed_by ? nameMap.get(r.processed_by) ?? null : null,
+          depositor_id: r.user_id ?? null,
+          depositor_name: r.user_id ? nameMap.get(r.user_id) ?? null : null,
           rejection_reason: r.rejection_reason ?? null,
         })),
       );
@@ -151,7 +159,7 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
     let q = supabase
         .from('deposit_requests')
         .select(
-          'id, amount, status, approved_at, rejected_at, processed_by, rejection_reason',
+          'id, amount, status, approved_at, rejected_at, processed_by, user_id, rejection_reason',
         )
         .in('status', ['approved', 'rejected'])
         .order('updated_at', { ascending: false })
@@ -163,7 +171,10 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
     if (error) throw error;
     const list = (data ?? []) as any[];
 
-    const ids = Array.from(new Set(list.map((r) => r.processed_by).filter(Boolean)));
+    const ids = Array.from(new Set([
+      ...list.map((r) => r.processed_by).filter(Boolean),
+      ...list.map((r) => r.user_id).filter(Boolean),
+    ]));
     const nameMap = new Map<string, string | null>();
     if (ids.length > 0) {
       const { data: profs } = await supabase
@@ -185,6 +196,10 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
         r.rejection_reason ?? '',
       ]);
       else if (c.key === 'amount') rowBuilders.push((r) => [Number(r.amount || 0)]);
+      else if (c.key === 'depositor') rowBuilders.push((r) => [
+        r.user_id ?? '',
+        nameMap.get(r.user_id) ?? '',
+      ]);
       else if (c.key === 'verified_by') rowBuilders.push((r) => [
         r.processed_by ?? '',
         nameMap.get(r.processed_by) ?? '',
@@ -400,6 +415,7 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
                 <tr>
                   {isVisible('status') && <th className="text-left font-medium px-2 py-2">Status</th>}
                   {isVisible('amount') && <th className="text-right font-medium px-2 py-2">Amount</th>}
+                  {isVisible('depositor') && <th className="text-left font-medium px-2 py-2">Verified person</th>}
                   {isVisible('verified_by') && <th className="text-left font-medium px-2 py-2">Verified by</th>}
                   {isVisible('verified_at') && <th className="text-left font-medium px-2 py-2 whitespace-nowrap">Verified at</th>}
                 </tr>
@@ -433,6 +449,24 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
                       {isVisible('amount') && (
                       <td className="px-2 py-2 align-top text-right font-mono font-semibold tabular-nums">
                         {formatUGX(r.amount)}
+                      </td>
+                      )}
+                      {isVisible('depositor') && (
+                      <td className="px-2 py-2 align-top">
+                        {r.depositor_name ? (
+                          <div className="flex items-center gap-1">
+                            <UserIcon className="h-3 w-3 text-muted-foreground shrink-0" />
+                            <span className="font-medium truncate max-w-[120px]">
+                              {r.depositor_name}
+                            </span>
+                          </div>
+                        ) : r.depositor_id ? (
+                          <span className="text-muted-foreground font-mono">
+                            {r.depositor_id.slice(0, 8)}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground italic">Unknown</span>
+                        )}
                       </td>
                       )}
                       {isVisible('verified_by') && (
