@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -7,7 +7,20 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Download, MessageCircle, Share2, CheckCircle2, Loader2, FileDown, FileText } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import {
+  Download,
+  MessageCircle,
+  Share2,
+  CheckCircle2,
+  Loader2,
+  FileDown,
+  FileText,
+  RotateCcw,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 export interface LandlordPayoutShareData {
@@ -33,19 +46,31 @@ function formatWhatsAppNumber(phone: string): string {
   return cleaned;
 }
 
-function buildAgentMessage(d: LandlordPayoutShareData): string {
-  const lines = [
-    `✅ *Welile — Landlord Paid*`,
-    ``,
-    `*${formatUGX(d.amount)}* sent to *${d.landlord_name}*`,
-    `📱 ${d.mobile_money_provider}: ${d.landlord_phone}`,
-    `🏠 Tenant: ${d.tenant_name || 'Unallocated'}`,
-    `🧾 MoMo TID: ${d.momo_reference}`,
-    `🕒 ${new Date(d.paid_at).toLocaleString('en-UG')}`,
-    ``,
-    `Please confirm with the landlord and upload the receipt in your Welile app.`,
-  ];
-  return lines.join('\n');
+const CAPTION_TEMPLATE_KEY = 'welile.landlordPayout.captionTemplate.v1';
+
+export const DEFAULT_PAYOUT_CAPTION_TEMPLATE =
+  `✅ *Welile — Landlord Paid*\n\n` +
+  `*{amount}* sent to *{landlord}*\n` +
+  `📱 {provider}: {phone}\n` +
+  `🏠 Tenant: {tenant}\n` +
+  `🧾 MoMo TID: {tid}\n` +
+  `🕒 {date}\n\n` +
+  `Please confirm with the landlord and upload the receipt in your Welile app.`;
+
+function renderCaption(template: string, d: LandlordPayoutShareData): string {
+  const map: Record<string, string> = {
+    amount: formatUGX(d.amount),
+    landlord: d.landlord_name,
+    tenant: d.tenant_name || 'Unallocated',
+    tid: d.momo_reference,
+    provider: d.mobile_money_provider,
+    phone: d.landlord_phone,
+    agent: d.agent_name || '',
+    date: new Date(d.paid_at).toLocaleString('en-UG'),
+  };
+  return template.replace(/\{(\w+)\}/g, (_, k: string) =>
+    Object.prototype.hasOwnProperty.call(map, k) ? map[k] : `{${k}}`,
+  );
 }
 
 interface Props {
@@ -57,8 +82,35 @@ interface Props {
 export function LandlordPayoutShareCard({ open, onOpenChange, data }: Props) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState<'png' | 'pdf' | 'share' | 'share-pdf' | null>(null);
+  const [captionTemplate, setCaptionTemplate] = useState<string>(DEFAULT_PAYOUT_CAPTION_TEMPLATE);
+  const [showTemplate, setShowTemplate] = useState(false);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(CAPTION_TEMPLATE_KEY);
+      if (stored && stored.trim()) setCaptionTemplate(stored);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const persistTemplate = (next: string) => {
+    setCaptionTemplate(next);
+    try {
+      localStorage.setItem(CAPTION_TEMPLATE_KEY, next);
+    } catch {
+      // ignore
+    }
+  };
+
+  const resetTemplate = () => {
+    persistTemplate(DEFAULT_PAYOUT_CAPTION_TEMPLATE);
+    toast.success('Caption reset to default');
+  };
 
   if (!data) return null;
+
+  const captionText = renderCaption(captionTemplate, data);
 
   const renderImage = async () => {
     if (!cardRef.current) return null;
@@ -160,7 +212,7 @@ export function LandlordPayoutShareCard({ open, onOpenChange, data }: Props) {
       if (!blob) return;
       const fileName = `welile-landlord-payout-${data.momo_reference}.pdf`;
       const file = new File([blob], fileName, { type: 'application/pdf' });
-      const text = buildAgentMessage(data);
+      const text = captionText;
       const nav = navigator as any;
       if (nav.canShare && nav.canShare({ files: [file] })) {
         await nav.share({ files: [file], text, title: 'Welile — Landlord Paid' });
@@ -194,7 +246,7 @@ export function LandlordPayoutShareCard({ open, onOpenChange, data }: Props) {
       const file = new File([blob], `welile-landlord-payout-${data.momo_reference}.png`, {
         type: 'image/png',
       });
-      const text = buildAgentMessage(data);
+      const text = captionText;
       const nav = navigator as any;
       if (nav.canShare && nav.canShare({ files: [file] })) {
         await nav.share({ files: [file], text, title: 'Welile — Landlord Paid' });
@@ -216,7 +268,7 @@ export function LandlordPayoutShareCard({ open, onOpenChange, data }: Props) {
   };
 
   const openWhatsAppText = () => {
-    const text = encodeURIComponent(buildAgentMessage(data));
+    const text = encodeURIComponent(captionText);
     const phone = data.agent_phone ? formatWhatsAppNumber(data.agent_phone) : '';
     const base = phone ? `https://wa.me/${phone}` : `https://wa.me/`;
     window.open(`${base}?text=${text}`, '_blank');
