@@ -679,10 +679,16 @@ export function ProxyPartnerFunds() {
       });
     });
 
-    const withdrawalsByPartner: Record<string, number> = {};
-    completedWithdrawals.forEach(w => {
-      withdrawalsByPartner[w.linked_party] = (withdrawalsByPartner[w.linked_party] || 0) + (Number(w.amount) || 0);
-    });
+    // NOTE: We intentionally do NOT subtract `completedWithdrawals` from the
+    // approved total here. `proxy_payout_settlements` is the sole source of
+    // truth for "this approval is closed" and `loadProxyFunds` already drops
+    // any approval whose id appears in that table (see the settlement filter
+    // above). Subtracting completed withdrawal_requests on top of that
+    // double-counts unrelated legacy deliveries against an open approval —
+    // e.g. a settled 806,400 legacy payout was eating into an unrelated
+    // 7,180,000 Custody-v2 approval, showing 6,373,600 instead of 7,180,000.
+    // The `liveOpen` clamp below (strict withdrawable + in-flight) is the
+    // live ceiling that keeps the card honest.
 
     const groupMap: Record<string, {
       partnerId: string;
@@ -694,9 +700,8 @@ export function ProxyPartnerFunds() {
 
     Object.entries(opsByPartner).forEach(([partnerId, rows]) => {
       const totalApproved = rows.reduce((sum, row) => sum + row.amount, 0);
-      const totalCompleted = withdrawalsByPartner[partnerId] || 0;
       const totalInFlight = activeWithdrawalsByPartner[partnerId] || 0;
-      const historicalOpen = Math.max(0, totalApproved - totalCompleted);
+      const historicalOpen = Math.max(0, totalApproved);
       const liveOpen = Math.max(
         0,
         Math.min(historicalOpen, (strictWithdrawableByPartner[partnerId] ?? historicalOpen) + totalInFlight),
