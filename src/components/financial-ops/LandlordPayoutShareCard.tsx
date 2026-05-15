@@ -7,7 +7,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Download, MessageCircle, Share2, CheckCircle2, Loader2, FileDown } from 'lucide-react';
+import { Download, MessageCircle, Share2, CheckCircle2, Loader2, FileDown, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 
 export interface LandlordPayoutShareData {
@@ -56,7 +56,7 @@ interface Props {
 
 export function LandlordPayoutShareCard({ open, onOpenChange, data }: Props) {
   const cardRef = useRef<HTMLDivElement>(null);
-  const [busy, setBusy] = useState<'png' | 'pdf' | 'share' | null>(null);
+  const [busy, setBusy] = useState<'png' | 'pdf' | 'share' | 'share-pdf' | null>(null);
 
   if (!data) return null;
 
@@ -85,12 +85,10 @@ export function LandlordPayoutShareCard({ open, onOpenChange, data }: Props) {
     }
   };
 
-  const handleDownloadPdf = async () => {
-    setBusy('pdf');
-    try {
-      const dataUrl = await renderImage();
-      if (!dataUrl) return;
-      const { jsPDF } = await import('jspdf');
+  const buildPdfBlob = async (): Promise<Blob | null> => {
+    const dataUrl = await renderImage();
+    if (!dataUrl) return null;
+    const { jsPDF } = await import('jspdf');
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
       const pageWidth = pdf.internal.pageSize.getWidth();
       const margin = 12;
@@ -131,7 +129,14 @@ export function LandlordPayoutShareCard({ open, onOpenChange, data }: Props) {
       );
       pdf.text('welilereceipts.com', margin, footerY + 5);
 
-      const blob = pdf.output('blob');
+    return pdf.output('blob');
+  };
+
+  const handleDownloadPdf = async () => {
+    setBusy('pdf');
+    try {
+      const blob = await buildPdfBlob();
+      if (!blob) return;
       const blobUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = blobUrl;
@@ -143,6 +148,38 @@ export function LandlordPayoutShareCard({ open, onOpenChange, data }: Props) {
       toast.success('PDF downloaded');
     } catch (e: any) {
       toast.error(e?.message ?? 'Failed to generate PDF');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleSharePdf = async () => {
+    setBusy('share-pdf');
+    try {
+      const blob = await buildPdfBlob();
+      if (!blob) return;
+      const fileName = `welile-landlord-payout-${data.momo_reference}.pdf`;
+      const file = new File([blob], fileName, { type: 'application/pdf' });
+      const text = buildAgentMessage(data);
+      const nav = navigator as any;
+      if (nav.canShare && nav.canShare({ files: [file] })) {
+        await nav.share({ files: [file], text, title: 'Welile — Landlord Paid' });
+        toast.success('PDF shared');
+      } else {
+        // Fallback: download PDF + open WhatsApp chat with text
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+        openWhatsAppText();
+        toast.message('PDF downloaded — attach it in WhatsApp');
+      }
+    } catch (e: any) {
+      if (e?.name !== 'AbortError') toast.error(e?.message ?? 'Failed to share PDF');
     } finally {
       setBusy(null);
     }
@@ -284,6 +321,14 @@ export function LandlordPayoutShareCard({ open, onOpenChange, data }: Props) {
             PDF
           </Button>
         </div>
+        <Button
+          onClick={handleSharePdf}
+          disabled={busy !== null}
+          className="w-full gap-2 bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-700 hover:to-fuchsia-700 text-white"
+        >
+          {busy === 'share-pdf' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+          Share PDF to WhatsApp
+        </Button>
         <Button
           onClick={openWhatsAppText}
           variant="outline"
