@@ -266,13 +266,28 @@ Deno.serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ error: "Invalid action. Use 'send' or 'verify'." }), {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    if (action === "send_custom") {
+      const message = (body.message as string || "").trim();
+      if (!message) {
+        return new Response(JSON.stringify({ error: "Message required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const sent = await sendSMS(phone, message);
+      if (!sent) {
+        return new Response(JSON.stringify({ error: "Failed to send SMS" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-    // (unreachable)
-  } catch (error: unknown) {
+    return new Response(JSON.stringify({ error: "Invalid action. Use 'send' or 'verify'." }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
