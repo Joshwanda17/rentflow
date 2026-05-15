@@ -122,6 +122,16 @@ const STATUS_COLORS: Record<string, string> = {
   rejected: 'bg-destructive/10 text-destructive',
 };
 
+// Which dashboard is doing the rejecting at each stage. Used in the
+// auto-WhatsApp message sent to the originating Agent on rejection.
+const STAGE_REJECTOR_LABEL: Record<PipelineStage, string> = {
+  pending: 'Agent Ops',
+  agent_ops_approved: 'Tenant Ops',
+  tenant_ops_approved: 'Landlord Ops',
+  landlord_ops_approved: 'COO',
+  coo_approved: 'CFO / Financial Ops',
+};
+
 const formatWhatsApp = (phone: string): string => {
   if (!phone) return '';
   let clean = phone.replace(/\D/g, '');
