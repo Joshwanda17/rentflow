@@ -477,7 +477,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
 
             {/* Welile branding badge — top-left */}
             <div
-              className="absolute flex flex-col items-center gap-1 rounded-2xl bg-background/95 dark:bg-card/95 backdrop-blur-md px-2.5 py-2 shadow-md border border-border ring-1 ring-foreground/5"
+              className="absolute flex flex-col items-center gap-1 rounded-2xl bg-background dark:bg-card px-2.5 py-2 shadow-md border border-border ring-1 ring-foreground/5"
               style={{
                 top: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)',
                 left: 'calc(env(safe-area-inset-left, 0px) + 0.75rem)',
@@ -516,7 +516,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                   setReceiptDialogOpen(true);
                 }
               }}
-              className={`absolute flex flex-col items-end gap-0.5 rounded-2xl text-white px-3 py-1.5 shadow-xl ring-1 backdrop-blur-sm active:scale-[0.97] transition-transform text-left drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)] [text-shadow:0_1px_2px_rgba(0,0,0,0.55),0_0_1px_rgba(0,0,0,0.7)] ${
+              className={`absolute flex flex-col items-end gap-0.5 rounded-2xl text-white px-3 py-1.5 shadow-xl ring-1 active:scale-[0.97] transition-transform text-left drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)] [text-shadow:0_1px_2px_rgba(0,0,0,0.55),0_0_1px_rgba(0,0,0,0.7)] ${
                 breadPrice.freeBreads > 0
                   ? 'bg-gradient-to-br from-emerald-600 to-emerald-800 ring-white/30'
                   : breadPrice.reducedPrice < breadPrice.basePrice
@@ -573,7 +573,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               <span className="mt-0.5 inline-flex items-center gap-1 text-[8.5px] font-medium leading-none opacity-80">
                 {breadPrice.syncing ? (
                   <>
-                    <span className="h-1.5 w-1.5 rounded-full bg-white/90 animate-pulse" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-white/90" />
                     Updating…
                   </>
                 ) : (
@@ -659,7 +659,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               {/* Subtle gradient scrim for legibility over photo */}
               <div className="pointer-events-none absolute inset-x-0 -top-16 h-24 bg-gradient-to-t from-black/45 to-transparent" aria-hidden="true" />
 
-              <div className="relative pointer-events-auto flex items-stretch gap-2 rounded-2xl bg-background/85 dark:bg-card/80 backdrop-blur-xl border border-white/30 dark:border-white/10 shadow-[0_8px_30px_-6px_rgba(0,0,0,0.35)] p-1.5">
+              <div className="relative pointer-events-auto flex items-stretch gap-2 rounded-2xl bg-background dark:bg-card border border-border shadow-[0_8px_30px_-6px_rgba(0,0,0,0.35)] p-1.5">
                 {/* Primary: Claim — switches to "Claim Rent Discount" when viewing a rental slide */}
                 {(() => {
                   const onRental = heroSlideIndex > 0;
@@ -731,7 +731,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
 
           {/* Mini receipt history — last 5 receipts that affected bread price */}
           {breadHistory.length > 0 && (
-            <div className="rounded-xl border border-border/60 bg-card/80 backdrop-blur px-3 py-2.5">
+            <div className="rounded-xl border border-border/60 bg-card px-3 py-2.5">
               <div className="flex items-center justify-between mb-1.5">
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Recent receipts
