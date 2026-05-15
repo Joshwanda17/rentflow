@@ -592,8 +592,11 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               {[
                 { icon: FileText, label: 'New Tenant', onClick: () => setRentRequestOpen(true) },
                 { icon: Users, label: 'My Tenants', onClick: () => setTenantsSheetOpen(true) },
-                { icon: UserCog, label: 'Managed Users', onClick: () => setManagedUsersOpen(true) },
-                { icon: Banknote, label: 'Pay Rent', onClick: () => setTopUpTenantOpen(true) },
+              { icon: UserCog, label: 'Managed Users', onClick: () => setManagedUsersOpen(true) },
+                // 'Pay Rent' (AgentTopUpTenantDialog → agent-deposit) DEACTIVATED 2026-05-15:
+                // produced phantom repayments — record_rent_request_repayment commits before
+                // the agent_float_used_for_rent ledger leg is posted, so when the ledger leg
+                // fails the rent looks paid with no cash movement. Use Field Collect instead.
                 { icon: Home, label: 'List House', onClick: () => setListHouseOpen(true) },
               ].map((a) => (
                 <button
@@ -678,7 +681,11 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onManageProperty={() => { setMenuOpen(false); setManagedPropertyOpen(true); }}
         onViewManagedProperties={() => { setMenuOpen(false); setManagedPropertiesSheetOpen(true); }}
         onViewMyRentRequests={() => { setMenuOpen(false); setMyRentRequestsOpen(true); }}
-        onTopUpTenant={() => { setMenuOpen(false); setTopUpTenantOpen(true); }}
+        onTopUpTenant={() => {
+          // Disabled — see Pay Rent deactivation note above. Route agents to Field Collect.
+          setMenuOpen(false);
+          setFieldCollectOpen(true);
+        }}
         onViewTenants={() => { setMenuOpen(false); setTenantsSheetOpen(true); }}
         onInvestForPartner={() => { setMenuOpen(false); setInvestForPartnerOpen(true); }}
         onViewProxyHistory={() => { setMenuOpen(false); setProxyHistoryOpen(true); }}
