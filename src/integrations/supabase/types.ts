@@ -13484,6 +13484,8 @@ export type Database = {
           priority_level: string | null
           processed_at: string | null
           processed_by: string | null
+          processing_started_at: string | null
+          processing_started_by: string | null
           proxy_partner_id: string | null
           reason: string | null
           rejection_reason: string | null
@@ -13531,6 +13533,8 @@ export type Database = {
           priority_level?: string | null
           processed_at?: string | null
           processed_by?: string | null
+          processing_started_at?: string | null
+          processing_started_by?: string | null
           proxy_partner_id?: string | null
           reason?: string | null
           rejection_reason?: string | null
@@ -13578,6 +13582,8 @@ export type Database = {
           priority_level?: string | null
           processed_at?: string | null
           processed_by?: string | null
+          processing_started_at?: string | null
+          processing_started_by?: string | null
           proxy_partner_id?: string | null
           reason?: string | null
           rejection_reason?: string | null

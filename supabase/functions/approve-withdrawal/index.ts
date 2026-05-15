@@ -120,6 +120,96 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── Double-payout safeguard #1: same MoMo TID / bank reference cannot
+    //    be used for two different withdrawals. FinOps sometimes pastes the
+    //    same MoMo confirmation TID into a duplicate request — that means
+    //    the cash physically only moved once and we must NOT debit twice.
+    const refTrimmed = reference.trim().toUpperCase();
+    const { data: dupRefRows } = await admin
+      .from("withdrawal_requests")
+      .select("id, status, user_id, amount")
+      .eq("fin_ops_reference", refTrimmed)
+      .neq("id", withdrawal_id)
+      .in("status", ["completed", "processing", "paid", "disbursed"])
+      .limit(1);
+    if (dupRefRows && dupRefRows.length > 0) {
+      const dup = dupRefRows[0] as any;
+      return new Response(
+        JSON.stringify({
+          error: "DUPLICATE_REFERENCE",
+          message:
+            `MoMo/bank reference "${refTrimmed}" was already used on withdrawal ${dup.id} ` +
+            `(status: ${dup.status}). The same physical payment cannot settle two requests. ` +
+            `If this is a new payout, enter the new TID; if the original request is wrong, reject it instead.`,
+          existing_withdrawal_id: dup.id,
+          existing_status: dup.status,
+          code: "duplicate_reference",
+        }),
+        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // ── Double-payout safeguard #2: ATOMIC CLAIM.
+    //    Compare-and-set the row's status from one of the approvable values
+    //    to 'processing'. If two operators (or two clicks) hit this endpoint
+    //    in parallel, only one UPDATE returns a row — the other gets nothing
+    //    and is rejected with 409 BEFORE any ledger debit is posted.
+    //    This closes the long TOCTOU window between the status check above
+    //    and the final 'completed' update at the bottom of this function.
+    const previousStatus: string = wr.status;
+    const { data: claimedRows, error: claimErr } = await admin
+      .from("withdrawal_requests")
+      .update({
+        status: "processing",
+        processing_started_at: new Date().toISOString(),
+        processing_started_by: user.id,
+        updated_at: new Date().toISOString(),
+      } as any)
+      .eq("id", withdrawal_id)
+      .in("status", approvableStatuses)
+      .select("id");
+    if (claimErr || !claimedRows || claimedRows.length === 0) {
+      // Re-fetch current status so the operator sees what blocked them.
+      const { data: now } = await admin
+        .from("withdrawal_requests")
+        .select("status, fin_ops_reference")
+        .eq("id", withdrawal_id)
+        .maybeSingle();
+      return new Response(
+        JSON.stringify({
+          error: "ALREADY_BEING_PROCESSED",
+          message:
+            `This withdrawal is already being processed by another operator ` +
+            `(current status: ${now?.status ?? "unknown"}). Refresh the queue before retrying.`,
+          current_status: now?.status ?? null,
+          existing_reference: now?.fin_ops_reference ?? null,
+          code: "already_being_processed",
+        }),
+        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // Helper used by the early-failure paths below to release the claim so
+    // the operator can retry after fixing the issue (insufficient balance,
+    // wallet drift, ledger write failure, etc.). The claim is held only
+    // when we're past the point of no return (ledger entries posted).
+    const releaseClaim = async () => {
+      try {
+        await admin
+          .from("withdrawal_requests")
+          .update({
+            status: previousStatus,
+            processing_started_at: null,
+            processing_started_by: null,
+            updated_at: new Date().toISOString(),
+          } as any)
+          .eq("id", withdrawal_id)
+          .eq("status", "processing");
+      } catch (e) {
+        console.error("[approve-withdrawal] releaseClaim failed:", (e as Error).message);
+      }
+    };
+
     // Proxy payouts are requested by the agent and funded from the agent wallet.
     // Detection rules (any one is enough):
     //   1. The withdrawal carries a `linked_party` distinct from the submitter
@@ -204,6 +294,7 @@ Deno.serve(async (req) => {
         `request=${withdrawal_id} partner=${beneficiaryUserId} ` +
         `partner_available=${partnerAvail} amount=${amount}`,
       );
+      await releaseClaim();
       return new Response(
         JSON.stringify({
           error: "PARTNER_INSUFFICIENT_BALANCE",
@@ -220,6 +311,7 @@ Deno.serve(async (req) => {
         { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
+    // (releaseClaim before the 422 return above)
 
     console.log(
       `[approve-withdrawal] withdrawal ${withdrawal_id}: isProxyPayout=${isProxyPayout}, ` +
@@ -530,6 +622,7 @@ Deno.serve(async (req) => {
         ? `Insufficient proxy partner balance (ledger-checked). Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. This payout can only use funds linked to the selected partner.`
         : `Insufficient withdrawable balance (ledger-checked). Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. Cached withdrawable UGX ${Math.round(cachedSpendable).toLocaleString()}, ledger-true UGX ${Math.round(ledgerAvailable).toLocaleString()}. Float and advance buckets cannot fund payouts.`;
       await auditFailedWithdrawalAttempt(failureReason, "INSUFFICIENT_WITHDRAWABLE");
+      await releaseClaim();
       return new Response(
         JSON.stringify({
           success: false,
@@ -628,6 +721,7 @@ Deno.serve(async (req) => {
             "Wallet/pivot drift exceeds threshold after self-heal; withdrawal blocked.",
             "BALANCE_MISMATCH",
           );
+          await releaseClaim();
           return new Response(
             JSON.stringify({ error: "BALANCE_MISMATCH", detail: recheck }),
             { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -679,6 +773,7 @@ Deno.serve(async (req) => {
       if (isInsufficientBalance) {
         await auditFailedWithdrawalAttempt(failureReason, "INSUFFICIENT_WITHDRAWABLE");
       }
+      await releaseClaim();
       return new Response(JSON.stringify({
         success: false,
         error: failureReason,
