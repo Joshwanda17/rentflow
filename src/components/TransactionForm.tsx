@@ -29,6 +29,7 @@ import { Plus, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { validateFormPayload, GENERAL_LEDGER_CONTRACT } from '@/lib/formContracts';
+import { useIdempotentSubmit } from '@/hooks/useIdempotentSubmit';
 
 interface TransactionFormProps {
   onSubmit: (transaction: Omit<Transaction, 'id'>) => void;
@@ -42,12 +43,13 @@ export function TransactionForm({ onSubmit }: TransactionFormProps) {
   const [linkedParty, setLinkedParty] = useState<LinkedParty | ''>('');
   const [referenceId, setReferenceId] = useState('');
   const [description, setDescription] = useState('');
+  const { submit, isSubmitting } = useIdempotentSubmit();
 
   const categories = direction === 'cash_in' ? CASH_IN_CATEGORIES : CASH_OUT_CATEGORIES;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!amount || !category || !linkedParty || !referenceId) {
       toast.error('Please fill in all required fields');
       return;
@@ -75,27 +77,30 @@ export function TransactionForm({ onSubmit }: TransactionFormProps) {
       return;
     }
 
-    onSubmit({
-      date: new Date(),
-      amount: parsedAmount,
-      direction,
-      category: category as TransactionCategory,
-      linkedParty: linkedParty as LinkedParty,
-      referenceId,
-      description,
-    });
+    // Single-flight submit — same idempotency key replays on retry until success
+    void submit(async () => {
+      onSubmit({
+        date: new Date(),
+        amount: parsedAmount,
+        direction,
+        category: category as TransactionCategory,
+        linkedParty: linkedParty as LinkedParty,
+        referenceId,
+        description,
+      });
 
-    toast.success('Transaction recorded successfully', {
-      description: 'All financial statements have been updated.',
-    });
+      toast.success('Transaction recorded successfully', {
+        description: 'All financial statements have been updated.',
+      });
 
-    // Reset form
-    setAmount('');
-    setCategory('');
-    setLinkedParty('');
-    setReferenceId('');
-    setDescription('');
-    setOpen(false);
+      // Reset form
+      setAmount('');
+      setCategory('');
+      setLinkedParty('');
+      setReferenceId('');
+      setDescription('');
+      setOpen(false);
+    });
   };
 
   return (
@@ -219,8 +224,8 @@ export function TransactionForm({ onSubmit }: TransactionFormProps) {
             />
           </div>
 
-          <Button type="submit" className="w-full">
-            Record Transaction
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
+            {isSubmitting ? 'Recording…' : 'Record Transaction'}
           </Button>
         </form>
       </DialogContent>
