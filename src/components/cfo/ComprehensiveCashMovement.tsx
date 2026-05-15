@@ -14,8 +14,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatDynamic as formatUGX } from '@/lib/currencyFormat';
 import { CATEGORY_DESCRIPTIONS } from '@/lib/ledgerConstants';
 import { downloadCsv } from '@/lib/csvExport';
+import { useAuth } from '@/hooks/useAuth';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { Lock } from 'lucide-react';
+
+// Roles allowed to drill into individual ledger entries and export raw movement data
+const LEDGER_DETAIL_ROLES = new Set(['cfo', 'ceo', 'coo', 'super_admin', 'cto', 'manager']);
 
 // ─────────────────────────────────────────────────────────────
 // Periods & granularity
@@ -121,6 +126,12 @@ function prettifyCategory(c: string): string {
 // ─────────────────────────────────────────────────────────────
 
 export function ComprehensiveCashMovement() {
+  const { role, roles } = useAuth();
+  const canViewLedgerDetail = useMemo(() => {
+    if (role && LEDGER_DETAIL_ROLES.has(role)) return true;
+    return (roles || []).some(r => LEDGER_DETAIL_ROLES.has(r));
+  }, [role, roles]);
+
   const [period, setPeriod] = useState<PeriodKey>('30d');
   const [granularity, setGranularity] = useState<Granularity>('daily');
   const [includeAdjustments, setIncludeAdjustments] = useState(false);
@@ -257,6 +268,7 @@ export function ComprehensiveCashMovement() {
   }, [rows, granularity, includeAdjustments, scopeFilter]);
 
   const handleExport = () => {
+    if (!canViewLedgerDetail) { toast.error('You do not have permission to export ledger data'); return; }
     if (!aggregates.length) { toast.error('Nothing to export'); return; }
     const headers = ['Category', 'Scope', 'Description', 'Cash In', 'Cash Out', 'Net', 'Entries', ...bucketLabels.flatMap(b => [`${b} In`, `${b} Out`])];
     const data = aggregates.map(a => {
@@ -280,6 +292,7 @@ export function ComprehensiveCashMovement() {
   };
 
   const handleExportPdf = () => {
+    if (!canViewLedgerDetail) { toast.error('You do not have permission to export ledger data'); return; }
     if (!aggregates.length) { toast.error('Nothing to export'); return; }
     const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
     const pageW = doc.internal.pageSize.getWidth();
@@ -365,6 +378,7 @@ export function ComprehensiveCashMovement() {
   };
 
   const handleExportDrill = () => {
+    if (!canViewLedgerDetail) { toast.error('You do not have permission to export ledger data'); return; }
     if (!drill || filteredDrillRows.length === 0) return;
     const headers = ['Date', 'Reference ID', 'Transaction Group', 'Direction', 'Amount', 'Linked Party', 'User ID', 'User Name', 'Source Table', 'Source ID', 'Classification', 'Description'];
     const data = filteredDrillRows.map(r => [
