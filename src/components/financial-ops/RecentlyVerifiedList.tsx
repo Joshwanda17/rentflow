@@ -99,11 +99,36 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
     { key: 'verified_by', label: 'Verified by', csvHeaders: ['Verified by (ID)', 'Verified by'] },
     { key: 'verified_at', label: 'Verified at', csvHeaders: ['Verified at'] },
   ];
-  const [visibleCols, setVisibleCols] = useState<Record<ColKey, boolean>>({
-    status: true, amount: true, depositor: true, verified_by: true, verified_at: true,
+  const VISIBLE_COLS_KEY = 'finops:recently-verified-cols';
+  const [visibleCols, setVisibleCols] = useState<Record<ColKey, boolean>>(() => {
+    if (typeof window === 'undefined') {
+      return { status: true, amount: true, depositor: true, verified_by: true, verified_at: true };
+    }
+    try {
+      const saved = window.localStorage.getItem(VISIBLE_COLS_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved) as Partial<Record<ColKey, boolean>>;
+        return {
+          status: parsed.status ?? true,
+          amount: parsed.amount ?? true,
+          depositor: parsed.depositor ?? true,
+          verified_by: parsed.verified_by ?? true,
+          verified_at: parsed.verified_at ?? true,
+        };
+      }
+    } catch { /* ignore corrupt storage */ }
+    return { status: true, amount: true, depositor: true, verified_by: true, verified_at: true };
   });
   const isVisible = (k: ColKey) => visibleCols[k];
-  const toggleCol = (k: ColKey) => setVisibleCols((p) => ({ ...p, [k]: !p[k] }));
+  const toggleCol = (k: ColKey) => {
+    setVisibleCols((p) => {
+      const next = { ...p, [k]: !p[k] };
+      try {
+        window.localStorage.setItem(VISIBLE_COLS_KEY, JSON.stringify(next));
+      } catch { /* storage may be unavailable */ }
+      return next;
+    });
+  };
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setRefreshing(true);
