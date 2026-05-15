@@ -415,6 +415,7 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
                 <tr>
                   {isVisible('status') && <th className="text-left font-medium px-2 py-2">Status</th>}
                   {isVisible('amount') && <th className="text-right font-medium px-2 py-2">Amount</th>}
+                  {isVisible('depositor') && <th className="text-left font-medium px-2 py-2">Verified person</th>}
                   {isVisible('verified_by') && <th className="text-left font-medium px-2 py-2">Verified by</th>}
                   {isVisible('verified_at') && <th className="text-left font-medium px-2 py-2 whitespace-nowrap">Verified at</th>}
                 </tr>
