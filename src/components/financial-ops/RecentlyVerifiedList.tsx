@@ -305,6 +305,15 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
     }
   };
 
+  const searchNorm = search.trim().toLowerCase();
+  const filteredRows = searchNorm
+    ? rows.filter(
+        (r) =>
+          (r.depositor_name?.toLowerCase() ?? '').includes(searchNorm) ||
+          (r.depositor_id?.toLowerCase() ?? '').includes(searchNorm),
+      )
+    : rows;
+
   return (
     <Card>
       <CardHeader className="pb-3">
