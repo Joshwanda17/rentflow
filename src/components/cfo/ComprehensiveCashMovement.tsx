@@ -121,6 +121,28 @@ function prettifyCategory(c: string): string {
   return c.replace(/_/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase());
 }
 
+// Highlight occurrences of `query` inside `text` (case-insensitive). Used to
+// surface drill-down search matches in the ledger table cells.
+function escapeRegex(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+function Highlight({ text, query }: { text: string | null | undefined; query: string }) {
+  const value = text ?? '';
+  const q = query.trim();
+  if (!q || !value) return <>{value}</>;
+  const parts = value.split(new RegExp(`(${escapeRegex(q)})`, 'ig'));
+  const lower = q.toLowerCase();
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.toLowerCase() === lower
+          ? <mark key={i} className="bg-primary/20 text-primary rounded-sm px-0.5">{part}</mark>
+          : <span key={i}>{part}</span>
+      )}
+    </>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────
 // Component
 // ─────────────────────────────────────────────────────────────
@@ -783,28 +805,46 @@ export function ComprehensiveCashMovement() {
                                       className="text-primary hover:underline inline-flex items-center gap-1"
                                       title="Open ledger entry detail in new tab"
                                     >
-                                      {r.reference_id || r.id.slice(0, 8) + '…'}
+                                      <Highlight text={r.reference_id || (r.id.slice(0, 8) + '…')} query={debouncedDrillQuery} />
                                       <ExternalLink className="h-2.5 w-2.5 opacity-60 group-hover:opacity-100" />
                                     </Link>
-                                  ) : (r.reference_id || '—')}
+                                  ) : (
+                                    <Highlight text={r.reference_id || '—'} query={debouncedDrillQuery} />
+                                  )}
                                 </div>
                                 {r.transaction_group_id && (
-                                  <div className="text-[10px] text-muted-foreground font-mono">grp: {r.transaction_group_id.slice(0, 8)}…</div>
+                                  <div className="text-[10px] text-muted-foreground font-mono">
+                                    grp: <Highlight text={r.transaction_group_id} query={debouncedDrillQuery} />
+                                  </div>
                                 )}
                                 {r.source_table && (
-                                  <div className="text-[10px] text-muted-foreground">{r.source_table}{r.source_id ? `:${r.source_id.slice(0, 6)}…` : ''}</div>
+                                  <div className="text-[10px] text-muted-foreground">
+                                    <Highlight text={r.source_table} query={debouncedDrillQuery} />
+                                    {r.source_id && (
+                                      <>:<Highlight text={r.source_id} query={debouncedDrillQuery} /></>
+                                    )}
+                                  </div>
                                 )}
                                 {r.description && (
-                                  <div className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2 max-w-[260px]">{r.description}</div>
+                                  <div className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2 max-w-[260px]">
+                                    <Highlight text={r.description} query={debouncedDrillQuery} />
+                                  </div>
                                 )}
                                 {r.classification && r.classification !== 'production' && (
                                   <Badge variant="outline" className="text-[9px] mt-0.5">{r.classification}</Badge>
                                 )}
                               </TableCell>
                               <TableCell className="text-[11px] align-top">
-                                <div>{name || (r.linked_party ? prettifyCategory(r.linked_party) : '—')}</div>
+                                <div>
+                                  <Highlight
+                                    text={name || (r.linked_party ? prettifyCategory(r.linked_party) : '—')}
+                                    query={debouncedDrillQuery}
+                                  />
+                                </div>
                                 {r.user_id && (
-                                  <div className="text-[10px] text-muted-foreground font-mono">{r.user_id.slice(0, 8)}…</div>
+                                  <div className="text-[10px] text-muted-foreground font-mono">
+                                    <Highlight text={r.user_id} query={debouncedDrillQuery} />
+                                  </div>
                                 )}
                               </TableCell>
                               <TableCell className={cn('text-right font-mono text-xs whitespace-nowrap align-top font-semibold', isIn ? 'text-success' : 'text-destructive')}>
