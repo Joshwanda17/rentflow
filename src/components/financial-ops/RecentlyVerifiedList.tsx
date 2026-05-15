@@ -77,6 +77,7 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [search, setSearch] = useState('');
 
   // Single source of truth for table columns. Drives both render and CSV
   // export so the file always matches what the operator sees.
