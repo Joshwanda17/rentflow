@@ -48,6 +48,10 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
   const [landlord, setLandlord] = useState<LandlordOption | null>(null);
   const [outstandingBalance, setOutstandingBalance] = useState('');
   const [graceDays, setGraceDays] = useState('');
+  const [landlordName, setLandlordName] = useState('');
+  const [landlordPhone, setLandlordPhone] = useState('');
+  const [landlordAddress, setLandlordAddress] = useState('');
+  const [landlordOriginal, setLandlordOriginal] = useState<{ name: string; phone: string; address: string } | null>(null);
 
   useEffect(() => {
     if (request) {
@@ -70,6 +74,8 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
       (async () => {
         if (!request.landlord_id) {
           setLandlord(null);
+          setLandlordName(''); setLandlordPhone(''); setLandlordAddress('');
+          setLandlordOriginal(null);
           return;
         }
         const { data } = await supabase
@@ -78,9 +84,32 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
           .eq('id', request.landlord_id)
           .maybeSingle();
         setLandlord((data as LandlordOption) ?? null);
+        if (data) {
+          setLandlordName(data.name ?? '');
+          setLandlordPhone(data.phone ?? '');
+          setLandlordAddress(data.property_address ?? '');
+          setLandlordOriginal({
+            name: data.name ?? '',
+            phone: data.phone ?? '',
+            address: data.property_address ?? '',
+          });
+        }
       })();
     }
   }, [request]);
+
+  // When agent picks a different landlord from search, hydrate the editable fields.
+  useEffect(() => {
+    if (!landlord) return;
+    setLandlordName(landlord.name ?? '');
+    setLandlordPhone(landlord.phone ?? '');
+    setLandlordAddress(landlord.property_address ?? '');
+    setLandlordOriginal({
+      name: landlord.name ?? '',
+      phone: landlord.phone ?? '',
+      address: landlord.property_address ?? '',
+    });
+  }, [landlord?.id]);
 
   if (!request) return null;
 
@@ -101,8 +130,37 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
       toast.error('Please select a landlord');
       return;
     }
+    if (!landlordName.trim()) {
+      toast.error('Landlord name is required');
+      return;
+    }
+    if (!landlordPhone.trim()) {
+      toast.error('Landlord phone is required');
+      return;
+    }
     setSubmitting(true);
     try {
+      // Persist landlord detail edits first (only if anything actually changed).
+      const nextName = landlordName.trim();
+      const nextPhone = landlordPhone.trim();
+      const nextAddress = landlordAddress.trim();
+      const changed =
+        !landlordOriginal ||
+        landlordOriginal.name !== nextName ||
+        landlordOriginal.phone !== nextPhone ||
+        landlordOriginal.address !== nextAddress;
+      if (changed) {
+        const { error: lErr } = await supabase
+          .from('landlords')
+          .update({
+            name: nextName,
+            phone: nextPhone,
+            property_address: nextAddress || null,
+          })
+          .eq('id', landlord.id);
+        if (lErr) throw lErr;
+      }
+
       const patch: Record<string, unknown> = {
         rent_amount: rentNum,
         duration_days: durNum,
@@ -222,6 +280,34 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
             <Label>Landlord</Label>
             <LandlordSearchSelect value={landlord} onChange={setLandlord} />
           </div>
+
+          {landlord && (
+            <div className="space-y-3 rounded-md border border-primary/30 bg-primary/5 p-3">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-primary">
+                Edit landlord details
+              </p>
+              <div className="space-y-1.5">
+                <Label htmlFor="ll-name">Landlord name</Label>
+                <Input id="ll-name" value={landlordName}
+                  onChange={(e) => setLandlordName(e.target.value)} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="ll-phone">Phone</Label>
+                  <Input id="ll-phone" inputMode="tel" value={landlordPhone}
+                    onChange={(e) => setLandlordPhone(e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ll-addr">Property address</Label>
+                  <Input id="ll-addr" value={landlordAddress}
+                    onChange={(e) => setLandlordAddress(e.target.value)} />
+                </div>
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Saved to the landlord record on resubmit. Affects all rent requests linked to this landlord.
+              </p>
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <Label htmlFor="rent">Rent amount (UGX)</Label>
