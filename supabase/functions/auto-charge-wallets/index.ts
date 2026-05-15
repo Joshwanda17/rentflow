@@ -167,6 +167,80 @@ function buildTenantRepaymentEntries(
   return entries;
 }
 
+/**
+ * Build LEDGER-ONLY accrual entries for a missed/unpaid instalment after the
+ * 72-hour grace window. NO wallet leg is posted — wallets are not touched.
+ *
+ *  - bridge cash_in `rent_receivable_created` (full chargeAmount)
+ *      → tenant now owes this instalment.
+ *  - platform cash_in `access_fee_collected` (accessShare)
+ *      → revenue earned on the access-fee portion (accrual basis).
+ *  - platform cash_in `registration_fee_collected` (registrationShare)
+ *      → revenue earned on the registration-fee portion (accrual basis).
+ *
+ * Principal portion is NOT recognised as platform revenue (it is a
+ * pass-through Welile already disbursed to the landlord). It only adds
+ * to the receivable so it can be netted against future cash repayments.
+ */
+function buildAccrualEntriesNoWallet(
+  tenantId: string,
+  landlordId: string | null,
+  chargeAmount: number,
+  split: FeeSplit,
+  chargeId: string,
+  rentRequestId: string | null,
+  description: string,
+  now: Date,
+): any[] {
+  const entries: any[] = [
+    {
+      user_id: tenantId,
+      linked_party: landlordId ?? undefined,
+      amount: chargeAmount,
+      direction: "cash_in",
+      category: "rent_receivable_created",
+      source_table: "subscription_charges",
+      source_id: chargeId,
+      description: `Accrued (72h grace expired): ${description}`,
+      currency: "UGX",
+      ledger_scope: "bridge",
+      transaction_date: now.toISOString(),
+    },
+  ];
+
+  if (split.accessShare > 0) {
+    entries.push({
+      user_id: tenantId,
+      amount: split.accessShare,
+      direction: "cash_in",
+      category: "access_fee_collected",
+      source_table: "subscription_charges",
+      source_id: chargeId,
+      description: `Access fee accrued (72h grace expired): ${description}`,
+      currency: "UGX",
+      ledger_scope: "platform",
+      transaction_date: now.toISOString(),
+    });
+  }
+
+  if (split.registrationShare > 0) {
+    entries.push({
+      user_id: tenantId,
+      amount: split.registrationShare,
+      direction: "cash_in",
+      category: "registration_fee_collected",
+      source_table: "subscription_charges",
+      source_id: chargeId,
+      description: `Registration fee accrued (72h grace expired): ${description}`,
+      currency: "UGX",
+      ledger_scope: "platform",
+      transaction_date: now.toISOString(),
+    });
+  }
+
+  return entries;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
