@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { FileText, TrendingUp, Wallet, BarChart3, Download, FileSpreadsheet, RefreshCw, Loader2, Calendar, ArrowUpRight, ArrowDownRight, Minus, GitCompareArrows } from 'lucide-react';
+import { FileText, TrendingUp, Wallet, BarChart3, Download, FileSpreadsheet, RefreshCw, Loader2, Calendar, ArrowUpRight, ArrowDownRight, Minus, GitCompareArrows, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { exportToCSV } from '@/lib/exportUtils';
 import { useFinancialStatements, type StatementPeriod, type FinancialStatementsData, type ComparisonMode, type ComparisonMetrics, type DeltaValue } from '@/hooks/useFinancialStatements';
 import { Progress } from '@/components/ui/progress';
+import { ComprehensiveCashMovement } from '@/components/cfo/ComprehensiveCashMovement';
 
 import { formatDynamic as formatUGX } from '@/lib/currencyFormat';
 
@@ -483,11 +484,12 @@ function FacilitatedVolumeSection({ d, cm }: { d: FinancialStatementsData['facil
 // Main Panel
 // ─────────────────────────────────────────────────────────────
 
-type Tab = 'income' | 'cashflow' | 'balance' | 'volume';
+type Tab = 'income' | 'cashflow' | 'movement' | 'balance' | 'volume';
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'income', label: 'Income', icon: <TrendingUp className="h-3.5 w-3.5" /> },
   { id: 'cashflow', label: 'Cash Flow', icon: <Wallet className="h-3.5 w-3.5" /> },
+  { id: 'movement', label: 'Cash Movement', icon: <Activity className="h-3.5 w-3.5" /> },
   { id: 'balance', label: 'Balance Sheet', icon: <FileText className="h-3.5 w-3.5" /> },
   { id: 'volume', label: 'Facilitated Volume', icon: <BarChart3 className="h-3.5 w-3.5" /> },
 ];
@@ -519,6 +521,7 @@ export function FinancialStatementsPanel() {
     switch (activeTab) {
       case 'income': return 'Income Statement';
       case 'cashflow': return 'Cash Flow Statement';
+      case 'movement': return 'Comprehensive Cash Movement';
       case 'balance': return 'Balance Sheet';
       case 'volume': return 'Facilitated Volume Report';
     }
@@ -992,6 +995,7 @@ export function FinancialStatementsPanel() {
             {/* Active Statement */}
             {activeTab === 'income' && <IncomeStatementSection d={data.incomeStatement} cm={comparisonMetrics} />}
             {activeTab === 'cashflow' && <CashFlowSection d={data.cashFlow} cm={comparisonMetrics} />}
+            {activeTab === 'movement' && <ComprehensiveCashMovement />}
             {activeTab === 'balance' && <BalanceSheetSection d={data.balanceSheet} />}
             {activeTab === 'volume' && <FacilitatedVolumeSection d={data.facilitatedVolume} cm={comparisonMetrics} />}
 
