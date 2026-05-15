@@ -97,7 +97,7 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
       let q = supabase
         .from('deposit_requests')
         .select(
-          'id, amount, status, approved_at, rejected_at, processed_by, rejection_reason',
+          'id, amount, status, approved_at, rejected_at, processed_by, user_id, rejection_reason',
         )
         .in('status', ['approved', 'rejected'])
         .order('updated_at', { ascending: false })
@@ -108,7 +108,10 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
 
       const list = (data ?? []) as any[];
       const ids = Array.from(
-        new Set(list.map((r) => r.processed_by).filter(Boolean)),
+        new Set([
+          ...list.map((r) => r.processed_by).filter(Boolean),
+          ...list.map((r) => r.user_id).filter(Boolean),
+        ]),
       );
       const nameMap = new Map<string, string | null>();
       if (ids.length > 0) {
@@ -127,6 +130,8 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
           resolved_at: r.status === 'approved' ? r.approved_at : r.rejected_at,
           processed_by_id: r.processed_by ?? null,
           processed_by_name: r.processed_by ? nameMap.get(r.processed_by) ?? null : null,
+          depositor_id: r.user_id ?? null,
+          depositor_name: r.user_id ? nameMap.get(r.user_id) ?? null : null,
           rejection_reason: r.rejection_reason ?? null,
         })),
       );
