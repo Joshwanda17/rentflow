@@ -13920,6 +13920,10 @@ export type Database = {
         Args: { _dead_letter_id: number }
         Returns: undefined
       }
+      assert_no_wallet_ledger_entries: {
+        Args: { p_entries: Json }
+        Returns: undefined
+      }
       assert_routing_compatible: {
         Args: { p_category: string; p_recipient_type: string }
         Returns: undefined
@@ -13936,6 +13940,7 @@ export type Database = {
         Args: { p_minutes?: number; p_reason?: string }
         Returns: string
       }
+      begin_wallet_accrual_lock: { Args: never; Returns: undefined }
       build_funder_reference: {
         Args: { p_created_at: string; p_user_id: string }
         Returns: string
@@ -14090,6 +14095,10 @@ export type Database = {
             }
             Returns: string
           }
+      create_ledger_transaction_accrual_only: {
+        Args: { entries: Json }
+        Returns: Json
+      }
       credit_agent_event_bonus:
         | {
             Args: {
@@ -14186,6 +14195,7 @@ export type Database = {
         Args: { p_reason?: string }
         Returns: undefined
       }
+      end_wallet_accrual_lock: { Args: never; Returns: undefined }
       enforce_recipient_routing: {
         Args: { p_amount: number; p_recipient_type: string; p_user_id: string }
         Returns: Json
