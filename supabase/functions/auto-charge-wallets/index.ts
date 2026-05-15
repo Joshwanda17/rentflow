@@ -529,32 +529,45 @@ Deno.serve(async (req) => {
         }
 
         // === GRACE PERIOD EXPIRED: Record debt (agents are no longer charged) ===
-        console.log(`[auto-charge-wallets] ${charge.tenant_id}: Grace period expired (${Math.round(hoursSinceFailure)}h). Recording debt.`);
+        console.log(`[auto-charge-wallets] ${charge.tenant_id}: Grace period expired (${Math.round(hoursSinceFailure)}h). Posting LEDGER-ONLY accrual (no wallet movement).`);
 
-        // Try partial from tenant first (with proportional split)
-        const tenantPartial = Math.max(0, walletBalance);
-        let amountDeducted = 0;
-        let debtAdded = 0;
-        let logStatus: string;
-
-        if (tenantPartial > 0) {
-          amountDeducted = tenantPartial;
-          const partialSplit = await getFeeSplit(supabase, charge.rent_request_id, tenantPartial);
-
-          await supabase.rpc('create_ledger_transaction', {
-            entries: 
-              buildTenantRepaymentEntries(
-                charge.tenant_id, tenantPartial, partialSplit, charge.id,
-                `Partial auto-charge: ${tenantName} (${tenantPartial} of ${chargeAmount})`,
-                now,
-              )
-            ,
-          });
+        // Resolve landlord (linked_party) for the receivable leg, best-effort.
+        let landlordIdForAccrual: string | null = null;
+        if (charge.rent_request_id) {
+          const { data: rrLandlord } = await supabase
+            .from("rent_requests")
+            .select("landlord_id")
+            .eq("id", charge.rent_request_id)
+            .maybeSingle();
+          landlordIdForAccrual = (rrLandlord?.landlord_id as string | null) ?? null;
         }
 
-        const shortfall = chargeAmount - tenantPartial;
-        debtAdded = shortfall;
-        logStatus = tenantPartial > 0 ? "partial_debt_72h" : "debt_recorded_72h";
+        // FORWARD-ONLY ACCRUAL: full instalment becomes a receivable, fee
+        // shares recognised as revenue. NO wallets table is touched.
+        const accrualSplit = await getFeeSplit(supabase, charge.rent_request_id, chargeAmount);
+
+        const { error: accrualErr } = await supabase.rpc("create_ledger_transaction", {
+          entries: buildAccrualEntriesNoWallet(
+            charge.tenant_id,
+            landlordIdForAccrual,
+            chargeAmount,
+            accrualSplit,
+            charge.id,
+            charge.rent_request_id,
+            `${charge.frequency} instalment for ${tenantName}`,
+            now,
+          ),
+        });
+
+        if (accrualErr) {
+          console.error(`[auto-charge-wallets] Accrual RPC error for ${charge.tenant_id}:`, accrualErr);
+          results.errors.push(`${charge.id}: Accrual failed`);
+          continue;
+        }
+
+        const amountDeducted = 0;          // wallets untouched by design
+        const debtAdded = chargeAmount;    // full instalment now owed
+        const logStatus = "accrued_no_wallet_72h";
         results.insufficient++;
 
         // GRACE CIRCUIT BREAKER
@@ -608,16 +621,8 @@ Deno.serve(async (req) => {
           await supabase.from("subscription_charges").update({ tenant_failed_at: null }).eq("id", charge.id);
         }
 
-        if (charge.rent_request_id && amountDeducted > 0) {
-          await supabase.rpc("record_rent_request_repayment", {
-            p_tenant_id: charge.tenant_id, p_amount: amountDeducted,
-          });
-          await supabase.rpc("credit_agent_rent_commission", {
-            p_rent_request_id: charge.rent_request_id, p_repayment_amount: amountDeducted,
-            p_tenant_id: charge.tenant_id,
-            p_event_reference_id: `auto-charge-split-${charge.id}-${today}`,
-          });
-        }
+        // Repayment / commission RPCs intentionally skipped — no cash moved,
+        // these only fire on real wallet repayments.
 
         await logAndUpdateCharge(supabase, charge, {
           chargeAmount, amountDeducted, agentAmountCharged: 0, debtAdded,
