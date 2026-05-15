@@ -451,6 +451,24 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
                         {formatUGX(r.amount)}
                       </td>
                       )}
+                      {isVisible('depositor') && (
+                      <td className="px-2 py-2 align-top">
+                        {r.depositor_name ? (
+                          <div className="flex items-center gap-1">
+                            <UserIcon className="h-3 w-3 text-muted-foreground shrink-0" />
+                            <span className="font-medium truncate max-w-[120px]">
+                              {r.depositor_name}
+                            </span>
+                          </div>
+                        ) : r.depositor_id ? (
+                          <span className="text-muted-foreground font-mono">
+                            {r.depositor_id.slice(0, 8)}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground italic">Unknown</span>
+                        )}
+                      </td>
+                      )}
                       {isVisible('verified_by') && (
                       <td className="px-2 py-2 align-top">
                         {r.processed_by_name ? (
