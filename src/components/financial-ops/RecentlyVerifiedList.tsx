@@ -163,7 +163,7 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
       setLoading(false);
       setRefreshing(false);
     }
-  }, [limit, verifierId]);
+  }, [limit, verifierId, dateFrom, dateTo]);
 
   useEffect(() => {
     load();
