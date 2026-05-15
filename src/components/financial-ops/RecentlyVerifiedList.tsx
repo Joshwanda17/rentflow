@@ -171,7 +171,10 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
     if (error) throw error;
     const list = (data ?? []) as any[];
 
-    const ids = Array.from(new Set(list.map((r) => r.processed_by).filter(Boolean)));
+    const ids = Array.from(new Set([
+      ...list.map((r) => r.processed_by).filter(Boolean),
+      ...list.map((r) => r.user_id).filter(Boolean),
+    ]));
     const nameMap = new Map<string, string | null>();
     if (ids.length > 0) {
       const { data: profs } = await supabase
@@ -193,6 +196,10 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
         r.rejection_reason ?? '',
       ]);
       else if (c.key === 'amount') rowBuilders.push((r) => [Number(r.amount || 0)]);
+      else if (c.key === 'depositor') rowBuilders.push((r) => [
+        r.user_id ?? '',
+        nameMap.get(r.user_id) ?? '',
+      ]);
       else if (c.key === 'verified_by') rowBuilders.push((r) => [
         r.processed_by ?? '',
         nameMap.get(r.processed_by) ?? '',
