@@ -142,6 +142,7 @@ export function ComprehensiveCashMovement() {
   const [drill, setDrill] = useState<null | { category: string; scope: string; bucket: string | null }>(null);
   const [partyNames, setPartyNames] = useState<Record<string, string>>({});
   const [drillQuery, setDrillQuery] = useState('');
+  const [debouncedDrillQuery, setDebouncedDrillQuery] = useState('');
   const [drillPage, setDrillPage] = useState(0);
   const [drillPageSize, setDrillPageSize] = useState<number>(100);
 
@@ -182,8 +183,18 @@ export function ComprehensiveCashMovement() {
   useEffect(() => { generate(); /* eslint-disable-next-line */ }, [period]);
 
   // Reset search + pagination when opening a new drill
-  useEffect(() => { setDrillQuery(''); setDrillPage(0); }, [drill?.category, drill?.scope, drill?.bucket]);
-  useEffect(() => { setDrillPage(0); }, [drillQuery, drillPageSize]);
+  useEffect(() => {
+    setDrillQuery('');
+    setDebouncedDrillQuery('');
+    setDrillPage(0);
+  }, [drill?.category, drill?.scope, drill?.bucket]);
+  useEffect(() => { setDrillPage(0); }, [debouncedDrillQuery, drillPageSize]);
+
+  // Debounce the drill-down search so filtering doesn't run on every keystroke
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedDrillQuery(drillQuery), 200);
+    return () => clearTimeout(t);
+  }, [drillQuery]);
 
   // Drill-down filtered rows
   const drillRows = useMemo(() => {
@@ -201,7 +212,7 @@ export function ComprehensiveCashMovement() {
 
   // Apply search filter (reference id, transaction group, party name, user id, source table, linked party, description)
   const filteredDrillRows = useMemo(() => {
-    const q = drillQuery.trim().toLowerCase();
+    const q = debouncedDrillQuery.trim().toLowerCase();
     if (!q) return drillRows;
     return drillRows.filter(r => {
       const name = r.user_id ? (partyNames[r.user_id] || '').toLowerCase() : '';
@@ -216,7 +227,7 @@ export function ComprehensiveCashMovement() {
         name.includes(q)
       );
     });
-  }, [drillRows, drillQuery, partyNames]);
+  }, [drillRows, debouncedDrillQuery, partyNames]);
 
   // Resolve user names for drill-down list
   useEffect(() => {
