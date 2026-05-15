@@ -136,13 +136,20 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
   const { data: rentReqs, isLoading: loadingReqs } = useQuery({
     queryKey: ['daily-collection-rent-requests'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('rent_requests')
-        .select('id, tenant_id, agent_id, landlord_id, daily_repayment, rent_amount, total_repayment, amount_repaid, status, house_category, created_at')
-        .in('status', ['funded', 'disbursed', 'repaying'])
-        .limit(1000);
-      if (error) throw error;
-      return (data || []) as RentRequestRow[];
+      const PAGE = 1000;
+      const all: RentRequestRow[] = [];
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await supabase
+          .from('rent_requests')
+          .select('id, tenant_id, agent_id, landlord_id, daily_repayment, rent_amount, total_repayment, amount_repaid, status, house_category, created_at')
+          .in('status', ['funded', 'disbursed', 'repaying'])
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        const rows = (data || []) as RentRequestRow[];
+        all.push(...rows);
+        if (rows.length < PAGE) break;
+      }
+      return all;
     },
     staleTime: 60_000,
   });
@@ -151,14 +158,21 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
   const { data: collections, isLoading: loadingCollections, refetch: refetchCollections } = useQuery({
     queryKey: ['daily-collection-collections', rangeFrom.toISOString(), rangeTo.toISOString()],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('agent_collections')
-        .select('id, tenant_id, agent_id, amount, payment_method, notes, created_at')
-        .gte('created_at', rangeFrom.toISOString())
-        .lte('created_at', rangeTo.toISOString())
-        .limit(1000);
-      if (error) throw error;
-      return (data || []) as CollectionRow[];
+      const PAGE = 1000;
+      const all: CollectionRow[] = [];
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await supabase
+          .from('agent_collections')
+          .select('id, tenant_id, agent_id, amount, payment_method, notes, created_at')
+          .gte('created_at', rangeFrom.toISOString())
+          .lte('created_at', rangeTo.toISOString())
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        const rows = (data || []) as CollectionRow[];
+        all.push(...rows);
+        if (rows.length < PAGE) break;
+      }
+      return all;
     },
     staleTime: 30_000,
   });
@@ -250,11 +264,21 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
   }, [rentReqs, collections]);
 
   const { data: profiles } = useQuery({
-    queryKey: ['daily-collection-profiles', ids.length],
+    queryKey: ['daily-collection-profiles', ids.slice().sort().join(',')],
     enabled: ids.length > 0,
     queryFn: async () => {
-      const { data } = await supabase.from('profiles').select('id, full_name, phone').in('id', ids);
-      return new Map((data || []).map((p: any) => [p.id, p]));
+      const map = new Map<string, any>();
+      const CHUNK = 50;
+      for (let i = 0; i < ids.length; i += CHUNK) {
+        const batch = ids.slice(i, i + CHUNK);
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, full_name, phone')
+          .in('id', batch);
+        if (error) throw error;
+        (data || []).forEach((p: any) => map.set(p.id, p));
+      }
+      return map;
     },
     staleTime: 5 * 60_000,
   });
