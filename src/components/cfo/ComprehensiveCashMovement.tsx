@@ -698,7 +698,7 @@ export function ComprehensiveCashMovement() {
                               </TableCell>
                               <TableCell className="text-[11px] align-top">
                                 <div className="font-mono flex items-center gap-1">
-                                  {r.id ? (
+                                  {r.id && canViewLedgerDetail ? (
                                     <Link
                                       to={`/cfo/ledger/${r.id}`}
                                       target="_blank"
