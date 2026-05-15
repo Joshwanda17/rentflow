@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { format, startOfDay, startOfWeek, startOfMonth, startOfYear, subDays, subMonths, subYears } from 'date-fns';
-import { Loader2, RefreshCw, Calendar, FileSpreadsheet, FileText, ArrowUpRight, ArrowDownRight, ExternalLink } from 'lucide-react';
+import { Loader2, RefreshCw, Calendar, FileSpreadsheet, FileText, ArrowUpRight, ArrowDownRight, ExternalLink, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -726,12 +726,24 @@ export function ComprehensiveCashMovement() {
                   </Button>
                 </div>
 
-                <Input
-                  value={drillQuery}
-                  onChange={(e) => setDrillQuery(e.target.value)}
-                  placeholder="Search reference ID, transaction id, party name, or source table…"
-                  className="h-8 text-xs mb-2"
-                />
+                <div className="relative mb-2">
+                  <Input
+                    value={drillQuery}
+                    onChange={(e) => setDrillQuery(e.target.value)}
+                    placeholder="Search reference ID, transaction id, party name, or source table…"
+                    className="h-8 text-xs pr-8"
+                  />
+                  {drillQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setDrillQuery('')}
+                      aria-label="Clear search"
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
 
                 {filteredDrillRows.length === 0 ? (
                   <div className="py-12 text-center text-muted-foreground text-sm">
