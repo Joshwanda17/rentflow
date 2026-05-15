@@ -400,6 +400,49 @@ export function ComprehensiveCashMovement() {
     toast.success('Ledger entries exported');
   };
 
+  // Export the full drill-down (raw ledger entries) for the currently selected
+  // period, granularity, scope and adjustments toggle — bypassing any open drill.
+  const handleExportAllEntries = () => {
+    if (!canViewLedgerDetail) { toast.error('You do not have permission to export ledger data'); return; }
+    const filtered = rows.filter(r => {
+      if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) return false;
+      if (scopeFilter !== 'all' && r.ledger_scope !== scopeFilter) return false;
+      return true;
+    });
+    if (!filtered.length) { toast.error('Nothing to export'); return; }
+    const headers = [
+      'Date', 'Bucket', 'Category', 'Scope', 'Direction', 'Amount',
+      'Reference ID', 'Transaction Group', 'Linked Party', 'User ID', 'User Name',
+      'Source Table', 'Source ID', 'Classification', 'Description',
+    ];
+    const data = filtered
+      .slice()
+      .sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime())
+      .map(r => [
+        format(new Date(r.transaction_date), 'yyyy-MM-dd HH:mm:ss'),
+        bucketKey(new Date(r.transaction_date), granularity),
+        prettifyCategory(r.category),
+        SCOPE_LABEL[r.ledger_scope] || r.ledger_scope,
+        r.direction,
+        Number(r.amount) || 0,
+        r.reference_id || '',
+        r.transaction_group_id || '',
+        r.linked_party || '',
+        r.user_id || '',
+        (r.user_id && partyNames[r.user_id]) || '',
+        r.source_table || '',
+        r.source_id || '',
+        r.classification || '',
+        (r.description || '').replace(/\s+/g, ' ').slice(0, 500),
+      ]);
+    downloadCsv(
+      `welile-cash-movement-entries-${period}-${granularity}-${format(new Date(), 'yyyy-MM-dd')}.csv`,
+      headers,
+      data,
+    );
+    toast.success(`${filtered.length.toLocaleString()} ledger entries exported`);
+  };
+
   const range = periodRange(period);
   const rangeLabel = range.from ? `${format(range.from, 'dd MMM yyyy')} → ${format(range.to, 'dd MMM yyyy')}` : `Inception → ${format(range.to, 'dd MMM yyyy')}`;
 
@@ -467,6 +510,17 @@ export function ComprehensiveCashMovement() {
           >
             {canViewLedgerDetail ? <FileText className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
             Export PDF
+          </Button>
+          <Button
+            onClick={handleExportAllEntries}
+            variant="outline" size="sm" className="gap-2"
+            disabled={!rows.length || !canViewLedgerDetail}
+            title={!canViewLedgerDetail
+              ? 'Restricted to finance leadership (CFO / CEO / COO / Manager)'
+              : 'Export every ledger entry in the selected period (raw drill-down)'}
+          >
+            {canViewLedgerDetail ? <FileSpreadsheet className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+            Export All Entries
           </Button>
           {!canViewLedgerDetail && (
             <span className="text-[11px] text-muted-foreground self-center ml-1 inline-flex items-center gap-1">
