@@ -48,6 +48,10 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
   const [landlord, setLandlord] = useState<LandlordOption | null>(null);
   const [outstandingBalance, setOutstandingBalance] = useState('');
   const [graceDays, setGraceDays] = useState('');
+  const [landlordName, setLandlordName] = useState('');
+  const [landlordPhone, setLandlordPhone] = useState('');
+  const [landlordAddress, setLandlordAddress] = useState('');
+  const [landlordOriginal, setLandlordOriginal] = useState<{ name: string; phone: string; address: string } | null>(null);
 
   useEffect(() => {
     if (request) {
@@ -70,6 +74,8 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
       (async () => {
         if (!request.landlord_id) {
           setLandlord(null);
+          setLandlordName(''); setLandlordPhone(''); setLandlordAddress('');
+          setLandlordOriginal(null);
           return;
         }
         const { data } = await supabase
@@ -78,9 +84,32 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
           .eq('id', request.landlord_id)
           .maybeSingle();
         setLandlord((data as LandlordOption) ?? null);
+        if (data) {
+          setLandlordName(data.name ?? '');
+          setLandlordPhone(data.phone ?? '');
+          setLandlordAddress(data.property_address ?? '');
+          setLandlordOriginal({
+            name: data.name ?? '',
+            phone: data.phone ?? '',
+            address: data.property_address ?? '',
+          });
+        }
       })();
     }
   }, [request]);
+
+  // When agent picks a different landlord from search, hydrate the editable fields.
+  useEffect(() => {
+    if (!landlord) return;
+    setLandlordName(landlord.name ?? '');
+    setLandlordPhone(landlord.phone ?? '');
+    setLandlordAddress(landlord.property_address ?? '');
+    setLandlordOriginal({
+      name: landlord.name ?? '',
+      phone: landlord.phone ?? '',
+      address: landlord.property_address ?? '',
+    });
+  }, [landlord?.id]);
 
   if (!request) return null;
 
@@ -101,8 +130,37 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
       toast.error('Please select a landlord');
       return;
     }
+    if (!landlordName.trim()) {
+      toast.error('Landlord name is required');
+      return;
+    }
+    if (!landlordPhone.trim()) {
+      toast.error('Landlord phone is required');
+      return;
+    }
     setSubmitting(true);
     try {
+      // Persist landlord detail edits first (only if anything actually changed).
+      const nextName = landlordName.trim();
+      const nextPhone = landlordPhone.trim();
+      const nextAddress = landlordAddress.trim();
+      const changed =
+        !landlordOriginal ||
+        landlordOriginal.name !== nextName ||
+        landlordOriginal.phone !== nextPhone ||
+        landlordOriginal.address !== nextAddress;
+      if (changed) {
+        const { error: lErr } = await supabase
+          .from('landlords')
+          .update({
+            name: nextName,
+            phone: nextPhone,
+            property_address: nextAddress || null,
+          })
+          .eq('id', landlord.id);
+        if (lErr) throw lErr;
+      }
+
       const patch: Record<string, unknown> = {
         rent_amount: rentNum,
         duration_days: durNum,
