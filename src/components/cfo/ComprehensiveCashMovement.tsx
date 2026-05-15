@@ -450,12 +450,29 @@ export function ComprehensiveCashMovement() {
             {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
             {loading ? 'Loading…' : 'Refresh'}
           </Button>
-          <Button onClick={handleExport} variant="outline" size="sm" className="gap-2" disabled={!aggregates.length}>
-            <FileSpreadsheet className="h-3.5 w-3.5" /> Export CSV
+          <Button
+            onClick={handleExport}
+            variant="outline" size="sm" className="gap-2"
+            disabled={!aggregates.length || !canViewLedgerDetail}
+            title={!canViewLedgerDetail ? 'Restricted to finance leadership (CFO / CEO / COO / Manager)' : undefined}
+          >
+            {canViewLedgerDetail ? <FileSpreadsheet className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+            Export CSV
           </Button>
-          <Button onClick={handleExportPdf} variant="outline" size="sm" className="gap-2" disabled={!aggregates.length}>
-            <FileText className="h-3.5 w-3.5" /> Export PDF
+          <Button
+            onClick={handleExportPdf}
+            variant="outline" size="sm" className="gap-2"
+            disabled={!aggregates.length || !canViewLedgerDetail}
+            title={!canViewLedgerDetail ? 'Restricted to finance leadership (CFO / CEO / COO / Manager)' : undefined}
+          >
+            {canViewLedgerDetail ? <FileText className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+            Export PDF
           </Button>
+          {!canViewLedgerDetail && (
+            <span className="text-[11px] text-muted-foreground self-center ml-1 inline-flex items-center gap-1">
+              <Lock className="h-3 w-3" /> Detail & exports restricted
+            </span>
+          )}
           {generatedAt && (
             <span className="text-[11px] text-muted-foreground self-center ml-2">
               Generated {format(generatedAt, 'dd MMM HH:mm')} · {rows.length.toLocaleString()} ledger entries
