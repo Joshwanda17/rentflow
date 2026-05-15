@@ -359,6 +359,64 @@ export function LandlordPayoutShareCard({ open, onOpenChange, data }: Props) {
           </div>
         </div>
 
+        {/* WhatsApp caption template editor */}
+        <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+          <button
+            type="button"
+            onClick={() => setShowTemplate((s) => !s)}
+            className="w-full flex items-center justify-between text-xs font-medium text-foreground"
+          >
+            <span className="flex items-center gap-2">
+              <MessageCircle className="h-3.5 w-3.5 text-purple-600" />
+              WhatsApp caption {showTemplate ? '(editing)' : '(preview)'}
+            </span>
+            {showTemplate ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
+
+          {!showTemplate && (
+            <p className="text-[11px] text-muted-foreground whitespace-pre-wrap line-clamp-3 font-mono">
+              {captionText}
+            </p>
+          )}
+
+          {showTemplate && (
+            <div className="space-y-2">
+              <Label htmlFor="payout-caption" className="text-[11px] text-muted-foreground">
+                Use placeholders:{' '}
+                <code className="font-mono text-[10px]">
+                  {'{landlord} {tenant} {tid} {amount} {provider} {phone} {agent} {date}'}
+                </code>
+              </Label>
+              <Textarea
+                id="payout-caption"
+                value={captionTemplate}
+                onChange={(e) => persistTemplate(e.target.value)}
+                rows={7}
+                className="font-mono text-xs"
+                placeholder={DEFAULT_PAYOUT_CAPTION_TEMPLATE}
+              />
+              <div className="rounded-md bg-background border border-border/60 p-2">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                  Preview
+                </p>
+                <p className="text-[11px] whitespace-pre-wrap font-mono text-foreground">
+                  {captionText}
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={resetTemplate}
+                className="h-7 px-2 text-[11px] gap-1"
+              >
+                <RotateCcw className="h-3 w-3" />
+                Reset to default
+              </Button>
+            </div>
+          )}
+        </div>
+
         <div className="grid grid-cols-3 gap-2">
           <Button onClick={handleNativeShare} disabled={busy !== null} className="gap-2">
             {busy === 'share' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
