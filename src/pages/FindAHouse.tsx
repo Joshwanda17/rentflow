@@ -59,6 +59,7 @@ function HouseImageCarousel({ images, title, onImageClick }: { images: string[] 
         alt={title}
         className="w-full h-full object-cover cursor-pointer"
         loading="lazy"
+        decoding="async"
         onClick={() => onImageClick?.(idx)}
       />
       {/* Tap-to-view overlay hint */}
@@ -194,7 +195,7 @@ function PublicHouseCard({ listing, isFirst }: { listing: HouseListing; isFirst?
                 onClick={() => openLightbox(i)}
                 className="flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 border-transparent hover:border-primary active:scale-95 transition-all"
               >
-                <img src={img.image_url} alt={`${listing.title} ${i + 1}`} className="w-full h-full object-cover" loading="lazy" />
+                <img src={img.image_url} alt={`${listing.title} ${i + 1}`} className="w-full h-full object-cover" loading="lazy" decoding="async" />
               </button>
             ))}
           </div>
