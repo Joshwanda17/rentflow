@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { Banknote, Copy, CheckCircle2, XCircle, Phone, User, Loader2 } from 'lucide-react';
+import { LandlordPayoutShareCard, type LandlordPayoutShareData } from './LandlordPayoutShareCard';
 
 type Payout = {
   id: string;
@@ -49,6 +50,7 @@ export function LandlordPayoutsQueue() {
   const [notes, setNotes] = useState('');
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [shareData, setShareData] = useState<LandlordPayoutShareData | null>(null);
 
   const { data: payouts, isLoading } = useQuery({
     queryKey: ['finops-landlord-payouts-queue'],
@@ -136,6 +138,18 @@ export function LandlordPayoutsQueue() {
 
       toast.success('Marked as disbursed');
       qc.invalidateQueries({ queryKey: ['finops-landlord-payouts-queue'] });
+      // Open WhatsApp share card so FinOps can notify the agent immediately.
+      setShareData({
+        amount: disburse.amount,
+        landlord_name: disburse.landlord_name,
+        landlord_phone: disburse.landlord_phone,
+        mobile_money_provider: disburse.mobile_money_provider,
+        tenant_name: disburse.tenant_profile?.full_name ?? null,
+        agent_name: disburse.agent_profile?.full_name ?? null,
+        agent_phone: disburse.agent_profile?.phone ?? null,
+        momo_reference: momoRef.trim(),
+        paid_at: new Date().toISOString(),
+      });
       closeAll();
     } catch (e: any) {
       toast.error(e?.message ?? 'Failed to mark disbursed');
@@ -354,6 +368,13 @@ export function LandlordPayoutsQueue() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* WhatsApp share card — opens after a successful TID approval */}
+      <LandlordPayoutShareCard
+        open={!!shareData}
+        onOpenChange={(o) => !o && setShareData(null)}
+        data={shareData}
+      />
     </div>
   );
 }
