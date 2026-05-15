@@ -12,6 +12,14 @@ import {
 } from 'recharts';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import { Loader2 } from 'lucide-react';
 
 interface EmailOverview {
   rangeDays: number;
@@ -45,6 +53,34 @@ const RANGE_OPTIONS = [
 
 export function CTOEmailsOverview() {
   const [days, setDays] = useState(30);
+  const [previewRow, setPreviewRow] = useState<EmailOverview['recent'][number] | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
+  const [previewSubject, setPreviewSubject] = useState<string | null>(null);
+
+  const openPreview = async (row: EmailOverview['recent'][number]) => {
+    setPreviewRow(row);
+    setPreviewLoading(true);
+    setPreviewError(null);
+    setPreviewHtml(null);
+    setPreviewSubject(null);
+    try {
+      const sessionRes = await supabase.auth.getSession();
+      const token = sessionRes.data.session?.access_token;
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cto-email-body?id=${row.id}`;
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || 'Failed to load email body');
+      setPreviewSubject(json.subject ?? null);
+      setPreviewHtml(json.html ?? null);
+      if (json.renderError) setPreviewError(json.renderError);
+    } catch (e) {
+      setPreviewError(e instanceof Error ? e.message : 'Failed to load email body');
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['cto-email-overview', days],
@@ -337,6 +373,7 @@ export function CTOEmailsOverview() {
           columns={recentColumns}
           loading={isLoading}
           title="Latest 100 emails"
+          onRowClick={openPreview}
           filters={[{
             key: 'status',
             label: 'Status',
@@ -351,6 +388,50 @@ export function CTOEmailsOverview() {
           }]}
         />
       </div>
+
+      <Dialog open={!!previewRow} onOpenChange={(o) => !o && setPreviewRow(null)}>
+        <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-base">
+              {previewSubject || previewRow?.template_name || 'Email preview'}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              To <span className="font-medium text-foreground">{previewRow?.recipient_email}</span>
+              {' • '}
+              <span className="capitalize">{previewRow?.status}</span>
+              {previewRow?.created_at && (
+                <> • {format(new Date(previewRow.created_at), 'dd MMM yyyy HH:mm')}</>
+              )}
+              {' • template: '}
+              <span className="font-mono">{previewRow?.template_name}</span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 min-h-[400px] border border-border rounded-lg overflow-hidden bg-white">
+            {previewLoading ? (
+              <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Rendering email body…
+              </div>
+            ) : previewHtml ? (
+              <iframe
+                title="Email body"
+                srcDoc={previewHtml}
+                sandbox=""
+                className="w-full h-[60vh]"
+              />
+            ) : (
+              <div className="h-full p-6 flex flex-col items-center justify-center text-center text-sm text-muted-foreground">
+                <AlertTriangle className="h-5 w-5 text-amber-600 mb-2" />
+                <p className="font-medium text-foreground mb-1">Body not available</p>
+                <p className="text-xs max-w-md">
+                  {previewError ||
+                    'No archived body for this email. Future sends will be viewable here.'}
+                </p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
