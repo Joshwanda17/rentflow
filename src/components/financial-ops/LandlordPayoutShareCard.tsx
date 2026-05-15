@@ -97,6 +97,8 @@ export function LandlordPayoutShareCard({ open, onOpenChange, data }: Props) {
   const [busy, setBusy] = useState<'png' | 'pdf' | 'share' | 'share-pdf' | null>(null);
   const [captionTemplate, setCaptionTemplate] = useState<string>(DEFAULT_PAYOUT_CAPTION_TEMPLATE);
   const [showTemplate, setShowTemplate] = useState(false);
+  const [recipient, setRecipient] = useState<'agent' | 'landlord' | 'other'>('agent');
+  const [customPhone, setCustomPhone] = useState('');
 
   useEffect(() => {
     try {
@@ -124,6 +126,22 @@ export function LandlordPayoutShareCard({ open, onOpenChange, data }: Props) {
   if (!data) return null;
 
   const captionText = renderCaption(captionTemplate, data);
+
+  const recipientPhone =
+    recipient === 'landlord'
+      ? data.landlord_phone
+      : recipient === 'other'
+        ? customPhone
+        : data.agent_phone || '';
+
+  const recipientLabel =
+    recipient === 'landlord'
+      ? `Landlord · ${data.landlord_name}`
+      : recipient === 'other'
+        ? customPhone || 'Custom number'
+        : data.agent_name
+          ? `Agent · ${data.agent_name}`
+          : 'Agent';
 
   const renderImage = async () => {
     if (!cardRef.current) return null;
@@ -319,18 +337,18 @@ export function LandlordPayoutShareCard({ open, onOpenChange, data }: Props) {
 
   const openWhatsAppText = () => {
     const text = encodeURIComponent(captionText);
-    const phone = data.agent_phone ? formatWhatsAppNumber(data.agent_phone) : '';
+    const phone = recipientPhone ? formatWhatsAppNumber(recipientPhone) : '';
     const base = phone ? `https://wa.me/${phone}` : `https://wa.me/`;
     window.open(`${base}?text=${text}`, '_blank');
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-md max-h-[95vh] overflow-y-auto p-4 sm:p-6">
+        <DialogHeader className="text-left">
           <DialogTitle>Share payout with agent</DialogTitle>
           <DialogDescription>
-            Send the agent a confirmation card on WhatsApp. Best results: tap "Share to WhatsApp" on mobile to attach the image directly.
+            Send a confirmation card on WhatsApp. On a phone, tap "Share PDF to WhatsApp" — it opens the WhatsApp picker with the file already attached.
           </DialogDescription>
         </DialogHeader>
 
