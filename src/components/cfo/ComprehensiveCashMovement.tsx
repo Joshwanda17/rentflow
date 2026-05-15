@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -128,6 +129,7 @@ export function ComprehensiveCashMovement() {
   const [generatedAt, setGeneratedAt] = useState<Date | null>(null);
   const [drill, setDrill] = useState<null | { category: string; scope: string; bucket: string | null }>(null);
   const [partyNames, setPartyNames] = useState<Record<string, string>>({});
+  const [drillQuery, setDrillQuery] = useState('');
 
   const generate = async () => {
     setLoading(true);
@@ -165,6 +167,9 @@ export function ComprehensiveCashMovement() {
 
   useEffect(() => { generate(); /* eslint-disable-next-line */ }, [period]);
 
+  // Reset search when opening a new drill
+  useEffect(() => { setDrillQuery(''); }, [drill?.category, drill?.scope, drill?.bucket]);
+
   // Drill-down filtered rows
   const drillRows = useMemo(() => {
     if (!drill) return [] as LedgerRow[];
@@ -178,6 +183,25 @@ export function ComprehensiveCashMovement() {
       return true;
     }).sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime());
   }, [rows, drill, includeAdjustments, granularity]);
+
+  // Apply search filter (reference id, transaction group, party name, user id, source table, linked party, description)
+  const filteredDrillRows = useMemo(() => {
+    const q = drillQuery.trim().toLowerCase();
+    if (!q) return drillRows;
+    return drillRows.filter(r => {
+      const name = r.user_id ? (partyNames[r.user_id] || '').toLowerCase() : '';
+      return (
+        (r.reference_id || '').toLowerCase().includes(q) ||
+        (r.transaction_group_id || '').toLowerCase().includes(q) ||
+        (r.user_id || '').toLowerCase().includes(q) ||
+        (r.source_table || '').toLowerCase().includes(q) ||
+        (r.source_id || '').toLowerCase().includes(q) ||
+        (r.linked_party || '').toLowerCase().includes(q) ||
+        (r.description || '').toLowerCase().includes(q) ||
+        name.includes(q)
+      );
+    });
+  }, [drillRows, drillQuery, partyNames]);
 
   // Resolve user names for drill-down list
   useEffect(() => {
@@ -337,9 +361,9 @@ export function ComprehensiveCashMovement() {
   };
 
   const handleExportDrill = () => {
-    if (!drill || drillRows.length === 0) return;
+    if (!drill || filteredDrillRows.length === 0) return;
     const headers = ['Date', 'Reference ID', 'Transaction Group', 'Direction', 'Amount', 'Linked Party', 'User ID', 'User Name', 'Source Table', 'Source ID', 'Classification', 'Description'];
-    const data = drillRows.map(r => [
+    const data = filteredDrillRows.map(r => [
       format(new Date(r.transaction_date), 'yyyy-MM-dd HH:mm:ss'),
       r.reference_id || '',
       r.transaction_group_id || '',
@@ -559,8 +583,8 @@ export function ComprehensiveCashMovement() {
                 {/* Summary */}
                 <div className="grid grid-cols-3 gap-2 mt-4">
                   {(() => {
-                    const cIn  = drillRows.filter(r => r.direction === 'cash_in').reduce((s, r) => s + (Number(r.amount) || 0), 0);
-                    const cOut = drillRows.filter(r => r.direction === 'cash_out').reduce((s, r) => s + (Number(r.amount) || 0), 0);
+                    const cIn  = filteredDrillRows.filter(r => r.direction === 'cash_in').reduce((s, r) => s + (Number(r.amount) || 0), 0);
+                    const cOut = filteredDrillRows.filter(r => r.direction === 'cash_out').reduce((s, r) => s + (Number(r.amount) || 0), 0);
                     const net  = cIn - cOut;
                     return (
                       <>
@@ -585,15 +609,25 @@ export function ComprehensiveCashMovement() {
 
                 <div className="flex items-center justify-between mt-4 mb-2">
                   <div className="text-[11px] text-muted-foreground">
-                    {drillRows.length.toLocaleString()} ledger entr{drillRows.length === 1 ? 'y' : 'ies'}
+                    {filteredDrillRows.length.toLocaleString()} of {drillRows.length.toLocaleString()} ledger entr{drillRows.length === 1 ? 'y' : 'ies'}
+                    {drillQuery && <span className="ml-1 text-primary">· filtered by "{drillQuery}"</span>}
                   </div>
-                  <Button size="sm" variant="outline" className="gap-2 text-xs h-7" onClick={handleExportDrill} disabled={drillRows.length === 0}>
+                  <Button size="sm" variant="outline" className="gap-2 text-xs h-7" onClick={handleExportDrill} disabled={filteredDrillRows.length === 0}>
                     <FileSpreadsheet className="h-3.5 w-3.5" /> Export CSV
                   </Button>
                 </div>
 
-                {drillRows.length === 0 ? (
-                  <div className="py-12 text-center text-muted-foreground text-sm">No ledger entries.</div>
+                <Input
+                  value={drillQuery}
+                  onChange={(e) => setDrillQuery(e.target.value)}
+                  placeholder="Search reference ID, transaction id, party name, or source table…"
+                  className="h-8 text-xs mb-2"
+                />
+
+                {filteredDrillRows.length === 0 ? (
+                  <div className="py-12 text-center text-muted-foreground text-sm">
+                    {drillQuery ? 'No entries match your search.' : 'No ledger entries.'}
+                  </div>
                 ) : (
                   <div className="border border-border rounded-lg overflow-hidden">
                     <Table>
@@ -606,7 +640,7 @@ export function ComprehensiveCashMovement() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {drillRows.slice(0, 500).map((r, i) => {
+                        {filteredDrillRows.slice(0, 500).map((r, i) => {
                           const amt = Number(r.amount) || 0;
                           const isIn = r.direction === 'cash_in';
                           const name = r.user_id ? partyNames[r.user_id] : null;
@@ -645,9 +679,9 @@ export function ComprehensiveCashMovement() {
                         })}
                       </TableBody>
                     </Table>
-                    {drillRows.length > 500 && (
+                    {filteredDrillRows.length > 500 && (
                       <div className="text-[10px] text-muted-foreground text-center py-2 border-t border-border">
-                        Showing first 500 of {drillRows.length.toLocaleString()}. Export CSV for full list.
+                        Showing first 500 of {filteredDrillRows.length.toLocaleString()}. Export CSV for full list.
                       </div>
                     )}
                   </div>
