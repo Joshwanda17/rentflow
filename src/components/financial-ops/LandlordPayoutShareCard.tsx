@@ -73,6 +73,19 @@ function renderCaption(template: string, d: LandlordPayoutShareData): string {
   );
 }
 
+// ───────────────────────────────────────────────────────────
+// A4 layout constants — single source of truth for the PDF.
+// Tweaking these here keeps every device output consistent.
+// ───────────────────────────────────────────────────────────
+const A4_PAGE_MM = { width: 210, height: 297 };
+const PDF_MARGIN_MM = 14;          // outer margin on every side
+const PDF_HEADER_MM = 18;          // reserved height for title + meta
+const PDF_FOOTER_MM = 14;          // reserved height for footer text
+// Capture the card at a fixed CSS width so the snapshot is identical
+// on phone, tablet, and desktop. pixelRatio bumps DPI for print.
+const CARD_CAPTURE_WIDTH_PX = 480;
+const CARD_CAPTURE_PIXEL_RATIO = 2.5;
+
 interface Props {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -115,7 +128,21 @@ export function LandlordPayoutShareCard({ open, onOpenChange, data }: Props) {
   const renderImage = async () => {
     if (!cardRef.current) return null;
     const { toPng } = await import('html-to-image');
-    return toPng(cardRef.current, { pixelRatio: 2, cacheBust: true, skipFonts: true });
+    const node = cardRef.current;
+    // Force a fixed render width so output is device-independent.
+    return toPng(node, {
+      pixelRatio: CARD_CAPTURE_PIXEL_RATIO,
+      cacheBust: true,
+      skipFonts: true,
+      width: CARD_CAPTURE_WIDTH_PX,
+      // Let height auto-derive from content
+      style: {
+        width: `${CARD_CAPTURE_WIDTH_PX}px`,
+        maxWidth: `${CARD_CAPTURE_WIDTH_PX}px`,
+        // Override transform/scale that the dialog might apply
+        transform: 'none',
+      },
+    });
   };
 
   const handleDownload = async () => {
@@ -141,45 +168,68 @@ export function LandlordPayoutShareCard({ open, onOpenChange, data }: Props) {
     const dataUrl = await renderImage();
     if (!dataUrl) return null;
     const { jsPDF } = await import('jspdf');
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const margin = 12;
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
 
-      // Header
-      pdf.setFontSize(16);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('Welile — Landlord Payout Confirmation', margin, margin + 6);
-      pdf.setFontSize(9);
-      pdf.setFont('helvetica', 'normal');
-      pdf.setTextColor(100, 100, 100);
-      pdf.text(
-        `Generated: ${new Date().toLocaleString('en-UG')}  ·  MoMo TID: ${data.momo_reference}`,
-        margin,
-        margin + 12,
-      );
-      pdf.setTextColor(0, 0, 0);
+    const pageW = A4_PAGE_MM.width;
+    const pageH = A4_PAGE_MM.height;
+    const margin = PDF_MARGIN_MM;
 
-      // Embed card image, fit to page width
-      const img = new Image();
-      img.src = dataUrl;
-      await new Promise<void>((resolve, reject) => {
-        img.onload = () => resolve();
-        img.onerror = () => reject(new Error('Failed to render card image'));
-      });
-      const imgWidth = pageWidth - margin * 2;
-      const imgHeight = (img.height * imgWidth) / img.width;
-      pdf.addImage(dataUrl, 'PNG', margin, margin + 18, imgWidth, imgHeight, undefined, 'FAST');
+    // Header band
+    pdf.setFontSize(16);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Welile — Landlord Payout Confirmation', margin, margin + 6);
+    pdf.setFontSize(9);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(100, 100, 100);
+    pdf.text(
+      `Generated: ${new Date().toLocaleString('en-UG')}  ·  MoMo TID: ${data.momo_reference}`,
+      margin,
+      margin + 12,
+    );
+    pdf.setTextColor(0, 0, 0);
 
-      // Footer
-      const footerY = margin + 18 + imgHeight + 8;
-      pdf.setFontSize(9);
-      pdf.setTextColor(80, 80, 80);
-      pdf.text(
-        'This is an internal Welile payout confirmation. Please retain for reconciliation.',
-        margin,
-        footerY,
-      );
-      pdf.text('welilereceipts.com', margin, footerY + 5);
+    // Decorative rule under header
+    pdf.setDrawColor(220, 220, 220);
+    pdf.setLineWidth(0.2);
+    pdf.line(margin, margin + PDF_HEADER_MM - 2, pageW - margin, margin + PDF_HEADER_MM - 2);
+
+    // Available content box (between header & footer, inside margins)
+    const contentTop = margin + PDF_HEADER_MM;
+    const contentBottom = pageH - margin - PDF_FOOTER_MM;
+    const contentW = pageW - margin * 2;
+    const contentH = contentBottom - contentTop;
+
+    // Decode card image to know its native aspect ratio
+    const img = new Image();
+    img.src = dataUrl;
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('Failed to render card image'));
+    });
+
+    // Fit image inside contentW x contentH while preserving aspect ratio.
+    // Math.min ensures we never crop or overflow either axis.
+    const scale = Math.min(contentW / img.width, contentH / img.height);
+    const drawW = img.width * scale;
+    const drawH = img.height * scale;
+    // Center inside the content box
+    const drawX = margin + (contentW - drawW) / 2;
+    const drawY = contentTop + (contentH - drawH) / 2;
+
+    pdf.addImage(dataUrl, 'PNG', drawX, drawY, drawW, drawH, undefined, 'FAST');
+
+    // Footer band (anchored to page bottom — never overlaps card)
+    const footerY = pageH - margin - PDF_FOOTER_MM + 6;
+    pdf.setDrawColor(220, 220, 220);
+    pdf.line(margin, footerY - 4, pageW - margin, footerY - 4);
+    pdf.setFontSize(9);
+    pdf.setTextColor(80, 80, 80);
+    pdf.text(
+      'This is an internal Welile payout confirmation. Please retain for reconciliation.',
+      margin,
+      footerY,
+    );
+    pdf.text('welilereceipts.com', margin, footerY + 5);
 
     return pdf.output('blob');
   };
