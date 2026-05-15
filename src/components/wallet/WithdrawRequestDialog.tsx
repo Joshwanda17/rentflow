@@ -381,8 +381,25 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       try {
         const isMomo = payoutMode === 'mtn' || payoutMode === 'airtel';
+        // Proxy Partner Custody v2: when this dialog is opened on behalf of a
+        // partner (linkedParty set), the row MUST be owned by the partner
+        // (`user_id = partner`) so v_user_wallet_strict deducts the partner's
+        // bucket and post-cutoff ledger guards don't fire. The agent only
+        // appears as initiator (audit). NEVER set `linked_party` for new
+        // proxy rows — that's the legacy v1 shape that pins the hold to the
+        // agent's wallet.
+        const isProxy = !!linkedParty;
         const { error } = await supabase.from('withdrawal_requests').insert({
-          user_id: user.id,
+          user_id: isProxy ? linkedParty! : user.id,
+          ...(isProxy
+            ? {
+                agent_id: user.id,
+                initiated_by: user.id,
+                beneficiary_id: linkedParty,
+                proxy_partner_id: linkedParty,
+                auto_dispatched: false,
+              }
+            : {}),
           amount,
           status: 'pending' as const,
           mobile_money_number: isMomo ? momoNumber.trim() : null,
@@ -393,18 +410,10 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
           bank_account_name: payoutMode === 'bank' ? bankAccountName.trim() : null,
           bank_account_number: payoutMode === 'bank' ? bankAccountNumber.trim() : null,
           agent_location: payoutMode === 'cash' ? 'Nearest Agent' : null,
-          reason: reason.trim(),
+          reason: isProxy
+            ? `[Proxy initiated by agent ${user.id}] ${reason.trim()}`
+            : reason.trim(),
           client_request_id: clientRequestId,
-          // For proxy-partner withdrawals, populate BOTH linked_party (audit
-          // trail) AND proxy_partner_id (the column approve-withdrawal uses
-          // to recognize this as a partner-linked payout and gate against
-          // the partner's ledger entitlement instead of the agent's own
-          // withdrawable). Omitting proxy_partner_id makes the row look
-          // like a self-withdrawal and blocks approval whenever the agent's
-          // wallet is empty — even though the partner has unwithdrawn ROI.
-          ...(linkedParty
-            ? { linked_party: linkedParty, proxy_partner_id: linkedParty }
-            : {}),
         } as any);
         if (error) {
           // 23505 = unique_violation. Means a previous attempt already committed
@@ -439,7 +448,9 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
         // No wallet deduction or ledger insert here — that happens at approval time
         // via the approve-withdrawal edge function (ledger-first architecture)
 
-        if (payoutMode === 'mtn' || payoutMode === 'airtel') {
+        // Don't overwrite the agent's saved MoMo on a proxy withdrawal —
+        // those payout details belong to the partner.
+        if (!isProxy && (payoutMode === 'mtn' || payoutMode === 'airtel')) {
           await supabase.from('profiles').update({ mobile_money_number: momoNumber.trim(), mobile_money_provider: payoutMode }).eq('id', user.id);
         }
 
