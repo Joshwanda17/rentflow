@@ -20,6 +20,7 @@ import { useGeoLocation } from '@/hooks/useGeoLocation';
 import { createShortLink } from '@/lib/createShortLink';
 import { AgentTenantCollectDialog } from './AgentTenantCollectDialog';
 import { ReverseAllocationDialog } from './ReverseAllocationDialog';
+import { TenantFieldCollectDialog } from './TenantFieldCollectDialog';
 import { Undo2 } from 'lucide-react';
 import { shareTenantProfileWhatsApp, type TenantProfilePdfData } from '@/lib/tenantProfilePdf';
 import { UserAvatar } from '@/components/UserAvatar';
@@ -174,6 +175,7 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
   const [addingRole, setAddingRole] = useState(false);
 
   const [subAgentDialogOpen, setSubAgentDialogOpen] = useState(false);
+  const [fieldCollectOpen, setFieldCollectOpen] = useState(false);
 
   const [autoCollecting, setAutoCollecting] = useState(false);
   const [reopening, setReopening] = useState(false);
@@ -1082,6 +1084,14 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
         {/* ── Quick Actions ── */}
         <SectionCard icon={Zap} title="Quick Actions">
           <div className="grid grid-cols-2 gap-2.5">
+            <Button
+              variant="default"
+              className="gap-2 text-sm h-auto py-3.5 flex-col items-center rounded-xl col-span-2"
+              onClick={() => setFieldCollectOpen(true)}
+            >
+              <CreditCard className="h-6 w-6" />
+              <span className="font-semibold">Collect Rent</span>
+            </Button>
             <Button
               variant="outline"
               className="gap-2 text-sm h-auto py-3.5 flex-col items-center rounded-xl"
