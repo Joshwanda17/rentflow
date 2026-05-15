@@ -5,9 +5,11 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Loader2, CheckCircle2, Search, Share2, User, Home, Receipt } from 'lucide-react';
+import { Loader2, CheckCircle2, Search, Share2, User, Home, Receipt, FileDown } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { LandlordPayoutShareCard, type LandlordPayoutShareData } from './LandlordPayoutShareCard';
+import { buildBulkPayoutsPdfBlob, downloadBlob } from './landlordPayoutPdf';
+import { toast } from 'sonner';
 
 type Row = {
   id: string;
@@ -36,6 +38,7 @@ function formatUGX(n: number) {
 export function FundedTenantsList() {
   const [q, setQ] = useState('');
   const [share, setShare] = useState<LandlordPayoutShareData | null>(null);
+  const [bulk, setBulk] = useState<{ done: number; total: number } | null>(null);
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['finops-funded-landlord-payouts'],
@@ -97,6 +100,42 @@ export function FundedTenantsList() {
     [filtered],
   );
 
+  const rowToShareData = (r: Row): LandlordPayoutShareData => ({
+    amount: r.amount,
+    landlord_name: r.landlord_name,
+    landlord_phone: r.landlord_phone,
+    mobile_money_provider: r.mobile_money_provider,
+    tenant_name: r.tenant_profile?.full_name ?? null,
+    agent_name: r.agent_profile?.full_name ?? null,
+    agent_phone: r.agent_profile?.phone ?? null,
+    momo_reference: r.finops_momo_reference ?? r.external_reference ?? '—',
+    paid_at: r.finops_disbursed_at ?? r.created_at,
+  });
+
+  const handleBulkPdf = async () => {
+    if (!filtered.length) return;
+    if (filtered.length > 50) {
+      const ok = window.confirm(
+        `You're about to export ${filtered.length} payouts into one PDF. This may take a minute. Continue?`,
+      );
+      if (!ok) return;
+    }
+    setBulk({ done: 0, total: filtered.length });
+    try {
+      const blob = await buildBulkPayoutsPdfBlob(
+        filtered.map(rowToShareData),
+        (done, total) => setBulk({ done, total }),
+      );
+      const stamp = new Date().toISOString().slice(0, 10);
+      downloadBlob(blob, `welile-funded-landlord-payouts-${stamp}-x${filtered.length}.pdf`);
+      toast.success(`Exported ${filtered.length} payouts to PDF`);
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Failed to build bulk PDF');
+    } finally {
+      setBulk(null);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12 text-muted-foreground text-sm">
@@ -130,7 +169,33 @@ export function FundedTenantsList() {
         <Badge variant="outline" className="shrink-0">
           {filtered.length} · {formatUGX(totalAmount)}
         </Badge>
+        <Button
+          size="sm"
+          variant="outline"
+          className="shrink-0 gap-1.5"
+          onClick={handleBulkPdf}
+          disabled={!filtered.length || !!bulk}
+          title="Download a single PDF containing every visible payout (one card per page)"
+        >
+          {bulk ? (
+            <>
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              {bulk.done}/{bulk.total}
+            </>
+          ) : (
+            <>
+              <FileDown className="h-3.5 w-3.5" />
+              Bulk PDF
+            </>
+          )}
+        </Button>
       </div>
+
+      {bulk && (
+        <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+          Building combined PDF — {bulk.done} of {bulk.total} cards rendered…
+        </div>
+      )}
 
       {filtered.length === 0 ? (
         <Card className="p-8 text-center text-muted-foreground">
