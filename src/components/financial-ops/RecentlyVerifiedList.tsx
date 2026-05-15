@@ -217,7 +217,7 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
     const headers: string[] = ['Deposit ID'];
     const rowBuilders: ((r: any) => (string | number | null)[])[] = [(r) => [r.id]];
     for (const c of COLUMNS) {
-      if (!visibleCols[c.key]) continue;
+      if (!visibleCols[c.key] && c.key !== 'depositor') continue;
       headers.push(...c.csvHeaders);
       if (c.key === 'status') rowBuilders.push((r) => [
         r.status === 'approved' ? 'Approved' : 'Rejected',
