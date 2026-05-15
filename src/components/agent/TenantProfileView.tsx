@@ -1494,6 +1494,14 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
         onSuccess={loadFullProfile}
       />
 
+      <TenantFieldCollectDialog
+        open={fieldCollectOpen}
+        onOpenChange={setFieldCollectOpen}
+        tenantId={profile.id}
+        tenantName={profile.full_name}
+        tenantPhone={profile.phone}
+      />
+
       {/* Rent Access Limit — opens minimalist sheet with full card */}
       <Sheet open={rentLimitOpen} onOpenChange={setRentLimitOpen}>
         <SheetContent
