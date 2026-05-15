@@ -159,7 +159,7 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
     let q = supabase
         .from('deposit_requests')
         .select(
-          'id, amount, status, approved_at, rejected_at, processed_by, rejection_reason',
+          'id, amount, status, approved_at, rejected_at, processed_by, user_id, rejection_reason',
         )
         .in('status', ['approved', 'rejected'])
         .order('updated_at', { ascending: false })
