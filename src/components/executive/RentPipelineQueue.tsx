@@ -575,6 +575,40 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
       if (config.commentColumn) reviewerPatch[config.commentColumn] = comment.trim();
       await supabase.from('rent_requests').update(reviewerPatch).eq('id', selectedRequest.id);
 
+      // ── Auto-WhatsApp the originating Agent with the rejection details ──
+      // The agent's own WhatsApp number is used (their account phone). We
+      // prefill tenant name + tenant contact + amount + which dashboard
+      // rejected + the comment. The agent then taps Send in WhatsApp.
+      const agentPhone = formatWhatsApp(selectedRequest.agent_phone || '');
+      const rejector = STAGE_REJECTOR_LABEL[stage] || 'Operations';
+      const amountStr = `UGX ${Number(selectedRequest.rent_amount || 0).toLocaleString()}`;
+      const tenantContact = selectedRequest.tenant_phone || 'N/A';
+      const tenantName = selectedRequest.tenant_name || 'Unknown';
+      const waText =
+        `🔁 *Welile Rent Request Returned for Correction*\n\n` +
+        `*Tenant:* ${tenantName}\n` +
+        `*Tenant contact:* ${tenantContact}\n` +
+        `*Amount requested:* ${amountStr}\n` +
+        `*Rejected by:* ${rejector}\n\n` +
+        `*Comment:*\n${comment.trim()}\n\n` +
+        `Please review the comment, correct the request and resubmit from your Agent dashboard.`;
+
+      if (agentPhone) {
+        window.open(
+          `https://wa.me/${agentPhone}?text=${encodeURIComponent(waText)}`,
+          '_blank',
+          'noopener,noreferrer',
+        );
+        sonnerToast.success(`Sent to ${selectedRequest.agent_name || 'Agent'} on WhatsApp`, {
+          description: `${tenantName} • ${amountStr} • ${rejector} rejection`,
+          duration: 6000,
+        });
+      } else {
+        sonnerToast.warning('Returned for correction — agent has no phone on file for WhatsApp', {
+          duration: 6000,
+        });
+      }
+
       toast({ title: 'Returned for correction — sent to Agent Ops & originating Agent' });
       setSelectedRequest(null);
       setComment('');
