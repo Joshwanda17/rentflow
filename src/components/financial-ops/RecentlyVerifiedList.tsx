@@ -77,15 +77,16 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
 
   // Single source of truth for table columns. Drives both render and CSV
   // export so the file always matches what the operator sees.
-  type ColKey = 'status' | 'amount' | 'verified_by' | 'verified_at';
+  type ColKey = 'status' | 'amount' | 'depositor' | 'verified_by' | 'verified_at';
   const COLUMNS: { key: ColKey; label: string; csvHeaders: string[] }[] = [
     { key: 'status', label: 'Status', csvHeaders: ['Outcome', 'Rejection reason'] },
     { key: 'amount', label: 'Amount', csvHeaders: ['Amount (UGX)'] },
+    { key: 'depositor', label: 'Verified person', csvHeaders: ['Depositor (ID)', 'Depositor'] },
     { key: 'verified_by', label: 'Verified by', csvHeaders: ['Verified by (ID)', 'Verified by'] },
     { key: 'verified_at', label: 'Verified at', csvHeaders: ['Verified at'] },
   ];
   const [visibleCols, setVisibleCols] = useState<Record<ColKey, boolean>>({
-    status: true, amount: true, verified_by: true, verified_at: true,
+    status: true, amount: true, depositor: true, verified_by: true, verified_at: true,
   });
   const isVisible = (k: ColKey) => visibleCols[k];
   const toggleCol = (k: ColKey) => setVisibleCols((p) => ({ ...p, [k]: !p[k] }));
