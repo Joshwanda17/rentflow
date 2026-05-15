@@ -14,7 +14,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { TenantReassignmentSuggestions } from './TenantReassignmentSuggestions';
-import { useGeoLocation } from '@/hooks/useGeoLocation';
+import { useCaptureLocation } from '@/hooks/useCaptureLocation';
 
 interface SelectedUser {
   id: string;
@@ -86,7 +86,7 @@ export function TenantAgentLinker() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [previewSortKey, setPreviewSortKey] = useState<'id' | 'agent' | 'amount'>('amount');
   const [previewSortDir, setPreviewSortDir] = useState<'asc' | 'desc'>('desc');
-  const { captureLocation: captureActorLocation } = useGeoLocation();
+  const { captureLocation: captureActorLocation } = useCaptureLocation();
   const [lastActorStatus, setLastActorStatus] = useState<ActorLocationStatus | null>(null);
   const [lastActorAccuracy, setLastActorAccuracy] = useState<number | null>(null);
 

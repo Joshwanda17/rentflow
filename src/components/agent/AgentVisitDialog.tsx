@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useGeoLocation } from '@/hooks/useGeoLocation';
+import { useCaptureLocation } from '@/hooks/useCaptureLocation';
 import { useProfile } from '@/hooks/useProfile';
 import { MapPin, Loader2, CheckCircle2, User, Phone, Home, Banknote } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -25,7 +25,7 @@ interface AgentVisitDialogProps {
 export function AgentVisitDialog({ open, onOpenChange, onSuccess }: AgentVisitDialogProps) {
   const { profile } = useProfile();
   const { toast } = useToast();
-  const { loading: gpsLoading, captureLocation } = useGeoLocation();
+  const { loading: gpsLoading, captureLocation } = useCaptureLocation();
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
   const [saving, setSaving] = useState(false);

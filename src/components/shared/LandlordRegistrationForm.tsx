@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { useGeoLocation } from '@/hooks/useGeoLocation';
+import { useCaptureLocation } from '@/hooks/useCaptureLocation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -39,7 +39,7 @@ export default function LandlordRegistrationForm({
   toastFn,
 }: LandlordRegistrationFormProps) {
   const { user } = useAuth();
-  const { location, loading: locationLoading, error: locationError, captureLocation } = useGeoLocation();
+  const { location, loading: locationLoading, error: locationError, captureLocation } = useCaptureLocation();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [activationLink, setActivationLink] = useState('');

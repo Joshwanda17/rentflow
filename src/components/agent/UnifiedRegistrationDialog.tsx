@@ -24,7 +24,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { usePhoneDuplicateCheck } from '@/hooks/usePhoneDuplicateCheck';
-import { useGeoLocation } from '@/hooks/useGeoLocation';
+import { useCaptureLocation } from '@/hooks/useCaptureLocation';
 import { Loader2 as LoaderIcon, Navigation } from 'lucide-react';
 
 const HOUSE_CATEGORIES = [
@@ -174,7 +174,7 @@ export function UnifiedRegistrationDialog({ open, onOpenChange, onSuccess }: Uni
   const [lc1Success, setLc1Success] = useState(false);
 
   // Location capture for landlord registrations
-  const { location: capturedLocation, loading: locationLoading, error: locationError, captureLocation } = useGeoLocation();
+  const { location: capturedLocation, loading: locationLoading, error: locationError, captureLocation } = useCaptureLocation();
   const [propertyAddress, setPropertyAddress] = useState('');
   const [locationCaptured, setLocationCaptured] = useState(false);
 

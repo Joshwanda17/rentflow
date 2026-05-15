@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { useGeoLocation } from '@/hooks/useGeoLocation';
+import { useCaptureLocation } from '@/hooks/useCaptureLocation';
 import { useLandlordOtp } from '@/hooks/useLandlordOtp';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -33,7 +33,7 @@ type Step = 'select' | 'otp' | 'disburse' | 'done';
 export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutWizardProps) {
   const { user } = useAuth();
   const qc = useQueryClient();
-  const geo = useGeoLocation();
+  const geo = useCaptureLocation();
   const landlordOtp = useLandlordOtp();
   const [step, setStep] = useState<Step>('select');
   const [selectedRequest, setSelectedRequest] = useState<any>(null);

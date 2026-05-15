@@ -1,0 +1,297 @@
+﻿diff --git a/src/components/agent/AgentDepositCashDialog.tsx b/src/components/agent/AgentDepositCashDialog.tsx
+index e988e2ef1..687de2c17 100644
+--- a/src/components/agent/AgentDepositCashDialog.tsx
++++ b/src/components/agent/AgentDepositCashDialog.tsx
+@@ -56,22 +56,31 @@ export function AgentDepositCashDialog({ open, onOpenChange, onSuccess }: AgentD
+ 
+     setLoading(true);
+ 
+-    // Reset float capacity: reduce collected_today by deposit amount (or set to 0)
+-    const { data: floatData } = await supabase
+-      .from('agent_float_limits')
+-      .select('collected_today')
+-      .eq('agent_id', profile.id)
+-      .maybeSingle();
++    // Create a deposit request for manager verification
++    const { error: insertError } = await supabase
++      .from('deposit_requests')
++      .insert({
++        user_id: profile.id, // Agent is depositing their own collected cash
++        agent_id: profile.id,
++        amount: amountNum,
++        provider: method,
++        transaction_id: transactionId.trim().toUpperCase(),
++        notes: `Agent cash deposit for: ${depositType}`,
++        status: 'pending',
++        deposit_purpose: 'other' // Maps safely using DB enum
++      });
+ 
+-    if (floatData) {
+-      const newCollected = Math.max(0, floatData.collected_today - amountNum);
+-      await supabase
+-        .from('agent_float_limits')
+-        .update({ collected_today: newCollected, updated_at: new Date().toISOString() })
+-        .eq('agent_id', profile.id);
++    setLoading(false);
++
++    if (insertError) {
++      if (insertError.code === '23505') {
++        toast({ title: 'This transaction ID has already been submitted', variant: 'destructive' });
++      } else {
++        toast({ title: 'Failed to submit deposit', description: insertError.message, variant: 'destructive' });
++      }
++      return;
+     }
+ 
+-    setLoading(false);
+     setSuccess(true);
+     // STRICT LEDGER REFRESH: never trust local state ΓÇö invalidate every wallet-derived query
+     // so the UI re-reads from `wallets` (which is now the ledger-backed view). No optimistic
+@@ -85,11 +94,8 @@ export function AgentDepositCashDialog({ open, onOpenChange, onSuccess }: AgentD
+       queryClient.invalidateQueries({ queryKey: ['agent_float_limits'] }),
+     ]);
+     toast({ 
+-      title: depositType === 'float' 
+-        ? 'Float deposit recorded! Float capacity restored.' 
+-        : depositType === 'operations_float'
+-          ? 'Operations float deposit recorded! You can now pay tenant rent from your float.'
+-          : 'Rent repayment deposit recorded!'
++      title: 'Deposit submitted for verification!',
++      description: 'Once a manager approves this, your float will be updated.'
+     });
+     onSuccess?.();
+   };
+diff --git a/src/components/agent/AgentFloatPayoutWizard.tsx b/src/components/agent/AgentFloatPayoutWizard.tsx
+index b397bc385..12f02bc54 100644
+--- a/src/components/agent/AgentFloatPayoutWizard.tsx
++++ b/src/components/agent/AgentFloatPayoutWizard.tsx
+@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
+ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+ import { supabase } from '@/integrations/supabase/client';
+ import { useAuth } from '@/hooks/useAuth';
+-import { useGeoLocation } from '@/hooks/useGeoLocation';
++import { useCaptureLocation } from '@/hooks/useCaptureLocation';
+ import { useLandlordOtp } from '@/hooks/useLandlordOtp';
+ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+ import { Button } from '@/components/ui/button';
+@@ -33,7 +33,7 @@ type Step = 'select' | 'otp' | 'disburse' | 'done';
+ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutWizardProps) {
+   const { user } = useAuth();
+   const qc = useQueryClient();
+-  const geo = useGeoLocation();
++  const geo = useCaptureLocation();
+   const landlordOtp = useLandlordOtp();
+   const [step, setStep] = useState<Step>('select');
+   const [selectedRequest, setSelectedRequest] = useState<any>(null);
+diff --git a/src/components/agent/AgentVerificationOpportunitiesCard.tsx b/src/components/agent/AgentVerificationOpportunitiesCard.tsx
+index ec840d76c..d9756a0bf 100644
+--- a/src/components/agent/AgentVerificationOpportunitiesCard.tsx
++++ b/src/components/agent/AgentVerificationOpportunitiesCard.tsx
+@@ -26,7 +26,7 @@ import {
+   DialogTitle,
+ } from '@/components/ui/dialog';
+ import { Textarea } from '@/components/ui/textarea';
+-import { useGeoLocation } from '@/hooks/useGeoLocation';
++import { useCaptureLocation } from '@/hooks/useCaptureLocation';
+ 
+ interface UnverifiedRequest {
+   id: string;
+@@ -56,7 +56,7 @@ interface UnverifiedHouse {
+ 
+ export function AgentVerificationOpportunitiesCard() {
+   const { user } = useAuth();
+-  const { captureLocation, loading: gpsLoading } = useGeoLocation();
++  const { captureLocation, loading: gpsLoading } = useCaptureLocation();
+   const [tenantCount, setTenantCount] = useState(0);
+   const [houseCount, setHouseCount] = useState(0);
+   const [open, setOpen] = useState(false);
+diff --git a/src/components/agent/AgentVisitDialog.tsx b/src/components/agent/AgentVisitDialog.tsx
+index 8d46f731f..70b28a4aa 100644
+--- a/src/components/agent/AgentVisitDialog.tsx
++++ b/src/components/agent/AgentVisitDialog.tsx
+@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
+ import { Button } from '@/components/ui/button';
+ import { supabase } from '@/integrations/supabase/client';
+ import { useToast } from '@/hooks/use-toast';
+-import { useGeoLocation } from '@/hooks/useGeoLocation';
++import { useCaptureLocation } from '@/hooks/useCaptureLocation';
+ import { useProfile } from '@/hooks/useProfile';
+ import { MapPin, Loader2, CheckCircle2, User, Phone, Home, Banknote } from 'lucide-react';
+ import { formatUGX } from '@/lib/rentCalculations';
+@@ -25,7 +25,7 @@ interface AgentVisitDialogProps {
+ export function AgentVisitDialog({ open, onOpenChange, onSuccess }: AgentVisitDialogProps) {
+   const { profile } = useProfile();
+   const { toast } = useToast();
+-  const { loading: gpsLoading, captureLocation } = useGeoLocation();
++  const { loading: gpsLoading, captureLocation } = useCaptureLocation();
+   const [tenants, setTenants] = useState<Tenant[]>([]);
+   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
+   const [saving, setSaving] = useState(false);
+diff --git a/src/components/agent/AgentVisitPaymentWizard.tsx b/src/components/agent/AgentVisitPaymentWizard.tsx
+index 8c0501499..3f7bf45bc 100644
+--- a/src/components/agent/AgentVisitPaymentWizard.tsx
++++ b/src/components/agent/AgentVisitPaymentWizard.tsx
+@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
+ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+ import { supabase } from '@/integrations/supabase/client';
+ import { useToast } from '@/hooks/use-toast';
+-import { useGeoLocation } from '@/hooks/useGeoLocation';
++import { useCaptureLocation } from '@/hooks/useCaptureLocation';
+ import { useProfile } from '@/hooks/useProfile';
+ import { hapticTap } from '@/lib/haptics';
+ import { formatUGX } from '@/lib/rentCalculations';
+@@ -58,7 +58,7 @@ function getDistanceMeters(lat1: number, lon1: number, lat2: number, lon2: numbe
+ export function AgentVisitPaymentWizard({ open, onOpenChange, onSuccess, preselectedTenant }: AgentVisitPaymentWizardProps) {
+   const { profile } = useProfile();
+   const { toast } = useToast();
+-  const { loading: gpsLoading, captureLocation } = useGeoLocation();
++  const { loading: gpsLoading, captureLocation } = useCaptureLocation();
+ 
+   // Wizard state
+   const [step, setStep] = useState<WizardStep>('search');
+diff --git a/src/components/agent/TenantProfileView.tsx b/src/components/agent/TenantProfileView.tsx
+index 8bb34cde4..8d45bc9c7 100644
+--- a/src/components/agent/TenantProfileView.tsx
++++ b/src/components/agent/TenantProfileView.tsx
+@@ -15,7 +15,7 @@ import {
+   MessageCircle, Pencil, UsersRound, Zap, Bot,
+ } from 'lucide-react';
+ import { useToast } from '@/hooks/use-toast';
+-import { useGeoLocation } from '@/hooks/useGeoLocation';
++import { useCaptureLocation } from '@/hooks/useCaptureLocation';
+ import { createShortLink } from '@/lib/createShortLink';
+ import { AgentTenantCollectDialog } from './AgentTenantCollectDialog';
+ import { ReverseAllocationDialog } from './ReverseAllocationDialog';
+@@ -155,7 +155,7 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps)
+ 
+   const [collectDialogOpen, setCollectDialogOpen] = useState(false);
+ 
+-  const { location: gpsLocation, loading: gpsLoading, error: gpsError, captureLocation } = useGeoLocation();
++  const { location: gpsLocation, loading: gpsLoading, error: gpsError, captureLocation } = useCaptureLocation();
+ 
+   const [sharingLink, setSharingLink] = useState(false);
+   const [sharingProfile, setSharingProfile] = useState(false);
+diff --git a/src/components/agent/UnifiedRegistrationDialog.tsx b/src/components/agent/UnifiedRegistrationDialog.tsx
+index 14f5e0965..03ab9a2e2 100644
+--- a/src/components/agent/UnifiedRegistrationDialog.tsx
++++ b/src/components/agent/UnifiedRegistrationDialog.tsx
+@@ -24,7 +24,7 @@ import { Card, CardContent } from '@/components/ui/card';
+ import { useIsMobile } from '@/hooks/use-mobile';
+ import { ScrollArea } from '@/components/ui/scroll-area';
+ import { usePhoneDuplicateCheck } from '@/hooks/usePhoneDuplicateCheck';
+-import { useGeoLocation } from '@/hooks/useGeoLocation';
++import { useCaptureLocation } from '@/hooks/useCaptureLocation';
+ import { Loader2 as LoaderIcon, Navigation } from 'lucide-react';
+ 
+ const HOUSE_CATEGORIES = [
+@@ -174,7 +174,7 @@ export function UnifiedRegistrationDialog({ open, onOpenChange, onSuccess }: Uni
+   const [lc1Success, setLc1Success] = useState(false);
+ 
+   // Location capture for landlord registrations
+-  const { location: capturedLocation, loading: locationLoading, error: locationError, captureLocation } = useGeoLocation();
++  const { location: capturedLocation, loading: locationLoading, error: locationError, captureLocation } = useCaptureLocation();
+   const [propertyAddress, setPropertyAddress] = useState('');
+   const [locationCaptured, setLocationCaptured] = useState(false);
+ 
+diff --git a/src/components/executive/TenantAgentLinker.tsx b/src/components/executive/TenantAgentLinker.tsx
+index 1e236aa12..0047e32d2 100644
+--- a/src/components/executive/TenantAgentLinker.tsx
++++ b/src/components/executive/TenantAgentLinker.tsx
+@@ -14,7 +14,7 @@ import {
+   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+ } from '@/components/ui/alert-dialog';
+ import { TenantReassignmentSuggestions } from './TenantReassignmentSuggestions';
+-import { useGeoLocation } from '@/hooks/useGeoLocation';
++import { useCaptureLocation } from '@/hooks/useCaptureLocation';
+ 
+ interface SelectedUser {
+   id: string;
+@@ -86,7 +86,7 @@ export function TenantAgentLinker() {
+   const [confirmOpen, setConfirmOpen] = useState(false);
+   const [previewSortKey, setPreviewSortKey] = useState<'id' | 'agent' | 'amount'>('amount');
+   const [previewSortDir, setPreviewSortDir] = useState<'asc' | 'desc'>('desc');
+-  const { captureLocation: captureActorLocation } = useGeoLocation();
++  const { captureLocation: captureActorLocation } = useCaptureLocation();
+   const [lastActorStatus, setLastActorStatus] = useState<ActorLocationStatus | null>(null);
+   const [lastActorAccuracy, setLastActorAccuracy] = useState<number | null>(null);
+ 
+diff --git a/src/components/reviews/WriteHouseReviewForm.tsx b/src/components/reviews/WriteHouseReviewForm.tsx
+index 1951b0202..5f7802088 100644
+--- a/src/components/reviews/WriteHouseReviewForm.tsx
++++ b/src/components/reviews/WriteHouseReviewForm.tsx
+@@ -1,7 +1,7 @@
+ import { useState, useEffect } from 'react';
+ import { supabase } from '@/integrations/supabase/client';
+ import { useAuth } from '@/hooks/useAuth';
+-import { useGeoLocation } from '@/hooks/useGeoLocation';
++import { useCaptureLocation } from '@/hooks/useCaptureLocation';
+ import { Button } from '@/components/ui/button';
+ import { Textarea } from '@/components/ui/textarea';
+ import { Loader2, Send, MapPin, LocateFixed, Navigation, FileText } from 'lucide-react';
+@@ -32,7 +32,7 @@ function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
+ 
+ export default function WriteHouseReviewForm({ houseId, houseTitle, existingReview, houseLat, houseLng, onSuccess }: WriteHouseReviewFormProps) {
+   const { user } = useAuth();
+-  const { location, loading: geoLoading, error: geoError, captureLocation } = useGeoLocation();
++  const { location, loading: geoLoading, error: geoError, captureLocation } = useCaptureLocation();
+   const [rating, setRating] = useState(existingReview?.rating || 0);
+   const [reviewText, setReviewText] = useState(existingReview?.review_text || '');
+   const [saving, setSaving] = useState(false);
+diff --git a/src/components/shared/LandlordRegistrationForm.tsx b/src/components/shared/LandlordRegistrationForm.tsx
+index 6a202ac85..58bf54edd 100644
+--- a/src/components/shared/LandlordRegistrationForm.tsx
++++ b/src/components/shared/LandlordRegistrationForm.tsx
+@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
+ import { motion, AnimatePresence } from 'framer-motion';
+ import { supabase } from '@/integrations/supabase/client';
+ import { useAuth } from '@/hooks/useAuth';
+-import { useGeoLocation } from '@/hooks/useGeoLocation';
++import { useCaptureLocation } from '@/hooks/useCaptureLocation';
+ import { Button } from '@/components/ui/button';
+ import { Input } from '@/components/ui/input';
+ import { Label } from '@/components/ui/label';
+@@ -39,7 +39,7 @@ export default function LandlordRegistrationForm({
+   toastFn,
+ }: LandlordRegistrationFormProps) {
+   const { user } = useAuth();
+-  const { location, loading: locationLoading, error: locationError, captureLocation } = useGeoLocation();
++  const { location, loading: locationLoading, error: locationError, captureLocation } = useCaptureLocation();
+   const [loading, setLoading] = useState(false);
+   const [success, setSuccess] = useState(false);
+   const [activationLink, setActivationLink] = useState('');
+diff --git a/src/components/tenant/RegisterLandlordDialog.tsx b/src/components/tenant/RegisterLandlordDialog.tsx
+index b913c6c10..3fe7d1146 100644
+--- a/src/components/tenant/RegisterLandlordDialog.tsx
++++ b/src/components/tenant/RegisterLandlordDialog.tsx
+@@ -1,6 +1,6 @@
+ import { useState } from 'react';
+ import { useToast } from '@/hooks/use-toast';
+-import { useGeoLocation } from '@/hooks/useGeoLocation';
++import { useCaptureLocation } from '@/hooks/useCaptureLocation';
+ import {
+   Dialog,
+   DialogContent,
+diff --git a/src/hooks/useGeoLocation.tsx b/src/hooks/useCaptureLocation.tsx
+similarity index 94%
+rename from src/hooks/useGeoLocation.tsx
+rename to src/hooks/useCaptureLocation.tsx
+index 1e1aa833a..11999bc02 100644
+--- a/src/hooks/useGeoLocation.tsx
++++ b/src/hooks/useCaptureLocation.tsx
+@@ -6,14 +6,14 @@
+    accuracy: number | null;
+  }
+  
+- interface UseGeoLocationReturn {
++ interface UseCaptureLocationReturn {
+    location: LocationData | null;
+    loading: boolean;
+    error: string | null;
+    captureLocation: () => Promise<LocationData | null>;
+  }
+  
+- export function useGeoLocation(): UseGeoLocationReturn {
++ export function useCaptureLocation(): UseCaptureLocationReturn {
+    const [location, setLocation] = useState<LocationData | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
