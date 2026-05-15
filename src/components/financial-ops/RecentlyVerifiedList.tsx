@@ -117,6 +117,14 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
         .order('updated_at', { ascending: false })
         .limit(limit);
       if (verifierId) q = q.eq('processed_by', verifierId);
+      if (dateFrom) {
+        const fromIso = new Date(dateFrom.getFullYear(), dateFrom.getMonth(), dateFrom.getDate(), 0, 0, 0).toISOString();
+        q = q.gte('updated_at', fromIso);
+      }
+      if (dateTo) {
+        const toIso = new Date(dateTo.getFullYear(), dateTo.getMonth(), dateTo.getDate(), 23, 59, 59, 999).toISOString();
+        q = q.lte('updated_at', toIso);
+      }
       const { data, error } = await q;
       if (error) throw error;
 
