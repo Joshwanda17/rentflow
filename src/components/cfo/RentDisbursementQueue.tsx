@@ -6,11 +6,21 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
-import { Loader2, CheckCircle2, Banknote, Home, TrendingUp, Users, Wallet, AlertTriangle } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Loader2, CheckCircle2, Banknote, Home, TrendingUp, Users, Wallet, AlertTriangle, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { TreasuryImpactBanner } from './TreasuryImpactBanner';
+import { useAuth } from '@/hooks/useAuth';
 
 const fmt = (n: number) =>
   new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', maximumFractionDigits: 0 }).format(n);
@@ -36,7 +46,10 @@ interface ApprovedRentItem {
 export function RentDisbursementQueue() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [batchRef, setBatchRef] = useState('');
+  const [rejectTarget, setRejectTarget] = useState<ApprovedRentItem | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
   const qc = useQueryClient();
+  const { user } = useAuth();
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['rent-disbursement-queue'],
@@ -157,6 +170,39 @@ export function RentDisbursementQueue() {
       qc.invalidateQueries({ queryKey: ['cfo-overview'] });
     },
     onError: (e: any) => toast.error(e.message || 'Disbursement failed'),
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+      if (!user) throw new Error('Not authenticated');
+      if (reason.trim().length < 10) throw new Error('Reason must be at least 10 characters');
+
+      const { error } = await supabase.rpc('return_rent_request_for_correction', {
+        p_request_id: id,
+        p_stage: 'coo_approved',
+        p_reason: reason.trim(),
+      });
+      if (error) throw error;
+
+      // Stamp CFO reviewer + comment for audit trail (mirrors RentPipelineQueue)
+      await supabase
+        .from('rent_requests')
+        .update({
+          cfo_reviewed_by: user.id,
+          cfo_reviewed_at: new Date().toISOString(),
+          approval_comment: reason.trim(),
+        })
+        .eq('id', id);
+    },
+    onSuccess: () => {
+      toast.success('Rent request returned to agent with your comment.');
+      setRejectTarget(null);
+      setRejectReason('');
+      qc.invalidateQueries({ queryKey: ['rent-disbursement-queue'] });
+      qc.invalidateQueries({ queryKey: ['rent-pipeline'] });
+      qc.invalidateQueries({ queryKey: ['agent-rejected-rent-requests'] });
+    },
+    onError: (e: any) => toast.error(e.message || 'Failed to reject'),
   });
 
   // Summary totals for ALL queued items
@@ -288,6 +334,16 @@ export function RentDisbursementQueue() {
                     {singleDisburse.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Banknote className="h-3 w-3 mr-1" />}
                     Fund Agent Float
                   </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="shrink-0 text-xs h-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => { setRejectTarget(item); setRejectReason(''); }}
+                    title="Reject and return to agent with a comment"
+                  >
+                    <XCircle className="h-3 w-3 mr-1" />
+                    Reject
+                  </Button>
                 </div>
               ))}
             </div>
@@ -314,6 +370,62 @@ export function RentDisbursementQueue() {
           </div>
         )}
       </CardContent>
+
+      <Dialog
+        open={!!rejectTarget}
+        onOpenChange={(o) => { if (!o) { setRejectTarget(null); setRejectReason(''); } }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject rent request</DialogTitle>
+            <DialogDescription>
+              {rejectTarget && (
+                <>
+                  Returning <b>{fmt(rejectTarget.rent_amount)}</b> for{' '}
+                  <b>{rejectTarget.tenant_name}</b> → <b>{rejectTarget.landlord_name}</b> back to{' '}
+                  <b>{rejectTarget.agent_name}</b>. Your comment will appear in the agent's
+                  Rejected submissions.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium">Reason / comment (min 10 characters)</label>
+            <Textarea
+              rows={4}
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="e.g. Landlord MoMo number doesn't match name on record — please re-verify and resubmit."
+            />
+            {rejectReason.trim().length > 0 && rejectReason.trim().length < 10 && (
+              <p className="text-[11px] text-destructive">
+                {10 - rejectReason.trim().length} more character{10 - rejectReason.trim().length === 1 ? '' : 's'} required
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => { setRejectTarget(null); setRejectReason(''); }}
+              disabled={rejectMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => rejectTarget && rejectMutation.mutate({ id: rejectTarget.id, reason: rejectReason })}
+              disabled={rejectMutation.isPending || rejectReason.trim().length < 10}
+            >
+              {rejectMutation.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+              ) : (
+                <XCircle className="h-3.5 w-3.5 mr-1" />
+              )}
+              Reject & return to agent
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
