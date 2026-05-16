@@ -577,8 +577,53 @@ export function NewPartnersPanel() {
                 )}
                 <SelectItem value="with">With portfolios</SelectItem>
                 <SelectItem value="without">No portfolios yet</SelectItem>
+                {canWhatsAppPartners && (
+                  <SelectItem value="custom">Custom date range…</SelectItem>
+                )}
               </SelectContent>
             </Select>
+            {canWhatsAppPartners && partnerFilter === 'custom' && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      "h-8 text-xs justify-start font-normal w-full sm:w-[260px]",
+                      !customRange?.from && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="h-3.5 w-3.5 mr-1.5" />
+                    {customRange?.from ? (
+                      customRange.to ? (
+                        <>{format(customRange.from, 'LLL d, yyyy')} – {format(customRange.to, 'LLL d, yyyy')}</>
+                      ) : (
+                        format(customRange.from, 'LLL d, yyyy')
+                      )
+                    ) : (
+                      <span>Pick start & end date</span>
+                    )}
+                    {customRange?.from && (
+                      <X
+                        className="h-3 w-3 ml-auto opacity-60 hover:opacity-100"
+                        onClick={(e) => { e.stopPropagation(); setCustomRange(undefined); }}
+                      />
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="range"
+                    selected={customRange}
+                    onSelect={setCustomRange}
+                    numberOfMonths={2}
+                    disabled={(d) => d > new Date()}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            )}
           </div>
 
           {/* Newly joined list */}
