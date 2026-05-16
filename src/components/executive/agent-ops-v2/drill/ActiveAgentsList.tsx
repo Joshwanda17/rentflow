@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Activity, AlertCircle, FileText, Download, FileDown } from 'lucide-react';
+import { Activity, AlertCircle, FileText, Download, FileDown, ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
 import { Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { formatDistanceToNow, subHours, subDays, format } from 'date-fns';
@@ -31,10 +31,12 @@ function getRangeStart(range: DateRange): Date {
 }
 
 interface RawRequest {
+  id: string;
   agent_id: string;
   created_at: string;
   status: string | null;
   house_category: string | null;
+  rent_amount: number | null;
 }
 
 interface ActiveAgentRow {
@@ -58,13 +60,14 @@ export function ActiveAgentsList({ range }: { range: DateRange }) {
   const [statusFilter, setStatusFilter] = useState<string>(ALL);
   const [categoryFilter, setCategoryFilter] = useState<string>(ALL);
   const [search, setSearch] = useState('');
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['agent-ops-drill', 'active-agents-v2', range],
     queryFn: async () => {
       const { data: reqs, error } = await supabase
         .from('rent_requests')
-        .select('agent_id, created_at, status, house_category')
+        .select('id, agent_id, created_at, status, house_category, rent_amount')
         .gte('created_at', rangeStart)
         .not('agent_id', 'is', null)
         .order('created_at', { ascending: false })
@@ -100,6 +103,7 @@ export function ActiveAgentsList({ range }: { range: DateRange }) {
       return true;
     });
     const agg = new Map<string, { count: number; last: string }>();
+    const byAgent = new Map<string, RawRequest[]>();
     matches.forEach((r) => {
       const existing = agg.get(r.agent_id);
       if (!existing) agg.set(r.agent_id, { count: 1, last: r.created_at });
@@ -107,8 +111,11 @@ export function ActiveAgentsList({ range }: { range: DateRange }) {
         existing.count += 1;
         if (r.created_at > existing.last) existing.last = r.created_at;
       }
+      const list = byAgent.get(r.agent_id);
+      if (list) list.push(r);
+      else byAgent.set(r.agent_id, [r]);
     });
-    return { agentIds: Array.from(agg.keys()), agg, totalRequests: matches.length };
+    return { agentIds: Array.from(agg.keys()), agg, byAgent, totalRequests: matches.length };
   }, [data?.rows, statusFilter, categoryFilter]);
 
   // Fetch profiles for filtered agent set.
