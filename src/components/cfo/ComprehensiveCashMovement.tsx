@@ -1896,43 +1896,40 @@ function WalletMovementSummary({
   // Classifies every wallet-scope ledger row into one of three buckets
   // (Withdrawable, Operational float, Landlord float) and tallies cash_in
   // / cash_out separately. Pure read-only aggregation — does not alter
-  // any wallet figures or RPC behavior.
+  // any wallet figures or RPC behavior. The classifier is hoisted so the
+  // drill-down filter can reuse it.
+  const classifyBucket = useCallback((cat: string): 'withdrawable' | 'operational_float' | 'landlord_float' => {
+    const c = (cat || '').toLowerCase();
+    if (c.includes('landlord_float') || c.includes('landlord_payout')) return 'landlord_float';
+    if (
+      c.includes('agent_float') ||
+      c.includes('partner_float') ||
+      c.includes('float_topup') ||
+      c.includes('float_swept') ||
+      c.includes('proxy_float') ||
+      c === 'rent_payment' ||
+      c === 'rent_collection'
+    ) return 'operational_float';
+    return 'withdrawable';
+  }, []);
   const bucketBreakdown = useMemo(() => {
-    type BucketKey = 'withdrawable' | 'operational_float' | 'landlord_float' | 'other';
-    const classify = (cat: string): BucketKey => {
-      const c = (cat || '').toLowerCase();
-      if (c.includes('landlord_float') || c.includes('landlord_payout')) return 'landlord_float';
-      if (
-        c.includes('agent_float') ||
-        c.includes('partner_float') ||
-        c.includes('float_topup') ||
-        c.includes('float_swept') ||
-        c.includes('proxy_float') ||
-        c === 'rent_payment' ||
-        c === 'rent_collection'
-      ) return 'operational_float';
-      // Everything else that hits a wallet leg moves a withdrawable bucket:
-      // deposits routed to user, commissions, ROI credits, withdrawals,
-      // bonuses, payroll, supporter top-ups, etc.
-      return 'withdrawable';
-    };
+    type BucketKey = 'withdrawable' | 'operational_float' | 'landlord_float';
     const buckets: Record<BucketKey, { in: number; out: number }> = {
       withdrawable: { in: 0, out: 0 },
       operational_float: { in: 0, out: 0 },
       landlord_float: { in: 0, out: 0 },
-      other: { in: 0, out: 0 },
     };
     for (const r of rows) {
       if (r.ledger_scope !== 'wallet') continue;
       if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
       const amt = Number(r.amount) || 0;
       if (amt <= 0) continue;
-      const b = classify(r.category);
+      const b = classifyBucket(r.category);
       if (r.direction === 'cash_in') buckets[b].in += amt;
       else if (r.direction === 'cash_out') buckets[b].out += amt;
     }
     return buckets;
-  }, [rows, includeAdjustments]);
+  }, [rows, includeAdjustments, classifyBucket]);
 
   // ── Previous-period comparison ──────────────────────────────
   // Computes a same-length window immediately preceding the current period and
