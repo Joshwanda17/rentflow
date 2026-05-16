@@ -1293,11 +1293,11 @@ export function ComprehensiveCashMovement() {
 
         {/* Drill-down sheet */}
         <Sheet open={!!drill} onOpenChange={(o) => { if (!o) setDrill(null); }}>
-          <SheetContent side="right" className="w-full sm:max-w-3xl overflow-y-auto">
+          <SheetContent side="right" className="w-full sm:max-w-3xl overflow-y-auto p-3 sm:p-5">
             {drill && (
               <>
                 <SheetHeader className="space-y-1">
-                  <SheetTitle className="text-base flex items-center gap-2">
+                  <SheetTitle className="text-base flex items-center gap-2 flex-wrap">
                     {prettifyCategory(drill.category)}
                     <Badge variant="outline" className={cn('text-[10px]', SCOPE_BADGE[drill.scope])}>
                       {SCOPE_LABEL[drill.scope] || drill.scope}
@@ -1305,12 +1305,12 @@ export function ComprehensiveCashMovement() {
                     {drill.bucket && <Badge variant="secondary" className="text-[10px]">{drill.bucket}</Badge>}
                   </SheetTitle>
                   <SheetDescription className="text-xs">
-                    {CATEGORY_DESCRIPTIONS[drill.category] || 'Raw ledger entries for this category × scope.'}
+                    {CATEGORY_DESCRIPTIONS[drill.category] || 'Every transaction of this type, one by one.'}
                   </SheetDescription>
                 </SheetHeader>
 
                 {/* Summary */}
-                <div className="grid grid-cols-3 gap-2 mt-4">
+                <div className="grid grid-cols-3 gap-1.5 sm:gap-2 mt-4">
                   {(() => {
                     const cIn  = filteredDrillRows.filter(r => r.direction === 'cash_in').reduce((s, r) => s + (Number(r.amount) || 0), 0);
                     const cOut = filteredDrillRows.filter(r => r.direction === 'cash_out').reduce((s, r) => s + (Number(r.amount) || 0), 0);
@@ -1318,16 +1318,16 @@ export function ComprehensiveCashMovement() {
                     return (
                       <>
                         <div className="rounded border border-border bg-success/5 p-2">
-                          <div className="text-[10px] uppercase text-muted-foreground">Cash In</div>
-                          <div className="font-mono text-success text-sm font-semibold">{formatUGX(cIn)}</div>
+                          <div className="text-[10px] uppercase text-muted-foreground">In</div>
+                          <div className="font-mono text-success text-xs sm:text-sm font-semibold break-all">{formatUGX(cIn)}</div>
                         </div>
                         <div className="rounded border border-border bg-destructive/5 p-2">
-                          <div className="text-[10px] uppercase text-muted-foreground">Cash Out</div>
-                          <div className="font-mono text-destructive text-sm font-semibold">{formatUGX(cOut)}</div>
+                          <div className="text-[10px] uppercase text-muted-foreground">Out</div>
+                          <div className="font-mono text-destructive text-xs sm:text-sm font-semibold break-all">{formatUGX(cOut)}</div>
                         </div>
                         <div className={cn('rounded border border-border p-2', net >= 0 ? 'bg-success/5' : 'bg-destructive/5')}>
-                          <div className="text-[10px] uppercase text-muted-foreground">Net</div>
-                          <div className={cn('font-mono text-sm font-semibold', net >= 0 ? 'text-success' : 'text-destructive')}>
+                          <div className="text-[10px] uppercase text-muted-foreground">Difference</div>
+                          <div className={cn('font-mono text-xs sm:text-sm font-semibold break-all', net >= 0 ? 'text-success' : 'text-destructive')}>
                             {net >= 0 ? '+' : ''}{formatUGX(net)}
                           </div>
                         </div>
@@ -1336,17 +1336,17 @@ export function ComprehensiveCashMovement() {
                   })()}
                 </div>
 
-                <div className="flex items-center justify-between mt-4 mb-2">
+                <div className="flex items-center justify-between mt-4 mb-2 gap-2 flex-wrap">
                   <div className="text-[11px] text-muted-foreground">
-                    {filteredDrillRows.length.toLocaleString()} of {drillRows.length.toLocaleString()} ledger entr{drillRows.length === 1 ? 'y' : 'ies'}
-                    {drillQuery && <span className="ml-1 text-primary">· filtered by "{drillQuery}"</span>}
+                    Showing {filteredDrillRows.length.toLocaleString()} of {drillRows.length.toLocaleString()} transaction{drillRows.length === 1 ? '' : 's'}
+                    {drillQuery && <span className="ml-1 text-primary">· searching "{drillQuery}"</span>}
                   </div>
                   <div className="flex items-center gap-2">
                     <Button size="sm" variant="outline" className="gap-2 text-xs h-7" onClick={handleExportDrill} disabled={filteredDrillRows.length === 0}>
-                      <FileSpreadsheet className="h-3.5 w-3.5" /> Export CSV
+                      <FileSpreadsheet className="h-3.5 w-3.5" /> CSV
                     </Button>
                     <Button size="sm" variant="outline" className="gap-2 text-xs h-7" onClick={handleExportDrillPdf} disabled={filteredDrillRows.length === 0}>
-                      <FileText className="h-3.5 w-3.5" /> Export PDF
+                      <FileText className="h-3.5 w-3.5" /> PDF
                     </Button>
                   </div>
                 </div>
@@ -1355,7 +1355,7 @@ export function ComprehensiveCashMovement() {
                   <Input
                     value={drillQuery}
                     onChange={(e) => setDrillQuery(e.target.value)}
-                    placeholder="Search reference ID, transaction id, party name, or source table…"
+                    placeholder="Search by name, reference, or transaction ID…"
                     className="h-8 text-xs pr-8"
                   />
                   {drillQuery && (
@@ -1372,16 +1372,16 @@ export function ComprehensiveCashMovement() {
 
                 {filteredDrillRows.length === 0 ? (
                   <div className="py-12 text-center text-muted-foreground text-sm">
-                    {drillQuery ? 'No entries match your search.' : 'No ledger entries.'}
+                    {drillQuery ? 'Nothing matches your search.' : 'No transactions to show.'}
                   </div>
                 ) : (
-                  <div className="border border-border rounded-lg overflow-hidden">
+                  <div className="border border-border rounded-lg overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
                           <TableHead className="text-xs">Date</TableHead>
-                          <TableHead className="text-xs">Reference / Tx</TableHead>
-                          <TableHead className="text-xs">Party</TableHead>
+                          <TableHead className="text-xs">Reference</TableHead>
+                          <TableHead className="text-xs hidden sm:table-cell">Who</TableHead>
                           <TableHead className="text-xs text-right">Amount</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -1437,7 +1437,7 @@ export function ComprehensiveCashMovement() {
                                   <Badge variant="outline" className="text-[9px] mt-0.5">{r.classification}</Badge>
                                 )}
                               </TableCell>
-                              <TableCell className="text-[11px] align-top">
+                              <TableCell className="text-[11px] align-top hidden sm:table-cell">
                                 <div>
                                   <Highlight
                                     text={name || (r.linked_party ? prettifyCategory(r.linked_party) : '—')}
