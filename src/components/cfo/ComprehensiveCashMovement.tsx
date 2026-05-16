@@ -2622,6 +2622,8 @@ function WalletMovementSummary({
           outExamples: string;
           in: number;
           out: number;
+          inCount: number;
+          outCount: number;
           accent: string;
         }[] = [
           {
@@ -2633,6 +2635,8 @@ function WalletMovementSummary({
             outExamples: 'User withdrawals, wallet-funded rent payments, wallet → platform debits (CFO Direct Debit).',
             in: bucketBreakdown.withdrawable.in,
             out: bucketBreakdown.withdrawable.out,
+            inCount: bucketBreakdown.withdrawable.inCount,
+            outCount: bucketBreakdown.withdrawable.outCount,
             accent: 'text-primary',
           },
           {
@@ -2644,6 +2648,8 @@ function WalletMovementSummary({
             outExamples: 'Float allocated to tenants/landlords, partner sweeps back to platform capital, agent float used for rent.',
             in: bucketBreakdown.operational_float.in,
             out: bucketBreakdown.operational_float.out,
+            inCount: bucketBreakdown.operational_float.inCount,
+            outCount: bucketBreakdown.operational_float.outCount,
             accent: 'text-amber-600',
           },
           {
@@ -2655,6 +2661,8 @@ function WalletMovementSummary({
             outExamples: 'Landlord payouts sent against allocated tenants.',
             in: bucketBreakdown.landlord_float.in,
             out: bucketBreakdown.landlord_float.out,
+            inCount: bucketBreakdown.landlord_float.inCount,
+            outCount: bucketBreakdown.landlord_float.outCount,
             accent: 'text-sky-600',
           },
         ];
