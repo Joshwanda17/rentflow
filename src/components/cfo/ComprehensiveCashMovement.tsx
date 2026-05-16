@@ -1531,6 +1531,47 @@ export function ComprehensiveCashMovement() {
           </div>
         </div>
 
+        {/* ─── Share / Download summary ───────────────────────────
+            Exports the same plain-English summary (period, In, Out,
+            Difference, any anomalies) as a portrait image, a PDF, or
+            via the native share sheet on supported devices. Pure
+            client-side render — never touches the ledger. */}
+        <div className="rounded-xl border border-border bg-muted/30 p-2.5 flex flex-wrap items-center gap-2">
+          <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1 mr-1">
+            <Share2 className="h-3.5 w-3.5" /> Share / save this summary
+          </span>
+          <Button
+            type="button"
+            size="sm"
+            variant="default"
+            className="h-9 gap-1.5"
+            onClick={handleShareSummary}
+            title="Share via your phone's share sheet (or save as image if not supported)"
+          >
+            <Share2 className="h-3.5 w-3.5" /> Share
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-9 gap-1.5"
+            onClick={handleDownloadSummaryPng}
+            title="Save the summary as a PNG image"
+          >
+            <ImageIcon className="h-3.5 w-3.5" /> Save image
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-9 gap-1.5"
+            onClick={handleDownloadSummaryPdf}
+            title="Download the summary as a PDF"
+          >
+            <Download className="h-3.5 w-3.5" /> PDF
+          </Button>
+        </div>
+
         {/* ─── Anomaly alerts (plain language) ───────────────────
             Surfaces unusual spikes and quiet gaps in the selected
             period so non-accounting readers notice them at a glance.
