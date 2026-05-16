@@ -841,16 +841,17 @@ export function NewPartnersPanel() {
                       <span className="flex items-center gap-0.5"><Phone className="h-2.5 w-2.5" />{p.phone}</span>
                       <span className="flex items-center gap-0.5"><Clock className="h-2.5 w-2.5" />{formatDistanceToNow(new Date(p.created_at), { addSuffix: true })}</span>
                     </div>
-                    <div className="mt-1 flex items-center gap-1 flex-wrap">
-                      {p.portfolio_count > 0 ? (
-                        <>
-                          <Badge className="text-[9px] py-0 px-1.5 bg-emerald-500/15 text-emerald-600 border-0">With portfolio</Badge>
-                          <Badge variant="outline" className="text-[9px] py-0 px-1.5">{p.portfolio_count}</Badge>
-                        </>
-                      ) : (
-                        <Badge className="text-[9px] py-0 px-1.5 bg-amber-500/15 text-amber-600 border-0">No portfolio</Badge>
-                      )}
-                    </div>
+                  </div>
+                  {/* Dedicated Portfolio status column */}
+                  <div className="shrink-0 w-20 border-l border-border/50 pl-2 flex flex-col items-start justify-center">
+                    <span className="text-[9px] uppercase tracking-wide text-muted-foreground">Portfolio</span>
+                    {p.portfolio_count > 0 ? (
+                      <span className="text-[10px] font-semibold text-emerald-600">
+                        Active <span className="text-muted-foreground font-normal">· {p.portfolio_count}</span>
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-semibold text-amber-600">None yet</span>
+                    )}
                   </div>
                   {canWhatsAppPartners && (
                   <Button
