@@ -183,6 +183,27 @@ export function NewPartnersPanel() {
   const markConfirmed = (key: string) => {
     recentConfirmsRef.current.set(key, Date.now());
   };
+
+  // Page-visibility / navigation guard for open confirmation dialogs.
+  // While either the Activate or Revoke confirmation is open, we:
+  //  - Prevent the dialog from closing (and the action from firing) while the
+  //    tab is hidden / backgrounded — so a stray background-tab tap can't
+  //    silently dismiss or proceed.
+  //  - Warn on tab/route close via `beforeunload` so navigation away requires
+  //    the operator's explicit confirmation.
+  const anyConfirmOpen = !!activateConfirm || revokeOpen;
+  const isPageVisible = () =>
+    typeof document === 'undefined' || document.visibilityState === 'visible';
+  useEffect(() => {
+    if (!anyConfirmOpen) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      // Most browsers ignore the custom string but require returnValue set.
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [anyConfirmOpen]);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyRows, setHistoryRows] = useState<any[]>([]);
@@ -720,7 +741,13 @@ export function NewPartnersPanel() {
       {/* Confirmation gate for the Activate/Add button on Just-Joined rows. */}
       <AlertDialog
         open={!!activateConfirm}
-        onOpenChange={(open) => { if (!open) setActivateConfirm(null); }}
+        onOpenChange={(open) => {
+          if (open) return;
+          // Refuse to close while the tab is backgrounded so a phantom
+          // visibility-driven dismiss can't slip through.
+          if (!isPageVisible()) return;
+          setActivateConfirm(null);
+        }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -780,6 +807,7 @@ export function NewPartnersPanel() {
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
+                if (!isPageVisible()) return;
                 if (activateConfirm) {
                   const u = activateConfirm.user;
                   markConfirmed(`activate:${u.id}`);
@@ -798,6 +826,7 @@ export function NewPartnersPanel() {
       <AlertDialog
         open={revokeOpen}
         onOpenChange={(open) => {
+          if (!open && !isPageVisible()) return;
           setRevokeOpen(open);
           if (!open) setRevokeConfirmText('');
         }}
