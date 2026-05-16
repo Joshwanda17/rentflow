@@ -2425,7 +2425,7 @@ export function ComprehensiveCashMovement() {
         ) : filteredAggregates.length === 0 ? (
           <div className="py-12 text-center text-muted-foreground text-sm">No money moved in this period.</div>
         ) : (
-          <div className="border border-border rounded-lg overflow-x-auto">
+          <div id="cm-categories" className="scroll-mt-24 border border-border rounded-lg overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
