@@ -1583,6 +1583,7 @@ export function ComprehensiveCashMovement() {
                         })}
                       </TableBody>
                     </Table>
+                    </div>
                     {(() => {
                       const total = filteredDrillRows.length;
                       const totalPages = Math.max(1, Math.ceil(total / drillPageSize));
