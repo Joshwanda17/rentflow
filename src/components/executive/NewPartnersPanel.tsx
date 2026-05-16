@@ -2145,7 +2145,7 @@ export function NewPartnersPanel() {
       {/* Sticky mobile action bar — primary filter, sort, and quick-activate
           stay reachable while Partner Ops scrolls a long partner list on a
           phone. Hidden on sm+ where the inline toolbar is already visible. */}
-      {(() => {
+      {panelOpen && (() => {
         const noPortfolioFilters: PartnerFilter[] = [
           'just_joined', 'without', 'recent_today', 'recent_week', 'recent_month',
         ];
