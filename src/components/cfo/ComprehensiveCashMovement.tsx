@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { format, startOfDay, startOfWeek, startOfMonth, startOfYear, subDays, subMonths, subYears } from 'date-fns';
+import { format, startOfDay, startOfWeek, startOfMonth, startOfYear, subDays, subMonths, subYears, addDays, addWeeks, addMonths, differenceInCalendarDays } from 'date-fns';
 import { Loader2, RefreshCw, Calendar, FileSpreadsheet, FileText, ArrowUpRight, ArrowDownRight, ArrowDownLeft, ExternalLink, X, Filter, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -2090,34 +2090,70 @@ function WalletMovementSummary({
   const totalOutDelta = priorTotals ? formatDelta(summary.totalOut, priorTotals.totalOut) : null;
 
   // ── Net-flow trend buckets ─────────────────────────────────
-  // Bucket wallet-scope rows into ~32 evenly sized time slices across the
+  // Bucket wallet-scope rows by calendar day / week / month across the
   // currently loaded period, summing net per bucket. Powers the sparkline
   // shown under the Net Flow KPI so trend/momentum is visible at a glance.
+  type TrendGroup = 'daily' | 'weekly' | 'monthly';
+  const defaultTrendGroup: TrendGroup = useMemo(() => {
+    const cur = periodRange(period);
+    const days = Math.max(1, differenceInCalendarDays(cur.to, cur.from ?? cur.to) + 1);
+    if (days <= 60) return 'daily';
+    if (days <= 365) return 'weekly';
+    return 'monthly';
+  }, [period]);
+  const [trendGroup, setTrendGroup] = useState<TrendGroup>(defaultTrendGroup);
+  // Keep grouping sensible when the user switches periods.
+  useEffect(() => { setTrendGroup(defaultTrendGroup); }, [defaultTrendGroup]);
+
   const netTrend = useMemo(() => {
     const cur = periodRange(period);
-    const minTs = cur.from ? cur.from.getTime() : (
-      rows.length ? Math.min(...rows.map(r => new Date(r.transaction_date).getTime())) : Date.now()
-    );
-    const maxTs = cur.to.getTime();
-    const span = Math.max(1, maxTs - minTs);
-    const BUCKETS = 32;
-    const step = span / BUCKETS;
-    const nets = new Array<number>(BUCKETS).fill(0);
-    const labels = new Array<string>(BUCKETS).fill('');
-    for (let i = 0; i < BUCKETS; i++) {
-      const start = new Date(minTs + i * step);
-      const end = new Date(minTs + (i + 1) * step);
-      labels[i] = `${format(start, 'dd MMM HH:mm')} – ${format(end, 'dd MMM HH:mm')}`;
+    const earliest = cur.from ?? (rows.length
+      ? new Date(Math.min(...rows.map(r => new Date(r.transaction_date).getTime())))
+      : new Date());
+    const startFor = (d: Date) =>
+      trendGroup === 'daily'   ? startOfDay(d)
+    : trendGroup === 'weekly'  ? startOfWeek(d, { weekStartsOn: 1 })
+    :                            startOfMonth(d);
+    const advance = (d: Date) =>
+      trendGroup === 'daily'   ? addDays(d, 1)
+    : trendGroup === 'weekly'  ? addWeeks(d, 1)
+    :                            addMonths(d, 1);
+    const labelFor = (start: Date, end: Date) =>
+      trendGroup === 'daily'   ? format(start, 'dd MMM yyyy')
+    : trendGroup === 'weekly'  ? `${format(start, 'dd MMM')} – ${format(addDays(end, -1), 'dd MMM yyyy')}`
+    :                            format(start, 'MMM yyyy');
+
+    // Build the bucket index map: aligned bucket-start → array index.
+    const starts: Date[] = [];
+    let cursor = startFor(earliest);
+    const endTs = cur.to.getTime();
+    let guard = 0;
+    while (cursor.getTime() <= endTs && guard < 2000) {
+      starts.push(cursor);
+      cursor = advance(cursor);
+      guard++;
     }
+    if (starts.length === 0) starts.push(startFor(earliest));
+    const nets = new Array<number>(starts.length).fill(0);
+    const labels = starts.map((s, i) => labelFor(s, starts[i + 1] ?? advance(s)));
+    const idxFor = (t: number) => {
+      // binary search for bucket whose start <= t
+      let lo = 0, hi = starts.length - 1, ans = 0;
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        if (starts[mid].getTime() <= t) { ans = mid; lo = mid + 1; } else { hi = mid - 1; }
+      }
+      return ans;
+    };
+    const minTs = starts[0].getTime();
     for (const r of rows) {
       if (r.ledger_scope !== 'wallet') continue;
       if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
       if (r.direction !== 'cash_in' && r.direction !== 'cash_out') continue;
       const t = new Date(r.transaction_date).getTime();
-      if (t < minTs || t > maxTs) continue;
-      const idx = Math.min(BUCKETS - 1, Math.max(0, Math.floor((t - minTs) / step)));
+      if (t < minTs || t > endTs) continue;
       const amt = Number(r.amount) || 0;
-      nets[idx] += r.direction === 'cash_in' ? amt : -amt;
+      nets[idxFor(t)] += r.direction === 'cash_in' ? amt : -amt;
     }
     // Linear-regression slope on bucket index → net, to label momentum
     let slope = 0;
@@ -2133,7 +2169,7 @@ function WalletMovementSummary({
       slope = den === 0 ? 0 : num / den;
     }
     return { nets, labels, slope };
-  }, [rows, includeAdjustments, period]);
+  }, [rows, includeAdjustments, period, trendGroup]);
 
   // ── Exports ─────────────────────────────────────────────────
   const currentRange = useMemo(() => periodRange(period), [period]);
@@ -2334,10 +2370,30 @@ function WalletMovementSummary({
           <div className="rounded-lg border border-border bg-background p-3">
             <div className="flex items-center justify-between gap-2 mb-1.5">
               <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">
-                Net flow trend · {periodLabel}
+                Net flow trend · {periodLabel} · {nets.length} {trendGroup === 'daily' ? 'day' : trendGroup === 'weekly' ? 'wk' : 'mo'}
+                {nets.length === 1 ? '' : 's'}
               </div>
-              <div className={cn('text-[10px] font-mono font-semibold', slopeTone)} title="Linear trend across the period">
-                {slopeLabel}
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-0.5 rounded border border-border bg-muted/40 p-0.5">
+                  {(['daily', 'weekly', 'monthly'] as const).map(g => (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() => setTrendGroup(g)}
+                      className={cn(
+                        'text-[10px] px-1.5 py-0.5 rounded transition-colors',
+                        trendGroup === g
+                          ? 'bg-background text-foreground shadow-sm font-semibold'
+                          : 'text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      {g === 'daily' ? 'D' : g === 'weekly' ? 'W' : 'M'}
+                    </button>
+                  ))}
+                </div>
+                <div className={cn('text-[10px] font-mono font-semibold', slopeTone)} title="Linear trend across the period">
+                  {slopeLabel}
+                </div>
               </div>
             </div>
             <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="w-full h-14 block" aria-label="Net flow sparkline">
