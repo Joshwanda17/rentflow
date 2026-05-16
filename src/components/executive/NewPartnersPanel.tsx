@@ -1024,7 +1024,7 @@ export function NewPartnersPanel() {
                             setCustomRange(undefined);
                           }}
                         >
-                          Show all {joinedTotal || joined.length} on this page
+                          Show all {joined.length.toLocaleString()} loaded
                         </Button>
                       </div>
                     </div>
