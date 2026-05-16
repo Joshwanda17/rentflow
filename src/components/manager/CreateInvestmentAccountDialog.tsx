@@ -410,10 +410,17 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, p
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+        <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:gap-2">
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            className="w-full sm:w-auto"
+          >
+            Cancel
+          </Button>
           <Button
             onClick={handleCreate}
+            className="w-full sm:w-auto whitespace-normal text-center leading-tight min-h-[2.5rem] h-auto py-2"
             disabled={
               saving ||
               !selectedUser ||
@@ -425,8 +432,16 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, p
               parseFloat(form.investment_amount) > partnerBalance
             }
           >
-            {saving && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
-            {!selectedUser || isApproved ? 'Create Portfolio' : (<><Lock className="h-3.5 w-3.5 mr-1.5" /> Partner Not Approved</>)}
+            {saving && <Loader2 className="h-4 w-4 animate-spin mr-1.5 shrink-0" />}
+            {!selectedUser || isApproved ? (
+              'Create Portfolio'
+            ) : (
+              <>
+                <Lock className="h-3.5 w-3.5 mr-1.5 shrink-0" />
+                <span className="sm:hidden">Not Approved</span>
+                <span className="hidden sm:inline">Partner Not Approved</span>
+              </>
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
