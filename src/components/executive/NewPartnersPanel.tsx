@@ -682,6 +682,16 @@ interface InlinePortfolioRowProps {
 function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirtyChange, onSavingChange, actingUserId }: InlinePortfolioRowProps) {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
+  // Auto-save: when ON, dirty edits are persisted automatically after a short
+  // debounce so the user can switch portfolios without explicitly clicking Save.
+  // Preference is shared across rows via localStorage.
+  const [autoSave, setAutoSave] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('newpartners.inlineAutoSave') === '1';
+  });
+  useEffect(() => {
+    try { localStorage.setItem('newpartners.inlineAutoSave', autoSave ? '1' : '0'); } catch {}
+  }, [autoSave]);
   // Mirror local saving state up to parent so it can block collapse/switch.
   useEffect(() => {
     onSavingChange?.(saving);
