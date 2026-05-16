@@ -292,8 +292,12 @@ export function NewPartnersPanel() {
   // Persisted in the URL (?jp_q, ?jp_f, ?jp_from, ?jp_to) so the panel
   // looks identical after a refresh or when the URL is shared.
   const [searchParams, setSearchParams] = useSearchParams();
-  const ALLOWED_FILTERS = ['all', 'with', 'without', 'today', 'week', 'month', 'recent', 'custom'] as const;
+  const ALLOWED_FILTERS = ['all', 'just_joined', 'with', 'without', 'today', 'week', 'month', 'recent', 'custom'] as const;
   type PartnerFilter = typeof ALLOWED_FILTERS[number];
+  // "Just joined" = activation backlog: partners with no portfolio yet who
+  // signed up within this rolling window. Keeps the default view truly fresh
+  // instead of showing every dormant no-portfolio account ever onboarded.
+  const JUST_JOINED_DAYS = 7;
   const parseDateParam = (v: string | null): Date | undefined => {
     if (!v) return undefined;
     const d = new Date(v);
@@ -306,10 +310,10 @@ export function NewPartnersPanel() {
     const raw = searchParams.get('jp_f');
     return (ALLOWED_FILTERS as readonly string[]).includes(raw ?? '')
       ? (raw as PartnerFilter)
-      // Default view = newest joiners who don't have a portfolio yet, so
-      // Partner Ops immediately sees the activation backlog instead of the
-      // already-onboarded majority.
-      : 'without';
+      // Default view = partners who joined in the last JUST_JOINED_DAYS days
+      // AND don't have a portfolio yet, so Partner Ops sees a truly fresh
+      // activation backlog instead of every dormant no-portfolio account.
+      : 'just_joined';
   });
   const [customRange, setCustomRange] = useState<DateRange | undefined>(() => {
     const from = parseDateParam(searchParams.get('jp_from'));
@@ -465,6 +469,7 @@ export function NewPartnersPanel() {
     if (!joined) return [] as JoinedPartner[];
     const q = partnerSearch.trim().toLowerCase();
     const cutoff = Date.now() - 14 * 86400000;
+    const justJoinedCutoff = Date.now() - JUST_JOINED_DAYS * 86400000;
     const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
     const startOfWeek = new Date(startOfToday);
     const dow = startOfWeek.getDay();
@@ -473,6 +478,10 @@ export function NewPartnersPanel() {
     const filtered = joined.filter(p => {
       if (partnerFilter === 'with' && p.portfolio_count === 0) return false;
       if (partnerFilter === 'without' && p.portfolio_count > 0) return false;
+      if (partnerFilter === 'just_joined') {
+        if (p.portfolio_count > 0) return false;
+        if (new Date(p.created_at).getTime() < justJoinedCutoff) return false;
+      }
       if (partnerFilter === 'recent' && new Date(p.created_at).getTime() < cutoff) return false;
       if (partnerFilter === 'today' && new Date(p.created_at).getTime() < startOfToday.getTime()) return false;
       if (partnerFilter === 'week' && new Date(p.created_at).getTime() < startOfWeek.getTime()) return false;
@@ -568,8 +577,16 @@ export function NewPartnersPanel() {
   const segmentCounts = useMemo(() => {
     const all = joined?.length ?? 0;
     let withP = 0;
-    for (const p of joined || []) if (p.portfolio_count > 0) withP++;
-    return { all, with: withP, without: all - withP };
+    let justJoined = 0;
+    const justJoinedCutoff = Date.now() - JUST_JOINED_DAYS * 86400000;
+    for (const p of joined || []) {
+      if (p.portfolio_count > 0) {
+        withP++;
+      } else if (new Date(p.created_at).getTime() >= justJoinedCutoff) {
+        justJoined++;
+      }
+    }
+    return { all, with: withP, without: all - withP, justJoined };
   }, [joined]);
 
   // ── Realtime: any new supporter role grant pops in instantly ──
@@ -779,6 +796,7 @@ export function NewPartnersPanel() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All partners</SelectItem>
+                <SelectItem value="just_joined">Just joined · no portfolio (last {JUST_JOINED_DAYS}d)</SelectItem>
                 {canWhatsAppPartners && (
                   <>
                     <SelectItem value="today">Joined today</SelectItem>
@@ -800,6 +818,7 @@ export function NewPartnersPanel() {
           <div className="inline-flex rounded-lg border border-border/60 bg-muted/40 p-0.5 text-[11px] self-start">
             {([
               { key: 'all', label: 'All', count: segmentCounts.all },
+              { key: 'just_joined', label: `Just joined (${JUST_JOINED_DAYS}d)`, count: segmentCounts.justJoined },
               { key: 'with', label: 'With portfolios', count: segmentCounts.with },
               { key: 'without', label: 'No portfolio yet', count: segmentCounts.without },
             ] as const).map(seg => (
@@ -1019,6 +1038,15 @@ export function NewPartnersPanel() {
                   if (totalWith > 0) {
                     switchLabel = `Show ${totalWith} with portfolio`;
                     switchTo = 'with';
+                  }
+                } else if (partnerFilter === 'just_joined') {
+                  title = `No fresh joiners in the last ${JUST_JOINED_DAYS} days.`;
+                  hint = totalWithout > 0
+                    ? `${totalWithout} older partner${totalWithout === 1 ? '' : 's'} still need a portfolio activated.`
+                    : 'Every partner already has a portfolio.';
+                  if (totalWithout > 0) {
+                    switchLabel = `Show all ${totalWithout} without portfolio`;
+                    switchTo = 'without';
                   }
                 }
                 return (
