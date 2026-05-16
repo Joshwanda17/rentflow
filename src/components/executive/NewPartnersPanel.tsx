@@ -760,10 +760,64 @@ export function NewPartnersPanel() {
                 </div>
               );
               if (filtered.length === 0) {
+                // Counts across ALL partners (not filtered) so we can suggest
+                // a counterpart filter that actually has results.
+                const totalWith = joined.filter(p => p.portfolio_count > 0).length;
+                const totalWithout = joined.length - totalWith;
+                let title = 'No partners match these filters.';
+                let hint: string | null = null;
+                let switchLabel: string | null = null;
+                let switchTo: PartnerFilter | null = null;
+                if (partnerFilter === 'with') {
+                  title = 'No partners with a portfolio yet.';
+                  hint = totalWithout > 0
+                    ? `${totalWithout} partner${totalWithout === 1 ? '' : 's'} still need a portfolio activated.`
+                    : 'Every partner already has a portfolio.';
+                  if (totalWithout > 0) {
+                    switchLabel = `Show ${totalWithout} without portfolio`;
+                    switchTo = 'without';
+                  }
+                } else if (partnerFilter === 'without') {
+                  title = 'No partners are waiting for a portfolio.';
+                  hint = totalWith > 0
+                    ? `${totalWith} partner${totalWith === 1 ? ' has' : 's have'} an active portfolio.`
+                    : 'No partners have an active portfolio yet.';
+                  if (totalWith > 0) {
+                    switchLabel = `Show ${totalWith} with portfolio`;
+                    switchTo = 'with';
+                  }
+                }
                 return (
                   <div className="space-y-2">
                     {badges}
-                    <p className="text-xs text-muted-foreground italic">No partners match these filters.</p>
+                    <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 p-4 text-center space-y-2">
+                      <p className="text-xs font-semibold">{title}</p>
+                      {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
+                      <div className="flex flex-wrap justify-center gap-2 pt-1">
+                        {switchLabel && switchTo && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-[11px]"
+                            onClick={() => setPartnerFilter(switchTo!)}
+                          >
+                            {switchLabel}
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-[11px]"
+                          onClick={() => {
+                            setPartnerFilter('all');
+                            setPartnerSearch('');
+                            setCustomRange(undefined);
+                          }}
+                        >
+                          Show all {joined.length}
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 );
               }
