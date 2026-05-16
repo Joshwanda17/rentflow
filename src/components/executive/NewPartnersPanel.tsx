@@ -553,12 +553,14 @@ export function NewPartnersPanel() {
               if (filtered.length === 0) {
                 return <p className="text-xs text-muted-foreground italic">No partners match these filters.</p>;
               }
+              const visible = filtered.slice(0, visiblePartnerCount);
+              const hasMore = filtered.length > visible.length;
               return (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[520px] overflow-y-auto pr-1">
               <div className="col-span-full text-[10px] text-muted-foreground">
-                Showing {filtered.length} of {joined.length} partners
+                Showing {visible.length} of {filtered.length} matched · {joined.length} total
               </div>
-              {filtered.map(p => (
+              {visible.map(p => (
                 <div key={p.user_id} className="rounded-xl border border-border/60 bg-card p-2.5 flex items-center gap-2.5">
                   <div className="h-9 w-9 rounded-full bg-primary/15 text-primary flex items-center justify-center text-xs font-bold shrink-0">
                     {(p.full_name || '?').slice(0, 1).toUpperCase()}
