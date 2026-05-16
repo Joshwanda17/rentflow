@@ -909,9 +909,32 @@ export function ComprehensiveCashMovement() {
                   {' '}{capitalInflow.entries.toLocaleString()} ledger entries · {rangeLabel} ·
                   {' '}{GRANULARITIES.find(g => g.value === granularity)?.label || granularity} buckets
                 </div>
+                {includeWalletLegs && (
+                  <div className="text-[10px] mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
+                    <span className="text-muted-foreground">Matching wallet legs:</span>
+                    <span><span className="text-muted-foreground">in</span> <span className="font-mono text-emerald-500">+{formatUGX(capitalInflow.walletInTotal)}</span></span>
+                    <span><span className="text-muted-foreground">out</span> <span className="font-mono text-rose-500">−{formatUGX(capitalInflow.walletOutTotal)}</span></span>
+                    <span><span className="text-muted-foreground">net</span> <span className={cn('font-mono', capitalInflow.walletNetTotal >= 0 ? 'text-emerald-500' : 'text-rose-500')}>{capitalInflow.walletNetTotal >= 0 ? '+' : '−'}{formatUGX(Math.abs(capitalInflow.walletNetTotal))}</span></span>
+                    <span className="text-muted-foreground">· {capitalInflow.walletEntries.toLocaleString()} legs</span>
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-1.5">
+              <label
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-md border px-2 h-7 text-[11px] cursor-pointer transition-colors',
+                  includeWalletLegs ? 'border-primary/50 bg-primary/15 text-primary' : 'border-border bg-background hover:bg-muted/50',
+                )}
+                title="Off: only platform.cash_in legs. On: also surface the matching wallet-scope debits/credits (agents/partners) sharing each transaction_group_id."
+              >
+                <Checkbox
+                  checked={includeWalletLegs}
+                  onCheckedChange={(v) => setIncludeWalletLegs(!!v)}
+                  className="h-3.5 w-3.5"
+                />
+                <span>Include wallet legs</span>
+              </label>
               <Button
                 size="sm"
                 variant="outline"
