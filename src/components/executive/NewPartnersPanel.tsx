@@ -25,6 +25,7 @@ import { UGANDA_BANKS } from '@/lib/ugandaBanks';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
 import { useSearchParams } from 'react-router-dom';
 import { clientLog } from '@/lib/clientLogger';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 // ════════════════════════════════════════════════════════════════
 // Shared validators — keep portfolio payout fields clean & DB-safe
