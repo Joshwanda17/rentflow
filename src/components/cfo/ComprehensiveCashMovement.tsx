@@ -1930,15 +1930,19 @@ export function ComprehensiveCashMovement() {
                     );
                   })}
                 </div>
-                {categoryQuickFilter && (
-                <button
-                  type="button"
-                  onClick={() => setCategoryQuickFilter(null)}
-                  className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline inline-flex items-center gap-1"
-                  aria-label="Clear category filter"
-                >
-                  <X className="h-3 w-3" /> Clear
-                </button>
+                {(categoryQuickFilter || topCategoriesLimit !== 5) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCategoryQuickFilter(null);
+                      setTopCategoriesLimit(5);
+                    }}
+                    className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline inline-flex items-center gap-1"
+                    aria-label="Reset filters: clear category filter and restore Top 5"
+                    title="Reset to Top 5 and clear the active category filter"
+                  >
+                    <X className="h-3 w-3" /> Reset filters
+                  </button>
                 )}
               </div>
             </div>
