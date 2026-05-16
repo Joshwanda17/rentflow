@@ -170,6 +170,21 @@ export function ComprehensiveCashMovement() {
   const [drillPage, setDrillPage] = useState(0);
   const [drillPageSize, setDrillPageSize] = useState<number>(100);
 
+  // ── Capital Inflows callout (platform-scope cash_in for selected categories)
+  const CAPITAL_INFLOW_DEFAULT = ['partner_funding', 'pending_portfolio_topup'];
+  const CAPITAL_INFLOW_STORAGE = 'welile-capital-inflow-categories';
+  const [capitalCategories, setCapitalCategories] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem(CAPITAL_INFLOW_STORAGE);
+      if (raw) return new Set(JSON.parse(raw) as string[]);
+    } catch {}
+    return new Set(CAPITAL_INFLOW_DEFAULT);
+  });
+  const [capitalPickerOpen, setCapitalPickerOpen] = useState(false);
+  useEffect(() => {
+    try { localStorage.setItem(CAPITAL_INFLOW_STORAGE, JSON.stringify(Array.from(capitalCategories))); } catch {}
+  }, [capitalCategories]);
+
   const generate = async () => {
     setLoading(true);
     try {
