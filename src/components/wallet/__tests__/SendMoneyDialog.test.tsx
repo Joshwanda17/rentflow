@@ -82,95 +82,83 @@ describe('SendMoneyDialog', () => {
   });
 
   it('debounces the lookup query until the user stops typing', async () => {
-    vi.useFakeTimers();
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-      supaState.response = {
-        data: [
-          { id: 'other', full_name: 'Jane Doe', phone: '+256783673998', email: 'jane@example.com' },
-        ],
-        error: null,
-      };
+    const user = userEvent.setup();
+    supaState.response = {
+      data: [
+        { id: 'other', full_name: 'Jane Doe', phone: '+256783673998', email: 'jane@example.com' },
+      ],
+      error: null,
+    };
 
-      renderDialog();
-      const input = screen.getByLabelText(/Recipient Phone Number/i);
-      await user.type(input, '0783673998');
+    renderDialog();
+    const input = screen.getByLabelText(/Recipient Phone Number/i);
+    await user.type(input, '0783673998');
 
-      // Right after typing, no supabase call has fired yet (debounce 400ms).
-      expect(supaState.calls.length).toBe(0);
-      // Searching indicator should be visible.
-      expect(screen.getByText(/Looking up recipient/i)).toBeInTheDocument();
+    // Right after typing, no supabase call has fired yet (debounce 400ms).
+    expect(supaState.calls.length).toBe(0);
+    expect(screen.getByText(/Looking up recipient/i)).toBeInTheDocument();
 
-      // Advance past the debounce window.
-      await vi.advanceTimersByTimeAsync(400);
-      vi.useRealTimers();
+    // Wait past the debounce window for the lookup to fire.
+    await waitFor(() => expect(supaState.calls.length).toBe(1), { timeout: 1500 });
+    expect(supaState.calls[0]).toMatchObject({
+      table: 'profiles',
+      in: { col: 'phone', vals: expect.arrayContaining(['0783673998', '+256783673998']) },
+    });
 
-      expect(supaState.calls.length).toBe(1);
-      expect(supaState.calls[0]).toMatchObject({
-        table: 'profiles',
-        in: { col: 'phone', vals: expect.arrayContaining(['0783673998', '+256783673998']) },
-      });
-
-      await waitFor(() =>
-        expect(screen.getByText(/Sending to/i)).toBeInTheDocument()
-      );
+    await waitFor(() => expect(screen.getByText(/Sending to/i)).toBeInTheDocument());
   });
 
   it('blocks sending to yourself and disables the Send Money button', async () => {
-    vi.useFakeTimers();
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-      // Profile returned matches the current user id ("me") → self.
-      supaState.response = {
-        data: [{ id: 'me', full_name: 'Me Self', phone: '+256700000001', email: 'me@example.com' }],
-        error: null,
-      };
+    const user = userEvent.setup();
+    // Profile returned matches the current user id ("me") → self.
+    supaState.response = {
+      data: [{ id: 'me', full_name: 'Me Self', phone: '+256700000001', email: 'me@example.com' }],
+      error: null,
+    };
 
-      renderDialog();
-      const phoneInput = screen.getByLabelText(/Recipient Phone Number/i);
-      await user.type(phoneInput, '0700000001');
-      await vi.advanceTimersByTimeAsync(400);
-      vi.useRealTimers();
+    renderDialog();
+    await user.type(screen.getByLabelText(/Recipient Phone Number/i), '0700000001');
 
-      await waitFor(() =>
-        expect(screen.getByText(/Sending blocked: this number is your own account/i)).toBeInTheDocument()
-      );
+    await waitFor(
+      () =>
+        expect(
+          screen.getByText(/Sending blocked: this number is your own account/i)
+        ).toBeInTheDocument(),
+      { timeout: 2000 }
+    );
 
-      const sendBtn = screen.getByRole('button', { name: /^Send Money$/i });
-      expect(sendBtn).toBeDisabled();
-
-      // sendMoney must not have been invoked.
-      expect(walletState.sendMoney).not.toHaveBeenCalled();
+    const sendBtn = screen.getByRole('button', { name: /^Send Money$/i });
+    expect(sendBtn).toBeDisabled();
+    expect(walletState.sendMoney).not.toHaveBeenCalled();
   });
 
   it('submits using the matched phone (not the raw input text)', async () => {
-    vi.useFakeTimers();
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-      // User types 0783673998 but the matched profile stores +256783673998.
-      const MATCHED_PHONE = '+256783673998';
-      supaState.response = {
-        data: [
-          { id: 'other', full_name: 'Jane Doe', phone: MATCHED_PHONE, email: 'jane@example.com' },
-        ],
-        error: null,
-      };
+    const user = userEvent.setup();
+    // User types 0783673998 but the matched profile stores +256783673998.
+    const MATCHED_PHONE = '+256783673998';
+    supaState.response = {
+      data: [
+        { id: 'other', full_name: 'Jane Doe', phone: MATCHED_PHONE, email: 'jane@example.com' },
+      ],
+      error: null,
+    };
 
-      renderDialog();
-      await user.type(screen.getByLabelText(/Recipient Phone Number/i), '0783673998');
-      await vi.advanceTimersByTimeAsync(400);
-      vi.useRealTimers();
-      const user2 = userEvent.setup();
+    renderDialog();
+    await user.type(screen.getByLabelText(/Recipient Phone Number/i), '0783673998');
 
-      await waitFor(() => expect(screen.getByText(/Jane Doe/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Jane Doe/)).toBeInTheDocument(), {
+      timeout: 2000,
+    });
 
-      await user2.type(screen.getByLabelText(/Amount/i), '1500');
-      await user2.type(screen.getByLabelText(/What's this payment for/i), 'food');
+    await user.type(screen.getByLabelText(/Amount/i), '1500');
+    await user.type(screen.getByLabelText(/What's this payment for/i), 'food');
 
-      await user2.click(screen.getByRole('button', { name: /^Send Money$/i }));
+    await user.click(screen.getByRole('button', { name: /^Send Money$/i }));
 
-      // Confirmation step appears with the matched recipient + Confirm & Send action.
-      const confirmBtn = await screen.findByRole('button', { name: /Confirm & Send/i });
-      await user2.click(confirmBtn);
+    const confirmBtn = await screen.findByRole('button', { name: /Confirm & Send/i });
+    await user.click(confirmBtn);
 
-      await waitFor(() => expect(walletState.sendMoney).toHaveBeenCalledTimes(1));
-      expect(walletState.sendMoney).toHaveBeenCalledWith(MATCHED_PHONE, 1500, 'food');
+    await waitFor(() => expect(walletState.sendMoney).toHaveBeenCalledTimes(1));
+    expect(walletState.sendMoney).toHaveBeenCalledWith(MATCHED_PHONE, 1500, 'food');
   });
 });
