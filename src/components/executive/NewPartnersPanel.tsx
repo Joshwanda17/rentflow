@@ -807,6 +807,47 @@ export function NewPartnersPanel() {
                     {joined.length.toLocaleString()} loaded
                   </span>
                 )}
+                {/* Active-filter summary chip — always visible so Partner Ops
+                    can confirm exactly what the panel is showing right now. */}
+                {(() => {
+                  const label = (() => {
+                    switch (partnerFilter) {
+                      case 'all':           return 'All partners';
+                      case 'just_joined':   return `No portfolio yet · Just joined (${JUST_JOINED_DAYS}d)`;
+                      case 'with':          return 'With portfolios';
+                      case 'without':       return 'No portfolio yet';
+                      case 'today':         return 'Joined today';
+                      case 'week':          return 'Joined this week';
+                      case 'month':         return 'Joined this month';
+                      case 'recent':        return 'Joined in last 14 days';
+                      case 'recent_today':  return 'No portfolio yet · Recent joins (today)';
+                      case 'recent_week':   return 'No portfolio yet · Recent joins (this week)';
+                      case 'recent_month':  return 'No portfolio yet · Recent joins (this month)';
+                      case 'custom':        return 'Custom date range';
+                      default:              return 'Filtered';
+                    }
+                  })();
+                  const isDefault = partnerFilter === 'just_joined';
+                  return (
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+                        isDefault
+                          ? "bg-emerald-500/15 text-emerald-600"
+                          : "bg-amber-500/15 text-amber-700"
+                      )}
+                      title={`Active filter${isDefault ? ' (default)' : ''}`}
+                    >
+                      <Filter className="h-2.5 w-2.5" />
+                      <span>{label}</span>
+                      {isDefault && (
+                        <span className="rounded bg-emerald-500/20 px-1 text-[9px] uppercase tracking-wide">
+                          default
+                        </span>
+                      )}
+                    </span>
+                  );
+                })()}
               </div>
               <p className="text-[10px] text-muted-foreground">
                 Browse all partners, filter, activate portfolios & WhatsApp
