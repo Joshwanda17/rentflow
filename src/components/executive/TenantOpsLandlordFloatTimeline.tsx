@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 import {
   Loader2, Landmark, Search, CalendarIcon, ArrowRight, Banknote, HandCoins,
-  Building2, Phone, Hash, Copy, CheckCircle2, X, Clock
+  Building2, Phone, Hash, Copy, CheckCircle2, X, Clock, Bookmark, Save, Trash2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -54,6 +54,90 @@ export function TenantOpsLandlordFloatTimeline() {
   const [agentFilter, setAgentFilter] = useState<string>('all');
   const [tenantFilter, setTenantFilter] = useState<string>('all');
   const [landlordFilter, setLandlordFilter] = useState<string>('all');
+
+  // ───────────────────── Presets (localStorage) ─────────────────────
+  interface Preset {
+    id: string;
+    name: string;
+    from: string | null;   // ISO
+    to: string | null;     // ISO
+    search: string;
+    agentFilter: string;
+    tenantFilter: string;
+    landlordFilter: string;
+  }
+  const PRESETS_KEY = 'tenant-ops-float-timeline-presets-v1';
+  const ACTIVE_KEY = 'tenant-ops-float-timeline-active-preset-v1';
+  const [presets, setPresets] = useState<Preset[]>([]);
+  const [activePresetId, setActivePresetId] = useState<string>('');
+  const [presetName, setPresetName] = useState('');
+  const [saveOpen, setSaveOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(PRESETS_KEY);
+      if (raw) setPresets(JSON.parse(raw));
+      const active = localStorage.getItem(ACTIVE_KEY);
+      if (active) setActivePresetId(active);
+    } catch { /* ignore corrupt storage */ }
+  }, []);
+
+  const persistPresets = (next: Preset[]) => {
+    setPresets(next);
+    try { localStorage.setItem(PRESETS_KEY, JSON.stringify(next)); } catch { /* quota */ }
+  };
+
+  const applyPreset = (p: Preset) => {
+    setFrom(p.from ? new Date(p.from) : undefined);
+    setTo(p.to ? new Date(p.to) : undefined);
+    setSearch(p.search || '');
+    setAgentFilter(p.agentFilter || 'all');
+    setTenantFilter(p.tenantFilter || 'all');
+    setLandlordFilter(p.landlordFilter || 'all');
+    setActivePresetId(p.id);
+    try { localStorage.setItem(ACTIVE_KEY, p.id); } catch { /* ignore */ }
+    toast.success(`Loaded preset: ${p.name}`);
+  };
+
+  const savePreset = () => {
+    const name = presetName.trim();
+    if (!name) { toast.error('Name required'); return; }
+    const existing = presets.find((p) => p.name.toLowerCase() === name.toLowerCase());
+    const id = existing?.id || `pst_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const snap: Preset = {
+      id,
+      name,
+      from: from ? from.toISOString() : null,
+      to: to ? to.toISOString() : null,
+      search,
+      agentFilter,
+      tenantFilter,
+      landlordFilter,
+    };
+    const next = existing
+      ? presets.map((p) => (p.id === id ? snap : p))
+      : [...presets, snap];
+    persistPresets(next);
+    setActivePresetId(id);
+    try { localStorage.setItem(ACTIVE_KEY, id); } catch { /* ignore */ }
+    setPresetName('');
+    setSaveOpen(false);
+    toast.success(existing ? `Updated preset: ${name}` : `Saved preset: ${name}`);
+  };
+
+  const deletePreset = (id: string) => {
+    const p = presets.find((x) => x.id === id);
+    persistPresets(presets.filter((x) => x.id !== id));
+    if (activePresetId === id) {
+      setActivePresetId('');
+      try { localStorage.removeItem(ACTIVE_KEY); } catch { /* ignore */ }
+    }
+    if (p) toast.success(`Deleted preset: ${p.name}`);
+  };
+
+  const hasAnyFilter =
+    !!from || !!to || !!search.trim() ||
+    agentFilter !== 'all' || tenantFilter !== 'all' || landlordFilter !== 'all';
 
   const fromIso = from ? new Date(new Date(from).setHours(0, 0, 0, 0)).toISOString() : null;
   const toIso = to ? new Date(new Date(to).setHours(23, 59, 59, 999)).toISOString() : null;
@@ -328,6 +412,86 @@ export function TenantOpsLandlordFloatTimeline() {
               Clear dates
             </Button>
           )}
+        </div>
+
+        {/* Presets bar */}
+        <div className="flex flex-wrap items-center gap-2 mb-3 rounded-lg border border-dashed border-[#9234EA]/30 bg-[#9234EA]/5 p-2">
+          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#9234EA] uppercase tracking-wider px-1">
+            <Bookmark className="h-3.5 w-3.5" />
+            Presets
+          </div>
+          {presets.length === 0 ? (
+            <span className="text-[11px] text-muted-foreground italic">No presets yet — set some filters and save.</span>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {presets.map((p) => (
+                <div
+                  key={p.id}
+                  className={cn(
+                    'group inline-flex items-center gap-1 rounded-full border bg-background text-xs pl-2.5 pr-1 py-0.5 transition',
+                    activePresetId === p.id
+                      ? 'border-[#9234EA] ring-1 ring-[#9234EA]/40 text-[#9234EA] font-semibold'
+                      : 'border-border hover:border-[#9234EA]/50',
+                  )}
+                >
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1"
+                    onClick={() => applyPreset(p)}
+                    title="Apply preset"
+                  >
+                    {p.name}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deletePreset(p.id)}
+                    className="ml-1 rounded-full p-0.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    aria-label={`Delete preset ${p.name}`}
+                    title="Delete preset"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="ml-auto flex items-center gap-1.5">
+            <Popover open={saveOpen} onOpenChange={setSaveOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs gap-1"
+                  disabled={!hasAnyFilter}
+                  title={hasAnyFilter ? 'Save current filters as preset' : 'Set at least one filter first'}
+                >
+                  <Save className="h-3 w-3" /> Save current
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-64 p-3">
+                <p className="text-xs font-semibold mb-1.5">Save filter preset</p>
+                <Input
+                  autoFocus
+                  value={presetName}
+                  onChange={(e) => setPresetName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') savePreset(); }}
+                  placeholder="e.g. Kampala overdue"
+                  className="h-8 text-xs"
+                />
+                <div className="flex justify-end gap-1.5 mt-2">
+                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setSaveOpen(false); setPresetName(''); }}>
+                    Cancel
+                  </Button>
+                  <Button size="sm" className="h-7 text-xs" onClick={savePreset}>
+                    Save
+                  </Button>
+                </div>
+                {presets.some((p) => p.name.toLowerCase() === presetName.trim().toLowerCase()) && presetName.trim() && (
+                  <p className="text-[10px] text-amber-600 mt-1.5">Existing preset with this name will be overwritten.</p>
+                )}
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
 
         {/* Party filters */}
