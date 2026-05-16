@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
-import { Info } from 'lucide-react';
+import { Info, Users, ArrowLeftRight, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -312,6 +312,16 @@ export function ComprehensiveCashMovement() {
   const [scopeFilter, setScopeFilter] = useState<'all' | 'platform' | 'wallet' | 'bridge'>('all');
   const [directionQuickFilter, setDirectionQuickFilter] = useState<'all' | 'cash_in' | 'cash_out' | 'net_positive' | 'net_negative'>('all');
   const [categoryQuickFilter, setCategoryQuickFilter] = useState<string | null>(null);
+  // Page-level party filter — narrows totals and aggregates to a single
+  // counterparty (resolved by user_id). `null` = everyone. Surfaced via the
+  // big thumb-friendly Party button at the top of the page.
+  const [partyQuickFilter, setPartyQuickFilter] = useState<string | null>(null);
+  // Bottom-sheet open states for the thumb-friendly Date/Direction/Party
+  // pickers. Each opens a full-width sheet that's easy to tap on a phone.
+  const [dateSheetOpen, setDateSheetOpen] = useState(false);
+  const [directionSheetOpen, setDirectionSheetOpen] = useState(false);
+  const [partySheetOpen, setPartySheetOpen] = useState(false);
+  const [partySearch, setPartySearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<LedgerRow[]>([]);
   const [generatedAt, setGeneratedAt] = useState<Date | null>(null);
@@ -502,6 +512,7 @@ export function ComprehensiveCashMovement() {
     for (const r of rows) {
       if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
       if (scopeFilter !== 'all' && r.ledger_scope !== scopeFilter) continue;
+      if (partyQuickFilter && r.user_id !== partyQuickFilter) continue;
 
       const amt = Number(r.amount) || 0;
       const key: GroupKey = `${r.category}|${r.ledger_scope}`;
@@ -523,7 +534,7 @@ export function ComprehensiveCashMovement() {
     const aggregates = Array.from(map.values()).sort((a, b) => (Math.abs(b.cashIn + b.cashOut) - Math.abs(a.cashIn + a.cashOut)));
     const bucketLabels = Array.from(bucketSet).sort();
     return { aggregates, bucketLabels, totals: { cashIn: totIn, cashOut: totOut, net: totIn - totOut } };
-  }, [rows, granularity, includeAdjustments, scopeFilter]);
+  }, [rows, granularity, includeAdjustments, scopeFilter, partyQuickFilter]);
 
   const filteredAggregates = useMemo(() => {
     return aggregates.filter(a => {
@@ -543,6 +554,51 @@ export function ComprehensiveCashMovement() {
       .slice(0, 6)
       .map(a => a.category);
   }, [aggregates]);
+
+  // Top parties for the thumb-friendly Party picker. Aggregates the loaded
+  // ledger rows by `user_id` (ignoring rows without one), totalling cash flow
+  // so the most-active counterparties surface first. Pure UI/derivation —
+  // does not mutate any business state.
+  const topParties = useMemo(() => {
+    const map = new Map<string, { id: string; cashIn: number; cashOut: number; count: number }>();
+    for (const r of rows) {
+      if (!r.user_id) continue;
+      if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
+      const amt = Number(r.amount) || 0;
+      const cur = map.get(r.user_id) || { id: r.user_id, cashIn: 0, cashOut: 0, count: 0 };
+      if (r.direction === 'cash_in') cur.cashIn += amt; else cur.cashOut += amt;
+      cur.count += 1;
+      map.set(r.user_id, cur);
+    }
+    return Array.from(map.values()).sort((a, b) => (b.cashIn + b.cashOut) - (a.cashIn + a.cashOut));
+  }, [rows, includeAdjustments]);
+
+  // Resolve display names for the top parties (limit 50 so the picker is fast).
+  useEffect(() => {
+    const ids = topParties.slice(0, 50).map(p => p.id).filter(id => !partyNames[id]);
+    if (ids.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.from('profiles').select('id, full_name, phone').in('id', ids);
+      if (cancelled || !data) return;
+      const next: Record<string, string> = {};
+      for (const p of data as any[]) {
+        next[p.id] = p.full_name || p.phone || p.id.slice(0, 8);
+      }
+      setPartyNames(prev => ({ ...prev, ...next }));
+    })();
+    return () => { cancelled = true; };
+  }, [topParties, partyNames]);
+
+  const partyLabel = partyQuickFilter
+    ? (partyNames[partyQuickFilter] || `${partyQuickFilter.slice(0, 8)}…`)
+    : 'Everyone';
+  const directionLabel =
+    directionQuickFilter === 'cash_in' ? 'Money In only' :
+    directionQuickFilter === 'cash_out' ? 'Money Out only' :
+    directionQuickFilter === 'net_positive' ? 'Net positive' :
+    directionQuickFilter === 'net_negative' ? 'Net negative' :
+    'In + Out';
 
   // ── Capital Inflows: platform-scope cash_in totals per category (from raw rows,
   // independent of scopeFilter so the callout always reflects true inbound capital.
@@ -922,6 +978,75 @@ export function ComprehensiveCashMovement() {
             </Button>
           </div>
         </div>
+
+        {/* ─── Thumb-friendly filter bar ──────────────────────────
+            Three large tap targets (≥56px tall) for the filters non-tech
+            users reach for most: Date, Direction, and Party. Each opens a
+            full-width bottom sheet on phones so options are easy to scan
+            and tap with a thumb. Existing chip rows below remain for
+            power users and are unchanged. */}
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            {
+              key: 'date' as const,
+              icon: <Calendar className="h-5 w-5" />,
+              label: 'Date',
+              value: PERIODS.find(p => p.value === period)?.label || period,
+              active: true,
+              onClick: () => setDateSheetOpen(true),
+            },
+            {
+              key: 'dir' as const,
+              icon: <ArrowLeftRight className="h-5 w-5" />,
+              label: 'Direction',
+              value: directionLabel,
+              active: directionQuickFilter !== 'all',
+              onClick: () => setDirectionSheetOpen(true),
+            },
+            {
+              key: 'party' as const,
+              icon: <Users className="h-5 w-5" />,
+              label: 'Party',
+              value: partyLabel,
+              active: !!partyQuickFilter,
+              onClick: () => setPartySheetOpen(true),
+            },
+          ].map(btn => (
+            <button
+              key={btn.key}
+              type="button"
+              onClick={btn.onClick}
+              className={cn(
+                'min-h-[64px] rounded-xl border-2 px-2.5 py-2 text-left flex flex-col gap-0.5 transition-colors',
+                'active:scale-[0.98] touch-manipulation',
+                btn.active
+                  ? 'border-primary bg-primary/10 hover:bg-primary/15'
+                  : 'border-border bg-card hover:bg-muted/60',
+              )}
+              aria-label={`${btn.label}: ${btn.value}. Tap to change.`}
+            >
+              <span className={cn(
+                'flex items-center gap-1.5 text-[10px] uppercase tracking-wide font-semibold',
+                btn.active ? 'text-primary' : 'text-muted-foreground',
+              )}>
+                {btn.icon}
+                {btn.label}
+              </span>
+              <span className="text-[12px] sm:text-sm font-semibold leading-tight truncate">
+                {btn.value}
+              </span>
+            </button>
+          ))}
+        </div>
+        {(directionQuickFilter !== 'all' || partyQuickFilter) && (
+          <button
+            type="button"
+            onClick={() => { setDirectionQuickFilter('all'); setPartyQuickFilter(null); }}
+            className="-mt-2 text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+          >
+            <X className="h-3 w-3" /> Clear filters
+          </button>
+        )}
 
         {/* Period — horizontal scroll on mobile so it never crams */}
         <div>
@@ -1954,6 +2079,151 @@ export function ComprehensiveCashMovement() {
                 )}
               </>
             )}
+          </SheetContent>
+        </Sheet>
+
+        {/* ─── Date picker sheet (thumb-friendly) ─── */}
+        <Sheet open={dateSheetOpen} onOpenChange={setDateSheetOpen}>
+          <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-2xl">
+            <SheetHeader className="text-left">
+              <SheetTitle className="flex items-center gap-2"><Calendar className="h-4 w-4" /> Pick a date range</SheetTitle>
+              <SheetDescription className="text-xs">
+                Currently showing: <span className="font-semibold">{rangeLabel}</span>
+              </SheetDescription>
+            </SheetHeader>
+            <div className="mt-4 grid grid-cols-2 gap-2 pb-4">
+              {PERIODS.map(p => {
+                const selected = period === p.value;
+                return (
+                  <button
+                    key={p.value}
+                    type="button"
+                    onClick={() => { setPeriod(p.value); setDateSheetOpen(false); }}
+                    className={cn(
+                      'min-h-[56px] rounded-xl border-2 px-3 py-2 text-left flex items-center justify-between gap-2 transition-colors active:scale-[0.98]',
+                      selected ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted/60',
+                    )}
+                  >
+                    <span className="text-sm font-semibold">{p.label}</span>
+                    {selected && <Check className="h-4 w-4 text-primary shrink-0" />}
+                  </button>
+                );
+              })}
+            </div>
+          </SheetContent>
+        </Sheet>
+
+        {/* ─── Direction picker sheet (thumb-friendly) ─── */}
+        <Sheet open={directionSheetOpen} onOpenChange={setDirectionSheetOpen}>
+          <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-2xl">
+            <SheetHeader className="text-left">
+              <SheetTitle className="flex items-center gap-2"><ArrowLeftRight className="h-4 w-4" /> Show which direction?</SheetTitle>
+              <SheetDescription className="text-xs">Narrow the page to money coming in, going out, or both.</SheetDescription>
+            </SheetHeader>
+            <div className="mt-4 grid grid-cols-1 gap-2 pb-4">
+              {([
+                { v: 'all',           label: 'In + Out',      hint: 'Everything (default)',                icon: <ArrowLeftRight className="h-5 w-5" /> },
+                { v: 'cash_in',       label: 'Money In only', hint: 'Cash that came into Welile',         icon: <ArrowUpRight className="h-5 w-5 text-success" /> },
+                { v: 'cash_out',      label: 'Money Out only',hint: 'Cash that left Welile',              icon: <ArrowDownRight className="h-5 w-5 text-destructive" /> },
+                { v: 'net_positive',  label: 'Net positive',  hint: 'Categories where In beat Out',       icon: <ArrowUpRight className="h-5 w-5 text-success" /> },
+                { v: 'net_negative',  label: 'Net negative',  hint: 'Categories where Out beat In',       icon: <ArrowDownRight className="h-5 w-5 text-destructive" /> },
+              ] as const).map(opt => {
+                const selected = directionQuickFilter === opt.v;
+                return (
+                  <button
+                    key={opt.v}
+                    type="button"
+                    onClick={() => { setDirectionQuickFilter(opt.v); setDirectionSheetOpen(false); }}
+                    className={cn(
+                      'min-h-[60px] rounded-xl border-2 px-3 py-2 text-left flex items-center gap-3 transition-colors active:scale-[0.98]',
+                      selected ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted/60',
+                    )}
+                  >
+                    {opt.icon}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold">{opt.label}</div>
+                      <div className="text-[11px] text-muted-foreground">{opt.hint}</div>
+                    </div>
+                    {selected && <Check className="h-4 w-4 text-primary shrink-0" />}
+                  </button>
+                );
+              })}
+            </div>
+          </SheetContent>
+        </Sheet>
+
+        {/* ─── Party picker sheet (thumb-friendly) ─── */}
+        <Sheet open={partySheetOpen} onOpenChange={(o) => { setPartySheetOpen(o); if (!o) setPartySearch(''); }}>
+          <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-2xl">
+            <SheetHeader className="text-left">
+              <SheetTitle className="flex items-center gap-2"><Users className="h-4 w-4" /> Pick a party</SheetTitle>
+              <SheetDescription className="text-xs">
+                Filter the page to a single counterparty. {topParties.length.toLocaleString()} found in this period.
+              </SheetDescription>
+            </SheetHeader>
+            <div className="mt-3 sticky top-0 bg-background pb-2 z-10">
+              <Input
+                value={partySearch}
+                onChange={(e) => setPartySearch(e.target.value)}
+                placeholder="Search name or user id…"
+                className="h-11 text-sm"
+                inputMode="search"
+              />
+            </div>
+            <div className="grid grid-cols-1 gap-2 pb-4">
+              <button
+                type="button"
+                onClick={() => { setPartyQuickFilter(null); setPartySheetOpen(false); }}
+                className={cn(
+                  'min-h-[56px] rounded-xl border-2 px-3 py-2 text-left flex items-center justify-between gap-2 transition-colors active:scale-[0.98]',
+                  !partyQuickFilter ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted/60',
+                )}
+              >
+                <div>
+                  <div className="text-sm font-semibold">Everyone</div>
+                  <div className="text-[11px] text-muted-foreground">Show all parties (no filter)</div>
+                </div>
+                {!partyQuickFilter && <Check className="h-4 w-4 text-primary shrink-0" />}
+              </button>
+              {topParties
+                .filter(p => {
+                  const q = partySearch.trim().toLowerCase();
+                  if (!q) return true;
+                  const name = (partyNames[p.id] || '').toLowerCase();
+                  return name.includes(q) || p.id.toLowerCase().includes(q);
+                })
+                .slice(0, 80)
+                .map(p => {
+                  const selected = partyQuickFilter === p.id;
+                  const name = partyNames[p.id] || `${p.id.slice(0, 8)}…`;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => { setPartyQuickFilter(p.id); setPartySheetOpen(false); }}
+                      className={cn(
+                        'min-h-[60px] rounded-xl border-2 px-3 py-2 text-left flex items-center gap-2 transition-colors active:scale-[0.98]',
+                        selected ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted/60',
+                      )}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold truncate">{name}</div>
+                        <div className="text-[11px] text-muted-foreground flex flex-wrap gap-x-2">
+                          <span className="text-success">In {formatUGX(p.cashIn)}</span>
+                          <span className="text-destructive">Out {formatUGX(p.cashOut)}</span>
+                          <span>· {p.count} tx</span>
+                        </div>
+                      </div>
+                      {selected && <Check className="h-4 w-4 text-primary shrink-0" />}
+                    </button>
+                  );
+                })}
+              {topParties.length === 0 && (
+                <div className="text-xs text-muted-foreground text-center py-6">
+                  No parties in this period. Try a wider date range.
+                </div>
+              )}
+            </div>
           </SheetContent>
         </Sheet>
       </CardContent>
