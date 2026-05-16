@@ -179,6 +179,54 @@ export function LedgerDrillDownDialog({ open, onOpenChange, title, spec, startDa
           </div>
         </div>
 
+        {!loading && !error && uniqueCategories.length > 1 && filtersOpen && (
+          <div className="border-b bg-muted/20 px-3 py-2">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[11px] text-muted-foreground font-medium">Show categories</span>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-5 px-1.5 text-[10px]"
+                  onClick={() => setSelectedCategories(new Set(uniqueCategories))}
+                >
+                  All
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-5 px-1.5 text-[10px]"
+                  onClick={() => setSelectedCategories(new Set())}
+                >
+                  None
+                </Button>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-x-3 gap-y-1.5">
+              {uniqueCategories.map(cat => {
+                const count = rows.filter(r => r.category === cat).length;
+                const checked = selectedCategories.has(cat);
+                return (
+                  <label key={cat} className="inline-flex items-center gap-1.5 cursor-pointer select-none">
+                    <Checkbox
+                      checked={checked}
+                      onCheckedChange={(val) => {
+                        const next = new Set(selectedCategories);
+                        if (val) next.add(cat);
+                        else next.delete(cat);
+                        setSelectedCategories(next);
+                      }}
+                      className="h-3 w-3"
+                    />
+                    <span className="text-[11px] font-mono">{cat}</span>
+                    <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5">{count}</Badge>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {!loading && !error && rows.length > 0 && (
           <div className="border-b bg-muted/20">
             <div className="grid grid-cols-3 gap-3 p-3 text-xs">
