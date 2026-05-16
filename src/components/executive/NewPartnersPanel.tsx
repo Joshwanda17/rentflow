@@ -605,15 +605,35 @@ export function NewPartnersPanel() {
     const all = joined?.length ?? 0;
     let withP = 0;
     let justJoined = 0;
+    let recentToday = 0;
+    let recentWeek = 0;
+    let recentMonth = 0;
     const justJoinedCutoff = Date.now() - JUST_JOINED_DAYS * 86400000;
+    const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+    const startOfWeek = new Date(startOfToday);
+    const dow = startOfWeek.getDay();
+    startOfWeek.setDate(startOfWeek.getDate() - ((dow + 6) % 7));
+    const startOfMonth = new Date(startOfToday.getFullYear(), startOfToday.getMonth(), 1);
     for (const p of joined || []) {
       if (p.portfolio_count > 0) {
         withP++;
-      } else if (new Date(p.created_at).getTime() >= justJoinedCutoff) {
-        justJoined++;
+      } else {
+        const t = new Date(p.created_at).getTime();
+        if (t >= justJoinedCutoff) justJoined++;
+        if (t >= startOfToday.getTime()) recentToday++;
+        if (t >= startOfWeek.getTime()) recentWeek++;
+        if (t >= startOfMonth.getTime()) recentMonth++;
       }
     }
-    return { all, with: withP, without: all - withP, justJoined };
+    return {
+      all,
+      with: withP,
+      without: all - withP,
+      justJoined,
+      recentToday,
+      recentWeek,
+      recentMonth,
+    };
   }, [joined]);
 
   // ── Realtime: any new supporter role grant pops in instantly ──
