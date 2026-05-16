@@ -13,7 +13,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { UGANDA_BANKS } from '@/lib/ugandaBanks';
 import { useFunderApprovalStatus } from '@/hooks/useFunderApprovalStatus';
 import { Shield, Lock } from 'lucide-react';
-import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
+import { extractEdgeFunctionError, extractEdgeFunctionErrorDetails, type EdgeFunctionErrorDetails } from '@/lib/extractEdgeFunctionError';
 
 interface CreateInvestmentAccountDialogProps {
   open: boolean;
@@ -21,7 +21,7 @@ interface CreateInvestmentAccountDialogProps {
   onSuccess: () => void;
   /** Fired when create fails so callers (e.g. NewPartnersPanel) can surface
    *  their own inline error toast with partner context. */
-  onError?: (message: string) => void;
+  onError?: (message: string, details?: EdgeFunctionErrorDetails & { partnerId?: string }) => void;
   prefillInvestorId?: string | null;
   prefillInvestorName?: string;
 }
@@ -202,10 +202,12 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
 
       if (response.error || response.data?.error) {
         // Surfaces the real backend message (e.g. "Insufficient ledger
-        // balance … Available: 0, Required: 60000") instead of the generic
-        // "Edge Function returned a non-2xx status code".
-        const msg = await extractEdgeFunctionError(response, 'Failed to create portfolio');
-        throw new Error(msg);
+        // balance … Available: 0, Required: 60000") plus structured
+        // diagnostics (status, request_id, error_code) for client logging.
+        const details = await extractEdgeFunctionErrorDetails(response, 'Failed to create portfolio');
+        const err: any = new Error(details.message);
+        err.details = details;
+        throw err;
       }
       const data = response.data;
 
@@ -215,7 +217,11 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
       onOpenChange(false);
     } catch (e: any) {
       toast({ title: 'Creation failed', description: e.message, variant: 'destructive' });
-      onError?.(e?.message || 'Failed to create portfolio');
+      const details: EdgeFunctionErrorDetails | undefined = e?.details;
+      onError?.(e?.message || 'Failed to create portfolio', {
+        ...(details || { message: e?.message || 'Failed to create portfolio' }),
+        partnerId: selectedUser?.id,
+      });
     } finally {
       setSaving(false);
     }
