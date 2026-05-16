@@ -969,7 +969,12 @@ export function ComprehensiveCashMovement() {
           )}
         </div>
 
-        {/* Totals strip */}
+        {/* ─── Wallet Money Movement (minimalist) ───
+            Primary view: money flowing INTO and OUT OF user/operational wallets
+            in the selected period. Shown first by default. */}
+        <WalletMovementSummary rows={rows} includeAdjustments={includeAdjustments} period={period} />
+
+        {/* Totals strip (full ledger scope: platform + wallet) */}
         <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
           <div className="rounded-lg border border-border bg-success/5 p-2 sm:p-3">
             <div className="flex items-center gap-1 text-[10px] uppercase text-muted-foreground"><ArrowUpRight className="h-3 w-3 text-success" /> Money In</div>
@@ -986,12 +991,6 @@ export function ComprehensiveCashMovement() {
             </div>
           </div>
         </div>
-
-        {/* ─── Wallet Money Movement (minimalist) ───
-            Read-only summary of money flowing INTO and OUT OF user/operational
-            wallets in the selected period. Reuses already-loaded ledger rows
-            (no balance changes anywhere). */}
-        <WalletMovementSummary rows={rows} includeAdjustments={includeAdjustments} period={period} />
 
         {/* Quick filter chips */}
         <div className="space-y-1.5">
