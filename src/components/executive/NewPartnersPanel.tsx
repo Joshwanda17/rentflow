@@ -741,6 +741,18 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
           return `${fieldLabels[k]}: ${before} → ${after}`;
         })
     : [];
+  // Field keys that currently diverge from baseline — drives per-input highlighting.
+  const changedFields: Set<string> = expanded
+    ? new Set(
+        (Object.keys(fieldLabels) as Array<keyof typeof fieldLabels>)
+          .filter(k => (form as any)[k] !== (baselineRef.current as any)[k]),
+      )
+    : new Set();
+  // Tailwind classes applied to inputs whose value diverges from baseline.
+  const dirtyCls = (key: string) =>
+    changedFields.has(key)
+      ? 'border-warning ring-1 ring-warning/40 bg-warning/5'
+      : '';
   const dirty = changeList.length > 0;
   const changeListKey = changeList.join('|');
   useEffect(() => {
@@ -830,7 +842,9 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
           <p className="text-xs font-semibold truncate flex items-center gap-1">
             {p.account_name || p.portfolio_code}
             {dirty && (
-              <span className="text-[9px] font-medium text-warning bg-warning/15 px-1 rounded">unsaved</span>
+              <span className="text-[9px] font-medium text-warning bg-warning/15 px-1 rounded">
+                {changedFields.size} unsaved
+              </span>
             )}
           </p>
           <p className="text-[10px] text-muted-foreground">
@@ -848,21 +862,42 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
 
       {expanded && (
         <div className="border-t border-border/60 bg-background p-3 space-y-2.5">
+          {dirty && (
+            <div className="rounded-md border border-warning/40 bg-warning/5 p-2 space-y-1">
+              <p className="text-[10px] font-semibold text-warning uppercase tracking-wide">
+                {changedFields.size} unsaved change{changedFields.size === 1 ? '' : 's'}
+              </p>
+              <ul className="space-y-0.5">
+                {Array.from(changedFields).map((k) => {
+                  const before = (baselineRef.current as any)[k] || '—';
+                  const after = (form as any)[k] || '—';
+                  return (
+                    <li key={k} className="text-[10px] leading-snug flex items-center gap-1 flex-wrap">
+                      <span className="font-medium">{(fieldLabels as any)[k]}:</span>
+                      <span className="line-through text-muted-foreground font-mono">{String(before)}</span>
+                      <span className="text-muted-foreground">→</span>
+                      <span className="font-mono text-warning">{String(after)}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
               <Label className="text-[10px]">Portfolio name</Label>
-              <Input value={form.account_name} onChange={e => set('account_name', e.target.value)} className="h-8 text-xs" maxLength={100} />
+              <Input value={form.account_name} onChange={e => set('account_name', e.target.value)} className={cn("h-8 text-xs", dirtyCls('account_name'))} maxLength={100} />
             </div>
             <div className="space-y-1">
               <Label className="text-[10px]">Payout day (1-28)</Label>
-              <Input type="number" min={1} max={28} value={form.payout_day} onChange={e => set('payout_day', e.target.value)} className="h-8 text-xs" />
+              <Input type="number" min={1} max={28} value={form.payout_day} onChange={e => set('payout_day', e.target.value)} className={cn("h-8 text-xs", dirtyCls('payout_day'))} />
             </div>
           </div>
 
           <div className="space-y-1">
             <Label className="text-[10px]">Payment method</Label>
             <Select value={form.payment_method} onValueChange={v => set('payment_method', v)}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectTrigger className={cn("h-8 text-xs", dirtyCls('payment_method'))}><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="mobile_money">📱 Mobile Money</SelectItem>
                 <SelectItem value="bank">🏦 Bank</SelectItem>
@@ -875,12 +910,12 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
                 <Label className="text-[10px]">Mobile number</Label>
-                <Input value={form.mobile_money_number} onChange={e => set('mobile_money_number', e.target.value)} placeholder="0770…" className="h-8 text-xs" maxLength={20} />
+                <Input value={form.mobile_money_number} onChange={e => set('mobile_money_number', e.target.value)} placeholder="0770…" className={cn("h-8 text-xs", dirtyCls('mobile_money_number'))} maxLength={20} />
               </div>
               <div className="space-y-1">
                 <Label className="text-[10px]">Network</Label>
                 <Select value={form.mobile_network || ''} onValueChange={v => set('mobile_network', v)}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select…" /></SelectTrigger>
+                  <SelectTrigger className={cn("h-8 text-xs", dirtyCls('mobile_network'))}><SelectValue placeholder="Select…" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="MTN">MTN</SelectItem>
                     <SelectItem value="Airtel">Airtel</SelectItem>
@@ -895,16 +930,16 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <Label className="text-[10px]">Bank name</Label>
-                  <Input value={form.bank_name} onChange={e => set('bank_name', e.target.value)} className="h-8 text-xs" maxLength={80} />
+                  <Input value={form.bank_name} onChange={e => set('bank_name', e.target.value)} className={cn("h-8 text-xs", dirtyCls('bank_name'))} maxLength={80} />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-[10px]">Account number</Label>
-                  <Input value={form.account_number} onChange={e => set('account_number', e.target.value)} className="h-8 text-xs" maxLength={30} />
+                  <Input value={form.account_number} onChange={e => set('account_number', e.target.value)} className={cn("h-8 text-xs", dirtyCls('account_number'))} maxLength={30} />
                 </div>
               </div>
               <div className="space-y-1">
                 <Label className="text-[10px]">Account name</Label>
-                <Input value={form.bank_account_name} onChange={e => set('bank_account_name', e.target.value)} className="h-8 text-xs" maxLength={100} />
+                <Input value={form.bank_account_name} onChange={e => set('bank_account_name', e.target.value)} className={cn("h-8 text-xs", dirtyCls('bank_account_name'))} maxLength={100} />
               </div>
             </div>
           )}
