@@ -966,13 +966,18 @@ export function TenantOpsLandlordFloatTimeline() {
                   {dayEvents.map((e) => {
                     const meta = kindMeta[e.kind];
                     const Icon = meta.icon;
+                    const prio = priorityFor(e);
+                    const PrioIcon = prio?.icon;
                     return (
                       <li key={e.id} className="ml-4">
                         <span className={cn('absolute -left-1.5 mt-1.5 h-3 w-3 rounded-full ring-4 ring-background', meta.dot)} />
                         <button
                           type="button"
                           onClick={() => setDrillEvent(e)}
-                          className="w-full text-left rounded-lg border p-2.5 bg-card hover:border-[#9234EA]/50 hover:shadow-sm transition focus:outline-none focus:ring-2 focus:ring-[#9234EA]/40"
+                          className={cn(
+                            'w-full text-left rounded-lg border p-2.5 bg-card hover:border-[#9234EA]/50 hover:shadow-sm transition focus:outline-none focus:ring-2 focus:ring-[#9234EA]/40',
+                            prio?.borderClass,
+                          )}
                         >
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex items-start gap-2 min-w-0">
@@ -987,10 +992,18 @@ export function TenantOpsLandlordFloatTimeline() {
                                     {format(new Date(e.at), 'HH:mm')}
                                   </Badge>
                                   <Badge variant="outline" className="text-[9px] px-1.5 py-0 capitalize">{e.status}</Badge>
-                                  {e.kind === 'allocation' && (e.outstanding || 0) > 0 && (
-                                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-amber-50 text-amber-700 border-amber-200">
-                                      <AlertCircle className="h-2.5 w-2.5 mr-1" />
-                                      Outstanding {fmt(e.outstanding || 0)}
+                                  {prio && PrioIcon && (
+                                    <Badge
+                                      variant="outline"
+                                      className={cn(
+                                        'text-[9px] px-1.5 py-0 font-semibold inline-flex items-center gap-1',
+                                        prio.badgeClass,
+                                        prio.level === 'critical' && 'animate-pulse',
+                                      )}
+                                      title={`${prio.label} · ${Math.floor(prio.ageDays)}d old · ${fmt(e.outstanding || 0)} outstanding`}
+                                    >
+                                      <PrioIcon className="h-2.5 w-2.5" />
+                                      {prio.label} · {Math.floor(prio.ageDays)}d · {fmt(e.outstanding || 0)}
                                     </Badge>
                                   )}
                                 </div>
