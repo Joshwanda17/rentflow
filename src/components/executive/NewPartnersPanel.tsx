@@ -1276,34 +1276,59 @@ export function NewPartnersPanel() {
                 return (
                   <div className="space-y-2">
                     {badges}
-                    <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 p-4 text-center space-y-2">
-                      <p className="text-xs font-semibold">{title}</p>
-                      {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
-                      <div className="flex flex-wrap justify-center gap-2 pt-1">
-                        {switchLabel && switchTo && (
+                    {/* Mobile-first compact empty state — single icon + tight
+                        title + ONE primary CTA. The reset action is a small
+                        text-link below so the eye locks onto the next move. */}
+                    {(() => {
+                      const hasSmartSwitch = !!(switchLabel && switchTo);
+                      const primaryLabel = hasSmartSwitch
+                        ? switchLabel!
+                        : `Show all ${joined.length.toLocaleString()} loaded`;
+                      const onPrimary = () => {
+                        if (hasSmartSwitch) {
+                          setPartnerFilter(switchTo!);
+                        } else {
+                          setPartnerFilter('all');
+                          setPartnerSearch('');
+                          setCustomRange(undefined);
+                        }
+                      };
+                      return (
+                        <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 px-4 py-5 sm:py-4 flex flex-col items-center text-center gap-2">
+                          <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                            <Filter className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                          <p className="text-sm sm:text-xs font-semibold leading-tight">
+                            {title}
+                          </p>
+                          {hint && (
+                            <p className="text-xs sm:text-[11px] text-muted-foreground leading-snug max-w-[28ch]">
+                              {hint}
+                            </p>
+                          )}
                           <Button
                             size="sm"
-                            variant="outline"
-                            className="h-7 text-[11px]"
-                            onClick={() => setPartnerFilter(switchTo!)}
+                            className="mt-1 h-10 sm:h-8 px-4 text-xs sm:text-[11px] w-full sm:w-auto max-w-xs"
+                            onClick={onPrimary}
                           >
-                            {switchLabel}
+                            {primaryLabel}
                           </Button>
-                        )}
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 text-[11px]"
-                          onClick={() => {
-                            setPartnerFilter('all');
-                            setPartnerSearch('');
-                            setCustomRange(undefined);
-                          }}
-                        >
-                          Show all {joined.length.toLocaleString()} loaded
-                        </Button>
-                      </div>
-                    </div>
+                          {hasSmartSwitch && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPartnerFilter('all');
+                                setPartnerSearch('');
+                                setCustomRange(undefined);
+                              }}
+                              className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                            >
+                              Or show all {joined.length.toLocaleString()} loaded
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               }
