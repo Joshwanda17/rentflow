@@ -899,6 +899,43 @@ export function NewPartnersPanel() {
               </button>
             ))}
           </div>
+          {/* Recent joins (no-portfolio activation backlog, scoped by window) */}
+          <div className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-muted/40 p-0.5 text-[11px] self-start">
+            <span className="pl-2 pr-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+              Recent joins
+            </span>
+            {([
+              { key: 'recent_today', label: 'Today', count: segmentCounts.recentToday },
+              { key: 'recent_week',  label: 'Week',  count: segmentCounts.recentWeek  },
+              { key: 'recent_month', label: 'Month', count: segmentCounts.recentMonth },
+            ] as const).map(seg => (
+              <button
+                key={seg.key}
+                type="button"
+                onClick={() => setPartnerFilter(seg.key)}
+                aria-pressed={partnerFilter === seg.key}
+                className={cn(
+                  "px-2.5 py-1 rounded-md font-medium transition-colors inline-flex items-center gap-1.5",
+                  partnerFilter === seg.key
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                aria-label={`Recent joins · no portfolio · ${seg.label} (${seg.count})`}
+              >
+                <span>{seg.label}</span>
+                <span
+                  className={cn(
+                    "rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums leading-none",
+                    partnerFilter === seg.key
+                      ? "bg-muted text-foreground"
+                      : "bg-background/60 text-muted-foreground"
+                  )}
+                >
+                  {segmentCounts.all === 0 && isLoading ? '…' : seg.count}
+                </span>
+              </button>
+            ))}
+          </div>
           {/* Sort dropdown — applies to the visible grid */}
           <Select value={partnerSort} onValueChange={(v) => setPartnerSort(v as PartnerSort)}>
             <SelectTrigger className="h-8 w-[200px] text-[11px] self-start" aria-label="Sort partners">
