@@ -1443,9 +1443,9 @@ export function ComprehensiveCashMovement() {
             for sections that aren't rendered). */}
         <nav
           aria-label="Jump to section"
-          className="sticky top-0 z-30 -mx-3 sm:-mx-6 px-3 sm:px-6 py-1.5 bg-card/95 backdrop-blur border-y border-border"
+          className="sticky top-0 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2 sm:py-1.5 bg-card/95 backdrop-blur border-y border-border"
         >
-          <div className="flex items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold shrink-0 mr-1">
               Jump to:
             </span>
@@ -1484,7 +1484,7 @@ export function ComprehensiveCashMovement() {
             full-width bottom sheet on phones so options are easy to scan
             and tap with a thumb. Existing chip rows below remain for
             power users and are unchanged. */}
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 gap-2.5 sm:gap-2">
           {[
             {
               key: 'date' as const,
@@ -1516,7 +1516,7 @@ export function ComprehensiveCashMovement() {
               type="button"
               onClick={btn.onClick}
               className={cn(
-                'min-h-[64px] rounded-xl border-2 px-2.5 py-2 text-left flex flex-col gap-0.5 transition-colors',
+                'min-h-[68px] rounded-xl border-2 px-3 py-2.5 text-left flex flex-col gap-1 transition-colors',
                 'active:scale-[0.98] touch-manipulation',
                 btn.active
                   ? 'border-primary bg-primary/10 hover:bg-primary/15'
@@ -1533,7 +1533,7 @@ export function ComprehensiveCashMovement() {
                 {btn.icon}
                 {btn.label}
               </span>
-              <span className="text-[12px] sm:text-sm font-semibold leading-tight truncate">
+              <span className="text-[13px] sm:text-sm font-semibold leading-snug truncate">
                 {btn.value}
               </span>
             </button>
@@ -1564,9 +1564,9 @@ export function ComprehensiveCashMovement() {
         </div>
 
         {/* Group by + Where + adjustments */}
-        <div className="space-y-2">
+        <div className="space-y-3 sm:space-y-2">
           <div>
-            <div className="text-[11px] text-muted-foreground mb-1">Group by</div>
+            <div className="text-[11px] text-muted-foreground mb-1.5">Group by</div>
             <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
               {GRANULARITIES.map(g => (
                 <Button key={g.value} size="sm" variant={granularity === g.value ? 'default' : 'outline'} className="text-xs h-8 shrink-0" onClick={() => setGranularity(g.value)}>
@@ -1576,7 +1576,7 @@ export function ComprehensiveCashMovement() {
             </div>
           </div>
           <div>
-            <div className="text-[11px] text-muted-foreground mb-1">Where</div>
+            <div className="text-[11px] text-muted-foreground mb-1.5">Where</div>
             <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
               {(['all','platform','wallet','bridge'] as const).map(s => (
                 <Button key={s} size="sm" variant={scopeFilter === s ? 'default' : 'outline'} className="text-xs h-8 shrink-0" onClick={() => setScopeFilter(s)}>
