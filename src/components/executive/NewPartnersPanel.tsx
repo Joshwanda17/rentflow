@@ -360,46 +360,31 @@ export function NewPartnersPanel() {
     // setSearchParams identity changes on every render; intentionally omitted.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [partnerSearch, partnerFilter, customRange, partnerSort]);
-  // Server-side pagination for the Joined Partners list. Each page is fetched
-  // from `user_roles` with `.range()` + `{ count: 'exact' }`, so the user can
-  // browse every supporter regardless of total count. Page index is 0-based.
+  // Infinite scroll for the Joined Partners list. Each scroll-triggered page
+  // is fetched from `user_roles` with `.range()` + `{ count: 'exact' }` and
+  // appended to the previously loaded rows, so the user can browse every
+  // supporter without a manual "next page" click.
   const PARTNERS_PAGE_SIZE = 200;
-  const [partnersPageIndex, setPartnersPageIndex] = useState(0);
   const gridScrollRef = useRef<HTMLDivElement | null>(null);
-  // Incremental render window WITHIN the current server page — keeps the
-  // initial DOM small while still letting the user scroll through all 200
-  // rows of a page without a manual "load more" click.
-  const PARTNER_PAGE_SIZE = 30;
-  const [visiblePartnerCount, setVisiblePartnerCount] = useState(PARTNER_PAGE_SIZE);
   const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
-  // Reset the in-page render window whenever the user changes search/filter
-  // OR moves to a different server page, so the visible slice starts fresh.
-  useEffect(() => {
-    setVisiblePartnerCount(PARTNER_PAGE_SIZE);
-    if (gridScrollRef.current) gridScrollRef.current.scrollTop = 0;
-  }, [partnerSearch, partnerFilter, customRange, partnersPageIndex]);
-  // Auto-load the next page when the sentinel scrolls into view.
-  useEffect(() => {
-    const node = loadMoreSentinelRef.current;
-    if (!node || typeof IntersectionObserver === 'undefined') return;
-    const io = new IntersectionObserver((entries) => {
-      if (entries.some(e => e.isIntersecting)) {
-        setVisiblePartnerCount(c => c + PARTNER_PAGE_SIZE);
-      }
-    }, { root: null, rootMargin: '200px', threshold: 0 });
-    io.observe(node);
-    return () => io.disconnect();
-  }, [visiblePartnerCount, partnerSearch, partnerFilter]);
 
-  // ── All partners (paginated, server-side) ──
-  // Each page fetches one slice of `user_roles` (role=supporter) ordered by
-  // newest first, plus the exact total count so the UI can render real
-  // prev/next controls. `placeholderData: keepPreviousData` keeps the current
-  // page visible while the next one loads, avoiding a skeleton flash.
-  const { data: joinedPage, isLoading, isFetching } = useQuery({
-    queryKey: ['new-partners-panel', partnersPageIndex, PARTNERS_PAGE_SIZE],
-    queryFn: async () => {
-      const from = partnersPageIndex * PARTNERS_PAGE_SIZE;
+  // ── All partners (infinite scroll) ──
+  // Each scroll-triggered page fetches one slice of `user_roles`
+  // (role=supporter) ordered by newest first, plus the exact total count.
+  // Pages are appended into a single `joined` array so filters and badges
+  // operate over every row the user has loaded so far.
+  const {
+    data: partnersInfinite,
+    isLoading,
+    isFetchingNextPage,
+    fetchNextPage,
+    hasNextPage,
+  } = useInfiniteQuery({
+    queryKey: ['new-partners-panel-infinite', PARTNERS_PAGE_SIZE],
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) => {
+      const pageIndex = pageParam as number;
+      const from = pageIndex * PARTNERS_PAGE_SIZE;
       const to = from + PARTNERS_PAGE_SIZE - 1;
       const { data: roles, count } = await supabase
         .from('user_roles')
@@ -410,7 +395,9 @@ export function NewPartnersPanel() {
         .range(from, to);
       const rows = roles || [];
       const total = count ?? rows.length;
-      if (rows.length === 0) return { rows: [] as JoinedPartner[], total };
+      if (rows.length === 0) {
+        return { rows: [] as JoinedPartner[], total, pageIndex };
+      }
 
       const ids = rows.map(r => r.user_id);
       const [{ data: profiles }, { data: portfolios }] = await Promise.all([
@@ -431,18 +418,43 @@ export function NewPartnersPanel() {
         phone: pMap.get(r.user_id)?.phone || '—',
         portfolio_count: countMap.get(r.user_id) || 0,
       }));
-      return { rows: built, total };
+      return { rows: built, total, pageIndex };
+    },
+    getNextPageParam: (lastPage) => {
+      const loaded = (lastPage.pageIndex + 1) * PARTNERS_PAGE_SIZE;
+      return loaded < lastPage.total ? lastPage.pageIndex + 1 : undefined;
     },
     staleTime: 60_000,
-    placeholderData: keepPreviousData,
   });
-  const joined = joinedPage?.rows;
-  const joinedTotal = joinedPage?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(joinedTotal / PARTNERS_PAGE_SIZE));
-  // Clamp page if total shrinks (e.g. after a refetch).
+  // Flatten every loaded page into a single `joined` array. Dedupe by
+  // user_id in case a row appears across pages during a refetch.
+  const joined = useMemo(() => {
+    if (!partnersInfinite) return undefined;
+    const seen = new Set<string>();
+    const out: JoinedPartner[] = [];
+    for (const page of partnersInfinite.pages) {
+      for (const r of page.rows) {
+        if (seen.has(r.user_id)) continue;
+        seen.add(r.user_id);
+        out.push(r);
+      }
+    }
+    return out;
+  }, [partnersInfinite]);
+  const joinedTotal = partnersInfinite?.pages[0]?.total ?? 0;
+  // Sentinel-driven auto-load: when the bottom sentinel scrolls into view
+  // (within 200px) and we're not already fetching, request the next page.
   useEffect(() => {
-    if (partnersPageIndex > totalPages - 1) setPartnersPageIndex(totalPages - 1);
-  }, [totalPages, partnersPageIndex]);
+    const node = loadMoreSentinelRef.current;
+    if (!node || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some(e => e.isIntersecting) && hasNextPage && !isFetchingNextPage) {
+        fetchNextPage();
+      }
+    }, { root: gridScrollRef.current ?? null, rootMargin: '200px', threshold: 0 });
+    io.observe(node);
+    return () => io.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage, joined?.length]);
 
   // ── Filtered partners (drives both the badge counts above the grid
   // and the grid itself, so badges react instantly to the active filter). ──
