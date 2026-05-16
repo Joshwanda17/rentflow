@@ -457,16 +457,32 @@ export function NewPartnersPanel() {
     });
     // Apply sort as a final stable pass.
     const sorted = [...filtered];
-    if (partnerSort === 'portfolio_desc') {
+    if (partnerSort === 'count_desc') {
       sorted.sort((a, b) =>
         b.portfolio_count - a.portfolio_count
         || new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
-    } else if (partnerSort === 'portfolio_asc') {
+    } else if (partnerSort === 'count_asc') {
       sorted.sort((a, b) =>
         a.portfolio_count - b.portfolio_count
         || new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
+    } else if (partnerSort === 'status_active') {
+      // Active (>=1) first, then None (0); newest within each group.
+      sorted.sort((a, b) => {
+        const ag = a.portfolio_count > 0 ? 0 : 1;
+        const bg = b.portfolio_count > 0 ? 0 : 1;
+        return ag - bg
+          || new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+    } else if (partnerSort === 'status_none') {
+      // None (0) first, then Active (>=1); newest within each group.
+      sorted.sort((a, b) => {
+        const ag = a.portfolio_count === 0 ? 0 : 1;
+        const bg = b.portfolio_count === 0 ? 0 : 1;
+        return ag - bg
+          || new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
     } else if (partnerSort === 'name') {
       sorted.sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''));
     } else {
