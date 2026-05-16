@@ -2322,6 +2322,158 @@ function WalletMovementSummary({
           </div>
         </div>
       </div>
+
+      {/* Net-flow drill-down sheet — lists exact cash_in / cash_out wallet
+          transactions that compose Into − Out for the currently loaded period. */}
+      <Sheet open={!!netDrill} onOpenChange={(o) => { if (!o) setNetDrill(null); }}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+          {netDrill && (() => {
+            const allWalletTxs: LedgerRow[] = [];
+            for (const list of txByKey.values()) allWalletTxs.push(...list);
+            const dirFiltered = allWalletTxs.filter(r =>
+              netDrill.direction === 'all' ? true : r.direction === netDrill.direction
+            );
+            const q = netDrillQuery.trim().toLowerCase();
+            const searched = q
+              ? dirFiltered.filter(r =>
+                  (r.reference_id || '').toLowerCase().includes(q) ||
+                  (r.linked_party || '').toLowerCase().includes(q) ||
+                  (r.description || '').toLowerCase().includes(q) ||
+                  (r.source_table || '').toLowerCase().includes(q) ||
+                  (r.category || '').toLowerCase().includes(q)
+                )
+              : dirFiltered;
+            const sorted = [...searched].sort((a, b) =>
+              new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime()
+            );
+            const sumIn = sorted.filter(r => r.direction === 'cash_in').reduce((s, r) => s + (Number(r.amount) || 0), 0);
+            const sumOut = sorted.filter(r => r.direction === 'cash_out').reduce((s, r) => s + (Number(r.amount) || 0), 0);
+            const totalPages = Math.max(1, Math.ceil(sorted.length / NET_DRILL_PAGE_SIZE));
+            const page = Math.min(netDrillPage, totalPages - 1);
+            const slice = sorted.slice(page * NET_DRILL_PAGE_SIZE, (page + 1) * NET_DRILL_PAGE_SIZE);
+            return (
+              <>
+                <SheetHeader>
+                  <SheetTitle className="flex items-center gap-2">
+                    Net flow transactions
+                    <Badge variant="outline" className="text-[10px]">{periodLabel}</Badge>
+                  </SheetTitle>
+                  <SheetDescription>
+                    Every wallet-scope cash-in and cash-out that makes up Into − Out for this period.
+                  </SheetDescription>
+                </SheetHeader>
+
+                {/* Direction tabs */}
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {([
+                    { v: 'all', label: `All · ${sorted.length}` },
+                    { v: 'cash_in', label: 'Into wallets' },
+                    { v: 'cash_out', label: 'Out of wallets' },
+                  ] as const).map(opt => (
+                    <button
+                      key={opt.v}
+                      type="button"
+                      onClick={() => setNetDrill({ direction: opt.v })}
+                      className={cn(
+                        'text-[11px] px-2.5 py-1 rounded-full border transition-colors',
+                        netDrill.direction === opt.v
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-background border-border hover:bg-muted'
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Totals strip */}
+                <div className="mt-3 grid grid-cols-3 gap-2 text-[11px]">
+                  <div className="rounded border border-border p-2">
+                    <div className="text-muted-foreground">Into</div>
+                    <div className="font-mono font-semibold text-success break-all">{formatUGX(sumIn)}</div>
+                  </div>
+                  <div className="rounded border border-border p-2">
+                    <div className="text-muted-foreground">Out</div>
+                    <div className="font-mono font-semibold text-destructive break-all">{formatUGX(sumOut)}</div>
+                  </div>
+                  <div className="rounded border border-border p-2">
+                    <div className="text-muted-foreground">Net</div>
+                    <div className={cn('font-mono font-semibold break-all', sumIn - sumOut >= 0 ? 'text-success' : 'text-destructive')}>
+                      {sumIn - sumOut >= 0 ? '+' : ''}{formatUGX(sumIn - sumOut)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Search */}
+                <div className="mt-3">
+                  <Input
+                    placeholder="Search reference, party, category, description…"
+                    value={netDrillQuery}
+                    onChange={(e) => { setNetDrillQuery(e.target.value); setNetDrillPage(0); }}
+                    className="h-8 text-xs"
+                  />
+                </div>
+
+                {/* List */}
+                <div className="mt-3 space-y-1 border-t border-border pt-2">
+                  {slice.length === 0 && (
+                    <div className="text-[11px] text-muted-foreground italic py-6 text-center">
+                      No transactions match.
+                    </div>
+                  )}
+                  {slice.map((t, i) => {
+                    const isIn = t.direction === 'cash_in';
+                    return (
+                      <div
+                        key={t.id || `${t.transaction_date}-${i}`}
+                        className="flex items-start justify-between gap-2 text-[11px] py-1.5 border-b border-border/40 last:border-b-0"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="text-foreground/90">
+                            {format(new Date(t.transaction_date), 'dd MMM HH:mm')}
+                            <span className="text-muted-foreground"> · {friendlyWalletLabel(t.category, t.direction as 'cash_in' | 'cash_out')}</span>
+                            {t.linked_party && (
+                              <span className="text-muted-foreground"> · {t.linked_party}</span>
+                            )}
+                          </div>
+                          {t.description && (
+                            <div className="text-muted-foreground truncate">{t.description}</div>
+                          )}
+                          {(t.reference_id || t.source_table) && (
+                            <div className="text-[10px] text-muted-foreground/70 font-mono truncate">
+                              {t.source_table && <span>{t.source_table}</span>}
+                              {t.source_table && t.reference_id && <span> · </span>}
+                              {t.reference_id && <span>{t.reference_id}</span>}
+                            </div>
+                          )}
+                        </div>
+                        <div className={cn('font-mono shrink-0', isIn ? 'text-success' : 'text-destructive')}>
+                          {isIn ? '+' : '−'}{formatUGX(Number(t.amount) || 0)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Pagination */}
+                {sorted.length > NET_DRILL_PAGE_SIZE && (
+                  <div className="mt-3 flex items-center justify-between gap-2 text-[10px]">
+                    <div className="text-muted-foreground">
+                      {page * NET_DRILL_PAGE_SIZE + 1}–{Math.min((page + 1) * NET_DRILL_PAGE_SIZE, sorted.length)} of {sorted.length.toLocaleString()}
+                    </div>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="outline" className="h-6 px-2 text-[10px]"
+                        disabled={page === 0} onClick={() => setNetDrillPage(p => Math.max(0, p - 1))}>‹ Prev</Button>
+                      <Button size="sm" variant="outline" className="h-6 px-2 text-[10px]"
+                        disabled={page >= totalPages - 1} onClick={() => setNetDrillPage(p => Math.min(totalPages - 1, p + 1))}>Next ›</Button>
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
