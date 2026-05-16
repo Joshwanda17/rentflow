@@ -326,6 +326,22 @@ export function ComprehensiveCashMovement() {
   // drilldown list are currently rendered. Starts small for phone perf,
   // grows in chunks when the user taps "Show more".
   const [pageDrillVisible, setPageDrillVisible] = useState<number>(25);
+  // Controls the page-level "Tap to see details" drilldown so the
+  // three "See where this comes from" tile links can open it
+  // programmatically and scroll it into view.
+  const [pageDrillOpen, setPageDrillOpen] = useState<boolean>(false);
+  const pageDrillRef = useRef<HTMLDivElement | null>(null);
+  const openPageDrill = useCallback(
+    (dir: 'all' | 'cash_in' | 'cash_out' | 'net_positive' | 'net_negative') => {
+      setDirectionQuickFilter(dir);
+      setPageDrillVisible(25);
+      setPageDrillOpen(true);
+      setTimeout(() => {
+        pageDrillRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 60);
+    },
+    [],
+  );
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<LedgerRow[]>([]);
   const [generatedAt, setGeneratedAt] = useState<Date | null>(null);
