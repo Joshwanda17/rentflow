@@ -914,7 +914,7 @@ export function NewPartnersPanel() {
             if (!next) return null;
             return (
               <div className="flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-2 sm:px-3 py-2">
-                <div className="p-1 rounded-md bg-emerald-500/20 shrink-0 hidden xs:block sm:block">
+                <div className="p-1 rounded-md bg-emerald-500/20 shrink-0">
                   <Zap className="h-3.5 w-3.5 text-emerald-600" />
                 </div>
                 <div className="flex-1 min-w-0">
