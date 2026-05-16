@@ -1417,6 +1417,114 @@ function FloatEventDrillDown({ event, allEvents, onClose }: FloatEventDrillDownP
               </div>
             )}
 
+            {/* Compare: allocations vs payouts side-by-side for this party */}
+            {(related.allocations.length > 0 || related.payouts.length > 0) && (() => {
+              const allocs = related.allocations;
+              const payouts = related.payouts;
+              const allocTotal = allocs.reduce((s, a: any) => s + (Number(a.allocated_amount) || 0), 0);
+              const allocPaid = allocs.reduce((s, a: any) => s + (Number(a.paid_out_amount) || 0), 0);
+              const allocRemaining = allocs.reduce((s, a: any) => s + (Number(a.remaining_amount) || 0), 0);
+              const allocOpen = allocs.filter((a: any) => (Number(a.remaining_amount) || 0) > 0).length;
+              const allocLastAt = allocs.length ? allocs.map((a: any) => new Date(a.created_at).getTime()).sort((x, y) => y - x)[0] : null;
+              const payoutTotal = payouts.reduce((s, p: any) => s + (Number(p.amount) || 0), 0);
+              const payoutSettled = payouts.filter((p: any) => ['completed', 'settled', 'success'].includes(String(p.status).toLowerCase())).length;
+              const payoutPending = payouts.length - payoutSettled;
+              const payoutLastAt = payouts.length ? payouts.map((p: any) => new Date(p.created_at).getTime()).sort((x, y) => y - x)[0] : null;
+              const reconDelta = allocPaid - payoutTotal; // positive => allocations claim more paid than actual MoMo payouts
+              const reconClass = Math.abs(reconDelta) < 1
+                ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                : 'text-red-700 bg-red-50 border-red-200';
+              return (
+                <div className="rounded-lg border-2 border-[#9234EA]/20 bg-[#9234EA]/5 p-3">
+                  <p className="text-[11px] uppercase tracking-wider text-[#9234EA] font-semibold mb-2 inline-flex items-center gap-1">
+                    <ChevronsUpDown className="h-3 w-3" /> Compare — Allocations vs Payouts
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mb-2">
+                    Same tenant/landlord context for this agent.
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {/* Allocations column */}
+                    <div className="rounded-md border bg-card p-2.5">
+                      <p className="text-[10px] uppercase tracking-wider text-fuchsia-700 font-semibold inline-flex items-center gap-1 mb-1.5">
+                        <Building2 className="h-3 w-3" /> Allocations ({allocs.length})
+                      </p>
+                      <dl className="text-xs space-y-1">
+                        <div className="flex justify-between gap-2">
+                          <dt className="text-muted-foreground">Total allocated</dt>
+                          <dd className="font-mono font-semibold text-fuchsia-700">{fmtUgx(allocTotal)}</dd>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <dt className="text-muted-foreground">Paid out (per allocs)</dt>
+                          <dd className="font-mono font-semibold">{fmtUgx(allocPaid)}</dd>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <dt className="text-muted-foreground">Outstanding</dt>
+                          <dd className={cn('font-mono font-semibold', allocRemaining > 0 ? 'text-amber-700' : 'text-muted-foreground')}>
+                            {fmtUgx(allocRemaining)}
+                          </dd>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <dt className="text-muted-foreground">Open allocations</dt>
+                          <dd className="font-mono">{allocOpen}/{allocs.length}</dd>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <dt className="text-muted-foreground">Last</dt>
+                          <dd className="font-mono text-[10px]">
+                            {allocLastAt ? format(new Date(allocLastAt), 'dd MMM HH:mm') : '—'}
+                          </dd>
+                        </div>
+                      </dl>
+                    </div>
+                    {/* Payouts column */}
+                    <div className="rounded-md border bg-card p-2.5">
+                      <p className="text-[10px] uppercase tracking-wider text-emerald-700 font-semibold inline-flex items-center gap-1 mb-1.5">
+                        <HandCoins className="h-3 w-3" /> Payouts ({payouts.length})
+                      </p>
+                      <dl className="text-xs space-y-1">
+                        <div className="flex justify-between gap-2">
+                          <dt className="text-muted-foreground">Total paid (MoMo)</dt>
+                          <dd className="font-mono font-semibold text-emerald-700">{fmtUgx(payoutTotal)}</dd>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <dt className="text-muted-foreground">Settled</dt>
+                          <dd className="font-mono">{payoutSettled}/{payouts.length}</dd>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <dt className="text-muted-foreground">Pending / other</dt>
+                          <dd className={cn('font-mono', payoutPending > 0 ? 'text-amber-700 font-semibold' : '')}>{payoutPending}</dd>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <dt className="text-muted-foreground">Avg per payout</dt>
+                          <dd className="font-mono">{fmtUgx(payouts.length ? payoutTotal / payouts.length : 0)}</dd>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <dt className="text-muted-foreground">Last</dt>
+                          <dd className="font-mono text-[10px]">
+                            {payoutLastAt ? format(new Date(payoutLastAt), 'dd MMM HH:mm') : '—'}
+                          </dd>
+                        </div>
+                      </dl>
+                    </div>
+                  </div>
+                  {/* Reconciliation strip */}
+                  <div className={cn('mt-2 rounded-md border px-2.5 py-1.5 text-[11px] flex items-center justify-between gap-2', reconClass)}>
+                    <span className="inline-flex items-center gap-1.5 font-semibold">
+                      {Math.abs(reconDelta) < 1
+                        ? <CheckCircle2 className="h-3.5 w-3.5" />
+                        : <AlertTriangle className="h-3.5 w-3.5" />}
+                      Reconciliation
+                    </span>
+                    <span className="font-mono">
+                      Allocs paid {fmtUgx(allocPaid)} − Payouts {fmtUgx(payoutTotal)} ={' '}
+                      <span className="font-semibold">
+                        {reconDelta > 0 ? '+' : ''}{fmtUgx(reconDelta)}
+                      </span>
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Related allocations for this party */}
             {related.allocations.length > 0 && (
               <div className="rounded-lg border bg-card p-3">
