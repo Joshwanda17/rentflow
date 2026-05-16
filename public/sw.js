@@ -1,6 +1,13 @@
 // Welile Service Worker — Safari-Safe Version v3
-// Cache version MUST change on each deploy to bust stale caches
-const CACHE_VERSION = Date.now();
+// Cache version is a fixed string. Using Date.now() here was a bug:
+// the SW source is evaluated on every fetch of /sw.js, so the byte-
+// string of the worker changed every load. iOS Safari treated that as
+// a brand-new service worker, ran install→activate→clients.claim() on
+// every visibility resume, and reclaimed the page — which looked to
+// agents like "the app refreshed mid-payment". Real cache busting
+// comes from Vite's content-hashed asset filenames; bump this constant
+// manually only when the SW logic itself needs to invalidate caches.
+const CACHE_VERSION = "v3-2026-05-stable";
 const CACHE_NAME = `welile-core-v3-${CACHE_VERSION}`;
 const STATIC_CACHE = `welile-static-v3-${CACHE_VERSION}`;
 const OFFLINE_URL = "/offline.html";
