@@ -12,7 +12,8 @@ import { CreateInvestmentAccountDialog } from '@/components/manager/CreateInvest
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Sparkles, UserPlus, Pencil, Loader2, Phone, Clock, ShieldCheck, PlusCircle, Save, X, ChevronDown } from 'lucide-react';
+import { Sparkles, UserPlus, Pencil, Loader2, Phone, Clock, ShieldCheck, PlusCircle, Save, X, ChevronDown, ShieldOff, History } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -37,6 +38,11 @@ export function NewPartnersPanel() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [createForUser, setCreateForUser] = useState<PickedUser | null>(null);
+  const [revokeOpen, setRevokeOpen] = useState(false);
+  const [revokeBusy, setRevokeBusy] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyRows, setHistoryRows] = useState<any[]>([]);
 
   // ── Just-joined partners (last 14 days) ──
   const { data: joined, isLoading } = useQuery({
@@ -142,6 +148,62 @@ export function NewPartnersPanel() {
     setCreateOpen(true);
   }
 
+  async function revokePartner() {
+    if (!selected) return;
+    setRevokeBusy(true);
+    try {
+      const { error } = await supabase
+        .from('user_roles')
+        .update({ enabled: false })
+        .eq('user_id', selected.id)
+        .eq('role', 'supporter');
+      if (error) throw error;
+      await supabase.from('audit_logs').insert({
+        user_id: user?.id,
+        action_type: 'revoke_supporter_role',
+        table_name: 'user_roles',
+        record_id: selected.id,
+        metadata: { revoked_from: selected.full_name, phone: selected.phone, source: 'PartnerOps NewPartnersPanel' },
+      });
+      toast({ title: 'Partner role revoked', description: `${selected.full_name} is no longer a Partner.` });
+      setSelectedIsPartner(false);
+      setRevokeOpen(false);
+      qc.invalidateQueries({ queryKey: ['new-partners-panel'] });
+      if (historyOpen) loadHistory();
+    } catch (e: any) {
+      toast({ title: 'Could not revoke role', description: e?.message || 'Try again', variant: 'destructive' });
+    } finally {
+      setRevokeBusy(false);
+    }
+  }
+
+  async function loadHistory() {
+    if (!selected) return;
+    setHistoryLoading(true);
+    try {
+      const portfolioIds = selectedPortfolios.map(p => p.id);
+      const recordIds = [selected.id, ...portfolioIds];
+      const { data, error } = await supabase
+        .from('audit_logs')
+        .select('id, created_at, action_type, table_name, record_id, user_id, metadata')
+        .in('record_id', recordIds)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      setHistoryRows(data || []);
+    } catch (e: any) {
+      toast({ title: 'Could not load history', description: e?.message || 'Try again', variant: 'destructive' });
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
+
+  function toggleHistory() {
+    const next = !historyOpen;
+    setHistoryOpen(next);
+    if (next) loadHistory();
+  }
+
   return (
     <>
       <Card className="border-primary/30 bg-gradient-to-br from-primary/5 via-background to-background">
@@ -233,6 +295,16 @@ export function NewPartnersPanel() {
                       Make Partner
                     </Button>
                   )}
+                  {selectedIsPartner === true && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 text-xs gap-1.5 text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+                      onClick={() => setRevokeOpen(true)}
+                    >
+                      <ShieldOff className="h-3 w-3" /> Revoke Partner
+                    </Button>
+                  )}
                   <Button
                     size="sm"
                     variant="outline"
@@ -241,7 +313,51 @@ export function NewPartnersPanel() {
                   >
                     <PlusCircle className="h-3 w-3" /> New Portfolio
                   </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 text-xs gap-1.5"
+                    onClick={toggleHistory}
+                  >
+                    <History className="h-3 w-3" /> {historyOpen ? 'Hide' : 'View'} History
+                  </Button>
                 </div>
+
+                {historyOpen && (
+                  <div className="rounded-lg border border-border/60 bg-muted/20 p-2 space-y-1.5">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                      <History className="h-3 w-3" /> Audit history (last 50)
+                    </p>
+                    {historyLoading ? (
+                      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground p-2">
+                        <Loader2 className="h-3 w-3 animate-spin" /> Loading…
+                      </div>
+                    ) : historyRows.length === 0 ? (
+                      <p className="text-[10px] text-muted-foreground italic p-2">No audit entries for this partner yet.</p>
+                    ) : (
+                      <div className="max-h-64 overflow-y-auto space-y-1">
+                        {historyRows.map(row => (
+                          <div key={row.id} className="rounded-md bg-background border border-border/40 px-2 py-1.5">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-[11px] font-semibold truncate">{row.action_type}</span>
+                              <span className="text-[9px] text-muted-foreground shrink-0">
+                                {formatDistanceToNow(new Date(row.created_at), { addSuffix: true })}
+                              </span>
+                            </div>
+                            <p className="text-[9px] text-muted-foreground truncate">
+                              {row.table_name} · {row.record_id?.slice(0, 8)}
+                            </p>
+                            {row.metadata && Object.keys(row.metadata).length > 0 && (
+                              <pre className="mt-1 text-[9px] text-muted-foreground whitespace-pre-wrap break-all line-clamp-3">
+                                {JSON.stringify(row.metadata).slice(0, 200)}
+                              </pre>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Portfolio list to edit */}
                 {selectedPortfolios.length > 0 && (
@@ -277,6 +393,29 @@ export function NewPartnersPanel() {
         prefillInvestorId={createForUser?.id}
         prefillInvestorName={createForUser?.full_name}
       />
+
+      <AlertDialog open={revokeOpen} onOpenChange={setRevokeOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Revoke Partner role?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will disable the Partner (supporter) role for{' '}
+              <span className="font-semibold">{selected?.full_name}</span>. Their portfolios remain intact, but they will lose Partner access. This action is logged in the audit trail.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={revokeBusy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); revokePartner(); }}
+              disabled={revokeBusy}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {revokeBusy ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <ShieldOff className="h-3 w-3 mr-1" />}
+              Revoke
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
