@@ -826,3 +826,226 @@ export function TenantOpsLandlordFloatTimeline() {
     </Card>
   );
 }
+
+// ───────────────────── Drill-down dialog ─────────────────────
+interface FloatEventDrillDownProps {
+  event: TimelineEvent | null;
+  allEvents: TimelineEvent[];
+  onClose: () => void;
+}
+function FloatEventDrillDown({ event, allEvents, onClose }: FloatEventDrillDownProps) {
+  // Live fetch agent wallet snapshot + chain so drill-down isn't stale.
+  const enabled = !!event;
+  const { data: chain, isLoading } = useQuery({
+    queryKey: ['tenant-ops-float-drill', event?.id, event?.agent_id],
+    enabled,
+    staleTime: 15_000,
+    queryFn: async () => {
+      if (!event) return null;
+      const [wallet, fundings, allocations, payouts] = await Promise.all([
+        supabase.from('agent_landlord_float' as any)
+          .select('id, balance, total_funded, total_paid_out, region, updated_at')
+          .eq('agent_id', event.agent_id).maybeSingle(),
+        supabase.from('agent_float_funding' as any)
+          .select('id, amount, bank_reference, bank_name, status, created_at, notes')
+          .eq('agent_id', event.agent_id)
+          .order('created_at', { ascending: false }).limit(20),
+        supabase.from('agent_landlord_float_allocations' as any)
+          .select('id, tenant_id, landlord_name, landlord_phone, allocated_amount, paid_out_amount, remaining_amount, status, created_at')
+          .eq('agent_id', event.agent_id)
+          .order('created_at', { ascending: false }).limit(50),
+        supabase.from('agent_float_withdrawals' as any)
+          .select('id, tenant_id, landlord_name, landlord_phone, amount, transaction_id, status, created_at, gps_match, gps_distance_meters, mobile_money_provider, receipt_photo_urls')
+          .eq('agent_id', event.agent_id)
+          .order('created_at', { ascending: false }).limit(50),
+      ]);
+      return {
+        wallet: wallet.data as any,
+        fundings: (fundings.data || []) as any[],
+        allocations: (allocations.data || []) as any[],
+        payouts: (payouts.data || []) as any[],
+      };
+    },
+  });
+
+  if (!event) return null;
+
+  // Related payouts/allocations that match this party combo
+  const related = (() => {
+    const sameAgent = chain?.payouts || [];
+    const matchKey = (r: any) =>
+      (event.tenant_id && r.tenant_id === event.tenant_id) ||
+      (event.landlord_phone && r.landlord_phone === event.landlord_phone) ||
+      (event.landlord_name && r.landlord_name === event.landlord_name);
+    return {
+      payouts: sameAgent.filter(matchKey),
+      allocations: (chain?.allocations || []).filter(matchKey),
+    };
+  })();
+
+  const fmtUgx = (n: number) =>
+    new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', maximumFractionDigits: 0 }).format(n || 0);
+
+  const kindLabel = event.kind === 'funding' ? 'CFO Funding' : event.kind === 'allocation' ? 'Tenant Earmark' : 'Landlord Payout';
+
+  return (
+    <Dialog open={!!event} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <Landmark className="h-4 w-4 text-[#9234EA]" />
+            {kindLabel} · {fmtUgx(event.amount)}
+          </DialogTitle>
+          <DialogDescription className="text-xs">
+            {format(new Date(event.at), 'EEEE dd MMM yyyy · HH:mm')} · {event.source_table}
+          </DialogDescription>
+        </DialogHeader>
+
+        <ScrollArea className="max-h-[70vh] pr-3">
+          <div className="space-y-3">
+            {/* Agent wallet snapshot */}
+            <div className="rounded-lg border bg-card p-3">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2 inline-flex items-center gap-1">
+                <Wallet className="h-3 w-3" /> Agent float wallet — {event.agent_name}
+              </p>
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              ) : chain?.wallet ? (
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">On Card Now</p>
+                    <p className="font-bold text-sm">{fmtUgx(Number(chain.wallet.balance) || 0)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">Lifetime Funded</p>
+                    <p className="font-bold text-sm text-blue-600">{fmtUgx(Number(chain.wallet.total_funded) || 0)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">Lifetime Paid Out</p>
+                    <p className="font-bold text-sm text-emerald-600">{fmtUgx(Number(chain.wallet.total_paid_out) || 0)}</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">No wallet record found.</p>
+              )}
+            </div>
+
+            {/* This event raw fields */}
+            <div className="rounded-lg border bg-card p-3">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2 inline-flex items-center gap-1">
+                <FileText className="h-3 w-3" /> Record fields ({event.source_table})
+              </p>
+              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                {Object.entries(event.raw || {}).map(([k, v]) => (
+                  <div key={k} className="contents">
+                    <dt className="text-muted-foreground font-mono text-[10px] truncate">{k}</dt>
+                    <dd className="font-mono text-[11px] break-all">
+                      {v === null || v === undefined
+                        ? <span className="text-muted-foreground/60 italic">null</span>
+                        : typeof v === 'object'
+                        ? JSON.stringify(v)
+                        : String(v)}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+
+            {/* Allocation chain: outstanding */}
+            {event.kind === 'allocation' && (
+              <div className="rounded-lg border bg-amber-50/50 border-amber-200 p-3">
+                <p className="text-[11px] uppercase tracking-wider text-amber-700 font-semibold mb-2 inline-flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" /> Allocation balance
+                </p>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">Allocated</p>
+                    <p className="font-bold text-sm text-fuchsia-600">{fmtUgx(event.allocated_amount || event.amount)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">Paid Out</p>
+                    <p className="font-bold text-sm text-emerald-600">{fmtUgx(event.paid_out_amount || 0)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">Outstanding</p>
+                    <p className={cn('font-bold text-sm', (event.outstanding || 0) > 0 ? 'text-amber-700' : 'text-muted-foreground')}>
+                      {fmtUgx(event.outstanding || 0)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Related allocations for this party */}
+            {related.allocations.length > 0 && (
+              <div className="rounded-lg border bg-card p-3">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">
+                  Related allocations for this tenant/landlord ({related.allocations.length})
+                </p>
+                <ul className="text-xs space-y-1 max-h-[180px] overflow-y-auto">
+                  {related.allocations.map((a) => (
+                    <li key={a.id} className="flex items-center justify-between gap-2 py-1 border-b last:border-0">
+                      <span className="truncate">
+                        <span className="font-mono text-[10px] text-muted-foreground">{a.id.slice(0, 8)}…</span>
+                        {' · '}
+                        {format(new Date(a.created_at), 'dd MMM HH:mm')}
+                        {' · '}
+                        <Badge variant="outline" className="text-[9px] px-1 py-0 capitalize">{a.status}</Badge>
+                      </span>
+                      <span className="font-mono text-[11px] shrink-0">
+                        {fmtUgx(Number(a.allocated_amount) || 0)}
+                        {Number(a.remaining_amount) > 0 && (
+                          <span className="text-amber-700"> · {fmtUgx(Number(a.remaining_amount))} left</span>
+                        )}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Related payouts for this party */}
+            {related.payouts.length > 0 && (
+              <div className="rounded-lg border bg-card p-3">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">
+                  Related landlord payouts ({related.payouts.length})
+                </p>
+                <ul className="text-xs space-y-1 max-h-[180px] overflow-y-auto">
+                  {related.payouts.map((p) => (
+                    <li key={p.id} className="flex items-center justify-between gap-2 py-1 border-b last:border-0">
+                      <span className="truncate inline-flex items-center gap-1">
+                        {format(new Date(p.created_at), 'dd MMM HH:mm')}
+                        {' · '}
+                        <Badge variant="outline" className="text-[9px] px-1 py-0 capitalize">{p.status}</Badge>
+                        {p.mobile_money_provider && (
+                          <Badge variant="outline" className="text-[9px] px-1 py-0">{p.mobile_money_provider}</Badge>
+                        )}
+                        {p.transaction_id && <span className="font-mono text-[10px] text-muted-foreground">· {p.transaction_id}</span>}
+                        {typeof p.gps_distance_meters === 'number' && (
+                          <span className={cn('inline-flex items-center gap-0.5 text-[10px]', p.gps_match ? 'text-emerald-600' : 'text-amber-600')}>
+                            <MapPin className="h-2.5 w-2.5" />{Math.round(p.gps_distance_meters)}m
+                          </span>
+                        )}
+                      </span>
+                      <span className="font-mono text-[11px] shrink-0">{fmtUgx(Number(p.amount) || 0)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Cross-reference in current view */}
+            <div className="rounded-lg border bg-muted/30 p-3">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">
+                In current timeline view
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                {allEvents.filter((x) => x.agent_id === event.agent_id).length} other rows for this agent loaded in the timeline.
+              </p>
+            </div>
+          </div>
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
+}
