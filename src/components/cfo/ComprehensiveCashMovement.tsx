@@ -1582,7 +1582,7 @@ export function ComprehensiveCashMovement() {
               : totals.net < 0 ? 'bg-destructive/10 border-destructive/40'
               : 'bg-muted/40 border-border';
             return (
-              <div className={cn('rounded-2xl border-2 p-4 sm:p-5 space-y-4', verdictBg)}>
+              <div id="cm-glance" className={cn('scroll-mt-24 rounded-2xl border-2 p-4 sm:p-5 space-y-4', verdictBg)}>
                 <div className="text-center space-y-1">
                   <div className="text-6xl sm:text-7xl leading-none" aria-hidden="true">{verdictEmoji}</div>
                   <div className={cn('text-xs sm:text-sm uppercase tracking-widest font-semibold', verdictColor)}>
@@ -1784,7 +1784,7 @@ export function ComprehensiveCashMovement() {
           )}
         </div>
 
-        <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+        <div id="cm-totals" className="scroll-mt-24 grid grid-cols-3 gap-1.5 sm:gap-2">
           <div className="rounded-lg border border-border bg-success/5 p-2 sm:p-3">
             <div className="flex items-center gap-1 text-[10px] uppercase text-muted-foreground"><ArrowUpRight className="h-3 w-3 text-success" /> Money In</div>
             <div className="font-mono font-semibold text-success text-xs sm:text-base break-all">{formatUGX(totals.cashIn)}</div>
@@ -2142,7 +2142,7 @@ export function ComprehensiveCashMovement() {
 
         {/* Capital Inflows callout — new money into the company. Hidden in Simple view. */}
         {!simpleMode && (
-        <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-2.5 sm:p-3 space-y-2">
+        <div id="cm-inflows" className="scroll-mt-24 rounded-lg border-2 border-primary/30 bg-primary/5 p-2.5 sm:p-3 space-y-2">
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-2">
               <ArrowUpRight className="h-4 w-4 text-primary" />
