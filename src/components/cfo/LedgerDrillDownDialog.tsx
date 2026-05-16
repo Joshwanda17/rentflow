@@ -124,7 +124,7 @@ export function LedgerDrillDownDialog({ open, onOpenChange, title, spec, startDa
 
   const onCsv = () => {
     const headers = ['Date', 'Scope', 'Direction', 'Category', 'Amount', 'User', 'Linked Party', 'Source', 'Description'];
-    const out = rows.map(r => [
+    const out = visibleRows.map(r => [
       format(new Date(r.transaction_date), 'yyyy-MM-dd HH:mm'),
       r.ledger_scope, r.direction, r.category, Number(r.amount || 0),
       r.user_id ?? '', r.linked_party ?? '', `${r.source_table ?? ''}:${r.source_id ?? ''}`, r.description ?? '',
