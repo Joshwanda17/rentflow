@@ -1276,7 +1276,7 @@ export function ComprehensiveCashMovement() {
           <div className="py-12 text-center text-muted-foreground text-sm">
             <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" /> Loading ledger…
           </div>
-        ) : aggregates.length === 0 ? (
+        ) : filteredAggregates.length === 0 ? (
           <div className="py-12 text-center text-muted-foreground text-sm">No money moved in this period.</div>
         ) : (
           <div className="border border-border rounded-lg overflow-x-auto">
