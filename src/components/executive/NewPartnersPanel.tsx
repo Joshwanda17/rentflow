@@ -1013,7 +1013,7 @@ export function NewPartnersPanel() {
                 onClick={() => setPartnerFilter(seg.key)}
                 aria-pressed={partnerFilter === seg.key}
                 className={cn(
-                  "px-2.5 py-1 rounded-md font-medium transition-colors inline-flex items-center gap-1.5",
+                  "px-2.5 py-1 rounded-md font-medium transition-colors inline-flex items-center gap-1.5 whitespace-nowrap shrink-0",
                   partnerFilter === seg.key
                     ? "bg-background text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
@@ -1050,7 +1050,7 @@ export function NewPartnersPanel() {
                 onClick={() => setPartnerFilter(seg.key)}
                 aria-pressed={partnerFilter === seg.key}
                 className={cn(
-                  "px-2.5 py-1 rounded-md font-medium transition-colors inline-flex items-center gap-1.5",
+                  "px-2.5 py-1 rounded-md font-medium transition-colors inline-flex items-center gap-1.5 whitespace-nowrap shrink-0",
                   partnerFilter === seg.key
                     ? "bg-background text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
