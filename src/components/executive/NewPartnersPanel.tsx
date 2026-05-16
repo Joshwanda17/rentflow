@@ -25,6 +25,7 @@ import { UGANDA_BANKS } from '@/lib/ugandaBanks';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
 import { useSearchParams } from 'react-router-dom';
 import { clientLog } from '@/lib/clientLogger';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 // ════════════════════════════════════════════════════════════════
 // Shared validators — keep portfolio payout fields clean & DB-safe
@@ -885,31 +886,51 @@ export function NewPartnersPanel() {
                     </div>
                   </div>
                    {/* Dedicated Portfolio status column — clickable, opens this partner's portfolio details */}
-                   <button
-                     type="button"
-                     className="shrink-0 w-20 border-l border-border/50 pl-2 flex flex-col items-start justify-center text-left rounded hover:bg-muted/40 focus:outline-none focus:ring-1 focus:ring-primary/40 transition-colors"
-                     title={p.portfolio_count > 0
-                       ? `Open ${p.full_name}'s portfolio details (${p.portfolio_count})`
-                       : `Open ${p.full_name}'s portfolio details`}
-                     aria-label={`Open ${p.full_name}'s portfolio details`}
-                     onClick={() => {
-                       handleSelect({ id: p.user_id, full_name: p.full_name, phone: p.phone });
-                       setTimeout(() => {
-                         document
-                           .getElementById('partner-portfolio-details')
-                           ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                       }, 50);
-                     }}
-                   >
-                     <span className="text-[9px] uppercase tracking-wide text-muted-foreground">Portfolio</span>
-                     {p.portfolio_count > 0 ? (
-                       <span className="text-[10px] font-semibold text-emerald-600 underline-offset-2 hover:underline">
-                         Active <span className="text-muted-foreground font-normal">· {p.portfolio_count}</span>
-                       </span>
-                     ) : (
-                       <span className="text-[10px] font-semibold text-amber-600 underline-offset-2 hover:underline">None yet</span>
-                     )}
-                   </button>
+                   <TooltipProvider delayDuration={200}>
+                     <Tooltip>
+                       <TooltipTrigger asChild>
+                         <button
+                           type="button"
+                           className="shrink-0 w-20 border-l border-border/50 pl-2 flex flex-col items-start justify-center text-left rounded hover:bg-muted/40 focus:outline-none focus:ring-1 focus:ring-primary/40 transition-colors"
+                           aria-label={`Open ${p.full_name}'s portfolio details`}
+                           onClick={() => {
+                             handleSelect({ id: p.user_id, full_name: p.full_name, phone: p.phone });
+                             setTimeout(() => {
+                               document
+                                 .getElementById('partner-portfolio-details')
+                                 ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                             }, 50);
+                           }}
+                         >
+                           <span className="text-[9px] uppercase tracking-wide text-muted-foreground">Portfolio</span>
+                           {p.portfolio_count > 0 ? (
+                             <span className="text-[10px] font-semibold text-emerald-600 underline-offset-2 hover:underline">
+                               Active <span className="text-muted-foreground font-normal">· {p.portfolio_count}</span>
+                             </span>
+                           ) : (
+                             <span className="text-[10px] font-semibold text-amber-600 underline-offset-2 hover:underline">None yet</span>
+                           )}
+                         </button>
+                       </TooltipTrigger>
+                       <TooltipContent side="top" align="end" className="max-w-[240px] text-[11px] leading-snug">
+                         {p.portfolio_count > 0 ? (
+                           <div className="space-y-1">
+                             <p className="font-semibold text-emerald-500">With portfolio · {p.portfolio_count} active</p>
+                             <p className="text-muted-foreground">
+                               This partner has {p.portfolio_count} activated investment {p.portfolio_count === 1 ? 'portfolio' : 'portfolios'} earning returns. Click to view or edit them.
+                             </p>
+                           </div>
+                         ) : (
+                           <div className="space-y-1">
+                             <p className="font-semibold text-amber-500">No portfolio yet</p>
+                             <p className="text-muted-foreground">
+                               Partner role is granted, but no investment portfolio has been activated. Click to open and activate one.
+                             </p>
+                           </div>
+                         )}
+                       </TooltipContent>
+                     </Tooltip>
+                   </TooltipProvider>
                   {canWhatsAppPartners && (
                   <Button
                     size="icon"
