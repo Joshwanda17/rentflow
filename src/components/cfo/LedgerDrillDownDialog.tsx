@@ -229,27 +229,38 @@ export function LedgerDrillDownDialog({ open, onOpenChange, title, spec, startDa
                 </Button>
               </div>
             </div>
+            <div className="relative mb-2">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Search categories…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-7 pl-7 text-xs"
+              />
+            </div>
             <div className="flex flex-wrap gap-x-3 gap-y-1.5">
-              {uniqueCategories.map(cat => {
-                const count = rows.filter(r => r.category === cat).length;
-                const checked = selectedCategories.has(cat);
-                return (
-                  <label key={cat} className="inline-flex items-center gap-1.5 cursor-pointer select-none">
-                    <Checkbox
-                      checked={checked}
-                      onCheckedChange={(val) => {
-                        const next = new Set(selectedCategories);
-                        if (val) next.add(cat);
-                        else next.delete(cat);
-                        setSelectedCategories(next);
-                      }}
-                      className="h-3 w-3"
-                    />
-                    <span className="text-[11px] font-mono">{cat}</span>
-                    <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5">{count}</Badge>
-                  </label>
-                );
-              })}
+              {uniqueCategories
+                .filter(cat => cat.toLowerCase().includes(searchQuery.toLowerCase()))
+                .map(cat => {
+                  const count = rows.filter(r => r.category === cat).length;
+                  const checked = selectedCategories.has(cat);
+                  return (
+                    <label key={cat} className="inline-flex items-center gap-1.5 cursor-pointer select-none">
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={(val) => {
+                          const next = new Set(selectedCategories);
+                          if (val) next.add(cat);
+                          else next.delete(cat);
+                          setSelectedCategories(next);
+                        }}
+                        className="h-3 w-3"
+                      />
+                      <span className="text-[11px] font-mono">{cat}</span>
+                      <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5">{count}</Badge>
+                    </label>
+                  );
+                })}
             </div>
           </div>
         )}
