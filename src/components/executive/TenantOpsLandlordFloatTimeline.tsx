@@ -531,7 +531,7 @@ export function TenantOpsLandlordFloatTimeline() {
         borderClass: 'border-l-4 border-l-red-500' };
     }
     if (ageDays >= 7) {
-      return { level: 'high', label: 'Overdue', ageDays, icon: AlertOctagonOrTriangle(),
+      return { level: 'high', label: 'Overdue', ageDays, icon: AlertTriangle,
         badgeClass: 'bg-orange-100 text-orange-800 border-orange-300',
         borderClass: 'border-l-4 border-l-orange-500' };
     }
@@ -544,8 +544,6 @@ export function TenantOpsLandlordFloatTimeline() {
       badgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
       borderClass: 'border-l-2 border-l-amber-300' };
   };
-  // tiny alias to keep the table above readable
-  function AlertOctagonOrTriangle() { return AlertTriangle; }
 
   // ───────────────────── Exports (respect current filters) ─────────────────────
   const exportFilenameBase = () => {
