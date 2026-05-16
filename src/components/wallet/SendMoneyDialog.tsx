@@ -824,8 +824,9 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                         initial={{ opacity: 0, y: -2 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0 }}
-                        role="status"
-                        aria-live="polite"
+                        role="alert"
+                        aria-live="assertive"
+                        aria-atomic="true"
                         className="mt-2 text-xs text-muted-foreground text-right"
                       >
                         {disabledReason}
