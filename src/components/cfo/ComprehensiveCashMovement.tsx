@@ -8,6 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -168,6 +170,21 @@ export function ComprehensiveCashMovement() {
   const [drillPage, setDrillPage] = useState(0);
   const [drillPageSize, setDrillPageSize] = useState<number>(100);
 
+  // ── Capital Inflows callout (platform-scope cash_in for selected categories)
+  const CAPITAL_INFLOW_DEFAULT = ['partner_funding', 'pending_portfolio_topup'];
+  const CAPITAL_INFLOW_STORAGE = 'welile-capital-inflow-categories';
+  const [capitalCategories, setCapitalCategories] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem(CAPITAL_INFLOW_STORAGE);
+      if (raw) return new Set(JSON.parse(raw) as string[]);
+    } catch {}
+    return new Set(CAPITAL_INFLOW_DEFAULT);
+  });
+  const [capitalPickerOpen, setCapitalPickerOpen] = useState(false);
+  useEffect(() => {
+    try { localStorage.setItem(CAPITAL_INFLOW_STORAGE, JSON.stringify(Array.from(capitalCategories))); } catch {}
+  }, [capitalCategories]);
+
   const generate = async () => {
     setLoading(true);
     try {
@@ -299,6 +316,27 @@ export function ComprehensiveCashMovement() {
     const bucketLabels = Array.from(bucketSet).sort();
     return { aggregates, bucketLabels, totals: { cashIn: totIn, cashOut: totOut, net: totIn - totOut } };
   }, [rows, granularity, includeAdjustments, scopeFilter]);
+
+  // ── Capital Inflows: platform-scope cash_in totals per category (from raw rows,
+  // independent of scopeFilter so the callout always reflects true inbound capital).
+  const capitalInflow = useMemo(() => {
+    const perCat = new Map<string, { total: number; count: number }>();
+    for (const r of rows) {
+      if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
+      if (r.ledger_scope !== 'platform' || r.direction !== 'cash_in') continue;
+      const cur = perCat.get(r.category) || { total: 0, count: 0 };
+      cur.total += Number(r.amount) || 0;
+      cur.count += 1;
+      perCat.set(r.category, cur);
+    }
+    const availableCategories = Array.from(perCat.entries())
+      .map(([category, v]) => ({ category, total: v.total, count: v.count }))
+      .sort((a, b) => b.total - a.total);
+    const selected = availableCategories.filter(c => capitalCategories.has(c.category));
+    const total = selected.reduce((s, c) => s + c.total, 0);
+    const entries = selected.reduce((s, c) => s + c.count, 0);
+    return { availableCategories, selected, total, entries };
+  }, [rows, includeAdjustments, capitalCategories]);
 
   const handleExport = () => {
     if (!canViewLedgerDetail) { toast.error('You do not have permission to export ledger data'); return; }
@@ -673,6 +711,88 @@ export function ComprehensiveCashMovement() {
               {totals.net >= 0 ? '+' : ''}{formatUGX(totals.net)}
             </div>
           </div>
+        </div>
+
+        {/* Capital Inflows callout — platform cash_in for selected categories */}
+        <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-3 space-y-2">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-2">
+              <ArrowUpRight className="h-4 w-4 text-primary" />
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Capital Inflows · Platform Cash In</div>
+                <div className="font-mono text-lg font-bold text-primary">{formatUGX(capitalInflow.total)}</div>
+                <div className="text-[10px] text-muted-foreground">
+                  {capitalInflow.selected.length} categor{capitalInflow.selected.length === 1 ? 'y' : 'ies'} ·
+                  {' '}{capitalInflow.entries.toLocaleString()} ledger entries · {rangeLabel}
+                </div>
+              </div>
+            </div>
+            <Collapsible open={capitalPickerOpen} onOpenChange={setCapitalPickerOpen}>
+              <CollapsibleTrigger asChild>
+                <Button size="sm" variant="outline" className="text-xs h-7">
+                  {capitalPickerOpen ? 'Hide' : 'Edit categories'}
+                </Button>
+              </CollapsibleTrigger>
+            </Collapsible>
+          </div>
+
+          {/* Selected category chips with per-category totals */}
+          {capitalInflow.selected.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {capitalInflow.selected.map(c => (
+                <Badge key={c.category} variant="outline" className="bg-background text-[11px] font-normal gap-1">
+                  <span className="font-medium">{prettifyCategory(c.category)}</span>
+                  <span className="font-mono text-primary">{formatUGX(c.total)}</span>
+                </Badge>
+              ))}
+            </div>
+          )}
+
+          <Collapsible open={capitalPickerOpen} onOpenChange={setCapitalPickerOpen}>
+            <CollapsibleContent className="space-y-2 pt-2 border-t border-primary/20">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-muted-foreground">
+                  Pick any platform cash_in category to include in the callout. Selection is saved per browser.
+                </span>
+                <div className="flex gap-1">
+                  <Button size="sm" variant="ghost" className="h-6 text-[11px]"
+                    onClick={() => setCapitalCategories(new Set(capitalInflow.availableCategories.map(c => c.category)))}>
+                    All
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-6 text-[11px]"
+                    onClick={() => setCapitalCategories(new Set())}>None</Button>
+                  <Button size="sm" variant="ghost" className="h-6 text-[11px]"
+                    onClick={() => setCapitalCategories(new Set(CAPITAL_INFLOW_DEFAULT))}>Defaults</Button>
+                </div>
+              </div>
+              {capitalInflow.availableCategories.length === 0 ? (
+                <p className="text-[11px] text-muted-foreground">No platform cash_in categories in this period.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5 max-h-64 overflow-y-auto">
+                  {capitalInflow.availableCategories.map(c => {
+                    const checked = capitalCategories.has(c.category);
+                    return (
+                      <label key={c.category}
+                        className={cn(
+                          'flex items-center gap-2 rounded border px-2 py-1.5 text-[11px] cursor-pointer',
+                          checked ? 'border-primary/40 bg-primary/10' : 'border-border bg-background hover:bg-muted/50',
+                        )}>
+                        <Checkbox checked={checked} onCheckedChange={(v) => {
+                          setCapitalCategories(prev => {
+                            const next = new Set(prev);
+                            if (v) next.add(c.category); else next.delete(c.category);
+                            return next;
+                          });
+                        }} />
+                        <span className="flex-1 truncate">{prettifyCategory(c.category)}</span>
+                        <span className="font-mono text-muted-foreground">{formatUGX(c.total)}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
         </div>
 
         {/* Category table */}
