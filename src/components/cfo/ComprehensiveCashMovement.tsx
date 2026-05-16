@@ -163,7 +163,7 @@ export function ComprehensiveCashMovement() {
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<LedgerRow[]>([]);
   const [generatedAt, setGeneratedAt] = useState<Date | null>(null);
-  const [drill, setDrill] = useState<null | { category: string; scope: string; bucket: string | null; direction?: 'cash_in' | 'cash_out' }>(null);
+  const [drill, setDrill] = useState<null | { category: string; scope: string; bucket: string | null; direction?: 'cash_in' | 'cash_out'; dateFrom?: string; dateTo?: string }>(null);
   const [partyNames, setPartyNames] = useState<Record<string, string>>({});
   const [drillQuery, setDrillQuery] = useState('');
   const [debouncedDrillQuery, setDebouncedDrillQuery] = useState('');
@@ -184,6 +184,20 @@ export function ComprehensiveCashMovement() {
   useEffect(() => {
     try { localStorage.setItem(CAPITAL_INFLOW_STORAGE, JSON.stringify(Array.from(capitalCategories))); } catch {}
   }, [capitalCategories]);
+
+  // Optional sub-range filter scoped to the Capital Inflows callout (and its
+  // drill-downs). Dates are inclusive `yyyy-MM-dd` strings; empty means
+  // "use the full loaded period".
+  const [capitalFrom, setCapitalFrom] = useState<string>('');
+  const [capitalTo, setCapitalTo] = useState<string>('');
+  const capitalRangeActive = !!(capitalFrom || capitalTo);
+  const inCapitalRange = (iso: string) => {
+    if (!capitalRangeActive) return true;
+    const d = iso.slice(0, 10);
+    if (capitalFrom && d < capitalFrom) return false;
+    if (capitalTo && d > capitalTo) return false;
+    return true;
+  };
 
   const generate = async () => {
     setLoading(true);
