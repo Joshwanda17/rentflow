@@ -64,7 +64,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
   const [recipient, setRecipient] = useState<
     | { status: 'idle' }
     | { status: 'searching' }
-    | { status: 'found'; name: string; phone: string; isSelf: boolean }
+    | { status: 'found'; name: string; phone: string; email: string | null; isSelf: boolean }
     | { status: 'not_found' }
   >({ status: 'idle' });
 
@@ -96,6 +96,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
           status: 'found',
           name: data.full_name || data.email || 'Unnamed user',
           phone: data.phone || phone,
+          email: data.email || null,
           isSelf: data.id === user?.id,
         });
       }, 400);
