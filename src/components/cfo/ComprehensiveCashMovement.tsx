@@ -1550,44 +1550,71 @@ export function ComprehensiveCashMovement() {
           </button>
         )}
 
-        {/* Period — horizontal scroll on mobile so it never crams */}
-        <div>
-          <div className="text-[11px] text-muted-foreground mb-1 flex items-center gap-1">
-            <Calendar className="h-3.5 w-3.5" /> Show me
-          </div>
-          <div className="flex gap-1.5 items-center overflow-x-auto pb-1 -mx-1 px-1 snap-x">
-            {PERIODS.map(p => (
-              <Button key={p.value} size="sm" variant={period === p.value ? 'default' : 'outline'} className="text-xs h-8 shrink-0 snap-start" onClick={() => setPeriod(p.value)}>
-                {p.label}
-              </Button>
-            ))}
-          </div>
-        </div>
-
-        {/* Group by + Where + adjustments */}
-        <div className="space-y-3 sm:space-y-2">
+        {/* Secondary filters — stacked card on mobile with clear labels and
+            full-width controls; on sm+ they keep the airy in-flow layout. */}
+        <div className="rounded-xl border border-border bg-muted/20 sm:bg-transparent sm:border-0 sm:rounded-none p-3 sm:p-0 space-y-3 sm:space-y-2">
+          {/* Period */}
           <div>
-            <div className="text-[11px] text-muted-foreground mb-1.5">Group by</div>
-            <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
+            <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 flex items-center gap-1">
+              <Calendar className="h-3.5 w-3.5" /> Show me
+            </label>
+            <div className="grid grid-cols-3 sm:flex sm:gap-1.5 gap-1.5 sm:items-center sm:overflow-x-auto sm:pb-1 sm:-mx-1 sm:px-1 sm:snap-x">
+              {PERIODS.map(p => (
+                <Button
+                  key={p.value}
+                  size="sm"
+                  variant={period === p.value ? 'default' : 'outline'}
+                  className="text-xs h-9 sm:h-8 w-full sm:w-auto sm:shrink-0 sm:snap-start"
+                  onClick={() => setPeriod(p.value)}
+                >
+                  {p.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          {/* Group by */}
+          <div>
+            <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 block">Group by</label>
+            <div className="grid grid-cols-3 sm:flex sm:gap-1.5 gap-1.5 sm:overflow-x-auto sm:pb-1 sm:-mx-1 sm:px-1">
               {GRANULARITIES.map(g => (
-                <Button key={g.value} size="sm" variant={granularity === g.value ? 'default' : 'outline'} className="text-xs h-8 shrink-0" onClick={() => setGranularity(g.value)}>
+                <Button
+                  key={g.value}
+                  size="sm"
+                  variant={granularity === g.value ? 'default' : 'outline'}
+                  className="text-xs h-9 sm:h-8 w-full sm:w-auto sm:shrink-0"
+                  onClick={() => setGranularity(g.value)}
+                >
                   {g.label}
                 </Button>
               ))}
             </div>
           </div>
+
+          {/* Where */}
           <div>
-            <div className="text-[11px] text-muted-foreground mb-1.5">Where</div>
-            <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
+            <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 block">Where</label>
+            <div className="grid grid-cols-2 sm:flex sm:gap-1.5 gap-1.5 sm:overflow-x-auto sm:pb-1 sm:-mx-1 sm:px-1">
               {(['all','platform','wallet','bridge'] as const).map(s => (
-                <Button key={s} size="sm" variant={scopeFilter === s ? 'default' : 'outline'} className="text-xs h-8 shrink-0" onClick={() => setScopeFilter(s)}>
+                <Button
+                  key={s}
+                  size="sm"
+                  variant={scopeFilter === s ? 'default' : 'outline'}
+                  className="text-xs h-9 sm:h-8 w-full sm:w-auto sm:shrink-0"
+                  onClick={() => setScopeFilter(s)}
+                >
                   {s === 'all' ? 'Everywhere' : SCOPE_LABEL[s] || s}
                 </Button>
               ))}
-              <Button size="sm" variant={includeAdjustments ? 'default' : 'outline'} className="text-xs h-8 shrink-0 ml-2" onClick={() => setIncludeAdjustments(v => !v)}>
-                {includeAdjustments ? '✓ Showing fixes' : 'Show fixes'}
-              </Button>
             </div>
+            <Button
+              size="sm"
+              variant={includeAdjustments ? 'default' : 'outline'}
+              className="text-xs h-9 sm:h-8 w-full sm:w-auto mt-2 sm:mt-1.5 sm:ml-0"
+              onClick={() => setIncludeAdjustments(v => !v)}
+            >
+              {includeAdjustments ? '✓ Showing fixes' : 'Show fixes'}
+            </Button>
           </div>
         </div>
 
