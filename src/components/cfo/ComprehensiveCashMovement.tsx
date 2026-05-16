@@ -57,17 +57,43 @@ function HScrollHint({ children, className, ariaLabel }: { children: React.React
     el.scrollBy({ left: dir * Math.max(160, el.clientWidth * 0.6), behavior: 'smooth' });
   };
 
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const el = ref.current; if (!el) return;
+    const step = Math.max(120, el.clientWidth * 0.6);
+    const page = el.clientWidth * 0.9;
+    let handled = true;
+    switch (e.key) {
+      case 'ArrowRight': el.scrollBy({ left: step, behavior: 'smooth' }); break;
+      case 'ArrowLeft':  el.scrollBy({ left: -step, behavior: 'smooth' }); break;
+      case 'PageDown':   el.scrollBy({ left: page, behavior: 'smooth' }); break;
+      case 'PageUp':     el.scrollBy({ left: -page, behavior: 'smooth' }); break;
+      case 'Home':       el.scrollTo({ left: 0, behavior: 'smooth' }); break;
+      case 'End':        el.scrollTo({ left: el.scrollWidth, behavior: 'smooth' }); break;
+      default: handled = false;
+    }
+    if (handled) e.preventDefault();
+  };
+
   return (
     <div className="relative">
       <div
         ref={ref}
-        className={className}
+        className={cn(
+          className,
+          'outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-[inherit]'
+        )}
         role="region"
         aria-label={ariaLabel}
+        aria-describedby="hscroll-kbd-hint"
         tabIndex={0}
+        onKeyDown={onKeyDown}
       >
         {children}
       </div>
+      {/* Screen-reader-only keyboard hint, shared across all scroll regions */}
+      <span id="hscroll-kbd-hint" className="sr-only">
+        Use the left and right arrow keys to scroll columns. Press Home or End to jump to the first or last column.
+      </span>
       {/* Gradient edges — fade in only when more content lies in that direction */}
       <div
         aria-hidden="true"
