@@ -381,6 +381,9 @@ export function ComprehensiveCashMovement() {
     setDrillQuery('');
     setDebouncedDrillQuery('');
     setDrillPage(0);
+    setDrillDatePreset('inherit');
+    setDrillCustomFrom('');
+    setDrillCustomTo('');
   }, [drill?.category, drill?.scope, drill?.bucket]);
   useEffect(() => { setDrillPage(0); }, [debouncedDrillQuery, drillPageSize]);
 
@@ -393,19 +396,21 @@ export function ComprehensiveCashMovement() {
   // Drill-down filtered rows
   const drillRows = useMemo(() => {
     if (!drill) return [] as LedgerRow[];
+    const effFrom = effectiveDrillRange.from ?? drill.dateFrom;
+    const effTo = effectiveDrillRange.to ?? drill.dateTo;
     return rows.filter(r => {
       if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) return false;
       if (r.category !== drill.category || r.ledger_scope !== drill.scope) return false;
       if (drill.direction && r.direction !== drill.direction) return false;
-      if (drill.dateFrom && r.transaction_date.slice(0, 10) < drill.dateFrom) return false;
-      if (drill.dateTo && r.transaction_date.slice(0, 10) > drill.dateTo) return false;
+      if (effFrom && r.transaction_date.slice(0, 10) < effFrom) return false;
+      if (effTo && r.transaction_date.slice(0, 10) > effTo) return false;
       if (drill.bucket) {
         const bk = bucketKey(new Date(r.transaction_date), granularity);
         if (bk !== drill.bucket) return false;
       }
       return true;
     }).sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime());
-  }, [rows, drill, includeAdjustments, granularity]);
+  }, [rows, drill, includeAdjustments, granularity, effectiveDrillRange]);
 
   // Apply search filter (reference id, transaction group, party name, user id, source table, linked party, description)
   const filteredDrillRows = useMemo(() => {
