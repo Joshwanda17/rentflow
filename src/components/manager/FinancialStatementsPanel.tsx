@@ -535,7 +535,7 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
 
 export function FinancialStatementsPanel() {
   const { data, loading, filters, generate, updatePeriod, comparisonMode, updateComparisonMode, comparisonMetrics, loadingComparison } = useFinancialStatements();
-  const [activeTab, setActiveTab] = useState<Tab>('income');
+  const [activeTab, setActiveTab] = useState<Tab>('movement');
   const [sharing, setSharing] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
