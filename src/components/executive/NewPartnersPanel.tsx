@@ -613,7 +613,7 @@ export function NewPartnersPanel() {
   useEffect(() => {
     if (!pendingAutoAdvance) return;
     if (createOpen) return; // wait until previous dialog fully closed
-    if (isLoading || isFetching) return; // wait for fresh list
+    if (isLoading || isFetchingNextPage) return; // wait for fresh list
     const lastId = lastActivatedIdRef.current;
     const next = filteredPartners.find(p => p.portfolio_count === 0 && p.user_id !== lastId);
     setPendingAutoAdvance(false);
@@ -630,7 +630,7 @@ export function NewPartnersPanel() {
       title: 'Next up',
       description: `Activating ${next.full_name}…`,
     });
-  }, [pendingAutoAdvance, createOpen, isLoading, isFetching, filteredPartners]);
+  }, [pendingAutoAdvance, createOpen, isLoading, isFetchingNextPage, filteredPartners]);
 
   // Segment counts for the All / With / Without toggle. Based on `joined`
   // (the full partner list) so the numbers reflect totals available in each
