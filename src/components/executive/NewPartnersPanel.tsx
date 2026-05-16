@@ -416,7 +416,7 @@ export function NewPartnersPanel() {
     const dow = startOfWeek.getDay();
     startOfWeek.setDate(startOfWeek.getDate() - ((dow + 6) % 7));
     const startOfMonth = new Date(startOfToday.getFullYear(), startOfToday.getMonth(), 1);
-    return joined.filter(p => {
+    const filtered = joined.filter(p => {
       if (partnerFilter === 'with' && p.portfolio_count === 0) return false;
       if (partnerFilter === 'without' && p.portfolio_count > 0) return false;
       if (partnerFilter === 'recent' && new Date(p.created_at).getTime() < cutoff) return false;
@@ -440,7 +440,26 @@ export function NewPartnersPanel() {
       }
       return true;
     });
-  }, [joined, partnerSearch, partnerFilter, customRange]);
+    // Apply sort as a final stable pass.
+    const sorted = [...filtered];
+    if (partnerSort === 'portfolio_desc') {
+      sorted.sort((a, b) =>
+        b.portfolio_count - a.portfolio_count
+        || new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+    } else if (partnerSort === 'portfolio_asc') {
+      sorted.sort((a, b) =>
+        a.portfolio_count - b.portfolio_count
+        || new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+    } else if (partnerSort === 'name') {
+      sorted.sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''));
+    } else {
+      // 'recent' — newest first
+      sorted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    }
+    return sorted;
+  }, [joined, partnerSearch, partnerFilter, customRange, partnerSort]);
 
   // ── Realtime: any new supporter role grant pops in instantly ──
   useEffect(() => {
