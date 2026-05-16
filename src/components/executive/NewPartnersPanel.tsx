@@ -682,6 +682,10 @@ interface InlinePortfolioRowProps {
 function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirtyChange, onSavingChange, actingUserId }: InlinePortfolioRowProps) {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
+  // Hard guard against double-submits. State updates are async, so a fast
+  // second click (or an auto-save tick that fires before `saving` flips true)
+  // could re-enter handleSave. This ref is set/cleared synchronously.
+  const savingRef = useRef(false);
   // Auto-save: when ON, dirty edits are persisted automatically after a short
   // debounce so the user can switch portfolios without explicitly clicking Save.
   // Preference is shared across rows via localStorage.
@@ -783,6 +787,7 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
 
   async function handleSave(opts: { collapseAfter?: boolean; silent?: boolean } = {}) {
     const { collapseAfter = true, silent = false } = opts;
+    if (savingRef.current) return; // ignore re-entrant calls
     if (form.account_name.length > 100) {
       if (!silent) toast({ title: 'Portfolio name too long', variant: 'destructive' });
       return;
@@ -804,6 +809,7 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
       return;
     }
 
+    savingRef.current = true;
     setSaving(true);
     onSavingChange?.(true);
     try {
@@ -839,6 +845,7 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
       toast({ title: 'Save failed', description: e?.message || 'Try again', variant: 'destructive' });
     } finally {
       setSaving(false);
+      savingRef.current = false;
       onSavingChange?.(false);
     }
   }
