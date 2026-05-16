@@ -18,6 +18,7 @@ import { Sparkles, UserPlus, Pencil, Loader2, Phone, Clock, ShieldCheck, PlusCir
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { UGANDA_BANKS } from '@/lib/ugandaBanks';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
+import { clientLog } from '@/lib/clientLogger';
 
 // ════════════════════════════════════════════════════════════════
 // Shared validators — keep portfolio payout fields clean & DB-safe
@@ -724,7 +725,19 @@ export function NewPartnersPanel() {
           }
           setActivatingUserId(null);
         }}
-        onError={(message) => {
+        onError={(message, details) => {
+          // Structured client-side log so support can correlate this UI
+          // failure with the exact backend invocation in the edge logs.
+          clientLog.error('partner.activation.failed', {
+            partner_id: createForUser?.id,
+            partner_name: createForUser?.full_name,
+            partner_phone: createForUser?.phone,
+            message,
+            status: details?.status,
+            request_id: details?.requestId,
+            error_code: details?.errorCode,
+            source: 'NewPartnersPanel.CreateInvestmentAccountDialog',
+          });
           // Inline error toast with partner context so the executive knows
           // exactly which activation failed and why.
           const failedUser = createForUser;
