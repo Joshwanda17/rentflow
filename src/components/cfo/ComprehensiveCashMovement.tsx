@@ -301,6 +301,7 @@ export function ComprehensiveCashMovement() {
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<LedgerRow[]>([]);
   const [generatedAt, setGeneratedAt] = useState<Date | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState<boolean>(false);
   const [drill, setDrill] = useState<null | { category: string; scope: string; bucket: string | null; direction?: 'cash_in' | 'cash_out'; dateFrom?: string; dateTo?: string }>(null);
   const [partyNames, setPartyNames] = useState<Record<string, string>>({});
   const [drillQuery, setDrillQuery] = useState('');
@@ -394,6 +395,17 @@ export function ComprehensiveCashMovement() {
   };
 
   useEffect(() => { generate(); /* eslint-disable-next-line */ }, [period]);
+
+  // Auto-refresh every 60s when enabled (skip while a fetch is in flight,
+  // and skip while a drill-down sheet is open to avoid disturbing the user).
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const id = window.setInterval(() => {
+      if (!loading && !drill) generate();
+    }, 60_000);
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoRefresh, loading, drill, period]);
 
   // Reset search + pagination when opening a new drill
   useEffect(() => {
@@ -927,6 +939,16 @@ export function ComprehensiveCashMovement() {
           <Button onClick={generate} disabled={loading} size="sm" className="gap-2">
             {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
             {loading ? 'Loading…' : 'Reload'}
+          </Button>
+          <Button
+            onClick={() => setAutoRefresh(v => !v)}
+            variant={autoRefresh ? 'default' : 'outline'}
+            size="sm"
+            className="gap-2"
+            title={autoRefresh ? 'Auto-refresh every 60s — click to stop' : 'Refresh every 60 seconds'}
+          >
+            <RefreshCw className={cn('h-3.5 w-3.5', autoRefresh && 'animate-spin-slow')} />
+            {autoRefresh ? 'Auto · 1m' : 'Auto-refresh'}
           </Button>
           <Button
             onClick={handleExport}
