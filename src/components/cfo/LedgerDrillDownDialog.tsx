@@ -102,15 +102,15 @@ export function LedgerDrillDownDialog({ open, onOpenChange, title, spec, startDa
   //  - cash_in  → Debit  (asset/expense increase, or contra-revenue)
   //  - cash_out → Credit (revenue/liability increase, or asset decrease)
   // We surface both perspectives: raw direction sums AND per-category breakdown.
-  const debitTotal = rows
+  const debitTotal = visibleRows
     .filter(r => r.direction === 'cash_in')
     .reduce((s, r) => s + Number(r.amount || 0), 0);
-  const creditTotal = rows
+  const creditTotal = visibleRows
     .filter(r => r.direction === 'cash_out')
     .reduce((s, r) => s + Number(r.amount || 0), 0);
   const netTotal = debitTotal - creditTotal;
 
-  const byCategory = rows.reduce<Record<string, { debit: number; credit: number; count: number }>>((acc, r) => {
+  const byCategory = visibleRows.reduce<Record<string, { debit: number; credit: number; count: number }>>((acc, r) => {
     const key = r.category;
     if (!acc[key]) acc[key] = { debit: 0, credit: 0, count: 0 };
     if (r.direction === 'cash_in') acc[key].debit += Number(r.amount || 0);
