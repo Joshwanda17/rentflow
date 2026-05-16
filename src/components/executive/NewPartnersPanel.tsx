@@ -150,6 +150,9 @@ export function NewPartnersPanel() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [createForUser, setCreateForUser] = useState<PickedUser | null>(null);
+  // Confirmation gate before opening the create-portfolio dialog from the
+  // "Just Joined Partners" Activate button. Prevents accidental taps.
+  const [activateConfirm, setActivateConfirm] = useState<{ user: PickedUser; isFirst: boolean } | null>(null);
   const [revokeOpen, setRevokeOpen] = useState(false);
   const [revokeBusy, setRevokeBusy] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
