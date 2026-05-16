@@ -1419,6 +1419,17 @@ export function NewPartnersPanel() {
           {/* Newly joined list */}
           {isLoading ? (
             <div className="space-y-2">
+              {/* Brief status line shown while the first page is loading after
+                  the user expands the panel — keeps them oriented before the
+                  skeleton rows resolve into real data. */}
+              <div
+                className="flex items-center gap-2 text-xs text-muted-foreground"
+                role="status"
+                aria-live="polite"
+              >
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                <span>Loading joined partners…</span>
+              </div>
               {/* Badge-strip skeleton — mirrors the real strip's pill count and
                   spacing so the layout doesn't jump once data arrives. */}
               <div className="flex flex-wrap items-center gap-1" aria-hidden="true">
