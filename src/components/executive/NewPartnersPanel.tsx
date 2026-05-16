@@ -249,6 +249,19 @@ export function NewPartnersPanel() {
   // landed on) without looking at the small <Select> value.
   const [swipeHint, setSwipeHint] = useState<{ key: string; label: string; count: number } | null>(null);
   const swipeHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Collapsible panel ──
+  // The entire Joined Partners surface is collapsed by default. Tapping the
+  // header expands it. We persist the choice so a power-user who keeps it
+  // open isn't forced to re-expand on every navigation.
+  const [panelOpen, setPanelOpen] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('welile.partnerOps.panelOpen') === '1';
+    } catch { return false; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('welile.partnerOps.panelOpen', panelOpen ? '1' : '0'); } catch {}
+  }, [panelOpen]);
   const clearSwipeHintSoon = (ms = 900) => {
     if (swipeHintTimerRef.current) clearTimeout(swipeHintTimerRef.current);
     swipeHintTimerRef.current = setTimeout(() => setSwipeHint(null), ms);
