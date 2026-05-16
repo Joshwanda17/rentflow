@@ -158,6 +158,10 @@ export function NewPartnersPanel() {
   // Track which expanded inline-editor rows have unsaved changes (by portfolio id).
   // Lives in a ref so child updates do not re-render the parent.
   const dirtyRowsRef = useRef<Record<string, boolean>>({});
+  // Track which inline-editor rows are currently mid-save. Blocks collapse/switch
+  // so the user can't accidentally trigger an unsaved-change prompt or navigate
+  // away while the network request is in flight.
+  const savingRowsRef = useRef<Record<string, boolean>>({});
 
   /**
    * Wraps setExpandedId to prompt before discarding unsaved inline edits when
@@ -165,6 +169,10 @@ export function NewPartnersPanel() {
    */
   function requestExpand(nextId: string | null) {
     const currentId = expandedId;
+    if (currentId && savingRowsRef.current[currentId]) {
+      // A save is in flight on the current row — ignore collapse/switch.
+      return;
+    }
     if (currentId && currentId !== nextId && dirtyRowsRef.current[currentId]) {
       const ok = window.confirm('You have unsaved changes on this portfolio. Discard them?');
       if (!ok) return;
@@ -525,6 +533,10 @@ export function NewPartnersPanel() {
                         onDirtyChange={(dirty) => {
                           if (dirty) dirtyRowsRef.current[p.id] = true;
                           else delete dirtyRowsRef.current[p.id];
+                        }}
+                        onSavingChange={(isSaving) => {
+                          if (isSaving) savingRowsRef.current[p.id] = true;
+                          else delete savingRowsRef.current[p.id];
                         }}
                         onSaved={(updated) => {
                           setSelectedPortfolios(list => list.map(x => x.id === updated.id ? { ...x, ...updated } : x));
