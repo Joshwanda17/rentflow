@@ -64,6 +64,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
   const [confirming, setConfirming] = useState(false);
   const [recipient, setRecipient] = useState<
     | { status: 'idle' }
+    | { status: 'invalid'; reason: string }
     | { status: 'searching' }
     | { status: 'found'; name: string; phone: string; email: string | null; isSelf: boolean }
     | { status: 'not_found' }
@@ -73,11 +74,34 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
   useEffect(() => {
     if (mode === 'phone') {
       const digits = phone.replace(/\D/g, '');
-      if (digits.length < 9) {
+      if (digits.length === 0) {
         setRecipient({ status: 'idle' });
         return;
       }
+      // Reject obviously wrong shapes early
+      if (digits.length < 9) {
+        setRecipient({
+          status: 'invalid',
+          reason: `Phone number too short (${digits.length}/9 digits).`,
+        });
+        return;
+      }
+      if (digits.length > 13) {
+        setRecipient({
+          status: 'invalid',
+          reason: 'Phone number is too long. Use a Ugandan format like 0783673998 or +256783673998.',
+        });
+        return;
+      }
       const last9 = digits.slice(-9);
+      // Ugandan mobile numbers always start with 7 (after the leading 0 / 256)
+      if (!/^7\d{8}$/.test(last9)) {
+        setRecipient({
+          status: 'invalid',
+          reason: 'Enter a valid Ugandan mobile number (e.g. 0783673998).',
+        });
+        return;
+      }
       setRecipient({ status: 'searching' });
       let cancelled = false;
       const timer = setTimeout(async () => {
@@ -109,9 +133,20 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
 
     // Email mode
     const trimmed = email.trim().toLowerCase();
-    const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
-    if (!validEmail) {
+    if (trimmed.length === 0) {
       setRecipient({ status: 'idle' });
+      return;
+    }
+    if (trimmed.length > 254) {
+      setRecipient({ status: 'invalid', reason: 'Email is too long.' });
+      return;
+    }
+    const validEmail = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(trimmed);
+    if (!validEmail) {
+      setRecipient({
+        status: 'invalid',
+        reason: 'Enter a valid email like name@example.com.',
+      });
       return;
     }
     setRecipient({ status: 'searching' });
