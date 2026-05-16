@@ -796,6 +796,7 @@ export function NewPartnersPanel() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All partners</SelectItem>
+                <SelectItem value="just_joined">Just joined · no portfolio (last {JUST_JOINED_DAYS}d)</SelectItem>
                 {canWhatsAppPartners && (
                   <>
                     <SelectItem value="today">Joined today</SelectItem>
@@ -817,6 +818,7 @@ export function NewPartnersPanel() {
           <div className="inline-flex rounded-lg border border-border/60 bg-muted/40 p-0.5 text-[11px] self-start">
             {([
               { key: 'all', label: 'All', count: segmentCounts.all },
+              { key: 'just_joined', label: `Just joined (${JUST_JOINED_DAYS}d)`, count: segmentCounts.justJoined },
               { key: 'with', label: 'With portfolios', count: segmentCounts.with },
               { key: 'without', label: 'No portfolio yet', count: segmentCounts.without },
             ] as const).map(seg => (
