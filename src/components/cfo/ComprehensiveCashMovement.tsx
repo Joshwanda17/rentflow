@@ -1832,6 +1832,42 @@ export function ComprehensiveCashMovement() {
 // Minimalist breakdown of money INTO and OUT OF wallets for the
 // currently loaded period. Pure read view — never mutates anything.
 // ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// Read-only ledger client — safety guard
+// ─────────────────────────────────────────────────────────────
+// The bucket-flow panel and its prior-period loader MUST be a pure
+// read view: they may never change wallet balances, call RPCs, or
+// write to ledger / wallet tables. This Proxy wraps the Supabase
+// query builder and throws if any mutating method is invoked. It is
+// the only Supabase entry point used by WalletMovementSummary.
+const WALLET_PANEL_FORBIDDEN_METHODS = new Set([
+  'insert', 'update', 'delete', 'upsert', 'rpc',
+]);
+function readOnlyLedger() {
+  const builder = supabase.from('general_ledger');
+  const guard: ProxyHandler<typeof builder> = {
+    get(target, prop, receiver) {
+      if (typeof prop === 'string' && WALLET_PANEL_FORBIDDEN_METHODS.has(prop)) {
+        throw new Error(
+          `[WalletMovementSummary] forbidden mutation '${prop}' attempted — bucket flow panel must remain read-only`
+        );
+      }
+      const value = Reflect.get(target, prop, receiver);
+      // Re-wrap chainable builder methods so the guard survives the chain.
+      if (typeof value === 'function') {
+        return (...args: unknown[]) => {
+          const out = (value as (...a: unknown[]) => unknown).apply(target, args);
+          return out && typeof out === 'object' && 'then' in (out as object) === false
+            ? new Proxy(out as typeof builder, guard)
+            : out;
+        };
+      }
+      return value;
+    },
+  };
+  return new Proxy(builder, guard);
+}
+
 function WalletMovementSummary({
   rows,
   includeAdjustments,
@@ -1982,8 +2018,7 @@ function WalletMovementSummary({
         // Only wallet-scope rows are needed for this comparison.
         // eslint-disable-next-line no-constant-condition
         while (true) {
-          const { data, error } = await supabase
-            .from('general_ledger')
+          const { data, error } = await readOnlyLedger()
             .select('amount, direction, category, classification')
             .eq('ledger_scope', 'wallet')
             .gte('transaction_date', priorRange.from.toISOString())
