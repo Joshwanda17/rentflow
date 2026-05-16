@@ -1892,6 +1892,48 @@ function WalletMovementSummary({
     };
   }, [rows, includeAdjustments]);
 
+  // ── Wallet-bucket breakdown ─────────────────────────────────
+  // Classifies every wallet-scope ledger row into one of three buckets
+  // (Withdrawable, Operational float, Landlord float) and tallies cash_in
+  // / cash_out separately. Pure read-only aggregation — does not alter
+  // any wallet figures or RPC behavior.
+  const bucketBreakdown = useMemo(() => {
+    type BucketKey = 'withdrawable' | 'operational_float' | 'landlord_float' | 'other';
+    const classify = (cat: string): BucketKey => {
+      const c = (cat || '').toLowerCase();
+      if (c.includes('landlord_float') || c.includes('landlord_payout')) return 'landlord_float';
+      if (
+        c.includes('agent_float') ||
+        c.includes('partner_float') ||
+        c.includes('float_topup') ||
+        c.includes('float_swept') ||
+        c.includes('proxy_float') ||
+        c === 'rent_payment' ||
+        c === 'rent_collection'
+      ) return 'operational_float';
+      // Everything else that hits a wallet leg moves a withdrawable bucket:
+      // deposits routed to user, commissions, ROI credits, withdrawals,
+      // bonuses, payroll, supporter top-ups, etc.
+      return 'withdrawable';
+    };
+    const buckets: Record<BucketKey, { in: number; out: number }> = {
+      withdrawable: { in: 0, out: 0 },
+      operational_float: { in: 0, out: 0 },
+      landlord_float: { in: 0, out: 0 },
+      other: { in: 0, out: 0 },
+    };
+    for (const r of rows) {
+      if (r.ledger_scope !== 'wallet') continue;
+      if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
+      const amt = Number(r.amount) || 0;
+      if (amt <= 0) continue;
+      const b = classify(r.category);
+      if (r.direction === 'cash_in') buckets[b].in += amt;
+      else if (r.direction === 'cash_out') buckets[b].out += amt;
+    }
+    return buckets;
+  }, [rows, includeAdjustments]);
+
   // ── Previous-period comparison ──────────────────────────────
   // Computes a same-length window immediately preceding the current period and
   // pulls only wallet-scope ledger rows (small slice). "All time" has no prior
@@ -2499,6 +2541,77 @@ function WalletMovementSummary({
                   </>
                 );
               })()}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Wallet bucket flow — Withdrawable / Operational float / Landlord float, in & out */}
+      {(() => {
+        const items: { key: string; label: string; sub: string; in: number; out: number; accent: string }[] = [
+          {
+            key: 'withdrawable',
+            label: 'Withdrawable balances',
+            sub: 'User-spendable wallet (deposits, commissions, ROI, withdrawals)',
+            in: bucketBreakdown.withdrawable.in,
+            out: bucketBreakdown.withdrawable.out,
+            accent: 'text-primary',
+          },
+          {
+            key: 'operational_float',
+            label: 'Operational float',
+            sub: 'Agent / partner float (rent collected, allocations, sweeps)',
+            in: bucketBreakdown.operational_float.in,
+            out: bucketBreakdown.operational_float.out,
+            accent: 'text-amber-600',
+          },
+          {
+            key: 'landlord_float',
+            label: 'Landlord float',
+            sub: 'Landlord payout float (CFO deposits, landlord payouts)',
+            in: bucketBreakdown.landlord_float.in,
+            out: bucketBreakdown.landlord_float.out,
+            accent: 'text-sky-600',
+          },
+        ];
+        const anyActivity = items.some(i => i.in > 0 || i.out > 0);
+        if (!anyActivity) return null;
+        return (
+          <div className="rounded-lg border border-border bg-muted/30 p-3">
+            <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-2">
+              Wallet bucket flow · {periodLabel}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {items.map(it => {
+                const net = it.in - it.out;
+                return (
+                  <div key={it.key} className="rounded-md border border-border bg-background p-2.5 space-y-1.5">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <div className={cn('text-[11px] font-semibold truncate', it.accent)}>{it.label}</div>
+                      <div
+                        className={cn(
+                          'font-mono text-[10px] shrink-0',
+                          net > 0 ? 'text-success' : net < 0 ? 'text-destructive' : 'text-muted-foreground',
+                        )}
+                        title="Net = In − Out"
+                      >
+                        {net > 0 ? '+' : ''}{formatUGX(net)}
+                      </div>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground leading-snug line-clamp-2">{it.sub}</div>
+                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/60">
+                      <div className="flex items-center gap-1 text-[10px] text-success">
+                        <ArrowDownLeft className="h-3 w-3" />
+                        <span className="font-mono">{formatUGX(it.in)}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-[10px] text-destructive">
+                        <ArrowUpRight className="h-3 w-3" />
+                        <span className="font-mono">{formatUGX(it.out)}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         );
