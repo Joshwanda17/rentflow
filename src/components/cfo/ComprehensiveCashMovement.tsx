@@ -312,6 +312,9 @@ export function ComprehensiveCashMovement() {
   const [scopeFilter, setScopeFilter] = useState<'all' | 'platform' | 'wallet' | 'bridge'>('all');
   const [directionQuickFilter, setDirectionQuickFilter] = useState<'all' | 'cash_in' | 'cash_out' | 'net_positive' | 'net_negative'>('all');
   const [categoryQuickFilter, setCategoryQuickFilter] = useState<string | null>(null);
+  // Controls how many categories the Top Categories widget surfaces.
+  // Pure UI state — does not change aggregation or table filters.
+  const [topCategoriesLimit, setTopCategoriesLimit] = useState<5 | 10>(5);
   // Page-level party filter — narrows totals and aggregates to a single
   // counterparty (resolved by user_id). `null` = everyone. Surfaced via the
   // big thumb-friendly Party button at the top of the page.
@@ -590,10 +593,10 @@ export function ComprehensiveCashMovement() {
     const all = Array.from(map.values()).map(c => ({ ...c, total: c.cashIn + c.cashOut, net: c.cashIn - c.cashOut }));
     const grandTotal = all.reduce((s, c) => s + c.total, 0) || 1;
     return {
-      top: all.sort((a, b) => b.total - a.total).slice(0, 5).map(c => ({ ...c, share: c.total / grandTotal })),
+      top: all.sort((a, b) => b.total - a.total).slice(0, topCategoriesLimit).map(c => ({ ...c, share: c.total / grandTotal })),
       categoryCount: all.length,
     };
-  }, [aggregates]);
+  }, [aggregates, topCategoriesLimit]);
 
   // Top parties for the thumb-friendly Party picker. Aggregates the loaded
   // ledger rows by `user_id` (ignoring rows without one), totalling cash flow
