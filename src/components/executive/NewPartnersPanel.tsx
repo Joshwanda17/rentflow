@@ -1941,6 +1941,7 @@ export function NewPartnersPanel() {
                 )}
               </div>
             )}
+              )}
               </div>
             </div>
           </div>
