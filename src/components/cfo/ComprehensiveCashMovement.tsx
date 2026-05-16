@@ -1082,6 +1082,68 @@ export function ComprehensiveCashMovement() {
           </div>
         </div>
 
+        {/* "What this number means" — plain-language help that explains the
+            three headline numbers without accounting jargon. Collapsible so it
+            doesn't push real data down the page on small screens. */}
+        <Collapsible defaultOpen={simpleMode}>
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              className="w-full flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/30 hover:bg-muted/60 px-3 py-2 text-left transition-colors"
+              aria-label="What do these numbers mean?"
+            >
+              <span className="flex items-center gap-1.5 text-[11px] sm:text-xs font-semibold text-foreground">
+                <Info className="h-3.5 w-3.5 text-primary" />
+                What do these numbers mean?
+              </span>
+              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0 transition-transform data-[state=open]:rotate-180" />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div className="rounded-md border border-success/30 bg-success/5 p-2.5 space-y-1">
+                <div className="flex items-center gap-1 text-[11px] font-semibold text-success">
+                  <ArrowUpRight className="h-3 w-3" /> Money In
+                </div>
+                <p className="text-[11px] leading-snug text-foreground/90">
+                  Cash that <span className="font-semibold">came into</span> Welile during this period — like deposits from users, rent collected by agents, and money landlords or partners sent us.
+                </p>
+                <p className="text-[10px] text-muted-foreground italic">
+                  Think of it as: <span className="font-semibold">"What we received."</span>
+                </p>
+              </div>
+              <div className="rounded-md border border-destructive/30 bg-destructive/5 p-2.5 space-y-1">
+                <div className="flex items-center gap-1 text-[11px] font-semibold text-destructive">
+                  <ArrowDownRight className="h-3 w-3" /> Money Out
+                </div>
+                <p className="text-[11px] leading-snug text-foreground/90">
+                  Cash that <span className="font-semibold">left</span> Welile during this period — like withdrawals to users, payouts to landlords, partner commissions, and supplier payments.
+                </p>
+                <p className="text-[10px] text-muted-foreground italic">
+                  Think of it as: <span className="font-semibold">"What we paid out."</span>
+                </p>
+              </div>
+              <div className={cn(
+                'rounded-md border p-2.5 space-y-1',
+                totals.net >= 0 ? 'border-success/30 bg-success/5' : 'border-destructive/30 bg-destructive/5'
+              )}>
+                <div className={cn('flex items-center gap-1 text-[11px] font-semibold', totals.net >= 0 ? 'text-success' : 'text-destructive')}>
+                  = Difference
+                </div>
+                <p className="text-[11px] leading-snug text-foreground/90">
+                  Money In <span className="font-mono">−</span> Money Out. A <span className="text-success font-semibold">+ plus</span> means Welile gained money. A <span className="text-destructive font-semibold">− minus</span> means we paid out more than we received.
+                </p>
+                <p className="text-[10px] text-muted-foreground italic">
+                  Think of it as: <span className="font-semibold">"Did we end up richer or lighter?"</span>
+                </p>
+              </div>
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-2 px-0.5">
+              All amounts are in <span className="font-semibold">UGX</span> and only count the period selected above ({PERIODS.find(p => p.value === period)?.label || period}). Transfers between Welile's own wallets cancel out and don't inflate these numbers.
+            </p>
+          </CollapsibleContent>
+        </Collapsible>
+
         {/* Quick filter chips — power-user shortcuts, hidden in Simple view. */}
         {!simpleMode && (
         <div className="space-y-1.5">
