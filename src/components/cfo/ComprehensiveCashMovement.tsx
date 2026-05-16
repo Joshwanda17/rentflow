@@ -2860,7 +2860,7 @@ export function ComprehensiveCashMovement() {
             tabIndex={0}
           >
             <Table className="min-w-[640px]">
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-background shadow-[0_1px_0_0_hsl(var(--border))]">
                 <TableRow>
                   <TableHead className="w-[40%] min-w-[180px]">What kind of money</TableHead>
                   <TableHead className="min-w-[110px]">Where</TableHead>
@@ -3219,7 +3219,7 @@ export function ComprehensiveCashMovement() {
                       tabIndex={0}
                     >
                       <Table className="min-w-[720px]">
-                      <TableHeader>
+                      <TableHeader className="sticky top-0 z-10 bg-background shadow-[0_1px_0_0_hsl(var(--border))]">
                         <TableRow>
                           <TableHead className="text-xs min-w-[120px]">Date</TableHead>
                           <TableHead className="text-xs min-w-[200px]">Reference</TableHead>
