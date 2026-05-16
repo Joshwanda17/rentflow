@@ -816,13 +816,13 @@ export function NewPartnersPanel() {
             </div>
           </div>
         )}
-        <CardContent className="p-4 space-y-4">
+        <CardContent className="p-3 sm:p-4 space-y-3 sm:space-y-4">
           {/* Header */}
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-primary/15">
+          <div className="flex items-start gap-2">
+            <div className="p-1.5 rounded-lg bg-primary/15 shrink-0">
               <Sparkles className="h-4 w-4 text-primary" />
             </div>
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
                 <h3 className="text-sm font-bold">Joined Partners</h3>
                 {/* Total partner count badge — shows how many supporters exist
@@ -890,13 +890,15 @@ export function NewPartnersPanel() {
             </div>
             <Button
               size="sm"
-              className="h-8 text-xs gap-1.5 shrink-0"
+              className="h-8 text-xs gap-1.5 shrink-0 px-2 sm:px-3"
               onClick={() => {
                 setCreateForUser(null);
                 setCreateOpen(true);
               }}
             >
-              <PlusCircle className="h-3.5 w-3.5" /> Create Portfolio
+              <PlusCircle className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Create Portfolio</span>
+              <span className="sm:hidden">New</span>
             </Button>
           </div>
 
