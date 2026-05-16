@@ -16,6 +16,115 @@ import { Sparkles, UserPlus, Pencil, Loader2, Phone, Clock, ShieldCheck, PlusCir
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { UGANDA_BANKS } from '@/lib/ugandaBanks';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
+
+// ════════════════════════════════════════════════════════════════
+// Shared validators — keep portfolio payout fields clean & DB-safe
+// ════════════════════════════════════════════════════════════════
+/**
+ * Normalize a Ugandan mobile number to canonical local form: 0XXXXXXXXX (10 digits, starts 07).
+ * Accepts: 0770…, 256770…, +256770…, 770… (with optional spaces / dashes).
+ * Returns null if invalid.
+ */
+function normalizeUgPhone(raw: string): string | null {
+  const digits = (raw || '').replace(/\D/g, '');
+  if (!digits) return null;
+  let local = digits;
+  if (local.startsWith('256')) local = '0' + local.slice(3);
+  else if (local.length === 9 && local.startsWith('7')) local = '0' + local;
+  if (!/^0[7]\d{8}$/.test(local)) return null;
+  return local;
+}
+
+function networkMatchesPrefix(network: string, phone: string): boolean {
+  // MTN: 077, 078, 076, 039  · Airtel: 070, 074, 075, 020
+  const p3 = phone.slice(0, 3);
+  const n = network.toLowerCase();
+  if (n === 'mtn') return ['077', '078', '076', '039'].includes(p3);
+  if (n === 'airtel') return ['070', '074', '075', '020'].includes(p3);
+  return true; // unknown network → don't block
+}
+
+interface PortfolioFieldsInput {
+  payment_method: string;
+  payout_day?: string | number | null;
+  mobile_money_number?: string | null;
+  mobile_network?: string | null;
+  bank_name?: string | null;
+  bank_account_name?: string | null;
+  account_number?: string | null;
+}
+
+interface PortfolioFieldsResult {
+  payout_day: number | null;
+  mobile_money_number: string | null;
+  mobile_network: string | null;
+  bank_name: string | null;
+  bank_account_name: string | null;
+  account_number: string | null;
+}
+
+/**
+ * Validates + normalizes the fields commonly touched by the inline forms.
+ * Throws Error with a user-friendly message on the first failure.
+ */
+function validatePortfolioPayoutFields(f: PortfolioFieldsInput): PortfolioFieldsResult {
+  // ── Payout day (required when a payment method is chosen) ──
+  let payout_day: number | null = null;
+  if (f.payout_day !== null && f.payout_day !== undefined && f.payout_day !== '') {
+    const n = typeof f.payout_day === 'number' ? f.payout_day : parseInt(String(f.payout_day), 10);
+    if (!Number.isInteger(n) || n < 1 || n > 28) {
+      throw new Error('Payout day must be a whole number between 1 and 28.');
+    }
+    payout_day = n;
+  }
+  if (f.payment_method && f.payment_method !== 'wallet' && payout_day === null) {
+    throw new Error('Payout day is required for mobile money and bank payouts.');
+  }
+
+  // ── Mobile Money ──
+  let mobile_money_number: string | null = null;
+  let mobile_network: string | null = null;
+  if (f.payment_method === 'mobile_money') {
+    const normalized = normalizeUgPhone(f.mobile_money_number || '');
+    if (!normalized) {
+      throw new Error('Mobile number must be a valid Ugandan number (e.g. 0770000000).');
+    }
+    const network = (f.mobile_network || '').trim();
+    if (!network) throw new Error('Mobile network is required for mobile money payouts.');
+    if (!['MTN', 'Airtel', 'mtn', 'airtel'].includes(network)) {
+      throw new Error('Mobile network must be MTN or Airtel.');
+    }
+    if (!networkMatchesPrefix(network, normalized)) {
+      throw new Error(`${normalized} does not match the selected ${network} network. Check the number prefix.`);
+    }
+    mobile_money_number = normalized;
+    mobile_network = network;
+  }
+
+  // ── Bank ──
+  let bank_name: string | null = null;
+  let bank_account_name: string | null = null;
+  let account_number: string | null = null;
+  if (f.payment_method === 'bank') {
+    const bn = (f.bank_name || '').trim();
+    if (bn.length < 2 || bn.length > 80) {
+      throw new Error('Bank name must be 2–80 characters.');
+    }
+    const an = (f.bank_account_name || '').trim();
+    if (an.length < 2 || an.length > 100 || !/^[A-Za-z][A-Za-z .'\-]*$/.test(an)) {
+      throw new Error('Bank account name must be 2–100 letters (spaces, hyphens, apostrophes allowed).');
+    }
+    const accDigits = (f.account_number || '').replace(/[\s-]/g, '');
+    if (!/^\d{6,20}$/.test(accDigits)) {
+      throw new Error('Bank account number must be 6–20 digits.');
+    }
+    bank_name = bn;
+    bank_account_name = an;
+    account_number = accDigits;
+  }
+
+  return { payout_day, mobile_money_number, mobile_network, bank_name, bank_account_name, account_number };
+}
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -489,14 +598,24 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, actingU
   const set = (k: string, v: string) => setForm(prev => ({ ...prev, [k]: v }));
 
   async function handleSave() {
-    // Light client-side validation
-    const payoutDayNum = form.payout_day ? parseInt(form.payout_day) : null;
-    if (payoutDayNum !== null && (Number.isNaN(payoutDayNum) || payoutDayNum < 1 || payoutDayNum > 28)) {
-      toast({ title: 'Payout day must be 1–28', variant: 'destructive' });
-      return;
-    }
     if (form.account_name.length > 100) {
       toast({ title: 'Portfolio name too long', variant: 'destructive' });
+      return;
+    }
+
+    let validated;
+    try {
+      validated = validatePortfolioPayoutFields({
+        payment_method: form.payment_method,
+        payout_day: form.payout_day,
+        mobile_money_number: form.mobile_money_number,
+        mobile_network: form.mobile_network,
+        bank_name: form.bank_name,
+        bank_account_name: form.bank_account_name,
+        account_number: form.account_number,
+      });
+    } catch (e: any) {
+      toast({ title: 'Check the form', description: e?.message || 'Invalid value', variant: 'destructive' });
       return;
     }
 
@@ -504,13 +623,13 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, actingU
     try {
       const patch: Record<string, any> = {
         account_name: form.account_name.trim() || null,
-        payout_day: payoutDayNum,
+        payout_day: validated.payout_day,
         payment_method: form.payment_method,
-        mobile_money_number: form.payment_method === 'mobile_money' ? (form.mobile_money_number.trim() || null) : null,
-        mobile_network: form.payment_method === 'mobile_money' ? (form.mobile_network.trim() || null) : null,
-        bank_name: form.payment_method === 'bank' ? (form.bank_name.trim() || null) : null,
-        bank_account_name: form.payment_method === 'bank' ? (form.bank_account_name.trim() || null) : null,
-        account_number: form.payment_method === 'bank' ? (form.account_number.trim() || null) : null,
+        mobile_money_number: validated.mobile_money_number,
+        mobile_network: validated.mobile_network,
+        bank_name: validated.bank_name,
+        bank_account_name: validated.bank_account_name,
+        account_number: validated.account_number,
       };
       const { error } = await supabase.from('investor_portfolios').update(patch).eq('id', p.id);
       if (error) throw error;
@@ -716,6 +835,24 @@ function InlineCreatePortfolioForm({ partner, actingUserId, onCreated, onCancel 
       return;
     }
 
+    // Validate + normalize payout/mobile/bank fields before sending to the
+    // edge function (which writes to investor_portfolios).
+    let validated;
+    try {
+      validated = validatePortfolioPayoutFields({
+        payment_method: form.payment_method,
+        payout_day: form.payout_day,
+        mobile_money_number: form.mobile_money_number,
+        mobile_network: form.mobile_network,
+        bank_name: form.bank_name,
+        bank_account_name: form.bank_account_name,
+        account_number: form.account_number,
+      });
+    } catch (e: any) {
+      toast({ title: 'Check the form', description: e?.message || 'Invalid value', variant: 'destructive' });
+      return;
+    }
+
     setSaving(true);
     try {
       const response = await supabase.functions.invoke('create-investor-portfolio', {
@@ -726,14 +863,14 @@ function InlineCreatePortfolioForm({ partner, actingUserId, onCreated, onCancel 
           roi_percentage: parseFloat(form.roi_percentage),
           roi_mode: form.roi_mode,
           portfolio_pin: form.portfolio_pin,
-          payout_day: parseInt(form.payout_day),
+          payout_day: validated.payout_day ?? parseInt(form.payout_day),
           contribution_date: form.contribution_date || null,
           payment_method: form.payment_method || null,
-          mobile_network: form.mobile_network || null,
-          mobile_money_number: form.mobile_money_number || null,
-          bank_name: form.bank_name || null,
-          account_name: form.bank_account_name || form.account_name || null,
-          account_number: form.account_number || null,
+          mobile_network: validated.mobile_network,
+          mobile_money_number: validated.mobile_money_number,
+          bank_name: validated.bank_name,
+          account_name: validated.bank_account_name || form.account_name || null,
+          account_number: validated.account_number,
         },
       });
       if (response.error || response.data?.error) {
