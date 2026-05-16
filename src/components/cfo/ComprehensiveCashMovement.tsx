@@ -30,10 +30,46 @@ const LEDGER_DETAIL_ROLES = new Set(['cfo', 'ceo', 'coo', 'super_admin', 'cto', 
 // Tab/Shift+Tab cycles between headers; focusing one scrolls it into the
 // visible column viewport without jumping the page vertically.
 const FOCUSABLE_COL_HEAD_CLASS = 'outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background focus-visible:rounded-sm';
+
+// Find the nearest horizontally-scrollable ancestor (overflow-x auto/scroll).
+function findHScrollParent(el: HTMLElement | null): HTMLElement | null {
+  let node: HTMLElement | null = el?.parentElement ?? null;
+  while (node) {
+    const style = window.getComputedStyle(node);
+    const ox = style.overflowX;
+    if ((ox === 'auto' || ox === 'scroll') && node.scrollWidth > node.clientWidth) return node;
+    node = node.parentElement;
+  }
+  return null;
+}
+
+// Align the focused column header into the visible viewport of its scroll
+// container with a small left/right gutter so adjacent columns stay hinted.
+// Avoids the browser's default vertical jump that `scrollIntoView` causes.
 const focusableColHeadProps = {
   tabIndex: 0,
   onFocus: (e: React.FocusEvent<HTMLTableCellElement>) => {
-    try { e.currentTarget.scrollIntoView({ inline: 'nearest', block: 'nearest' }); } catch { /* noop */ }
+    const th = e.currentTarget;
+    const scroller = findHScrollParent(th);
+    if (!scroller) return;
+    const GUTTER = 24;
+    const thRect = th.getBoundingClientRect();
+    const scRect = scroller.getBoundingClientRect();
+    const relLeft = thRect.left - scRect.left + scroller.scrollLeft;
+    const relRight = relLeft + th.offsetWidth;
+    const viewLeft = scroller.scrollLeft;
+    const viewRight = viewLeft + scroller.clientWidth;
+    let target = viewLeft;
+    if (relLeft < viewLeft + GUTTER) {
+      // Off the left edge — align column to start
+      target = Math.max(0, relLeft - GUTTER);
+    } else if (relRight > viewRight - GUTTER) {
+      // Off the right edge — align column to end
+      target = relRight - scroller.clientWidth + GUTTER;
+    } else {
+      return; // already comfortably in view
+    }
+    scroller.scrollTo({ left: target, behavior: 'smooth' });
   },
 };
 
