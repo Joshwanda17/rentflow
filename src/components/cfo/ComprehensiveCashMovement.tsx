@@ -979,6 +979,75 @@ export function ComprehensiveCashMovement() {
           </div>
         </div>
 
+        {/* ─── Thumb-friendly filter bar ──────────────────────────
+            Three large tap targets (≥56px tall) for the filters non-tech
+            users reach for most: Date, Direction, and Party. Each opens a
+            full-width bottom sheet on phones so options are easy to scan
+            and tap with a thumb. Existing chip rows below remain for
+            power users and are unchanged. */}
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            {
+              key: 'date' as const,
+              icon: <Calendar className="h-5 w-5" />,
+              label: 'Date',
+              value: PERIODS.find(p => p.value === period)?.label || period,
+              active: true,
+              onClick: () => setDateSheetOpen(true),
+            },
+            {
+              key: 'dir' as const,
+              icon: <ArrowLeftRight className="h-5 w-5" />,
+              label: 'Direction',
+              value: directionLabel,
+              active: directionQuickFilter !== 'all',
+              onClick: () => setDirectionSheetOpen(true),
+            },
+            {
+              key: 'party' as const,
+              icon: <Users className="h-5 w-5" />,
+              label: 'Party',
+              value: partyLabel,
+              active: !!partyQuickFilter,
+              onClick: () => setPartySheetOpen(true),
+            },
+          ].map(btn => (
+            <button
+              key={btn.key}
+              type="button"
+              onClick={btn.onClick}
+              className={cn(
+                'min-h-[64px] rounded-xl border-2 px-2.5 py-2 text-left flex flex-col gap-0.5 transition-colors',
+                'active:scale-[0.98] touch-manipulation',
+                btn.active
+                  ? 'border-primary bg-primary/10 hover:bg-primary/15'
+                  : 'border-border bg-card hover:bg-muted/60',
+              )}
+              aria-label={`${btn.label}: ${btn.value}. Tap to change.`}
+            >
+              <span className={cn(
+                'flex items-center gap-1.5 text-[10px] uppercase tracking-wide font-semibold',
+                btn.active ? 'text-primary' : 'text-muted-foreground',
+              )}>
+                {btn.icon}
+                {btn.label}
+              </span>
+              <span className="text-[12px] sm:text-sm font-semibold leading-tight truncate">
+                {btn.value}
+              </span>
+            </button>
+          ))}
+        </div>
+        {(directionQuickFilter !== 'all' || partyQuickFilter) && (
+          <button
+            type="button"
+            onClick={() => { setDirectionQuickFilter('all'); setPartyQuickFilter(null); }}
+            className="-mt-2 text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+          >
+            <X className="h-3 w-3" /> Clear filters
+          </button>
+        )}
+
         {/* Period — horizontal scroll on mobile so it never crams */}
         <div>
           <div className="text-[11px] text-muted-foreground mb-1 flex items-center gap-1">
