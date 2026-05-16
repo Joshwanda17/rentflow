@@ -699,7 +699,7 @@ export function NewPartnersPanel() {
               <SelectItem value="name">Name (A–Z)</SelectItem>
             </SelectContent>
           </Select>
-          {(partnerFilter !== 'all' || partnerSearch.trim() !== '' || customRange?.from || customRange?.to) && (
+          {(partnerFilter !== 'all' || partnerSearch.trim() !== '' || customRange?.from || customRange?.to || partnerSort !== 'recent') && (
             <Button
               variant="ghost"
               size="sm"
@@ -707,6 +707,7 @@ export function NewPartnersPanel() {
                 setPartnerFilter('all');
                 setPartnerSearch('');
                 setCustomRange(undefined);
+                setPartnerSort('recent');
               }}
               className="self-start h-8 px-2 text-[11px] text-muted-foreground hover:text-foreground"
             >
