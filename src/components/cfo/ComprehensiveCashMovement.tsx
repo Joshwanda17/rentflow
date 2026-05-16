@@ -295,6 +295,20 @@ export function ComprehensiveCashMovement() {
   const [period, setPeriod] = useState<PeriodKey>('24h');
   const [granularity, setGranularity] = useState<Granularity>('daily');
   const [includeAdjustments, setIncludeAdjustments] = useState(false);
+  // Plain-English / "Simple" mode — hides accounting jargon, big tables,
+  // and matrix views so a non-tech reader sees just the friendly summary.
+  // Persisted; defaults to ON for phone-sized screens.
+  const [simpleMode, setSimpleMode] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    const saved = window.localStorage.getItem('welile.cashMovement.simpleMode');
+    if (saved === '1') return true;
+    if (saved === '0') return false;
+    return window.matchMedia?.('(max-width: 640px)').matches ?? true;
+  });
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem('welile.cashMovement.simpleMode', simpleMode ? '1' : '0');
+  }, [simpleMode]);
   const [scopeFilter, setScopeFilter] = useState<'all' | 'platform' | 'wallet' | 'bridge'>('all');
   const [directionQuickFilter, setDirectionQuickFilter] = useState<'all' | 'cash_in' | 'cash_out' | 'net_positive' | 'net_negative'>('all');
   const [categoryQuickFilter, setCategoryQuickFilter] = useState<string | null>(null);
