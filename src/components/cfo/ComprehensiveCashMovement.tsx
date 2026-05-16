@@ -125,6 +125,105 @@ function prettifyCategory(c: string): string {
   return c.replace(/_/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase());
 }
 
+// ─────────────────────────────────────────────────────────────
+// Wallet-impact map — explains which wallet buckets move (or don't)
+// when a Capital Inflows category posts. The Comprehensive view shows
+// the PLATFORM cash_in leg only; the wallet effect is the *paired*
+// movement on the related user/operational wallet (if any).
+// ─────────────────────────────────────────────────────────────
+type WalletImpact = {
+  moves: { bucket: 'withdrawable_balance' | 'float_balance' | 'advance_balance' | 'portfolio_principal'; party: string; direction: '↑' | '↓'; note?: string }[];
+  unchanged: ('withdrawable_balance' | 'float_balance' | 'advance_balance')[];
+  summary: string;
+};
+const WALLET_IMPACT: Record<string, WalletImpact> = {
+  partner_funding: {
+    summary: 'Partner sweeps proxy-agent float into platform capital. No user withdrawable bucket moves.',
+    moves: [
+      { bucket: 'float_balance', party: 'Proxy agent', direction: '↓', note: 'Source of the swept capital' },
+    ],
+    unchanged: ['withdrawable_balance', 'advance_balance'],
+  },
+  pending_portfolio_topup: {
+    summary: 'Supporter top-up parked on platform until CFO/COO clicks "Apply Top-up". No wallet bucket moves yet.',
+    moves: [
+      { bucket: 'portfolio_principal', party: 'Supporter (on merge)', direction: '↑', note: 'Only after Apply Top-up; ROI accrues from merge date' },
+    ],
+    unchanged: ['withdrawable_balance', 'float_balance', 'advance_balance'],
+  },
+  partner_commission: {
+    summary: '2% instant commission to partner on a proxy-agent deposit. Credited as withdrawable cash.',
+    moves: [
+      { bucket: 'withdrawable_balance', party: 'Partner', direction: '↑' },
+    ],
+    unchanged: ['float_balance', 'advance_balance'],
+  },
+  deposit: {
+    summary: 'User cash/MoMo deposit. Routes by recipient_type (Wallet Routing v2).',
+    moves: [
+      { bucket: 'withdrawable_balance', party: 'User (recipient_type=user)', direction: '↑' },
+      { bucket: 'float_balance', party: 'Operational wallet (recipient_type=operational_wallet)', direction: '↑' },
+    ],
+    unchanged: ['advance_balance'],
+  },
+  rent_payment: {
+    summary: 'Tenant rent collected by an agent. Platform recognizes revenue; agent commission posts separately.',
+    moves: [
+      { bucket: 'float_balance', party: 'Collecting agent', direction: '↑', note: 'Company money; not withdrawable' },
+      { bucket: 'withdrawable_balance', party: 'Agent (10% commission, separate txn)', direction: '↑' },
+    ],
+    unchanged: ['advance_balance'],
+  },
+  roi_payout: {
+    summary: 'Returns paid to supporter — credited as withdrawable cash on the supporter wallet.',
+    moves: [
+      { bucket: 'withdrawable_balance', party: 'Supporter', direction: '↑' },
+    ],
+    unchanged: ['float_balance', 'advance_balance'],
+  },
+};
+const DEFAULT_WALLET_IMPACT: WalletImpact = {
+  summary: 'Platform-scope cash_in leg. Wallet bucket impact depends on the paired transaction (recipient_type per Wallet Routing v2). No automatic withdrawable credit from this category alone.',
+  moves: [],
+  unchanged: ['withdrawable_balance', 'float_balance', 'advance_balance'],
+};
+function getWalletImpact(category: string): WalletImpact {
+  return WALLET_IMPACT[category] || DEFAULT_WALLET_IMPACT;
+}
+function WalletImpactTooltipContent({ category }: { category: string }) {
+  const impact = getWalletImpact(category);
+  return (
+    <div className="max-w-[300px] space-y-2 text-[11px]">
+      <div className="font-semibold text-foreground">{prettifyCategory(category)} · Wallet Impact</div>
+      <div className="text-muted-foreground leading-snug">{impact.summary}</div>
+      {impact.moves.length > 0 && (
+        <div className="space-y-1">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Buckets that move</div>
+          {impact.moves.map((m, i) => (
+            <div key={i} className="flex items-start gap-1.5">
+              <span className={cn('font-mono font-semibold', m.direction === '↑' ? 'text-emerald-500' : 'text-rose-500')}>{m.direction}</span>
+              <div className="flex-1">
+                <div><span className="font-mono">{m.bucket}</span> <span className="text-muted-foreground">— {m.party}</span></div>
+                {m.note && <div className="text-[10px] text-muted-foreground italic">{m.note}</div>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {impact.unchanged.length > 0 && (
+        <div className="space-y-1 pt-1 border-t border-border">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Unchanged</div>
+          <div className="flex flex-wrap gap-1">
+            {impact.unchanged.map(b => (
+              <span key={b} className="font-mono text-[10px] rounded bg-muted px-1 py-0.5 text-muted-foreground">{b}</span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Highlight occurrences of `query` inside `text` (case-insensitive). Used to
 // surface drill-down search matches in the ledger table cells.
 function escapeRegex(s: string) {
