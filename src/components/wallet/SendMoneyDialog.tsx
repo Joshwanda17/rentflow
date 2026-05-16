@@ -287,6 +287,58 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                     className="bg-background/50 border-border/50 focus:border-primary/50 transition-all"
                     required
                   />
+                  <AnimatePresence mode="wait">
+                    {recipient.status === 'searching' && (
+                      <motion.p
+                        key="searching"
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        className="text-xs text-muted-foreground flex items-center gap-1.5"
+                      >
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Looking up recipient…
+                      </motion.p>
+                    )}
+                    {recipient.status === 'found' && !recipient.isSelf && (
+                      <motion.div
+                        key="found"
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        className="flex items-center gap-2 rounded-md border border-success/30 bg-success/10 px-2.5 py-1.5"
+                      >
+                        <UserCheck className="h-3.5 w-3.5 text-success shrink-0" />
+                        <p className="text-xs text-foreground">
+                          Sending to <span className="font-semibold">{recipient.name}</span>
+                        </p>
+                      </motion.div>
+                    )}
+                    {recipient.status === 'found' && recipient.isSelf && (
+                      <motion.p
+                        key="self"
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        className="text-xs text-destructive flex items-center gap-1.5"
+                      >
+                        <UserX className="h-3 w-3" />
+                        That's your own number.
+                      </motion.p>
+                    )}
+                    {recipient.status === 'not_found' && (
+                      <motion.p
+                        key="notfound"
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5"
+                      >
+                        <UserX className="h-3 w-3" />
+                        No Welile user found for this number.
+                      </motion.p>
+                    )}
+                  </AnimatePresence>
                 </motion.div>
 
                 <motion.div variants={itemVariants} className="space-y-2">
