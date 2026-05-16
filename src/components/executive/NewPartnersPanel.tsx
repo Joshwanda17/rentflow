@@ -501,9 +501,17 @@ export function NewPartnersPanel() {
               <h3 className="text-sm font-bold">Joined Partners</h3>
               <p className="text-[10px] text-muted-foreground">Browse all partners, filter, activate portfolios & WhatsApp</p>
             </div>
-            {joined && joined.length > 0 && (
-              <Badge className="bg-primary/15 text-primary border-0 text-xs font-bold">{joined.length}</Badge>
-            )}
+            {joined && joined.length > 0 && (() => {
+              const withCount = joined.filter(p => p.portfolio_count > 0).length;
+              const withoutCount = joined.length - withCount;
+              return (
+                <div className="flex items-center gap-1">
+                  <Badge className="bg-primary/15 text-primary border-0 text-[10px] font-bold" title="Total partners">{joined.length}</Badge>
+                  <Badge className="bg-emerald-500/15 text-emerald-600 border-0 text-[10px] font-bold" title="With portfolios">{withCount} active</Badge>
+                  <Badge className="bg-amber-500/15 text-amber-600 border-0 text-[10px] font-bold" title="No portfolio yet">{withoutCount} pending</Badge>
+                </div>
+              );
+            })()}
             <Button
               size="sm"
               className="h-8 text-xs gap-1.5 shrink-0"
