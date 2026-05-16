@@ -344,6 +344,7 @@ export function ComprehensiveCashMovement() {
     for (const r of rows) {
       if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
       if (r.ledger_scope !== 'platform' || r.direction !== 'cash_in') continue;
+      if (!inCapitalRange(r.transaction_date)) continue;
       const amt = Number(r.amount) || 0;
       const bk = bucketKey(new Date(r.transaction_date), granularity);
       bucketSet.add(bk);
@@ -366,7 +367,7 @@ export function ComprehensiveCashMovement() {
     }
     const peakBucket = bucketLabels.reduce((max, b) => bucketTotals[b] > (bucketTotals[max] || 0) ? b : max, bucketLabels[0] || '');
     return { availableCategories, selected, total, entries, bucketLabels, bucketTotals, peakBucket };
-  }, [rows, includeAdjustments, capitalCategories, granularity]);
+  }, [rows, includeAdjustments, capitalCategories, granularity, capitalFrom, capitalTo]);
 
   const handleExport = () => {
     if (!canViewLedgerDetail) { toast.error('You do not have permission to export ledger data'); return; }
