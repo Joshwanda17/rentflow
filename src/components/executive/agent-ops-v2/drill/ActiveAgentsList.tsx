@@ -13,8 +13,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Activity, AlertCircle, FileText } from 'lucide-react';
-import { formatDistanceToNow, subHours, subDays } from 'date-fns';
+import { Download, FileDown } from 'lucide-react';
+import { formatDistanceToNow, subHours, subDays, format } from 'date-fns';
 import type { DateRange } from '../AgentOpsHomeView';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const PAGE_SIZE = 25;
 const FETCH_CAP = 1000;
@@ -149,8 +152,106 @@ export function ActiveAgentsList({ range }: { range: DateRange }) {
 
   const filtersActive = statusFilter !== ALL || categoryFilter !== ALL;
 
+  const rangeLabel = range === '24h' ? 'Last 24 hours' : range === '7d' ? 'Last 7 days' : 'Last 30 days';
+  const exportStamp = format(new Date(), 'yyyyMMdd-HHmm');
+  const filterSuffix = `${statusFilter !== ALL ? `_status-${statusFilter}` : ''}${categoryFilter !== ALL ? `_cat-${categoryFilter}` : ''}`;
+
+  const handleExportCsv = () => {
+    const header = ['Rank', 'Agent name', 'Phone', 'Agent ID', 'Tenant requests', 'Last request (UTC)'];
+    const escape = (v: string | number | null | undefined) => {
+      const s = v == null ? '' : String(v);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const lines = [
+      `# Active Agents — ${rangeLabel}`,
+      `# Status: ${statusFilter === ALL ? 'All' : statusFilter} · Category: ${categoryFilter === ALL ? 'All' : categoryFilter}`,
+      `# Active agents: ${aggregatedRows.length} · Total tenant requests: ${filtered.totalRequests}`,
+      header.join(','),
+      ...aggregatedRows.map((r, i) =>
+        [
+          i + 1,
+          r.full_name ?? '',
+          r.phone ?? '',
+          r.agent_id,
+          r.requestCount,
+          r.lastRequestAt,
+        ].map(escape).join(','),
+      ),
+    ];
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `active-agents_${range}${filterSuffix}_${exportStamp}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportPdf = () => {
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+    doc.setFontSize(14);
+    doc.text('Active Agents', 40, 40);
+    doc.setFontSize(10);
+    doc.text(rangeLabel, 40, 58);
+    doc.text(
+      `Status: ${statusFilter === ALL ? 'All' : statusFilter}  ·  Category: ${categoryFilter === ALL ? 'All' : categoryFilter}`,
+      40,
+      72,
+    );
+    doc.text(
+      `Active agents: ${aggregatedRows.length.toLocaleString()}  ·  Tenant requests: ${filtered.totalRequests.toLocaleString()}`,
+      40,
+      86,
+    );
+    autoTable(doc, {
+      startY: 100,
+      head: [['#', 'Agent', 'Phone', 'Agent ID', 'Requests', 'Last request']],
+      body: aggregatedRows.map((r, i) => [
+        i + 1,
+        r.full_name ?? 'Unnamed agent',
+        r.phone ?? '—',
+        r.agent_id,
+        r.requestCount,
+        format(new Date(r.lastRequestAt), 'yyyy-MM-dd HH:mm'),
+      ]),
+      styles: { fontSize: 8, cellPadding: 4 },
+      headStyles: { fillColor: [245, 158, 11] },
+      columnStyles: {
+        0: { cellWidth: 30 },
+        4: { halign: 'right', cellWidth: 60 },
+      },
+    });
+    doc.save(`active-agents_${range}${filterSuffix}_${exportStamp}.pdf`);
+  };
+
+  const exportButtons = (
+    <div className="flex items-center gap-1.5">
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-8 px-2 text-xs gap-1.5"
+        onClick={handleExportCsv}
+        disabled={aggregatedRows.length === 0}
+      >
+        <Download className="h-3.5 w-3.5" />
+        CSV
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-8 px-2 text-xs gap-1.5"
+        onClick={handleExportPdf}
+        disabled={aggregatedRows.length === 0}
+      >
+        <FileDown className="h-3.5 w-3.5" />
+        PDF
+      </Button>
+    </div>
+  );
+
   const filterBar = (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center gap-2">
       <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setVisible(PAGE_SIZE); }}>
         <SelectTrigger className="h-8 w-[140px] text-xs">
           <SelectValue placeholder="Status" />
@@ -183,6 +284,8 @@ export function ActiveAgentsList({ range }: { range: DateRange }) {
           Clear
         </Button>
       )}
+      </div>
+      {exportButtons}
     </div>
   );
 
