@@ -1141,8 +1141,24 @@ export function ComprehensiveCashMovement() {
     y += 12;
     ctx.fillStyle = 'rgba(255,255,255,0.7)';
     ctx.font = '400 20px system-ui, -apple-system, sans-serif';
-    ctx.fillText(`Period: ${PERIODS.find(p => p.value === period)?.label || period}`, cardX + 40, y + 24);
-    y += 70;
+    const periodLbl = PERIODS.find(p => p.value === period)?.label || period;
+    ctx.fillText(`Period: ${periodLbl}  ·  ${rangeLabel}`, cardX + 40, y + 24);
+    y += 50;
+    // Applied filters line — Direction + Party so the export matches
+    // exactly what the on-screen totals are filtered by.
+    const dirLbl =
+      directionQuickFilter === 'cash_in' ? 'Money In only' :
+      directionQuickFilter === 'cash_out' ? 'Money Out only' :
+      directionQuickFilter === 'net_positive' ? 'Net positive' :
+      directionQuickFilter === 'net_negative' ? 'Net negative' :
+      'All directions';
+    const partyLbl = partyQuickFilter
+      ? (partyNames[partyQuickFilter] || `${partyQuickFilter.slice(0, 8)}…`)
+      : 'Anyone';
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.font = '500 17px system-ui, -apple-system, sans-serif';
+    ctx.fillText(`Filters · Direction: ${dirLbl}  ·  Party: ${partyLbl}`, cardX + 40, y + 24);
+    y += 60;
 
     // Three big tiles
     const tileGap = 18;
@@ -1223,7 +1239,7 @@ export function ComprehensiveCashMovement() {
     const stamp = `Generated ${format(new Date(), 'dd MMM yyyy · HH:mm')} · All amounts in UGX`;
     ctx.fillText(stamp, cardX + 40, cardY + cardH - 30);
     return cvs;
-  }, [period, rangeLabel, totals, anomalyAlerts]);
+  }, [period, rangeLabel, totals, anomalyAlerts, directionQuickFilter, partyQuickFilter, partyNames]);
 
   const summaryFilename = (ext: string) =>
     `welile-cash-summary-${period}-${format(new Date(), 'yyyy-MM-dd-HHmm')}.${ext}`;
