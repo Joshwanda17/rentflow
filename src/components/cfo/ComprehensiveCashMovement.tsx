@@ -26,6 +26,17 @@ import { Lock } from 'lucide-react';
 // Roles allowed to drill into individual ledger entries and export raw movement data
 const LEDGER_DETAIL_ROLES = new Set(['cfo', 'ceo', 'coo', 'super_admin', 'cto', 'manager']);
 
+// Shared props that make a sticky column header keyboard-focusable.
+// Tab/Shift+Tab cycles between headers; focusing one scrolls it into the
+// visible column viewport without jumping the page vertically.
+const FOCUSABLE_COL_HEAD_CLASS = 'outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background focus-visible:rounded-sm';
+const focusableColHeadProps = {
+  tabIndex: 0,
+  onFocus: (e: React.FocusEvent<HTMLTableCellElement>) => {
+    try { e.currentTarget.scrollIntoView({ inline: 'nearest', block: 'nearest' }); } catch { /* noop */ }
+  },
+};
+
 // ─────────────────────────────────────────────────────────────
 // HScrollHint — wraps a horizontally scrollable region with subtle
 // gradient edges and mobile tap-to-scroll chevron buttons that fade
