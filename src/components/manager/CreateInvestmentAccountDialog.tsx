@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -441,31 +442,51 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
           >
             Cancel
           </Button>
-          <Button
-            onClick={handleCreate}
-            className="w-full sm:w-auto whitespace-normal text-center leading-tight min-h-[2.75rem] h-auto py-2"
-            disabled={
-              saving ||
-              !selectedUser ||
-              !form.investment_amount ||
-              !/^\d{4}$/.test(form.portfolio_pin) ||
-              !isApproved ||
-              balanceLoading ||
-              partnerBalance === null ||
-              parseFloat(form.investment_amount) > partnerBalance
-            }
-          >
-            {saving && <Loader2 className="h-4 w-4 animate-spin mr-1.5 shrink-0" />}
-            {!selectedUser || isApproved ? (
-              'Create Portfolio'
-            ) : (
-              <>
+          {selectedUser && !approvalLoading && !isApproved ? (
+            // When the selected partner isn't yet approved, swap the
+            // disabled gate for an actionable link that deep-jumps to
+            // their row in Partner Onboarding so the operator can
+            // verify them in one click. The dialog stays mounted; on
+            // returning, the approval-status query auto-revalidates
+            // (see useEffect above) and this button flips back to
+            // "Create Portfolio".
+            <Button
+              asChild
+              variant="outline"
+              className="w-full sm:w-auto whitespace-normal text-center leading-tight min-h-[2.75rem] h-auto py-2 border-amber-400 text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-950/40"
+            >
+              <Link to={`/partner-onboarding?focus=${selectedUser.id}`}>
                 <Lock className="h-3.5 w-3.5 mr-1.5 shrink-0" />
-                <span className="sm:hidden">Not Approved</span>
-                <span className="hidden sm:inline">Partner Not Approved</span>
-              </>
-            )}
-          </Button>
+                <span className="sm:hidden">Verify partner</span>
+                <span className="hidden sm:inline">Verify in Partner Onboarding</span>
+              </Link>
+            </Button>
+          ) : (
+            <Button
+              onClick={handleCreate}
+              className="w-full sm:w-auto whitespace-normal text-center leading-tight min-h-[2.75rem] h-auto py-2"
+              disabled={
+                saving ||
+                !selectedUser ||
+                !form.investment_amount ||
+                !/^\d{4}$/.test(form.portfolio_pin) ||
+                !isApproved ||
+                balanceLoading ||
+                partnerBalance === null ||
+                parseFloat(form.investment_amount) > partnerBalance
+              }
+            >
+              {saving && <Loader2 className="h-4 w-4 animate-spin mr-1.5 shrink-0" />}
+              {approvalLoading && selectedUser ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5 shrink-0" />
+                  Checking approval…
+                </>
+              ) : (
+                'Create Portfolio'
+              )}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
