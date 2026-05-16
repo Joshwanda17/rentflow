@@ -99,6 +99,15 @@ export function AgentTenantCollectDialog({
     }
   }, [open]);
 
+  // While the tenant-collection dialog is open, suppress iOS PWA full
+  // cache invalidation and SW skipWaiting. Otherwise switching to MoMo /
+  // Messages for the agent OTP looks like the app refreshed mid-flow.
+  useEffect(() => {
+    if (!open) return;
+    setCriticalFlowActive('agent-tenant-collect', true);
+    return () => setCriticalFlowActive('agent-tenant-collect', false);
+  }, [open]);
+
   const maxAllowable = Math.max(0, Math.min(outstandingBalance, floatBalance));
   const canAllocate = floatBalance >= 100 && outstandingBalance >= 100;
   const isValid = amount >= 100 && amount <= maxAllowable;
