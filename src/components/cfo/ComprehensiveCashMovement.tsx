@@ -1853,11 +1853,14 @@ function WalletMovementSummary({
 
   // Net-flow KPI drill-down — opens a sheet listing every wallet-scope
   // cash_in / cash_out transaction that makes up Into − Out for the period.
-  const [netDrill, setNetDrill] = useState<null | { direction: 'all' | 'cash_in' | 'cash_out' }>(null);
+  const [netDrill, setNetDrill] = useState<null | { direction: 'all' | 'cash_in' | 'cash_out'; from?: number; to?: number; label?: string }>(null);
   const [netDrillQuery, setNetDrillQuery] = useState('');
   const [netDrillPage, setNetDrillPage] = useState(0);
   const NET_DRILL_PAGE_SIZE = 100;
-  useEffect(() => { setNetDrillPage(0); setNetDrillQuery(''); }, [netDrill?.direction]);
+  useEffect(() => {
+    setNetDrillPage(0);
+    setNetDrillQuery('');
+  }, [netDrill?.direction, netDrill?.from, netDrill?.to]);
 
   const summary = useMemo(() => {
     const inMap = new Map<string, number>();
@@ -2168,7 +2171,13 @@ function WalletMovementSummary({
       }
       slope = den === 0 ? 0 : num / den;
     }
-    return { nets, labels, slope };
+    // Bucket ranges (ms) so clicks on sparkline points can open the
+    // drill-down sheet scoped to that specific bucket window.
+    const ranges = starts.map((s, i) => ({
+      from: s.getTime(),
+      to: (starts[i + 1] ? starts[i + 1].getTime() : endTs + 1),
+    }));
+    return { nets, labels, slope, ranges };
   }, [rows, includeAdjustments, period, trendGroup]);
 
   // ── Exports ─────────────────────────────────────────────────
@@ -2347,7 +2356,7 @@ function WalletMovementSummary({
 
       {/* Net-flow sparkline — momentum across the selected period */}
       {(() => {
-        const { nets, labels, slope } = netTrend;
+        const { nets, labels, slope, ranges } = netTrend;
         const hasData = nets.some(v => v !== 0);
         if (!hasData) return null;
         const W = 600;
@@ -2409,15 +2418,32 @@ function WalletMovementSummary({
               <polygon points={areaPoints} fill="url(#netSparkGrad)" />
               {/* Line */}
               <polyline points={points} fill="none" stroke="hsl(var(--primary))" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
-              {/* Per-bucket dots with hover tooltips */}
-              {nets.map((v, i) => (
-                <g key={i}>
-                  <circle cx={xFor(i)} cy={yFor(v)} r={1.6} fill={v >= 0 ? 'hsl(var(--success))' : 'hsl(var(--destructive))'} />
-                  <title>{`${labels[i]}\nNet: ${(v >= 0 ? '+' : '−')}${formatUGX(Math.abs(v))}`}</title>
-                </g>
-              ))}
+              {/* Per-bucket clickable hit areas — opens the drill-down filtered to this bucket */}
+              {nets.map((v, i) => {
+                const r = ranges[i];
+                const openBucket = () => setNetDrill({ direction: 'all', from: r.from, to: r.to, label: labels[i] });
+                return (
+                  <g key={i} style={{ cursor: 'pointer' }} onClick={openBucket}>
+                    {/* Wide invisible hit area for easy tapping */}
+                    <rect
+                      x={Math.max(0, xFor(i) - xStep / 2)}
+                      y={0}
+                      width={Math.max(6, xStep)}
+                      height={H}
+                      fill="transparent"
+                    />
+                    <circle
+                      cx={xFor(i)}
+                      cy={yFor(v)}
+                      r={1.8}
+                      fill={v >= 0 ? 'hsl(var(--success))' : 'hsl(var(--destructive))'}
+                    />
+                    <title>{`${labels[i]}\nNet: ${(v >= 0 ? '+' : '−')}${formatUGX(Math.abs(v))}\nClick to view transactions`}</title>
+                  </g>
+                );
+              })}
               {/* Highlight last point */}
-              <circle cx={xFor(nets.length - 1)} cy={yFor(last)} r={2.6} fill={lastColor} stroke="hsl(var(--background))" strokeWidth="1" />
+              <circle cx={xFor(nets.length - 1)} cy={yFor(last)} r={2.6} fill={lastColor} stroke="hsl(var(--background))" strokeWidth="1" pointerEvents="none" />
             </svg>
             <div className="flex items-center justify-between text-[10px] text-muted-foreground mt-1 font-mono">
               <span>{labels[0]?.split(' – ')[0]}</span>
@@ -2553,9 +2579,15 @@ function WalletMovementSummary({
           {netDrill && (() => {
             const allWalletTxs: LedgerRow[] = [];
             for (const list of txByKey.values()) allWalletTxs.push(...list);
-            const dirFiltered = allWalletTxs.filter(r =>
-              netDrill.direction === 'all' ? true : r.direction === netDrill.direction
-            );
+            const dirFiltered = allWalletTxs.filter(r => {
+              if (netDrill.direction !== 'all' && r.direction !== netDrill.direction) return false;
+              if (netDrill.from !== undefined || netDrill.to !== undefined) {
+                const t = new Date(r.transaction_date).getTime();
+                if (netDrill.from !== undefined && t < netDrill.from) return false;
+                if (netDrill.to !== undefined && t >= netDrill.to) return false;
+              }
+              return true;
+            });
             const q = netDrillQuery.trim().toLowerCase();
             const searched = q
               ? dirFiltered.filter(r =>
@@ -2580,10 +2612,24 @@ function WalletMovementSummary({
                   <SheetTitle className="flex items-center gap-2">
                     Net flow transactions
                     <Badge variant="outline" className="text-[10px]">{periodLabel}</Badge>
+                    {netDrill.label && (
+                      <Badge variant="secondary" className="text-[10px]">{netDrill.label}</Badge>
+                    )}
                   </SheetTitle>
                   <SheetDescription>
-                    Every wallet-scope cash-in and cash-out that makes up Into − Out for this period.
+                    {netDrill.label
+                      ? `Wallet cash-in and cash-out within ${netDrill.label} that compose this bucket's net.`
+                      : 'Every wallet-scope cash-in and cash-out that makes up Into − Out for this period.'}
                   </SheetDescription>
+                  {netDrill.label && (
+                    <button
+                      type="button"
+                      onClick={() => setNetDrill({ direction: netDrill.direction })}
+                      className="self-start mt-1 text-[10px] underline text-muted-foreground hover:text-foreground"
+                    >
+                      Clear bucket filter · show full period
+                    </button>
+                  )}
                 </SheetHeader>
 
                 {/* Direction tabs */}
@@ -2596,7 +2642,7 @@ function WalletMovementSummary({
                     <button
                       key={opt.v}
                       type="button"
-                      onClick={() => setNetDrill({ direction: opt.v })}
+                      onClick={() => setNetDrill({ ...netDrill, direction: opt.v })}
                       className={cn(
                         'text-[11px] px-2.5 py-1 rounded-full border transition-colors',
                         netDrill.direction === opt.v
