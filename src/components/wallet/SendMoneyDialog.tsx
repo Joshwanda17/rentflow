@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Dialog,
@@ -14,11 +14,13 @@ import { PhoneInput } from '@/components/ui/phone-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useWallet } from '@/hooks/useWallet';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { useFirstTransactionCelebration } from '@/hooks/useFirstTransactionCelebration';
 import { useConfetti } from '@/components/Confetti';
 import { toast } from 'sonner';
 import { 
-  Loader2, Send, Phone, Coins, FileText, CheckCircle, Sparkles,
+  Loader2, Send, Phone, Coins, FileText, CheckCircle, Sparkles, UserCheck, UserX,
   UtensilsCrossed, ShoppingCart, Fuel, Car, Hotel, Stethoscope, 
   Wrench, Coffee, Zap, Droplets, Scissors, BookOpen, Baby, Shirt, PawPrint, Bike
 } from 'lucide-react';
@@ -48,6 +50,7 @@ const itemVariants = {
 
 export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
   const { sendMoney, wallet } = useWallet();
+  const { user } = useAuth();
   const { triggerCelebration, markCelebrated } = useFirstTransactionCelebration();
   const { fireSuccess } = useConfetti();
   const [phone, setPhone] = useState('');
@@ -56,6 +59,48 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [isFirstTx, setIsFirstTx] = useState(false);
+  const [recipient, setRecipient] = useState<
+    | { status: 'idle' }
+    | { status: 'searching' }
+    | { status: 'found'; name: string; phone: string; isSelf: boolean }
+    | { status: 'not_found' }
+  >({ status: 'idle' });
+
+  // Debounced recipient lookup by phone (last 9 digits, multi-format)
+  useEffect(() => {
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length < 9) {
+      setRecipient({ status: 'idle' });
+      return;
+    }
+    const last9 = digits.slice(-9);
+    setRecipient({ status: 'searching' });
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      const variants = [`0${last9}`, `256${last9}`, `+256${last9}`, last9];
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone, email')
+        .in('phone', variants)
+        .limit(1)
+        .maybeSingle();
+      if (cancelled) return;
+      if (error || !data) {
+        setRecipient({ status: 'not_found' });
+        return;
+      }
+      setRecipient({
+        status: 'found',
+        name: data.full_name || data.email || 'Unnamed user',
+        phone: data.phone || phone,
+        isSelf: data.id === user?.id,
+      });
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [phone, user?.id]);
 
   const categories = [
     { icon: UtensilsCrossed, label: 'Food', keywords: ['food', 'eat', 'lunch', 'dinner', 'breakfast', 'meal', 'chakula'] },
@@ -99,6 +144,15 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
       return;
     }
 
+    if (recipient.status === 'not_found') {
+      toast.error('No Welile user found for this phone number');
+      return;
+    }
+    if (recipient.status === 'found' && recipient.isSelf) {
+      toast.error('You cannot send money to yourself');
+      return;
+    }
+
     setLoading(true);
     const { error } = await sendMoney(phone, amountNum, description);
     setLoading(false);
@@ -132,6 +186,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
       setDescription('');
       setSuccess(false);
       setIsFirstTx(false);
+      setRecipient({ status: 'idle' });
       onOpenChange(false);
     }, isFirstTx ? 3000 : 1500);
   };
@@ -143,6 +198,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
       setDescription('');
       setSuccess(false);
       setIsFirstTx(false);
+      setRecipient({ status: 'idle' });
     }
     onOpenChange(value);
   };
@@ -233,6 +289,58 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                     className="bg-background/50 border-border/50 focus:border-primary/50 transition-all"
                     required
                   />
+                  <AnimatePresence mode="wait">
+                    {recipient.status === 'searching' && (
+                      <motion.p
+                        key="searching"
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        className="text-xs text-muted-foreground flex items-center gap-1.5"
+                      >
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Looking up recipient…
+                      </motion.p>
+                    )}
+                    {recipient.status === 'found' && !recipient.isSelf && (
+                      <motion.div
+                        key="found"
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        className="flex items-center gap-2 rounded-md border border-success/30 bg-success/10 px-2.5 py-1.5"
+                      >
+                        <UserCheck className="h-3.5 w-3.5 text-success shrink-0" />
+                        <p className="text-xs text-foreground">
+                          Sending to <span className="font-semibold">{recipient.name}</span>
+                        </p>
+                      </motion.div>
+                    )}
+                    {recipient.status === 'found' && recipient.isSelf && (
+                      <motion.p
+                        key="self"
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        className="text-xs text-destructive flex items-center gap-1.5"
+                      >
+                        <UserX className="h-3 w-3" />
+                        That's your own number.
+                      </motion.p>
+                    )}
+                    {recipient.status === 'not_found' && (
+                      <motion.p
+                        key="notfound"
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5"
+                      >
+                        <UserX className="h-3 w-3" />
+                        No Welile user found for this number.
+                      </motion.p>
+                    )}
+                  </AnimatePresence>
                 </motion.div>
 
                 <motion.div variants={itemVariants} className="space-y-2">
