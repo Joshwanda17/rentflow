@@ -8,10 +8,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
-import { EditInvestmentAccountDialog } from '@/components/manager/EditInvestmentAccountDialog';
 import { CreateInvestmentAccountDialog } from '@/components/manager/CreateInvestmentAccountDialog';
-import { Sparkles, UserPlus, Pencil, Loader2, Phone, Clock, ShieldCheck, PlusCircle } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Sparkles, UserPlus, Pencil, Loader2, Phone, Clock, ShieldCheck, PlusCircle, Save, X, ChevronDown } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface JoinedPartner {
   user_id: string;
@@ -31,7 +34,7 @@ export function NewPartnersPanel() {
   const [selectedIsPartner, setSelectedIsPartner] = useState<boolean | null>(null);
   const [grantBusy, setGrantBusy] = useState(false);
   const [selectedPortfolios, setSelectedPortfolios] = useState<any[]>([]);
-  const [editPortfolio, setEditPortfolio] = useState<any>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [createForUser, setCreateForUser] = useState<PickedUser | null>(null);
 
@@ -244,22 +247,20 @@ export function NewPartnersPanel() {
                 {selectedPortfolios.length > 0 && (
                   <div className="space-y-1.5">
                     <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
-                      Portfolios ({selectedPortfolios.length}) — tap to edit
+                      Portfolios ({selectedPortfolios.length}) — tap to edit inline
                     </p>
                     {selectedPortfolios.map(p => (
-                      <button
+                      <InlinePortfolioRow
                         key={p.id}
-                        onClick={() => setEditPortfolio(p)}
-                        className="w-full flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-muted/30 hover:bg-muted px-2.5 py-2 text-left transition-colors"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-semibold truncate">{p.account_name || p.portfolio_code}</p>
-                          <p className="text-[10px] text-muted-foreground">
-                            {p.display_currency || 'UGX'} {Number(p.investment_amount || 0).toLocaleString()} · {p.roi_percentage}% · {p.status}
-                          </p>
-                        </div>
-                        <Pencil className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                      </button>
+                        portfolio={p}
+                        expanded={expandedId === p.id}
+                        onToggle={() => setExpandedId(expandedId === p.id ? null : p.id)}
+                        onSaved={(updated) => {
+                          setSelectedPortfolios(list => list.map(x => x.id === updated.id ? { ...x, ...updated } : x));
+                          qc.invalidateQueries({ queryKey: ['exec-partner-portfolios'] });
+                        }}
+                        actingUserId={user?.id}
+                      />
                     ))}
                   </div>
                 )}
@@ -269,12 +270,6 @@ export function NewPartnersPanel() {
         </CardContent>
       </Card>
 
-      <EditInvestmentAccountDialog
-        open={!!editPortfolio}
-        onOpenChange={(v) => { if (!v) setEditPortfolio(null); }}
-        account={editPortfolio}
-        onSuccess={() => { handleSelect(selected); qc.invalidateQueries({ queryKey: ['exec-partner-portfolios'] }); }}
-      />
       <CreateInvestmentAccountDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
@@ -283,5 +278,193 @@ export function NewPartnersPanel() {
         prefillInvestorName={createForUser?.full_name}
       />
     </>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
+// InlinePortfolioRow — collapsible inline editor (no dialogs)
+// ════════════════════════════════════════════════════════════════
+interface InlinePortfolioRowProps {
+  portfolio: any;
+  expanded: boolean;
+  onToggle: () => void;
+  onSaved: (updated: any) => void;
+  actingUserId?: string;
+}
+
+function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, actingUserId }: InlinePortfolioRowProps) {
+  const { toast } = useToast();
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    account_name: p.account_name || '',
+    payout_day: p.payout_day ? String(p.payout_day) : '',
+    payment_method: p.payment_method || 'mobile_money',
+    mobile_money_number: p.mobile_money_number || '',
+    mobile_network: p.mobile_network || '',
+    bank_name: p.bank_name || '',
+    bank_account_name: p.bank_account_name || '',
+    account_number: p.account_number || '',
+  });
+
+  // Re-sync when underlying portfolio prop changes (e.g. realtime update)
+  useEffect(() => {
+    if (!expanded) {
+      setForm({
+        account_name: p.account_name || '',
+        payout_day: p.payout_day ? String(p.payout_day) : '',
+        payment_method: p.payment_method || 'mobile_money',
+        mobile_money_number: p.mobile_money_number || '',
+        mobile_network: p.mobile_network || '',
+        bank_name: p.bank_name || '',
+        bank_account_name: p.bank_account_name || '',
+        account_number: p.account_number || '',
+      });
+    }
+  }, [p.id, expanded]);
+
+  const set = (k: string, v: string) => setForm(prev => ({ ...prev, [k]: v }));
+
+  async function handleSave() {
+    // Light client-side validation
+    const payoutDayNum = form.payout_day ? parseInt(form.payout_day) : null;
+    if (payoutDayNum !== null && (Number.isNaN(payoutDayNum) || payoutDayNum < 1 || payoutDayNum > 28)) {
+      toast({ title: 'Payout day must be 1–28', variant: 'destructive' });
+      return;
+    }
+    if (form.account_name.length > 100) {
+      toast({ title: 'Portfolio name too long', variant: 'destructive' });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const patch: Record<string, any> = {
+        account_name: form.account_name.trim() || null,
+        payout_day: payoutDayNum,
+        payment_method: form.payment_method,
+        mobile_money_number: form.payment_method === 'mobile_money' ? (form.mobile_money_number.trim() || null) : null,
+        mobile_network: form.payment_method === 'mobile_money' ? (form.mobile_network.trim() || null) : null,
+        bank_name: form.payment_method === 'bank' ? (form.bank_name.trim() || null) : null,
+        bank_account_name: form.payment_method === 'bank' ? (form.bank_account_name.trim() || null) : null,
+        account_number: form.payment_method === 'bank' ? (form.account_number.trim() || null) : null,
+      };
+      const { error } = await supabase.from('investor_portfolios').update(patch).eq('id', p.id);
+      if (error) throw error;
+
+      await supabase.from('audit_logs').insert({
+        user_id: actingUserId,
+        action_type: 'edit_portfolio_inline',
+        table_name: 'investor_portfolios',
+        record_id: p.id,
+        metadata: { source: 'PartnerOps NewPartnersPanel inline', changes: patch },
+      });
+
+      toast({ title: '✅ Portfolio updated' });
+      onSaved({ id: p.id, ...patch });
+      onToggle(); // collapse
+    } catch (e: any) {
+      toast({ title: 'Save failed', description: e?.message || 'Try again', variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="rounded-lg border border-border/60 bg-muted/30 overflow-hidden">
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center justify-between gap-2 px-2.5 py-2 text-left hover:bg-muted transition-colors"
+      >
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-semibold truncate">{p.account_name || p.portfolio_code}</p>
+          <p className="text-[10px] text-muted-foreground">
+            {p.display_currency || 'UGX'} {Number(p.investment_amount || 0).toLocaleString()} · {p.roi_percentage}% · {p.status}
+          </p>
+        </div>
+        {expanded ? (
+          <ChevronDown className="h-3.5 w-3.5 text-primary shrink-0 rotate-180 transition-transform" />
+        ) : (
+          <Pencil className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        )}
+      </button>
+
+      {expanded && (
+        <div className="border-t border-border/60 bg-background p-3 space-y-2.5">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label className="text-[10px]">Portfolio name</Label>
+              <Input value={form.account_name} onChange={e => set('account_name', e.target.value)} className="h-8 text-xs" maxLength={100} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[10px]">Payout day (1-28)</Label>
+              <Input type="number" min={1} max={28} value={form.payout_day} onChange={e => set('payout_day', e.target.value)} className="h-8 text-xs" />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-[10px]">Payment method</Label>
+            <Select value={form.payment_method} onValueChange={v => set('payment_method', v)}>
+              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="mobile_money">📱 Mobile Money</SelectItem>
+                <SelectItem value="bank">🏦 Bank</SelectItem>
+                <SelectItem value="wallet">👛 Wallet (Welile)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {form.payment_method === 'mobile_money' && (
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-[10px]">Mobile number</Label>
+                <Input value={form.mobile_money_number} onChange={e => set('mobile_money_number', e.target.value)} placeholder="0770…" className="h-8 text-xs" maxLength={20} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px]">Network</Label>
+                <Select value={form.mobile_network || ''} onValueChange={v => set('mobile_network', v)}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select…" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="MTN">MTN</SelectItem>
+                    <SelectItem value="Airtel">Airtel</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+
+          {form.payment_method === 'bank' && (
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-[10px]">Bank name</Label>
+                  <Input value={form.bank_name} onChange={e => set('bank_name', e.target.value)} className="h-8 text-xs" maxLength={80} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px]">Account number</Label>
+                  <Input value={form.account_number} onChange={e => set('account_number', e.target.value)} className="h-8 text-xs" maxLength={30} />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px]">Account name</Label>
+                <Input value={form.bank_account_name} onChange={e => set('bank_account_name', e.target.value)} className="h-8 text-xs" maxLength={100} />
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 pt-1">
+            <Button size="sm" className="h-8 text-xs gap-1.5 flex-1" onClick={handleSave} disabled={saving}>
+              {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+              Save changes
+            </Button>
+            <Button size="sm" variant="ghost" className="h-8 text-xs gap-1.5" onClick={onToggle} disabled={saving}>
+              <X className="h-3 w-3" /> Cancel
+            </Button>
+          </div>
+          <p className={cn("text-[9px] text-muted-foreground italic")}>
+            Investment amount, status and currency are managed from the full edit screen for safety.
+          </p>
+        </div>
+      )}
+    </div>
   );
 }
