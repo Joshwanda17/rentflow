@@ -110,9 +110,9 @@ type Aggregate = {
 };
 
 const SCOPE_LABEL: Record<string, string> = {
-  platform: 'Platform',
-  wallet:   'User Custody',
-  bridge:   'Bridge',
+  platform: 'Company',
+  wallet:   'User Wallets',
+  bridge:   'Transfers',
 };
 
 const SCOPE_BADGE: Record<string, string> = {
@@ -792,148 +792,160 @@ export function ComprehensiveCashMovement() {
 
   return (
     <Card>
-      <CardContent className="pt-4 pb-6 space-y-4">
+      <CardContent className="pt-4 pb-6 space-y-4 px-3 sm:px-6">
         {/* Header */}
-        <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-start justify-between flex-wrap gap-2">
           <div>
-            <h3 className="text-sm font-semibold">Comprehensive Cash Movement</h3>
-            <p className="text-[11px] text-muted-foreground">Every category × scope · derived live from <code>general_ledger</code></p>
+            <h3 className="text-base sm:text-sm font-semibold">Money In & Out</h3>
+            <p className="text-[11px] text-muted-foreground">All money flowing in and out of Welile — updated live from the books.</p>
           </div>
           <Badge variant="outline" className="text-[10px]">{rangeLabel}</Badge>
         </div>
 
-        {/* Period */}
-        <div className="flex flex-wrap gap-1.5 items-center">
-          <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
-          {PERIODS.map(p => (
-            <Button key={p.value} size="sm" variant={period === p.value ? 'default' : 'outline'} className="text-xs h-7" onClick={() => setPeriod(p.value)}>
-              {p.label}
-            </Button>
-          ))}
+        {/* Period — horizontal scroll on mobile so it never crams */}
+        <div>
+          <div className="text-[11px] text-muted-foreground mb-1 flex items-center gap-1">
+            <Calendar className="h-3.5 w-3.5" /> Show me
+          </div>
+          <div className="flex gap-1.5 items-center overflow-x-auto pb-1 -mx-1 px-1 snap-x">
+            {PERIODS.map(p => (
+              <Button key={p.value} size="sm" variant={period === p.value ? 'default' : 'outline'} className="text-xs h-8 shrink-0 snap-start" onClick={() => setPeriod(p.value)}>
+                {p.label}
+              </Button>
+            ))}
+          </div>
         </div>
 
-        {/* Granularity + filters */}
-        <div className="flex flex-wrap gap-1.5 items-center">
-          <span className="text-[11px] text-muted-foreground mr-1">Bucket:</span>
-          {GRANULARITIES.map(g => (
-            <Button key={g.value} size="sm" variant={granularity === g.value ? 'default' : 'outline'} className="text-xs h-7" onClick={() => setGranularity(g.value)}>
-              {g.label}
-            </Button>
-          ))}
-          <span className="text-[11px] text-muted-foreground ml-3 mr-1">Scope:</span>
-          {(['all','platform','wallet','bridge'] as const).map(s => (
-            <Button key={s} size="sm" variant={scopeFilter === s ? 'default' : 'outline'} className="text-xs h-7 capitalize" onClick={() => setScopeFilter(s)}>
-              {s === 'all' ? 'All' : SCOPE_LABEL[s] || s}
-            </Button>
-          ))}
-          <Button size="sm" variant={includeAdjustments ? 'default' : 'outline'} className="text-xs h-7 ml-3" onClick={() => setIncludeAdjustments(v => !v)}>
-            {includeAdjustments ? '✓ Admin Adjustments' : 'Include Adjustments'}
-          </Button>
+        {/* Group by + Where + adjustments */}
+        <div className="space-y-2">
+          <div>
+            <div className="text-[11px] text-muted-foreground mb-1">Group by</div>
+            <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
+              {GRANULARITIES.map(g => (
+                <Button key={g.value} size="sm" variant={granularity === g.value ? 'default' : 'outline'} className="text-xs h-8 shrink-0" onClick={() => setGranularity(g.value)}>
+                  {g.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div className="text-[11px] text-muted-foreground mb-1">Where</div>
+            <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
+              {(['all','platform','wallet','bridge'] as const).map(s => (
+                <Button key={s} size="sm" variant={scopeFilter === s ? 'default' : 'outline'} className="text-xs h-8 shrink-0" onClick={() => setScopeFilter(s)}>
+                  {s === 'all' ? 'Everywhere' : SCOPE_LABEL[s] || s}
+                </Button>
+              ))}
+              <Button size="sm" variant={includeAdjustments ? 'default' : 'outline'} className="text-xs h-8 shrink-0 ml-2" onClick={() => setIncludeAdjustments(v => !v)}>
+                {includeAdjustments ? '✓ Showing fixes' : 'Show fixes'}
+              </Button>
+            </div>
+          </div>
         </div>
 
         {/* Actions */}
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button onClick={generate} disabled={loading} size="sm" className="gap-2">
             {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-            {loading ? 'Loading…' : 'Refresh'}
+            {loading ? 'Loading…' : 'Reload'}
           </Button>
           <Button
             onClick={handleExport}
             variant="outline" size="sm" className="gap-2"
             disabled={!aggregates.length || !canViewLedgerDetail}
-            title={!canViewLedgerDetail ? 'Restricted to finance leadership (CFO / CEO / COO / Manager)' : undefined}
+            title={!canViewLedgerDetail ? 'Only finance leaders can download these reports' : undefined}
           >
             {canViewLedgerDetail ? <FileSpreadsheet className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
-            Export CSV
+            <span className="hidden xs:inline">Download </span>CSV
           </Button>
           <Button
             onClick={handleExportPdf}
             variant="outline" size="sm" className="gap-2"
             disabled={!aggregates.length || !canViewLedgerDetail}
-            title={!canViewLedgerDetail ? 'Restricted to finance leadership (CFO / CEO / COO / Manager)' : undefined}
+            title={!canViewLedgerDetail ? 'Only finance leaders can download these reports' : undefined}
           >
             {canViewLedgerDetail ? <FileText className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
-            Export PDF
+            <span className="hidden xs:inline">Download </span>PDF
           </Button>
           <Button
             onClick={handleExportAllEntries}
             variant="outline" size="sm" className="gap-2"
             disabled={!rows.length || !canViewLedgerDetail}
             title={!canViewLedgerDetail
-              ? 'Restricted to finance leadership (CFO / CEO / COO / Manager)'
-              : 'Export every ledger entry in the selected period (raw drill-down)'}
+              ? 'Only finance leaders can download these reports'
+              : 'Download every single transaction in this period'}
           >
             {canViewLedgerDetail ? <FileSpreadsheet className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
-            Export All Entries
+            All transactions
           </Button>
           {!canViewLedgerDetail && (
             <span className="text-[11px] text-muted-foreground self-center ml-1 inline-flex items-center gap-1">
-              <Lock className="h-3 w-3" /> Detail & exports restricted
+              <Lock className="h-3 w-3" /> Downloads locked
             </span>
           )}
           {generatedAt && (
-            <span className="text-[11px] text-muted-foreground self-center ml-2">
-              Generated {format(generatedAt, 'dd MMM HH:mm')} · {rows.length.toLocaleString()} ledger entries
+            <span className="text-[11px] text-muted-foreground self-center ml-1 w-full sm:w-auto">
+              Updated {format(generatedAt, 'dd MMM HH:mm')} · {rows.length.toLocaleString()} transactions
             </span>
           )}
         </div>
 
         {/* Totals strip */}
-        <div className="grid grid-cols-3 gap-2">
-          <div className="rounded-lg border border-border bg-success/5 p-3">
-            <div className="flex items-center gap-1 text-[10px] uppercase text-muted-foreground"><ArrowUpRight className="h-3 w-3 text-success" /> Total Cash In</div>
-            <div className="font-mono font-semibold text-success">{formatUGX(totals.cashIn)}</div>
+        <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+          <div className="rounded-lg border border-border bg-success/5 p-2 sm:p-3">
+            <div className="flex items-center gap-1 text-[10px] uppercase text-muted-foreground"><ArrowUpRight className="h-3 w-3 text-success" /> Money In</div>
+            <div className="font-mono font-semibold text-success text-xs sm:text-base break-all">{formatUGX(totals.cashIn)}</div>
           </div>
-          <div className="rounded-lg border border-border bg-destructive/5 p-3">
-            <div className="flex items-center gap-1 text-[10px] uppercase text-muted-foreground"><ArrowDownRight className="h-3 w-3 text-destructive" /> Total Cash Out</div>
-            <div className="font-mono font-semibold text-destructive">{formatUGX(totals.cashOut)}</div>
+          <div className="rounded-lg border border-border bg-destructive/5 p-2 sm:p-3">
+            <div className="flex items-center gap-1 text-[10px] uppercase text-muted-foreground"><ArrowDownRight className="h-3 w-3 text-destructive" /> Money Out</div>
+            <div className="font-mono font-semibold text-destructive text-xs sm:text-base break-all">{formatUGX(totals.cashOut)}</div>
           </div>
-          <div className={cn('rounded-lg border border-border p-3', totals.net >= 0 ? 'bg-success/5' : 'bg-destructive/5')}>
-            <div className="text-[10px] uppercase text-muted-foreground">Net Movement</div>
-            <div className={cn('font-mono font-semibold', totals.net >= 0 ? 'text-success' : 'text-destructive')}>
+          <div className={cn('rounded-lg border border-border p-2 sm:p-3', totals.net >= 0 ? 'bg-success/5' : 'bg-destructive/5')}>
+            <div className="text-[10px] uppercase text-muted-foreground">Difference</div>
+            <div className={cn('font-mono font-semibold text-xs sm:text-base break-all', totals.net >= 0 ? 'text-success' : 'text-destructive')}>
               {totals.net >= 0 ? '+' : ''}{formatUGX(totals.net)}
             </div>
           </div>
         </div>
 
-        {/* Capital Inflows callout — platform cash_in for selected categories */}
-        <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-3 space-y-2">
+        {/* Capital Inflows callout — new money into the company */}
+        <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-2.5 sm:p-3 space-y-2">
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-2">
               <ArrowUpRight className="h-4 w-4 text-primary" />
               <div>
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Capital Inflows · Platform Cash In</div>
-                <div className="font-mono text-lg font-bold text-primary">{formatUGX(capitalInflow.total)}</div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">New money coming into Welile</div>
+                <div className="font-mono text-lg font-bold text-primary break-all">{formatUGX(capitalInflow.total)}</div>
                 <div className="text-[10px] text-muted-foreground">
-                  {capitalInflow.selected.length} categor{capitalInflow.selected.length === 1 ? 'y' : 'ies'} ·
-                  {' '}{capitalInflow.entries.toLocaleString()} ledger entries · {rangeLabel} ·
-                  {' '}{GRANULARITIES.find(g => g.value === granularity)?.label || granularity} buckets
+                  {capitalInflow.selected.length} type{capitalInflow.selected.length === 1 ? '' : 's'} ·
+                  {' '}{capitalInflow.entries.toLocaleString()} transaction{capitalInflow.entries === 1 ? '' : 's'} · {rangeLabel} ·
+                  {' '}grouped {(GRANULARITIES.find(g => g.value === granularity)?.label || granularity).toLowerCase()}
                 </div>
                 {includeWalletLegs && (
                   <div className="text-[10px] mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
-                    <span className="text-muted-foreground">Matching wallet legs:</span>
+                    <span className="text-muted-foreground">Matching wallet activity:</span>
                     <span><span className="text-muted-foreground">in</span> <span className="font-mono text-emerald-500">+{formatUGX(capitalInflow.walletInTotal)}</span></span>
                     <span><span className="text-muted-foreground">out</span> <span className="font-mono text-rose-500">−{formatUGX(capitalInflow.walletOutTotal)}</span></span>
                     <span><span className="text-muted-foreground">net</span> <span className={cn('font-mono', capitalInflow.walletNetTotal >= 0 ? 'text-emerald-500' : 'text-rose-500')}>{capitalInflow.walletNetTotal >= 0 ? '+' : '−'}{formatUGX(Math.abs(capitalInflow.walletNetTotal))}</span></span>
-                    <span className="text-muted-foreground">· {capitalInflow.walletEntries.toLocaleString()} legs</span>
+                    <span className="text-muted-foreground">· {capitalInflow.walletEntries.toLocaleString()} moves</span>
                   </div>
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 flex-wrap">
               <label
                 className={cn(
                   'inline-flex items-center gap-1.5 rounded-md border px-2 h-7 text-[11px] cursor-pointer transition-colors',
                   includeWalletLegs ? 'border-primary/50 bg-primary/15 text-primary' : 'border-border bg-background hover:bg-muted/50',
                 )}
-                title="Off: only platform.cash_in legs. On: also surface the matching wallet-scope debits/credits (agents/partners) sharing each transaction_group_id."
+                title="Off: only Welile's own books. On: also show what changed in agent/partner wallets at the same time."
               >
                 <Checkbox
                   checked={includeWalletLegs}
                   onCheckedChange={(v) => setIncludeWalletLegs(!!v)}
                   className="h-3.5 w-3.5"
                 />
-                <span>Include wallet legs</span>
+                <span>Show wallet matches</span>
               </label>
               <Button
                 size="sm"
@@ -966,15 +978,15 @@ export function ComprehensiveCashMovement() {
                   );
                   toast.success('Capital Inflows CSV downloaded');
                 }}
-                title="Export Capital Inflows per-category totals as CSV"
+                title="Download the new-money-in totals as a spreadsheet"
               >
                 <FileSpreadsheet className="h-3 w-3" />
-                Export inflows
+                Download
               </Button>
               <Collapsible open={capitalPickerOpen} onOpenChange={setCapitalPickerOpen}>
                 <CollapsibleTrigger asChild>
                   <Button size="sm" variant="outline" className="text-xs h-7">
-                    {capitalPickerOpen ? 'Hide' : 'Edit categories'}
+                    {capitalPickerOpen ? 'Hide' : 'Pick types'}
                   </Button>
                 </CollapsibleTrigger>
               </Collapsible>
@@ -1031,9 +1043,9 @@ export function ComprehensiveCashMovement() {
           {capitalInflow.selected.length > 0 && capitalInflow.bucketLabels.length > 0 && (
             <div className="pt-2 border-t border-primary/20 space-y-1">
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-                <span>By {GRANULARITIES.find(g => g.value === granularity)?.label || granularity} bucket</span>
+                <span>By {(GRANULARITIES.find(g => g.value === granularity)?.label || granularity).toLowerCase()}</span>
                 {capitalInflow.peakBucket && (
-                  <span>Peak: <span className="text-primary font-mono">{capitalInflow.peakBucket}</span> · {formatUGX(capitalInflow.bucketTotals[capitalInflow.peakBucket] || 0)}</span>
+                  <span>Best day: <span className="text-primary font-mono">{capitalInflow.peakBucket}</span> · {formatUGX(capitalInflow.bucketTotals[capitalInflow.peakBucket] || 0)}</span>
                 )}
               </div>
               <div className="flex flex-wrap gap-1">
@@ -1105,7 +1117,7 @@ export function ComprehensiveCashMovement() {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[11px] text-muted-foreground">
-                  Pick any platform cash_in category to include in the callout. Selection is saved per browser.
+                  Tick the types of money you want to count above. We remember your choice on this device.
                 </span>
                 <div className="flex gap-1">
                   <Button size="sm" variant="ghost" className="h-6 text-[11px]"
@@ -1130,7 +1142,7 @@ export function ComprehensiveCashMovement() {
                 </div>
               </div>
               {capitalInflow.availableCategories.length === 0 ? (
-                <p className="text-[11px] text-muted-foreground">No platform cash_in categories in this period.</p>
+                <p className="text-[11px] text-muted-foreground">No new money came in during this period.</p>
               ) : (
                 <TooltipProvider delayDuration={150}>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5 max-h-64 overflow-y-auto">
@@ -1177,18 +1189,18 @@ export function ComprehensiveCashMovement() {
             <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" /> Loading ledger…
           </div>
         ) : aggregates.length === 0 ? (
-          <div className="py-12 text-center text-muted-foreground text-sm">No ledger movement in this period.</div>
+          <div className="py-12 text-center text-muted-foreground text-sm">No money moved in this period.</div>
         ) : (
-          <div className="border border-border rounded-lg overflow-hidden">
+          <div className="border border-border rounded-lg overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[34%]">Category</TableHead>
-                  <TableHead>Scope</TableHead>
-                  <TableHead className="text-right">Cash In</TableHead>
-                  <TableHead className="text-right">Cash Out</TableHead>
-                  <TableHead className="text-right">Net</TableHead>
-                  <TableHead className="text-right">Entries</TableHead>
+                  <TableHead className="w-[40%]">What kind of money</TableHead>
+                  <TableHead>Where</TableHead>
+                  <TableHead className="text-right">In</TableHead>
+                  <TableHead className="text-right">Out</TableHead>
+                  <TableHead className="text-right">Difference</TableHead>
+                  <TableHead className="text-right hidden sm:table-cell">Count</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1218,7 +1230,7 @@ export function ComprehensiveCashMovement() {
                     <TableCell className={cn('text-right font-mono text-sm font-semibold', a.net >= 0 ? 'text-success' : 'text-destructive')}>
                       {a.net >= 0 ? '+' : ''}{formatUGX(a.net)}
                     </TableCell>
-                    <TableCell className="text-right text-xs text-muted-foreground">{a.count}</TableCell>
+                    <TableCell className="text-right text-xs text-muted-foreground hidden sm:table-cell">{a.count}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -1229,13 +1241,13 @@ export function ComprehensiveCashMovement() {
         {/* Time-series matrix */}
         {aggregates.length > 0 && bucketLabels.length > 0 && (
           <div className="space-y-2">
-            <h4 className="text-xs font-semibold text-primary uppercase tracking-wider">{granularity === 'daily' ? 'Daily' : granularity === 'weekly' ? 'Weekly' : 'Monthly'} Net Movement by Category</h4>
-            <p className="text-[11px] text-muted-foreground">Net = Cash In − Cash Out for each bucket</p>
+            <h4 className="text-xs font-semibold text-primary uppercase tracking-wider">{granularity === 'daily' ? 'Daily' : granularity === 'weekly' ? 'Weekly' : 'Monthly'} difference by type</h4>
+            <p className="text-[11px] text-muted-foreground">Money In minus Money Out for each {granularity === 'daily' ? 'day' : granularity === 'weekly' ? 'week' : 'month'}. Swipe sideways to see more.</p>
             <div className="border border-border rounded-lg overflow-auto max-h-[480px]">
               <Table>
                 <TableHeader className="sticky top-0 bg-background z-10">
                   <TableRow>
-                    <TableHead className="min-w-[200px] sticky left-0 bg-background z-20">Category · Scope</TableHead>
+                    <TableHead className="min-w-[160px] sticky left-0 bg-background z-20">Type · Where</TableHead>
                     {bucketLabels.map(b => (
                       <TableHead key={b} className="text-right whitespace-nowrap text-[10px]">{b}</TableHead>
                     ))}
@@ -1281,11 +1293,11 @@ export function ComprehensiveCashMovement() {
 
         {/* Drill-down sheet */}
         <Sheet open={!!drill} onOpenChange={(o) => { if (!o) setDrill(null); }}>
-          <SheetContent side="right" className="w-full sm:max-w-3xl overflow-y-auto">
+          <SheetContent side="right" className="w-full sm:max-w-3xl overflow-y-auto p-3 sm:p-5">
             {drill && (
               <>
                 <SheetHeader className="space-y-1">
-                  <SheetTitle className="text-base flex items-center gap-2">
+                  <SheetTitle className="text-base flex items-center gap-2 flex-wrap">
                     {prettifyCategory(drill.category)}
                     <Badge variant="outline" className={cn('text-[10px]', SCOPE_BADGE[drill.scope])}>
                       {SCOPE_LABEL[drill.scope] || drill.scope}
@@ -1293,12 +1305,12 @@ export function ComprehensiveCashMovement() {
                     {drill.bucket && <Badge variant="secondary" className="text-[10px]">{drill.bucket}</Badge>}
                   </SheetTitle>
                   <SheetDescription className="text-xs">
-                    {CATEGORY_DESCRIPTIONS[drill.category] || 'Raw ledger entries for this category × scope.'}
+                    {CATEGORY_DESCRIPTIONS[drill.category] || 'Every transaction of this type, one by one.'}
                   </SheetDescription>
                 </SheetHeader>
 
                 {/* Summary */}
-                <div className="grid grid-cols-3 gap-2 mt-4">
+                <div className="grid grid-cols-3 gap-1.5 sm:gap-2 mt-4">
                   {(() => {
                     const cIn  = filteredDrillRows.filter(r => r.direction === 'cash_in').reduce((s, r) => s + (Number(r.amount) || 0), 0);
                     const cOut = filteredDrillRows.filter(r => r.direction === 'cash_out').reduce((s, r) => s + (Number(r.amount) || 0), 0);
@@ -1306,16 +1318,16 @@ export function ComprehensiveCashMovement() {
                     return (
                       <>
                         <div className="rounded border border-border bg-success/5 p-2">
-                          <div className="text-[10px] uppercase text-muted-foreground">Cash In</div>
-                          <div className="font-mono text-success text-sm font-semibold">{formatUGX(cIn)}</div>
+                          <div className="text-[10px] uppercase text-muted-foreground">In</div>
+                          <div className="font-mono text-success text-xs sm:text-sm font-semibold break-all">{formatUGX(cIn)}</div>
                         </div>
                         <div className="rounded border border-border bg-destructive/5 p-2">
-                          <div className="text-[10px] uppercase text-muted-foreground">Cash Out</div>
-                          <div className="font-mono text-destructive text-sm font-semibold">{formatUGX(cOut)}</div>
+                          <div className="text-[10px] uppercase text-muted-foreground">Out</div>
+                          <div className="font-mono text-destructive text-xs sm:text-sm font-semibold break-all">{formatUGX(cOut)}</div>
                         </div>
                         <div className={cn('rounded border border-border p-2', net >= 0 ? 'bg-success/5' : 'bg-destructive/5')}>
-                          <div className="text-[10px] uppercase text-muted-foreground">Net</div>
-                          <div className={cn('font-mono text-sm font-semibold', net >= 0 ? 'text-success' : 'text-destructive')}>
+                          <div className="text-[10px] uppercase text-muted-foreground">Difference</div>
+                          <div className={cn('font-mono text-xs sm:text-sm font-semibold break-all', net >= 0 ? 'text-success' : 'text-destructive')}>
                             {net >= 0 ? '+' : ''}{formatUGX(net)}
                           </div>
                         </div>
@@ -1324,17 +1336,17 @@ export function ComprehensiveCashMovement() {
                   })()}
                 </div>
 
-                <div className="flex items-center justify-between mt-4 mb-2">
+                <div className="flex items-center justify-between mt-4 mb-2 gap-2 flex-wrap">
                   <div className="text-[11px] text-muted-foreground">
-                    {filteredDrillRows.length.toLocaleString()} of {drillRows.length.toLocaleString()} ledger entr{drillRows.length === 1 ? 'y' : 'ies'}
-                    {drillQuery && <span className="ml-1 text-primary">· filtered by "{drillQuery}"</span>}
+                    Showing {filteredDrillRows.length.toLocaleString()} of {drillRows.length.toLocaleString()} transaction{drillRows.length === 1 ? '' : 's'}
+                    {drillQuery && <span className="ml-1 text-primary">· searching "{drillQuery}"</span>}
                   </div>
                   <div className="flex items-center gap-2">
                     <Button size="sm" variant="outline" className="gap-2 text-xs h-7" onClick={handleExportDrill} disabled={filteredDrillRows.length === 0}>
-                      <FileSpreadsheet className="h-3.5 w-3.5" /> Export CSV
+                      <FileSpreadsheet className="h-3.5 w-3.5" /> CSV
                     </Button>
                     <Button size="sm" variant="outline" className="gap-2 text-xs h-7" onClick={handleExportDrillPdf} disabled={filteredDrillRows.length === 0}>
-                      <FileText className="h-3.5 w-3.5" /> Export PDF
+                      <FileText className="h-3.5 w-3.5" /> PDF
                     </Button>
                   </div>
                 </div>
@@ -1343,7 +1355,7 @@ export function ComprehensiveCashMovement() {
                   <Input
                     value={drillQuery}
                     onChange={(e) => setDrillQuery(e.target.value)}
-                    placeholder="Search reference ID, transaction id, party name, or source table…"
+                    placeholder="Search by name, reference, or transaction ID…"
                     className="h-8 text-xs pr-8"
                   />
                   {drillQuery && (
@@ -1360,16 +1372,16 @@ export function ComprehensiveCashMovement() {
 
                 {filteredDrillRows.length === 0 ? (
                   <div className="py-12 text-center text-muted-foreground text-sm">
-                    {drillQuery ? 'No entries match your search.' : 'No ledger entries.'}
+                    {drillQuery ? 'Nothing matches your search.' : 'No transactions to show.'}
                   </div>
                 ) : (
-                  <div className="border border-border rounded-lg overflow-hidden">
+                  <div className="border border-border rounded-lg overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
                           <TableHead className="text-xs">Date</TableHead>
-                          <TableHead className="text-xs">Reference / Tx</TableHead>
-                          <TableHead className="text-xs">Party</TableHead>
+                          <TableHead className="text-xs">Reference</TableHead>
+                          <TableHead className="text-xs hidden sm:table-cell">Who</TableHead>
                           <TableHead className="text-xs text-right">Amount</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -1425,7 +1437,7 @@ export function ComprehensiveCashMovement() {
                                   <Badge variant="outline" className="text-[9px] mt-0.5">{r.classification}</Badge>
                                 )}
                               </TableCell>
-                              <TableCell className="text-[11px] align-top">
+                              <TableCell className="text-[11px] align-top hidden sm:table-cell">
                                 <div>
                                   <Highlight
                                     text={name || (r.linked_party ? prettifyCategory(r.linked_party) : '—')}
