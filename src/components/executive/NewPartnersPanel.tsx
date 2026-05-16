@@ -292,7 +292,21 @@ export function NewPartnersPanel() {
   // Persisted in the URL (?jp_q, ?jp_f, ?jp_from, ?jp_to) so the panel
   // looks identical after a refresh or when the URL is shared.
   const [searchParams, setSearchParams] = useSearchParams();
-  const ALLOWED_FILTERS = ['all', 'just_joined', 'with', 'without', 'today', 'week', 'month', 'recent', 'custom'] as const;
+  const ALLOWED_FILTERS = [
+    'all',
+    'just_joined',
+    'with',
+    'without',
+    'today',
+    'week',
+    'month',
+    'recent',
+    'custom',
+    // "Recent joins" — no portfolio yet AND joined within window
+    'recent_today',
+    'recent_week',
+    'recent_month',
+  ] as const;
   type PartnerFilter = typeof ALLOWED_FILTERS[number];
   // "Just joined" = activation backlog: partners with no portfolio yet who
   // signed up within this rolling window. Keeps the default view truly fresh
