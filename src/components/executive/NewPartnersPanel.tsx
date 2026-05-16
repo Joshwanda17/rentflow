@@ -384,7 +384,25 @@ export function NewPartnersPanel() {
 
   return (
     <>
-      <Card className="border-primary/30 bg-gradient-to-br from-primary/5 via-background to-background">
+      <Card className="relative border-primary/30 bg-gradient-to-br from-primary/5 via-background to-background">
+        {savingCount > 0 && (
+          <div
+            className="absolute inset-0 z-30 flex items-center justify-center rounded-lg bg-background/70 backdrop-blur-sm cursor-wait"
+            aria-busy="true"
+            aria-live="polite"
+            // Swallow clicks so no other edits can be triggered mid-save.
+            onClickCapture={(e) => { e.stopPropagation(); e.preventDefault(); }}
+            onKeyDownCapture={(e) => { e.stopPropagation(); e.preventDefault(); }}
+          >
+            <div className="flex flex-col items-center gap-2 px-4 py-3 rounded-lg border border-primary/40 bg-background shadow-lg">
+              <Loader2 className="h-5 w-5 text-primary animate-spin" />
+              <p className="text-xs font-semibold">Saving portfolio…</p>
+              <p className="text-[10px] text-muted-foreground">
+                {savingCount} row{savingCount === 1 ? '' : 's'} in flight — other edits are blocked
+              </p>
+            </div>
+          </div>
+        )}
         <CardContent className="p-4 space-y-4">
           {/* Header */}
           <div className="flex items-center gap-2">
