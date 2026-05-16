@@ -2200,12 +2200,14 @@ export function ComprehensiveCashMovement() {
               <div className="relative mb-2">
                 <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
+                  id="cm-page-search"
                   type="search"
                   inputMode="search"
                   value={pageSearch}
                   onChange={(e) => setPageSearch(e.target.value)}
                   placeholder="Search reference, party or amount…"
                   aria-label="Search transactions by reference, party, or amount"
+                  aria-controls="cm-transactions-list"
                   className="w-full h-10 pl-9 pr-9 rounded-lg border border-border bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40"
                 />
                 {pageSearch && (
@@ -2213,14 +2215,14 @@ export function ComprehensiveCashMovement() {
                     type="button"
                     onClick={() => setPageSearch('')}
                     className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
-                    aria-label="Clear search"
+                    aria-label="Clear search query"
                   >
                     <X className="h-4 w-4" />
                   </button>
                 )}
               </div>
               {searchActive && (
-                <div className="text-[11px] text-muted-foreground mb-1.5 px-1">
+                <div className="text-[11px] text-muted-foreground mb-1.5 px-1" role="status" aria-live="polite">
                   {pageDrillRows.length.toLocaleString()} match{pageDrillRows.length === 1 ? '' : 'es'} for “{debouncedPageSearch}”
                 </div>
               )}
@@ -2228,19 +2230,21 @@ export function ComprehensiveCashMovement() {
                 <button
                   type="button"
                   className="w-full flex items-center justify-between gap-2 rounded-xl border-2 border-primary/30 bg-primary/5 hover:bg-primary/10 px-3 py-3 text-left transition-colors min-h-[56px]"
-                  aria-label="Tap to see every transaction"
+                  aria-label={`Show ${pageDrillRows.length.toLocaleString()} transaction${pageDrillRows.length === 1 ? '' : 's'} matching current filters`}
+                  aria-expanded={pageDrillOpen || searchActive}
+                  aria-controls="cm-transactions-list"
                 >
                   <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                    <Filter className="h-4 w-4 text-primary" />
+                    <Filter className="h-4 w-4 text-primary" aria-hidden="true" />
                     Tap to see details
                     <Badge variant="secondary" className="ml-1 text-[10px]">
                       {pageDrillRows.length.toLocaleString()} {pageDrillRows.length === 1 ? 'transaction' : 'transactions'}
                     </Badge>
                   </span>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0 transition-transform data-[state=open]:rotate-180" />
+                  <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0 transition-transform data-[state=open]:rotate-180" aria-hidden="true" />
                 </button>
               </CollapsibleTrigger>
-              <CollapsibleContent className="pt-2">
+              <CollapsibleContent className="pt-2" id="cm-transactions-list" role="region" aria-label="Filtered transactions list">
                 {pageDrillRows.length === 0 ? (
                   (() => {
                     const activeChips: { label: string; onClear: () => void }[] = [];
