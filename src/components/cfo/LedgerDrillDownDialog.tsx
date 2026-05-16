@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, FileSpreadsheet } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
+import { Loader2, FileSpreadsheet, Filter, ChevronDown, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { exportToCSV } from '@/lib/exportUtils';
 import { formatDynamic as formatUGX } from '@/lib/currencyFormat';
@@ -40,6 +42,8 @@ export function LedgerDrillDownDialog({ open, onOpenChange, title, spec, startDa
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   useEffect(() => {
     if (!open || !spec) return;
@@ -78,21 +82,35 @@ export function LedgerDrillDownDialog({ open, onOpenChange, title, spec, startDa
     return () => { cancelled = true; };
   }, [open, spec, startDate, endDate]);
 
-  const total = rows.reduce((s, r) => s + Number(r.amount || 0), 0);
+  const uniqueCategories = useMemo(() =>
+    Array.from(new Set(rows.map(r => r.category))).sort(),
+    [rows]
+  );
+
+  useEffect(() => {
+    setSelectedCategories(new Set(uniqueCategories));
+  }, [uniqueCategories.join(',')]);
+
+  const visibleRows = useMemo(() =>
+    rows.filter(r => selectedCategories.has(r.category)),
+    [rows, selectedCategories]
+  );
+
+  const total = visibleRows.reduce((s, r) => s + Number(r.amount || 0), 0);
 
   // Debit/Credit breakdown (accounting convention):
   //  - cash_in  → Debit  (asset/expense increase, or contra-revenue)
   //  - cash_out → Credit (revenue/liability increase, or asset decrease)
   // We surface both perspectives: raw direction sums AND per-category breakdown.
-  const debitTotal = rows
+  const debitTotal = visibleRows
     .filter(r => r.direction === 'cash_in')
     .reduce((s, r) => s + Number(r.amount || 0), 0);
-  const creditTotal = rows
+  const creditTotal = visibleRows
     .filter(r => r.direction === 'cash_out')
     .reduce((s, r) => s + Number(r.amount || 0), 0);
   const netTotal = debitTotal - creditTotal;
 
-  const byCategory = rows.reduce<Record<string, { debit: number; credit: number; count: number }>>((acc, r) => {
+  const byCategory = visibleRows.reduce<Record<string, { debit: number; credit: number; count: number }>>((acc, r) => {
     const key = r.category;
     if (!acc[key]) acc[key] = { debit: 0, credit: 0, count: 0 };
     if (r.direction === 'cash_in') acc[key].debit += Number(r.amount || 0);
@@ -106,7 +124,7 @@ export function LedgerDrillDownDialog({ open, onOpenChange, title, spec, startDa
 
   const onCsv = () => {
     const headers = ['Date', 'Scope', 'Direction', 'Category', 'Amount', 'User', 'Linked Party', 'Source', 'Description'];
-    const out = rows.map(r => [
+    const out = visibleRows.map(r => [
       format(new Date(r.transaction_date), 'yyyy-MM-dd HH:mm'),
       r.ledger_scope, r.direction, r.category, Number(r.amount || 0),
       r.user_id ?? '', r.linked_party ?? '', `${r.source_table ?? ''}:${r.source_id ?? ''}`, r.description ?? '',
@@ -132,16 +150,84 @@ export function LedgerDrillDownDialog({ open, onOpenChange, title, spec, startDa
 
         <div className="flex items-center justify-between border-y py-2 text-xs">
           <div>
-            <span className="text-muted-foreground">Rows:</span> <span className="font-semibold">{rows.length}{rows.length === PAGE ? '+' : ''}</span>
+            <span className="text-muted-foreground">Rows:</span>{' '}
+            <span className="font-semibold">
+              {visibleRows.length}
+              {visibleRows.length === PAGE ? '+' : ''}
+              {visibleRows.length !== rows.length && (
+                <span className="text-muted-foreground font-normal"> / {rows.length}{rows.length === PAGE ? '+' : ''}</span>
+              )}
+            </span>
             <span className="mx-3 text-muted-foreground">·</span>
             <span className="text-muted-foreground">Total:</span> <span className="font-mono font-semibold">{formatUGX(total)}</span>
           </div>
-          <Button size="sm" variant="outline" onClick={onCsv} disabled={rows.length === 0}>
-            <FileSpreadsheet className="h-3.5 w-3.5 mr-1" /> CSV
-          </Button>
+          <div className="flex items-center gap-2">
+            {uniqueCategories.length > 1 && (
+              <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
+                <CollapsibleTrigger asChild>
+                  <Button size="sm" variant="ghost" className="h-7 px-2 text-xs">
+                    <Filter className="h-3.5 w-3.5 mr-1" />
+                    {filtersOpen ? 'Hide' : 'Filter'}
+                    {filtersOpen ? <ChevronDown className="h-3 w-3 ml-1" /> : <ChevronRight className="h-3 w-3 ml-1" />}
+                  </Button>
+                </CollapsibleTrigger>
+              </Collapsible>
+            )}
+            <Button size="sm" variant="outline" onClick={onCsv} disabled={visibleRows.length === 0}>
+              <FileSpreadsheet className="h-3.5 w-3.5 mr-1" /> CSV
+            </Button>
+          </div>
         </div>
 
-        {!loading && !error && rows.length > 0 && (
+        {!loading && !error && uniqueCategories.length > 1 && filtersOpen && (
+          <div className="border-b bg-muted/20 px-3 py-2">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[11px] text-muted-foreground font-medium">Show categories</span>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-5 px-1.5 text-[10px]"
+                  onClick={() => setSelectedCategories(new Set(uniqueCategories))}
+                >
+                  All
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-5 px-1.5 text-[10px]"
+                  onClick={() => setSelectedCategories(new Set())}
+                >
+                  None
+                </Button>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-x-3 gap-y-1.5">
+              {uniqueCategories.map(cat => {
+                const count = rows.filter(r => r.category === cat).length;
+                const checked = selectedCategories.has(cat);
+                return (
+                  <label key={cat} className="inline-flex items-center gap-1.5 cursor-pointer select-none">
+                    <Checkbox
+                      checked={checked}
+                      onCheckedChange={(val) => {
+                        const next = new Set(selectedCategories);
+                        if (val) next.add(cat);
+                        else next.delete(cat);
+                        setSelectedCategories(next);
+                      }}
+                      className="h-3 w-3"
+                    />
+                    <span className="text-[11px] font-mono">{cat}</span>
+                    <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5">{count}</Badge>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {!loading && !error && visibleRows.length > 0 && (
           <div className="border-b bg-muted/20">
             <div className="grid grid-cols-3 gap-3 p-3 text-xs">
               <div className="rounded-md border bg-background p-2">
@@ -205,7 +291,10 @@ export function LedgerDrillDownDialog({ open, onOpenChange, title, spec, startDa
           {!loading && !error && rows.length === 0 && (
             <div className="text-center py-12 text-sm text-muted-foreground">No ledger rows for this line item in the selected period.</div>
           )}
-          {!loading && rows.length > 0 && (
+          {!loading && !error && rows.length > 0 && visibleRows.length === 0 && (
+            <div className="text-center py-12 text-sm text-muted-foreground">All categories are hidden. Select at least one category above.</div>
+          )}
+          {!loading && visibleRows.length > 0 && (
             <table className="w-full text-xs">
               <thead className="sticky top-0 bg-background border-b">
                 <tr className="text-left text-muted-foreground">
@@ -219,7 +308,7 @@ export function LedgerDrillDownDialog({ open, onOpenChange, title, spec, startDa
                 </tr>
               </thead>
               <tbody>
-                {rows.map(r => (
+                {visibleRows.map(r => (
                   <tr key={r.id} className="border-b last:border-b-0 hover:bg-muted/30">
                     <td className="py-1.5 pr-2 whitespace-nowrap font-mono text-[11px]">
                       {format(new Date(r.transaction_date), 'MMM d HH:mm')}
