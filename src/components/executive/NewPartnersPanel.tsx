@@ -284,7 +284,7 @@ export function NewPartnersPanel() {
 
   // Filters for the all-partners list
   const [partnerSearch, setPartnerSearch] = useState('');
-  const [partnerFilter, setPartnerFilter] = useState<'all' | 'with' | 'without' | 'recent'>('all');
+  const [partnerFilter, setPartnerFilter] = useState<'all' | 'with' | 'without' | 'today' | 'week' | 'month' | 'recent'>('all');
   // Incremental render window for the partners grid — keeps DOM small
   // even when up to 500 partners are loaded.
   const PARTNER_PAGE_SIZE = 30;
@@ -504,11 +504,19 @@ export function NewPartnersPanel() {
             {joined && joined.length > 0 && (() => {
               const withCount = joined.filter(p => p.portfolio_count > 0).length;
               const withoutCount = joined.length - withCount;
+              const now = Date.now();
+              const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+              const todayCount = joined.filter(p => new Date(p.created_at).getTime() >= startOfToday.getTime()).length;
+              const weekCount = joined.filter(p => now - new Date(p.created_at).getTime() <= 7 * 86400000).length;
+              const monthCount = joined.filter(p => now - new Date(p.created_at).getTime() <= 30 * 86400000).length;
               return (
-                <div className="flex items-center gap-1">
-                  <Badge className="bg-primary/15 text-primary border-0 text-[10px] font-bold" title="Total partners">{joined.length}</Badge>
+                <div className="flex flex-wrap items-center gap-1 justify-end">
+                  <Badge className="bg-primary/15 text-primary border-0 text-[10px] font-bold" title="Total partners">{joined.length} total</Badge>
                   <Badge className="bg-emerald-500/15 text-emerald-600 border-0 text-[10px] font-bold" title="With portfolios">{withCount} active</Badge>
                   <Badge className="bg-amber-500/15 text-amber-600 border-0 text-[10px] font-bold" title="No portfolio yet">{withoutCount} pending</Badge>
+                  <Badge className="bg-sky-500/15 text-sky-600 border-0 text-[10px] font-bold" title="Joined today">{todayCount} today</Badge>
+                  <Badge className="bg-indigo-500/15 text-indigo-600 border-0 text-[10px] font-bold" title="Joined this week">{weekCount} 7d</Badge>
+                  <Badge className="bg-violet-500/15 text-violet-600 border-0 text-[10px] font-bold" title="Joined this month">{monthCount} 30d</Badge>
                 </div>
               );
             })()}
@@ -542,6 +550,9 @@ export function NewPartnersPanel() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All partners</SelectItem>
+                <SelectItem value="today">Joined today</SelectItem>
+                <SelectItem value="week">Joined this week (7d)</SelectItem>
+                <SelectItem value="month">Joined this month (30d)</SelectItem>
                 <SelectItem value="recent">Joined in last 14 days</SelectItem>
                 <SelectItem value="with">With portfolios</SelectItem>
                 <SelectItem value="without">No portfolios yet</SelectItem>
