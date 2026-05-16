@@ -1958,27 +1958,46 @@ function WalletMovementSummary({
   }, []);
   const bucketBreakdown = useMemo(() => {
     type BucketKey = 'withdrawable' | 'operational_float' | 'landlord_float';
-    const buckets: Record<BucketKey, { in: number; out: number }> = {
-      withdrawable: { in: 0, out: 0 },
-      operational_float: { in: 0, out: 0 },
-      landlord_float: { in: 0, out: 0 },
+    const buckets: Record<BucketKey, { in: number; out: number; inCount: number; outCount: number }> = {
+      withdrawable: { in: 0, out: 0, inCount: 0, outCount: 0 },
+      operational_float: { in: 0, out: 0, inCount: 0, outCount: 0 },
+      landlord_float: { in: 0, out: 0, inCount: 0, outCount: 0 },
     };
     // Clamp to the same period window as the rest of the cash-movement page.
     const { from, to } = periodRange(period);
     const fromTs = from ? from.getTime() : -Infinity;
     const toTs = to.getTime();
+    let scannedRows = 0;
+    let walletScopeRows = 0;
+    let adjustmentsSkipped = 0;
+    let outOfWindow = 0;
     for (const r of rows) {
+      scannedRows++;
       if (r.ledger_scope !== 'wallet') continue;
-      if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
+      walletScopeRows++;
+      if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) {
+        adjustmentsSkipped++;
+        continue;
+      }
       const t = new Date(r.transaction_date).getTime();
-      if (t < fromTs || t > toTs) continue;
+      if (t < fromTs || t > toTs) { outOfWindow++; continue; }
       const amt = Number(r.amount) || 0;
       if (amt <= 0) continue;
       const b = classifyBucket(r.category);
-      if (r.direction === 'cash_in') buckets[b].in += amt;
-      else if (r.direction === 'cash_out') buckets[b].out += amt;
+      if (r.direction === 'cash_in') { buckets[b].in += amt; buckets[b].inCount++; }
+      else if (r.direction === 'cash_out') { buckets[b].out += amt; buckets[b].outCount++; }
     }
-    return buckets;
+    return {
+      ...buckets,
+      meta: {
+        from,
+        to,
+        scannedRows,
+        walletScopeRows,
+        adjustmentsSkipped,
+        outOfWindow,
+      },
+    };
   }, [rows, includeAdjustments, classifyBucket, period]);
 
   // ── Previous-period comparison ──────────────────────────────
@@ -2603,6 +2622,8 @@ function WalletMovementSummary({
           outExamples: string;
           in: number;
           out: number;
+          inCount: number;
+          outCount: number;
           accent: string;
         }[] = [
           {
@@ -2614,6 +2635,8 @@ function WalletMovementSummary({
             outExamples: 'User withdrawals, wallet-funded rent payments, wallet → platform debits (CFO Direct Debit).',
             in: bucketBreakdown.withdrawable.in,
             out: bucketBreakdown.withdrawable.out,
+            inCount: bucketBreakdown.withdrawable.inCount,
+            outCount: bucketBreakdown.withdrawable.outCount,
             accent: 'text-primary',
           },
           {
@@ -2625,6 +2648,8 @@ function WalletMovementSummary({
             outExamples: 'Float allocated to tenants/landlords, partner sweeps back to platform capital, agent float used for rent.',
             in: bucketBreakdown.operational_float.in,
             out: bucketBreakdown.operational_float.out,
+            inCount: bucketBreakdown.operational_float.inCount,
+            outCount: bucketBreakdown.operational_float.outCount,
             accent: 'text-amber-600',
           },
           {
@@ -2636,11 +2661,19 @@ function WalletMovementSummary({
             outExamples: 'Landlord payouts sent against allocated tenants.',
             in: bucketBreakdown.landlord_float.in,
             out: bucketBreakdown.landlord_float.out,
+            inCount: bucketBreakdown.landlord_float.inCount,
+            outCount: bucketBreakdown.landlord_float.outCount,
             accent: 'text-sky-600',
           },
         ];
         const anyActivity = items.some(i => i.in > 0 || i.out > 0);
         if (!anyActivity) return null;
+        const meta = bucketBreakdown.meta;
+        const fmtDate = (d: Date | null) =>
+          d ? d.toLocaleString(undefined, { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
+        const windowLabel = meta.from
+          ? `${fmtDate(meta.from)} → ${fmtDate(meta.to)}`
+          : `All time → ${fmtDate(meta.to)}`;
         return (
           <TooltipProvider delayDuration={150}>
           <div className="rounded-lg border border-border bg-muted/30 p-3">
@@ -2662,6 +2695,11 @@ function WalletMovementSummary({
                     <li><span className="font-semibold">Out</span> = sum of <span className="font-mono">cash_out</span> legs leaving that bucket.</li>
                     <li><span className="font-semibold">Net</span> = In − Out for the period (positive = bucket grew).</li>
                   </ul>
+                  <div className="mt-2 pt-1 border-t border-border/60 space-y-0.5 opacity-90">
+                    <div><span className="font-semibold">Window:</span> {windowLabel}</div>
+                    <div><span className="font-semibold">Rows scanned:</span> {meta.scannedRows.toLocaleString()} → wallet-scope: {meta.walletScopeRows.toLocaleString()}</div>
+                    <div><span className="font-semibold">Excluded:</span> {meta.outOfWindow.toLocaleString()} out of window, {meta.adjustmentsSkipped.toLocaleString()} adjustments</div>
+                  </div>
                   <p className="mt-1 opacity-80">Admin corrections are excluded unless "Include adjustments" is on. Wallet balances are never mutated by this view.</p>
                 </TooltipContent>
               </Tooltip>
@@ -2700,7 +2738,14 @@ function WalletMovementSummary({
                             <p>{it.definition}</p>
                             <p className="mt-1"><span className="text-success font-semibold">In:</span> {it.inExamples}</p>
                             <p className="mt-1"><span className="text-destructive font-semibold">Out:</span> {it.outExamples}</p>
-                            <p className="mt-1 opacity-80">Net = In − Out for {periodLabel}.</p>
+                            <div className="mt-2 pt-1 border-t border-border/60 space-y-0.5">
+                              <div className="font-semibold">How this bucket is computed</div>
+                              <div className="opacity-90">Filter: <span className="font-mono">ledger_scope='wallet'</span> · classified to <span className="font-mono">{it.key}</span> · {periodLabel}</div>
+                              <div className="opacity-90">Window: {windowLabel}</div>
+                              <div><span className="text-success font-semibold">In</span> = Σ amount of {it.inCount.toLocaleString()} <span className="font-mono">cash_in</span> leg{it.inCount === 1 ? '' : 's'} = <span className="font-mono">{formatUGX(it.in)}</span></div>
+                              <div><span className="text-destructive font-semibold">Out</span> = Σ amount of {it.outCount.toLocaleString()} <span className="font-mono">cash_out</span> leg{it.outCount === 1 ? '' : 's'} = <span className="font-mono">{formatUGX(it.out)}</span></div>
+                              <div><span className="font-semibold">Net</span> = {formatUGX(it.in)} − {formatUGX(it.out)} = <span className="font-mono">{(it.in - it.out) >= 0 ? '+' : '−'}{formatUGX(Math.abs(it.in - it.out))}</span></div>
+                            </div>
                           </TooltipContent>
                         </Tooltip>
                       </div>
@@ -2729,7 +2774,12 @@ function WalletMovementSummary({
                         </TooltipTrigger>
                         <TooltipContent className="max-w-xs text-[11px] leading-snug">
                           <p className="font-semibold text-success mb-1">In — money entering {it.label}</p>
-                          <p>Sum of every <span className="font-mono">cash_in</span> wallet-scope ledger leg classified to this bucket within {periodLabel}.</p>
+                          <p>Sum of every <span className="font-mono">cash_in</span> wallet-scope ledger leg classified to <span className="font-mono">{it.key}</span> within {periodLabel}.</p>
+                          <div className="mt-1 space-y-0.5 opacity-90">
+                            <div>Window: {windowLabel}</div>
+                            <div>Contributing rows: <span className="font-mono">{it.inCount.toLocaleString()}</span></div>
+                            <div>Σ amount: <span className="font-mono">{formatUGX(it.in)}</span></div>
+                          </div>
                           <p className="mt-1 opacity-80">Click to drill into the underlying transactions.</p>
                         </TooltipContent>
                       </Tooltip>
@@ -2746,7 +2796,12 @@ function WalletMovementSummary({
                         </TooltipTrigger>
                         <TooltipContent className="max-w-xs text-[11px] leading-snug">
                           <p className="font-semibold text-destructive mb-1">Out — money leaving {it.label}</p>
-                          <p>Sum of every <span className="font-mono">cash_out</span> wallet-scope ledger leg classified to this bucket within {periodLabel}.</p>
+                          <p>Sum of every <span className="font-mono">cash_out</span> wallet-scope ledger leg classified to <span className="font-mono">{it.key}</span> within {periodLabel}.</p>
+                          <div className="mt-1 space-y-0.5 opacity-90">
+                            <div>Window: {windowLabel}</div>
+                            <div>Contributing rows: <span className="font-mono">{it.outCount.toLocaleString()}</span></div>
+                            <div>Σ amount: <span className="font-mono">{formatUGX(it.out)}</span></div>
+                          </div>
                           <p className="mt-1 opacity-80">Click to drill into the underlying transactions.</p>
                         </TooltipContent>
                       </Tooltip>
