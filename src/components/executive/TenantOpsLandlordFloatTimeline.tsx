@@ -8,10 +8,13 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import {
   Loader2, Landmark, Search, CalendarIcon, ArrowRight, Banknote, HandCoins,
-  Building2, Phone, Hash, Copy, CheckCircle2, X, Clock, Bookmark, Save, Trash2, ChevronsUpDown
+  Building2, Phone, Hash, Copy, CheckCircle2, X, Clock, Bookmark, Save, Trash2, ChevronsUpDown,
+  AlertCircle, ChevronRight, MapPin, Wallet, FileText
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -143,6 +146,11 @@ interface TimelineEvent {
   reference_label: string;    // "Bank TID" / "MoMo TID" / "Allocation ID"
   source_table: string;
   notes?: string | null;
+  // Outstanding only meaningful for allocation rows.
+  outstanding?: number;
+  allocated_amount?: number;
+  paid_out_amount?: number;
+  raw?: any;                  // full DB row for drill-down
 }
 
 /**
