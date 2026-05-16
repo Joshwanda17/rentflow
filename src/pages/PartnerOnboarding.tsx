@@ -181,6 +181,25 @@ export default function FunderOnboarding() {
   const total = data?.total || 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+  // Scroll the highlighted (deep-linked) row into view + flash a ring
+  // once it renders. Runs whenever the page data changes (e.g. after
+  // the seeded search resolves). The ring is removed after 2.5s and
+  // highlightId is cleared so subsequent manual interactions are
+  // unaffected.
+  useEffect(() => {
+    if (!highlightId) return;
+    if (!rows.some(r => r.id === highlightId)) return;
+    const el = document.querySelector<HTMLElement>(`[data-partner-row-id="${highlightId}"]`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('ring-2', 'ring-primary', 'ring-offset-2', 'ring-offset-background');
+    const t = setTimeout(() => {
+      el.classList.remove('ring-2', 'ring-primary', 'ring-offset-2', 'ring-offset-background');
+      setHighlightId(null);
+    }, 2500);
+    return () => clearTimeout(t);
+  }, [highlightId, rows]);
+
   // Batch-resolve referrer names for the current page
   const referrerIds = Array.from(new Set(rows.map(r => r.referrer_id).filter(Boolean) as string[]));
   const { data: referrerMap } = useQuery({
@@ -369,6 +388,7 @@ export default function FunderOnboarding() {
                     return (
                       <TableRow
                         key={r.id}
+                        data-partner-row-id={r.id}
                         className="cursor-pointer"
                         onClick={() => setSelected(r)}
                       >
