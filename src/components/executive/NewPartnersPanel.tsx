@@ -150,6 +150,9 @@ export function NewPartnersPanel() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [createForUser, setCreateForUser] = useState<PickedUser | null>(null);
+  // Confirmation gate before opening the create-portfolio dialog from the
+  // "Just Joined Partners" Activate button. Prevents accidental taps.
+  const [activateConfirm, setActivateConfirm] = useState<{ user: PickedUser; isFirst: boolean } | null>(null);
   const [revokeOpen, setRevokeOpen] = useState(false);
   const [revokeBusy, setRevokeBusy] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -446,7 +449,10 @@ export function NewPartnersPanel() {
                     size="sm"
                     variant="outline"
                     className="h-7 text-[10px] gap-1 shrink-0"
-                    onClick={() => openCreateFor({ id: p.user_id, full_name: p.full_name, phone: p.phone })}
+                    onClick={() => setActivateConfirm({
+                      user: { id: p.user_id, full_name: p.full_name, phone: p.phone },
+                      isFirst: p.portfolio_count === 0,
+                    })}
                   >
                     <PlusCircle className="h-3 w-3" />
                     {p.portfolio_count > 0 ? 'Add' : 'Activate'}
@@ -623,6 +629,51 @@ export function NewPartnersPanel() {
         prefillInvestorId={createForUser?.id}
         prefillInvestorName={createForUser?.full_name}
       />
+
+      {/* Confirmation gate for the Activate/Add button on Just-Joined rows. */}
+      <AlertDialog
+        open={!!activateConfirm}
+        onOpenChange={(open) => { if (!open) setActivateConfirm(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {activateConfirm?.isFirst ? 'Activate this partner?' : 'Add another portfolio?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {activateConfirm?.isFirst ? (
+                <>
+                  You're about to open the portfolio setup for{' '}
+                  <span className="font-semibold text-foreground">{activateConfirm?.user.full_name}</span>{' '}
+                  ({activateConfirm?.user.phone}). This activates them as a funding partner.
+                  Make sure this is the right person before continuing.
+                </>
+              ) : (
+                <>
+                  You're about to create an additional portfolio for{' '}
+                  <span className="font-semibold text-foreground">{activateConfirm?.user.full_name}</span>{' '}
+                  ({activateConfirm?.user.phone}). Continue?
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                if (activateConfirm) {
+                  const u = activateConfirm.user;
+                  setActivateConfirm(null);
+                  openCreateFor(u);
+                }
+              }}
+            >
+              {activateConfirm?.isFirst ? 'Yes, activate' : 'Yes, continue'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={revokeOpen} onOpenChange={setRevokeOpen}>
         <AlertDialogContent>
