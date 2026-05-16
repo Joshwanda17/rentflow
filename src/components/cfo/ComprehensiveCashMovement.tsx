@@ -2993,8 +2993,23 @@ export function ComprehensiveCashMovement() {
                 </div>
 
                 {filteredDrillRows.length === 0 ? (
-                  <div className="py-12 text-center text-muted-foreground text-sm">
-                    {drillQuery ? 'Nothing matches your search.' : 'No transactions to show.'}
+                  <div className="py-12 px-4 text-center space-y-3 border border-dashed border-border rounded-lg bg-muted/10">
+                    <div className="mx-auto h-9 w-9 rounded-full bg-muted flex items-center justify-center">
+                      {drillQuery ? <Search className="h-4 w-4 text-muted-foreground" /> : <Filter className="h-4 w-4 text-muted-foreground" />}
+                    </div>
+                    <div className="text-sm font-semibold text-foreground">
+                      {drillQuery ? 'No matches for your search' : 'Nothing to show here'}
+                    </div>
+                    <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
+                      {drillQuery
+                        ? `Try a different reference, party, or amount — or clear the search to see all ${drillRows.length.toLocaleString()} entries.`
+                        : 'There are no ledger entries for this category and date range. Try a wider drill date range above.'}
+                    </p>
+                    {drillQuery && (
+                      <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setDrillQuery('')}>
+                        <X className="h-3.5 w-3.5 mr-1" /> Clear search
+                      </Button>
+                    )}
                   </div>
                 ) : (
                   <div className="border border-border rounded-lg overflow-x-auto">
