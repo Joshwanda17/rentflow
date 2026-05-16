@@ -339,11 +339,12 @@ export function NewPartnersPanel() {
       } else {
         next.delete('jp_to');
       }
+      if (partnerSort !== 'recent') next.set('jp_s', partnerSort); else next.delete('jp_s');
       return next;
     }, { replace: true });
     // setSearchParams identity changes on every render; intentionally omitted.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [partnerSearch, partnerFilter, customRange]);
+  }, [partnerSearch, partnerFilter, customRange, partnerSort]);
   // Incremental render window for the partners grid — keeps DOM small
   // even when up to 500 partners are loaded.
   const PARTNER_PAGE_SIZE = 30;
