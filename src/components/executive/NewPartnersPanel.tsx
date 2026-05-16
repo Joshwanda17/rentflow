@@ -292,8 +292,12 @@ export function NewPartnersPanel() {
   // Persisted in the URL (?jp_q, ?jp_f, ?jp_from, ?jp_to) so the panel
   // looks identical after a refresh or when the URL is shared.
   const [searchParams, setSearchParams] = useSearchParams();
-  const ALLOWED_FILTERS = ['all', 'with', 'without', 'today', 'week', 'month', 'recent', 'custom'] as const;
+  const ALLOWED_FILTERS = ['all', 'just_joined', 'with', 'without', 'today', 'week', 'month', 'recent', 'custom'] as const;
   type PartnerFilter = typeof ALLOWED_FILTERS[number];
+  // "Just joined" = activation backlog: partners with no portfolio yet who
+  // signed up within this rolling window. Keeps the default view truly fresh
+  // instead of showing every dormant no-portfolio account ever onboarded.
+  const JUST_JOINED_DAYS = 7;
   const parseDateParam = (v: string | null): Date | undefined => {
     if (!v) return undefined;
     const d = new Date(v);
@@ -306,10 +310,10 @@ export function NewPartnersPanel() {
     const raw = searchParams.get('jp_f');
     return (ALLOWED_FILTERS as readonly string[]).includes(raw ?? '')
       ? (raw as PartnerFilter)
-      // Default view = newest joiners who don't have a portfolio yet, so
-      // Partner Ops immediately sees the activation backlog instead of the
-      // already-onboarded majority.
-      : 'without';
+      // Default view = partners who joined in the last JUST_JOINED_DAYS days
+      // AND don't have a portfolio yet, so Partner Ops sees a truly fresh
+      // activation backlog instead of every dormant no-portfolio account.
+      : 'just_joined';
   });
   const [customRange, setCustomRange] = useState<DateRange | undefined>(() => {
     const from = parseDateParam(searchParams.get('jp_from'));
