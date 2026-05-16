@@ -1622,6 +1622,59 @@ export function ComprehensiveCashMovement() {
           )}
         </div>
 
+        {/* ─── Page-level empty state ───────────────────────────────
+            When the ledger query returned zero rows for the current
+            period + scope, show a clear, friendly explanation with a
+            couple of one-tap suggestions (widen period, drop scope
+            filter, include adjustments). Skipped while loading the
+            very first batch so users don't see a flash of "no data". */}
+        {!loading && rows.length === 0 && generatedAt && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="rounded-2xl border border-dashed border-border bg-muted/20 p-6 sm:p-8 text-center space-y-3"
+          >
+            <div className="mx-auto h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+              <Filter className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div>
+              <div className="text-sm sm:text-base font-semibold text-foreground">
+                No cash movements yet
+              </div>
+              <p className="mt-1 text-xs sm:text-[13px] text-muted-foreground max-w-md mx-auto leading-relaxed">
+                Nothing posted to the ledger for{' '}
+                <span className="font-medium text-foreground">
+                  {PERIODS.find(p => p.value === period)?.label || period}
+                </span>
+                {scopeFilter !== 'all' && (
+                  <> in the <span className="font-medium text-foreground">{scopeFilter}</span> scope</>
+                )}
+                . Try widening the period or clearing filters.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 justify-center pt-1">
+              {period !== '30d' && (
+                <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setPeriod('30d')}>
+                  Try last 30 days
+                </Button>
+              )}
+              {scopeFilter !== 'all' && (
+                <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setScopeFilter('all')}>
+                  Clear scope filter
+                </Button>
+              )}
+              {!includeAdjustments && (
+                <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setIncludeAdjustments(true)}>
+                  Include adjustments
+                </Button>
+              )}
+              <Button size="sm" variant="default" className="h-8 text-xs gap-1.5" onClick={generate}>
+                <RefreshCw className="h-3.5 w-3.5" /> Reload
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* ─── Wallet Money Movement (minimalist) ───
             Primary view: money flowing INTO and OUT OF user/operational wallets
             in the selected period. Shown first by default. */}
