@@ -590,6 +590,18 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                         Sending blocked: no Welile user found for this {mode === 'email' ? 'email' : 'number'}.
                       </motion.p>
                     )}
+                    {recipient.status === 'invalid' && (
+                      <motion.p
+                        key="invalid"
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        className="text-xs text-destructive flex items-center gap-1.5"
+                      >
+                        <UserX className="h-3 w-3" />
+                        {recipient.reason}
+                      </motion.p>
+                    )}
                   </AnimatePresence>
                 </motion.div>
 
@@ -668,6 +680,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                           recipient.status === 'searching' ||
                           recipient.status === 'not_found' ||
                           recipient.status === 'idle' ||
+                          recipient.status === 'invalid' ||
                           (recipient.status === 'found' && recipient.isSelf)
                         }
                         className="gap-2"
