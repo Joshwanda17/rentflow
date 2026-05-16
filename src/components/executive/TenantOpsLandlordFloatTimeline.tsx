@@ -354,6 +354,7 @@ export function TenantOpsLandlordFloatTimeline() {
         reference_label: `Bank TID${r.bank_name ? ` · ${r.bank_name}` : ''}`,
         source_table: 'agent_float_funding',
         notes: r.notes,
+        raw: r,
       }));
 
       const allocationEvents: TimelineEvent[] = allocs.map((r) => ({
@@ -372,6 +373,10 @@ export function TenantOpsLandlordFloatTimeline() {
         reference_label: 'Allocation ID',
         source_table: 'agent_landlord_float_allocations',
         notes: r.notes,
+        allocated_amount: Number(r.allocated_amount) || 0,
+        paid_out_amount: Number(r.paid_out_amount) || 0,
+        outstanding: Math.max(0, Number(r.remaining_amount ?? (Number(r.allocated_amount || 0) - Number(r.paid_out_amount || 0))) || 0),
+        raw: r,
       }));
 
       const payoutEvents: TimelineEvent[] = pays.map((r) => ({
@@ -390,6 +395,7 @@ export function TenantOpsLandlordFloatTimeline() {
         reference_label: 'MoMo TID',
         source_table: 'agent_float_withdrawals',
         notes: r.notes,
+        raw: r,
       }));
 
       return [...fundingEvents, ...allocationEvents, ...payoutEvents].sort(
@@ -464,13 +470,16 @@ export function TenantOpsLandlordFloatTimeline() {
   }, [filtered]);
 
   const totals = useMemo(() => {
-    let funded = 0, allocated = 0, paid = 0;
+    let funded = 0, allocated = 0, paid = 0, outstanding = 0;
     for (const e of filtered) {
       if (e.kind === 'funding') funded += e.amount;
-      else if (e.kind === 'allocation') allocated += e.amount;
+      else if (e.kind === 'allocation') {
+        allocated += e.amount;
+        outstanding += e.outstanding || 0;
+      }
       else if (e.kind === 'payout') paid += e.amount;
     }
-    return { funded, allocated, paid, count: filtered.length };
+    return { funded, allocated, paid, outstanding, count: filtered.length };
   }, [filtered]);
 
   const copyRef = async (ref: string) => {
