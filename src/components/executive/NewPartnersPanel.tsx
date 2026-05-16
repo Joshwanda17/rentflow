@@ -648,6 +648,17 @@ export function NewPartnersPanel() {
           qc.invalidateQueries({ queryKey: ['new-partners-panel'] });
           setActivatingUserId(null);
         }}
+        onError={(message) => {
+          // Inline error toast with partner context so the executive knows
+          // exactly which activation failed and why.
+          const name = createForUser?.full_name || 'partner';
+          toast({
+            title: `Activation failed for ${name}`,
+            description: message,
+            variant: 'destructive',
+          });
+          setActivatingUserId(null);
+        }}
         prefillInvestorId={createForUser?.id}
         prefillInvestorName={createForUser?.full_name}
       />
