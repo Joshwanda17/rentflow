@@ -291,6 +291,10 @@ export function ComprehensiveCashMovement() {
   // "use the full loaded period".
   const [capitalFrom, setCapitalFrom] = useState<string>('');
   const [capitalTo, setCapitalTo] = useState<string>('');
+  // Toggle: also surface the matching wallet-scope legs (cash_in/cash_out on
+  // agent/partner wallets) that share a transaction_group_id with each
+  // selected platform.cash_in entry. Off = pure platform-only inflow view.
+  const [includeWalletLegs, setIncludeWalletLegs] = useState<boolean>(false);
   const capitalRangeActive = !!(capitalFrom || capitalTo);
   const inCapitalRange = (iso: string) => {
     if (!capitalRangeActive) return true;
