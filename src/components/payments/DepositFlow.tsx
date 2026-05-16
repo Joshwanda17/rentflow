@@ -1164,6 +1164,8 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     setEditStatus(null);
     setBreakdownChoice('pending');
     setErrorFieldId(null);
+    setSubmitError(null);
+    setShowRawError(false);
     onOpenChange(false);
   };
 
