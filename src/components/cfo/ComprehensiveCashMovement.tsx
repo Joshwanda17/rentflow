@@ -1773,7 +1773,9 @@ function WalletMovementSummary({
       }
     }
     const sortDesc = (m: Map<string, number>) =>
-      Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
+      Array.from(m.entries())
+        .filter(([, amt]) => amt > 0) // hide zero-total rows to keep the panel minimal
+        .sort((a, b) => b[1] - a[1]);
     return {
       inRows: sortDesc(inMap),
       outRows: sortDesc(outMap),
