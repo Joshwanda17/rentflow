@@ -441,6 +441,25 @@ export function ComprehensiveCashMovement() {
     return { aggregates, bucketLabels, totals: { cashIn: totIn, cashOut: totOut, net: totIn - totOut } };
   }, [rows, granularity, includeAdjustments, scopeFilter]);
 
+  const filteredAggregates = useMemo(() => {
+    return aggregates.filter(a => {
+      if (directionQuickFilter === 'cash_in' && a.cashIn <= 0) return false;
+      if (directionQuickFilter === 'cash_out' && a.cashOut <= 0) return false;
+      if (directionQuickFilter === 'net_positive' && a.net <= 0) return false;
+      if (directionQuickFilter === 'net_negative' && a.net >= 0) return false;
+      if (categoryQuickFilter && a.category !== categoryQuickFilter) return false;
+      return true;
+    });
+  }, [aggregates, directionQuickFilter, categoryQuickFilter]);
+
+  const topCategoryChips = useMemo(() => {
+    return aggregates
+      .slice()
+      .sort((a, b) => Math.abs(b.cashIn + b.cashOut) - Math.abs(a.cashIn + a.cashOut))
+      .slice(0, 6)
+      .map(a => a.category);
+  }, [aggregates]);
+
   // ── Capital Inflows: platform-scope cash_in totals per category (from raw rows,
   // independent of scopeFilter so the callout always reflects true inbound capital.
   // Per-bucket totals follow the current `granularity` so the callout stays in sync
