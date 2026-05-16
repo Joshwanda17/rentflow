@@ -863,19 +863,19 @@ export function NewPartnersPanel() {
                   })();
                   const isDefault = partnerFilter === 'just_joined';
                   return (
-                    <span
+                  <span
                       className={cn(
-                        "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold max-w-full",
+                        "inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] sm:px-1.5 sm:py-0.5 sm:text-[10px] font-semibold max-w-full",
                         isDefault
                           ? "bg-emerald-500/15 text-emerald-600"
                           : "bg-amber-500/15 text-amber-700"
                       )}
                       title={`Active filter${isDefault ? ' (default)' : ''}`}
                     >
-                      <Filter className="h-2.5 w-2.5 shrink-0" />
+                      <Filter className="h-3 w-3 sm:h-2.5 sm:w-2.5 shrink-0" />
                       <span className="truncate">{label}</span>
                       {isDefault && (
-                        <span className="rounded bg-emerald-500/20 px-1 text-[9px] uppercase tracking-wide shrink-0">
+                        <span className="rounded bg-emerald-500/20 px-1 text-[10px] sm:text-[9px] uppercase tracking-wide shrink-0">
                           default
                         </span>
                       )}
@@ -890,7 +890,7 @@ export function NewPartnersPanel() {
             </div>
             <Button
               size="sm"
-              className="h-8 text-xs gap-1.5 shrink-0 px-2 sm:px-3"
+              className="h-10 sm:h-8 text-xs gap-1.5 shrink-0 px-3 sm:px-3"
               onClick={() => {
                 setCreateForUser(null);
                 setCreateOpen(true);
@@ -913,7 +913,7 @@ export function NewPartnersPanel() {
             const next = filteredPartners.find(p => p.portfolio_count === 0);
             if (!next) return null;
             return (
-              <div className="flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-2 sm:px-3 py-2">
+              <div className="flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 sm:px-3 py-3 sm:py-2">
                 <div className="p-1 rounded-md bg-emerald-500/20 shrink-0">
                   <Zap className="h-3.5 w-3.5 text-emerald-600" />
                 </div>
@@ -943,7 +943,7 @@ export function NewPartnersPanel() {
                 </label>
                 <Button
                   size="sm"
-                  className="h-7 text-[11px] gap-1 shrink-0 px-2"
+                  className="h-10 sm:h-7 text-xs sm:text-[11px] gap-1 shrink-0 px-3 sm:px-2"
                   onClick={() => {
                     autoAdvanceRef.current = autoAdvanceEnabled;
                     activationSucceededRef.current = false;
@@ -970,11 +970,11 @@ export function NewPartnersPanel() {
                 value={partnerSearch}
                 onChange={(e) => setPartnerSearch(e.target.value)}
                 placeholder="Search by name or phone…"
-                className="h-8 pl-7 text-xs"
+                className="h-10 sm:h-8 pl-7 text-sm sm:text-xs"
               />
             </div>
             <Select value={partnerFilter} onValueChange={(v) => setPartnerFilter(v as typeof partnerFilter)}>
-              <SelectTrigger className="h-8 text-xs w-full sm:w-[200px]">
+              <SelectTrigger className="h-10 sm:h-8 text-sm sm:text-xs w-full sm:w-[200px]">
                 <Filter className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
                 <SelectValue />
               </SelectTrigger>
@@ -1002,7 +1002,7 @@ export function NewPartnersPanel() {
           </div>
 
           {/* Segmented control — quick portfolio-status switch */}
-          <div className="flex rounded-lg border border-border/60 bg-muted/40 p-0.5 text-[11px] self-start overflow-x-auto max-w-full [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex rounded-lg border border-border/60 bg-muted/40 p-1 sm:p-0.5 text-xs sm:text-[11px] self-start overflow-x-auto max-w-full [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {([
               { key: 'all', label: 'All', count: segmentCounts.all },
               { key: 'just_joined', label: `Just joined (${JUST_JOINED_DAYS}d)`, count: segmentCounts.justJoined },
@@ -1015,7 +1015,7 @@ export function NewPartnersPanel() {
                 onClick={() => setPartnerFilter(seg.key)}
                 aria-pressed={partnerFilter === seg.key}
                 className={cn(
-                  "px-2.5 py-1 rounded-md font-medium transition-colors inline-flex items-center gap-1.5 whitespace-nowrap shrink-0",
+                  "px-3 py-2 sm:px-2.5 sm:py-1 min-h-[40px] sm:min-h-0 rounded-md font-medium transition-colors inline-flex items-center gap-1.5 whitespace-nowrap shrink-0",
                   partnerFilter === seg.key
                     ? "bg-background text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
@@ -1025,7 +1025,7 @@ export function NewPartnersPanel() {
                 <span>{seg.label}</span>
                 <span
                   className={cn(
-                    "rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums leading-none",
+                    "rounded-full px-1.5 py-0.5 text-[11px] sm:text-[10px] font-semibold tabular-nums leading-none",
                     partnerFilter === seg.key
                       ? "bg-muted text-foreground"
                       : "bg-background/60 text-muted-foreground"
@@ -1037,8 +1037,8 @@ export function NewPartnersPanel() {
             ))}
           </div>
           {/* Recent joins (no-portfolio activation backlog, scoped by window) */}
-          <div className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-muted/40 p-0.5 text-[11px] self-start overflow-x-auto max-w-full [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <span className="pl-2 pr-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+          <div className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-muted/40 p-1 sm:p-0.5 text-xs sm:text-[11px] self-start overflow-x-auto max-w-full [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <span className="pl-2 pr-1 text-[11px] sm:text-[10px] uppercase tracking-wide text-muted-foreground shrink-0">
               Recent joins
             </span>
             {([
@@ -1052,7 +1052,7 @@ export function NewPartnersPanel() {
                 onClick={() => setPartnerFilter(seg.key)}
                 aria-pressed={partnerFilter === seg.key}
                 className={cn(
-                  "px-2.5 py-1 rounded-md font-medium transition-colors inline-flex items-center gap-1.5 whitespace-nowrap shrink-0",
+                  "px-3 py-2 sm:px-2.5 sm:py-1 min-h-[40px] sm:min-h-0 rounded-md font-medium transition-colors inline-flex items-center gap-1.5 whitespace-nowrap shrink-0",
                   partnerFilter === seg.key
                     ? "bg-background text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
@@ -1062,7 +1062,7 @@ export function NewPartnersPanel() {
                 <span>{seg.label}</span>
                 <span
                   className={cn(
-                    "rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums leading-none",
+                    "rounded-full px-1.5 py-0.5 text-[11px] sm:text-[10px] font-semibold tabular-nums leading-none",
                     partnerFilter === seg.key
                       ? "bg-muted text-foreground"
                       : "bg-background/60 text-muted-foreground"
@@ -1075,7 +1075,7 @@ export function NewPartnersPanel() {
           </div>
           {/* Sort dropdown — applies to the visible grid */}
           <Select value={partnerSort} onValueChange={(v) => setPartnerSort(v as PartnerSort)}>
-            <SelectTrigger className="h-8 w-full sm:w-[200px] text-[11px] self-start" aria-label="Sort partners">
+            <SelectTrigger className="h-10 sm:h-8 w-full sm:w-[200px] text-sm sm:text-[11px] self-start" aria-label="Sort partners">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
@@ -1097,7 +1097,7 @@ export function NewPartnersPanel() {
                 setCustomRange(undefined);
                 setPartnerSort('recent');
               }}
-              className="self-start h-8 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+              className="self-start h-10 sm:h-8 px-3 sm:px-2 text-xs sm:text-[11px] text-muted-foreground hover:text-foreground"
             >
               <X className="h-3.5 w-3.5 mr-1" />
               Reset filters
