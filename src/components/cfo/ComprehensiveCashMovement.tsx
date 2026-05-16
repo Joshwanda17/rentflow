@@ -575,6 +575,26 @@ export function ComprehensiveCashMovement() {
       .map(a => a.category);
   }, [aggregates]);
 
+  // Top Categories summary: merges per-category aggregates across ledger scopes
+  // for the current filters and surfaces the biggest movers so users can tap
+  // a chip to filter the Categories table without scrolling. Pure derivation.
+  const topCategoriesSummary = useMemo(() => {
+    const map = new Map<string, { category: string; cashIn: number; cashOut: number; count: number }>();
+    for (const a of aggregates) {
+      const cur = map.get(a.category) || { category: a.category, cashIn: 0, cashOut: 0, count: 0 };
+      cur.cashIn += a.cashIn;
+      cur.cashOut += a.cashOut;
+      cur.count += a.count;
+      map.set(a.category, cur);
+    }
+    const all = Array.from(map.values()).map(c => ({ ...c, total: c.cashIn + c.cashOut, net: c.cashIn - c.cashOut }));
+    const grandTotal = all.reduce((s, c) => s + c.total, 0) || 1;
+    return {
+      top: all.sort((a, b) => b.total - a.total).slice(0, 5).map(c => ({ ...c, share: c.total / grandTotal })),
+      categoryCount: all.length,
+    };
+  }, [aggregates]);
+
   // Top parties for the thumb-friendly Party picker. Aggregates the loaded
   // ledger rows by `user_id` (ignoring rows without one), totalling cash flow
   // so the most-active counterparties surface first. Pure UI/derivation —
