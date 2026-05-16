@@ -1039,6 +1039,15 @@ export function NewPartnersPanel() {
                     switchLabel = `Show ${totalWith} with portfolio`;
                     switchTo = 'with';
                   }
+                } else if (partnerFilter === 'just_joined') {
+                  title = `No fresh joiners in the last ${JUST_JOINED_DAYS} days.`;
+                  hint = totalWithout > 0
+                    ? `${totalWithout} older partner${totalWithout === 1 ? '' : 's'} still need a portfolio activated.`
+                    : 'Every partner already has a portfolio.';
+                  if (totalWithout > 0) {
+                    switchLabel = `Show all ${totalWithout} without portfolio`;
+                    switchTo = 'without';
+                  }
                 }
                 return (
                   <div className="space-y-2">
