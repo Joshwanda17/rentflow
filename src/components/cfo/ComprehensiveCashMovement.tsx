@@ -1934,12 +1934,15 @@ function WalletMovementSummary({
   const formatDelta = (current: number, prior: number | undefined) => {
     if (prior === undefined) return null;
     const diff = current - prior;
-    if (prior === 0 && diff === 0) return { label: 'no change', tone: 'muted' as const, arrow: '·' };
-    if (prior === 0) return { label: 'new', tone: 'pos' as const, arrow: '▲' };
+    const absLabel = diff === 0
+      ? ''
+      : `${diff > 0 ? '+' : '−'}${formatUGX(Math.abs(diff))}`;
+    if (prior === 0 && diff === 0) return { label: 'no change', absLabel: '', diff, tone: 'muted' as const, arrow: '·' };
+    if (prior === 0) return { label: 'new', absLabel, diff, tone: 'pos' as const, arrow: '▲' };
     const pct = (diff / prior) * 100;
     const arrow = diff > 0 ? '▲' : diff < 0 ? '▼' : '·';
     const tone = diff > 0 ? 'pos' as const : diff < 0 ? 'neg' as const : 'muted' as const;
-    return { label: `${arrow} ${Math.abs(pct).toFixed(0)}%`, tone, arrow };
+    return { label: `${arrow} ${Math.abs(pct).toFixed(0)}%`, absLabel, diff, tone, arrow };
   };
   const toneClass = (tone: 'pos' | 'neg' | 'muted', context: 'in' | 'out') => {
     // For inflows: up is good (success). For outflows: up is bad (destructive).
@@ -2003,10 +2006,11 @@ function WalletMovementSummary({
           <span className="flex items-center gap-1.5 shrink-0">
             {delta && (
               <span
-                className={cn('text-[10px] font-mono', toneClass(delta.tone, context))}
+                className={cn('flex items-center gap-1 text-[10px] font-mono', toneClass(delta.tone, context))}
                 title={`Previous period: ${formatUGX(priorAmt ?? 0)}`}
               >
-                {delta.label}
+                {delta.absLabel && <span>{delta.absLabel}</span>}
+                <span className="opacity-80">{delta.label}</span>
               </span>
             )}
             <span className={cn('font-mono', amountClass)}>{formatUGX(amt)}</span>
@@ -2195,10 +2199,11 @@ function WalletMovementSummary({
             <div className="flex items-center gap-1.5 shrink-0">
               {totalInDelta && (
                 <span
-                  className={cn('text-[10px] font-mono', toneClass(totalInDelta.tone, 'in'))}
+                  className={cn('flex items-center gap-1 text-[10px] font-mono', toneClass(totalInDelta.tone, 'in'))}
                   title={`Previous: ${formatUGX(priorTotals?.totalIn ?? 0)}`}
                 >
-                  {totalInDelta.label}
+                  {totalInDelta.absLabel && <span>{totalInDelta.absLabel}</span>}
+                  <span className="opacity-80">{totalInDelta.label}</span>
                 </span>
               )}
               <div className="font-mono text-sm font-semibold text-success break-all">
@@ -2223,10 +2228,11 @@ function WalletMovementSummary({
             <div className="flex items-center gap-1.5 shrink-0">
               {totalOutDelta && (
                 <span
-                  className={cn('text-[10px] font-mono', toneClass(totalOutDelta.tone, 'out'))}
+                  className={cn('flex items-center gap-1 text-[10px] font-mono', toneClass(totalOutDelta.tone, 'out'))}
                   title={`Previous: ${formatUGX(priorTotals?.totalOut ?? 0)}`}
                 >
-                  {totalOutDelta.label}
+                  {totalOutDelta.absLabel && <span>{totalOutDelta.absLabel}</span>}
+                  <span className="opacity-80">{totalOutDelta.label}</span>
                 </span>
               )}
               <div className="font-mono text-sm font-semibold text-destructive break-all">
