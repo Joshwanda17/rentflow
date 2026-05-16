@@ -1624,7 +1624,6 @@ export function ComprehensiveCashMovement() {
         {simpleMode && (
           (() => {
             const quiet = totals.cashIn === 0 && totals.cashOut === 0;
-            const verdictEmoji = quiet ? '💤' : totals.net > 0 ? '🟢' : totals.net < 0 ? '🔴' : '⚖️';
             const verdictWord = quiet ? 'Quiet' : totals.net > 0 ? 'Gained' : totals.net < 0 ? 'Spent more' : 'Balanced';
             const headlineNumber = quiet
               ? '—'
@@ -1636,57 +1635,60 @@ export function ComprehensiveCashMovement() {
               : totals.net > 0 ? 'text-success'
               : totals.net < 0 ? 'text-destructive'
               : 'text-foreground';
-            const verdictBg =
-              quiet ? 'bg-muted/40 border-border'
-              : totals.net > 0 ? 'bg-success/10 border-success/40'
-              : totals.net < 0 ? 'bg-destructive/10 border-destructive/40'
-              : 'bg-muted/40 border-border';
             return (
-              <div id="cm-glance" className={cn('scroll-mt-24 rounded-2xl border-2 p-4 sm:p-5 space-y-4', verdictBg)}>
-                <div className="text-center space-y-1">
-                  <div className="text-6xl sm:text-7xl leading-none" aria-hidden="true">{verdictEmoji}</div>
-                  <div className={cn('text-xs sm:text-sm uppercase tracking-widest font-semibold', verdictColor)}>
+              <div
+                id="cm-glance"
+                className="scroll-mt-24 rounded-2xl border border-border bg-card p-5 sm:p-7 space-y-6"
+              >
+                <div className="space-y-2">
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground font-medium">
                     {verdictWord} · {PERIODS.find(p => p.value === period)?.label || period}
                   </div>
-                  <div className={cn('font-mono font-bold text-3xl sm:text-5xl break-all', verdictColor)}>
+                  <div className={cn('font-mono font-semibold text-4xl sm:text-6xl tracking-tight break-all leading-none', verdictColor)}>
                     {headlineNumber}
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-3 gap-2 sm:gap-3">
                   <button
                     type="button"
                     onClick={() => openPageDrill('cash_in')}
-                    className="rounded-xl border-2 border-success/40 bg-success/10 hover:bg-success/15 active:scale-[0.98] transition px-2 py-3 min-h-[88px] flex flex-col items-center justify-center gap-1"
+                    className="group rounded-xl border border-border bg-card hover:bg-muted/40 active:scale-[0.99] transition px-3 py-3 sm:py-4 text-left"
                     aria-label="See money coming in"
                   >
-                    <span className="text-3xl leading-none" aria-hidden="true">💰</span>
-                    <span className="text-[11px] sm:text-xs font-semibold text-foreground">Money in</span>
-                    <span className="text-[10px] font-mono text-success truncate max-w-full">{formatUGX(totals.cashIn)}</span>
+                    <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                      <ArrowUpRight className="h-3 w-3 text-success" /> In
+                    </div>
+                    <div className="mt-1 font-mono text-sm sm:text-lg font-semibold text-success truncate">
+                      {formatUGX(totals.cashIn)}
+                    </div>
                   </button>
                   <button
                     type="button"
                     onClick={() => openPageDrill('cash_out')}
-                    className="rounded-xl border-2 border-destructive/40 bg-destructive/10 hover:bg-destructive/15 active:scale-[0.98] transition px-2 py-3 min-h-[88px] flex flex-col items-center justify-center gap-1"
+                    className="group rounded-xl border border-border bg-card hover:bg-muted/40 active:scale-[0.99] transition px-3 py-3 sm:py-4 text-left"
                     aria-label="See money going out"
                   >
-                    <span className="text-3xl leading-none" aria-hidden="true">💸</span>
-                    <span className="text-[11px] sm:text-xs font-semibold text-foreground">Money out</span>
-                    <span className="text-[10px] font-mono text-destructive truncate max-w-full">{formatUGX(totals.cashOut)}</span>
+                    <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                      <ArrowDownRight className="h-3 w-3 text-destructive" /> Out
+                    </div>
+                    <div className="mt-1 font-mono text-sm sm:text-lg font-semibold text-destructive truncate">
+                      {formatUGX(totals.cashOut)}
+                    </div>
                   </button>
                   <button
                     type="button"
                     onClick={handleShareSummary}
-                    className="rounded-xl border-2 border-primary/40 bg-primary/10 hover:bg-primary/15 active:scale-[0.98] transition px-2 py-3 min-h-[88px] flex flex-col items-center justify-center gap-1"
+                    className="group rounded-xl border border-border bg-card hover:bg-muted/40 active:scale-[0.99] transition px-3 py-3 sm:py-4 text-left"
                     aria-label="Share this summary"
                   >
-                    <span className="text-3xl leading-none" aria-hidden="true">📤</span>
-                    <span className="text-[11px] sm:text-xs font-semibold text-foreground">Share</span>
-                    <span className="text-[10px] text-muted-foreground">image · PDF</span>
+                    <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                      <Share2 className="h-3 w-3" /> Share
+                    </div>
+                    <div className="mt-1 text-sm sm:text-base font-medium text-foreground">
+                      Image · PDF
+                    </div>
                   </button>
                 </div>
-                <p className="text-[11px] text-center text-muted-foreground">
-                  Tap a tile to see what's behind the number.
-                </p>
               </div>
             );
           })()
@@ -1700,52 +1702,42 @@ export function ComprehensiveCashMovement() {
           const inCount = rows.reduce((n, r) => n + (r.direction === 'cash_in' ? 1 : 0), 0);
           const outCount = rows.reduce((n, r) => n + (r.direction === 'cash_out' ? 1 : 0), 0);
           return (
-            <div className="space-y-2">
-              <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold px-1">
-                Tap to drill down
-              </div>
+            <div className="rounded-xl border border-border bg-card divide-y divide-border overflow-hidden">
               <button
                 type="button"
                 onClick={() => openPageDrill('cash_in')}
-                className="w-full flex items-center gap-3 rounded-xl border-2 border-success/40 bg-success/5 hover:bg-success/10 active:scale-[0.99] transition px-3 py-3 min-h-[64px] text-left"
+                className="w-full flex items-center gap-3 hover:bg-muted/40 active:bg-muted/60 transition px-4 py-3 text-left"
                 aria-label={`See every Money-In transaction (${inCount.toLocaleString()})`}
               >
-                <span className="text-2xl shrink-0" aria-hidden="true">💰</span>
+                <ArrowUpRight className="h-4 w-4 text-success shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-foreground">See every Money-In transaction</div>
-                  <div className="text-[11px] text-muted-foreground">
-                    {inCount.toLocaleString()} {inCount === 1 ? 'entry' : 'entries'} · jumps straight to the list
-                  </div>
+                  <div className="text-sm font-medium text-foreground">Money in transactions</div>
+                  <div className="text-[11px] text-muted-foreground">{inCount.toLocaleString()} {inCount === 1 ? 'entry' : 'entries'}</div>
                 </div>
-                <span className="text-success text-lg shrink-0" aria-hidden="true">→</span>
+                <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
               </button>
               <button
                 type="button"
                 onClick={() => openPageDrill('cash_out')}
-                className="w-full flex items-center gap-3 rounded-xl border-2 border-destructive/40 bg-destructive/5 hover:bg-destructive/10 active:scale-[0.99] transition px-3 py-3 min-h-[64px] text-left"
+                className="w-full flex items-center gap-3 hover:bg-muted/40 active:bg-muted/60 transition px-4 py-3 text-left"
                 aria-label={`See every Money-Out transaction (${outCount.toLocaleString()})`}
               >
-                <span className="text-2xl shrink-0" aria-hidden="true">💸</span>
+                <ArrowDownRight className="h-4 w-4 text-destructive shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-foreground">See every Money-Out transaction</div>
-                  <div className="text-[11px] text-muted-foreground">
-                    {outCount.toLocaleString()} {outCount === 1 ? 'entry' : 'entries'} · jumps straight to the list
-                  </div>
+                  <div className="text-sm font-medium text-foreground">Money out transactions</div>
+                  <div className="text-[11px] text-muted-foreground">{outCount.toLocaleString()} {outCount === 1 ? 'entry' : 'entries'}</div>
                 </div>
-                <span className="text-destructive text-lg shrink-0" aria-hidden="true">→</span>
+                <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
               </button>
             </div>
           );
         })()}
         {simpleMode && (
-          <div className={cn(
-            'rounded-lg border-2 p-3 sm:p-4 space-y-2',
-            totals.net >= 0 ? 'border-success/40 bg-success/5' : 'border-destructive/40 bg-destructive/5'
-          )}>
-            <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+          <div className="rounded-xl border border-border bg-card p-4 sm:p-5 space-y-2">
+            <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-medium">
               In plain English · {PERIODS.find(p => p.value === period)?.label || period}
             </div>
-            <p className="text-sm sm:text-base leading-relaxed">
+            <p className="text-sm sm:text-[15px] leading-relaxed text-foreground">
               {totals.cashIn === 0 && totals.cashOut === 0 ? (
                 <>No money moved during this period.</>
               ) : (
