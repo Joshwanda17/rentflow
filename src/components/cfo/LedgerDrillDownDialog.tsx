@@ -51,6 +51,7 @@ export function LedgerDrillDownDialog({ open, onOpenChange, title, spec, startDa
 
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     if (!open || !spec) return;
