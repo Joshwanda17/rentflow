@@ -563,6 +563,7 @@ export function NewPartnersPanel() {
                       <Badge variant="outline" className="mt-1 text-[9px] py-0 px-1.5">{p.portfolio_count} portfolio{p.portfolio_count > 1 ? 's' : ''}</Badge>
                     )}
                   </div>
+                  {canWhatsAppPartners && (
                   <Button
                     size="icon"
                     variant="outline"
@@ -582,6 +583,7 @@ export function NewPartnersPanel() {
                   >
                     <MessageCircle className="h-3.5 w-3.5" />
                   </Button>
+                  )}
                   <Button
                     size="sm"
                     variant="outline"
