@@ -1158,6 +1158,37 @@ export function NewPartnersPanel() {
               )}
             </div>
             </div>
+              {/* Server-side pagination controls — browse every supporter, not just the first page. */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  <p className="text-[10px] text-muted-foreground">
+                    Page <span className="font-semibold text-foreground">{partnersPageIndex + 1}</span> of {totalPages}
+                    {' '}· {PARTNERS_PAGE_SIZE} per page
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-2 text-[10px] gap-1"
+                      disabled={partnersPageIndex === 0 || isFetching}
+                      onClick={() => setPartnersPageIndex(i => Math.max(0, i - 1))}
+                    >
+                      <ChevronLeft className="h-3 w-3" />
+                      Prev
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-2 text-[10px] gap-1"
+                      disabled={partnersPageIndex >= totalPages - 1 || isFetching}
+                      onClick={() => setPartnersPageIndex(i => Math.min(totalPages - 1, i + 1))}
+                    >
+                      Next
+                      {isFetching ? <Loader2 className="h-3 w-3 animate-spin" /> : <ChevronRight className="h-3 w-3" />}
+                    </Button>
+                  </div>
+                </div>
+              )}
               );
             })()
           )}
