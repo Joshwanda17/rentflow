@@ -18,6 +18,9 @@ interface CreateInvestmentAccountDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+  /** Fired when create fails so callers (e.g. NewPartnersPanel) can surface
+   *  their own inline error toast with partner context. */
+  onError?: (message: string) => void;
   prefillInvestorId?: string | null;
   prefillInvestorName?: string;
 }
@@ -28,7 +31,7 @@ interface UserResult {
   phone: string;
 }
 
-export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, prefillInvestorId, prefillInvestorName }: CreateInvestmentAccountDialogProps) {
+export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, onError, prefillInvestorId, prefillInvestorName }: CreateInvestmentAccountDialogProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   const [saving, setSaving] = useState(false);
@@ -201,6 +204,7 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, p
       onOpenChange(false);
     } catch (e: any) {
       toast({ title: 'Creation failed', description: e.message, variant: 'destructive' });
+      onError?.(e?.message || 'Failed to create portfolio');
     } finally {
       setSaving(false);
     }
