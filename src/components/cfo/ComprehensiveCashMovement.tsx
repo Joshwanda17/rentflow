@@ -163,7 +163,7 @@ export function ComprehensiveCashMovement() {
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<LedgerRow[]>([]);
   const [generatedAt, setGeneratedAt] = useState<Date | null>(null);
-  const [drill, setDrill] = useState<null | { category: string; scope: string; bucket: string | null; direction?: 'cash_in' | 'cash_out' }>(null);
+  const [drill, setDrill] = useState<null | { category: string; scope: string; bucket: string | null; direction?: 'cash_in' | 'cash_out'; dateFrom?: string; dateTo?: string }>(null);
   const [partyNames, setPartyNames] = useState<Record<string, string>>({});
   const [drillQuery, setDrillQuery] = useState('');
   const [debouncedDrillQuery, setDebouncedDrillQuery] = useState('');
@@ -184,6 +184,20 @@ export function ComprehensiveCashMovement() {
   useEffect(() => {
     try { localStorage.setItem(CAPITAL_INFLOW_STORAGE, JSON.stringify(Array.from(capitalCategories))); } catch {}
   }, [capitalCategories]);
+
+  // Optional sub-range filter scoped to the Capital Inflows callout (and its
+  // drill-downs). Dates are inclusive `yyyy-MM-dd` strings; empty means
+  // "use the full loaded period".
+  const [capitalFrom, setCapitalFrom] = useState<string>('');
+  const [capitalTo, setCapitalTo] = useState<string>('');
+  const capitalRangeActive = !!(capitalFrom || capitalTo);
+  const inCapitalRange = (iso: string) => {
+    if (!capitalRangeActive) return true;
+    const d = iso.slice(0, 10);
+    if (capitalFrom && d < capitalFrom) return false;
+    if (capitalTo && d > capitalTo) return false;
+    return true;
+  };
 
   const generate = async () => {
     setLoading(true);
@@ -242,6 +256,8 @@ export function ComprehensiveCashMovement() {
       if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) return false;
       if (r.category !== drill.category || r.ledger_scope !== drill.scope) return false;
       if (drill.direction && r.direction !== drill.direction) return false;
+      if (drill.dateFrom && r.transaction_date.slice(0, 10) < drill.dateFrom) return false;
+      if (drill.dateTo && r.transaction_date.slice(0, 10) > drill.dateTo) return false;
       if (drill.bucket) {
         const bk = bucketKey(new Date(r.transaction_date), granularity);
         if (bk !== drill.bucket) return false;
@@ -328,6 +344,7 @@ export function ComprehensiveCashMovement() {
     for (const r of rows) {
       if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
       if (r.ledger_scope !== 'platform' || r.direction !== 'cash_in') continue;
+      if (!inCapitalRange(r.transaction_date)) continue;
       const amt = Number(r.amount) || 0;
       const bk = bucketKey(new Date(r.transaction_date), granularity);
       bucketSet.add(bk);
@@ -350,7 +367,7 @@ export function ComprehensiveCashMovement() {
     }
     const peakBucket = bucketLabels.reduce((max, b) => bucketTotals[b] > (bucketTotals[max] || 0) ? b : max, bucketLabels[0] || '');
     return { availableCategories, selected, total, entries, bucketLabels, bucketTotals, peakBucket };
-  }, [rows, includeAdjustments, capitalCategories, granularity]);
+  }, [rows, includeAdjustments, capitalCategories, granularity, capitalFrom, capitalTo]);
 
   const handleExport = () => {
     if (!canViewLedgerDetail) { toast.error('You do not have permission to export ledger data'); return; }
@@ -796,8 +813,15 @@ export function ComprehensiveCashMovement() {
                 <button
                   key={c.category}
                   type="button"
-                  onClick={() => setDrill({ category: c.category, scope: 'platform', bucket: null, direction: 'cash_in' })}
-                  title={`Drill into ${prettifyCategory(c.category)} · Platform cash_in entries`}
+                  onClick={() => setDrill({
+                    category: c.category,
+                    scope: 'platform',
+                    bucket: null,
+                    direction: 'cash_in',
+                    dateFrom: capitalFrom || undefined,
+                    dateTo: capitalTo || undefined,
+                  })}
+                  title={`Drill into ${prettifyCategory(c.category)} · Platform cash_in entries${capitalRangeActive ? ` · ${capitalFrom || '…'} → ${capitalTo || '…'}` : ''}`}
                   className="inline-flex items-center gap-1 rounded-full border border-border bg-background hover:bg-primary/10 hover:border-primary/40 px-2 py-0.5 text-[11px] font-normal transition-colors"
                 >
                   <span className="font-medium">{prettifyCategory(c.category)}</span>
@@ -846,6 +870,45 @@ export function ComprehensiveCashMovement() {
 
           <Collapsible open={capitalPickerOpen} onOpenChange={setCapitalPickerOpen}>
             <CollapsibleContent className="space-y-2 pt-2 border-t border-primary/20">
+              {/* Date sub-range filter — scopes Capital Inflows totals & drill-downs */}
+              <div className="flex flex-wrap items-end gap-2 rounded-md border border-primary/20 bg-background/60 p-2">
+                <div className="flex flex-col gap-0.5">
+                  <label className="text-[10px] uppercase tracking-wider text-muted-foreground">From</label>
+                  <Input
+                    type="date"
+                    value={capitalFrom}
+                    max={capitalTo || undefined}
+                    onChange={(e) => setCapitalFrom(e.target.value)}
+                    className="h-7 text-[11px] w-[140px]"
+                  />
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <label className="text-[10px] uppercase tracking-wider text-muted-foreground">To</label>
+                  <Input
+                    type="date"
+                    value={capitalTo}
+                    min={capitalFrom || undefined}
+                    onChange={(e) => setCapitalTo(e.target.value)}
+                    className="h-7 text-[11px] w-[140px]"
+                  />
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-[11px] gap-1"
+                  disabled={!capitalRangeActive}
+                  onClick={() => { setCapitalFrom(''); setCapitalTo(''); }}
+                  title="Clear sub-range and use the full loaded period"
+                >
+                  <X className="h-3 w-3" />
+                  Clear
+                </Button>
+                <span className="text-[10px] text-muted-foreground ml-auto">
+                  {capitalRangeActive
+                    ? <>Filter active · totals & drill-downs scoped to <span className="font-mono text-primary">{capitalFrom || '…'} → {capitalTo || '…'}</span></>
+                    : <>No sub-range · using full period ({rangeLabel})</>}
+                </span>
+              </div>
               <div className="flex items-center justify-between">
                 <span className="text-[11px] text-muted-foreground">
                   Pick any platform cash_in category to include in the callout. Selection is saved per browser.
