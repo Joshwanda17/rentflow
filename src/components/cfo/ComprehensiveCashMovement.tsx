@@ -2081,6 +2081,151 @@ export function ComprehensiveCashMovement() {
             )}
           </SheetContent>
         </Sheet>
+
+        {/* ─── Date picker sheet (thumb-friendly) ─── */}
+        <Sheet open={dateSheetOpen} onOpenChange={setDateSheetOpen}>
+          <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-2xl">
+            <SheetHeader className="text-left">
+              <SheetTitle className="flex items-center gap-2"><Calendar className="h-4 w-4" /> Pick a date range</SheetTitle>
+              <SheetDescription className="text-xs">
+                Currently showing: <span className="font-semibold">{rangeLabel}</span>
+              </SheetDescription>
+            </SheetHeader>
+            <div className="mt-4 grid grid-cols-2 gap-2 pb-4">
+              {PERIODS.map(p => {
+                const selected = period === p.value;
+                return (
+                  <button
+                    key={p.value}
+                    type="button"
+                    onClick={() => { setPeriod(p.value); setDateSheetOpen(false); }}
+                    className={cn(
+                      'min-h-[56px] rounded-xl border-2 px-3 py-2 text-left flex items-center justify-between gap-2 transition-colors active:scale-[0.98]',
+                      selected ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted/60',
+                    )}
+                  >
+                    <span className="text-sm font-semibold">{p.label}</span>
+                    {selected && <Check className="h-4 w-4 text-primary shrink-0" />}
+                  </button>
+                );
+              })}
+            </div>
+          </SheetContent>
+        </Sheet>
+
+        {/* ─── Direction picker sheet (thumb-friendly) ─── */}
+        <Sheet open={directionSheetOpen} onOpenChange={setDirectionSheetOpen}>
+          <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-2xl">
+            <SheetHeader className="text-left">
+              <SheetTitle className="flex items-center gap-2"><ArrowLeftRight className="h-4 w-4" /> Show which direction?</SheetTitle>
+              <SheetDescription className="text-xs">Narrow the page to money coming in, going out, or both.</SheetDescription>
+            </SheetHeader>
+            <div className="mt-4 grid grid-cols-1 gap-2 pb-4">
+              {([
+                { v: 'all',           label: 'In + Out',      hint: 'Everything (default)',                icon: <ArrowLeftRight className="h-5 w-5" /> },
+                { v: 'cash_in',       label: 'Money In only', hint: 'Cash that came into Welile',         icon: <ArrowUpRight className="h-5 w-5 text-success" /> },
+                { v: 'cash_out',      label: 'Money Out only',hint: 'Cash that left Welile',              icon: <ArrowDownRight className="h-5 w-5 text-destructive" /> },
+                { v: 'net_positive',  label: 'Net positive',  hint: 'Categories where In beat Out',       icon: <ArrowUpRight className="h-5 w-5 text-success" /> },
+                { v: 'net_negative',  label: 'Net negative',  hint: 'Categories where Out beat In',       icon: <ArrowDownRight className="h-5 w-5 text-destructive" /> },
+              ] as const).map(opt => {
+                const selected = directionQuickFilter === opt.v;
+                return (
+                  <button
+                    key={opt.v}
+                    type="button"
+                    onClick={() => { setDirectionQuickFilter(opt.v); setDirectionSheetOpen(false); }}
+                    className={cn(
+                      'min-h-[60px] rounded-xl border-2 px-3 py-2 text-left flex items-center gap-3 transition-colors active:scale-[0.98]',
+                      selected ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted/60',
+                    )}
+                  >
+                    {opt.icon}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold">{opt.label}</div>
+                      <div className="text-[11px] text-muted-foreground">{opt.hint}</div>
+                    </div>
+                    {selected && <Check className="h-4 w-4 text-primary shrink-0" />}
+                  </button>
+                );
+              })}
+            </div>
+          </SheetContent>
+        </Sheet>
+
+        {/* ─── Party picker sheet (thumb-friendly) ─── */}
+        <Sheet open={partySheetOpen} onOpenChange={(o) => { setPartySheetOpen(o); if (!o) setPartySearch(''); }}>
+          <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-2xl">
+            <SheetHeader className="text-left">
+              <SheetTitle className="flex items-center gap-2"><Users className="h-4 w-4" /> Pick a party</SheetTitle>
+              <SheetDescription className="text-xs">
+                Filter the page to a single counterparty. {topParties.length.toLocaleString()} found in this period.
+              </SheetDescription>
+            </SheetHeader>
+            <div className="mt-3 sticky top-0 bg-background pb-2 z-10">
+              <Input
+                value={partySearch}
+                onChange={(e) => setPartySearch(e.target.value)}
+                placeholder="Search name or user id…"
+                className="h-11 text-sm"
+                inputMode="search"
+              />
+            </div>
+            <div className="grid grid-cols-1 gap-2 pb-4">
+              <button
+                type="button"
+                onClick={() => { setPartyQuickFilter(null); setPartySheetOpen(false); }}
+                className={cn(
+                  'min-h-[56px] rounded-xl border-2 px-3 py-2 text-left flex items-center justify-between gap-2 transition-colors active:scale-[0.98]',
+                  !partyQuickFilter ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted/60',
+                )}
+              >
+                <div>
+                  <div className="text-sm font-semibold">Everyone</div>
+                  <div className="text-[11px] text-muted-foreground">Show all parties (no filter)</div>
+                </div>
+                {!partyQuickFilter && <Check className="h-4 w-4 text-primary shrink-0" />}
+              </button>
+              {topParties
+                .filter(p => {
+                  const q = partySearch.trim().toLowerCase();
+                  if (!q) return true;
+                  const name = (partyNames[p.id] || '').toLowerCase();
+                  return name.includes(q) || p.id.toLowerCase().includes(q);
+                })
+                .slice(0, 80)
+                .map(p => {
+                  const selected = partyQuickFilter === p.id;
+                  const name = partyNames[p.id] || `${p.id.slice(0, 8)}…`;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => { setPartyQuickFilter(p.id); setPartySheetOpen(false); }}
+                      className={cn(
+                        'min-h-[60px] rounded-xl border-2 px-3 py-2 text-left flex items-center gap-2 transition-colors active:scale-[0.98]',
+                        selected ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted/60',
+                      )}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold truncate">{name}</div>
+                        <div className="text-[11px] text-muted-foreground flex flex-wrap gap-x-2">
+                          <span className="text-success">In {formatUGX(p.cashIn)}</span>
+                          <span className="text-destructive">Out {formatUGX(p.cashOut)}</span>
+                          <span>· {p.count} tx</span>
+                        </div>
+                      </div>
+                      {selected && <Check className="h-4 w-4 text-primary shrink-0" />}
+                    </button>
+                  );
+                })}
+              {topParties.length === 0 && (
+                <div className="text-xs text-muted-foreground text-center py-6">
+                  No parties in this period. Try a wider date range.
+                </div>
+              )}
+            </div>
+          </SheetContent>
+        </Sheet>
       </CardContent>
     </Card>
   );
