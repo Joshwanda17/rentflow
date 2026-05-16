@@ -176,6 +176,15 @@ export function NewPartnersPanel() {
   // disabled with a spinner from the moment the confirmation is accepted
   // until the create-portfolio dialog closes (server confirmed or cancelled).
   const [activatingUserId, setActivatingUserId] = useState<string | null>(null);
+  // Auto-advance chain — when the operator clicks "Activate now" on the
+  // quick-activate banner we queue opening the next no-portfolio candidate
+  // right after the current activation succeeds so they can blitz through
+  // onboarding without re-aiming the dialog.
+  const autoAdvanceRef = useRef(false);
+  const activationSucceededRef = useRef(false);
+  const lastActivatedIdRef = useRef<string | null>(null);
+  const [pendingAutoAdvance, setPendingAutoAdvance] = useState(false);
+  const [autoAdvanceEnabled, setAutoAdvanceEnabled] = useState(true);
   const [revokeOpen, setRevokeOpen] = useState(false);
   const [revokeBusy, setRevokeBusy] = useState(false);
   // Typed confirmation phrase the operator must enter before Revoke unlocks.
@@ -598,6 +607,31 @@ export function NewPartnersPanel() {
     };
   }, [filteredPartners]);
 
+  // ── Auto-advance: after a successful banner-driven activation, open the
+  // create-portfolio dialog for the next no-portfolio candidate as soon as
+  // the refreshed list is back and the previous dialog has closed. ──
+  useEffect(() => {
+    if (!pendingAutoAdvance) return;
+    if (createOpen) return; // wait until previous dialog fully closed
+    if (isLoading || isFetchingNextPage) return; // wait for fresh list
+    const lastId = lastActivatedIdRef.current;
+    const next = filteredPartners.find(p => p.portfolio_count === 0 && p.user_id !== lastId);
+    setPendingAutoAdvance(false);
+    if (!next) {
+      toast({
+        title: 'Onboarding queue cleared',
+        description: 'No more partners waiting for a portfolio in this filter.',
+      });
+      return;
+    }
+    autoAdvanceRef.current = true; // keep the chain alive
+    openCreateFor({ id: next.user_id, full_name: next.full_name, phone: next.phone });
+    toast({
+      title: 'Next up',
+      description: `Activating ${next.full_name}…`,
+    });
+  }, [pendingAutoAdvance, createOpen, isLoading, isFetchingNextPage, filteredPartners]);
+
   // Segment counts for the All / With / Without toggle. Based on `joined`
   // (the full partner list) so the numbers reflect totals available in each
   // segment regardless of the currently active portfolio filter.
@@ -883,7 +917,7 @@ export function NewPartnersPanel() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-[11px] font-semibold text-emerald-700 leading-tight">
-                    Next up to activate
+                    Next up to activate{autoAdvanceEnabled ? ' · auto-advance on' : ''}
                   </p>
                   <p className="text-xs font-medium truncate">
                     {next.full_name}
@@ -893,14 +927,30 @@ export function NewPartnersPanel() {
                     Joined {formatDistanceToNow(new Date(next.created_at), { addSuffix: true })}
                   </p>
                 </div>
+                <label
+                  className="hidden sm:inline-flex items-center gap-1 text-[10px] text-emerald-700 cursor-pointer select-none shrink-0"
+                  title="Automatically open the next no-portfolio candidate after each successful activation"
+                >
+                  <input
+                    type="checkbox"
+                    className="h-3 w-3 accent-emerald-600"
+                    checked={autoAdvanceEnabled}
+                    onChange={(e) => setAutoAdvanceEnabled(e.target.checked)}
+                  />
+                  Auto-advance
+                </label>
                 <Button
                   size="sm"
                   className="h-7 text-[11px] gap-1 shrink-0"
-                  onClick={() => openCreateFor({
-                    id: next.user_id,
-                    full_name: next.full_name,
-                    phone: next.phone,
-                  })}
+                  onClick={() => {
+                    autoAdvanceRef.current = autoAdvanceEnabled;
+                    activationSucceededRef.current = false;
+                    openCreateFor({
+                      id: next.user_id,
+                      full_name: next.full_name,
+                      phone: next.phone,
+                    });
+                  }}
                 >
                   <PlusCircle className="h-3 w-3" /> Activate now
                 </Button>
@@ -1588,9 +1638,19 @@ export function NewPartnersPanel() {
           if (!open) {
             setActivatingUserId(null);
             setCreateForUser(null);
+            // If this close came from a successful activation AND the
+            // operator opened the dialog via the quick-activate banner,
+            // queue an auto-advance to the next no-portfolio candidate.
+            if (autoAdvanceRef.current && activationSucceededRef.current) {
+              setPendingAutoAdvance(true);
+            }
+            autoAdvanceRef.current = false;
+            activationSucceededRef.current = false;
           }
         }}
         onSuccess={() => {
+          activationSucceededRef.current = true;
+          lastActivatedIdRef.current = createForUser?.id ?? null;
           handleSelect(selected);
           qc.invalidateQueries({ queryKey: ['exec-partner-portfolios'] });
           qc.invalidateQueries({ queryKey: ['new-partners-panel'] });
