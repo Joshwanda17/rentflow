@@ -163,6 +163,21 @@ export function NewPartnersPanel() {
   // away while the network request is in flight.
   const savingRowsRef = useRef<Record<string, boolean>>({});
 
+  // Warn the user before they navigate away / reload / close the tab while any
+  // expanded inline portfolio row still has unsaved edits.
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      const hasDirty = Object.values(dirtyRowsRef.current).some(Boolean);
+      if (!hasDirty) return;
+      e.preventDefault();
+      // Required for Chrome to actually show the prompt.
+      e.returnValue = '';
+      return '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, []);
+
   /**
    * Wraps setExpandedId to prompt before discarding unsaved inline edits when
    * collapsing the currently-open row or switching to a different one.
