@@ -994,12 +994,7 @@ export function ComprehensiveCashMovement() {
         {/* ─── Wallet Money Movement (minimalist) ───
             Primary view: money flowing INTO and OUT OF user/operational wallets
             in the selected period. Shown first by default. */}
-        <WalletMovementSummary
-          rows={rows}
-          includeAdjustments={includeAdjustments}
-          period={period}
-          granularity={granularity}
-        />
+        <WalletMovementSummary rows={rows} includeAdjustments={includeAdjustments} period={period} />
 
         {/* Totals strip (full ledger scope: platform + wallet) */}
         <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
@@ -1841,12 +1836,10 @@ function WalletMovementSummary({
   rows,
   includeAdjustments,
   period,
-  granularity,
 }: {
   rows: LedgerRow[];
   includeAdjustments: boolean;
   period: PeriodKey;
-  granularity: Granularity;
 }) {
   // Tracks which (direction|category) rows are expanded to reveal underlying
   // ledger transactions for the currently loaded period.
