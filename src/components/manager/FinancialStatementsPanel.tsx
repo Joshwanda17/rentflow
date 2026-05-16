@@ -526,16 +526,16 @@ function FacilitatedVolumeSection({ d, cm }: { d: FinancialStatementsData['facil
 type Tab = 'income' | 'cashflow' | 'movement' | 'balance' | 'volume';
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
+  { id: 'movement', label: 'Cash Movement', icon: <Activity className="h-3.5 w-3.5" /> },
   { id: 'income', label: 'Income', icon: <TrendingUp className="h-3.5 w-3.5" /> },
   { id: 'cashflow', label: 'Cash Flow', icon: <Wallet className="h-3.5 w-3.5" /> },
-  { id: 'movement', label: 'Cash Movement', icon: <Activity className="h-3.5 w-3.5" /> },
   { id: 'balance', label: 'Balance Sheet', icon: <FileText className="h-3.5 w-3.5" /> },
   { id: 'volume', label: 'Facilitated Volume', icon: <BarChart3 className="h-3.5 w-3.5" /> },
 ];
 
 export function FinancialStatementsPanel() {
   const { data, loading, filters, generate, updatePeriod, comparisonMode, updateComparisonMode, comparisonMetrics, loadingComparison } = useFinancialStatements();
-  const [activeTab, setActiveTab] = useState<Tab>('income');
+  const [activeTab, setActiveTab] = useState<Tab>('movement');
   const [sharing, setSharing] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
