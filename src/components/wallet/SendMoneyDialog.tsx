@@ -625,6 +625,62 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                         Sending blocked: no Welile user found for this {mode === 'email' ? 'email' : 'number'}.
                       </motion.p>
                     )}
+                    {recipient.status === 'multiple' && (
+                      <motion.div
+                        key="multiple"
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2.5 space-y-2"
+                      >
+                        <p className="text-xs text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
+                          <UserX className="h-3 w-3" />
+                          {recipient.matches.length} accounts match this {mode === 'email' ? 'email' : 'number'}. Pick the correct recipient:
+                        </p>
+                        <div className="space-y-1.5 max-h-56 overflow-y-auto">
+                          {recipient.matches.map((m) => (
+                            <button
+                              key={m.id}
+                              type="button"
+                              disabled={m.isSelf}
+                              onClick={() =>
+                                setRecipient({
+                                  status: 'found',
+                                  name: m.name,
+                                  phone: m.phone,
+                                  email: m.email,
+                                  isSelf: m.isSelf,
+                                })
+                              }
+                              className="w-full text-left rounded-md border border-border/60 bg-background/70 hover:bg-background hover:border-primary/50 disabled:opacity-50 disabled:cursor-not-allowed px-2.5 py-2 transition-all"
+                            >
+                              <p className="text-sm font-medium text-foreground truncate">
+                                {m.name}
+                                {m.isSelf && (
+                                  <span className="ml-1.5 text-[10px] uppercase tracking-wide text-destructive">
+                                    you
+                                  </span>
+                                )}
+                              </p>
+                              <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground mt-0.5">
+                                {m.phone && (
+                                  <span className="flex items-center gap-1">
+                                    <Phone className="h-3 w-3" />
+                                    {m.phone}
+                                  </span>
+                                )}
+                                {m.email && (
+                                  <span className="flex items-center gap-1 truncate">
+                                    <Mail className="h-3 w-3" />
+                                    {m.email}
+                                  </span>
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
                     {recipient.status === 'invalid' && (
                       <motion.p
                         key="invalid"
@@ -716,6 +772,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                           recipient.status === 'not_found' ||
                           recipient.status === 'idle' ||
                           recipient.status === 'invalid' ||
+                          recipient.status === 'multiple' ||
                           (recipient.status === 'found' && recipient.isSelf)
                         }
                         className="gap-2"
