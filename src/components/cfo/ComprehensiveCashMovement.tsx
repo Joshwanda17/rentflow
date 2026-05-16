@@ -1512,6 +1512,82 @@ export function ComprehensiveCashMovement() {
         {/* Plain-English summary — one friendly sentence anyone can read.
             Shown only in Simple mode so non-tech / non-accounting users get
             the headline without scrolling through tables and matrices. */}
+        {/* ─── Glance hero (Simple mode only) ─────────────────────
+            For people who don't want to read details: one giant
+            emoji verdict, one giant headline number, and three
+            huge tap-targets to either jump to the relevant
+            transactions or share the summary. Pure presentation —
+            uses existing handlers (openPageDrill, handleShareSummary). */}
+        {simpleMode && (
+          (() => {
+            const quiet = totals.cashIn === 0 && totals.cashOut === 0;
+            const verdictEmoji = quiet ? '💤' : totals.net > 0 ? '🟢' : totals.net < 0 ? '🔴' : '⚖️';
+            const verdictWord = quiet ? 'Quiet' : totals.net > 0 ? 'Gained' : totals.net < 0 ? 'Spent more' : 'Balanced';
+            const headlineNumber = quiet
+              ? '—'
+              : totals.net === 0
+                ? formatUGX(0)
+                : `${totals.net > 0 ? '+' : '−'}${formatUGX(Math.abs(totals.net))}`;
+            const verdictColor =
+              quiet ? 'text-muted-foreground'
+              : totals.net > 0 ? 'text-success'
+              : totals.net < 0 ? 'text-destructive'
+              : 'text-foreground';
+            const verdictBg =
+              quiet ? 'bg-muted/40 border-border'
+              : totals.net > 0 ? 'bg-success/10 border-success/40'
+              : totals.net < 0 ? 'bg-destructive/10 border-destructive/40'
+              : 'bg-muted/40 border-border';
+            return (
+              <div className={cn('rounded-2xl border-2 p-4 sm:p-5 space-y-4', verdictBg)}>
+                <div className="text-center space-y-1">
+                  <div className="text-6xl sm:text-7xl leading-none" aria-hidden="true">{verdictEmoji}</div>
+                  <div className={cn('text-xs sm:text-sm uppercase tracking-widest font-semibold', verdictColor)}>
+                    {verdictWord} · {PERIODS.find(p => p.value === period)?.label || period}
+                  </div>
+                  <div className={cn('font-mono font-bold text-3xl sm:text-5xl break-all', verdictColor)}>
+                    {headlineNumber}
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openPageDrill('cash_in')}
+                    className="rounded-xl border-2 border-success/40 bg-success/10 hover:bg-success/15 active:scale-[0.98] transition px-2 py-3 min-h-[88px] flex flex-col items-center justify-center gap-1"
+                    aria-label="See money coming in"
+                  >
+                    <span className="text-3xl leading-none" aria-hidden="true">💰</span>
+                    <span className="text-[11px] sm:text-xs font-semibold text-foreground">Money in</span>
+                    <span className="text-[10px] font-mono text-success truncate max-w-full">{formatUGX(totals.cashIn)}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openPageDrill('cash_out')}
+                    className="rounded-xl border-2 border-destructive/40 bg-destructive/10 hover:bg-destructive/15 active:scale-[0.98] transition px-2 py-3 min-h-[88px] flex flex-col items-center justify-center gap-1"
+                    aria-label="See money going out"
+                  >
+                    <span className="text-3xl leading-none" aria-hidden="true">💸</span>
+                    <span className="text-[11px] sm:text-xs font-semibold text-foreground">Money out</span>
+                    <span className="text-[10px] font-mono text-destructive truncate max-w-full">{formatUGX(totals.cashOut)}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleShareSummary}
+                    className="rounded-xl border-2 border-primary/40 bg-primary/10 hover:bg-primary/15 active:scale-[0.98] transition px-2 py-3 min-h-[88px] flex flex-col items-center justify-center gap-1"
+                    aria-label="Share this summary"
+                  >
+                    <span className="text-3xl leading-none" aria-hidden="true">📤</span>
+                    <span className="text-[11px] sm:text-xs font-semibold text-foreground">Share</span>
+                    <span className="text-[10px] text-muted-foreground">image · PDF</span>
+                  </button>
+                </div>
+                <p className="text-[11px] text-center text-muted-foreground">
+                  Tap a tile to see what's behind the number.
+                </p>
+              </div>
+            );
+          })()
+        )}
         {simpleMode && (
           <div className={cn(
             'rounded-lg border-2 p-3 sm:p-4 space-y-2',
