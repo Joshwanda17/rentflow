@@ -1335,6 +1335,49 @@ export function ComprehensiveCashMovement() {
           </div>
         </div>
 
+        {/* ─── Sticky on-page navigator ────────────────────────────
+            Quick anchors to the major sections of the page. Sticks
+            to the top of the viewport while scrolling so users can
+            jump between Glance, the totals, categories, and the
+            transactions list without endless scrolling. The list of
+            anchors adapts to Simple vs Detailed view (hides anchors
+            for sections that aren't rendered). */}
+        <nav
+          aria-label="Jump to section"
+          className="sticky top-0 z-30 -mx-3 sm:-mx-6 px-3 sm:px-6 py-1.5 bg-card/95 backdrop-blur border-y border-border"
+        >
+          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold shrink-0 mr-1">
+              Jump to:
+            </span>
+            {([
+              simpleMode ? { id: 'cm-glance',       label: 'Glance',       emoji: '👀' } : null,
+              { id: 'cm-totals',       label: 'Money In / Out', emoji: '⇅' },
+              !simpleMode ? { id: 'cm-inflows',    label: 'New money',     emoji: '⬆️' } : null,
+              !simpleMode ? { id: 'cm-categories', label: 'Categories',    emoji: '📂' } : null,
+              { id: 'cm-transactions', label: 'Transactions',  emoji: '🧾' },
+            ].filter(Boolean) as Array<{ id: string; label: string; emoji: string }>).map(item => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  const el = document.getElementById(item.id);
+                  if (!el) return;
+                  // Open the transactions collapsible automatically so the
+                  // "Transactions" anchor lands on visible content, not on
+                  // a closed trigger.
+                  if (item.id === 'cm-transactions') setPageDrillOpen(true);
+                  setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 30);
+                }}
+                className="shrink-0 inline-flex items-center gap-1 rounded-full border border-border bg-background hover:bg-accent hover:text-accent-foreground px-2.5 py-1 text-[11px] font-medium transition-colors"
+              >
+                <span aria-hidden="true">{item.emoji}</span>
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </div>
+        </nav>
+
         {/* ─── Thumb-friendly filter bar ──────────────────────────
             Three large tap targets (≥56px tall) for the filters non-tech
             users reach for most: Date, Direction, and Party. Each opens a
