@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useStaffPermissions } from '@/hooks/useStaffPermissions';
@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Sparkles, UserPlus, Pencil, Loader2, Phone, Clock, ShieldCheck, PlusCircle, Save, X, ChevronDown, ShieldOff, History, Zap, MessageCircle, Search, Filter, CalendarIcon } from 'lucide-react';
+import { Sparkles, UserPlus, Pencil, Loader2, Phone, Clock, ShieldCheck, PlusCircle, Save, X, ChevronDown, ShieldOff, History, Zap, MessageCircle, Search, Filter, CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
@@ -360,16 +360,24 @@ export function NewPartnersPanel() {
     // setSearchParams identity changes on every render; intentionally omitted.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [partnerSearch, partnerFilter, customRange, partnerSort]);
-  // Incremental render window for the partners grid — keeps DOM small
-  // even when up to 500 partners are loaded.
+  // Server-side pagination for the Joined Partners list. Each page is fetched
+  // from `user_roles` with `.range()` + `{ count: 'exact' }`, so the user can
+  // browse every supporter regardless of total count. Page index is 0-based.
+  const PARTNERS_PAGE_SIZE = 200;
+  const [partnersPageIndex, setPartnersPageIndex] = useState(0);
+  const gridScrollRef = useRef<HTMLDivElement | null>(null);
+  // Incremental render window WITHIN the current server page — keeps the
+  // initial DOM small while still letting the user scroll through all 200
+  // rows of a page without a manual "load more" click.
   const PARTNER_PAGE_SIZE = 30;
   const [visiblePartnerCount, setVisiblePartnerCount] = useState(PARTNER_PAGE_SIZE);
   const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
-  // Reset the window whenever the user changes search/filter so they
-  // never miss matches hidden below the previous slice.
+  // Reset the in-page render window whenever the user changes search/filter
+  // OR moves to a different server page, so the visible slice starts fresh.
   useEffect(() => {
     setVisiblePartnerCount(PARTNER_PAGE_SIZE);
-  }, [partnerSearch, partnerFilter, customRange]);
+    if (gridScrollRef.current) gridScrollRef.current.scrollTop = 0;
+  }, [partnerSearch, partnerFilter, customRange, partnersPageIndex]);
   // Auto-load the next page when the sentinel scrolls into view.
   useEffect(() => {
     const node = loadMoreSentinelRef.current;
@@ -383,19 +391,26 @@ export function NewPartnersPanel() {
     return () => io.disconnect();
   }, [visiblePartnerCount, partnerSearch, partnerFilter]);
 
-  // ── All partners (Partner Ops can browse, filter, and contact every joined partner) ──
-  const { data: joined, isLoading } = useQuery({
-    queryKey: ['new-partners-panel'],
+  // ── All partners (paginated, server-side) ──
+  // Each page fetches one slice of `user_roles` (role=supporter) ordered by
+  // newest first, plus the exact total count so the UI can render real
+  // prev/next controls. `placeholderData: keepPreviousData` keeps the current
+  // page visible while the next one loads, avoiding a skeleton flash.
+  const { data: joinedPage, isLoading, isFetching } = useQuery({
+    queryKey: ['new-partners-panel', partnersPageIndex, PARTNERS_PAGE_SIZE],
     queryFn: async () => {
-      const { data: roles } = await supabase
+      const from = partnersPageIndex * PARTNERS_PAGE_SIZE;
+      const to = from + PARTNERS_PAGE_SIZE - 1;
+      const { data: roles, count } = await supabase
         .from('user_roles')
-        .select('user_id, created_at')
+        .select('user_id, created_at', { count: 'exact' })
         .eq('role', 'supporter')
         .eq('enabled', true)
         .order('created_at', { ascending: false })
-        .limit(2000);
+        .range(from, to);
       const rows = roles || [];
-      if (rows.length === 0) return [] as JoinedPartner[];
+      const total = count ?? rows.length;
+      if (rows.length === 0) return { rows: [] as JoinedPartner[], total };
 
       const ids = rows.map(r => r.user_id);
       const [{ data: profiles }, { data: portfolios }] = await Promise.all([
@@ -409,16 +424,25 @@ export function NewPartnersPanel() {
         countMap.set(p.investor_id, (countMap.get(p.investor_id) || 0) + 1);
       });
 
-      return rows.map(r => ({
+      const built: JoinedPartner[] = rows.map(r => ({
         user_id: r.user_id,
         created_at: r.created_at,
         full_name: pMap.get(r.user_id)?.full_name || 'Unknown',
         phone: pMap.get(r.user_id)?.phone || '—',
         portfolio_count: countMap.get(r.user_id) || 0,
-      })) as JoinedPartner[];
+      }));
+      return { rows: built, total };
     },
     staleTime: 60_000,
+    placeholderData: keepPreviousData,
   });
+  const joined = joinedPage?.rows;
+  const joinedTotal = joinedPage?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(joinedTotal / PARTNERS_PAGE_SIZE));
+  // Clamp page if total shrinks (e.g. after a refetch).
+  useEffect(() => {
+    if (partnersPageIndex > totalPages - 1) setPartnersPageIndex(totalPages - 1);
+  }, [totalPages, partnersPageIndex]);
 
   // ── Filtered partners (drives both the badge counts above the grid
   // and the grid itself, so badges react instantly to the active filter). ──
@@ -988,7 +1012,7 @@ export function NewPartnersPanel() {
                             setCustomRange(undefined);
                           }}
                         >
-                          Show all {joined.length}
+                          Show all {joinedTotal || joined.length} on this page
                         </Button>
                       </div>
                     </div>
@@ -1000,9 +1024,10 @@ export function NewPartnersPanel() {
               return (
             <div className="space-y-2">
               {badges}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[520px] overflow-y-auto pr-1">
+              <div ref={gridScrollRef} className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[520px] overflow-y-auto pr-1">
               <div className="col-span-full text-[10px] text-muted-foreground">
-                Showing {visible.length} of {filtered.length} matched · {joined.length} total
+                Showing {visible.length} of {filtered.length} matched on page {partnersPageIndex + 1}
+                {' '}of {totalPages} · {joinedTotal.toLocaleString()} total partners
               </div>
               {visible.map(p => (
                 <div key={p.user_id} className="rounded-xl border border-border/60 bg-card p-2.5 flex items-center gap-2.5">
@@ -1132,6 +1157,37 @@ export function NewPartnersPanel() {
                 </div>
               )}
             </div>
+              {/* Server-side pagination controls — browse every supporter, not just the first page. */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  <p className="text-[10px] text-muted-foreground">
+                    Page <span className="font-semibold text-foreground">{partnersPageIndex + 1}</span> of {totalPages}
+                    {' '}· {PARTNERS_PAGE_SIZE} per page
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-2 text-[10px] gap-1"
+                      disabled={partnersPageIndex === 0 || isFetching}
+                      onClick={() => setPartnersPageIndex(i => Math.max(0, i - 1))}
+                    >
+                      <ChevronLeft className="h-3 w-3" />
+                      Prev
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-2 text-[10px] gap-1"
+                      disabled={partnersPageIndex >= totalPages - 1 || isFetching}
+                      onClick={() => setPartnersPageIndex(i => Math.min(totalPages - 1, i + 1))}
+                    >
+                      Next
+                      {isFetching ? <Loader2 className="h-3 w-3 animate-spin" /> : <ChevronRight className="h-3 w-3" />}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
               );
             })()
