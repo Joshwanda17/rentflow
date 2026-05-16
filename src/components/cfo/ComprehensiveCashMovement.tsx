@@ -2089,6 +2089,52 @@ function WalletMovementSummary({
   const totalInDelta = priorTotals ? formatDelta(summary.totalIn, priorTotals.totalIn) : null;
   const totalOutDelta = priorTotals ? formatDelta(summary.totalOut, priorTotals.totalOut) : null;
 
+  // ── Net-flow trend buckets ─────────────────────────────────
+  // Bucket wallet-scope rows into ~32 evenly sized time slices across the
+  // currently loaded period, summing net per bucket. Powers the sparkline
+  // shown under the Net Flow KPI so trend/momentum is visible at a glance.
+  const netTrend = useMemo(() => {
+    const cur = periodRange(period);
+    const minTs = cur.from ? cur.from.getTime() : (
+      rows.length ? Math.min(...rows.map(r => new Date(r.transaction_date).getTime())) : Date.now()
+    );
+    const maxTs = cur.to.getTime();
+    const span = Math.max(1, maxTs - minTs);
+    const BUCKETS = 32;
+    const step = span / BUCKETS;
+    const nets = new Array<number>(BUCKETS).fill(0);
+    const labels = new Array<string>(BUCKETS).fill('');
+    for (let i = 0; i < BUCKETS; i++) {
+      const start = new Date(minTs + i * step);
+      const end = new Date(minTs + (i + 1) * step);
+      labels[i] = `${format(start, 'dd MMM HH:mm')} – ${format(end, 'dd MMM HH:mm')}`;
+    }
+    for (const r of rows) {
+      if (r.ledger_scope !== 'wallet') continue;
+      if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
+      if (r.direction !== 'cash_in' && r.direction !== 'cash_out') continue;
+      const t = new Date(r.transaction_date).getTime();
+      if (t < minTs || t > maxTs) continue;
+      const idx = Math.min(BUCKETS - 1, Math.max(0, Math.floor((t - minTs) / step)));
+      const amt = Number(r.amount) || 0;
+      nets[idx] += r.direction === 'cash_in' ? amt : -amt;
+    }
+    // Linear-regression slope on bucket index → net, to label momentum
+    let slope = 0;
+    const n = nets.length;
+    if (n > 1) {
+      const meanX = (n - 1) / 2;
+      const meanY = nets.reduce((s, v) => s + v, 0) / n;
+      let num = 0, den = 0;
+      for (let i = 0; i < n; i++) {
+        num += (i - meanX) * (nets[i] - meanY);
+        den += (i - meanX) ** 2;
+      }
+      slope = den === 0 ? 0 : num / den;
+    }
+    return { nets, labels, slope };
+  }, [rows, includeAdjustments, period]);
+
   // ── Exports ─────────────────────────────────────────────────
   const currentRange = useMemo(() => periodRange(period), [period]);
   const periodLabel = PERIODS.find(p => p.value === period)?.label ?? period;
@@ -2260,6 +2306,68 @@ function WalletMovementSummary({
               ) : null}
             </div>
           </button>
+        );
+      })()}
+
+      {/* Net-flow sparkline — momentum across the selected period */}
+      {(() => {
+        const { nets, labels, slope } = netTrend;
+        const hasData = nets.some(v => v !== 0);
+        if (!hasData) return null;
+        const W = 600;
+        const H = 56;
+        const PAD = 4;
+        const min = Math.min(0, ...nets);
+        const max = Math.max(0, ...nets);
+        const range = Math.max(1, max - min);
+        const xStep = (W - PAD * 2) / Math.max(1, nets.length - 1);
+        const yFor = (v: number) => H - PAD - ((v - min) / range) * (H - PAD * 2);
+        const xFor = (i: number) => PAD + i * xStep;
+        const zeroY = yFor(0);
+        const points = nets.map((v, i) => `${xFor(i).toFixed(1)},${yFor(v).toFixed(1)}`).join(' ');
+        const areaPoints = `${xFor(0).toFixed(1)},${zeroY.toFixed(1)} ${points} ${xFor(nets.length - 1).toFixed(1)},${zeroY.toFixed(1)}`;
+        const last = nets[nets.length - 1];
+        const lastColor = last >= 0 ? 'hsl(var(--success))' : 'hsl(var(--destructive))';
+        const slopeTone = slope > 0 ? 'text-success' : slope < 0 ? 'text-destructive' : 'text-muted-foreground';
+        const slopeLabel = slope > 0 ? '▲ Improving' : slope < 0 ? '▼ Worsening' : '· Flat';
+        return (
+          <div className="rounded-lg border border-border bg-background p-3">
+            <div className="flex items-center justify-between gap-2 mb-1.5">
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">
+                Net flow trend · {periodLabel}
+              </div>
+              <div className={cn('text-[10px] font-mono font-semibold', slopeTone)} title="Linear trend across the period">
+                {slopeLabel}
+              </div>
+            </div>
+            <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="w-full h-14 block" aria-label="Net flow sparkline">
+              <defs>
+                <linearGradient id="netSparkGrad" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%" stopColor="hsl(var(--success))" stopOpacity="0.25" />
+                  <stop offset="100%" stopColor="hsl(var(--success))" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              {/* Zero baseline */}
+              <line x1={PAD} x2={W - PAD} y1={zeroY} y2={zeroY} stroke="hsl(var(--border))" strokeDasharray="2 2" strokeWidth="1" />
+              {/* Filled area */}
+              <polygon points={areaPoints} fill="url(#netSparkGrad)" />
+              {/* Line */}
+              <polyline points={points} fill="none" stroke="hsl(var(--primary))" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+              {/* Per-bucket dots with hover tooltips */}
+              {nets.map((v, i) => (
+                <g key={i}>
+                  <circle cx={xFor(i)} cy={yFor(v)} r={1.6} fill={v >= 0 ? 'hsl(var(--success))' : 'hsl(var(--destructive))'} />
+                  <title>{`${labels[i]}\nNet: ${(v >= 0 ? '+' : '−')}${formatUGX(Math.abs(v))}`}</title>
+                </g>
+              ))}
+              {/* Highlight last point */}
+              <circle cx={xFor(nets.length - 1)} cy={yFor(last)} r={2.6} fill={lastColor} stroke="hsl(var(--background))" strokeWidth="1" />
+            </svg>
+            <div className="flex items-center justify-between text-[10px] text-muted-foreground mt-1 font-mono">
+              <span>{labels[0]?.split(' – ')[0]}</span>
+              <span>{labels[labels.length - 1]?.split(' – ')[1]}</span>
+            </div>
+          </div>
         );
       })()}
 
