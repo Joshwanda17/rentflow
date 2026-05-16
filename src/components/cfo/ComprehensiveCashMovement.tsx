@@ -742,13 +742,51 @@ export function ComprehensiveCashMovement() {
                 </div>
               </div>
             </div>
-            <Collapsible open={capitalPickerOpen} onOpenChange={setCapitalPickerOpen}>
-              <CollapsibleTrigger asChild>
-                <Button size="sm" variant="outline" className="text-xs h-7">
-                  {capitalPickerOpen ? 'Hide' : 'Edit categories'}
-                </Button>
-              </CollapsibleTrigger>
-            </Collapsible>
+            <div className="flex items-center gap-1.5">
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-xs h-7 gap-1"
+                disabled={!capitalInflow.selected.length}
+                onClick={() => {
+                  if (!canViewLedgerDetail) { toast.error('You do not have permission to export ledger data'); return; }
+                  if (!capitalInflow.selected.length) { toast.error('No categories selected'); return; }
+                  const headers = ['Category', 'Description', 'Cash In (UGX)', 'Entries', ...capitalInflow.bucketLabels];
+                  const data = capitalInflow.selected.map(c => [
+                    prettifyCategory(c.category),
+                    CATEGORY_DESCRIPTIONS[c.category] || '',
+                    c.total,
+                    c.count,
+                    ...capitalInflow.bucketLabels.map(b => c.buckets[b] || 0),
+                  ]);
+                  // Totals row
+                  data.push([
+                    'TOTAL',
+                    `${capitalInflow.selected.length} categories · ${rangeLabel}`,
+                    capitalInflow.total,
+                    capitalInflow.entries,
+                    ...capitalInflow.bucketLabels.map(b => capitalInflow.bucketTotals[b] || 0),
+                  ]);
+                  downloadCsv(
+                    `welile-capital-inflows-${period}-${granularity}-${format(new Date(), 'yyyy-MM-dd')}.csv`,
+                    headers,
+                    data,
+                  );
+                  toast.success('Capital Inflows CSV downloaded');
+                }}
+                title="Export Capital Inflows per-category totals as CSV"
+              >
+                <FileSpreadsheet className="h-3 w-3" />
+                Export inflows
+              </Button>
+              <Collapsible open={capitalPickerOpen} onOpenChange={setCapitalPickerOpen}>
+                <CollapsibleTrigger asChild>
+                  <Button size="sm" variant="outline" className="text-xs h-7">
+                    {capitalPickerOpen ? 'Hide' : 'Edit categories'}
+                  </Button>
+                </CollapsibleTrigger>
+              </Collapsible>
+            </div>
           </div>
 
           {/* Selected category chips with per-category totals */}
