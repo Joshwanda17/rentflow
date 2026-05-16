@@ -2218,18 +2218,23 @@ function WalletMovementSummary({
         const netDelta = priorTotals ? formatDelta(summary.net, priorNet ?? 0) : null;
         const positive = summary.net >= 0;
         return (
-          <div className={cn(
-            'rounded-xl border p-4 sm:p-5 flex items-center justify-between gap-3 flex-wrap',
-            positive
-              ? 'bg-success/10 border-success/30'
-              : 'bg-destructive/10 border-destructive/30'
-          )}>
+          <button
+            type="button"
+            onClick={() => setNetDrill({ direction: 'all' })}
+            title="View the exact cash-in and cash-out transactions behind this figure"
+            className={cn(
+              'w-full text-left rounded-xl border p-4 sm:p-5 flex items-center justify-between gap-3 flex-wrap transition-colors hover:bg-opacity-80 cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring',
+              positive
+                ? 'bg-success/10 border-success/30 hover:bg-success/15'
+                : 'bg-destructive/10 border-destructive/30 hover:bg-destructive/15'
+            )}
+          >
             <div className="min-w-0">
               <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">
                 Net flow into wallets
               </div>
               <div className="text-[10px] text-muted-foreground/80">
-                Into − Out · {periodLabel}
+                Into − Out · {periodLabel} · <span className="underline">click to view transactions</span>
               </div>
             </div>
             <div className="flex flex-col items-end shrink-0">
@@ -2254,7 +2259,7 @@ function WalletMovementSummary({
                 </div>
               ) : null}
             </div>
-          </div>
+          </button>
         );
       })()}
 
