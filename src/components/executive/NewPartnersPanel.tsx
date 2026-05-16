@@ -567,8 +567,8 @@ export function NewPartnersPanel() {
                         portfolio={p}
                         expanded={expandedId === p.id}
                         onToggle={() => requestExpand(expandedId === p.id ? null : p.id)}
-                        onDirtyChange={(dirty) => {
-                          if (dirty) dirtyRowsRef.current[p.id] = true;
+                        onDirtyChange={(changes) => {
+                          if (changes && changes.length > 0) dirtyRowsRef.current[p.id] = changes;
                           else delete dirtyRowsRef.current[p.id];
                         }}
                         onSavingChange={(isSaving) => {
@@ -632,7 +632,7 @@ interface InlinePortfolioRowProps {
   expanded: boolean;
   onToggle: () => void;
   onSaved: (updated: any) => void;
-  onDirtyChange?: (dirty: boolean) => void;
+  onDirtyChange?: (changes: string[]) => void;
   onSavingChange?: (saving: boolean) => void;
   actingUserId?: string;
 }
@@ -665,7 +665,7 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
       const fresh = initialForm();
       setForm(fresh);
       baselineRef.current = fresh;
-      onDirtyChange?.(false);
+      onDirtyChange?.([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [p.id, expanded]);
@@ -675,28 +675,45 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
   useEffect(() => {
     if (expanded) {
       baselineRef.current = form;
-      onDirtyChange?.(false);
+      onDirtyChange?.([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expanded]);
 
-  // Compute & report dirty state on every form change.
-  const dirty = expanded && JSON.stringify(form) !== JSON.stringify(baselineRef.current);
+  // Compute & report a human-readable diff on every form change.
+  const fieldLabels: Record<keyof ReturnType<typeof initialForm>, string> = {
+    account_name: 'Portfolio name',
+    payout_day: 'Payout day',
+    payment_method: 'Payment method',
+    mobile_money_number: 'Mobile number',
+    mobile_network: 'Network',
+    bank_name: 'Bank name',
+    bank_account_name: 'Account name',
+    account_number: 'Account number',
+  };
+  const changeList: string[] = expanded
+    ? (Object.keys(fieldLabels) as Array<keyof typeof fieldLabels>)
+        .filter(k => (form as any)[k] !== (baselineRef.current as any)[k])
+        .map(k => {
+          const before = (baselineRef.current as any)[k] || '—';
+          const after = (form as any)[k] || '—';
+          return `${fieldLabels[k]}: ${before} → ${after}`;
+        })
+    : [];
+  const dirty = changeList.length > 0;
+  const changeListKey = changeList.join('|');
   useEffect(() => {
-    onDirtyChange?.(dirty);
+    onDirtyChange?.(changeList);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dirty]);
+  }, [changeListKey]);
 
   const set = (k: string, v: string) => setForm(prev => ({ ...prev, [k]: v }));
 
-  // Wraps onToggle so collapsing with unsaved changes prompts for confirmation.
+  // Wraps onToggle. We DON'T prompt here anymore — the parent's requestExpand
+  // centralizes the in-app discard-changes confirmation. We only guard against
+  // toggling mid-save.
   function requestToggle() {
     if (saving) return; // block while a save is in flight
-    if (expanded && dirty) {
-      const ok = window.confirm('You have unsaved changes on this portfolio. Discard them?');
-      if (!ok) return;
-      onDirtyChange?.(false);
-    }
     onToggle();
   }
 
@@ -750,7 +767,7 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
       // Reset baseline so the post-save auto-collapse does not trigger the
       // "unsaved changes" prompt.
       baselineRef.current = { ...form };
-      onDirtyChange?.(false);
+      onDirtyChange?.([]);
       onSaved({ id: p.id, ...patch });
       onToggle(); // collapse
     } catch (e: any) {
