@@ -1484,7 +1484,7 @@ export function ComprehensiveCashMovement() {
             full-width bottom sheet on phones so options are easy to scan
             and tap with a thumb. Existing chip rows below remain for
             power users and are unchanged. */}
-        <div className="grid grid-cols-3 gap-2.5 sm:gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-2">
           {[
             {
               key: 'date' as const,
@@ -1516,7 +1516,8 @@ export function ComprehensiveCashMovement() {
               type="button"
               onClick={btn.onClick}
               className={cn(
-                'min-h-[68px] rounded-xl border-2 px-3 py-2.5 text-left flex flex-col gap-1 transition-colors',
+                'w-full min-h-[60px] sm:min-h-[68px] rounded-xl border-2 px-4 py-3 sm:py-2.5 text-left',
+                'flex flex-row sm:flex-col items-center sm:items-start justify-between sm:justify-start gap-3 sm:gap-1 transition-colors',
                 'active:scale-[0.98] touch-manipulation',
                 btn.active
                   ? 'border-primary bg-primary/10 hover:bg-primary/15'
@@ -1527,13 +1528,13 @@ export function ComprehensiveCashMovement() {
               aria-pressed={btn.active}
             >
               <span className={cn(
-                'flex items-center gap-1.5 text-[10px] uppercase tracking-wide font-semibold',
+                'flex items-center gap-2 text-[11px] sm:text-[10px] uppercase tracking-wide font-semibold shrink-0',
                 btn.active ? 'text-primary' : 'text-muted-foreground',
               )}>
                 {btn.icon}
                 {btn.label}
               </span>
-              <span className="text-[13px] sm:text-sm font-semibold leading-snug truncate">
+              <span className="text-sm font-semibold leading-snug truncate text-right sm:text-left">
                 {btn.value}
               </span>
             </button>
@@ -1549,50 +1550,77 @@ export function ComprehensiveCashMovement() {
           </button>
         )}
 
-        {/* Period — horizontal scroll on mobile so it never crams */}
-        <div>
-          <div className="text-[11px] text-muted-foreground mb-1 flex items-center gap-1">
-            <Calendar className="h-3.5 w-3.5" /> Show me
-          </div>
-          <div className="flex gap-1.5 items-center overflow-x-auto pb-1 -mx-1 px-1 snap-x">
-            {PERIODS.map(p => (
-              <Button key={p.value} size="sm" variant={period === p.value ? 'default' : 'outline'} className="text-xs h-8 shrink-0 snap-start" onClick={() => setPeriod(p.value)}>
-                {p.label}
-              </Button>
-            ))}
-          </div>
-        </div>
-
-        {/* Group by + Where + adjustments */}
-        <div className="space-y-3 sm:space-y-2">
+        {/* Secondary filters — stacked card on mobile with clear labels and
+            full-width controls; on sm+ they keep the airy in-flow layout. */}
+        <div className="rounded-xl border border-border bg-muted/20 sm:bg-transparent sm:border-0 sm:rounded-none p-3 sm:p-0 space-y-3 sm:space-y-2">
+          {/* Period */}
           <div>
-            <div className="text-[11px] text-muted-foreground mb-1.5">Group by</div>
-            <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
+            <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 flex items-center gap-1">
+              <Calendar className="h-3.5 w-3.5" /> Show me
+            </label>
+            <div className="grid grid-cols-3 sm:flex sm:gap-1.5 gap-1.5 sm:items-center sm:overflow-x-auto sm:pb-1 sm:-mx-1 sm:px-1 sm:snap-x">
+              {PERIODS.map(p => (
+                <Button
+                  key={p.value}
+                  size="sm"
+                  variant={period === p.value ? 'default' : 'outline'}
+                  className="text-xs h-9 sm:h-8 w-full sm:w-auto sm:shrink-0 sm:snap-start"
+                  onClick={() => setPeriod(p.value)}
+                >
+                  {p.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          {/* Group by */}
+          <div>
+            <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 block">Group by</label>
+            <div className="grid grid-cols-3 sm:flex sm:gap-1.5 gap-1.5 sm:overflow-x-auto sm:pb-1 sm:-mx-1 sm:px-1">
               {GRANULARITIES.map(g => (
-                <Button key={g.value} size="sm" variant={granularity === g.value ? 'default' : 'outline'} className="text-xs h-8 shrink-0" onClick={() => setGranularity(g.value)}>
+                <Button
+                  key={g.value}
+                  size="sm"
+                  variant={granularity === g.value ? 'default' : 'outline'}
+                  className="text-xs h-9 sm:h-8 w-full sm:w-auto sm:shrink-0"
+                  onClick={() => setGranularity(g.value)}
+                >
                   {g.label}
                 </Button>
               ))}
             </div>
           </div>
+
+          {/* Where */}
           <div>
-            <div className="text-[11px] text-muted-foreground mb-1.5">Where</div>
-            <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
+            <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 block">Where</label>
+            <div className="grid grid-cols-2 sm:flex sm:gap-1.5 gap-1.5 sm:overflow-x-auto sm:pb-1 sm:-mx-1 sm:px-1">
               {(['all','platform','wallet','bridge'] as const).map(s => (
-                <Button key={s} size="sm" variant={scopeFilter === s ? 'default' : 'outline'} className="text-xs h-8 shrink-0" onClick={() => setScopeFilter(s)}>
+                <Button
+                  key={s}
+                  size="sm"
+                  variant={scopeFilter === s ? 'default' : 'outline'}
+                  className="text-xs h-9 sm:h-8 w-full sm:w-auto sm:shrink-0"
+                  onClick={() => setScopeFilter(s)}
+                >
                   {s === 'all' ? 'Everywhere' : SCOPE_LABEL[s] || s}
                 </Button>
               ))}
-              <Button size="sm" variant={includeAdjustments ? 'default' : 'outline'} className="text-xs h-8 shrink-0 ml-2" onClick={() => setIncludeAdjustments(v => !v)}>
-                {includeAdjustments ? '✓ Showing fixes' : 'Show fixes'}
-              </Button>
             </div>
+            <Button
+              size="sm"
+              variant={includeAdjustments ? 'default' : 'outline'}
+              className="text-xs h-9 sm:h-8 w-full sm:w-auto mt-2 sm:mt-1.5 sm:ml-0"
+              onClick={() => setIncludeAdjustments(v => !v)}
+            >
+              {includeAdjustments ? '✓ Showing fixes' : 'Show fixes'}
+            </Button>
           </div>
         </div>
 
         {/* Actions */}
-        <div className="flex flex-wrap items-center gap-2">
-          <Button onClick={generate} disabled={loading} size="sm" className="gap-2 h-9 sm:h-8">
+        <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:items-center gap-2">
+          <Button onClick={generate} disabled={loading} size="sm" className="gap-2 h-10 sm:h-8 w-full sm:w-auto col-span-2 sm:col-auto">
             {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
             {loading ? 'Loading…' : 'Reload'}
           </Button>
@@ -1600,7 +1628,7 @@ export function ComprehensiveCashMovement() {
             onClick={() => setAutoRefresh(v => !v)}
             variant={autoRefresh ? 'default' : 'outline'}
             size="sm"
-            className="gap-2 h-9 sm:h-8"
+            className="gap-2 h-10 sm:h-8 w-full sm:w-auto col-span-2 sm:col-auto"
             title={autoRefresh ? 'Auto-refresh every 60s — click to stop' : 'Refresh every 60 seconds'}
           >
             <RefreshCw className={cn('h-3.5 w-3.5', autoRefresh && 'animate-spin-slow')} />
@@ -1608,7 +1636,7 @@ export function ComprehensiveCashMovement() {
           </Button>
           <Button
             onClick={handleExport}
-            variant="outline" size="sm" className="gap-2 h-9 sm:h-8"
+            variant="outline" size="sm" className="gap-2 h-10 sm:h-8 w-full sm:w-auto"
             disabled={!aggregates.length || !canViewLedgerDetail}
             title={!canViewLedgerDetail ? 'Only finance leaders can download these reports' : undefined}
           >
@@ -1617,7 +1645,7 @@ export function ComprehensiveCashMovement() {
           </Button>
           <Button
             onClick={handleExportPdf}
-            variant="outline" size="sm" className="gap-2 h-9 sm:h-8"
+            variant="outline" size="sm" className="gap-2 h-10 sm:h-8 w-full sm:w-auto"
             disabled={!aggregates.length || !canViewLedgerDetail}
             title={!canViewLedgerDetail ? 'Only finance leaders can download these reports' : undefined}
           >
@@ -1626,7 +1654,7 @@ export function ComprehensiveCashMovement() {
           </Button>
           <Button
             onClick={handleExportAllEntries}
-            variant="outline" size="sm" className="gap-2 h-9 sm:h-8"
+            variant="outline" size="sm" className="gap-2 h-10 sm:h-8 w-full sm:w-auto col-span-2 sm:col-auto"
             disabled={!rows.length || !canViewLedgerDetail}
             title={!canViewLedgerDetail
               ? 'Only finance leaders can download these reports'
