@@ -12,7 +12,8 @@ import { CreateInvestmentAccountDialog } from '@/components/manager/CreateInvest
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Sparkles, UserPlus, Pencil, Loader2, Phone, Clock, ShieldCheck, PlusCircle, Save, X, ChevronDown, ShieldOff, History } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Sparkles, UserPlus, Pencil, Loader2, Phone, Clock, ShieldCheck, PlusCircle, Save, X, ChevronDown, ShieldOff, History, Zap } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { UGANDA_BANKS } from '@/lib/ugandaBanks';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
@@ -681,6 +682,16 @@ interface InlinePortfolioRowProps {
 function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirtyChange, onSavingChange, actingUserId }: InlinePortfolioRowProps) {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
+  // Auto-save: when ON, dirty edits are persisted automatically after a short
+  // debounce so the user can switch portfolios without explicitly clicking Save.
+  // Preference is shared across rows via localStorage.
+  const [autoSave, setAutoSave] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('newpartners.inlineAutoSave') === '1';
+  });
+  useEffect(() => {
+    try { localStorage.setItem('newpartners.inlineAutoSave', autoSave ? '1' : '0'); } catch {}
+  }, [autoSave]);
   // Mirror local saving state up to parent so it can block collapse/switch.
   useEffect(() => {
     onSavingChange?.(saving);
@@ -770,9 +781,10 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
     onToggle();
   }
 
-  async function handleSave() {
+  async function handleSave(opts: { collapseAfter?: boolean; silent?: boolean } = {}) {
+    const { collapseAfter = true, silent = false } = opts;
     if (form.account_name.length > 100) {
-      toast({ title: 'Portfolio name too long', variant: 'destructive' });
+      if (!silent) toast({ title: 'Portfolio name too long', variant: 'destructive' });
       return;
     }
 
@@ -788,7 +800,7 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
         account_number: form.account_number,
       });
     } catch (e: any) {
-      toast({ title: 'Check the form', description: e?.message || 'Invalid value', variant: 'destructive' });
+      if (!silent) toast({ title: 'Check the form', description: e?.message || 'Invalid value', variant: 'destructive' });
       return;
     }
 
@@ -816,13 +828,13 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
         metadata: { source: 'PartnerOps NewPartnersPanel inline', changes: patch },
       });
 
-      toast({ title: '✅ Portfolio updated' });
+      toast({ title: silent ? '⚡ Auto-saved' : '✅ Portfolio updated' });
       // Reset baseline so the post-save auto-collapse does not trigger the
       // "unsaved changes" prompt.
       baselineRef.current = { ...form };
       onDirtyChange?.([]);
       onSaved({ id: p.id, ...patch });
-      onToggle(); // collapse
+      if (collapseAfter) onToggle(); // collapse
     } catch (e: any) {
       toast({ title: 'Save failed', description: e?.message || 'Try again', variant: 'destructive' });
     } finally {
@@ -830,6 +842,17 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
       onSavingChange?.(false);
     }
   }
+
+  // Debounced auto-save: when enabled, persist dirty edits after the user has
+  // stopped typing for ~1.2s. We skip if already saving or if there are no
+  // changes. The dependency uses the changeListKey so we only re-arm when the
+  // diff actually changes (not on every keystroke that keeps the same diff).
+  useEffect(() => {
+    if (!autoSave || !expanded || !dirty || saving) return;
+    const t = setTimeout(() => { handleSave({ collapseAfter: false, silent: true }); }, 1200);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoSave, expanded, dirty, saving, changeListKey]);
 
   return (
     <div className="rounded-lg border border-border/60 bg-muted/30 overflow-hidden">
@@ -862,6 +885,21 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
 
       {expanded && (
         <div className="border-t border-border/60 bg-background p-3 space-y-2.5">
+          <div className="flex items-center justify-between gap-2 rounded-md border border-border/60 bg-muted/40 px-2 py-1.5">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Zap className={cn("h-3.5 w-3.5 shrink-0", autoSave ? "text-primary" : "text-muted-foreground")} />
+              <span className="text-[11px] font-medium">Auto-save</span>
+              <span className="text-[9px] text-muted-foreground truncate">
+                {autoSave ? 'persists ~1.2s after you stop typing' : 'off — click Save before switching'}
+              </span>
+            </div>
+            <Switch
+              checked={autoSave}
+              onCheckedChange={setAutoSave}
+              disabled={saving}
+              aria-label="Toggle auto-save for inline portfolio edits"
+            />
+          </div>
           {dirty && (
             <div className="rounded-md border border-warning/40 bg-warning/5 p-2 space-y-1">
               <p className="text-[10px] font-semibold text-warning uppercase tracking-wide">
@@ -945,7 +983,7 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
           )}
 
           <div className="flex items-center gap-2 pt-1">
-            <Button size="sm" className="h-8 text-xs gap-1.5 flex-1" onClick={handleSave} disabled={saving}>
+            <Button size="sm" className="h-8 text-xs gap-1.5 flex-1" onClick={() => handleSave()} disabled={saving}>
               {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
               Save changes
             </Button>
