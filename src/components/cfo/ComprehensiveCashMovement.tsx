@@ -1931,9 +1931,9 @@ export function ComprehensiveCashMovement() {
           )}
         </div>
 
-        <div id="cm-totals" className="scroll-mt-24 grid grid-cols-3 gap-1.5 sm:gap-2">
-          <div className="rounded-lg border border-border bg-success/5 p-2 sm:p-3">
-            <div className="flex items-center gap-1 text-[10px] uppercase text-muted-foreground"><ArrowUpRight className="h-3 w-3 text-success" /> Money In</div>
+        <div id="cm-totals" className="scroll-mt-24 grid grid-cols-3 gap-2 sm:gap-2">
+          <div className="rounded-lg border border-border bg-success/5 p-3 sm:p-3">
+            <div className="flex items-center gap-1 text-[10px] uppercase text-muted-foreground leading-snug"><ArrowUpRight className="h-3 w-3 text-success" /> Money In</div>
             <div className="font-mono font-semibold text-success text-xs sm:text-base break-all">{formatUGX(totals.cashIn)}</div>
             <button
               type="button"
@@ -1944,8 +1944,8 @@ export function ComprehensiveCashMovement() {
               See where this comes from →
             </button>
           </div>
-          <div className="rounded-lg border border-border bg-destructive/5 p-2 sm:p-3">
-            <div className="flex items-center gap-1 text-[10px] uppercase text-muted-foreground"><ArrowDownRight className="h-3 w-3 text-destructive" /> Money Out</div>
+          <div className="rounded-lg border border-border bg-destructive/5 p-3 sm:p-3">
+            <div className="flex items-center gap-1 text-[10px] uppercase text-muted-foreground leading-snug"><ArrowDownRight className="h-3 w-3 text-destructive" /> Money Out</div>
             <div className="font-mono font-semibold text-destructive text-xs sm:text-base break-all">{formatUGX(totals.cashOut)}</div>
             <button
               type="button"
@@ -1956,7 +1956,7 @@ export function ComprehensiveCashMovement() {
               See where this comes from →
             </button>
           </div>
-          <div className={cn('rounded-lg border border-border p-2 sm:p-3', totals.net >= 0 ? 'bg-success/5' : 'bg-destructive/5')}>
+          <div className={cn('rounded-lg border border-border p-3 sm:p-3', totals.net >= 0 ? 'bg-success/5' : 'bg-destructive/5')}>
             <div className="text-[10px] uppercase text-muted-foreground">Difference</div>
             <div className={cn('font-mono font-semibold text-xs sm:text-base break-all', totals.net >= 0 ? 'text-success' : 'text-destructive')}>
               {totals.net >= 0 ? '+' : ''}{formatUGX(totals.net)}
