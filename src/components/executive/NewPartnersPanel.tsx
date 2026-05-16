@@ -155,6 +155,23 @@ export function NewPartnersPanel() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyRows, setHistoryRows] = useState<any[]>([]);
   const [inlineCreateOpen, setInlineCreateOpen] = useState(false);
+  // Track which expanded inline-editor rows have unsaved changes (by portfolio id).
+  // Lives in a ref so child updates do not re-render the parent.
+  const dirtyRowsRef = useRef<Record<string, boolean>>({});
+
+  /**
+   * Wraps setExpandedId to prompt before discarding unsaved inline edits when
+   * collapsing the currently-open row or switching to a different one.
+   */
+  function requestExpand(nextId: string | null) {
+    const currentId = expandedId;
+    if (currentId && currentId !== nextId && dirtyRowsRef.current[currentId]) {
+      const ok = window.confirm('You have unsaved changes on this portfolio. Discard them?');
+      if (!ok) return;
+      delete dirtyRowsRef.current[currentId];
+    }
+    setExpandedId(nextId);
+  }
 
   // ── Just-joined partners (last 14 days) ──
   const { data: joined, isLoading } = useQuery({
