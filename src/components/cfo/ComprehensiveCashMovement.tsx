@@ -1863,6 +1863,12 @@ function WalletMovementSummary({
   }, [netDrill?.direction, netDrill?.from, netDrill?.to, netDrill?.bucket]);
 
   const summary = useMemo(() => {
+    // Clamp to the page's selected period so the totals here can never
+    // include rows outside the visible date range (e.g. when the parent
+    // over-fetches with only a lower bound).
+    const { from, to } = periodRange(period);
+    const fromTs = from ? from.getTime() : -Infinity;
+    const toTs = to.getTime();
     const inMap = new Map<string, number>();
     const outMap = new Map<string, number>();
     let totalIn = 0;
@@ -1870,6 +1876,8 @@ function WalletMovementSummary({
     for (const r of rows) {
       if (r.ledger_scope !== 'wallet') continue;
       if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
+      const t = new Date(r.transaction_date).getTime();
+      if (t < fromTs || t > toTs) continue;
       const amt = Number(r.amount) || 0;
       if (r.direction === 'cash_in') {
         inMap.set(r.category, (inMap.get(r.category) || 0) + amt);
@@ -1890,7 +1898,7 @@ function WalletMovementSummary({
       totalOut,
       net: totalIn - totalOut,
     };
-  }, [rows, includeAdjustments]);
+  }, [rows, includeAdjustments, period]);
 
   // ── Wallet-bucket breakdown ─────────────────────────────────
   // Classifies every wallet-scope ledger row into one of three buckets
@@ -1919,9 +1927,15 @@ function WalletMovementSummary({
       operational_float: { in: 0, out: 0 },
       landlord_float: { in: 0, out: 0 },
     };
+    // Clamp to the same period window as the rest of the cash-movement page.
+    const { from, to } = periodRange(period);
+    const fromTs = from ? from.getTime() : -Infinity;
+    const toTs = to.getTime();
     for (const r of rows) {
       if (r.ledger_scope !== 'wallet') continue;
       if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
+      const t = new Date(r.transaction_date).getTime();
+      if (t < fromTs || t > toTs) continue;
       const amt = Number(r.amount) || 0;
       if (amt <= 0) continue;
       const b = classifyBucket(r.category);
@@ -1929,7 +1943,7 @@ function WalletMovementSummary({
       else if (r.direction === 'cash_out') buckets[b].out += amt;
     }
     return buckets;
-  }, [rows, includeAdjustments, classifyBucket]);
+  }, [rows, includeAdjustments, classifyBucket, period]);
 
   // ── Previous-period comparison ──────────────────────────────
   // Computes a same-length window immediately preceding the current period and
