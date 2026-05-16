@@ -1520,6 +1520,57 @@ export function ComprehensiveCashMovement() {
                   )}
                 </div>
 
+                {/* Date filter chips — narrow drill-down by recent window or custom range */}
+                <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground mr-1">Date</span>
+                  {([
+                    { v: 'inherit', label: 'All' },
+                    { v: '1d', label: 'Today' },
+                    { v: '2d', label: '2d' },
+                    { v: '3d', label: '3d' },
+                    { v: '5d', label: '5d' },
+                    { v: '7d', label: '7d' },
+                    { v: '30d', label: '30d' },
+                    { v: 'custom', label: 'Custom' },
+                  ] as { v: DrillDatePreset; label: string }[]).map(opt => (
+                    <button
+                      key={opt.v}
+                      type="button"
+                      onClick={() => setDrillDatePreset(opt.v)}
+                      className={cn(
+                        'rounded-full border px-2 py-0.5 text-[11px] transition-colors',
+                        drillDatePreset === opt.v
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-background border-border hover:bg-muted'
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                  {drillDatePreset === 'custom' && (
+                    <div className="flex items-center gap-1 ml-1">
+                      <Input
+                        type="date"
+                        value={drillCustomFrom}
+                        onChange={(e) => setDrillCustomFrom(e.target.value)}
+                        className="h-7 text-[11px] w-[130px]"
+                      />
+                      <span className="text-[11px] text-muted-foreground">→</span>
+                      <Input
+                        type="date"
+                        value={drillCustomTo}
+                        onChange={(e) => setDrillCustomTo(e.target.value)}
+                        className="h-7 text-[11px] w-[130px]"
+                      />
+                    </div>
+                  )}
+                  {drillDatePreset !== 'inherit' && (effectiveDrillRange.from || effectiveDrillRange.to) && (
+                    <span className="text-[10px] text-muted-foreground ml-1 font-mono">
+                      {effectiveDrillRange.from || '…'} → {effectiveDrillRange.to || '…'}
+                    </span>
+                  )}
+                </div>
+
                 {filteredDrillRows.length === 0 ? (
                   <div className="py-12 text-center text-muted-foreground text-sm">
                     {drillQuery ? 'Nothing matches your search.' : 'No transactions to show.'}
