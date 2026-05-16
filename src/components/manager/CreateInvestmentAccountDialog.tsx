@@ -434,6 +434,21 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
           )}
         </div>
 
+        {selectedUser && !approvalLoading && !isApproved && (
+          // Inline rationale rendered ABOVE the footer (the footer is a
+          // flex row, so an explanatory block fits better here). Tells
+          // the operator exactly why the Verify link replaced the
+          // Create Portfolio action.
+          <div className="shrink-0 mx-4 sm:mx-6 mb-2 rounded-md border border-amber-300/70 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700/50 p-2.5 text-[11px] leading-snug text-amber-800 dark:text-amber-200">
+            <p className="font-semibold mb-0.5">Why approval is needed</p>
+            <p>
+              This partner self-registered and hasn't been verified by Partner Ops yet.
+              Portfolios cannot move funds for an unverified partner — verify their
+              identity & contact details first, then return here to create the portfolio.
+            </p>
+          </div>
+        )}
+
         <DialogFooter className="shrink-0 flex-col-reverse gap-2 sm:flex-row sm:gap-2 px-4 sm:px-6 py-3 border-t bg-background pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <Button
             variant="outline"
