@@ -2011,18 +2011,34 @@ export function NewPartnersPanel() {
         const nextCandidate = noPortfolioFilters.includes(partnerFilter)
           ? filteredPartners.find(p => p.portfolio_count === 0)
           : null;
+        // Activation is "in flight" whenever the Create-Portfolio dialog is
+        // open OR the auto-advance chain is waiting to open the next dialog.
+        // While that's true we lock the bottom-bar Filter/Sort and show a
+        // spinner on Activate so the operator can't change the candidate
+        // mid-flow or double-tap.
+        const activating = createOpen || pendingAutoAdvance;
+        const activateLabel = pendingAutoAdvance
+          ? 'Next…'
+          : createOpen
+            ? 'Activating…'
+            : 'Activate';
         return (
           <div
             className="sm:hidden fixed inset-x-0 bottom-0 z-40 border-t border-primary/30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-4px_12px_-4px_rgba(0,0,0,0.15)]"
             role="toolbar"
             aria-label="Partner list quick actions"
+            aria-busy={activating}
           >
             <div className="flex items-center gap-1.5">
               <Select
                 value={partnerFilter}
                 onValueChange={(v) => setPartnerFilter(v as PartnerFilter)}
+                disabled={activating}
               >
-                <SelectTrigger className="h-11 text-xs flex-1 min-w-0" aria-label="Filter partners">
+                <SelectTrigger
+                  className="h-11 text-xs flex-1 min-w-0 disabled:opacity-60 disabled:cursor-not-allowed"
+                  aria-label="Filter partners"
+                >
                   <Filter className="h-3.5 w-3.5 mr-1 text-muted-foreground shrink-0" />
                   <SelectValue />
                 </SelectTrigger>
@@ -2039,8 +2055,12 @@ export function NewPartnersPanel() {
               <Select
                 value={partnerSort}
                 onValueChange={(v) => setPartnerSort(v as PartnerSort)}
+                disabled={activating}
               >
-                <SelectTrigger className="h-11 text-xs flex-1 min-w-0" aria-label="Sort partners">
+                <SelectTrigger
+                  className="h-11 text-xs flex-1 min-w-0 disabled:opacity-60 disabled:cursor-not-allowed"
+                  aria-label="Sort partners"
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -2054,11 +2074,18 @@ export function NewPartnersPanel() {
               </Select>
               <Button
                 size="sm"
-                className="h-11 text-xs gap-1 shrink-0 px-3 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50"
-                disabled={!nextCandidate}
-                title={nextCandidate ? `Activate ${nextCandidate.full_name}` : 'No candidate in current filter'}
+                className="h-11 text-xs gap-1 shrink-0 px-3 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!nextCandidate || activating}
+                aria-busy={activating}
+                title={
+                  activating
+                    ? (pendingAutoAdvance ? 'Loading next candidate…' : 'Activation in progress…')
+                    : nextCandidate
+                      ? `Activate ${nextCandidate.full_name}`
+                      : 'No candidate in current filter'
+                }
                 onClick={() => {
-                  if (!nextCandidate) return;
+                  if (!nextCandidate || activating) return;
                   autoAdvanceRef.current = autoAdvanceEnabled;
                   activationSucceededRef.current = false;
                   openCreateFor({
@@ -2068,8 +2095,10 @@ export function NewPartnersPanel() {
                   });
                 }}
               >
-                <Zap className="h-3.5 w-3.5" />
-                Activate
+                {activating
+                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  : <Zap className="h-3.5 w-3.5" />}
+                {activateLabel}
               </Button>
             </div>
           </div>
