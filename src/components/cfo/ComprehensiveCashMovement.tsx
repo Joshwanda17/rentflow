@@ -1335,6 +1335,49 @@ export function ComprehensiveCashMovement() {
           </div>
         </div>
 
+        {/* ─── Sticky on-page navigator ────────────────────────────
+            Quick anchors to the major sections of the page. Sticks
+            to the top of the viewport while scrolling so users can
+            jump between Glance, the totals, categories, and the
+            transactions list without endless scrolling. The list of
+            anchors adapts to Simple vs Detailed view (hides anchors
+            for sections that aren't rendered). */}
+        <nav
+          aria-label="Jump to section"
+          className="sticky top-0 z-30 -mx-3 sm:-mx-6 px-3 sm:px-6 py-1.5 bg-card/95 backdrop-blur border-y border-border"
+        >
+          <div className="flex items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold shrink-0 mr-1">
+              Jump to:
+            </span>
+            {([
+              simpleMode ? { id: 'cm-glance',       label: 'Glance',       emoji: '👀' } : null,
+              { id: 'cm-totals',       label: 'Money In / Out', emoji: '⇅' },
+              !simpleMode ? { id: 'cm-inflows',    label: 'New money',     emoji: '⬆️' } : null,
+              !simpleMode ? { id: 'cm-categories', label: 'Categories',    emoji: '📂' } : null,
+              { id: 'cm-transactions', label: 'Transactions',  emoji: '🧾' },
+            ].filter(Boolean) as Array<{ id: string; label: string; emoji: string }>).map(item => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  const el = document.getElementById(item.id);
+                  if (!el) return;
+                  // Open the transactions collapsible automatically so the
+                  // "Transactions" anchor lands on visible content, not on
+                  // a closed trigger.
+                  if (item.id === 'cm-transactions') setPageDrillOpen(true);
+                  setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 30);
+                }}
+                className="shrink-0 inline-flex items-center gap-1 rounded-full border border-border bg-background hover:bg-accent hover:text-accent-foreground px-2.5 py-1 text-[11px] font-medium transition-colors"
+              >
+                <span aria-hidden="true">{item.emoji}</span>
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </div>
+        </nav>
+
         {/* ─── Thumb-friendly filter bar ──────────────────────────
             Three large tap targets (≥56px tall) for the filters non-tech
             users reach for most: Date, Direction, and Party. Each opens a
@@ -1539,7 +1582,7 @@ export function ComprehensiveCashMovement() {
               : totals.net < 0 ? 'bg-destructive/10 border-destructive/40'
               : 'bg-muted/40 border-border';
             return (
-              <div className={cn('rounded-2xl border-2 p-4 sm:p-5 space-y-4', verdictBg)}>
+              <div id="cm-glance" className={cn('scroll-mt-24 rounded-2xl border-2 p-4 sm:p-5 space-y-4', verdictBg)}>
                 <div className="text-center space-y-1">
                   <div className="text-6xl sm:text-7xl leading-none" aria-hidden="true">{verdictEmoji}</div>
                   <div className={cn('text-xs sm:text-sm uppercase tracking-widest font-semibold', verdictColor)}>
@@ -1741,7 +1784,7 @@ export function ComprehensiveCashMovement() {
           )}
         </div>
 
-        <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+        <div id="cm-totals" className="scroll-mt-24 grid grid-cols-3 gap-1.5 sm:gap-2">
           <div className="rounded-lg border border-border bg-success/5 p-2 sm:p-3">
             <div className="flex items-center gap-1 text-[10px] uppercase text-muted-foreground"><ArrowUpRight className="h-3 w-3 text-success" /> Money In</div>
             <div className="font-mono font-semibold text-success text-xs sm:text-base break-all">{formatUGX(totals.cashIn)}</div>
@@ -1886,7 +1929,7 @@ export function ComprehensiveCashMovement() {
               open={pageDrillOpen}
               onOpenChange={(o) => { setPageDrillOpen(o); if (o) setPageDrillVisible(25); }}
             >
-              <div ref={pageDrillRef} />
+              <div id="cm-transactions" ref={pageDrillRef} className="scroll-mt-24" />
               <CollapsibleTrigger asChild>
                 <button
                   type="button"
@@ -2099,7 +2142,7 @@ export function ComprehensiveCashMovement() {
 
         {/* Capital Inflows callout — new money into the company. Hidden in Simple view. */}
         {!simpleMode && (
-        <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-2.5 sm:p-3 space-y-2">
+        <div id="cm-inflows" className="scroll-mt-24 rounded-lg border-2 border-primary/30 bg-primary/5 p-2.5 sm:p-3 space-y-2">
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-2">
               <ArrowUpRight className="h-4 w-4 text-primary" />
@@ -2382,7 +2425,7 @@ export function ComprehensiveCashMovement() {
         ) : filteredAggregates.length === 0 ? (
           <div className="py-12 text-center text-muted-foreground text-sm">No money moved in this period.</div>
         ) : (
-          <div className="border border-border rounded-lg overflow-x-auto">
+          <div id="cm-categories" className="scroll-mt-24 border border-border rounded-lg overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
