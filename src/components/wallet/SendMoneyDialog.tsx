@@ -303,6 +303,38 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
     setConfirming(true);
   };
 
+  // Single source of truth for why the Send button is disabled.
+  // Returned string is shown inline; null means the button is enabled.
+  const getDisabledReason = (): string | null => {
+    if (loading) return 'Sending… please wait.';
+    const amountNum = parseFloat(amount);
+    if (mode === 'phone' && !phone.trim()) return 'Enter the recipient phone number to continue.';
+    if (mode === 'email' && !email.trim()) return 'Enter the recipient email to continue.';
+    if (recipient.status === 'idle') {
+      return mode === 'email'
+        ? 'Enter a valid recipient email like name@example.com.'
+        : 'Enter a valid Ugandan phone number (e.g. 0783673998).';
+    }
+    if (recipient.status === 'invalid') return recipient.reason;
+    if (recipient.status === 'searching') return 'Verifying recipient on Welile…';
+    if (recipient.status === 'not_found') {
+      return mode === 'email'
+        ? 'No Welile user found for this email address.'
+        : 'No Welile user found for this phone number.';
+    }
+    if (recipient.status === 'multiple') return 'Multiple accounts match — pick the correct recipient above.';
+    if (recipient.status === 'found' && recipient.isSelf) {
+      return "You can't send money to your own account.";
+    }
+    if (!amount.trim() || isNaN(amountNum) || amountNum <= 0) return 'Enter an amount greater than 0 UGX.';
+    if (wallet && amountNum > (wallet.balance || 0)) {
+      return `Insufficient balance. Available: ${formatCurrency(wallet.balance || 0)}.`;
+    }
+    return null;
+  };
+  const disabledReason = getDisabledReason();
+  const sendDisabled = disabledReason !== null;
+
   const executeSend = async () => {
     const amountNum = parseFloat(amount);
     setLoading(true);
@@ -766,15 +798,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                     <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                       <Button
                         type="submit"
-                        disabled={
-                          loading ||
-                          recipient.status === 'searching' ||
-                          recipient.status === 'not_found' ||
-                          recipient.status === 'idle' ||
-                          recipient.status === 'invalid' ||
-                          recipient.status === 'multiple' ||
-                          (recipient.status === 'found' && recipient.isSelf)
-                        }
+                        disabled={sendDisabled}
                         className="gap-2"
                       >
                         {loading ? (
@@ -786,6 +810,21 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                       </Button>
                     </motion.div>
                   </DialogFooter>
+                  <AnimatePresence mode="wait">
+                    {disabledReason && !loading && (
+                      <motion.p
+                        key={disabledReason}
+                        initial={{ opacity: 0, y: -2 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        role="status"
+                        aria-live="polite"
+                        className="mt-2 text-xs text-muted-foreground text-right"
+                      >
+                        {disabledReason}
+                      </motion.p>
+                    )}
+                  </AnimatePresence>
                 </motion.div>
               </motion.form>
             </motion.div>
