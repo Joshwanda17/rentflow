@@ -512,6 +512,7 @@ export function ComprehensiveCashMovement() {
     for (const r of rows) {
       if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
       if (scopeFilter !== 'all' && r.ledger_scope !== scopeFilter) continue;
+      if (partyQuickFilter && r.user_id !== partyQuickFilter) continue;
 
       const amt = Number(r.amount) || 0;
       const key: GroupKey = `${r.category}|${r.ledger_scope}`;
@@ -533,7 +534,7 @@ export function ComprehensiveCashMovement() {
     const aggregates = Array.from(map.values()).sort((a, b) => (Math.abs(b.cashIn + b.cashOut) - Math.abs(a.cashIn + a.cashOut)));
     const bucketLabels = Array.from(bucketSet).sort();
     return { aggregates, bucketLabels, totals: { cashIn: totIn, cashOut: totOut, net: totIn - totOut } };
-  }, [rows, granularity, includeAdjustments, scopeFilter]);
+  }, [rows, granularity, includeAdjustments, scopeFilter, partyQuickFilter]);
 
   const filteredAggregates = useMemo(() => {
     return aggregates.filter(a => {
