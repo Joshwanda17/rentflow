@@ -318,6 +318,14 @@ export function NewPartnersPanel() {
                   </Button>
                   <Button
                     size="sm"
+                    variant={inlineCreateOpen ? 'default' : 'outline'}
+                    className="h-8 text-xs gap-1.5"
+                    onClick={() => setInlineCreateOpen(o => !o)}
+                  >
+                    <PlusCircle className="h-3 w-3" /> {inlineCreateOpen ? 'Close inline' : 'Add Portfolio (inline)'}
+                  </Button>
+                  <Button
+                    size="sm"
                     variant="outline"
                     className="h-8 text-xs gap-1.5"
                     onClick={toggleHistory}
@@ -325,6 +333,20 @@ export function NewPartnersPanel() {
                     <History className="h-3 w-3" /> {historyOpen ? 'Hide' : 'View'} History
                   </Button>
                 </div>
+
+                {inlineCreateOpen && (
+                  <InlineCreatePortfolioForm
+                    partner={selected}
+                    actingUserId={user?.id}
+                    onCreated={() => {
+                      setInlineCreateOpen(false);
+                      handleSelect(selected);
+                      qc.invalidateQueries({ queryKey: ['exec-partner-portfolios'] });
+                      qc.invalidateQueries({ queryKey: ['new-partners-panel'] });
+                    }}
+                    onCancel={() => setInlineCreateOpen(false)}
+                  />
+                )}
 
                 {historyOpen && (
                   <div className="rounded-lg border border-border/60 bg-muted/20 p-2 space-y-1.5">
