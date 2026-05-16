@@ -19,6 +19,112 @@ import { toast } from 'sonner';
 const fmt = (n: number) =>
   new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', maximumFractionDigits: 0 }).format(n || 0);
 
+// ───── Inline multi-select with search + checkboxes (Popover-based) ─────
+interface MultiSelectFilterProps {
+  label: string;
+  allLabel: string;
+  options: Array<[string, string]>; // [key, displayLabel]
+  selected: string[];
+  onChange: (next: string[]) => void;
+  width?: string;
+}
+function MultiSelectFilter({ label, allLabel, options, selected, onChange, width = 'w-[200px]' }: MultiSelectFilterProps) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const selectedSet = useMemo(() => new Set(selected), [selected]);
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    if (!needle) return options;
+    return options.filter(([, lbl]) => lbl.toLowerCase().includes(needle));
+  }, [options, q]);
+  const labelForKey = (k: string) => options.find(([key]) => key === k)?.[1] || k;
+  const toggle = (key: string) => {
+    onChange(selectedSet.has(key) ? selected.filter((s) => s !== key) : [...selected, key]);
+  };
+  const triggerText =
+    selected.length === 0
+      ? `${allLabel} (${options.length})`
+      : selected.length === 1
+      ? labelForKey(selected[0])
+      : `${label}: ${selected.length} selected`;
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className={cn('h-9 justify-between text-xs gap-2', width, selected.length === 0 && 'text-muted-foreground')}
+        >
+          <span className="truncate">{triggerText}</span>
+          <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="p-0 w-[280px]">
+        <div className="p-2 border-b">
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              autoFocus
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder={`Search ${label.toLowerCase()}…`}
+              className="h-8 pl-7 text-xs"
+            />
+          </div>
+          <div className="flex items-center justify-between mt-2 text-[10px] text-muted-foreground">
+            <span>{selected.length} of {options.length} selected</span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className="hover:text-foreground disabled:opacity-40"
+                disabled={filtered.length === 0}
+                onClick={() => {
+                  const visible = new Set(filtered.map(([k]) => k));
+                  const merged = Array.from(new Set([...selected, ...visible]));
+                  onChange(merged);
+                }}
+              >
+                Select all
+              </button>
+              <button
+                type="button"
+                className="hover:text-foreground disabled:opacity-40"
+                disabled={selected.length === 0}
+                onClick={() => onChange([])}
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="max-h-[260px] overflow-y-auto py-1">
+          {filtered.length === 0 ? (
+            <p className="px-3 py-4 text-[11px] text-center text-muted-foreground">No matches</p>
+          ) : (
+            filtered.map(([key, lbl]) => {
+              const isOn = selectedSet.has(key);
+              return (
+                <button
+                  type="button"
+                  key={key}
+                  onClick={() => toggle(key)}
+                  className={cn(
+                    'w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left hover:bg-muted',
+                    isOn && 'bg-[#9234EA]/5',
+                  )}
+                >
+                  <Checkbox checked={isOn} className="h-3.5 w-3.5 pointer-events-none" />
+                  <span className="truncate">{lbl}</span>
+                </button>
+              );
+            })
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 type EventKind = 'funding' | 'allocation' | 'payout';
 
 interface TimelineEvent {
