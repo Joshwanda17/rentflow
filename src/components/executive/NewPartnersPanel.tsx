@@ -995,22 +995,53 @@ export function NewPartnersPanel() {
           </div>
         )}
         <CardContent className="p-3 sm:p-4 space-y-3 sm:space-y-4 pb-20 sm:pb-4">
-          {/* Header */}
-          <div className="flex items-start gap-2">
+          {/* Header — entire row is a tap target that toggles the panel. The
+              body, sticky bar, and data fetch are all gated behind this
+              `panelOpen` flag, so an idle operator pays zero cost. */}
+          <button
+            type="button"
+            onClick={() => setPanelOpen(o => !o)}
+            aria-expanded={panelOpen}
+            aria-controls="joined-partners-body"
+            className="w-full flex items-center gap-2 text-left rounded-lg -m-1 p-1 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 transition-colors"
+          >
             <div className="p-1.5 rounded-lg bg-primary/15 shrink-0">
               <Sparkles className="h-4 w-4 text-primary" />
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <h3 className="text-sm font-bold">Joined Partners</h3>
-                {/* Total partner count badge — shows how many supporters exist
-                    in the database (not just what's been scrolled into view). */}
+            <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap">
+              <h3 className="text-sm font-bold">Joined Partners</h3>
+              {panelOpen && (
                 <span
                   className="inline-flex items-center gap-1 rounded-full bg-primary/15 text-primary px-1.5 py-0.5 text-[10px] font-semibold tabular-nums"
                   title="Total partners in the database"
                 >
                   {isLoading ? '…' : joinedTotal.toLocaleString()} total
                 </span>
+              )}
+              {!panelOpen && (
+                <span className="text-[10px] text-muted-foreground">
+                  Tap to load
+                </span>
+              )}
+            </div>
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 text-muted-foreground shrink-0 transition-transform",
+                panelOpen && "rotate-180",
+              )}
+            />
+          </button>
+
+          {panelOpen && (
+          <div id="joined-partners-body" className="space-y-3 sm:space-y-4">
+          {/* Secondary header row — total/loaded badges, filter summary,
+              description, and Create Portfolio CTA. Only relevant when the
+              panel is expanded. */}
+          <div className="flex items-start gap-2">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {/* Total partner count badge — shows how many supporters exist
+                    in the database (not just what's been scrolled into view). */}
                 {!isLoading && joined && joined.length < joinedTotal && (
                   <span
                     className="inline-flex items-center gap-1 rounded-full bg-muted text-muted-foreground px-1.5 py-0.5 text-[10px] font-medium tabular-nums"
