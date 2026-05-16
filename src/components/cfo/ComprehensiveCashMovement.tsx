@@ -163,7 +163,7 @@ export function ComprehensiveCashMovement() {
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<LedgerRow[]>([]);
   const [generatedAt, setGeneratedAt] = useState<Date | null>(null);
-  const [drill, setDrill] = useState<null | { category: string; scope: string; bucket: string | null }>(null);
+  const [drill, setDrill] = useState<null | { category: string; scope: string; bucket: string | null; direction?: 'cash_in' | 'cash_out' }>(null);
   const [partyNames, setPartyNames] = useState<Record<string, string>>({});
   const [drillQuery, setDrillQuery] = useState('');
   const [debouncedDrillQuery, setDebouncedDrillQuery] = useState('');
@@ -241,6 +241,7 @@ export function ComprehensiveCashMovement() {
     return rows.filter(r => {
       if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) return false;
       if (r.category !== drill.category || r.ledger_scope !== drill.scope) return false;
+      if (drill.direction && r.direction !== drill.direction) return false;
       if (drill.bucket) {
         const bk = bucketKey(new Date(r.transaction_date), granularity);
         if (bk !== drill.bucket) return false;
@@ -740,10 +741,18 @@ export function ComprehensiveCashMovement() {
           {capitalInflow.selected.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {capitalInflow.selected.map(c => (
-                <Badge key={c.category} variant="outline" className="bg-background text-[11px] font-normal gap-1">
+                <button
+                  key={c.category}
+                  type="button"
+                  onClick={() => setDrill({ category: c.category, scope: 'platform', bucket: null, direction: 'cash_in' })}
+                  title={`Drill into ${prettifyCategory(c.category)} · Platform cash_in entries`}
+                  className="inline-flex items-center gap-1 rounded-full border border-border bg-background hover:bg-primary/10 hover:border-primary/40 px-2 py-0.5 text-[11px] font-normal transition-colors"
+                >
                   <span className="font-medium">{prettifyCategory(c.category)}</span>
                   <span className="font-mono text-primary">{formatUGX(c.total)}</span>
-                </Badge>
+                  <span className="text-muted-foreground">({c.count})</span>
+                  <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                </button>
               ))}
             </div>
           )}
