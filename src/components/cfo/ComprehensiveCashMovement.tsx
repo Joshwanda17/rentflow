@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
-import { Info, Users, ArrowLeftRight, Check, AlertTriangle, TrendingUp, MinusCircle } from 'lucide-react';
+import { Info, Users, ArrowLeftRight, Check, AlertTriangle, TrendingUp, MinusCircle, Share2, Image as ImageIcon, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -1073,6 +1073,208 @@ export function ComprehensiveCashMovement() {
   const range = periodRange(period);
   const rangeLabel = range.from ? `${format(range.from, 'dd MMM yyyy')} → ${format(range.to, 'dd MMM yyyy')}` : `Inception → ${format(range.to, 'dd MMM yyyy')}`;
 
+  // ────────────────────────────────────────────────────────────
+  // Shareable plain-English summary export
+  // ────────────────────────────────────────────────────────────
+  // Renders the same headline narrative the user reads in Simple
+  // mode (period, Money In, Money Out, Difference, top anomalies)
+  // into a portrait canvas suitable for download/share. Pure render
+  // — never touches the ledger or wallet state.
+  const buildSummaryCanvas = useCallback((): HTMLCanvasElement => {
+    const W = 1080;
+    const H = 1350;
+    const cvs = document.createElement('canvas');
+    cvs.width = W; cvs.height = H;
+    const ctx = cvs.getContext('2d')!;
+    // Background
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, '#0b1220');
+    grad.addColorStop(1, '#111827');
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+    // Card
+    const PAD = 56;
+    ctx.fillStyle = '#0f172a';
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 2;
+    const cardX = PAD, cardY = PAD, cardW = W - PAD * 2, cardH = H - PAD * 2;
+    const r = 28;
+    ctx.beginPath();
+    ctx.moveTo(cardX + r, cardY);
+    ctx.arcTo(cardX + cardW, cardY, cardX + cardW, cardY + cardH, r);
+    ctx.arcTo(cardX + cardW, cardY + cardH, cardX, cardY + cardH, r);
+    ctx.arcTo(cardX, cardY + cardH, cardX, cardY, r);
+    ctx.arcTo(cardX, cardY, cardX + cardW, cardY, r);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+
+    let y = cardY + 60;
+    // Brand
+    ctx.fillStyle = '#22d3ee';
+    ctx.font = '600 22px system-ui, -apple-system, sans-serif';
+    ctx.fillText('WELILE · CASH MOVEMENTS', cardX + 40, y);
+    y += 18;
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.font = '400 18px system-ui, -apple-system, sans-serif';
+    ctx.fillText(rangeLabel, cardX + 40, y + 16);
+    y += 70;
+
+    // Title
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = '700 44px system-ui, -apple-system, sans-serif';
+    ctx.fillText('Money In & Out', cardX + 40, y);
+    y += 12;
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.font = '400 20px system-ui, -apple-system, sans-serif';
+    ctx.fillText(`Period: ${PERIODS.find(p => p.value === period)?.label || period}`, cardX + 40, y + 24);
+    y += 70;
+
+    // Three big tiles
+    const tileGap = 18;
+    const tileW = (cardW - 80 - tileGap * 2) / 3;
+    const tileH = 160;
+    const drawTile = (i: number, label: string, value: string, color: string, bg: string) => {
+      const x = cardX + 40 + i * (tileW + tileGap);
+      ctx.fillStyle = bg;
+      ctx.beginPath();
+      ctx.moveTo(x + 16, y);
+      ctx.arcTo(x + tileW, y, x + tileW, y + tileH, 16);
+      ctx.arcTo(x + tileW, y + tileH, x, y + tileH, 16);
+      ctx.arcTo(x, y + tileH, x, y, 16);
+      ctx.arcTo(x, y, x + tileW, y, 16);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.65)';
+      ctx.font = '600 18px system-ui, -apple-system, sans-serif';
+      ctx.fillText(label, x + 20, y + 36);
+      ctx.fillStyle = color;
+      ctx.font = '700 34px ui-monospace, SFMono-Regular, Menlo, monospace';
+      ctx.fillText(value, x + 20, y + 96);
+    };
+    drawTile(0, 'MONEY IN',    formatUGX(totals.cashIn),                       '#34d399', 'rgba(16, 185, 129, 0.12)');
+    drawTile(1, 'MONEY OUT',   formatUGX(totals.cashOut),                      '#f87171', 'rgba(239, 68, 68, 0.12)');
+    drawTile(2, 'DIFFERENCE',  `${totals.net >= 0 ? '+' : ''}${formatUGX(totals.net)}`,
+             totals.net >= 0 ? '#34d399' : '#f87171',
+             totals.net >= 0 ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)');
+    y += tileH + 40;
+
+    // Plain English sentence (word-wrapped)
+    const sentence = (totals.cashIn === 0 && totals.cashOut === 0)
+      ? 'No money moved during this period.'
+      : `${formatUGX(totals.cashIn)} came IN and ${formatUGX(totals.cashOut)} went OUT. ${
+          totals.net > 0 ? `Welile gained ${formatUGX(totals.net)} overall.`
+          : totals.net < 0 ? `Welile spent ${formatUGX(Math.abs(totals.net))} more than it received.`
+          : 'Money in and out balanced exactly.'
+        }`;
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = '500 26px system-ui, -apple-system, sans-serif';
+    const wrap = (text: string, maxWidth: number) => {
+      const words = text.split(' '); const lines: string[] = []; let cur = '';
+      for (const w of words) {
+        const test = cur ? cur + ' ' + w : w;
+        if (ctx.measureText(test).width > maxWidth) { if (cur) lines.push(cur); cur = w; }
+        else cur = test;
+      }
+      if (cur) lines.push(cur);
+      return lines;
+    };
+    const lines = wrap(sentence, cardW - 80);
+    for (const ln of lines) { ctx.fillText(ln, cardX + 40, y); y += 36; }
+    y += 20;
+
+    // Anomalies (top 3)
+    if (anomalyAlerts.length > 0) {
+      ctx.fillStyle = '#fbbf24';
+      ctx.font = '700 22px system-ui, -apple-system, sans-serif';
+      ctx.fillText(`HEADS UP · ${anomalyAlerts.length} unusual ${anomalyAlerts.length === 1 ? 'pattern' : 'patterns'}`, cardX + 40, y);
+      y += 30;
+      ctx.font = '500 20px system-ui, -apple-system, sans-serif';
+      for (const a of anomalyAlerts.slice(0, 3)) {
+        ctx.fillStyle = '#f1f5f9';
+        const labelLines = wrap(`• ${a.label}`, cardW - 80);
+        for (const ln of labelLines) { ctx.fillText(ln, cardX + 40, y); y += 26; }
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.font = '400 18px system-ui, -apple-system, sans-serif';
+        const detailLines = wrap(a.detail, cardW - 100);
+        for (const ln of detailLines) { ctx.fillText(ln, cardX + 56, y); y += 22; }
+        ctx.font = '500 20px system-ui, -apple-system, sans-serif';
+        y += 8;
+        if (y > cardY + cardH - 120) break;
+      }
+    }
+
+    // Footer
+    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    ctx.font = '400 16px system-ui, -apple-system, sans-serif';
+    const stamp = `Generated ${format(new Date(), 'dd MMM yyyy · HH:mm')} · All amounts in UGX`;
+    ctx.fillText(stamp, cardX + 40, cardY + cardH - 30);
+    return cvs;
+  }, [period, rangeLabel, totals, anomalyAlerts]);
+
+  const summaryFilename = (ext: string) =>
+    `welile-cash-summary-${period}-${format(new Date(), 'yyyy-MM-dd-HHmm')}.${ext}`;
+
+  const handleDownloadSummaryPng = useCallback(() => {
+    try {
+      const cvs = buildSummaryCanvas();
+      cvs.toBlob((blob) => {
+        if (!blob) { toast.error('Could not build image'); return; }
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = summaryFilename('png');
+        document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
+        toast.success('Summary image saved');
+      }, 'image/png');
+    } catch (e: any) {
+      console.error('[CashMovement] summary png failed', e);
+      toast.error('Could not save summary image');
+    }
+  }, [buildSummaryCanvas, period]);
+
+  const handleDownloadSummaryPdf = useCallback(() => {
+    try {
+      const cvs = buildSummaryCanvas();
+      const img = cvs.toDataURL('image/png');
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+      const pw = doc.internal.pageSize.getWidth();
+      const ph = doc.internal.pageSize.getHeight();
+      const ratio = cvs.height / cvs.width;
+      const margin = 32;
+      const imgW = pw - margin * 2;
+      const imgH = Math.min(ph - margin * 2, imgW * ratio);
+      doc.addImage(img, 'PNG', margin, margin, imgW, imgH);
+      doc.save(summaryFilename('pdf'));
+      toast.success('Summary PDF saved');
+    } catch (e: any) {
+      console.error('[CashMovement] summary pdf failed', e);
+      toast.error('Could not save summary PDF');
+    }
+  }, [buildSummaryCanvas, period]);
+
+  const handleShareSummary = useCallback(async () => {
+    try {
+      const cvs = buildSummaryCanvas();
+      const blob: Blob | null = await new Promise(res => cvs.toBlob(res, 'image/png'));
+      if (!blob) { toast.error('Could not build image'); return; }
+      const file = new File([blob], summaryFilename('png'), { type: 'image/png' });
+      const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean; share?: (d: ShareData) => Promise<void> };
+      if (nav.canShare && nav.canShare({ files: [file] }) && nav.share) {
+        await nav.share({
+          files: [file],
+          title: 'Welile · Cash Movements',
+          text: `${PERIODS.find(p => p.value === period)?.label || period} · ${rangeLabel}`,
+        });
+        return;
+      }
+      // Fallback to download
+      handleDownloadSummaryPng();
+    } catch (e: any) {
+      if (e?.name === 'AbortError') return; // user cancelled share sheet
+      console.error('[CashMovement] share failed', e);
+      toast.error('Sharing not supported — image saved instead');
+      handleDownloadSummaryPng();
+    }
+  }, [buildSummaryCanvas, handleDownloadSummaryPng, period, rangeLabel]);
+
   return (
     <Card>
       <CardContent className="pt-4 pb-6 space-y-4 px-3 sm:px-6">
@@ -1327,6 +1529,47 @@ export function ComprehensiveCashMovement() {
               {totals.net >= 0 ? '+' : ''}{formatUGX(totals.net)}
             </div>
           </div>
+        </div>
+
+        {/* ─── Share / Download summary ───────────────────────────
+            Exports the same plain-English summary (period, In, Out,
+            Difference, any anomalies) as a portrait image, a PDF, or
+            via the native share sheet on supported devices. Pure
+            client-side render — never touches the ledger. */}
+        <div className="rounded-xl border border-border bg-muted/30 p-2.5 flex flex-wrap items-center gap-2">
+          <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1 mr-1">
+            <Share2 className="h-3.5 w-3.5" /> Share / save this summary
+          </span>
+          <Button
+            type="button"
+            size="sm"
+            variant="default"
+            className="h-9 gap-1.5"
+            onClick={handleShareSummary}
+            title="Share via your phone's share sheet (or save as image if not supported)"
+          >
+            <Share2 className="h-3.5 w-3.5" /> Share
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-9 gap-1.5"
+            onClick={handleDownloadSummaryPng}
+            title="Save the summary as a PNG image"
+          >
+            <ImageIcon className="h-3.5 w-3.5" /> Save image
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-9 gap-1.5"
+            onClick={handleDownloadSummaryPdf}
+            title="Download the summary as a PDF"
+          >
+            <Download className="h-3.5 w-3.5" /> PDF
+          </Button>
         </div>
 
         {/* ─── Anomaly alerts (plain language) ───────────────────
