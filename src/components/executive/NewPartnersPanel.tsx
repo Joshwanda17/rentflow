@@ -739,9 +739,9 @@ export function NewPartnersPanel() {
           {/* Segmented control — quick portfolio-status switch */}
           <div className="inline-flex rounded-lg border border-border/60 bg-muted/40 p-0.5 text-[11px] self-start">
             {([
-              { key: 'all', label: 'All' },
-              { key: 'with', label: 'With portfolios' },
-              { key: 'without', label: 'No portfolio yet' },
+              { key: 'all', label: 'All', count: segmentCounts.all },
+              { key: 'with', label: 'With portfolios', count: segmentCounts.with },
+              { key: 'without', label: 'No portfolio yet', count: segmentCounts.without },
             ] as const).map(seg => (
               <button
                 key={seg.key}
@@ -749,13 +749,24 @@ export function NewPartnersPanel() {
                 onClick={() => setPartnerFilter(seg.key)}
                 aria-pressed={partnerFilter === seg.key}
                 className={cn(
-                  "px-2.5 py-1 rounded-md font-medium transition-colors",
+                  "px-2.5 py-1 rounded-md font-medium transition-colors inline-flex items-center gap-1.5",
                   partnerFilter === seg.key
                     ? "bg-background text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
                 )}
+                aria-label={`${seg.label} (${seg.count})`}
               >
-                {seg.label}
+                <span>{seg.label}</span>
+                <span
+                  className={cn(
+                    "rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums leading-none",
+                    partnerFilter === seg.key
+                      ? "bg-muted text-foreground"
+                      : "bg-background/60 text-muted-foreground"
+                  )}
+                >
+                  {segmentCounts.all === 0 && isLoading ? '…' : seg.count}
+                </span>
               </button>
             ))}
           </div>
