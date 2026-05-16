@@ -20,6 +20,7 @@ import { TenantOverviewList } from './TenantOverviewList';
 import { TenantDetailPanel } from './TenantDetailPanel';
 import { TenantRegistrationReview } from './TenantRegistrationReview';
 import { AgentAllocationReport } from './AgentAllocationReport';
+import { TenantOpsLandlordFloatPanel } from './TenantOpsLandlordFloatPanel';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -45,13 +46,13 @@ import { toast } from 'sonner';
 import {
   FileCheck, Clock, AlertTriangle, CheckCircle2, Banknote,
   ArrowRight, Activity, ClipboardList, CalendarCheck, CalendarX2,
-  ArrowLeft, History, Table2, Link2, HandCoins, Users, Trash2, Loader2, FileSearch, Printer, Network, Shield, CalendarIcon, Download, Wallet
+  ArrowLeft, History, Table2, Link2, HandCoins, Users, Trash2, Loader2, FileSearch, Printer, Network, Shield, CalendarIcon, Download, Wallet, Landmark
 } from 'lucide-react';
 import { generateTenantOpsReportPdf } from '@/lib/generateTenantOpsReportPdf';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 
-type ActiveView = 'overview' | 'pipeline' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'transfer-audit' | 'collect-rent' | 'agent-tenants' | 'tenant-detail' | 'registration-review' | 'advance-requests' | 'agent-allocations' | 'daily-collections';
+type ActiveView = 'overview' | 'pipeline' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'transfer-audit' | 'collect-rent' | 'agent-tenants' | 'tenant-detail' | 'registration-review' | 'advance-requests' | 'agent-allocations' | 'daily-collections' | 'landlord-float';
 
 interface NavCard {
   id: ActiveView;
@@ -1038,6 +1039,13 @@ export function TenantOpsDashboard() {
       icon: Network,
       color: 'bg-indigo-500/10 text-indigo-600 border-indigo-200',
     },
+    {
+      id: 'landlord-float' as ActiveView,
+      label: 'Agent Landlord Float',
+      description: 'Per-agent landlord-payout float balances & earmarks',
+      icon: Landmark,
+      color: 'bg-fuchsia-500/10 text-fuchsia-600 border-fuchsia-200',
+    },
   ];
 
   const goBack = () => {
@@ -1208,6 +1216,8 @@ export function TenantOpsDashboard() {
         );
       case 'agent-allocations':
         return <AgentAllocationReport />;
+      case 'landlord-float':
+        return <TenantOpsLandlordFloatPanel />;
       case 'daily-collections':
         return <DailyCollectionMonitoringDashboard mode="editable" title="Daily Collection Monitoring" />;
       default:
