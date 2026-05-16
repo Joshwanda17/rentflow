@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -49,6 +49,12 @@ export default function FunderOnboarding() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Deep-link target: `/partner-onboarding?focus=<userId>` jumps directly
+  // to that partner's row and pre-opens the Approve action so an
+  // executive coming from the "Partner Not Approved" gate in the
+  // Create Portfolio dialog can verify them in one click.
+  const focusUserId = searchParams.get('focus');
 
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
@@ -57,6 +63,35 @@ export default function FunderOnboarding() {
   const [actionMode, setActionMode] = useState<null | 'approve' | 'reject'>(null);
   const [actionReason, setActionReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // One-shot fetch for the focused partner so the page works even when
+  // the row isn't on the current page (search/pagination independent).
+  useEffect(() => {
+    if (!focusUserId || !user || !roles.includes('manager')) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone, email, created_at, frozen_at, verified, funder_verified_at, funder_rejected_at, funder_rejection_reason, referrer_id')
+        .eq('id', focusUserId)
+        .maybeSingle();
+      if (cancelled) return;
+      if (error || !data) {
+        toast({ title: 'Partner not found', description: 'The linked partner could not be loaded.', variant: 'destructive' });
+      } else {
+        setSelected(data as FunderProfileRow);
+        if (!data.funder_verified_at && !data.funder_rejected_at) {
+          setActionMode('approve');
+        }
+      }
+      // Clear the param so a manual close + re-open doesn't keep re-firing.
+      const next = new URLSearchParams(searchParams);
+      next.delete('focus');
+      setSearchParams(next, { replace: true });
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusUserId, user?.id, roles.join(',')]);
 
   // Reset to first page whenever search term or source filter changes
   useEffect(() => { setPage(0); }, [search, sourceFilter]);
