@@ -165,6 +165,9 @@ export function NewPartnersPanel() {
   // so the user can't accidentally trigger an unsaved-change prompt or navigate
   // away while the network request is in flight.
   const savingRowsRef = useRef<Record<string, boolean>>({});
+  // Reactive count of rows currently mid-save — drives the global blocking
+  // overlay. We keep the ref above for synchronous reads inside requestExpand.
+  const [savingCount, setSavingCount] = useState(0);
 
   // In-app modal state for the discard-changes confirmation (replaces window.confirm).
   const [discardPrompt, setDiscardPrompt] = useState<{
@@ -573,8 +576,12 @@ export function NewPartnersPanel() {
                           else delete dirtyRowsRef.current[p.id];
                         }}
                         onSavingChange={(isSaving) => {
+                          const was = !!savingRowsRef.current[p.id];
                           if (isSaving) savingRowsRef.current[p.id] = true;
                           else delete savingRowsRef.current[p.id];
+                          if (was !== isSaving) {
+                            setSavingCount(Object.keys(savingRowsRef.current).length);
+                          }
                         }}
                         onSaved={(updated) => {
                           setSelectedPortfolios(list => list.map(x => x.id === updated.id ? { ...x, ...updated } : x));
