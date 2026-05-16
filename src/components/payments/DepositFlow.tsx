@@ -1514,9 +1514,9 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                         toast.error('Could not copy');
                       }
                     }}
-                    className="text-[11px] underline text-muted-foreground hover:text-foreground"
+                    className="text-[11px] font-semibold px-3 py-1.5 rounded-md border border-border bg-background hover:bg-muted"
                   >
-                    Copy for support
+                    Copy error
                   </button>
                 </div>
                 {showRawError && (
