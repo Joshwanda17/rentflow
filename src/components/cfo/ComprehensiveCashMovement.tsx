@@ -555,6 +555,51 @@ export function ComprehensiveCashMovement() {
       .map(a => a.category);
   }, [aggregates]);
 
+  // Top parties for the thumb-friendly Party picker. Aggregates the loaded
+  // ledger rows by `user_id` (ignoring rows without one), totalling cash flow
+  // so the most-active counterparties surface first. Pure UI/derivation —
+  // does not mutate any business state.
+  const topParties = useMemo(() => {
+    const map = new Map<string, { id: string; cashIn: number; cashOut: number; count: number }>();
+    for (const r of rows) {
+      if (!r.user_id) continue;
+      if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
+      const amt = Number(r.amount) || 0;
+      const cur = map.get(r.user_id) || { id: r.user_id, cashIn: 0, cashOut: 0, count: 0 };
+      if (r.direction === 'cash_in') cur.cashIn += amt; else cur.cashOut += amt;
+      cur.count += 1;
+      map.set(r.user_id, cur);
+    }
+    return Array.from(map.values()).sort((a, b) => (b.cashIn + b.cashOut) - (a.cashIn + a.cashOut));
+  }, [rows, includeAdjustments]);
+
+  // Resolve display names for the top parties (limit 50 so the picker is fast).
+  useEffect(() => {
+    const ids = topParties.slice(0, 50).map(p => p.id).filter(id => !partyNames[id]);
+    if (ids.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.from('profiles').select('id, full_name, phone').in('id', ids);
+      if (cancelled || !data) return;
+      const next: Record<string, string> = {};
+      for (const p of data as any[]) {
+        next[p.id] = p.full_name || p.phone || p.id.slice(0, 8);
+      }
+      setPartyNames(prev => ({ ...prev, ...next }));
+    })();
+    return () => { cancelled = true; };
+  }, [topParties, partyNames]);
+
+  const partyLabel = partyQuickFilter
+    ? (partyNames[partyQuickFilter] || `${partyQuickFilter.slice(0, 8)}…`)
+    : 'Everyone';
+  const directionLabel =
+    directionQuickFilter === 'cash_in' ? 'Money In only' :
+    directionQuickFilter === 'cash_out' ? 'Money Out only' :
+    directionQuickFilter === 'net_positive' ? 'Net positive' :
+    directionQuickFilter === 'net_negative' ? 'Net negative' :
+    'In + Out';
+
   // ── Capital Inflows: platform-scope cash_in totals per category (from raw rows,
   // independent of scopeFilter so the callout always reflects true inbound capital.
   // Per-bucket totals follow the current `granularity` so the callout stays in sync
