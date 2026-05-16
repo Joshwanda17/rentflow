@@ -650,6 +650,17 @@ export function NewPartnersPanel() {
                 if (partnerFilter === 'today' && new Date(p.created_at).getTime() < startOfToday.getTime()) return false;
                 if (partnerFilter === 'week' && new Date(p.created_at).getTime() < startOfWeek.getTime()) return false;
                 if (partnerFilter === 'month' && new Date(p.created_at).getTime() < startOfMonth.getTime()) return false;
+                if (partnerFilter === 'custom') {
+                  const t = new Date(p.created_at).getTime();
+                  if (customRange?.from) {
+                    const from = new Date(customRange.from); from.setHours(0, 0, 0, 0);
+                    if (t < from.getTime()) return false;
+                  }
+                  if (customRange?.to) {
+                    const to = new Date(customRange.to); to.setHours(23, 59, 59, 999);
+                    if (t > to.getTime()) return false;
+                  }
+                }
                 if (q) {
                   const hay = `${p.full_name} ${p.phone}`.toLowerCase();
                   if (!hay.includes(q)) return false;
