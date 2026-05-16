@@ -630,6 +630,51 @@ export function NewPartnersPanel() {
         prefillInvestorName={createForUser?.full_name}
       />
 
+      {/* Confirmation gate for the Activate/Add button on Just-Joined rows. */}
+      <AlertDialog
+        open={!!activateConfirm}
+        onOpenChange={(open) => { if (!open) setActivateConfirm(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {activateConfirm?.isFirst ? 'Activate this partner?' : 'Add another portfolio?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {activateConfirm?.isFirst ? (
+                <>
+                  You're about to open the portfolio setup for{' '}
+                  <span className="font-semibold text-foreground">{activateConfirm?.user.full_name}</span>{' '}
+                  ({activateConfirm?.user.phone}). This activates them as a funding partner.
+                  Make sure this is the right person before continuing.
+                </>
+              ) : (
+                <>
+                  You're about to create an additional portfolio for{' '}
+                  <span className="font-semibold text-foreground">{activateConfirm?.user.full_name}</span>{' '}
+                  ({activateConfirm?.user.phone}). Continue?
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                if (activateConfirm) {
+                  const u = activateConfirm.user;
+                  setActivateConfirm(null);
+                  openCreateFor(u);
+                }
+              }}
+            >
+              {activateConfirm?.isFirst ? 'Yes, activate' : 'Yes, continue'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={revokeOpen} onOpenChange={setRevokeOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
