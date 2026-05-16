@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -155,6 +155,23 @@ export function NewPartnersPanel() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyRows, setHistoryRows] = useState<any[]>([]);
   const [inlineCreateOpen, setInlineCreateOpen] = useState(false);
+  // Track which expanded inline-editor rows have unsaved changes (by portfolio id).
+  // Lives in a ref so child updates do not re-render the parent.
+  const dirtyRowsRef = useRef<Record<string, boolean>>({});
+
+  /**
+   * Wraps setExpandedId to prompt before discarding unsaved inline edits when
+   * collapsing the currently-open row or switching to a different one.
+   */
+  function requestExpand(nextId: string | null) {
+    const currentId = expandedId;
+    if (currentId && currentId !== nextId && dirtyRowsRef.current[currentId]) {
+      const ok = window.confirm('You have unsaved changes on this portfolio. Discard them?');
+      if (!ok) return;
+      delete dirtyRowsRef.current[currentId];
+    }
+    setExpandedId(nextId);
+  }
 
   // ── Just-joined partners (last 14 days) ──
   const { data: joined, isLoading } = useQuery({
@@ -504,7 +521,11 @@ export function NewPartnersPanel() {
                         key={p.id}
                         portfolio={p}
                         expanded={expandedId === p.id}
-                        onToggle={() => setExpandedId(expandedId === p.id ? null : p.id)}
+                        onToggle={() => requestExpand(expandedId === p.id ? null : p.id)}
+                        onDirtyChange={(dirty) => {
+                          if (dirty) dirtyRowsRef.current[p.id] = true;
+                          else delete dirtyRowsRef.current[p.id];
+                        }}
                         onSaved={(updated) => {
                           setSelectedPortfolios(list => list.map(x => x.id === updated.id ? { ...x, ...updated } : x));
                           qc.invalidateQueries({ queryKey: ['exec-partner-portfolios'] });
@@ -562,13 +583,14 @@ interface InlinePortfolioRowProps {
   expanded: boolean;
   onToggle: () => void;
   onSaved: (updated: any) => void;
+  onDirtyChange?: (dirty: boolean) => void;
   actingUserId?: string;
 }
 
-function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, actingUserId }: InlinePortfolioRowProps) {
+function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirtyChange, actingUserId }: InlinePortfolioRowProps) {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
+  const initialForm = () => ({
     account_name: p.account_name || '',
     payout_day: p.payout_day ? String(p.payout_day) : '',
     payment_method: p.payment_method || 'mobile_money',
@@ -578,24 +600,49 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, actingU
     bank_account_name: p.bank_account_name || '',
     account_number: p.account_number || '',
   });
+  const [form, setForm] = useState(initialForm);
+  // Snapshot of the form when the row was opened — used to detect unsaved edits.
+  const baselineRef = useRef(form);
 
   // Re-sync when underlying portfolio prop changes (e.g. realtime update)
   useEffect(() => {
     if (!expanded) {
-      setForm({
-        account_name: p.account_name || '',
-        payout_day: p.payout_day ? String(p.payout_day) : '',
-        payment_method: p.payment_method || 'mobile_money',
-        mobile_money_number: p.mobile_money_number || '',
-        mobile_network: p.mobile_network || '',
-        bank_name: p.bank_name || '',
-        bank_account_name: p.bank_account_name || '',
-        account_number: p.account_number || '',
-      });
+      const fresh = initialForm();
+      setForm(fresh);
+      baselineRef.current = fresh;
+      onDirtyChange?.(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [p.id, expanded]);
 
+  // Re-baseline whenever the row first expands (handles cases where the
+  // collapsed-state effect was skipped, e.g. mounted already-expanded).
+  useEffect(() => {
+    if (expanded) {
+      baselineRef.current = form;
+      onDirtyChange?.(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expanded]);
+
+  // Compute & report dirty state on every form change.
+  const dirty = expanded && JSON.stringify(form) !== JSON.stringify(baselineRef.current);
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dirty]);
+
   const set = (k: string, v: string) => setForm(prev => ({ ...prev, [k]: v }));
+
+  // Wraps onToggle so collapsing with unsaved changes prompts for confirmation.
+  function requestToggle() {
+    if (expanded && dirty) {
+      const ok = window.confirm('You have unsaved changes on this portfolio. Discard them?');
+      if (!ok) return;
+      onDirtyChange?.(false);
+    }
+    onToggle();
+  }
 
   async function handleSave() {
     if (form.account_name.length > 100) {
@@ -643,6 +690,10 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, actingU
       });
 
       toast({ title: '✅ Portfolio updated' });
+      // Reset baseline so the post-save auto-collapse does not trigger the
+      // "unsaved changes" prompt.
+      baselineRef.current = { ...form };
+      onDirtyChange?.(false);
       onSaved({ id: p.id, ...patch });
       onToggle(); // collapse
     } catch (e: any) {
@@ -655,11 +706,16 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, actingU
   return (
     <div className="rounded-lg border border-border/60 bg-muted/30 overflow-hidden">
       <button
-        onClick={onToggle}
+        onClick={requestToggle}
         className="w-full flex items-center justify-between gap-2 px-2.5 py-2 text-left hover:bg-muted transition-colors"
       >
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold truncate">{p.account_name || p.portfolio_code}</p>
+          <p className="text-xs font-semibold truncate flex items-center gap-1">
+            {p.account_name || p.portfolio_code}
+            {dirty && (
+              <span className="text-[9px] font-medium text-warning bg-warning/15 px-1 rounded">unsaved</span>
+            )}
+          </p>
           <p className="text-[10px] text-muted-foreground">
             {p.display_currency || 'UGX'} {Number(p.investment_amount || 0).toLocaleString()} · {p.roi_percentage}% · {p.status}
           </p>
@@ -739,7 +795,7 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, actingU
               {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
               Save changes
             </Button>
-            <Button size="sm" variant="ghost" className="h-8 text-xs gap-1.5" onClick={onToggle} disabled={saving}>
+            <Button size="sm" variant="ghost" className="h-8 text-xs gap-1.5" onClick={requestToggle} disabled={saving}>
               <X className="h-3 w-3" /> Cancel
             </Button>
           </div>
