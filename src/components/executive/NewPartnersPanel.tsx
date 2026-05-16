@@ -526,6 +526,9 @@ export function NewPartnersPanel() {
       return loaded < lastPage.total ? lastPage.pageIndex + 1 : undefined;
     },
     staleTime: 60_000,
+    // Don't hit the database while the panel is collapsed — this is the
+    // primary perf win on the partners page for users who rarely open it.
+    enabled: panelOpen,
   });
   // Flatten every loaded page into a single `joined` array. Dedupe by
   // user_id in case a row appears across pages during a refetch.
