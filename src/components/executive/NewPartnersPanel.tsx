@@ -607,6 +607,31 @@ export function NewPartnersPanel() {
     };
   }, [filteredPartners]);
 
+  // ── Auto-advance: after a successful banner-driven activation, open the
+  // create-portfolio dialog for the next no-portfolio candidate as soon as
+  // the refreshed list is back and the previous dialog has closed. ──
+  useEffect(() => {
+    if (!pendingAutoAdvance) return;
+    if (createOpen) return; // wait until previous dialog fully closed
+    if (isLoading || isFetching) return; // wait for fresh list
+    const lastId = lastActivatedIdRef.current;
+    const next = filteredPartners.find(p => p.portfolio_count === 0 && p.user_id !== lastId);
+    setPendingAutoAdvance(false);
+    if (!next) {
+      toast({
+        title: 'Onboarding queue cleared',
+        description: 'No more partners waiting for a portfolio in this filter.',
+      });
+      return;
+    }
+    autoAdvanceRef.current = true; // keep the chain alive
+    openCreateFor({ id: next.user_id, full_name: next.full_name, phone: next.phone });
+    toast({
+      title: 'Next up',
+      description: `Activating ${next.full_name}…`,
+    });
+  }, [pendingAutoAdvance, createOpen, isLoading, isFetching, filteredPartners]);
+
   // Segment counts for the All / With / Without toggle. Based on `joined`
   // (the full partner list) so the numbers reflect totals available in each
   // segment regardless of the currently active portfolio filter.
