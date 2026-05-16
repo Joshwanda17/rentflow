@@ -733,7 +733,11 @@ export function TenantOpsLandlordFloatTimeline() {
                     return (
                       <li key={e.id} className="ml-4">
                         <span className={cn('absolute -left-1.5 mt-1.5 h-3 w-3 rounded-full ring-4 ring-background', meta.dot)} />
-                        <div className="rounded-lg border p-2.5 bg-card">
+                        <button
+                          type="button"
+                          onClick={() => setDrillEvent(e)}
+                          className="w-full text-left rounded-lg border p-2.5 bg-card hover:border-[#9234EA]/50 hover:shadow-sm transition focus:outline-none focus:ring-2 focus:ring-[#9234EA]/40"
+                        >
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex items-start gap-2 min-w-0">
                               <div className={cn('p-1.5 rounded-md border', meta.color)}>
@@ -747,6 +751,12 @@ export function TenantOpsLandlordFloatTimeline() {
                                     {format(new Date(e.at), 'HH:mm')}
                                   </Badge>
                                   <Badge variant="outline" className="text-[9px] px-1.5 py-0 capitalize">{e.status}</Badge>
+                                  {e.kind === 'allocation' && (e.outstanding || 0) > 0 && (
+                                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-amber-50 text-amber-700 border-amber-200">
+                                      <AlertCircle className="h-2.5 w-2.5 mr-1" />
+                                      Outstanding {fmt(e.outstanding || 0)}
+                                    </Badge>
+                                  )}
                                 </div>
                                 <p className="text-sm font-medium mt-1 truncate">
                                   {e.kind === 'funding'
@@ -765,13 +775,16 @@ export function TenantOpsLandlordFloatTimeline() {
                                     <span className="inline-flex items-center gap-1">
                                       <Hash className="h-2.5 w-2.5" />
                                       <span className="font-mono">{e.reference_label}: {e.reference.length > 24 ? e.reference.slice(0, 8) + '…' + e.reference.slice(-6) : e.reference}</span>
-                                      <button
-                                        onClick={() => copyRef(e.reference as string)}
+                                      <span
+                                        role="button"
+                                        tabIndex={0}
+                                        onClick={(ev) => { ev.stopPropagation(); copyRef(e.reference as string); }}
+                                        onKeyDown={(ev) => { if (ev.key === 'Enter') { ev.stopPropagation(); copyRef(e.reference as string); } }}
                                         className="hover:text-foreground"
                                         aria-label="Copy reference"
                                       >
                                         <Copy className="h-2.5 w-2.5" />
-                                      </button>
+                                      </span>
                                     </span>
                                   )}
                                   <span className="text-muted-foreground/70">{e.source_table}</span>
@@ -789,9 +802,12 @@ export function TenantOpsLandlordFloatTimeline() {
                                   {e.kind === 'allocation' ? 'earmarked' : 'disbursed'}
                                 </p>
                               )}
+                              <p className="text-[10px] text-[#9234EA] inline-flex items-center gap-0.5 justify-end mt-0.5">
+                                Details <ChevronRight className="h-2.5 w-2.5" />
+                              </p>
                             </div>
                           </div>
-                        </div>
+                        </button>
                       </li>
                     );
                   })}
@@ -800,6 +816,12 @@ export function TenantOpsLandlordFloatTimeline() {
             ))}
           </div>
         )}
+
+        <FloatEventDrillDown
+          event={drillEvent}
+          allEvents={events}
+          onClose={() => setDrillEvent(null)}
+        />
       </CardContent>
     </Card>
   );
