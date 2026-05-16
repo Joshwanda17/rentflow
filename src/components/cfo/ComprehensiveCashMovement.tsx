@@ -2804,7 +2804,7 @@ function WalletMovementSummary({
                       ? `Wallet cash-in and cash-out within ${netDrill.label} that compose this bucket's net.`
                       : 'Every wallet-scope cash-in and cash-out that makes up Into − Out for this period.'}
                   </SheetDescription>
-                  {netDrill.label && (
+                  {(netDrill.label || netDrill.bucket) && (
                     <button
                       type="button"
                       onClick={() => setNetDrill({ direction: netDrill.direction })}
