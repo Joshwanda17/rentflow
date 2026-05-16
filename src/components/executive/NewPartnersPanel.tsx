@@ -649,6 +649,16 @@ export function NewPartnersPanel() {
           handleSelect(selected);
           qc.invalidateQueries({ queryKey: ['exec-partner-portfolios'] });
           qc.invalidateQueries({ queryKey: ['new-partners-panel'] });
+          // Refresh the dialog's approval-status cache for both the dialog's
+          // own selection and the panel-selected user so the button label
+          // ("Create Portfolio" vs. "Partner Not Approved") reflects the
+          // freshly activated state without waiting for staleTime.
+          if (createForUser?.id) {
+            qc.invalidateQueries({ queryKey: ['funder-approval-status', createForUser.id] });
+          }
+          if (selected?.id && selected.id !== createForUser?.id) {
+            qc.invalidateQueries({ queryKey: ['funder-approval-status', selected.id] });
+          }
           setActivatingUserId(null);
         }}
         onError={(message) => {
