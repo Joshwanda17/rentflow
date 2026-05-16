@@ -13,6 +13,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Activity, AlertCircle, FileText, Download, FileDown } from 'lucide-react';
+import { Search, X } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { formatDistanceToNow, subHours, subDays, format } from 'date-fns';
 import type { DateRange } from '../AgentOpsHomeView';
 import jsPDF from 'jspdf';
@@ -55,6 +57,7 @@ export function ActiveAgentsList({ range }: { range: DateRange }) {
   const [visible, setVisible] = useState(PAGE_SIZE);
   const [statusFilter, setStatusFilter] = useState<string>(ALL);
   const [categoryFilter, setCategoryFilter] = useState<string>(ALL);
+  const [search, setSearch] = useState('');
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['agent-ops-drill', 'active-agents-v2', range],
@@ -128,7 +131,7 @@ export function ActiveAgentsList({ range }: { range: DateRange }) {
     staleTime: 5 * 60_000,
   });
 
-  const aggregatedRows: ActiveAgentRow[] = useMemo(() => {
+  const aggregatedRowsAll: ActiveAgentRow[] = useMemo(() => {
     return filtered.agentIds
       .map((id) => {
         const a = filtered.agg.get(id)!;
@@ -149,7 +152,17 @@ export function ActiveAgentsList({ range }: { range: DateRange }) {
       );
   }, [filtered, profileMap]);
 
-  const filtersActive = statusFilter !== ALL || categoryFilter !== ALL;
+  const searchTerm = search.trim().toLowerCase();
+  const aggregatedRows: ActiveAgentRow[] = useMemo(() => {
+    if (!searchTerm) return aggregatedRowsAll;
+    return aggregatedRowsAll.filter((r) =>
+      (r.full_name ?? '').toLowerCase().includes(searchTerm) ||
+      r.agent_id.toLowerCase().includes(searchTerm) ||
+      (r.phone ?? '').toLowerCase().includes(searchTerm),
+    );
+  }, [aggregatedRowsAll, searchTerm]);
+
+  const filtersActive = statusFilter !== ALL || categoryFilter !== ALL || searchTerm.length > 0;
 
   const rangeLabel = range === '24h' ? 'Last 24 hours' : range === '7d' ? 'Last 7 days' : 'Last 30 days';
   const exportStamp = format(new Date(), 'yyyyMMdd-HHmm');
@@ -251,6 +264,25 @@ export function ActiveAgentsList({ range }: { range: DateRange }) {
   const filterBar = (
     <div className="flex flex-wrap items-center justify-between gap-2">
       <div className="flex flex-wrap items-center gap-2">
+      <div className="relative">
+        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+        <Input
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setVisible(PAGE_SIZE); }}
+          placeholder="Search name, phone, ID…"
+          className="h-8 w-[200px] pl-7 pr-7 text-xs"
+        />
+        {search && (
+          <button
+            type="button"
+            onClick={() => { setSearch(''); setVisible(PAGE_SIZE); }}
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-muted text-muted-foreground"
+            aria-label="Clear search"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        )}
+      </div>
       <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setVisible(PAGE_SIZE); }}>
         <SelectTrigger className="h-8 w-[140px] text-xs">
           <SelectValue placeholder="Status" />
@@ -278,7 +310,7 @@ export function ActiveAgentsList({ range }: { range: DateRange }) {
           variant="ghost"
           size="sm"
           className="h-8 px-2 text-xs"
-          onClick={() => { setStatusFilter(ALL); setCategoryFilter(ALL); setVisible(PAGE_SIZE); }}
+          onClick={() => { setStatusFilter(ALL); setCategoryFilter(ALL); setSearch(''); setVisible(PAGE_SIZE); }}
         >
           Clear
         </Button>
