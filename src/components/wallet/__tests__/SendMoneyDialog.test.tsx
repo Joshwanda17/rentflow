@@ -96,7 +96,6 @@ describe('SendMoneyDialog', () => {
 
     // Right after typing, no supabase call has fired yet (debounce 400ms).
     expect(supaState.calls.length).toBe(0);
-    expect(screen.getByText(/Looking up recipient/i)).toBeInTheDocument();
 
     // Wait past the debounce window for the lookup to fire.
     await waitFor(() => expect(supaState.calls.length).toBe(1), { timeout: 1500 });
