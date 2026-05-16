@@ -2217,9 +2217,77 @@ export function ComprehensiveCashMovement() {
               </CollapsibleTrigger>
               <CollapsibleContent className="pt-2">
                 {pageDrillRows.length === 0 ? (
-                  <div className="text-xs text-muted-foreground text-center py-6 border border-dashed border-border rounded-lg">
-                    No transactions match the current filters.
-                  </div>
+                  (() => {
+                    const activeChips: { label: string; onClear: () => void }[] = [];
+                    if (searchActive) activeChips.push({ label: `Search: "${debouncedPageSearch}"`, onClear: () => setPageSearch('') });
+                    if (directionQuickFilter !== 'all') {
+                      const lbl = directionQuickFilter === 'cash_in' ? 'Money in'
+                        : directionQuickFilter === 'cash_out' ? 'Money out'
+                        : directionQuickFilter === 'net_positive' ? 'Net positive'
+                        : 'Net negative';
+                      activeChips.push({ label: lbl, onClear: () => setDirectionQuickFilter('all') });
+                    }
+                    if (scopeFilter !== 'all') {
+                      activeChips.push({ label: `Scope: ${scopeFilter}`, onClear: () => setScopeFilter('all') });
+                    }
+                    if (partyQuickFilter) {
+                      const partyLabel = partyNames[partyQuickFilter] || `${partyQuickFilter.slice(0, 8)}…`;
+                      activeChips.push({ label: `Party: ${partyLabel}`, onClear: () => setPartyQuickFilter(null) });
+                    }
+                    if (!includeAdjustments) {
+                      // not really an active filter exclusion the user picked, skip
+                    }
+                    return (
+                      <div
+                        role="status"
+                        aria-live="polite"
+                        className="text-center py-8 px-4 border border-dashed border-border rounded-xl bg-muted/10 space-y-3"
+                      >
+                        <div className="mx-auto h-9 w-9 rounded-full bg-muted flex items-center justify-center">
+                          <Search className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <div className="text-sm font-semibold text-foreground">
+                          No transactions match
+                        </div>
+                        <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
+                          {activeChips.length > 0
+                            ? 'Try removing one of the filters below, or clear them all.'
+                            : 'There are no transactions to show for this period. Try widening the date range above.'}
+                        </p>
+                        {activeChips.length > 0 && (
+                          <>
+                            <div className="flex flex-wrap justify-center gap-1.5 pt-1">
+                              {activeChips.map((c, i) => (
+                                <button
+                                  key={i}
+                                  type="button"
+                                  onClick={c.onClear}
+                                  className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2.5 py-1 text-[11px] text-foreground hover:bg-muted transition-colors"
+                                  aria-label={`Remove filter ${c.label}`}
+                                >
+                                  {c.label}
+                                  <X className="h-3 w-3 text-muted-foreground" />
+                                </button>
+                              ))}
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 text-xs mt-1"
+                              onClick={() => {
+                                setPageSearch('');
+                                setDirectionQuickFilter('all');
+                                setScopeFilter('all');
+                                setPartyQuickFilter(null);
+                              }}
+                            >
+                              Clear all filters
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })()
                 ) : (
                   <>
                     <ul className="divide-y divide-border rounded-xl border border-border bg-card overflow-hidden">
