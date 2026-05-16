@@ -664,6 +664,30 @@ export function TenantOpsLandlordFloatTimeline() {
               Clear dates
             </Button>
           )}
+          <div className="ml-auto flex items-center gap-1.5">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 gap-1.5"
+              onClick={exportCsv}
+              disabled={filtered.length === 0}
+              title="Export current filtered view to CSV"
+            >
+              <Download className="h-3.5 w-3.5" />
+              CSV
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 gap-1.5"
+              onClick={exportPdf}
+              disabled={filtered.length === 0}
+              title="Export current filtered view to PDF"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              PDF
+            </Button>
+          </div>
         </div>
 
         {/* Presets bar */}
