@@ -2581,8 +2581,19 @@ function WalletMovementSummary({
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               {items.map(it => {
                 const net = it.in - it.out;
+                const bucketKeyTyped = it.key as 'withdrawable' | 'operational_float' | 'landlord_float';
+                const openDrill = (direction: 'all' | 'cash_in' | 'cash_out') =>
+                  setNetDrill({ direction, bucket: bucketKeyTyped, label: it.label });
                 return (
-                  <div key={it.key} className="rounded-md border border-border bg-background p-2.5 space-y-1.5">
+                  <div
+                    key={it.key}
+                    className="rounded-md border border-border bg-background p-2.5 space-y-1.5 hover:border-primary/40 hover:bg-muted/40 transition-colors cursor-pointer"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => openDrill('all')}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDrill('all'); } }}
+                    title={`Open ${it.label} transactions for ${periodLabel}`}
+                  >
                     <div className="flex items-baseline justify-between gap-2">
                       <div className={cn('text-[11px] font-semibold truncate', it.accent)}>{it.label}</div>
                       <div
@@ -2597,14 +2608,24 @@ function WalletMovementSummary({
                     </div>
                     <div className="text-[10px] text-muted-foreground leading-snug line-clamp-2">{it.sub}</div>
                     <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/60">
-                      <div className="flex items-center gap-1 text-[10px] text-success">
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); openDrill('cash_in'); }}
+                        className="flex items-center gap-1 text-[10px] text-success hover:underline focus:outline-none focus-visible:ring-1 focus-visible:ring-success rounded px-1 -mx-1"
+                        title={`Open ${it.label} — In only`}
+                      >
                         <ArrowDownLeft className="h-3 w-3" />
                         <span className="font-mono">{formatUGX(it.in)}</span>
-                      </div>
-                      <div className="flex items-center gap-1 text-[10px] text-destructive">
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); openDrill('cash_out'); }}
+                        className="flex items-center gap-1 text-[10px] text-destructive hover:underline focus:outline-none focus-visible:ring-1 focus-visible:ring-destructive rounded px-1 -mx-1"
+                        title={`Open ${it.label} — Out only`}
+                      >
                         <ArrowUpRight className="h-3 w-3" />
                         <span className="font-mono">{formatUGX(it.out)}</span>
-                      </div>
+                      </button>
                     </div>
                   </div>
                 );
