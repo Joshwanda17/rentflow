@@ -816,7 +816,7 @@ export function NewPartnersPanel() {
             </div>
           </div>
         )}
-        <CardContent className="p-3 sm:p-4 space-y-3 sm:space-y-4">
+        <CardContent className="p-3 sm:p-4 space-y-3 sm:space-y-4 pb-20 sm:pb-4">
           {/* Header */}
           <div className="flex items-start gap-2">
             <div className="p-1.5 rounded-lg bg-primary/15 shrink-0">
