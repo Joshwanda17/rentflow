@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { ToastAction } from '@/components/ui/toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -726,11 +727,25 @@ export function NewPartnersPanel() {
         onError={(message) => {
           // Inline error toast with partner context so the executive knows
           // exactly which activation failed and why.
-          const name = createForUser?.full_name || 'partner';
+          const failedUser = createForUser;
+          const name = failedUser?.full_name || 'partner';
           toast({
             title: `Activation failed for ${name}`,
             description: message,
             variant: 'destructive',
+            action: failedUser ? (
+              <ToastAction
+                altText={`Retry activation for ${name}`}
+                onClick={() => {
+                  // Re-arm the per-row spinner and reopen the create dialog
+                  // for the SAME partner so the operator can immediately retry.
+                  setActivatingUserId(failedUser.id);
+                  openCreateFor(failedUser);
+                }}
+              >
+                Retry
+              </ToastAction>
+            ) : undefined,
           });
           setActivatingUserId(null);
         }}
