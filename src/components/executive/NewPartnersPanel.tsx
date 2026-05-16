@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useStaffPermissions } from '@/hooks/useStaffPermissions';
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
 import { Card, CardContent } from '@/components/ui/card';
@@ -143,6 +144,11 @@ interface PickedUser { id: string; full_name: string; phone: string }
 
 export function NewPartnersPanel() {
   const { user } = useAuth();
+  const { hasPermission } = useStaffPermissions();
+  // Only Partner Ops Managers (and bypass roles via useStaffPermissions)
+  // can contact partners via WhatsApp. All other viewers see the list
+  // read-only without the WhatsApp action.
+  const canWhatsAppPartners = hasPermission('partners-ops');
   const { toast } = useToast();
   const qc = useQueryClient();
   const [selected, setSelected] = useState<PickedUser | null>(null);
