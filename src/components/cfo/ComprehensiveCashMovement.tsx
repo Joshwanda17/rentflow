@@ -35,6 +35,9 @@ function HScrollHint({ children, className, ariaLabel }: { children: React.React
   const ref = useRef<HTMLDivElement | null>(null);
   const [atStart, setAtStart] = useState(true);
   const [atEnd, setAtEnd] = useState(true);
+  const [visibleColsMsg, setVisibleColsMsg] = useState('');
+  const lastMsgRef = useRef('');
+  const announceTimerRef = useRef<number | null>(null);
 
   const update = useCallback(() => {
     const el = ref.current; if (!el) return;
@@ -43,14 +46,50 @@ function HScrollHint({ children, className, ariaLabel }: { children: React.React
     setAtEnd(scrollLeft + clientWidth >= scrollWidth - 2);
   }, []);
 
+  // Compute which <thead th> cells are inside the scroll viewport and
+  // announce the visible column range (debounced, only on change).
+  const computeVisibleColumns = useCallback(() => {
+    const el = ref.current; if (!el) return;
+    const ths = Array.from(el.querySelectorAll<HTMLTableCellElement>('thead th'));
+    if (ths.length === 0) return;
+    const viewLeft = el.scrollLeft;
+    const viewRight = viewLeft + el.clientWidth;
+    let first = -1, last = -1;
+    ths.forEach((th, i) => {
+      const left = th.offsetLeft;
+      const right = left + th.offsetWidth;
+      const visibleWidth = Math.max(0, Math.min(right, viewRight) - Math.max(left, viewLeft));
+      if (visibleWidth >= Math.min(th.offsetWidth, 24) * 0.5) {
+        if (first === -1) first = i;
+        last = i;
+      }
+    });
+    if (first === -1) return;
+    const firstLabel = (ths[first].textContent || '').trim().replace(/\s+/g, ' ');
+    const lastLabel = (ths[last].textContent || '').trim().replace(/\s+/g, ' ');
+    const msg = first === last
+      ? `Column ${first + 1} of ${ths.length} in view: ${firstLabel}`
+      : `Columns ${first + 1} to ${last + 1} of ${ths.length} in view: ${firstLabel} through ${lastLabel}`;
+    if (msg === lastMsgRef.current) return;
+    lastMsgRef.current = msg;
+    if (announceTimerRef.current) window.clearTimeout(announceTimerRef.current);
+    announceTimerRef.current = window.setTimeout(() => setVisibleColsMsg(msg), 250);
+  }, []);
+
   useEffect(() => {
     const el = ref.current; if (!el) return;
     update();
-    el.addEventListener('scroll', update, { passive: true });
-    const ro = new ResizeObserver(update);
+    computeVisibleColumns();
+    const onScroll = () => { update(); computeVisibleColumns(); };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    const ro = new ResizeObserver(() => { update(); computeVisibleColumns(); });
     ro.observe(el);
-    return () => { el.removeEventListener('scroll', update); ro.disconnect(); };
-  }, [update]);
+    return () => {
+      el.removeEventListener('scroll', onScroll);
+      ro.disconnect();
+      if (announceTimerRef.current) window.clearTimeout(announceTimerRef.current);
+    };
+  }, [update, computeVisibleColumns]);
 
   const nudge = (dir: 1 | -1) => {
     const el = ref.current; if (!el) return;
@@ -94,6 +133,10 @@ function HScrollHint({ children, className, ariaLabel }: { children: React.React
       <span id="hscroll-kbd-hint" className="sr-only">
         Use the left and right arrow keys to scroll columns. Press Home or End to jump to the first or last column.
       </span>
+      {/* Live region — announces which column range is currently visible */}
+      <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+        {visibleColsMsg}
+      </div>
       {/* Gradient edges — fade in only when more content lies in that direction */}
       <div
         aria-hidden="true"
