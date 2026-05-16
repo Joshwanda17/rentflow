@@ -1211,6 +1211,107 @@ export function ComprehensiveCashMovement() {
           </div>
         </div>
 
+        {/* ─── Tap to see details ──────────────────────────────────
+            A simple, mobile-friendly list of individual cash-in /
+            cash-out transactions for the current filters. Each row
+            shows date, amount, category and party — no jargon, no
+            tables, just a tappable list. Read-only view derived from
+            the same `rows` everything else on the page uses. */}
+        {(() => {
+          const pageDrillRows = rows
+            .filter(r => {
+              if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) return false;
+              if (scopeFilter !== 'all' && r.ledger_scope !== scopeFilter) return false;
+              if (partyQuickFilter && r.user_id !== partyQuickFilter) return false;
+              if (directionQuickFilter === 'cash_in' && r.direction !== 'cash_in') return false;
+              if (directionQuickFilter === 'cash_out' && r.direction !== 'cash_out') return false;
+              return true;
+            })
+            .sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime());
+          const visible = pageDrillRows.slice(0, pageDrillVisible);
+          return (
+            <Collapsible
+              onOpenChange={(o) => { if (o) setPageDrillVisible(25); }}
+            >
+              <CollapsibleTrigger asChild>
+                <button
+                  type="button"
+                  className="w-full flex items-center justify-between gap-2 rounded-xl border-2 border-primary/30 bg-primary/5 hover:bg-primary/10 px-3 py-3 text-left transition-colors min-h-[56px]"
+                  aria-label="Tap to see every transaction"
+                >
+                  <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <Filter className="h-4 w-4 text-primary" />
+                    Tap to see details
+                    <Badge variant="secondary" className="ml-1 text-[10px]">
+                      {pageDrillRows.length.toLocaleString()} {pageDrillRows.length === 1 ? 'transaction' : 'transactions'}
+                    </Badge>
+                  </span>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0 transition-transform data-[state=open]:rotate-180" />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-2">
+                {pageDrillRows.length === 0 ? (
+                  <div className="text-xs text-muted-foreground text-center py-6 border border-dashed border-border rounded-lg">
+                    No transactions match the current filters.
+                  </div>
+                ) : (
+                  <>
+                    <ul className="divide-y divide-border rounded-xl border border-border bg-card overflow-hidden">
+                      {visible.map(r => {
+                        const isIn = r.direction === 'cash_in';
+                        const name = r.user_id
+                          ? (partyNames[r.user_id] || `${r.user_id.slice(0, 8)}…`)
+                          : (r.linked_party ? prettifyCategory(r.linked_party) : '—');
+                        return (
+                          <li key={r.id} className="flex items-start gap-2 px-3 py-2.5 hover:bg-muted/40 transition-colors">
+                            <div className={cn(
+                              'mt-0.5 h-7 w-7 rounded-full flex items-center justify-center shrink-0',
+                              isIn ? 'bg-success/15 text-success' : 'bg-destructive/15 text-destructive',
+                            )}>
+                              {isIn ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-baseline justify-between gap-2">
+                                <div className="text-sm font-semibold truncate">{name}</div>
+                                <div className={cn(
+                                  'font-mono text-sm font-semibold whitespace-nowrap',
+                                  isIn ? 'text-success' : 'text-destructive',
+                                )}>
+                                  {isIn ? '+' : '−'}{formatUGX(Number(r.amount) || 0)}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 text-[11px] text-muted-foreground flex-wrap">
+                                <span>{format(new Date(r.transaction_date), 'dd MMM yyyy · HH:mm')}</span>
+                                <span>·</span>
+                                <span className="truncate">{prettifyCategory(r.category)}</span>
+                              </div>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    {pageDrillRows.length > visible.length ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-full mt-2 h-10"
+                        onClick={() => setPageDrillVisible(n => n + 50)}
+                      >
+                        Show 50 more · {(pageDrillRows.length - visible.length).toLocaleString()} left
+                      </Button>
+                    ) : (
+                      <div className="text-[10px] text-muted-foreground text-center mt-2">
+                        End of list · {pageDrillRows.length.toLocaleString()} {pageDrillRows.length === 1 ? 'transaction' : 'transactions'} shown
+                      </div>
+                    )}
+                  </>
+                )}
+              </CollapsibleContent>
+            </Collapsible>
+          );
+        })()}
+
         {/* "What this number means" — plain-language help that explains the
             three headline numbers without accounting jargon. Collapsible so it
             doesn't push real data down the page on small screens. */}
