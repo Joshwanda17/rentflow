@@ -1530,6 +1530,79 @@ export function ComprehensiveCashMovement() {
         )}
 
         {/* Totals strip (full ledger scope: platform + wallet) */}
+        {/* ─── Applied filters chips ──────────────────────────────
+            At-a-glance summary of what the totals below are filtered
+            by (Date period, Direction, Party). The Date chip is
+            informational; Direction & Party chips are clearable with
+            the ✕. Purely presentational — read from existing state. */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[10px] uppercase tracking-wide text-muted-foreground mr-0.5">
+            Showing:
+          </span>
+          <span
+            className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-[11px] font-medium text-foreground"
+            title={`Date period: ${rangeLabel}`}
+          >
+            <CalendarIcon className="h-3 w-3 text-muted-foreground" />
+            <span className="text-muted-foreground">Date:</span>
+            <span className="truncate max-w-[180px] sm:max-w-none">{periodLabel}</span>
+          </span>
+          {directionQuickFilter !== 'all' ? (
+            <button
+              type="button"
+              onClick={() => setDirectionQuickFilter('all')}
+              className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-foreground hover:bg-primary/15"
+              title="Clear direction filter"
+            >
+              {directionQuickFilter === 'cash_in' ? (
+                <ArrowUpRight className="h-3 w-3 text-success" />
+              ) : directionQuickFilter === 'cash_out' ? (
+                <ArrowDownRight className="h-3 w-3 text-destructive" />
+              ) : (
+                <Filter className="h-3 w-3 text-muted-foreground" />
+              )}
+              <span className="text-muted-foreground">Direction:</span>
+              <span>{directionLabel}</span>
+              <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+            </button>
+          ) : (
+            <span className="inline-flex items-center gap-1 rounded-full border border-dashed border-border bg-transparent px-2.5 py-1 text-[11px] text-muted-foreground">
+              <Filter className="h-3 w-3" />
+              <span>Direction:</span>
+              <span>All</span>
+            </span>
+          )}
+          {partyQuickFilter ? (
+            <button
+              type="button"
+              onClick={() => setPartyQuickFilter(null)}
+              className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-foreground hover:bg-primary/15"
+              title="Clear party filter"
+            >
+              <Users className="h-3 w-3 text-muted-foreground" />
+              <span className="text-muted-foreground">Party:</span>
+              <span className="truncate max-w-[140px]">{partyLabel}</span>
+              <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+            </button>
+          ) : (
+            <span className="inline-flex items-center gap-1 rounded-full border border-dashed border-border bg-transparent px-2.5 py-1 text-[11px] text-muted-foreground">
+              <Users className="h-3 w-3" />
+              <span>Party:</span>
+              <span>Anyone</span>
+            </span>
+          )}
+          {(directionQuickFilter !== 'all' || partyQuickFilter) && (
+            <button
+              type="button"
+              onClick={() => { setDirectionQuickFilter('all'); setPartyQuickFilter(null); }}
+              className="ml-auto text-[10px] font-semibold uppercase text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+              title="Clear Direction and Party filters"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+
         <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
           <div className="rounded-lg border border-border bg-success/5 p-2 sm:p-3">
             <div className="flex items-center gap-1 text-[10px] uppercase text-muted-foreground"><ArrowUpRight className="h-3 w-3 text-success" /> Money In</div>
