@@ -1874,6 +1874,8 @@ export function NewPartnersPanel() {
               </div>
             )}
           </div>
+          </div>
+          )}
         </CardContent>
       </Card>
 
