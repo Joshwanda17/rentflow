@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -73,6 +73,24 @@ export function NewPartnersPanel() {
     },
     staleTime: 60_000,
   });
+
+  // ── Realtime: any new supporter role grant pops in instantly ──
+  useEffect(() => {
+    const channel = supabase
+      .channel('new-partners-panel-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'user_roles', filter: 'role=eq.supporter' },
+        () => { qc.invalidateQueries({ queryKey: ['new-partners-panel'] }); }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'investor_portfolios' },
+        () => { qc.invalidateQueries({ queryKey: ['new-partners-panel'] }); }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [qc]);
 
   // When a user is selected via search, look up role + portfolios
   async function handleSelect(u: PickedUser | null) {
