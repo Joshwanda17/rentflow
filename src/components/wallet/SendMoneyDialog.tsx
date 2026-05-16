@@ -579,7 +579,19 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                       ref={phoneInputRef}
                       placeholder="e.g. 0783673998"
                       value={phone}
-                      onChange={(v) => setPhone(v)}
+                      onChange={(v) => {
+                        setPhone(v);
+                        // Auto-clear any stale lookup status (invalid / not_found /
+                        // multiple / found-self) the instant the user edits the
+                        // phone — the debounced effect will reapply the correct
+                        // status shortly. This prevents old errors from lingering
+                        // while typing a corrected number.
+                        setRecipient((prev) =>
+                          prev.status === 'idle' || prev.status === 'searching'
+                            ? prev
+                            : { status: 'searching' }
+                        );
+                      }}
                       className="bg-background/50 border-border/50 focus:border-primary/50 transition-all"
                       required
                     />
@@ -590,7 +602,14 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                       type="email"
                       placeholder="recipient@example.com"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        setRecipient((prev) =>
+                          prev.status === 'idle' || prev.status === 'searching'
+                            ? prev
+                            : { status: 'searching' }
+                        );
+                      }}
                       className="bg-background/50 border-border/50 focus:border-primary/50 transition-all"
                       required
                     />
