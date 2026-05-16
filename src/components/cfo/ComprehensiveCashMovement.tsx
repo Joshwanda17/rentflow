@@ -1824,34 +1824,50 @@ export function ComprehensiveCashMovement() {
         {simpleMode && (() => {
           const inCount = rows.reduce((n, r) => n + (r.direction === 'cash_in' ? 1 : 0), 0);
           const outCount = rows.reduce((n, r) => n + (r.direction === 'cash_out' ? 1 : 0), 0);
+          const shortcuts = [
+            {
+              key: 'in' as const,
+              icon: <ArrowUpRight className="h-5 w-5 text-success" />,
+              title: 'Money in',
+              count: inCount,
+              tone: 'border-success/30 bg-success/5 hover:bg-success/10',
+              onClick: () => openPageDrill('cash_in'),
+              ariaLabel: `See every Money-In transaction (${inCount.toLocaleString()})`,
+            },
+            {
+              key: 'out' as const,
+              icon: <ArrowDownRight className="h-5 w-5 text-destructive" />,
+              title: 'Money out',
+              count: outCount,
+              tone: 'border-destructive/30 bg-destructive/5 hover:bg-destructive/10',
+              onClick: () => openPageDrill('cash_out'),
+              ariaLabel: `See every Money-Out transaction (${outCount.toLocaleString()})`,
+            },
+          ];
           return (
-            <div className="rounded-xl border border-border bg-card divide-y divide-border overflow-hidden">
-              <button
-                type="button"
-                onClick={() => openPageDrill('cash_in')}
-                className="w-full flex items-center gap-3 hover:bg-muted/40 active:bg-muted/60 transition px-4 py-3 text-left"
-                aria-label={`See every Money-In transaction (${inCount.toLocaleString()})`}
-              >
-                <ArrowUpRight className="h-4 w-4 text-success shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-foreground">Money in transactions</div>
-                  <div className="text-[11px] text-muted-foreground">{inCount.toLocaleString()} {inCount === 1 ? 'entry' : 'entries'}</div>
-                </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-              </button>
-              <button
-                type="button"
-                onClick={() => openPageDrill('cash_out')}
-                className="w-full flex items-center gap-3 hover:bg-muted/40 active:bg-muted/60 transition px-4 py-3 text-left"
-                aria-label={`See every Money-Out transaction (${outCount.toLocaleString()})`}
-              >
-                <ArrowDownRight className="h-4 w-4 text-destructive shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-foreground">Money out transactions</div>
-                  <div className="text-[11px] text-muted-foreground">{outCount.toLocaleString()} {outCount === 1 ? 'entry' : 'entries'}</div>
-                </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-              </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {shortcuts.map(s => (
+                <button
+                  key={s.key}
+                  type="button"
+                  onClick={s.onClick}
+                  aria-label={s.ariaLabel}
+                  className={cn(
+                    'min-h-[72px] w-full rounded-xl border-2 px-4 py-3 text-left transition-colors',
+                    'flex items-center gap-3 active:scale-[0.99] touch-manipulation',
+                    s.tone,
+                  )}
+                >
+                  <span className="shrink-0">{s.icon}</span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm font-semibold text-foreground leading-tight">{s.title} transactions</span>
+                    <span className="block text-[11px] text-muted-foreground mt-0.5">
+                      {s.count.toLocaleString()} {s.count === 1 ? 'entry' : 'entries'}
+                    </span>
+                  </span>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden="true" />
+                </button>
+              ))}
             </div>
           );
         })()}
@@ -1959,48 +1975,65 @@ export function ComprehensiveCashMovement() {
           )}
         </div>
 
-        <div id="cm-totals" className="scroll-mt-24 grid grid-cols-3 gap-2 sm:gap-2">
-          <div className="rounded-lg border border-border bg-success/5 p-3 sm:p-3">
-            <div className="flex items-center gap-1 text-[10px] uppercase text-muted-foreground leading-snug"><ArrowUpRight className="h-3 w-3 text-success" /> Money In</div>
-            <div className="font-mono font-semibold text-success text-xs sm:text-base break-all">{formatUGX(totals.cashIn)}</div>
+        <div id="cm-totals" className="scroll-mt-24 grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-2">
+          {([
+            {
+              key: 'in' as const,
+              label: 'Money In',
+              icon: <ArrowUpRight className="h-3.5 w-3.5 text-success" />,
+              value: formatUGX(totals.cashIn),
+              valueClass: 'text-success',
+              tone: 'bg-success/5 border-success/20',
+              cta: 'See where this comes from',
+              ariaLabel: 'See where Money In comes from — open the transaction list filtered to cash in',
+              onClick: () => openPageDrill('cash_in'),
+            },
+            {
+              key: 'out' as const,
+              label: 'Money Out',
+              icon: <ArrowDownRight className="h-3.5 w-3.5 text-destructive" />,
+              value: formatUGX(totals.cashOut),
+              valueClass: 'text-destructive',
+              tone: 'bg-destructive/5 border-destructive/20',
+              cta: 'See where this comes from',
+              ariaLabel: 'See where Money Out comes from — open the transaction list filtered to cash out',
+              onClick: () => openPageDrill('cash_out'),
+            },
+            {
+              key: 'net' as const,
+              label: 'Difference',
+              icon: null,
+              value: `${totals.net >= 0 ? '+' : ''}${formatUGX(totals.net)}`,
+              valueClass: totals.net >= 0 ? 'text-success' : 'text-destructive',
+              tone: totals.net >= 0 ? 'bg-success/5 border-success/20' : 'bg-destructive/5 border-destructive/20',
+              cta: 'See where this comes from',
+              ariaLabel: 'See where the Difference comes from — open the full transaction list',
+              onClick: () => openPageDrill('all'),
+            },
+          ]).map(card => (
             <button
+              key={card.key}
               type="button"
-              onClick={() => openPageDrill('cash_in')}
-              className="mt-1 text-[10px] sm:text-[11px] font-medium text-success/90 hover:text-success underline-offset-2 hover:underline inline-flex items-center gap-0.5"
-              aria-label="See where Money In comes from — open the transaction list filtered to cash in"
-            >
-              See where this comes from →
-            </button>
-          </div>
-          <div className="rounded-lg border border-border bg-destructive/5 p-3 sm:p-3">
-            <div className="flex items-center gap-1 text-[10px] uppercase text-muted-foreground leading-snug"><ArrowDownRight className="h-3 w-3 text-destructive" /> Money Out</div>
-            <div className="font-mono font-semibold text-destructive text-xs sm:text-base break-all">{formatUGX(totals.cashOut)}</div>
-            <button
-              type="button"
-              onClick={() => openPageDrill('cash_out')}
-              className="mt-1 text-[10px] sm:text-[11px] font-medium text-destructive/90 hover:text-destructive underline-offset-2 hover:underline inline-flex items-center gap-0.5"
-              aria-label="See where Money Out comes from — open the transaction list filtered to cash out"
-            >
-              See where this comes from →
-            </button>
-          </div>
-          <div className={cn('rounded-lg border border-border p-3 sm:p-3', totals.net >= 0 ? 'bg-success/5' : 'bg-destructive/5')}>
-            <div className="text-[10px] uppercase text-muted-foreground">Difference</div>
-            <div className={cn('font-mono font-semibold text-xs sm:text-base break-all', totals.net >= 0 ? 'text-success' : 'text-destructive')}>
-              {totals.net >= 0 ? '+' : ''}{formatUGX(totals.net)}
-            </div>
-            <button
-              type="button"
-              onClick={() => openPageDrill('all')}
+              onClick={card.onClick}
+              aria-label={card.ariaLabel}
               className={cn(
-                'mt-1 text-[10px] sm:text-[11px] font-medium underline-offset-2 hover:underline inline-flex items-center gap-0.5',
-                totals.net >= 0 ? 'text-success/90 hover:text-success' : 'text-destructive/90 hover:text-destructive',
+                'min-h-[88px] w-full text-left rounded-xl border p-3 sm:p-3 flex flex-col gap-1',
+                'transition-colors hover:bg-muted/30 active:scale-[0.99] touch-manipulation',
+                card.tone,
               )}
-              aria-label="See where the Difference comes from — open the full transaction list"
             >
-              See where this comes from →
+              <span className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-muted-foreground leading-snug">
+                {card.icon}
+                {card.label}
+              </span>
+              <span className={cn('font-mono font-semibold text-base sm:text-base break-all leading-tight', card.valueClass)}>
+                {card.value}
+              </span>
+              <span className="mt-auto text-[11px] font-medium text-muted-foreground inline-flex items-center gap-0.5">
+                {card.cta} <ChevronRight className="h-3 w-3" aria-hidden="true" />
+              </span>
             </button>
-          </div>
+          ))}
         </div>
 
         {/* ─── Top Categories summary ───────────────────────────
