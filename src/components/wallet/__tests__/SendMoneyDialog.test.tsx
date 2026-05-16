@@ -83,7 +83,6 @@ describe('SendMoneyDialog', () => {
 
   it('debounces the lookup query until the user stops typing', async () => {
     vi.useFakeTimers();
-    try {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       supaState.response = {
         data: [
@@ -103,8 +102,7 @@ describe('SendMoneyDialog', () => {
 
       // Advance past the debounce window.
       await vi.advanceTimersByTimeAsync(400);
-      // Let the resolved promise + state updates settle.
-      await vi.runOnlyPendingTimersAsync();
+      vi.useRealTimers();
 
       expect(supaState.calls.length).toBe(1);
       expect(supaState.calls[0]).toMatchObject({
@@ -115,14 +113,10 @@ describe('SendMoneyDialog', () => {
       await waitFor(() =>
         expect(screen.getByText(/Sending to/i)).toBeInTheDocument()
       );
-    } finally {
-      vi.useRealTimers();
-    }
   });
 
   it('blocks sending to yourself and disables the Send Money button', async () => {
     vi.useFakeTimers();
-    try {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       // Profile returned matches the current user id ("me") → self.
       supaState.response = {
@@ -134,7 +128,7 @@ describe('SendMoneyDialog', () => {
       const phoneInput = screen.getByLabelText(/Recipient Phone Number/i);
       await user.type(phoneInput, '0700000001');
       await vi.advanceTimersByTimeAsync(400);
-      await vi.runOnlyPendingTimersAsync();
+      vi.useRealTimers();
 
       await waitFor(() =>
         expect(screen.getByText(/Sending blocked: this number is your own account/i)).toBeInTheDocument()
@@ -145,14 +139,10 @@ describe('SendMoneyDialog', () => {
 
       // sendMoney must not have been invoked.
       expect(walletState.sendMoney).not.toHaveBeenCalled();
-    } finally {
-      vi.useRealTimers();
-    }
   });
 
   it('submits using the matched phone (not the raw input text)', async () => {
     vi.useFakeTimers();
-    try {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       // User types 0783673998 but the matched profile stores +256783673998.
       const MATCHED_PHONE = '+256783673998';
@@ -166,26 +156,21 @@ describe('SendMoneyDialog', () => {
       renderDialog();
       await user.type(screen.getByLabelText(/Recipient Phone Number/i), '0783673998');
       await vi.advanceTimersByTimeAsync(400);
-      await vi.runOnlyPendingTimersAsync();
+      vi.useRealTimers();
+      const user2 = userEvent.setup();
 
       await waitFor(() => expect(screen.getByText(/Jane Doe/)).toBeInTheDocument());
 
-      await user.type(screen.getByLabelText(/Amount/i), '1500');
-      await user.type(screen.getByLabelText(/What's this payment for/i), 'food');
+      await user2.type(screen.getByLabelText(/Amount/i), '1500');
+      await user2.type(screen.getByLabelText(/What's this payment for/i), 'food');
 
-      await user.click(screen.getByRole('button', { name: /^Send Money$/i }));
+      await user2.click(screen.getByRole('button', { name: /^Send Money$/i }));
 
       // Confirmation step appears with the matched recipient + Confirm & Send action.
       const confirmBtn = await screen.findByRole('button', { name: /Confirm & Send/i });
-      await user.click(confirmBtn);
-
-      // Flush any pending microtasks/timers from executeSend.
-      await vi.runOnlyPendingTimersAsync();
+      await user2.click(confirmBtn);
 
       await waitFor(() => expect(walletState.sendMoney).toHaveBeenCalledTimes(1));
       expect(walletState.sendMoney).toHaveBeenCalledWith(MATCHED_PHONE, 1500, 'food');
-    } finally {
-      vi.useRealTimers();
-    }
   });
 });
