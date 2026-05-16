@@ -15,7 +15,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Sparkles, UserPlus, Pencil, Loader2, Phone, Clock, ShieldCheck, PlusCircle, Save, X, ChevronDown, ShieldOff, History, Zap, MessageCircle, Search, Filter } from 'lucide-react';
+import { Sparkles, UserPlus, Pencil, Loader2, Phone, Clock, ShieldCheck, PlusCircle, Save, X, ChevronDown, ShieldOff, History, Zap, MessageCircle, Search, Filter, CalendarIcon } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { format } from 'date-fns';
+import type { DateRange } from 'react-day-picker';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { UGANDA_BANKS } from '@/lib/ugandaBanks';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
@@ -284,7 +288,8 @@ export function NewPartnersPanel() {
 
   // Filters for the all-partners list
   const [partnerSearch, setPartnerSearch] = useState('');
-  const [partnerFilter, setPartnerFilter] = useState<'all' | 'with' | 'without' | 'today' | 'week' | 'month' | 'recent'>('all');
+  const [partnerFilter, setPartnerFilter] = useState<'all' | 'with' | 'without' | 'today' | 'week' | 'month' | 'recent' | 'custom'>('all');
+  const [customRange, setCustomRange] = useState<DateRange | undefined>();
   // Incremental render window for the partners grid — keeps DOM small
   // even when up to 500 partners are loaded.
   const PARTNER_PAGE_SIZE = 30;
@@ -294,7 +299,7 @@ export function NewPartnersPanel() {
   // never miss matches hidden below the previous slice.
   useEffect(() => {
     setVisiblePartnerCount(PARTNER_PAGE_SIZE);
-  }, [partnerSearch, partnerFilter]);
+  }, [partnerSearch, partnerFilter, customRange]);
   // Auto-load the next page when the sentinel scrolls into view.
   useEffect(() => {
     const node = loadMoreSentinelRef.current;
@@ -572,8 +577,53 @@ export function NewPartnersPanel() {
                 )}
                 <SelectItem value="with">With portfolios</SelectItem>
                 <SelectItem value="without">No portfolios yet</SelectItem>
+                {canWhatsAppPartners && (
+                  <SelectItem value="custom">Custom date range…</SelectItem>
+                )}
               </SelectContent>
             </Select>
+            {canWhatsAppPartners && partnerFilter === 'custom' && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      "h-8 text-xs justify-start font-normal w-full sm:w-[260px]",
+                      !customRange?.from && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="h-3.5 w-3.5 mr-1.5" />
+                    {customRange?.from ? (
+                      customRange.to ? (
+                        <>{format(customRange.from, 'LLL d, yyyy')} – {format(customRange.to, 'LLL d, yyyy')}</>
+                      ) : (
+                        format(customRange.from, 'LLL d, yyyy')
+                      )
+                    ) : (
+                      <span>Pick start & end date</span>
+                    )}
+                    {customRange?.from && (
+                      <X
+                        className="h-3 w-3 ml-auto opacity-60 hover:opacity-100"
+                        onClick={(e) => { e.stopPropagation(); setCustomRange(undefined); }}
+                      />
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="range"
+                    selected={customRange}
+                    onSelect={setCustomRange}
+                    numberOfMonths={2}
+                    disabled={(d) => d > new Date()}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            )}
           </div>
 
           {/* Newly joined list */}
@@ -600,6 +650,17 @@ export function NewPartnersPanel() {
                 if (partnerFilter === 'today' && new Date(p.created_at).getTime() < startOfToday.getTime()) return false;
                 if (partnerFilter === 'week' && new Date(p.created_at).getTime() < startOfWeek.getTime()) return false;
                 if (partnerFilter === 'month' && new Date(p.created_at).getTime() < startOfMonth.getTime()) return false;
+                if (partnerFilter === 'custom') {
+                  const t = new Date(p.created_at).getTime();
+                  if (customRange?.from) {
+                    const from = new Date(customRange.from); from.setHours(0, 0, 0, 0);
+                    if (t < from.getTime()) return false;
+                  }
+                  if (customRange?.to) {
+                    const to = new Date(customRange.to); to.setHours(23, 59, 59, 999);
+                    if (t > to.getTime()) return false;
+                  }
+                }
                 if (q) {
                   const hay = `${p.full_name} ${p.phone}`.toLowerCase();
                   if (!hay.includes(q)) return false;
