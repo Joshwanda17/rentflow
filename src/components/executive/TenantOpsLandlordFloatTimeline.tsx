@@ -190,6 +190,9 @@ export function TenantOpsLandlordFloatTimeline() {
   const [presetName, setPresetName] = useState('');
   const [saveOpen, setSaveOpen] = useState(false);
 
+  // Drill-down dialog
+  const [drillEvent, setDrillEvent] = useState<TimelineEvent | null>(null);
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem(PRESETS_KEY);
@@ -682,7 +685,7 @@ export function TenantOpsLandlordFloatTimeline() {
         </div>
 
         {/* Totals strip */}
-        <div className="grid grid-cols-3 gap-2 rounded-lg border-2 border-[#9234EA]/20 bg-[#9234EA]/5 p-3 text-center mb-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 rounded-lg border-2 border-[#9234EA]/20 bg-[#9234EA]/5 p-3 text-center mb-3">
           <div>
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider">CFO Funded</p>
             <p className="font-bold text-sm text-blue-600">{fmt(totals.funded)}</p>
@@ -694,6 +697,12 @@ export function TenantOpsLandlordFloatTimeline() {
           <div>
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Paid to Landlords</p>
             <p className="font-bold text-sm text-emerald-600">{fmt(totals.paid)}</p>
+          </div>
+          <div title="Sum of remaining_amount across allocations in view">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Outstanding</p>
+            <p className={cn('font-bold text-sm', totals.outstanding > 0 ? 'text-amber-600' : 'text-muted-foreground')}>
+              {fmt(totals.outstanding)}
+            </p>
           </div>
         </div>
 
