@@ -905,6 +905,12 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
           <p className="text-[10px] text-muted-foreground">
             {p.display_currency || 'UGX'} {Number(p.investment_amount || 0).toLocaleString()} · {p.roi_percentage}% · {p.status}
           </p>
+          {saving && (
+            <p className="text-[10px] font-medium text-primary flex items-center gap-1 mt-0.5">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Saving… waiting for server confirmation
+            </p>
+          )}
         </div>
         {saving ? (
           <Loader2 className="h-3.5 w-3.5 text-primary shrink-0 animate-spin" />
@@ -917,6 +923,16 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
 
       {expanded && (
         <div className="border-t border-border/60 bg-background p-3 space-y-2.5">
+          {saving && (
+            <div
+              role="status"
+              aria-live="polite"
+              className="flex items-center gap-2 rounded-md border border-primary/40 bg-primary/10 px-2 py-1.5 text-[11px] font-medium text-primary"
+            >
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Saving changes… this row is locked until the server confirms.
+            </div>
+          )}
           <div className="flex items-center justify-between gap-2 rounded-md border border-border/60 bg-muted/40 px-2 py-1.5">
             <div className="flex items-center gap-1.5 min-w-0">
               <Zap className={cn("h-3.5 w-3.5 shrink-0", autoSave ? "text-primary" : "text-muted-foreground")} />
@@ -953,6 +969,7 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
               </ul>
             </div>
           )}
+          <fieldset disabled={saving} aria-busy={saving} className={cn("space-y-2.5 m-0 p-0 border-0", saving && "opacity-60 pointer-events-none")}>
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
               <Label className="text-[10px]">Portfolio name</Label>
@@ -1017,12 +1034,13 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
           <div className="flex items-center gap-2 pt-1">
             <Button size="sm" className="h-8 text-xs gap-1.5 flex-1" onClick={() => handleSave()} disabled={saving}>
               {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
-              Save changes
+              {saving ? 'Saving…' : 'Save changes'}
             </Button>
             <Button size="sm" variant="ghost" className="h-8 text-xs gap-1.5" onClick={requestToggle} disabled={saving}>
               <X className="h-3 w-3" /> Cancel
             </Button>
           </div>
+          </fieldset>
           <p className={cn("text-[9px] text-muted-foreground italic")}>
             Investment amount, status and currency are managed from the full edit screen for safety.
           </p>
