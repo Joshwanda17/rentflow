@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useQuery, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -498,6 +498,27 @@ export function NewPartnersPanel() {
       /* quota / private mode — ignore */
     }
   };
+  // Drops the persisted first-page cache so the next read goes straight to
+  // the database. Paired with `invalidateJoinedPartners` so that any
+  // create/update/enable/disable of a joined partner causes both the
+  // in-memory react-query cache AND the localStorage hydration cache to be
+  // discarded — otherwise repeat visitors would still see the stale row.
+  const clearFirstPageCache = () => {
+    if (typeof window === 'undefined') return;
+    try { localStorage.removeItem(PARTNERS_CACHE_KEY); } catch { /* ignore */ }
+  };
+  // Single funnel for "the joined partners list has changed". Every mutation
+  // path (create portfolio, edit profile, enable/disable role, realtime
+  // postgres_changes event) MUST call this instead of invalidating ad-hoc
+  // query keys, so we never have to chase down a missed key again.
+  const invalidateJoinedPartners = useCallback(() => {
+    clearFirstPageCache();
+    // The infinite list query uses the cursor-prefixed key.
+    qc.invalidateQueries({ queryKey: ['new-partners-panel-cursor'] });
+    // Legacy/sibling queries inside this panel (badges, search) share the
+    // base prefix — keep them in sync too.
+    qc.invalidateQueries({ queryKey: ['new-partners-panel'] });
+  }, [qc]);
 
   // ── All partners (infinite scroll) ──
   // Each scroll-triggered page fetches one slice of `user_roles`
@@ -836,12 +857,12 @@ export function NewPartnersPanel() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'user_roles', filter: 'role=eq.supporter' },
-        () => { qc.invalidateQueries({ queryKey: ['new-partners-panel'] }); }
+        () => { invalidateJoinedPartners(); }
       )
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'investor_portfolios' },
-        () => { qc.invalidateQueries({ queryKey: ['new-partners-panel'] }); }
+        () => { invalidateJoinedPartners(); }
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -881,7 +902,7 @@ export function NewPartnersPanel() {
       });
       toast({ title: '✅ Partner role granted', description: `${selected.full_name} is now a Partner.` });
       setSelectedIsPartner(true);
-      qc.invalidateQueries({ queryKey: ['new-partners-panel'] });
+      invalidateJoinedPartners();
       // Force the dialog's approval-status query to refetch so the
       // "Partner Not Approved" lock / button label clears immediately.
       qc.invalidateQueries({ queryKey: ['funder-approval-status', selected.id] });
@@ -918,7 +939,7 @@ export function NewPartnersPanel() {
       setSelectedIsPartner(false);
       setRevokeOpen(false);
       markConfirmed(`revoke:${selected.id}`);
-      qc.invalidateQueries({ queryKey: ['new-partners-panel'] });
+      invalidateJoinedPartners();
       if (historyOpen) loadHistory();
     } catch (e: any) {
       toast({ title: 'Could not revoke role', description: e?.message || 'Try again', variant: 'destructive' });
@@ -1939,7 +1960,7 @@ export function NewPartnersPanel() {
                       setInlineCreateOpen(false);
                       handleSelect(selected);
                       qc.invalidateQueries({ queryKey: ['exec-partner-portfolios'] });
-                      qc.invalidateQueries({ queryKey: ['new-partners-panel'] });
+                      invalidateJoinedPartners();
                     }}
                     onCancel={() => setInlineCreateOpen(false)}
                   />
@@ -2053,7 +2074,7 @@ export function NewPartnersPanel() {
           lastActivatedIdRef.current = createForUser?.id ?? null;
           handleSelect(selected);
           qc.invalidateQueries({ queryKey: ['exec-partner-portfolios'] });
-          qc.invalidateQueries({ queryKey: ['new-partners-panel'] });
+          invalidateJoinedPartners();
           // Refresh the dialog's approval-status cache for both the dialog's
           // own selection and the panel-selected user so the button label
           // ("Create Portfolio" vs. "Partner Not Approved") reflects the
