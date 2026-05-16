@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { format, startOfDay, startOfWeek, startOfMonth, startOfYear, subDays, subMonths, subYears } from 'date-fns';
-import { Loader2, RefreshCw, Calendar, FileSpreadsheet, FileText, ArrowUpRight, ArrowDownRight, ExternalLink, X, Filter } from 'lucide-react';
+import { Loader2, RefreshCw, Calendar, FileSpreadsheet, FileText, ArrowUpRight, ArrowDownRight, ArrowDownLeft, ExternalLink, X, Filter, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -272,6 +272,7 @@ export function ComprehensiveCashMovement() {
   const [debouncedDrillQuery, setDebouncedDrillQuery] = useState('');
   const [drillPage, setDrillPage] = useState(0);
   const [drillPageSize, setDrillPageSize] = useState<number>(100);
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
 
   // ── Capital Inflows callout (platform-scope cash_in for selected categories)
   const CAPITAL_INFLOW_DEFAULT = ['partner_funding', 'pending_portfolio_topup'];
@@ -1464,24 +1465,47 @@ export function ComprehensiveCashMovement() {
                   </div>
                 ) : (
                   <div className="border border-border rounded-lg overflow-x-auto">
-                    <div className="block sm:hidden">
+                    <div className="block sm:hidden space-y-2">
                       {filteredDrillRows
                         .slice(drillPage * drillPageSize, drillPage * drillPageSize + drillPageSize)
                         .map((r, i) => {
                           const amt = Number(r.amount) || 0;
                           const isIn = r.direction === 'cash_in';
                           const name = r.user_id ? partyNames[r.user_id] : null;
+                          const cardKey = r.id || `${r.reference_id}-${i}`;
+                          const isExpanded = expandedCards.has(cardKey);
                           return (
-                            <div key={r.id || `${r.reference_id}-${i}`} className="p-3 border-b border-border last:border-0 space-y-1.5">
+                            <button
+                              key={cardKey}
+                              type="button"
+                              onClick={() => {
+                                setExpandedCards(prev => {
+                                  const next = new Set(prev);
+                                  if (next.has(cardKey)) next.delete(cardKey);
+                                  else next.add(cardKey);
+                                  return next;
+                                });
+                              }}
+                              className="w-full text-left rounded-lg border border-border bg-card p-3 space-y-1.5 active:bg-muted/40 transition-colors"
+                            >
                               <div className="flex items-center justify-between gap-2">
                                 <div className="text-[11px] text-muted-foreground">{format(new Date(r.transaction_date), 'dd MMM yyyy · HH:mm')}</div>
-                                <div className={cn('font-mono text-sm font-semibold', isIn ? 'text-success' : 'text-destructive')}>
-                                  {isIn ? '+' : '−'}{formatUGX(amt)}
+                                <div className="flex items-center gap-1.5">
+                                  <div className={cn('font-mono text-sm font-semibold', isIn ? 'text-success' : 'text-destructive')}>
+                                    {isIn ? '+' : '−'}{formatUGX(amt)}
+                                  </div>
+                                  {isExpanded ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
                                 </div>
                               </div>
                               <div className="font-mono text-[11px]">
                                 {r.id && canViewLedgerDetail ? (
-                                  <Link to={`/cfo/ledger/${r.id}`} target="_blank" rel="noopener" className="text-primary hover:underline inline-flex items-center gap-1">
+                                  <Link
+                                    to={`/cfo/ledger/${r.id}`}
+                                    target="_blank"
+                                    rel="noopener"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="text-primary hover:underline inline-flex items-center gap-1"
+                                  >
                                     <Highlight text={r.reference_id || r.id.slice(0, 8) + '…'} query={debouncedDrillQuery} />
                                     <ExternalLink className="h-2.5 w-2.5" />
                                   </Link>
@@ -1493,10 +1517,51 @@ export function ComprehensiveCashMovement() {
                                 <Highlight text={name || (r.linked_party ? prettifyCategory(r.linked_party) : '—')} query={debouncedDrillQuery} />
                                 {r.user_id && <span className="text-muted-foreground font-mono text-[10px] ml-1">· <Highlight text={r.user_id.slice(0, 8) + '…'} query={debouncedDrillQuery} /></span>}
                               </div>
-                              {r.description && (
-                                <div className="text-[10px] text-muted-foreground line-clamp-1"><Highlight text={r.description} query={debouncedDrillQuery} /></div>
+
+                              {/* Expanded details */}
+                              {isExpanded && (
+                                <div className="pt-2 mt-1 border-t border-border space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground w-16 shrink-0">Type</span>
+                                    <span className="text-[11px] font-medium">{prettifyCategory(r.category)}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground w-16 shrink-0">Direction</span>
+                                    <span className={cn('text-[11px] font-medium inline-flex items-center gap-1', isIn ? 'text-success' : 'text-destructive')}>
+                                      {isIn ? <ArrowDownLeft className="h-3 w-3" /> : <ArrowUpRight className="h-3 w-3" />}
+                                      {isIn ? 'Money In' : 'Money Out'}
+                                    </span>
+                                  </div>
+                                  {r.description && (
+                                    <div className="flex items-start gap-2">
+                                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground w-16 shrink-0 pt-0.5">Notes</span>
+                                      <span className="text-[11px] text-muted-foreground leading-snug"><Highlight text={r.description} query={debouncedDrillQuery} /></span>
+                                    </div>
+                                  )}
+                                  {r.transaction_group_id && (
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground w-16 shrink-0">Group</span>
+                                      <span className="text-[10px] font-mono text-muted-foreground">{r.transaction_group_id}</span>
+                                    </div>
+                                  )}
+                                  {r.classification && r.classification !== 'production' && (
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground w-16 shrink-0">Tag</span>
+                                      <Badge variant="outline" className="text-[9px]">{r.classification}</Badge>
+                                    </div>
+                                  )}
+                                  {r.source_table && (
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground w-16 shrink-0">Source</span>
+                                      <span className="text-[10px] text-muted-foreground">
+                                        <Highlight text={r.source_table} query={debouncedDrillQuery} />
+                                        {r.source_id && <>:<Highlight text={r.source_id} query={debouncedDrillQuery} /></>}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
                               )}
-                            </div>
+                            </button>
                           );
                         })}
                     </div>
