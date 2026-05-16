@@ -179,7 +179,10 @@ describe('SendMoneyDialog', () => {
         const btn = getSendBtn();
         expect(btn).toBeDisabled();
         expect(btn).toHaveAttribute('title', 'Verifying recipient on Welile…');
-        expect(btn).toHaveAttribute('aria-label', 'Send Money — Verifying recipient on Welile…');
+        expect(btn).toHaveAttribute('aria-describedby', 'send-money-disabled-reason');
+        const reason = document.getElementById('send-money-disabled-reason');
+        expect(reason).not.toBeNull();
+        expect(reason).toHaveTextContent('Verifying recipient on Welile…');
       });
 
       // Cleanup so the pending promise doesn't leak between tests.
@@ -201,9 +204,9 @@ describe('SendMoneyDialog', () => {
             'title',
             'No Welile user found for this phone number.'
           );
-          expect(btn).toHaveAttribute(
-            'aria-label',
-            'Send Money — No Welile user found for this phone number.'
+          expect(btn).toHaveAttribute('aria-describedby', 'send-money-disabled-reason');
+          expect(document.getElementById('send-money-disabled-reason')).toHaveTextContent(
+            'No Welile user found for this phone number.'
           );
         },
         { timeout: 2000 }
@@ -230,9 +233,9 @@ describe('SendMoneyDialog', () => {
             'title',
             "You can't send money to your own account."
           );
-          expect(btn).toHaveAttribute(
-            'aria-label',
-            "Send Money — You can't send money to your own account."
+          expect(btn).toHaveAttribute('aria-describedby', 'send-money-disabled-reason');
+          expect(document.getElementById('send-money-disabled-reason')).toHaveTextContent(
+            "You can't send money to your own account."
           );
         },
         { timeout: 2000 }
