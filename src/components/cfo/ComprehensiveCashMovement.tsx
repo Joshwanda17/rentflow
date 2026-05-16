@@ -1024,7 +1024,45 @@ export function ComprehensiveCashMovement() {
         {/* ─── Wallet Money Movement (minimalist) ───
             Primary view: money flowing INTO and OUT OF user/operational wallets
             in the selected period. Shown first by default. */}
-        <WalletMovementSummary rows={rows} includeAdjustments={includeAdjustments} period={period} />
+        {!simpleMode && (
+          <WalletMovementSummary rows={rows} includeAdjustments={includeAdjustments} period={period} />
+        )}
+
+        {/* Plain-English summary — one friendly sentence anyone can read.
+            Shown only in Simple mode so non-tech / non-accounting users get
+            the headline without scrolling through tables and matrices. */}
+        {simpleMode && (
+          <div className={cn(
+            'rounded-lg border-2 p-3 sm:p-4 space-y-2',
+            totals.net >= 0 ? 'border-success/40 bg-success/5' : 'border-destructive/40 bg-destructive/5'
+          )}>
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+              In plain English · {PERIODS.find(p => p.value === period)?.label || period}
+            </div>
+            <p className="text-sm sm:text-base leading-relaxed">
+              {totals.cashIn === 0 && totals.cashOut === 0 ? (
+                <>No money moved during this period.</>
+              ) : (
+                <>
+                  <span className="font-semibold text-success">{formatUGX(totals.cashIn)}</span>
+                  {' came '}<span className="font-semibold">IN</span>{' and '}
+                  <span className="font-semibold text-destructive">{formatUGX(totals.cashOut)}</span>
+                  {' went '}<span className="font-semibold">OUT</span>{'. '}
+                  {totals.net > 0 ? (
+                    <>Welile <span className="font-semibold text-success">gained {formatUGX(totals.net)}</span> overall.</>
+                  ) : totals.net < 0 ? (
+                    <>Welile <span className="font-semibold text-destructive">spent {formatUGX(Math.abs(totals.net))}</span> more than it received.</>
+                  ) : (
+                    <>Money in and out balanced exactly.</>
+                  )}
+                </>
+              )}
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+              Tap <span className="font-semibold">Detailed view</span> at the top for the full breakdown, tables, and downloads.
+            </p>
+          </div>
+        )}
 
         {/* Totals strip (full ledger scope: platform + wallet) */}
         <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
