@@ -866,6 +866,48 @@ export function NewPartnersPanel() {
             </Button>
           </div>
 
+          {/* Quick-activate banner — surfaces the first partner in the active
+              "no portfolio yet" filtered list and lets Partner Ops open the
+              Create Portfolio dialog with one click, skipping the search step. */}
+          {(() => {
+            const noPortfolioFilters: PartnerFilter[] = [
+              'just_joined', 'without', 'recent_today', 'recent_week', 'recent_month',
+            ];
+            if (!noPortfolioFilters.includes(partnerFilter)) return null;
+            const next = filteredPartners.find(p => p.portfolio_count === 0);
+            if (!next) return null;
+            return (
+              <div className="flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2">
+                <div className="p-1 rounded-md bg-emerald-500/20 shrink-0">
+                  <Zap className="h-3.5 w-3.5 text-emerald-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-semibold text-emerald-700 leading-tight">
+                    Next up to activate
+                  </p>
+                  <p className="text-xs font-medium truncate">
+                    {next.full_name}
+                    <span className="text-muted-foreground font-normal"> · {next.phone}</span>
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    Joined {formatDistanceToNow(new Date(next.created_at), { addSuffix: true })}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  className="h-7 text-[11px] gap-1 shrink-0"
+                  onClick={() => openCreateFor({
+                    id: next.user_id,
+                    full_name: next.full_name,
+                    phone: next.phone,
+                  })}
+                >
+                  <PlusCircle className="h-3 w-3" /> Activate now
+                </Button>
+              </div>
+            );
+          })()}
+
           {/* Filters */}
           <div className="flex flex-col sm:flex-row gap-2">
             <div className="relative flex-1">
