@@ -2192,6 +2192,13 @@ function WalletMovementSummary({
     ? `${format(currentRange.from, 'dd MMM yyyy')} – ${format(currentRange.to, 'dd MMM yyyy')}`
     : `All time – ${format(currentRange.to, 'dd MMM yyyy')}`;
 
+  // Empty-state guard must run AFTER all hooks above to keep hook order stable
+  // across renders (otherwise React throws "Rendered more hooks than during the
+  // previous render" when rows transition between empty and non-empty).
+  if (summary.inRows.length === 0 && summary.outRows.length === 0) {
+    return null;
+  }
+
   const buildExportRows = () => {
     const rowsOut: Array<{ section: string; label: string; amount: number; prior: number; count: number }> = [];
     const pushSection = (
