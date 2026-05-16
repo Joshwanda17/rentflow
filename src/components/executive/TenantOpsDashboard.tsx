@@ -21,6 +21,7 @@ import { TenantDetailPanel } from './TenantDetailPanel';
 import { TenantRegistrationReview } from './TenantRegistrationReview';
 import { AgentAllocationReport } from './AgentAllocationReport';
 import { TenantOpsLandlordFloatPanel } from './TenantOpsLandlordFloatPanel';
+import { TenantOpsLandlordFloatTimeline } from './TenantOpsLandlordFloatTimeline';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -52,7 +53,7 @@ import { generateTenantOpsReportPdf } from '@/lib/generateTenantOpsReportPdf';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 
-type ActiveView = 'overview' | 'pipeline' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'transfer-audit' | 'collect-rent' | 'agent-tenants' | 'tenant-detail' | 'registration-review' | 'advance-requests' | 'agent-allocations' | 'daily-collections' | 'landlord-float';
+type ActiveView = 'overview' | 'pipeline' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'transfer-audit' | 'collect-rent' | 'agent-tenants' | 'tenant-detail' | 'registration-review' | 'advance-requests' | 'agent-allocations' | 'daily-collections' | 'landlord-float' | 'landlord-float-timeline';
 
 interface NavCard {
   id: ActiveView;
@@ -1045,6 +1046,13 @@ export function TenantOpsDashboard() {
       description: 'Per-agent landlord-payout float balances & earmarks',
       icon: Landmark,
       color: 'bg-fuchsia-500/10 text-fuchsia-600 border-fuchsia-200',
+    },
+    {
+      id: 'landlord-float-timeline' as ActiveView,
+      label: 'Float Timeline',
+      description: 'Allocation history by date & reference ID',
+      icon: History,
+      color: 'bg-violet-500/10 text-violet-600 border-violet-200',
     },
   ];
 
