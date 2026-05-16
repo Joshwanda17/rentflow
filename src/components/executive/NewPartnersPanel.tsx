@@ -153,6 +153,10 @@ export function NewPartnersPanel() {
   // Confirmation gate before opening the create-portfolio dialog from the
   // "Just Joined Partners" Activate button. Prevents accidental taps.
   const [activateConfirm, setActivateConfirm] = useState<{ user: PickedUser; isFirst: boolean } | null>(null);
+  // User id currently being activated — keeps that row's Activate/Add button
+  // disabled with a spinner from the moment the confirmation is accepted
+  // until the create-portfolio dialog closes (server confirmed or cancelled).
+  const [activatingUserId, setActivatingUserId] = useState<string | null>(null);
   const [revokeOpen, setRevokeOpen] = useState(false);
   const [revokeBusy, setRevokeBusy] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -449,13 +453,21 @@ export function NewPartnersPanel() {
                     size="sm"
                     variant="outline"
                     className="h-7 text-[10px] gap-1 shrink-0"
+                    disabled={activatingUserId === p.user_id}
+                    aria-busy={activatingUserId === p.user_id}
                     onClick={() => setActivateConfirm({
                       user: { id: p.user_id, full_name: p.full_name, phone: p.phone },
                       isFirst: p.portfolio_count === 0,
                     })}
                   >
-                    <PlusCircle className="h-3 w-3" />
-                    {p.portfolio_count > 0 ? 'Add' : 'Activate'}
+                    {activatingUserId === p.user_id ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <PlusCircle className="h-3 w-3" />
+                    )}
+                    {activatingUserId === p.user_id
+                      ? 'Activating…'
+                      : p.portfolio_count > 0 ? 'Add' : 'Activate'}
                   </Button>
                 </div>
               ))}
@@ -624,8 +636,18 @@ export function NewPartnersPanel() {
 
       <CreateInvestmentAccountDialog
         open={createOpen}
-        onOpenChange={setCreateOpen}
-        onSuccess={() => { handleSelect(selected); qc.invalidateQueries({ queryKey: ['exec-partner-portfolios'] }); qc.invalidateQueries({ queryKey: ['new-partners-panel'] }); }}
+        onOpenChange={(open) => {
+          setCreateOpen(open);
+          // Clear the per-row "Activating…" lock when the dialog closes
+          // (either after success or if the user cancels).
+          if (!open) setActivatingUserId(null);
+        }}
+        onSuccess={() => {
+          handleSelect(selected);
+          qc.invalidateQueries({ queryKey: ['exec-partner-portfolios'] });
+          qc.invalidateQueries({ queryKey: ['new-partners-panel'] });
+          setActivatingUserId(null);
+        }}
         prefillInvestorId={createForUser?.id}
         prefillInvestorName={createForUser?.full_name}
       />
@@ -665,6 +687,7 @@ export function NewPartnersPanel() {
                 if (activateConfirm) {
                   const u = activateConfirm.user;
                   setActivateConfirm(null);
+                  setActivatingUserId(u.id);
                   openCreateFor(u);
                 }
               }}
