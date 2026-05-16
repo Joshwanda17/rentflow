@@ -152,6 +152,14 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
       toast.error('You cannot send money to yourself');
       return;
     }
+    if (recipient.status === 'searching') {
+      toast.error('Still looking up recipient, please wait…');
+      return;
+    }
+    if (recipient.status === 'idle') {
+      toast.error('Enter a valid recipient phone number');
+      return;
+    }
 
     setLoading(true);
     const { error } = await sendMoney(phone, amountNum, description);
@@ -411,7 +419,17 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                       </Button>
                     </motion.div>
                     <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                      <Button type="submit" disabled={loading} className="gap-2">
+                      <Button
+                        type="submit"
+                        disabled={
+                          loading ||
+                          recipient.status === 'searching' ||
+                          recipient.status === 'not_found' ||
+                          recipient.status === 'idle' ||
+                          (recipient.status === 'found' && recipient.isSelf)
+                        }
+                        className="gap-2"
+                      >
                         {loading ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
