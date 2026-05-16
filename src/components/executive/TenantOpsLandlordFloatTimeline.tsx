@@ -170,6 +170,7 @@ export function TenantOpsLandlordFloatTimeline() {
   const [agentFilter, setAgentFilter] = useState<string[]>([]);
   const [tenantFilter, setTenantFilter] = useState<string[]>([]);
   const [landlordFilter, setLandlordFilter] = useState<string[]>([]);
+  const [outstandingOnly, setOutstandingOnly] = useState(false);
 
   // ───────────────────── Presets (localStorage) ─────────────────────
   interface Preset {
