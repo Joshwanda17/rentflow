@@ -2201,16 +2201,54 @@ function WalletMovementSummary({
           >
             <FileText className="h-3 w-3" /> PDF
           </Button>
-          <div className={cn(
-            'text-[11px] font-mono px-2 py-1 rounded border',
-            summary.net >= 0
-              ? 'bg-success/10 text-success border-success/30'
-              : 'bg-destructive/10 text-destructive border-destructive/30'
-          )}>
-            Net into wallets: {summary.net >= 0 ? '+' : ''}{formatUGX(summary.net)}
-          </div>
         </div>
       </div>
+
+      {/* Prominent Net Flow KPI — Into minus Out for the selected period */}
+      {(() => {
+        const priorNet = priorTotals ? priorTotals.totalIn - priorTotals.totalOut : undefined;
+        const netDelta = priorTotals ? formatDelta(summary.net, priorNet ?? 0) : null;
+        const positive = summary.net >= 0;
+        return (
+          <div className={cn(
+            'rounded-xl border p-4 sm:p-5 flex items-center justify-between gap-3 flex-wrap',
+            positive
+              ? 'bg-success/10 border-success/30'
+              : 'bg-destructive/10 border-destructive/30'
+          )}>
+            <div className="min-w-0">
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">
+                Net flow into wallets
+              </div>
+              <div className="text-[10px] text-muted-foreground/80">
+                Into − Out · {periodLabel}
+              </div>
+            </div>
+            <div className="flex flex-col items-end shrink-0">
+              <div className={cn(
+                'font-mono font-bold text-2xl sm:text-3xl break-all leading-tight',
+                positive ? 'text-success' : 'text-destructive'
+              )}>
+                {positive ? '+' : ''}{formatUGX(summary.net)}
+              </div>
+              {netDelta ? (
+                <div
+                  className={cn('flex items-center gap-1.5 text-[11px] font-mono mt-0.5', toneClass(netDelta.tone, 'in'))}
+                  title={`Previous period net: ${formatUGX(priorNet ?? 0)}`}
+                >
+                  {netDelta.absLabel && <span>{netDelta.absLabel}</span>}
+                  <span className="opacity-80">{netDelta.label}</span>
+                  <span className="text-muted-foreground/70 ml-1">vs prior</span>
+                </div>
+              ) : priorWindowLabel ? (
+                <div className="text-[10px] text-muted-foreground/70 mt-0.5">
+                  {priorLoading ? 'Loading prior period…' : 'No prior data'}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        );
+      })()}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {/* Into wallets */}
