@@ -2111,8 +2111,29 @@ export function NewPartnersPanel() {
             {...makeSegmentSwipeHandlers(
               ['all', 'just_joined', 'recent_today', 'recent_week', 'recent_month', 'with', 'without'] as const,
               partnerFilter,
+              (key) => {
+                if (!key) { setSwipeHint(null); return; }
+                setSwipeHint({
+                  key,
+                  label: FILTER_LABELS[key] ?? key,
+                  count: filterCounts[key] ?? 0,
+                });
+                clearSwipeHintSoon(1400);
+              },
             )}
           >
+            {swipeHint && (
+              <div
+                className="pointer-events-none absolute left-1/2 -translate-x-1/2 -top-9 px-3 py-1.5 rounded-full bg-foreground text-background text-[11px] font-medium shadow-lg flex items-center gap-1.5 whitespace-nowrap animate-in fade-in slide-in-from-bottom-1"
+                role="status"
+                aria-live="polite"
+              >
+                <span className="truncate max-w-[60vw]">{swipeHint.label}</span>
+                <span className="px-1.5 py-0.5 rounded-full bg-background/20 text-background tabular-nums">
+                  {swipeHint.count}
+                </span>
+              </div>
+            )}
             <div className="flex items-center gap-1.5">
               <Select
                 value={partnerFilter}
