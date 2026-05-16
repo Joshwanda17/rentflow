@@ -517,7 +517,7 @@ export function NewPartnersPanel() {
     qc.invalidateQueries({ queryKey: ['new-partners-panel-cursor'] });
     // Legacy/sibling queries inside this panel (badges, search) share the
     // base prefix — keep them in sync too.
-    qc.invalidateQueries({ queryKey: ['new-partners-panel'] });
+    invalidateJoinedPartners();
   }, [qc]);
 
   // ── All partners (infinite scroll) ──
@@ -857,12 +857,12 @@ export function NewPartnersPanel() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'user_roles', filter: 'role=eq.supporter' },
-        () => { qc.invalidateQueries({ queryKey: ['new-partners-panel'] }); }
+        () => { invalidateJoinedPartners(); }
       )
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'investor_portfolios' },
-        () => { qc.invalidateQueries({ queryKey: ['new-partners-panel'] }); }
+        () => { invalidateJoinedPartners(); }
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -902,7 +902,7 @@ export function NewPartnersPanel() {
       });
       toast({ title: '✅ Partner role granted', description: `${selected.full_name} is now a Partner.` });
       setSelectedIsPartner(true);
-      qc.invalidateQueries({ queryKey: ['new-partners-panel'] });
+      invalidateJoinedPartners();
       // Force the dialog's approval-status query to refetch so the
       // "Partner Not Approved" lock / button label clears immediately.
       qc.invalidateQueries({ queryKey: ['funder-approval-status', selected.id] });
@@ -939,7 +939,7 @@ export function NewPartnersPanel() {
       setSelectedIsPartner(false);
       setRevokeOpen(false);
       markConfirmed(`revoke:${selected.id}`);
-      qc.invalidateQueries({ queryKey: ['new-partners-panel'] });
+      invalidateJoinedPartners();
       if (historyOpen) loadHistory();
     } catch (e: any) {
       toast({ title: 'Could not revoke role', description: e?.message || 'Try again', variant: 'destructive' });
@@ -1960,7 +1960,7 @@ export function NewPartnersPanel() {
                       setInlineCreateOpen(false);
                       handleSelect(selected);
                       qc.invalidateQueries({ queryKey: ['exec-partner-portfolios'] });
-                      qc.invalidateQueries({ queryKey: ['new-partners-panel'] });
+                      invalidateJoinedPartners();
                     }}
                     onCancel={() => setInlineCreateOpen(false)}
                   />
@@ -2074,7 +2074,7 @@ export function NewPartnersPanel() {
           lastActivatedIdRef.current = createForUser?.id ?? null;
           handleSelect(selected);
           qc.invalidateQueries({ queryKey: ['exec-partner-portfolios'] });
-          qc.invalidateQueries({ queryKey: ['new-partners-panel'] });
+          invalidateJoinedPartners();
           // Refresh the dialog's approval-status cache for both the dialog's
           // own selection and the panel-selected user so the button label
           // ("Create Portfolio" vs. "Partner Not Approved") reflects the
