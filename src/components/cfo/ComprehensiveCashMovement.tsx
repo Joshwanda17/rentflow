@@ -3024,12 +3024,12 @@ export function ComprehensiveCashMovement() {
             <Table className="min-w-[640px]">
               <TableHeader className="sticky top-0 z-10 bg-background shadow-[0_1px_0_0_hsl(var(--border))]">
                 <TableRow>
-                  <TableHead className="w-[40%] min-w-[180px]">What kind of money</TableHead>
-                  <TableHead className="min-w-[110px]">Where</TableHead>
-                  <TableHead className="text-right min-w-[90px]">In</TableHead>
-                  <TableHead className="text-right min-w-[90px]">Out</TableHead>
-                  <TableHead className="text-right min-w-[100px]">Difference</TableHead>
-                  <TableHead className="text-right min-w-[60px]">Count</TableHead>
+                  <TableHead {...focusableColHeadProps} className={cn('w-[40%] min-w-[180px]', FOCUSABLE_COL_HEAD_CLASS)}>What kind of money</TableHead>
+                  <TableHead {...focusableColHeadProps} className={cn('min-w-[110px]', FOCUSABLE_COL_HEAD_CLASS)}>Where</TableHead>
+                  <TableHead {...focusableColHeadProps} className={cn('text-right min-w-[90px]', FOCUSABLE_COL_HEAD_CLASS)}>In</TableHead>
+                  <TableHead {...focusableColHeadProps} className={cn('text-right min-w-[90px]', FOCUSABLE_COL_HEAD_CLASS)}>Out</TableHead>
+                  <TableHead {...focusableColHeadProps} className={cn('text-right min-w-[100px]', FOCUSABLE_COL_HEAD_CLASS)}>Difference</TableHead>
+                  <TableHead {...focusableColHeadProps} className={cn('text-right min-w-[60px]', FOCUSABLE_COL_HEAD_CLASS)}>Count</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -3382,10 +3382,10 @@ export function ComprehensiveCashMovement() {
                       <Table className="min-w-[720px]">
                       <TableHeader className="sticky top-0 z-10 bg-background shadow-[0_1px_0_0_hsl(var(--border))]">
                         <TableRow>
-                          <TableHead className="text-xs min-w-[120px]">Date</TableHead>
-                          <TableHead className="text-xs min-w-[200px]">Reference</TableHead>
-                          <TableHead className="text-xs min-w-[180px]">Who</TableHead>
-                          <TableHead className="text-xs text-right min-w-[120px]">Amount</TableHead>
+                          <TableHead {...focusableColHeadProps} className={cn('text-xs min-w-[120px]', FOCUSABLE_COL_HEAD_CLASS)}>Date</TableHead>
+                          <TableHead {...focusableColHeadProps} className={cn('text-xs min-w-[200px]', FOCUSABLE_COL_HEAD_CLASS)}>Reference</TableHead>
+                          <TableHead {...focusableColHeadProps} className={cn('text-xs min-w-[180px]', FOCUSABLE_COL_HEAD_CLASS)}>Who</TableHead>
+                          <TableHead {...focusableColHeadProps} className={cn('text-xs text-right min-w-[120px]', FOCUSABLE_COL_HEAD_CLASS)}>Amount</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
