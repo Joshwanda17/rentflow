@@ -433,6 +433,13 @@ export function AgentOpsHomeView({ range, onRangeChange, onOpenSection }: AgentO
         onClick={() => setActiveDrill('active-agents')}
       />
 
+      {/* Active agents per-bucket trend — small time-series under the hero */}
+      <ActiveAgentsTrendChart
+        data={data?.trend ?? []}
+        range={range}
+        loading={isLoading}
+      />
+
       {/* Daily Briefs grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
         {cards.map((c) => (
@@ -560,6 +567,89 @@ export { fmtMoney, pctChange };
 
 // silence unused import warning for isAfter (kept for future filtering use)
 void isAfter;
+
+/* ------------------------------------------------------------------
+ * ActiveAgentsTrendChart
+ * Compact time-series of active agents per bucket (hour for 24h, day
+ * for 7d/30d). Pairs with the hero KPI so ops can see momentum, not
+ * just the headline number.
+ * ------------------------------------------------------------------ */
+function ActiveAgentsTrendChart({
+  data,
+  range,
+  loading,
+}: {
+  data: Array<{ label: string; activeAgents: number }>;
+  range: DateRange;
+  loading?: boolean;
+}) {
+  const total = data.reduce((s, d) => s + (d.activeAgents || 0), 0);
+  const peak = data.reduce(
+    (best, d) => (d.activeAgents > best.value ? { label: d.label, value: d.activeAgents } : best),
+    { label: '—', value: 0 },
+  );
+  const granularity = range === '24h' ? 'per hour' : 'per day';
+
+  return (
+    <Card className="rounded-2xl border-border/50 p-3 sm:p-4">
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold text-foreground">Active Agents Trend</h3>
+          <p className="text-[11px] text-muted-foreground">
+            Unique agents posting ≥1 tenant request · {granularity}
+          </p>
+        </div>
+        {!loading && peak.value > 0 && (
+          <Badge variant="outline" className="text-[10px] shrink-0">
+            Peak {peak.value} · {peak.label}
+          </Badge>
+        )}
+      </div>
+      <div className="h-32 sm:h-36 -mx-2">
+        {loading ? (
+          <div className="h-full w-full flex items-center justify-center">
+            <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
+          </div>
+        ) : total === 0 ? (
+          <div className="h-full w-full flex items-center justify-center">
+            <p className="text-xs text-muted-foreground">No active agents in this window yet.</p>
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={data} margin={{ top: 4, right: 12, bottom: 0, left: 0 }}>
+              <defs>
+                <linearGradient id="active-agents-trend-fill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="hsl(38 92% 50%)" stopOpacity={0.4} />
+                  <stop offset="100%" stopColor="hsl(38 92% 50%)" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+              <XAxis dataKey="label" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" interval="preserveStartEnd" />
+              <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" width={28} allowDecimals={false} />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: 'hsl(var(--card))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: 12,
+                  fontSize: 12,
+                }}
+                formatter={(v: number) => [v, 'Active agents']}
+              />
+              <Area
+                type="monotone"
+                dataKey="activeAgents"
+                stroke="hsl(38 92% 50%)"
+                strokeWidth={2}
+                fill="url(#active-agents-trend-fill)"
+                dot={false}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+    </Card>
+  );
+}
 
 /* ------------------------------------------------------------------
  * ActiveAgentsHero
