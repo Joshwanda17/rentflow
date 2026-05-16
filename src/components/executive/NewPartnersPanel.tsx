@@ -161,6 +161,23 @@ export function NewPartnersPanel() {
   const [revokeBusy, setRevokeBusy] = useState(false);
   // Typed confirmation phrase the operator must enter before Revoke unlocks.
   const [revokeConfirmText, setRevokeConfirmText] = useState('');
+  // Short-lived memo of recent confirmations keyed by `${action}:${userId}`.
+  // Lets a second tap on the SAME partner within the window skip the dialog —
+  // useful when the operator is processing several partners back-to-back.
+  const recentConfirmsRef = useRef<Map<string, number>>(new Map());
+  const RECENT_CONFIRM_MS = 2 * 60 * 1000; // 2 minutes
+  const wasRecentlyConfirmed = (key: string) => {
+    const ts = recentConfirmsRef.current.get(key);
+    if (!ts) return false;
+    if (Date.now() - ts > RECENT_CONFIRM_MS) {
+      recentConfirmsRef.current.delete(key);
+      return false;
+    }
+    return true;
+  };
+  const markConfirmed = (key: string) => {
+    recentConfirmsRef.current.set(key, Date.now());
+  };
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyRows, setHistoryRows] = useState<any[]>([]);
@@ -358,6 +375,7 @@ export function NewPartnersPanel() {
       toast({ title: 'Partner role revoked', description: `${selected.full_name} is no longer a Partner.` });
       setSelectedIsPartner(false);
       setRevokeOpen(false);
+      markConfirmed(`revoke:${selected.id}`);
       qc.invalidateQueries({ queryKey: ['new-partners-panel'] });
       if (historyOpen) loadHistory();
     } catch (e: any) {
@@ -460,10 +478,15 @@ export function NewPartnersPanel() {
                     className="h-7 text-[10px] gap-1 shrink-0"
                     disabled={activatingUserId === p.user_id}
                     aria-busy={activatingUserId === p.user_id}
-                    onClick={() => setActivateConfirm({
-                      user: { id: p.user_id, full_name: p.full_name, phone: p.phone },
-                      isFirst: p.portfolio_count === 0,
-                    })}
+                    onClick={() => {
+                      const u = { id: p.user_id, full_name: p.full_name, phone: p.phone };
+                      if (wasRecentlyConfirmed(`activate:${u.id}`)) {
+                        setActivatingUserId(u.id);
+                        openCreateFor(u);
+                        return;
+                      }
+                      setActivateConfirm({ user: u, isFirst: p.portfolio_count === 0 });
+                    }}
                   >
                     {activatingUserId === p.user_id ? (
                       <Loader2 className="h-3 w-3 animate-spin" />
@@ -519,7 +542,13 @@ export function NewPartnersPanel() {
                       size="sm"
                       variant="outline"
                       className="h-8 text-xs gap-1.5 text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
-                      onClick={() => setRevokeOpen(true)}
+                      onClick={() => {
+                        if (selected && wasRecentlyConfirmed(`revoke:${selected.id}`)) {
+                          revokePartner();
+                          return;
+                        }
+                        setRevokeOpen(true);
+                      }}
                     >
                       <ShieldOff className="h-3 w-3" /> Revoke Partner
                     </Button>
@@ -712,6 +741,7 @@ export function NewPartnersPanel() {
                 e.preventDefault();
                 if (activateConfirm) {
                   const u = activateConfirm.user;
+                  markConfirmed(`activate:${u.id}`);
                   setActivateConfirm(null);
                   setActivatingUserId(u.id);
                   openCreateFor(u);
