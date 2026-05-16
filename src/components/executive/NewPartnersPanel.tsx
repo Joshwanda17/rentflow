@@ -165,6 +165,9 @@ export function NewPartnersPanel() {
   // so the user can't accidentally trigger an unsaved-change prompt or navigate
   // away while the network request is in flight.
   const savingRowsRef = useRef<Record<string, boolean>>({});
+  // Reactive count of rows currently mid-save — drives the global blocking
+  // overlay. We keep the ref above for synchronous reads inside requestExpand.
+  const [savingCount, setSavingCount] = useState(0);
 
   // In-app modal state for the discard-changes confirmation (replaces window.confirm).
   const [discardPrompt, setDiscardPrompt] = useState<{
@@ -381,7 +384,25 @@ export function NewPartnersPanel() {
 
   return (
     <>
-      <Card className="border-primary/30 bg-gradient-to-br from-primary/5 via-background to-background">
+      <Card className="relative border-primary/30 bg-gradient-to-br from-primary/5 via-background to-background">
+        {savingCount > 0 && (
+          <div
+            className="absolute inset-0 z-30 flex items-center justify-center rounded-lg bg-background/70 backdrop-blur-sm cursor-wait"
+            aria-busy="true"
+            aria-live="polite"
+            // Swallow clicks so no other edits can be triggered mid-save.
+            onClickCapture={(e) => { e.stopPropagation(); e.preventDefault(); }}
+            onKeyDownCapture={(e) => { e.stopPropagation(); e.preventDefault(); }}
+          >
+            <div className="flex flex-col items-center gap-2 px-4 py-3 rounded-lg border border-primary/40 bg-background shadow-lg">
+              <Loader2 className="h-5 w-5 text-primary animate-spin" />
+              <p className="text-xs font-semibold">Saving portfolio…</p>
+              <p className="text-[10px] text-muted-foreground">
+                {savingCount} row{savingCount === 1 ? '' : 's'} in flight — other edits are blocked
+              </p>
+            </div>
+          </div>
+        )}
         <CardContent className="p-4 space-y-4">
           {/* Header */}
           <div className="flex items-center gap-2">
@@ -573,8 +594,12 @@ export function NewPartnersPanel() {
                           else delete dirtyRowsRef.current[p.id];
                         }}
                         onSavingChange={(isSaving) => {
+                          const was = !!savingRowsRef.current[p.id];
                           if (isSaving) savingRowsRef.current[p.id] = true;
                           else delete savingRowsRef.current[p.id];
+                          if (was !== isSaving) {
+                            setSavingCount(Object.keys(savingRowsRef.current).length);
+                          }
                         }}
                         onSaved={(updated) => {
                           setSelectedPortfolios(list => list.map(x => x.id === updated.id ? { ...x, ...updated } : x));
