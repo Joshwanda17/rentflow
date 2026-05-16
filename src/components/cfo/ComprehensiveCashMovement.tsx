@@ -26,6 +26,17 @@ import { Lock } from 'lucide-react';
 // Roles allowed to drill into individual ledger entries and export raw movement data
 const LEDGER_DETAIL_ROLES = new Set(['cfo', 'ceo', 'coo', 'super_admin', 'cto', 'manager']);
 
+// Shared props that make a sticky column header keyboard-focusable.
+// Tab/Shift+Tab cycles between headers; focusing one scrolls it into the
+// visible column viewport without jumping the page vertically.
+const FOCUSABLE_COL_HEAD_CLASS = 'outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background focus-visible:rounded-sm';
+const focusableColHeadProps = {
+  tabIndex: 0,
+  onFocus: (e: React.FocusEvent<HTMLTableCellElement>) => {
+    try { e.currentTarget.scrollIntoView({ inline: 'nearest', block: 'nearest' }); } catch { /* noop */ }
+  },
+};
+
 // ─────────────────────────────────────────────────────────────
 // HScrollHint — wraps a horizontally scrollable region with subtle
 // gradient edges and mobile tap-to-scroll chevron buttons that fade
@@ -3013,12 +3024,12 @@ export function ComprehensiveCashMovement() {
             <Table className="min-w-[640px]">
               <TableHeader className="sticky top-0 z-10 bg-background shadow-[0_1px_0_0_hsl(var(--border))]">
                 <TableRow>
-                  <TableHead className="w-[40%] min-w-[180px]">What kind of money</TableHead>
-                  <TableHead className="min-w-[110px]">Where</TableHead>
-                  <TableHead className="text-right min-w-[90px]">In</TableHead>
-                  <TableHead className="text-right min-w-[90px]">Out</TableHead>
-                  <TableHead className="text-right min-w-[100px]">Difference</TableHead>
-                  <TableHead className="text-right min-w-[60px]">Count</TableHead>
+                  <TableHead {...focusableColHeadProps} className={cn('w-[40%] min-w-[180px]', FOCUSABLE_COL_HEAD_CLASS)}>What kind of money</TableHead>
+                  <TableHead {...focusableColHeadProps} className={cn('min-w-[110px]', FOCUSABLE_COL_HEAD_CLASS)}>Where</TableHead>
+                  <TableHead {...focusableColHeadProps} className={cn('text-right min-w-[90px]', FOCUSABLE_COL_HEAD_CLASS)}>In</TableHead>
+                  <TableHead {...focusableColHeadProps} className={cn('text-right min-w-[90px]', FOCUSABLE_COL_HEAD_CLASS)}>Out</TableHead>
+                  <TableHead {...focusableColHeadProps} className={cn('text-right min-w-[100px]', FOCUSABLE_COL_HEAD_CLASS)}>Difference</TableHead>
+                  <TableHead {...focusableColHeadProps} className={cn('text-right min-w-[60px]', FOCUSABLE_COL_HEAD_CLASS)}>Count</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -3066,9 +3077,9 @@ export function ComprehensiveCashMovement() {
               <Table>
                 <TableHeader className="sticky top-0 bg-background z-10">
                   <TableRow>
-                    <TableHead className="min-w-[160px] sticky left-0 bg-background z-20">Type · Where</TableHead>
+                    <TableHead {...focusableColHeadProps} className={cn('min-w-[160px] sticky left-0 bg-background z-20', FOCUSABLE_COL_HEAD_CLASS)}>Type · Where</TableHead>
                     {bucketLabels.map(b => (
-                      <TableHead key={b} className="text-right whitespace-nowrap text-[10px]">{b}</TableHead>
+                      <TableHead key={b} {...focusableColHeadProps} className={cn('text-right whitespace-nowrap text-[10px]', FOCUSABLE_COL_HEAD_CLASS)}>{b}</TableHead>
                     ))}
                   </TableRow>
                 </TableHeader>
@@ -3371,10 +3382,10 @@ export function ComprehensiveCashMovement() {
                       <Table className="min-w-[720px]">
                       <TableHeader className="sticky top-0 z-10 bg-background shadow-[0_1px_0_0_hsl(var(--border))]">
                         <TableRow>
-                          <TableHead className="text-xs min-w-[120px]">Date</TableHead>
-                          <TableHead className="text-xs min-w-[200px]">Reference</TableHead>
-                          <TableHead className="text-xs min-w-[180px]">Who</TableHead>
-                          <TableHead className="text-xs text-right min-w-[120px]">Amount</TableHead>
+                          <TableHead {...focusableColHeadProps} className={cn('text-xs min-w-[120px]', FOCUSABLE_COL_HEAD_CLASS)}>Date</TableHead>
+                          <TableHead {...focusableColHeadProps} className={cn('text-xs min-w-[200px]', FOCUSABLE_COL_HEAD_CLASS)}>Reference</TableHead>
+                          <TableHead {...focusableColHeadProps} className={cn('text-xs min-w-[180px]', FOCUSABLE_COL_HEAD_CLASS)}>Who</TableHead>
+                          <TableHead {...focusableColHeadProps} className={cn('text-xs text-right min-w-[120px]', FOCUSABLE_COL_HEAD_CLASS)}>Amount</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
