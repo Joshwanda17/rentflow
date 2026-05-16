@@ -706,11 +706,16 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
   return (
     <div className="rounded-lg border border-border/60 bg-muted/30 overflow-hidden">
       <button
-        onClick={onToggle}
+        onClick={requestToggle}
         className="w-full flex items-center justify-between gap-2 px-2.5 py-2 text-left hover:bg-muted transition-colors"
       >
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold truncate">{p.account_name || p.portfolio_code}</p>
+          <p className="text-xs font-semibold truncate flex items-center gap-1">
+            {p.account_name || p.portfolio_code}
+            {dirty && (
+              <span className="text-[9px] font-medium text-warning bg-warning/15 px-1 rounded">unsaved</span>
+            )}
+          </p>
           <p className="text-[10px] text-muted-foreground">
             {p.display_currency || 'UGX'} {Number(p.investment_amount || 0).toLocaleString()} · {p.roi_percentage}% · {p.status}
           </p>
@@ -790,7 +795,7 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
               {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
               Save changes
             </Button>
-            <Button size="sm" variant="ghost" className="h-8 text-xs gap-1.5" onClick={onToggle} disabled={saving}>
+            <Button size="sm" variant="ghost" className="h-8 text-xs gap-1.5" onClick={requestToggle} disabled={saving}>
               <X className="h-3 w-3" /> Cancel
             </Button>
           </div>
