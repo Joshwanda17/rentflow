@@ -1189,18 +1189,18 @@ export function ComprehensiveCashMovement() {
             <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" /> Loading ledger…
           </div>
         ) : aggregates.length === 0 ? (
-          <div className="py-12 text-center text-muted-foreground text-sm">No ledger movement in this period.</div>
+          <div className="py-12 text-center text-muted-foreground text-sm">No money moved in this period.</div>
         ) : (
-          <div className="border border-border rounded-lg overflow-hidden">
+          <div className="border border-border rounded-lg overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[34%]">Category</TableHead>
-                  <TableHead>Scope</TableHead>
-                  <TableHead className="text-right">Cash In</TableHead>
-                  <TableHead className="text-right">Cash Out</TableHead>
-                  <TableHead className="text-right">Net</TableHead>
-                  <TableHead className="text-right">Entries</TableHead>
+                  <TableHead className="w-[40%]">What kind of money</TableHead>
+                  <TableHead>Where</TableHead>
+                  <TableHead className="text-right">In</TableHead>
+                  <TableHead className="text-right">Out</TableHead>
+                  <TableHead className="text-right">Difference</TableHead>
+                  <TableHead className="text-right hidden sm:table-cell">Count</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1230,7 +1230,7 @@ export function ComprehensiveCashMovement() {
                     <TableCell className={cn('text-right font-mono text-sm font-semibold', a.net >= 0 ? 'text-success' : 'text-destructive')}>
                       {a.net >= 0 ? '+' : ''}{formatUGX(a.net)}
                     </TableCell>
-                    <TableCell className="text-right text-xs text-muted-foreground">{a.count}</TableCell>
+                    <TableCell className="text-right text-xs text-muted-foreground hidden sm:table-cell">{a.count}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -1241,13 +1241,13 @@ export function ComprehensiveCashMovement() {
         {/* Time-series matrix */}
         {aggregates.length > 0 && bucketLabels.length > 0 && (
           <div className="space-y-2">
-            <h4 className="text-xs font-semibold text-primary uppercase tracking-wider">{granularity === 'daily' ? 'Daily' : granularity === 'weekly' ? 'Weekly' : 'Monthly'} Net Movement by Category</h4>
-            <p className="text-[11px] text-muted-foreground">Net = Cash In − Cash Out for each bucket</p>
+            <h4 className="text-xs font-semibold text-primary uppercase tracking-wider">{granularity === 'daily' ? 'Daily' : granularity === 'weekly' ? 'Weekly' : 'Monthly'} difference by type</h4>
+            <p className="text-[11px] text-muted-foreground">Money In minus Money Out for each {granularity === 'daily' ? 'day' : granularity === 'weekly' ? 'week' : 'month'}. Swipe sideways to see more.</p>
             <div className="border border-border rounded-lg overflow-auto max-h-[480px]">
               <Table>
                 <TableHeader className="sticky top-0 bg-background z-10">
                   <TableRow>
-                    <TableHead className="min-w-[200px] sticky left-0 bg-background z-20">Category · Scope</TableHead>
+                    <TableHead className="min-w-[160px] sticky left-0 bg-background z-20">Type · Where</TableHead>
                     {bucketLabels.map(b => (
                       <TableHead key={b} className="text-right whitespace-nowrap text-[10px]">{b}</TableHead>
                     ))}
