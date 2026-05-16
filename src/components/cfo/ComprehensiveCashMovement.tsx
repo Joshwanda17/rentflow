@@ -1484,7 +1484,7 @@ export function ComprehensiveCashMovement() {
             full-width bottom sheet on phones so options are easy to scan
             and tap with a thumb. Existing chip rows below remain for
             power users and are unchanged. */}
-        <div className="grid grid-cols-3 gap-2.5 sm:gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-2">
           {[
             {
               key: 'date' as const,
@@ -1516,7 +1516,8 @@ export function ComprehensiveCashMovement() {
               type="button"
               onClick={btn.onClick}
               className={cn(
-                'min-h-[68px] rounded-xl border-2 px-3 py-2.5 text-left flex flex-col gap-1 transition-colors',
+                'w-full min-h-[60px] sm:min-h-[68px] rounded-xl border-2 px-4 py-3 sm:py-2.5 text-left',
+                'flex flex-row sm:flex-col items-center sm:items-start justify-between sm:justify-start gap-3 sm:gap-1 transition-colors',
                 'active:scale-[0.98] touch-manipulation',
                 btn.active
                   ? 'border-primary bg-primary/10 hover:bg-primary/15'
@@ -1527,13 +1528,13 @@ export function ComprehensiveCashMovement() {
               aria-pressed={btn.active}
             >
               <span className={cn(
-                'flex items-center gap-1.5 text-[10px] uppercase tracking-wide font-semibold',
+                'flex items-center gap-2 text-[11px] sm:text-[10px] uppercase tracking-wide font-semibold shrink-0',
                 btn.active ? 'text-primary' : 'text-muted-foreground',
               )}>
                 {btn.icon}
                 {btn.label}
               </span>
-              <span className="text-[13px] sm:text-sm font-semibold leading-snug truncate">
+              <span className="text-sm font-semibold leading-snug truncate text-right sm:text-left">
                 {btn.value}
               </span>
             </button>
