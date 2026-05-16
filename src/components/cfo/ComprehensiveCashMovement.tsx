@@ -3295,11 +3295,9 @@ export function ComprehensiveCashMovement() {
                     </div>
                     {/* Mobile hint: full-detail table is also available below via horizontal scroll */}
                     <div className="hidden">{/* legacy spacer removed */}</div>
-                    <div
+                    <HScrollHint
                       className="overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] hidden sm:block"
-                      role="region"
-                      aria-label="Transactions table — scroll sideways to see all columns"
-                      tabIndex={0}
+                      ariaLabel="Transactions table — scroll sideways to see all columns"
                     >
                       <Table className="min-w-[720px]">
                       <TableHeader className="sticky top-0 z-10 bg-background shadow-[0_1px_0_0_hsl(var(--border))]">
