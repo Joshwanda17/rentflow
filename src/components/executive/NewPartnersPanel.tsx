@@ -288,7 +288,8 @@ export function NewPartnersPanel() {
 
   // Filters for the all-partners list
   const [partnerSearch, setPartnerSearch] = useState('');
-  const [partnerFilter, setPartnerFilter] = useState<'all' | 'with' | 'without' | 'today' | 'week' | 'month' | 'recent'>('all');
+  const [partnerFilter, setPartnerFilter] = useState<'all' | 'with' | 'without' | 'today' | 'week' | 'month' | 'recent' | 'custom'>('all');
+  const [customRange, setCustomRange] = useState<DateRange | undefined>();
   // Incremental render window for the partners grid — keeps DOM small
   // even when up to 500 partners are loaded.
   const PARTNER_PAGE_SIZE = 30;
@@ -298,7 +299,7 @@ export function NewPartnersPanel() {
   // never miss matches hidden below the previous slice.
   useEffect(() => {
     setVisiblePartnerCount(PARTNER_PAGE_SIZE);
-  }, [partnerSearch, partnerFilter]);
+  }, [partnerSearch, partnerFilter, customRange]);
   // Auto-load the next page when the sentinel scrolls into view.
   useEffect(() => {
     const node = loadMoreSentinelRef.current;
