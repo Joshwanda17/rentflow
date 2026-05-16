@@ -31,10 +31,11 @@ const LEDGER_DETAIL_ROLES = new Set(['cfo', 'ceo', 'coo', 'super_admin', 'cto', 
 // ─────────────────────────────────────────────────────────────
 
 type PeriodKey =
-  | 'today' | '7d' | '14d' | '30d' | '90d' | '120d' | '180d'
+  | '24h' | 'today' | '7d' | '14d' | '30d' | '90d' | '120d' | '180d'
   | '1y' | 'ytd' | 'all';
 
 const PERIODS: { value: PeriodKey; label: string }[] = [
+  { value: '24h',    label: 'Last 24h' },
   { value: 'today',  label: 'Today' },
   { value: '7d',     label: '7 Days' },
   { value: '14d',    label: '14 Days' },
@@ -57,6 +58,7 @@ const GRANULARITIES: { value: Granularity; label: string }[] = [
 function periodRange(p: PeriodKey): { from: Date | null; to: Date } {
   const now = new Date();
   switch (p) {
+    case '24h':   return { from: subDays(now, 1), to: now };
     case 'today': return { from: startOfDay(now), to: now };
     case '7d':    return { from: subDays(now, 7), to: now };
     case '14d':   return { from: subDays(now, 14), to: now };
