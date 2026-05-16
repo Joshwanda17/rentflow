@@ -163,7 +163,7 @@ export function ComprehensiveCashMovement() {
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<LedgerRow[]>([]);
   const [generatedAt, setGeneratedAt] = useState<Date | null>(null);
-  const [drill, setDrill] = useState<null | { category: string; scope: string; bucket: string | null }>(null);
+  const [drill, setDrill] = useState<null | { category: string; scope: string; bucket: string | null; direction?: 'cash_in' | 'cash_out' }>(null);
   const [partyNames, setPartyNames] = useState<Record<string, string>>({});
   const [drillQuery, setDrillQuery] = useState('');
   const [debouncedDrillQuery, setDebouncedDrillQuery] = useState('');
@@ -241,6 +241,7 @@ export function ComprehensiveCashMovement() {
     return rows.filter(r => {
       if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) return false;
       if (r.category !== drill.category || r.ledger_scope !== drill.scope) return false;
+      if (drill.direction && r.direction !== drill.direction) return false;
       if (drill.bucket) {
         const bk = bucketKey(new Date(r.transaction_date), granularity);
         if (bk !== drill.bucket) return false;
