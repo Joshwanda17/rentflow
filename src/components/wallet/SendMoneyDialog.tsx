@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Dialog,
@@ -62,6 +62,9 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
   const [success, setSuccess] = useState(false);
   const [isFirstTx, setIsFirstTx] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [lookupNonce, setLookupNonce] = useState(0);
+  const phoneInputRef = useRef<HTMLInputElement>(null);
+  const emailInputRef = useRef<HTMLInputElement>(null);
   type RecipientMatch = {
     id: string;
     name: string;
@@ -210,7 +213,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [mode, phone, email, user?.id]);
+  }, [mode, phone, email, user?.id, lookupNonce]);
 
   const categories = [
     { icon: UtensilsCrossed, label: 'Food', keywords: ['food', 'eat', 'lunch', 'dinner', 'breakfast', 'meal', 'chakula'] },
@@ -573,6 +576,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                   {mode === 'phone' ? (
                     <PhoneInput
                       id="phone"
+                      ref={phoneInputRef}
                       placeholder="e.g. 0783673998"
                       value={phone}
                       onChange={(v) => setPhone(v)}
@@ -582,6 +586,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                   ) : (
                     <Input
                       id="email"
+                      ref={emailInputRef}
                       type="email"
                       placeholder="recipient@example.com"
                       value={email}
@@ -825,6 +830,37 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                       </motion.p>
                     )}
                   </AnimatePresence>
+                  {disabledReason && !loading && (
+                    <div className="mt-1 flex justify-end gap-3 text-xs">
+                      {(recipient.status === 'not_found' ||
+                        recipient.status === 'invalid' ||
+                        (recipient.status === 'found' && recipient.isSelf)) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            // Re-trigger the debounced lookup effect.
+                            setRecipient({ status: 'searching' });
+                            setLookupNonce((n) => n + 1);
+                          }}
+                          className="text-primary hover:underline"
+                        >
+                          Retry lookup
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const el = mode === 'phone' ? phoneInputRef.current : emailInputRef.current;
+                          if (!el) return;
+                          el.focus();
+                          try { el.select(); } catch { /* number inputs ignore select */ }
+                        }}
+                        className="text-primary hover:underline"
+                      >
+                        Edit recipient
+                      </button>
+                    </div>
+                  )}
                 </motion.div>
               </motion.form>
             </motion.div>
