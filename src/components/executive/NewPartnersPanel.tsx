@@ -795,6 +795,46 @@ export function NewPartnersPanel() {
     if (next) loadHistory();
   }
 
+  // Swipe-to-switch handlers for mobile segmented filter rows. Touch only —
+  // ignored when the row was horizontally scrolled (so scroll still works
+  // when segments overflow). Threshold: 50px, horizontal-dominant gesture.
+  function makeSegmentSwipeHandlers<K extends PartnerFilter>(
+    keys: readonly K[],
+    activeKey: PartnerFilter,
+  ) {
+    let startX = 0;
+    let startY = 0;
+    let startScroll = 0;
+    return {
+      onTouchStart: (e: React.TouchEvent<HTMLDivElement>) => {
+        const t = e.touches[0];
+        startX = t.clientX;
+        startY = t.clientY;
+        startScroll = e.currentTarget.scrollLeft;
+      },
+      onTouchEnd: (e: React.TouchEvent<HTMLDivElement>) => {
+        const t = e.changedTouches[0];
+        const dx = t.clientX - startX;
+        const dy = t.clientY - startY;
+        // Ignore if user actually scrolled the row horizontally.
+        if (Math.abs(e.currentTarget.scrollLeft - startScroll) > 4) return;
+        if (Math.abs(dx) < 50) return;
+        if (Math.abs(dx) < Math.abs(dy) * 1.5) return;
+        const idx = keys.indexOf(activeKey as K);
+        // If current filter isn't in this row, swipe lands on first/last.
+        let nextIdx: number;
+        if (idx === -1) {
+          nextIdx = dx < 0 ? 0 : keys.length - 1;
+        } else {
+          nextIdx = dx < 0
+            ? Math.min(keys.length - 1, idx + 1)  // swipe left → next
+            : Math.max(0, idx - 1);               // swipe right → prev
+        }
+        if (nextIdx !== idx) setPartnerFilter(keys[nextIdx]);
+      },
+    };
+  }
+
   return (
     <>
       <Card className="relative border-primary/30 bg-gradient-to-br from-primary/5 via-background to-background">
