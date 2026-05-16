@@ -604,6 +604,124 @@ export function ComprehensiveCashMovement() {
     directionQuickFilter === 'net_negative' ? 'Net negative' :
     'In + Out';
 
+  // ── Plain-language anomaly alerts ──────────────────────────────
+  // Scans the loaded rows day-by-day within the selected period and
+  // flags two kinds of unusual behavior in everyday language:
+  //   1. SPIKES — a single day where Money In or Money Out is far
+  //      above the period's typical daily level (>2σ above mean and
+  //      >1.5× the mean, with a UGX 50K noise floor).
+  //   2. GAPS — a day with NO money movement sandwiched between
+  //      active days inside the selected window.
+  // Honors `includeAdjustments`, `scopeFilter`, and `partyQuickFilter`
+  // so it stays consistent with the numbers shown above. Purely
+  // read-only — never mutates state, never writes to the ledger.
+  const anomalyAlerts = useMemo(() => {
+    const rng = periodRange(period);
+    if (!rng.from) return [] as Array<{ kind: 'spike' | 'gap'; date: string; label: string; detail: string }>;
+    const fromIso = rng.from.toISOString().slice(0, 10);
+    const toIso = rng.to.toISOString().slice(0, 10);
+    // Group by day
+    const byDay = new Map<string, { in: number; out: number; count: number }>();
+    for (const r of rows) {
+      if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
+      if (scopeFilter !== 'all' && r.ledger_scope !== scopeFilter) continue;
+      if (partyQuickFilter && r.user_id !== partyQuickFilter) continue;
+      const d = r.transaction_date.slice(0, 10);
+      if (d < fromIso || d > toIso) continue;
+      const amt = Number(r.amount) || 0;
+      const cur = byDay.get(d) || { in: 0, out: 0, count: 0 };
+      if (r.direction === 'cash_in') cur.in += amt; else cur.out += amt;
+      cur.count += 1;
+      byDay.set(d, cur);
+    }
+    // Build a full day series from fromIso → toIso
+    const days: string[] = [];
+    {
+      const cur = new Date(fromIso + 'T00:00:00Z');
+      const end = new Date(toIso + 'T00:00:00Z');
+      while (cur.getTime() <= end.getTime()) {
+        days.push(cur.toISOString().slice(0, 10));
+        cur.setUTCDate(cur.getUTCDate() + 1);
+      }
+    }
+    if (days.length < 3) return []; // not enough span to call anomalies
+
+    const out: Array<{ kind: 'spike' | 'gap'; date: string; label: string; detail: string }> = [];
+    const NOISE_FLOOR = 50_000;
+
+    const stats = (vals: number[]) => {
+      const n = vals.length || 1;
+      const mean = vals.reduce((a, b) => a + b, 0) / n;
+      const variance = vals.reduce((a, b) => a + (b - mean) ** 2, 0) / n;
+      return { mean, std: Math.sqrt(variance) };
+    };
+
+    for (const metric of ['in', 'out'] as const) {
+      const vals = days.map(d => (byDay.get(d)?.[metric] ?? 0));
+      const { mean, std } = stats(vals);
+      if (mean < NOISE_FLOOR) continue; // tiny period, skip
+      const threshold = Math.max(mean + 2 * std, mean * 1.5, NOISE_FLOOR);
+      days.forEach((d, i) => {
+        const v = vals[i];
+        if (v > threshold && v > 0) {
+          const factor = mean > 0 ? (v / mean).toFixed(1) : '∞';
+          out.push({
+            kind: 'spike',
+            date: d,
+            label: metric === 'in'
+              ? `Unusual Money In spike on ${format(new Date(d + 'T00:00:00'), 'EEE dd MMM')}`
+              : `Unusual Money Out spike on ${format(new Date(d + 'T00:00:00'), 'EEE dd MMM')}`,
+            detail: `${formatUGX(v)} — about ${factor}× the period's daily average of ${formatUGX(Math.round(mean))}.`,
+          });
+        }
+      });
+    }
+
+    // Gaps: zero-activity day sandwiched between active days
+    const activeDays = days.filter(d => {
+      const e = byDay.get(d);
+      return e && (e.in > 0 || e.out > 0);
+    });
+    if (activeDays.length >= 3) {
+      const firstActiveIdx = days.indexOf(activeDays[0]);
+      const lastActiveIdx = days.indexOf(activeDays[activeDays.length - 1]);
+      // Find consecutive runs of inactive days strictly inside the active span
+      let i = firstActiveIdx + 1;
+      while (i < lastActiveIdx) {
+        const e = byDay.get(days[i]);
+        if (!e || (e.in === 0 && e.out === 0)) {
+          let j = i;
+          while (j < lastActiveIdx) {
+            const ej = byDay.get(days[j]);
+            if (ej && (ej.in > 0 || ej.out > 0)) break;
+            j += 1;
+          }
+          const runLen = j - i;
+          if (runLen >= 1) {
+            out.push({
+              kind: 'gap',
+              date: days[i],
+              label: runLen === 1
+                ? `Quiet day on ${format(new Date(days[i] + 'T00:00:00'), 'EEE dd MMM')}`
+                : `Quiet stretch · ${runLen} days from ${format(new Date(days[i] + 'T00:00:00'), 'dd MMM')}`,
+              detail: runLen === 1
+                ? 'No money moved in or out on this day, but the days around it were active.'
+                : `No money moved on ${runLen} days in a row, between otherwise active days.`,
+            });
+          }
+          i = j;
+        } else {
+          i += 1;
+        }
+      }
+    }
+
+    // Sort by date desc (newest first), cap to 5 to avoid overwhelm
+    return out
+      .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+      .slice(0, 5);
+  }, [rows, period, includeAdjustments, scopeFilter, partyQuickFilter]);
+
   // ── Capital Inflows: platform-scope cash_in totals per category (from raw rows,
   // independent of scopeFilter so the callout always reflects true inbound capital.
   // Per-bucket totals follow the current `granularity` so the callout stays in sync
