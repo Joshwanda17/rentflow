@@ -312,6 +312,15 @@ export function NewPartnersPanel() {
     const to = parseDateParam(searchParams.get('jp_to'));
     return from || to ? { from, to } : undefined;
   });
+  // Sort order for the partners grid.
+  const ALLOWED_SORTS = ['recent', 'portfolio_desc', 'portfolio_asc', 'name'] as const;
+  type PartnerSort = typeof ALLOWED_SORTS[number];
+  const [partnerSort, setPartnerSort] = useState<PartnerSort>(() => {
+    const raw = searchParams.get('jp_s');
+    return (ALLOWED_SORTS as readonly string[]).includes(raw ?? '')
+      ? (raw as PartnerSort)
+      : 'recent';
+  });
   // Push state back into the URL whenever the user changes a filter.
   // `replace: true` avoids polluting the browser back-stack.
   useEffect(() => {
@@ -330,11 +339,12 @@ export function NewPartnersPanel() {
       } else {
         next.delete('jp_to');
       }
+      if (partnerSort !== 'recent') next.set('jp_s', partnerSort); else next.delete('jp_s');
       return next;
     }, { replace: true });
     // setSearchParams identity changes on every render; intentionally omitted.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [partnerSearch, partnerFilter, customRange]);
+  }, [partnerSearch, partnerFilter, customRange, partnerSort]);
   // Incremental render window for the partners grid — keeps DOM small
   // even when up to 500 partners are loaded.
   const PARTNER_PAGE_SIZE = 30;
@@ -406,7 +416,7 @@ export function NewPartnersPanel() {
     const dow = startOfWeek.getDay();
     startOfWeek.setDate(startOfWeek.getDate() - ((dow + 6) % 7));
     const startOfMonth = new Date(startOfToday.getFullYear(), startOfToday.getMonth(), 1);
-    return joined.filter(p => {
+    const filtered = joined.filter(p => {
       if (partnerFilter === 'with' && p.portfolio_count === 0) return false;
       if (partnerFilter === 'without' && p.portfolio_count > 0) return false;
       if (partnerFilter === 'recent' && new Date(p.created_at).getTime() < cutoff) return false;
@@ -430,7 +440,26 @@ export function NewPartnersPanel() {
       }
       return true;
     });
-  }, [joined, partnerSearch, partnerFilter, customRange]);
+    // Apply sort as a final stable pass.
+    const sorted = [...filtered];
+    if (partnerSort === 'portfolio_desc') {
+      sorted.sort((a, b) =>
+        b.portfolio_count - a.portfolio_count
+        || new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+    } else if (partnerSort === 'portfolio_asc') {
+      sorted.sort((a, b) =>
+        a.portfolio_count - b.portfolio_count
+        || new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+    } else if (partnerSort === 'name') {
+      sorted.sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''));
+    } else {
+      // 'recent' — newest first
+      sorted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    }
+    return sorted;
+  }, [joined, partnerSearch, partnerFilter, customRange, partnerSort]);
 
   // ── Realtime: any new supporter role grant pops in instantly ──
   useEffect(() => {
@@ -658,7 +687,19 @@ export function NewPartnersPanel() {
               </button>
             ))}
           </div>
-          {(partnerFilter !== 'all' || partnerSearch.trim() !== '' || customRange?.from || customRange?.to) && (
+          {/* Sort dropdown — applies to the visible grid */}
+          <Select value={partnerSort} onValueChange={(v) => setPartnerSort(v as PartnerSort)}>
+            <SelectTrigger className="h-8 w-[170px] text-[11px] self-start" aria-label="Sort partners">
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="recent">Newest first</SelectItem>
+              <SelectItem value="portfolio_desc">With portfolios first</SelectItem>
+              <SelectItem value="portfolio_asc">No portfolio first</SelectItem>
+              <SelectItem value="name">Name (A–Z)</SelectItem>
+            </SelectContent>
+          </Select>
+          {(partnerFilter !== 'all' || partnerSearch.trim() !== '' || customRange?.from || customRange?.to || partnerSort !== 'recent') && (
             <Button
               variant="ghost"
               size="sm"
@@ -666,6 +707,7 @@ export function NewPartnersPanel() {
                 setPartnerFilter('all');
                 setPartnerSearch('');
                 setCustomRange(undefined);
+                setPartnerSort('recent');
               }}
               className="self-start h-8 px-2 text-[11px] text-muted-foreground hover:text-foreground"
             >
