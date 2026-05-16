@@ -319,25 +319,38 @@ export function ComprehensiveCashMovement() {
   }, [rows, granularity, includeAdjustments, scopeFilter]);
 
   // ── Capital Inflows: platform-scope cash_in totals per category (from raw rows,
-  // independent of scopeFilter so the callout always reflects true inbound capital).
+  // independent of scopeFilter so the callout always reflects true inbound capital.
+  // Per-bucket totals follow the current `granularity` so the callout stays in sync
+  // with the time-series matrix shown in the table below.
   const capitalInflow = useMemo(() => {
-    const perCat = new Map<string, { total: number; count: number }>();
+    const perCat = new Map<string, { total: number; count: number; buckets: Record<string, number> }>();
+    const bucketSet = new Set<string>();
     for (const r of rows) {
       if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
       if (r.ledger_scope !== 'platform' || r.direction !== 'cash_in') continue;
-      const cur = perCat.get(r.category) || { total: 0, count: 0 };
-      cur.total += Number(r.amount) || 0;
+      const amt = Number(r.amount) || 0;
+      const bk = bucketKey(new Date(r.transaction_date), granularity);
+      bucketSet.add(bk);
+      const cur = perCat.get(r.category) || { total: 0, count: 0, buckets: {} };
+      cur.total += amt;
       cur.count += 1;
+      cur.buckets[bk] = (cur.buckets[bk] || 0) + amt;
       perCat.set(r.category, cur);
     }
     const availableCategories = Array.from(perCat.entries())
-      .map(([category, v]) => ({ category, total: v.total, count: v.count }))
+      .map(([category, v]) => ({ category, total: v.total, count: v.count, buckets: v.buckets }))
       .sort((a, b) => b.total - a.total);
     const selected = availableCategories.filter(c => capitalCategories.has(c.category));
     const total = selected.reduce((s, c) => s + c.total, 0);
     const entries = selected.reduce((s, c) => s + c.count, 0);
-    return { availableCategories, selected, total, entries };
-  }, [rows, includeAdjustments, capitalCategories]);
+    const bucketLabels = Array.from(bucketSet).sort();
+    const bucketTotals: Record<string, number> = {};
+    for (const b of bucketLabels) {
+      bucketTotals[b] = selected.reduce((s, c) => s + (c.buckets[b] || 0), 0);
+    }
+    const peakBucket = bucketLabels.reduce((max, b) => bucketTotals[b] > (bucketTotals[max] || 0) ? b : max, bucketLabels[0] || '');
+    return { availableCategories, selected, total, entries, bucketLabels, bucketTotals, peakBucket };
+  }, [rows, includeAdjustments, capitalCategories, granularity]);
 
   const handleExport = () => {
     if (!canViewLedgerDetail) { toast.error('You do not have permission to export ledger data'); return; }
