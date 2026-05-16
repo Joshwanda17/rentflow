@@ -2791,16 +2791,22 @@ export function ComprehensiveCashMovement() {
         ) : filteredAggregates.length === 0 ? (
           <div className="py-12 text-center text-muted-foreground text-sm">No money moved in this period.</div>
         ) : (
-          <div id="cm-categories" className="scroll-mt-24 border border-border rounded-lg overflow-x-auto">
-            <Table>
+          <div
+            id="cm-categories"
+            className="scroll-mt-24 border border-border rounded-lg overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] relative"
+            role="region"
+            aria-label="Categories breakdown — scroll sideways on small screens to see all columns"
+            tabIndex={0}
+          >
+            <Table className="min-w-[640px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[40%]">What kind of money</TableHead>
-                  <TableHead>Where</TableHead>
-                  <TableHead className="text-right">In</TableHead>
-                  <TableHead className="text-right">Out</TableHead>
-                  <TableHead className="text-right">Difference</TableHead>
-                  <TableHead className="text-right hidden sm:table-cell">Count</TableHead>
+                  <TableHead className="w-[40%] min-w-[180px]">What kind of money</TableHead>
+                  <TableHead className="min-w-[110px]">Where</TableHead>
+                  <TableHead className="text-right min-w-[90px]">In</TableHead>
+                  <TableHead className="text-right min-w-[90px]">Out</TableHead>
+                  <TableHead className="text-right min-w-[100px]">Difference</TableHead>
+                  <TableHead className="text-right min-w-[60px]">Count</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -2830,7 +2836,7 @@ export function ComprehensiveCashMovement() {
                     <TableCell className={cn('text-right font-mono text-sm font-semibold', a.net >= 0 ? 'text-success' : 'text-destructive')}>
                       {a.net >= 0 ? '+' : ''}{formatUGX(a.net)}
                     </TableCell>
-                    <TableCell className="text-right text-xs text-muted-foreground hidden sm:table-cell">{a.count}</TableCell>
+                    <TableCell className="text-right text-xs text-muted-foreground">{a.count}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -3041,8 +3047,9 @@ export function ComprehensiveCashMovement() {
                     )}
                   </div>
                 ) : (
-                  <div className="border border-border rounded-lg overflow-x-auto">
-                    <div className="block sm:hidden space-y-2">
+                  <div className="border border-border rounded-lg">
+                    {/* Mobile: tappable card list (compact, no horizontal scroll) */}
+                    <div className="block sm:hidden space-y-2 p-2">
                       {filteredDrillRows
                         .slice(drillPage * drillPageSize, drillPage * drillPageSize + drillPageSize)
                         .map((r, i) => {
@@ -3142,14 +3149,21 @@ export function ComprehensiveCashMovement() {
                           );
                         })}
                     </div>
-                    <div className="hidden sm:block">
-                      <Table>
+                    {/* Mobile hint: full-detail table is also available below via horizontal scroll */}
+                    <div className="hidden">{/* legacy spacer removed */}</div>
+                    <div
+                      className="overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] hidden sm:block"
+                      role="region"
+                      aria-label="Transactions table — scroll sideways to see all columns"
+                      tabIndex={0}
+                    >
+                      <Table className="min-w-[720px]">
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="text-xs">Date</TableHead>
-                          <TableHead className="text-xs">Reference</TableHead>
-                          <TableHead className="text-xs hidden sm:table-cell">Who</TableHead>
-                          <TableHead className="text-xs text-right">Amount</TableHead>
+                          <TableHead className="text-xs min-w-[120px]">Date</TableHead>
+                          <TableHead className="text-xs min-w-[200px]">Reference</TableHead>
+                          <TableHead className="text-xs min-w-[180px]">Who</TableHead>
+                          <TableHead className="text-xs text-right min-w-[120px]">Amount</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -3204,7 +3218,7 @@ export function ComprehensiveCashMovement() {
                                   <Badge variant="outline" className="text-[9px] mt-0.5">{r.classification}</Badge>
                                 )}
                               </TableCell>
-                              <TableCell className="text-[11px] align-top hidden sm:table-cell">
+                              <TableCell className="text-[11px] align-top">
                                 <div>
                                   <Highlight
                                     text={name || (r.linked_party ? prettifyCategory(r.linked_party) : '—')}
