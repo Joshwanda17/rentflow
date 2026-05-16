@@ -1384,11 +1384,33 @@ export function ComprehensiveCashMovement() {
 
   return (
     <Card className="border-border/60 shadow-sm">
-      <CardContent className="pt-5 pb-8 space-y-5 sm:space-y-4 px-4 sm:px-6">
+      <CardContent
+        className={cn(
+          'pt-5 pb-8 space-y-5 sm:space-y-4 px-4 sm:px-6',
+          // ── Accessibility: ensure every interactive element inside the
+          //    cash-movement panel shows a visible focus ring when reached
+          //    via keyboard. Tailwind arbitrary variants apply the ring
+          //    consistently to custom <button> elements and native inputs
+          //    without touching each call site.
+          '[&_button:focus-visible]:outline-none',
+          '[&_button:focus-visible]:ring-2',
+          '[&_button:focus-visible]:ring-ring',
+          '[&_button:focus-visible]:ring-offset-2',
+          '[&_button:focus-visible]:ring-offset-background',
+          '[&_a:focus-visible]:outline-none',
+          '[&_a:focus-visible]:ring-2',
+          '[&_a:focus-visible]:ring-ring',
+          '[&_a:focus-visible]:rounded-md',
+          '[&_input:focus-visible]:outline-none',
+          '[&_input:focus-visible]:ring-2',
+          '[&_input:focus-visible]:ring-ring',
+        )}
+        aria-labelledby="cm-heading"
+      >
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div className="min-w-0">
-            <h3 className="text-lg sm:text-base font-semibold tracking-tight leading-tight">
+            <h3 id="cm-heading" className="text-lg sm:text-base font-semibold tracking-tight leading-tight">
               Money In &amp; Out
             </h3>
             <p className="mt-1 text-xs sm:text-[11px] text-muted-foreground leading-relaxed">
@@ -1447,6 +1469,7 @@ export function ComprehensiveCashMovement() {
                   setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 30);
                 }}
                 className="shrink-0 inline-flex items-center gap-1 rounded-full border border-border bg-background hover:bg-accent hover:text-accent-foreground px-2.5 py-1 text-[11px] font-medium transition-colors"
+                aria-label={`Jump to ${item.label} section`}
               >
                 <span aria-hidden="true">{item.emoji}</span>
                 <span>{item.label}</span>
@@ -1499,7 +1522,9 @@ export function ComprehensiveCashMovement() {
                   ? 'border-primary bg-primary/10 hover:bg-primary/15'
                   : 'border-border bg-card hover:bg-muted/60',
               )}
-              aria-label={`${btn.label}: ${btn.value}. Tap to change.`}
+              aria-label={`${btn.label} filter, currently ${btn.value}. Press to change.`}
+              aria-haspopup="dialog"
+              aria-pressed={btn.active}
             >
               <span className={cn(
                 'flex items-center gap-1.5 text-[10px] uppercase tracking-wide font-semibold',
@@ -2175,12 +2200,14 @@ export function ComprehensiveCashMovement() {
               <div className="relative mb-2">
                 <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
+                  id="cm-page-search"
                   type="search"
                   inputMode="search"
                   value={pageSearch}
                   onChange={(e) => setPageSearch(e.target.value)}
                   placeholder="Search reference, party or amount…"
                   aria-label="Search transactions by reference, party, or amount"
+                  aria-controls="cm-transactions-list"
                   className="w-full h-10 pl-9 pr-9 rounded-lg border border-border bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40"
                 />
                 {pageSearch && (
@@ -2188,14 +2215,14 @@ export function ComprehensiveCashMovement() {
                     type="button"
                     onClick={() => setPageSearch('')}
                     className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
-                    aria-label="Clear search"
+                    aria-label="Clear search query"
                   >
                     <X className="h-4 w-4" />
                   </button>
                 )}
               </div>
               {searchActive && (
-                <div className="text-[11px] text-muted-foreground mb-1.5 px-1">
+                <div className="text-[11px] text-muted-foreground mb-1.5 px-1" role="status" aria-live="polite">
                   {pageDrillRows.length.toLocaleString()} match{pageDrillRows.length === 1 ? '' : 'es'} for “{debouncedPageSearch}”
                 </div>
               )}
@@ -2203,19 +2230,21 @@ export function ComprehensiveCashMovement() {
                 <button
                   type="button"
                   className="w-full flex items-center justify-between gap-2 rounded-xl border-2 border-primary/30 bg-primary/5 hover:bg-primary/10 px-3 py-3 text-left transition-colors min-h-[56px]"
-                  aria-label="Tap to see every transaction"
+                  aria-label={`Show ${pageDrillRows.length.toLocaleString()} transaction${pageDrillRows.length === 1 ? '' : 's'} matching current filters`}
+                  aria-expanded={pageDrillOpen || searchActive}
+                  aria-controls="cm-transactions-list"
                 >
                   <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                    <Filter className="h-4 w-4 text-primary" />
+                    <Filter className="h-4 w-4 text-primary" aria-hidden="true" />
                     Tap to see details
                     <Badge variant="secondary" className="ml-1 text-[10px]">
                       {pageDrillRows.length.toLocaleString()} {pageDrillRows.length === 1 ? 'transaction' : 'transactions'}
                     </Badge>
                   </span>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0 transition-transform data-[state=open]:rotate-180" />
+                  <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0 transition-transform data-[state=open]:rotate-180" aria-hidden="true" />
                 </button>
               </CollapsibleTrigger>
-              <CollapsibleContent className="pt-2">
+              <CollapsibleContent className="pt-2" id="cm-transactions-list" role="region" aria-label="Filtered transactions list">
                 {pageDrillRows.length === 0 ? (
                   (() => {
                     const activeChips: { label: string; onClear: () => void }[] = [];
