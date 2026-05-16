@@ -2006,10 +2006,11 @@ function WalletMovementSummary({
           <span className="flex items-center gap-1.5 shrink-0">
             {delta && (
               <span
-                className={cn('text-[10px] font-mono', toneClass(delta.tone, context))}
+                className={cn('flex items-center gap-1 text-[10px] font-mono', toneClass(delta.tone, context))}
                 title={`Previous period: ${formatUGX(priorAmt ?? 0)}`}
               >
-                {delta.label}
+                {delta.absLabel && <span>{delta.absLabel}</span>}
+                <span className="opacity-80">{delta.label}</span>
               </span>
             )}
             <span className={cn('font-mono', amountClass)}>{formatUGX(amt)}</span>
@@ -2198,10 +2199,11 @@ function WalletMovementSummary({
             <div className="flex items-center gap-1.5 shrink-0">
               {totalInDelta && (
                 <span
-                  className={cn('text-[10px] font-mono', toneClass(totalInDelta.tone, 'in'))}
+                  className={cn('flex items-center gap-1 text-[10px] font-mono', toneClass(totalInDelta.tone, 'in'))}
                   title={`Previous: ${formatUGX(priorTotals?.totalIn ?? 0)}`}
                 >
-                  {totalInDelta.label}
+                  {totalInDelta.absLabel && <span>{totalInDelta.absLabel}</span>}
+                  <span className="opacity-80">{totalInDelta.label}</span>
                 </span>
               )}
               <div className="font-mono text-sm font-semibold text-success break-all">
@@ -2226,10 +2228,11 @@ function WalletMovementSummary({
             <div className="flex items-center gap-1.5 shrink-0">
               {totalOutDelta && (
                 <span
-                  className={cn('text-[10px] font-mono', toneClass(totalOutDelta.tone, 'out'))}
+                  className={cn('flex items-center gap-1 text-[10px] font-mono', toneClass(totalOutDelta.tone, 'out'))}
                   title={`Previous: ${formatUGX(priorTotals?.totalOut ?? 0)}`}
                 >
-                  {totalOutDelta.label}
+                  {totalOutDelta.absLabel && <span>{totalOutDelta.absLabel}</span>}
+                  <span className="opacity-80">{totalOutDelta.label}</span>
                 </span>
               )}
               <div className="font-mono text-sm font-semibold text-destructive break-all">
