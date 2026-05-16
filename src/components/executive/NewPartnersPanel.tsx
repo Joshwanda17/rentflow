@@ -1911,7 +1911,7 @@ export function NewPartnersPanel() {
                 value={partnerFilter}
                 onValueChange={(v) => setPartnerFilter(v as PartnerFilter)}
               >
-                <SelectTrigger className="h-9 text-[11px] flex-1 min-w-0" aria-label="Filter partners">
+                <SelectTrigger className="h-11 text-xs flex-1 min-w-0" aria-label="Filter partners">
                   <Filter className="h-3.5 w-3.5 mr-1 text-muted-foreground shrink-0" />
                   <SelectValue />
                 </SelectTrigger>
@@ -1929,7 +1929,7 @@ export function NewPartnersPanel() {
                 value={partnerSort}
                 onValueChange={(v) => setPartnerSort(v as PartnerSort)}
               >
-                <SelectTrigger className="h-9 text-[11px] flex-1 min-w-0" aria-label="Sort partners">
+                <SelectTrigger className="h-11 text-xs flex-1 min-w-0" aria-label="Sort partners">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1943,7 +1943,7 @@ export function NewPartnersPanel() {
               </Select>
               <Button
                 size="sm"
-                className="h-9 text-[11px] gap-1 shrink-0 px-2 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50"
+                className="h-11 text-xs gap-1 shrink-0 px-3 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50"
                 disabled={!nextCandidate}
                 title={nextCandidate ? `Activate ${nextCandidate.full_name}` : 'No candidate in current filter'}
                 onClick={() => {
