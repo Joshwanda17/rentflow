@@ -582,7 +582,33 @@ export function NewPartnersPanel() {
                 )}
               </SelectContent>
             </Select>
-            {canWhatsAppPartners && partnerFilter === 'custom' && (
+          </div>
+
+          {/* Segmented control — quick portfolio-status switch */}
+          <div className="inline-flex rounded-lg border border-border/60 bg-muted/40 p-0.5 text-[11px] self-start">
+            {([
+              { key: 'all', label: 'All' },
+              { key: 'with', label: 'With portfolios' },
+              { key: 'without', label: 'No portfolio yet' },
+            ] as const).map(seg => (
+              <button
+                key={seg.key}
+                type="button"
+                onClick={() => setPartnerFilter(seg.key)}
+                aria-pressed={partnerFilter === seg.key}
+                className={cn(
+                  "px-2.5 py-1 rounded-md font-medium transition-colors",
+                  partnerFilter === seg.key
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {seg.label}
+              </button>
+            ))}
+          </div>
+          {canWhatsAppPartners && partnerFilter === 'custom' && (
+            <div className="self-start">
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -623,8 +649,8 @@ export function NewPartnersPanel() {
                   />
                 </PopoverContent>
               </Popover>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Newly joined list */}
           {isLoading ? (
