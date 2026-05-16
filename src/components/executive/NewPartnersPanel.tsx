@@ -276,19 +276,21 @@ export function NewPartnersPanel() {
     setExpandedId(nextId);
   }
 
-  // ── Just-joined partners (last 14 days) ──
+  // Filters for the all-partners list
+  const [partnerSearch, setPartnerSearch] = useState('');
+  const [partnerFilter, setPartnerFilter] = useState<'all' | 'with' | 'without' | 'recent'>('all');
+
+  // ── All partners (Partner Ops can browse, filter, and contact every joined partner) ──
   const { data: joined, isLoading } = useQuery({
     queryKey: ['new-partners-panel'],
     queryFn: async () => {
-      const since = new Date(Date.now() - 14 * 86400000).toISOString();
       const { data: roles } = await supabase
         .from('user_roles')
         .select('user_id, created_at')
         .eq('role', 'supporter')
         .eq('enabled', true)
-        .gte('created_at', since)
         .order('created_at', { ascending: false })
-        .limit(12);
+        .limit(500);
       const rows = roles || [];
       if (rows.length === 0) return [] as JoinedPartner[];
 
