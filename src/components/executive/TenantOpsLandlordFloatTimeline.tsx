@@ -939,6 +939,20 @@ export function TenantOpsLandlordFloatTimeline() {
             <p className={cn('font-bold text-sm', totals.outstanding > 0 ? 'text-amber-600' : 'text-muted-foreground')}>
               {fmt(totals.outstanding)}
             </p>
+            {(totals.overdueCount > 0 || totals.criticalCount > 0) && (
+              <p className="text-[10px] mt-0.5 inline-flex items-center gap-1 justify-center flex-wrap">
+                {totals.criticalCount > 0 && (
+                  <span className="inline-flex items-center gap-0.5 text-red-700 font-semibold">
+                    <Flame className="h-2.5 w-2.5" />{totals.criticalCount} critical
+                  </span>
+                )}
+                {totals.overdueCount > 0 && (
+                  <span className="inline-flex items-center gap-0.5 text-orange-700 font-semibold">
+                    <AlertTriangle className="h-2.5 w-2.5" />{totals.overdueCount} overdue
+                  </span>
+                )}
+              </p>
+            )}
           </div>
         </div>
 
