@@ -292,7 +292,7 @@ export function ComprehensiveCashMovement() {
     return (roles || []).some(r => LEDGER_DETAIL_ROLES.has(r));
   }, [role, roles]);
 
-  const [period, setPeriod] = useState<PeriodKey>('30d');
+  const [period, setPeriod] = useState<PeriodKey>('24h');
   const [granularity, setGranularity] = useState<Granularity>('daily');
   const [includeAdjustments, setIncludeAdjustments] = useState(false);
   const [scopeFilter, setScopeFilter] = useState<'all' | 'platform' | 'wallet' | 'bridge'>('all');
