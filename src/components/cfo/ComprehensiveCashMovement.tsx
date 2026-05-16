@@ -312,6 +312,9 @@ export function ComprehensiveCashMovement() {
   const [scopeFilter, setScopeFilter] = useState<'all' | 'platform' | 'wallet' | 'bridge'>('all');
   const [directionQuickFilter, setDirectionQuickFilter] = useState<'all' | 'cash_in' | 'cash_out' | 'net_positive' | 'net_negative'>('all');
   const [categoryQuickFilter, setCategoryQuickFilter] = useState<string | null>(null);
+  // Controls how many categories the Top Categories widget surfaces.
+  // Pure UI state — does not change aggregation or table filters.
+  const [topCategoriesLimit, setTopCategoriesLimit] = useState<5 | 10>(5);
   // Page-level party filter — narrows totals and aggregates to a single
   // counterparty (resolved by user_id). `null` = everyone. Surfaced via the
   // big thumb-friendly Party button at the top of the page.
@@ -590,10 +593,10 @@ export function ComprehensiveCashMovement() {
     const all = Array.from(map.values()).map(c => ({ ...c, total: c.cashIn + c.cashOut, net: c.cashIn - c.cashOut }));
     const grandTotal = all.reduce((s, c) => s + c.total, 0) || 1;
     return {
-      top: all.sort((a, b) => b.total - a.total).slice(0, 5).map(c => ({ ...c, share: c.total / grandTotal })),
+      top: all.sort((a, b) => b.total - a.total).slice(0, topCategoriesLimit).map(c => ({ ...c, share: c.total / grandTotal })),
       categoryCount: all.length,
     };
-  }, [aggregates]);
+  }, [aggregates, topCategoriesLimit]);
 
   // Top parties for the thumb-friendly Party picker. Aggregates the loaded
   // ledger rows by `user_id` (ignoring rows without one), totalling cash flow
@@ -1862,7 +1865,35 @@ export function ComprehensiveCashMovement() {
                   · {topCategoriesSummary.categoryCount} total
                 </span>
               </div>
-              {categoryQuickFilter && (
+              <div className="flex items-center gap-2">
+                <div
+                  role="group"
+                  aria-label="Number of top categories to show"
+                  className="inline-flex rounded-md border border-border overflow-hidden"
+                >
+                  {[5, 10].map(n => {
+                    const active = topCategoriesLimit === n;
+                    const disabled = n === 10 && topCategoriesSummary.categoryCount <= 5;
+                    return (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setTopCategoriesLimit(n as 5 | 10)}
+                        disabled={disabled}
+                        aria-pressed={active}
+                        className={cn(
+                          'px-2 py-0.5 text-[11px] font-medium transition-colors',
+                          active ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:bg-muted',
+                          disabled && 'opacity-40 cursor-not-allowed',
+                        )}
+                        title={disabled ? `Only ${topCategoriesSummary.categoryCount} categories available` : `Show top ${n}`}
+                      >
+                        Top {n}
+                      </button>
+                    );
+                  })}
+                </div>
+                {categoryQuickFilter && (
                 <button
                   type="button"
                   onClick={() => setCategoryQuickFilter(null)}
@@ -1871,7 +1902,8 @@ export function ComprehensiveCashMovement() {
                 >
                   <X className="h-3 w-3" /> Clear
                 </button>
-              )}
+                )}
+              </div>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {topCategoriesSummary.top.map(c => {
