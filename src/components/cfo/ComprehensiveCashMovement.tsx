@@ -770,8 +770,19 @@ export function ComprehensiveCashMovement() {
                   </Button>
                   <Button size="sm" variant="ghost" className="h-6 text-[11px]"
                     onClick={() => setCapitalCategories(new Set())}>None</Button>
-                  <Button size="sm" variant="ghost" className="h-6 text-[11px]"
-                    onClick={() => setCapitalCategories(new Set(CAPITAL_INFLOW_DEFAULT))}>Defaults</Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-6 text-[11px] gap-1 border-primary/40 text-primary hover:bg-primary/10"
+                    onClick={() => {
+                      setCapitalCategories(new Set(CAPITAL_INFLOW_DEFAULT));
+                      toast.success('Reset to default categories: ' + CAPITAL_INFLOW_DEFAULT.map(prettifyCategory).join(', '));
+                    }}
+                    title={`Reset to default selection (${CAPITAL_INFLOW_DEFAULT.map(prettifyCategory).join(' + ')})`}
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                    Reset
+                  </Button>
                 </div>
               </div>
               {capitalInflow.availableCategories.length === 0 ? (
