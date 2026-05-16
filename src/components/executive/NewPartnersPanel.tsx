@@ -176,6 +176,15 @@ export function NewPartnersPanel() {
   // disabled with a spinner from the moment the confirmation is accepted
   // until the create-portfolio dialog closes (server confirmed or cancelled).
   const [activatingUserId, setActivatingUserId] = useState<string | null>(null);
+  // Auto-advance chain — when the operator clicks "Activate now" on the
+  // quick-activate banner we queue opening the next no-portfolio candidate
+  // right after the current activation succeeds so they can blitz through
+  // onboarding without re-aiming the dialog.
+  const autoAdvanceRef = useRef(false);
+  const activationSucceededRef = useRef(false);
+  const lastActivatedIdRef = useRef<string | null>(null);
+  const [pendingAutoAdvance, setPendingAutoAdvance] = useState(false);
+  const [autoAdvanceEnabled, setAutoAdvanceEnabled] = useState(true);
   const [revokeOpen, setRevokeOpen] = useState(false);
   const [revokeBusy, setRevokeBusy] = useState(false);
   // Typed confirmation phrase the operator must enter before Revoke unlocks.
