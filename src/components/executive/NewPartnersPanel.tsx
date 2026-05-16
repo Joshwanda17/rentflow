@@ -620,6 +620,47 @@ export function NewPartnersPanel() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* In-app discard-changes confirmation (replaces window.confirm). */}
+      <AlertDialog
+        open={!!discardPrompt}
+        onOpenChange={(open) => { if (!open) setDiscardPrompt(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Discard unsaved changes
+              {discardPrompt?.action === 'switch' ? ' and switch portfolio?' : '?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>
+                  You have <span className="font-semibold">{discardPrompt?.changes.length ?? 0}</span> unsaved
+                  {' '}edit{(discardPrompt?.changes.length ?? 0) === 1 ? '' : 's'} on{' '}
+                  <span className="font-semibold">{discardPrompt?.portfolioLabel}</span>:
+                </p>
+                <ul className="text-xs bg-muted/50 border border-border/60 rounded-md p-2 space-y-1 max-h-48 overflow-auto">
+                  {discardPrompt?.changes.map((c, i) => (
+                    <li key={i} className="font-mono text-[11px] leading-snug">• {c}</li>
+                  ))}
+                </ul>
+                <p className="text-xs text-muted-foreground">
+                  These changes will be lost. This cannot be undone.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep editing</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); discardPrompt?.onConfirm(); }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Discard changes
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
