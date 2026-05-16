@@ -909,29 +909,40 @@ export function ComprehensiveCashMovement() {
 
           {/* Selected category chips with per-category totals */}
           {capitalInflow.selected.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {capitalInflow.selected.map(c => (
-                <button
-                  key={c.category}
-                  type="button"
-                  onClick={() => setDrill({
-                    category: c.category,
-                    scope: 'platform',
-                    bucket: null,
-                    direction: 'cash_in',
-                    dateFrom: capitalFrom || undefined,
-                    dateTo: capitalTo || undefined,
-                  })}
-                  title={`Drill into ${prettifyCategory(c.category)} · Platform cash_in entries${capitalRangeActive ? ` · ${capitalFrom || '…'} → ${capitalTo || '…'}` : ''}`}
-                  className="inline-flex items-center gap-1 rounded-full border border-border bg-background hover:bg-primary/10 hover:border-primary/40 px-2 py-0.5 text-[11px] font-normal transition-colors"
-                >
-                  <span className="font-medium">{prettifyCategory(c.category)}</span>
-                  <span className="font-mono text-primary">{formatUGX(c.total)}</span>
-                  <span className="text-muted-foreground">({c.count})</span>
-                  <ExternalLink className="h-3 w-3 text-muted-foreground" />
-                </button>
-              ))}
-            </div>
+            <TooltipProvider delayDuration={150}>
+              <div className="flex flex-wrap gap-1.5">
+                {capitalInflow.selected.map(c => (
+                  <Tooltip key={c.category}>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={() => setDrill({
+                          category: c.category,
+                          scope: 'platform',
+                          bucket: null,
+                          direction: 'cash_in',
+                          dateFrom: capitalFrom || undefined,
+                          dateTo: capitalTo || undefined,
+                        })}
+                        className="inline-flex items-center gap-1 rounded-full border border-border bg-background hover:bg-primary/10 hover:border-primary/40 px-2 py-0.5 text-[11px] font-normal transition-colors"
+                      >
+                        <span className="font-medium">{prettifyCategory(c.category)}</span>
+                        <span className="font-mono text-primary">{formatUGX(c.total)}</span>
+                        <span className="text-muted-foreground">({c.count})</span>
+                        <Info className="h-3 w-3 text-muted-foreground" />
+                        <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" align="start" className="bg-popover border-border">
+                      <WalletImpactTooltipContent category={c.category} />
+                      <div className="mt-2 pt-1 border-t border-border text-[10px] text-muted-foreground">
+                        Click to drill into Platform cash_in entries{capitalRangeActive ? ` · ${capitalFrom || '…'} → ${capitalTo || '…'}` : ''}
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+              </div>
+            </TooltipProvider>
           )}
 
           {/* Per-bucket strip — synced to current granularity */}
