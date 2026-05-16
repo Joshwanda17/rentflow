@@ -521,7 +521,11 @@ export function NewPartnersPanel() {
                         key={p.id}
                         portfolio={p}
                         expanded={expandedId === p.id}
-                        onToggle={() => setExpandedId(expandedId === p.id ? null : p.id)}
+                        onToggle={() => requestExpand(expandedId === p.id ? null : p.id)}
+                        onDirtyChange={(dirty) => {
+                          if (dirty) dirtyRowsRef.current[p.id] = true;
+                          else delete dirtyRowsRef.current[p.id];
+                        }}
                         onSaved={(updated) => {
                           setSelectedPortfolios(list => list.map(x => x.id === updated.id ? { ...x, ...updated } : x));
                           qc.invalidateQueries({ queryKey: ['exec-partner-portfolios'] });
