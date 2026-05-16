@@ -867,7 +867,7 @@ export function NewPartnersPanel() {
 
   return (
     <>
-      <Card className="relative border-primary/30 bg-gradient-to-br from-primary/5 via-background to-background">
+      <Card className="relative border-primary/30 bg-gradient-to-br from-primary/5 via-background to-background pb-[calc(5rem+env(safe-area-inset-bottom))] sm:pb-0">
         {savingCount > 0 && (
           <div
             className="absolute inset-0 z-30 flex items-center justify-center rounded-lg bg-background/70 backdrop-blur-sm cursor-wait"
