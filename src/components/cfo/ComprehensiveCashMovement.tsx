@@ -10,6 +10,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
+import { Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -121,6 +123,105 @@ const SCOPE_BADGE: Record<string, string> = {
 
 function prettifyCategory(c: string): string {
   return c.replace(/_/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase());
+}
+
+// ─────────────────────────────────────────────────────────────
+// Wallet-impact map — explains which wallet buckets move (or don't)
+// when a Capital Inflows category posts. The Comprehensive view shows
+// the PLATFORM cash_in leg only; the wallet effect is the *paired*
+// movement on the related user/operational wallet (if any).
+// ─────────────────────────────────────────────────────────────
+type WalletImpact = {
+  moves: { bucket: 'withdrawable_balance' | 'float_balance' | 'advance_balance' | 'portfolio_principal'; party: string; direction: '↑' | '↓'; note?: string }[];
+  unchanged: ('withdrawable_balance' | 'float_balance' | 'advance_balance')[];
+  summary: string;
+};
+const WALLET_IMPACT: Record<string, WalletImpact> = {
+  partner_funding: {
+    summary: 'Partner sweeps proxy-agent float into platform capital. No user withdrawable bucket moves.',
+    moves: [
+      { bucket: 'float_balance', party: 'Proxy agent', direction: '↓', note: 'Source of the swept capital' },
+    ],
+    unchanged: ['withdrawable_balance', 'advance_balance'],
+  },
+  pending_portfolio_topup: {
+    summary: 'Supporter top-up parked on platform until CFO/COO clicks "Apply Top-up". No wallet bucket moves yet.',
+    moves: [
+      { bucket: 'portfolio_principal', party: 'Supporter (on merge)', direction: '↑', note: 'Only after Apply Top-up; ROI accrues from merge date' },
+    ],
+    unchanged: ['withdrawable_balance', 'float_balance', 'advance_balance'],
+  },
+  partner_commission: {
+    summary: '2% instant commission to partner on a proxy-agent deposit. Credited as withdrawable cash.',
+    moves: [
+      { bucket: 'withdrawable_balance', party: 'Partner', direction: '↑' },
+    ],
+    unchanged: ['float_balance', 'advance_balance'],
+  },
+  deposit: {
+    summary: 'User cash/MoMo deposit. Routes by recipient_type (Wallet Routing v2).',
+    moves: [
+      { bucket: 'withdrawable_balance', party: 'User (recipient_type=user)', direction: '↑' },
+      { bucket: 'float_balance', party: 'Operational wallet (recipient_type=operational_wallet)', direction: '↑' },
+    ],
+    unchanged: ['advance_balance'],
+  },
+  rent_payment: {
+    summary: 'Tenant rent collected by an agent. Platform recognizes revenue; agent commission posts separately.',
+    moves: [
+      { bucket: 'float_balance', party: 'Collecting agent', direction: '↑', note: 'Company money; not withdrawable' },
+      { bucket: 'withdrawable_balance', party: 'Agent (10% commission, separate txn)', direction: '↑' },
+    ],
+    unchanged: ['advance_balance'],
+  },
+  roi_payout: {
+    summary: 'Returns paid to supporter — credited as withdrawable cash on the supporter wallet.',
+    moves: [
+      { bucket: 'withdrawable_balance', party: 'Supporter', direction: '↑' },
+    ],
+    unchanged: ['float_balance', 'advance_balance'],
+  },
+};
+const DEFAULT_WALLET_IMPACT: WalletImpact = {
+  summary: 'Platform-scope cash_in leg. Wallet bucket impact depends on the paired transaction (recipient_type per Wallet Routing v2). No automatic withdrawable credit from this category alone.',
+  moves: [],
+  unchanged: ['withdrawable_balance', 'float_balance', 'advance_balance'],
+};
+function getWalletImpact(category: string): WalletImpact {
+  return WALLET_IMPACT[category] || DEFAULT_WALLET_IMPACT;
+}
+function WalletImpactTooltipContent({ category }: { category: string }) {
+  const impact = getWalletImpact(category);
+  return (
+    <div className="max-w-[300px] space-y-2 text-[11px]">
+      <div className="font-semibold text-foreground">{prettifyCategory(category)} · Wallet Impact</div>
+      <div className="text-muted-foreground leading-snug">{impact.summary}</div>
+      {impact.moves.length > 0 && (
+        <div className="space-y-1">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Buckets that move</div>
+          {impact.moves.map((m, i) => (
+            <div key={i} className="flex items-start gap-1.5">
+              <span className={cn('font-mono font-semibold', m.direction === '↑' ? 'text-emerald-500' : 'text-rose-500')}>{m.direction}</span>
+              <div className="flex-1">
+                <div><span className="font-mono">{m.bucket}</span> <span className="text-muted-foreground">— {m.party}</span></div>
+                {m.note && <div className="text-[10px] text-muted-foreground italic">{m.note}</div>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {impact.unchanged.length > 0 && (
+        <div className="space-y-1 pt-1 border-t border-border">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Unchanged</div>
+          <div className="flex flex-wrap gap-1">
+            {impact.unchanged.map(b => (
+              <span key={b} className="font-mono text-[10px] rounded bg-muted px-1 py-0.5 text-muted-foreground">{b}</span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // Highlight occurrences of `query` inside `text` (case-insensitive). Used to
@@ -808,29 +909,40 @@ export function ComprehensiveCashMovement() {
 
           {/* Selected category chips with per-category totals */}
           {capitalInflow.selected.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {capitalInflow.selected.map(c => (
-                <button
-                  key={c.category}
-                  type="button"
-                  onClick={() => setDrill({
-                    category: c.category,
-                    scope: 'platform',
-                    bucket: null,
-                    direction: 'cash_in',
-                    dateFrom: capitalFrom || undefined,
-                    dateTo: capitalTo || undefined,
-                  })}
-                  title={`Drill into ${prettifyCategory(c.category)} · Platform cash_in entries${capitalRangeActive ? ` · ${capitalFrom || '…'} → ${capitalTo || '…'}` : ''}`}
-                  className="inline-flex items-center gap-1 rounded-full border border-border bg-background hover:bg-primary/10 hover:border-primary/40 px-2 py-0.5 text-[11px] font-normal transition-colors"
-                >
-                  <span className="font-medium">{prettifyCategory(c.category)}</span>
-                  <span className="font-mono text-primary">{formatUGX(c.total)}</span>
-                  <span className="text-muted-foreground">({c.count})</span>
-                  <ExternalLink className="h-3 w-3 text-muted-foreground" />
-                </button>
-              ))}
-            </div>
+            <TooltipProvider delayDuration={150}>
+              <div className="flex flex-wrap gap-1.5">
+                {capitalInflow.selected.map(c => (
+                  <Tooltip key={c.category}>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={() => setDrill({
+                          category: c.category,
+                          scope: 'platform',
+                          bucket: null,
+                          direction: 'cash_in',
+                          dateFrom: capitalFrom || undefined,
+                          dateTo: capitalTo || undefined,
+                        })}
+                        className="inline-flex items-center gap-1 rounded-full border border-border bg-background hover:bg-primary/10 hover:border-primary/40 px-2 py-0.5 text-[11px] font-normal transition-colors"
+                      >
+                        <span className="font-medium">{prettifyCategory(c.category)}</span>
+                        <span className="font-mono text-primary">{formatUGX(c.total)}</span>
+                        <span className="text-muted-foreground">({c.count})</span>
+                        <Info className="h-3 w-3 text-muted-foreground" />
+                        <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" align="start" className="bg-popover border-border">
+                      <WalletImpactTooltipContent category={c.category} />
+                      <div className="mt-2 pt-1 border-t border-border text-[10px] text-muted-foreground">
+                        Click to drill into Platform cash_in entries{capitalRangeActive ? ` · ${capitalFrom || '…'} → ${capitalTo || '…'}` : ''}
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+              </div>
+            </TooltipProvider>
           )}
 
           {/* Per-bucket strip — synced to current granularity */}
@@ -938,28 +1050,40 @@ export function ComprehensiveCashMovement() {
               {capitalInflow.availableCategories.length === 0 ? (
                 <p className="text-[11px] text-muted-foreground">No platform cash_in categories in this period.</p>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5 max-h-64 overflow-y-auto">
-                  {capitalInflow.availableCategories.map(c => {
-                    const checked = capitalCategories.has(c.category);
-                    return (
-                      <label key={c.category}
-                        className={cn(
-                          'flex items-center gap-2 rounded border px-2 py-1.5 text-[11px] cursor-pointer',
-                          checked ? 'border-primary/40 bg-primary/10' : 'border-border bg-background hover:bg-muted/50',
-                        )}>
-                        <Checkbox checked={checked} onCheckedChange={(v) => {
-                          setCapitalCategories(prev => {
-                            const next = new Set(prev);
-                            if (v) next.add(c.category); else next.delete(c.category);
-                            return next;
-                          });
-                        }} />
-                        <span className="flex-1 truncate">{prettifyCategory(c.category)}</span>
-                        <span className="font-mono text-muted-foreground">{formatUGX(c.total)}</span>
-                      </label>
-                    );
-                  })}
-                </div>
+                <TooltipProvider delayDuration={150}>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5 max-h-64 overflow-y-auto">
+                    {capitalInflow.availableCategories.map(c => {
+                      const checked = capitalCategories.has(c.category);
+                      return (
+                        <label key={c.category}
+                          className={cn(
+                            'flex items-center gap-2 rounded border px-2 py-1.5 text-[11px] cursor-pointer',
+                            checked ? 'border-primary/40 bg-primary/10' : 'border-border bg-background hover:bg-muted/50',
+                          )}>
+                          <Checkbox checked={checked} onCheckedChange={(v) => {
+                            setCapitalCategories(prev => {
+                              const next = new Set(prev);
+                              if (v) next.add(c.category); else next.delete(c.category);
+                              return next;
+                            });
+                          }} />
+                          <span className="flex-1 truncate">{prettifyCategory(c.category)}</span>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button type="button" onClick={(e) => e.preventDefault()} className="text-muted-foreground hover:text-primary">
+                                <Info className="h-3 w-3" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="left" className="bg-popover border-border">
+                              <WalletImpactTooltipContent category={c.category} />
+                            </TooltipContent>
+                          </Tooltip>
+                          <span className="font-mono text-muted-foreground">{formatUGX(c.total)}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </TooltipProvider>
               )}
             </CollapsibleContent>
           </Collapsible>
