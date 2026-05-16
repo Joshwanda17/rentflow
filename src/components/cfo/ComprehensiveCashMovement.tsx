@@ -2936,12 +2936,10 @@ export function ComprehensiveCashMovement() {
         ) : filteredAggregates.length === 0 ? (
           <div className="py-12 text-center text-muted-foreground text-sm">No money moved in this period.</div>
         ) : (
-          <div
-            id="cm-categories"
-            className="scroll-mt-24 border border-border rounded-lg overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] relative"
-            role="region"
-            aria-label="Categories breakdown — scroll sideways on small screens to see all columns"
-            tabIndex={0}
+          <div id="cm-categories" className="scroll-mt-24 border border-border rounded-lg overflow-hidden">
+          <HScrollHint
+            className="overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]"
+            ariaLabel="Categories breakdown — scroll sideways on small screens to see all columns"
           >
             <Table className="min-w-[640px]">
               <TableHeader className="sticky top-0 z-10 bg-background shadow-[0_1px_0_0_hsl(var(--border))]">
@@ -2986,6 +2984,7 @@ export function ComprehensiveCashMovement() {
                 ))}
               </TableBody>
             </Table>
+          </HScrollHint>
           </div>
         ))}
 
