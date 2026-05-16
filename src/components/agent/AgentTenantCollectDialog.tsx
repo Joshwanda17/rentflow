@@ -14,6 +14,7 @@ import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { useOffline } from '@/contexts/OfflineContext';
 import { CommissionCelebration } from './CommissionCelebration';
 import { captureOfflineDraft } from '@/lib/offlineCollectionDrafts';
+import { setCriticalFlowActive } from '@/lib/criticalFlowGuard';
 
 /**
  * Translate raw RPC / Postgres errors into something an agent can act on.
@@ -96,6 +97,15 @@ export function AgentTenantCollectDialog({
       setRpcError(null);
       refetchBalances();
     }
+  }, [open]);
+
+  // While the tenant-collection dialog is open, suppress iOS PWA full
+  // cache invalidation and SW skipWaiting. Otherwise switching to MoMo /
+  // Messages for the agent OTP looks like the app refreshed mid-flow.
+  useEffect(() => {
+    if (!open) return;
+    setCriticalFlowActive('agent-tenant-collect', true);
+    return () => setCriticalFlowActive('agent-tenant-collect', false);
   }, [open]);
 
   const maxAllowable = Math.max(0, Math.min(outstandingBalance, floatBalance));

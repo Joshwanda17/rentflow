@@ -22,6 +22,7 @@ import {
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LandlordPayoutProgress } from './LandlordPayoutProgress';
+import { setCriticalFlowActive } from '@/lib/criticalFlowGuard';
 
 interface AgentFloatPayoutWizardProps {
   open: boolean;
@@ -54,6 +55,15 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
     }
     return () => clearTimeout(cooldownRef.current);
   }, [resendCooldown]);
+
+  // While the payout wizard is open, suppress iOS PWA full-cache
+  // invalidation and service-worker skipWaiting so dipping out to MoMo
+  // USSD / Messages for an OTP does not reload the page mid-flow.
+  useEffect(() => {
+    if (!open) return;
+    setCriticalFlowActive('agent-float-payout', true);
+    return () => setCriticalFlowActive('agent-float-payout', false);
+  }, [open]);
 
   const { data: floatBalance = 0 } = useQuery({
     queryKey: ['agent-landlord-float', user?.id],
