@@ -650,6 +650,46 @@ export function NewPartnersPanel() {
     };
   }, [filteredPartners]);
 
+  // ── Per-filter totals for the mobile swipe-hint pill ──
+  // Counts use the full `joined` dataset (ignoring search) so the pill always
+  // shows the true population behind each filter, matching what the operator
+  // would see if they actually committed to that filter with an empty search.
+  const FILTER_LABELS: Record<string, string> = {
+    all: 'All partners',
+    just_joined: 'Just joined · no portfolio',
+    recent_today: 'No portfolio · today',
+    recent_week: 'No portfolio · this week',
+    recent_month: 'No portfolio · this month',
+    with: 'With portfolios',
+    without: 'No portfolios yet',
+  };
+  const filterCounts = useMemo(() => {
+    const out: Record<string, number> = {
+      all: 0, just_joined: 0, recent_today: 0, recent_week: 0, recent_month: 0, with: 0, without: 0,
+    };
+    if (!joined) return out;
+    const justJoinedCutoff = Date.now() - JUST_JOINED_DAYS * 86400000;
+    const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+    const startOfWeek = new Date(startOfToday);
+    const dow = startOfWeek.getDay();
+    startOfWeek.setDate(startOfWeek.getDate() - ((dow + 6) % 7));
+    const startOfMonth = new Date(startOfToday.getFullYear(), startOfToday.getMonth(), 1);
+    const todayMs = startOfToday.getTime();
+    const weekMs = startOfWeek.getTime();
+    const monthMs = startOfMonth.getTime();
+    for (const p of joined) {
+      const t = new Date(p.created_at).getTime();
+      const empty = p.portfolio_count === 0;
+      out.all++;
+      if (empty) out.without++; else out.with++;
+      if (empty && t >= justJoinedCutoff) out.just_joined++;
+      if (empty && t >= todayMs) out.recent_today++;
+      if (empty && t >= weekMs) out.recent_week++;
+      if (empty && t >= monthMs) out.recent_month++;
+    }
+    return out;
+  }, [joined]);
+
   // ── Auto-advance: after a successful banner-driven activation, open the
   // create-portfolio dialog for the next no-portfolio candidate as soon as
   // the refreshed list is back and the previous dialog has closed. ──
