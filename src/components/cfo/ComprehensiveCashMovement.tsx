@@ -1292,7 +1292,7 @@ export function ComprehensiveCashMovement() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {aggregates.map(a => (
+                {filteredAggregates.map(a => (
                   <TableRow
                     key={`${a.category}|${a.scope}`}
                     className={cn(canViewLedgerDetail ? 'cursor-pointer hover:bg-muted/60' : 'cursor-default')}
