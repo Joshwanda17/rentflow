@@ -1543,9 +1543,9 @@ export function ComprehensiveCashMovement() {
             className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-[11px] font-medium text-foreground"
             title={`Date period: ${rangeLabel}`}
           >
-            <CalendarIcon className="h-3 w-3 text-muted-foreground" />
+            <Calendar className="h-3 w-3 text-muted-foreground" />
             <span className="text-muted-foreground">Date:</span>
-            <span className="truncate max-w-[180px] sm:max-w-none">{periodLabel}</span>
+            <span className="truncate max-w-[180px] sm:max-w-none">{PERIODS.find(p => p.value === period)?.label || period}</span>
           </span>
           {directionQuickFilter !== 'all' ? (
             <button
