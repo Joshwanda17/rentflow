@@ -523,6 +523,16 @@ export function NewPartnersPanel() {
     };
   }, [filteredPartners]);
 
+  // Segment counts for the All / With / Without toggle. Based on `joined`
+  // (the full partner list) so the numbers reflect totals available in each
+  // segment regardless of the currently active portfolio filter.
+  const segmentCounts = useMemo(() => {
+    const all = joined?.length ?? 0;
+    let withP = 0;
+    for (const p of joined || []) if (p.portfolio_count > 0) withP++;
+    return { all, with: withP, without: all - withP };
+  }, [joined]);
+
   // ── Realtime: any new supporter role grant pops in instantly ──
   useEffect(() => {
     const channel = supabase
