@@ -319,25 +319,38 @@ export function ComprehensiveCashMovement() {
   }, [rows, granularity, includeAdjustments, scopeFilter]);
 
   // ── Capital Inflows: platform-scope cash_in totals per category (from raw rows,
-  // independent of scopeFilter so the callout always reflects true inbound capital).
+  // independent of scopeFilter so the callout always reflects true inbound capital.
+  // Per-bucket totals follow the current `granularity` so the callout stays in sync
+  // with the time-series matrix shown in the table below.
   const capitalInflow = useMemo(() => {
-    const perCat = new Map<string, { total: number; count: number }>();
+    const perCat = new Map<string, { total: number; count: number; buckets: Record<string, number> }>();
+    const bucketSet = new Set<string>();
     for (const r of rows) {
       if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
       if (r.ledger_scope !== 'platform' || r.direction !== 'cash_in') continue;
-      const cur = perCat.get(r.category) || { total: 0, count: 0 };
-      cur.total += Number(r.amount) || 0;
+      const amt = Number(r.amount) || 0;
+      const bk = bucketKey(new Date(r.transaction_date), granularity);
+      bucketSet.add(bk);
+      const cur = perCat.get(r.category) || { total: 0, count: 0, buckets: {} };
+      cur.total += amt;
       cur.count += 1;
+      cur.buckets[bk] = (cur.buckets[bk] || 0) + amt;
       perCat.set(r.category, cur);
     }
     const availableCategories = Array.from(perCat.entries())
-      .map(([category, v]) => ({ category, total: v.total, count: v.count }))
+      .map(([category, v]) => ({ category, total: v.total, count: v.count, buckets: v.buckets }))
       .sort((a, b) => b.total - a.total);
     const selected = availableCategories.filter(c => capitalCategories.has(c.category));
     const total = selected.reduce((s, c) => s + c.total, 0);
     const entries = selected.reduce((s, c) => s + c.count, 0);
-    return { availableCategories, selected, total, entries };
-  }, [rows, includeAdjustments, capitalCategories]);
+    const bucketLabels = Array.from(bucketSet).sort();
+    const bucketTotals: Record<string, number> = {};
+    for (const b of bucketLabels) {
+      bucketTotals[b] = selected.reduce((s, c) => s + (c.buckets[b] || 0), 0);
+    }
+    const peakBucket = bucketLabels.reduce((max, b) => bucketTotals[b] > (bucketTotals[max] || 0) ? b : max, bucketLabels[0] || '');
+    return { availableCategories, selected, total, entries, bucketLabels, bucketTotals, peakBucket };
+  }, [rows, includeAdjustments, capitalCategories, granularity]);
 
   const handleExport = () => {
     if (!canViewLedgerDetail) { toast.error('You do not have permission to export ledger data'); return; }
@@ -724,7 +737,8 @@ export function ComprehensiveCashMovement() {
                 <div className="font-mono text-lg font-bold text-primary">{formatUGX(capitalInflow.total)}</div>
                 <div className="text-[10px] text-muted-foreground">
                   {capitalInflow.selected.length} categor{capitalInflow.selected.length === 1 ? 'y' : 'ies'} ·
-                  {' '}{capitalInflow.entries.toLocaleString()} ledger entries · {rangeLabel}
+                  {' '}{capitalInflow.entries.toLocaleString()} ledger entries · {rangeLabel} ·
+                  {' '}{GRANULARITIES.find(g => g.value === granularity)?.label || granularity} buckets
                 </div>
               </div>
             </div>
@@ -754,6 +768,41 @@ export function ComprehensiveCashMovement() {
                   <ExternalLink className="h-3 w-3 text-muted-foreground" />
                 </button>
               ))}
+            </div>
+          )}
+
+          {/* Per-bucket strip — synced to current granularity */}
+          {capitalInflow.selected.length > 0 && capitalInflow.bucketLabels.length > 0 && (
+            <div className="pt-2 border-t border-primary/20 space-y-1">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                <span>By {GRANULARITIES.find(g => g.value === granularity)?.label || granularity} bucket</span>
+                {capitalInflow.peakBucket && (
+                  <span>Peak: <span className="text-primary font-mono">{capitalInflow.peakBucket}</span> · {formatUGX(capitalInflow.bucketTotals[capitalInflow.peakBucket] || 0)}</span>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {capitalInflow.bucketLabels.map(b => {
+                  const val = capitalInflow.bucketTotals[b] || 0;
+                  const isPeak = b === capitalInflow.peakBucket && val > 0;
+                  return (
+                    <div
+                      key={b}
+                      className={cn(
+                        'rounded border px-1.5 py-0.5 text-[10px] font-mono',
+                        val === 0
+                          ? 'border-border bg-background text-muted-foreground/60'
+                          : isPeak
+                            ? 'border-primary/50 bg-primary/15 text-primary font-semibold'
+                            : 'border-primary/20 bg-background text-foreground',
+                      )}
+                      title={`${b}: ${formatUGX(val)}`}
+                    >
+                      <span className="text-muted-foreground mr-1">{b}</span>
+                      {val > 0 ? formatUGX(val) : '·'}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 
