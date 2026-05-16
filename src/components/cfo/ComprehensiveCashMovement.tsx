@@ -3077,9 +3077,9 @@ export function ComprehensiveCashMovement() {
               <Table>
                 <TableHeader className="sticky top-0 bg-background z-10">
                   <TableRow>
-                    <TableHead className="min-w-[160px] sticky left-0 bg-background z-20">Type · Where</TableHead>
+                    <TableHead {...focusableColHeadProps} className={cn('min-w-[160px] sticky left-0 bg-background z-20', FOCUSABLE_COL_HEAD_CLASS)}>Type · Where</TableHead>
                     {bucketLabels.map(b => (
-                      <TableHead key={b} className="text-right whitespace-nowrap text-[10px]">{b}</TableHead>
+                      <TableHead key={b} {...focusableColHeadProps} className={cn('text-right whitespace-nowrap text-[10px]', FOCUSABLE_COL_HEAD_CLASS)}>{b}</TableHead>
                     ))}
                   </TableRow>
                 </TableHeader>
