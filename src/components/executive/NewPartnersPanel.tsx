@@ -783,21 +783,48 @@ export function NewPartnersPanel() {
               const weekCount = filtered.filter(p => new Date(p.created_at).getTime() >= startOfWeek.getTime()).length;
               const monthCount = filtered.filter(p => new Date(p.created_at).getTime() >= startOfMonth.getTime()).length;
               const isFiltered = filtered.length !== joined.length;
+              // Click-to-filter badge strip. Each badge sets the corresponding
+              // partnerFilter so the grid re-filters instantly; clicking the
+              // active filter again clears back to 'all'.
+              const badgeBtn = (
+                key: 'all' | 'with' | 'without' | 'today' | 'week' | 'month',
+                colorClass: string,
+                label: string,
+                title: string,
+              ) => {
+                const active = partnerFilter === key;
+                return (
+                  <button
+                    type="button"
+                    onClick={() => setPartnerFilter(key === 'all' ? 'all' : (active ? 'all' : key))}
+                    aria-pressed={active}
+                    title={`${title}. Click to ${active && key !== 'all' ? 'clear this filter' : `filter by ${key === 'all' ? 'all partners' : key}`}.`}
+                    className={cn(
+                      'rounded-full px-2 py-0.5 border-0 text-[10px] font-bold transition-all',
+                      'hover:scale-105 hover:shadow-sm focus:outline-none focus:ring-1 focus:ring-primary/40',
+                      colorClass,
+                      active && 'ring-2 ring-offset-1 ring-current',
+                    )}
+                  >
+                    {label}
+                  </button>
+                );
+              };
               const badges = (
                 <div className="flex flex-wrap items-center gap-1">
-                  <Badge
-                    className="bg-primary/15 text-primary border-0 text-[10px] font-bold"
-                    title={isFiltered ? 'Partners matching current filter' : 'Total partners'}
-                  >
-                    {filtered.length}{isFiltered ? ` of ${joined.length}` : ''} {isFiltered ? 'matched' : 'total'}
-                  </Badge>
-                  <Badge className="bg-emerald-500/15 text-emerald-600 border-0 text-[10px] font-bold" title="With portfolios (in current filter)">{withCount} active</Badge>
-                  <Badge className="bg-amber-500/15 text-amber-600 border-0 text-[10px] font-bold" title="No portfolio yet (in current filter)">{withoutCount} pending</Badge>
+                  {badgeBtn(
+                    'all',
+                    'bg-primary/15 text-primary',
+                    `${filtered.length}${isFiltered ? ` of ${joined.length}` : ''} ${isFiltered ? 'matched' : 'total'}`,
+                    isFiltered ? 'Partners matching current filter' : 'Total partners',
+                  )}
+                  {badgeBtn('with',    'bg-emerald-500/15 text-emerald-600', `${withCount} active`,    'With portfolios (in current filter)')}
+                  {badgeBtn('without', 'bg-amber-500/15 text-amber-600',    `${withoutCount} pending`, 'No portfolio yet (in current filter)')}
                   {canWhatsAppPartners && (
                     <>
-                      <Badge className="bg-sky-500/15 text-sky-600 border-0 text-[10px] font-bold" title="Joined today, in current filter (your local time)">{todayCount} today</Badge>
-                      <Badge className="bg-indigo-500/15 text-indigo-600 border-0 text-[10px] font-bold" title="Joined since Monday, in current filter (your local time)">{weekCount} this week</Badge>
-                      <Badge className="bg-violet-500/15 text-violet-600 border-0 text-[10px] font-bold" title="Joined since the 1st of this month, in current filter (your local time)">{monthCount} this month</Badge>
+                      {badgeBtn('today', 'bg-sky-500/15 text-sky-600',       `${todayCount} today`,      'Joined today, in current filter (your local time)')}
+                      {badgeBtn('week',  'bg-indigo-500/15 text-indigo-600', `${weekCount} this week`,   'Joined since Monday, in current filter (your local time)')}
+                      {badgeBtn('month', 'bg-violet-500/15 text-violet-600', `${monthCount} this month`, 'Joined since the 1st of this month, in current filter (your local time)')}
                     </>
                   )}
                 </div>
