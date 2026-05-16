@@ -5,17 +5,32 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { UserAvatar } from '@/components/UserAvatar';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Activity, AlertCircle, FileText } from 'lucide-react';
 import { formatDistanceToNow, subHours, subDays } from 'date-fns';
 import type { DateRange } from '../AgentOpsHomeView';
 
 const PAGE_SIZE = 25;
 const FETCH_CAP = 1000;
+const ALL = '__all__';
 
 function getRangeStart(range: DateRange): Date {
   if (range === '24h') return subHours(new Date(), 24);
   if (range === '7d') return subDays(new Date(), 7);
   return subDays(new Date(), 30);
+}
+
+interface RawRequest {
+  agent_id: string;
+  created_at: string;
+  status: string | null;
+  house_category: string | null;
 }
 
 interface ActiveAgentRow {
@@ -30,70 +45,146 @@ interface ActiveAgentRow {
 /**
  * Active Agents drill-down — agents who posted ≥1 rent (tenant) request
  * in the selected window. Shows request count and last request time per agent.
+ * Filterable by request status and house category.
  * Source of truth: `rent_requests.created_at` + `rent_requests.agent_id`.
  */
 export function ActiveAgentsList({ range }: { range: DateRange }) {
   const rangeStart = useMemo(() => getRangeStart(range).toISOString(), [range]);
   const [visible, setVisible] = useState(PAGE_SIZE);
+  const [statusFilter, setStatusFilter] = useState<string>(ALL);
+  const [categoryFilter, setCategoryFilter] = useState<string>(ALL);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['agent-ops-drill', 'active-agents-v2', range],
     queryFn: async () => {
       const { data: reqs, error } = await supabase
         .from('rent_requests')
-        .select('agent_id, created_at')
+        .select('agent_id, created_at, status, house_category')
         .gte('created_at', rangeStart)
         .not('agent_id', 'is', null)
         .order('created_at', { ascending: false })
         .limit(FETCH_CAP);
       if (error) throw error;
 
-      const agg = new Map<string, { count: number; last: string }>();
-      (reqs ?? []).forEach((r: any) => {
-        const id = r.agent_id as string;
-        const existing = agg.get(id);
-        if (!existing) {
-          agg.set(id, { count: 1, last: r.created_at });
-        } else {
-          existing.count += 1;
-          if (r.created_at > existing.last) existing.last = r.created_at;
-        }
+      const rows = (reqs ?? []) as RawRequest[];
+      const statusSet = new Set<string>();
+      const categorySet = new Set<string>();
+      rows.forEach((r) => {
+        if (r.status) statusSet.add(r.status);
+        if (r.house_category) categorySet.add(r.house_category);
       });
 
-      const agentIds = Array.from(agg.keys());
-      if (agentIds.length === 0) {
-        return { rows: [] as ActiveAgentRow[], capped: (reqs ?? []).length >= FETCH_CAP };
-      }
-
-      const profileMap = new Map<string, any>();
-      const BATCH = 50;
-      for (let i = 0; i < agentIds.length; i += BATCH) {
-        const { data: profs } = await supabase
-          .from('profiles')
-          .select('id, full_name, avatar_url, phone')
-          .in('id', agentIds.slice(i, i + BATCH));
-        (profs ?? []).forEach((p: any) => profileMap.set(p.id, p));
-      }
-
-      const rows: ActiveAgentRow[] = agentIds
-        .map((id) => {
-          const a = agg.get(id)!;
-          const p = profileMap.get(id);
-          return {
-            agent_id: id,
-            requestCount: a.count,
-            lastRequestAt: a.last,
-            full_name: p?.full_name ?? null,
-            avatar_url: p?.avatar_url ?? null,
-            phone: p?.phone ?? null,
-          };
-        })
-        .sort((a, b) => b.requestCount - a.requestCount || b.lastRequestAt.localeCompare(a.lastRequestAt));
-
-      return { rows, capped: (reqs ?? []).length >= FETCH_CAP };
+      // Aggregate profile lookup is delayed until after filter to avoid
+      // fetching profiles for filtered-out agents.
+      return {
+        rows,
+        statuses: Array.from(statusSet).sort(),
+        categories: Array.from(categorySet).sort(),
+        capped: rows.length >= FETCH_CAP,
+      };
     },
     staleTime: 60_000,
   });
+
+  // Aggregate filtered rows → per-agent counts.
+  const filtered = useMemo(() => {
+    const rows = data?.rows ?? [];
+    const matches = rows.filter((r) => {
+      if (statusFilter !== ALL && r.status !== statusFilter) return false;
+      if (categoryFilter !== ALL && r.house_category !== categoryFilter) return false;
+      return true;
+    });
+    const agg = new Map<string, { count: number; last: string }>();
+    matches.forEach((r) => {
+      const existing = agg.get(r.agent_id);
+      if (!existing) agg.set(r.agent_id, { count: 1, last: r.created_at });
+      else {
+        existing.count += 1;
+        if (r.created_at > existing.last) existing.last = r.created_at;
+      }
+    });
+    return { agentIds: Array.from(agg.keys()), agg, totalRequests: matches.length };
+  }, [data?.rows, statusFilter, categoryFilter]);
+
+  // Fetch profiles for filtered agent set.
+  const { data: profileMap } = useQuery({
+    queryKey: ['agent-ops-drill-profiles', filtered.agentIds.slice().sort().join(',')],
+    queryFn: async () => {
+      if (filtered.agentIds.length === 0) return new Map<string, any>();
+      const map = new Map<string, any>();
+      const BATCH = 50;
+      for (let i = 0; i < filtered.agentIds.length; i += BATCH) {
+        const { data: profs } = await supabase
+          .from('profiles')
+          .select('id, full_name, avatar_url, phone')
+          .in('id', filtered.agentIds.slice(i, i + BATCH));
+        (profs ?? []).forEach((p: any) => map.set(p.id, p));
+      }
+      return map;
+    },
+    enabled: filtered.agentIds.length > 0,
+    staleTime: 5 * 60_000,
+  });
+
+  const aggregatedRows: ActiveAgentRow[] = useMemo(() => {
+    return filtered.agentIds
+      .map((id) => {
+        const a = filtered.agg.get(id)!;
+        const p = profileMap?.get(id);
+        return {
+          agent_id: id,
+          requestCount: a.count,
+          lastRequestAt: a.last,
+          full_name: p?.full_name ?? null,
+          avatar_url: p?.avatar_url ?? null,
+          phone: p?.phone ?? null,
+        };
+      })
+      .sort(
+        (a, b) =>
+          b.requestCount - a.requestCount ||
+          b.lastRequestAt.localeCompare(a.lastRequestAt),
+      );
+  }, [filtered, profileMap]);
+
+  const filtersActive = statusFilter !== ALL || categoryFilter !== ALL;
+
+  const filterBar = (
+    <div className="flex flex-wrap items-center gap-2">
+      <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setVisible(PAGE_SIZE); }}>
+        <SelectTrigger className="h-8 w-[140px] text-xs">
+          <SelectValue placeholder="Status" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ALL}>All statuses</SelectItem>
+          {(data?.statuses ?? []).map((s) => (
+            <SelectItem key={s} value={s}>{s}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); setVisible(PAGE_SIZE); }}>
+        <SelectTrigger className="h-8 w-[160px] text-xs">
+          <SelectValue placeholder="House category" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ALL}>All categories</SelectItem>
+          {(data?.categories ?? []).map((c) => (
+            <SelectItem key={c} value={c}>{c}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {filtersActive && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 px-2 text-xs"
+          onClick={() => { setStatusFilter(ALL); setCategoryFilter(ALL); setVisible(PAGE_SIZE); }}
+        >
+          Clear
+        </Button>
+      )}
+    </div>
+  );
 
   if (isLoading) {
     return (
@@ -115,26 +206,35 @@ export function ActiveAgentsList({ range }: { range: DateRange }) {
     );
   }
 
-  const rows = data?.rows ?? [];
-  if (rows.length === 0) {
+  if (aggregatedRows.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-10 gap-2 text-center">
-        <Activity className="h-8 w-8 text-muted-foreground/60" />
-        <p className="text-sm font-medium text-foreground">No active agents in this window yet.</p>
-        <p className="text-xs text-muted-foreground">An agent becomes active by posting ≥1 tenant request.</p>
+      <div className="flex flex-col gap-3 min-h-0">
+        {filterBar}
+        <div className="flex flex-col items-center justify-center py-10 gap-2 text-center">
+          <Activity className="h-8 w-8 text-muted-foreground/60" />
+          <p className="text-sm font-medium text-foreground">
+            {filtersActive ? 'No active agents match these filters.' : 'No active agents in this window yet.'}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {filtersActive
+              ? 'Try clearing the status or category filter.'
+              : 'An agent becomes active by posting ≥1 tenant request.'}
+          </p>
+        </div>
       </div>
     );
   }
 
-  const shown = rows.slice(0, visible);
-  const totalReqs = rows.reduce((s, r) => s + r.requestCount, 0);
+  const shown = aggregatedRows.slice(0, visible);
 
   return (
     <div className="flex flex-col gap-2 min-h-0">
+      {filterBar}
       <div className="flex items-center justify-between gap-2 px-0.5">
         <p className="text-xs text-muted-foreground">
-          <span className="font-semibold text-foreground">{rows.length.toLocaleString()}</span> active agents ·
-          <span className="font-semibold text-foreground"> {totalReqs.toLocaleString()}</span> tenant requests
+          <span className="font-semibold text-foreground">{aggregatedRows.length.toLocaleString()}</span> active agents ·
+          <span className="font-semibold text-foreground"> {filtered.totalRequests.toLocaleString()}</span> tenant requests
+          {filtersActive && <span className="text-amber-600 dark:text-amber-400"> (filtered)</span>}
         </p>
         {data?.capped && (
           <Badge variant="outline" className="text-[10px]">Showing latest {FETCH_CAP}</Badge>
@@ -169,14 +269,14 @@ export function ActiveAgentsList({ range }: { range: DateRange }) {
           </div>
         ))}
 
-        {visible < rows.length && (
+        {visible < aggregatedRows.length && (
           <Button
             variant="ghost"
             size="sm"
             className="w-full"
             onClick={() => setVisible((v) => v + PAGE_SIZE)}
           >
-            Load more ({rows.length - visible} remaining)
+            Load more ({aggregatedRows.length - visible} remaining)
           </Button>
         )}
       </div>
