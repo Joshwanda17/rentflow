@@ -1824,34 +1824,50 @@ export function ComprehensiveCashMovement() {
         {simpleMode && (() => {
           const inCount = rows.reduce((n, r) => n + (r.direction === 'cash_in' ? 1 : 0), 0);
           const outCount = rows.reduce((n, r) => n + (r.direction === 'cash_out' ? 1 : 0), 0);
+          const shortcuts = [
+            {
+              key: 'in' as const,
+              icon: <ArrowUpRight className="h-5 w-5 text-success" />,
+              title: 'Money in',
+              count: inCount,
+              tone: 'border-success/30 bg-success/5 hover:bg-success/10',
+              onClick: () => openPageDrill('cash_in'),
+              ariaLabel: `See every Money-In transaction (${inCount.toLocaleString()})`,
+            },
+            {
+              key: 'out' as const,
+              icon: <ArrowDownRight className="h-5 w-5 text-destructive" />,
+              title: 'Money out',
+              count: outCount,
+              tone: 'border-destructive/30 bg-destructive/5 hover:bg-destructive/10',
+              onClick: () => openPageDrill('cash_out'),
+              ariaLabel: `See every Money-Out transaction (${outCount.toLocaleString()})`,
+            },
+          ];
           return (
-            <div className="rounded-xl border border-border bg-card divide-y divide-border overflow-hidden">
-              <button
-                type="button"
-                onClick={() => openPageDrill('cash_in')}
-                className="w-full flex items-center gap-3 hover:bg-muted/40 active:bg-muted/60 transition px-4 py-3 text-left"
-                aria-label={`See every Money-In transaction (${inCount.toLocaleString()})`}
-              >
-                <ArrowUpRight className="h-4 w-4 text-success shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-foreground">Money in transactions</div>
-                  <div className="text-[11px] text-muted-foreground">{inCount.toLocaleString()} {inCount === 1 ? 'entry' : 'entries'}</div>
-                </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-              </button>
-              <button
-                type="button"
-                onClick={() => openPageDrill('cash_out')}
-                className="w-full flex items-center gap-3 hover:bg-muted/40 active:bg-muted/60 transition px-4 py-3 text-left"
-                aria-label={`See every Money-Out transaction (${outCount.toLocaleString()})`}
-              >
-                <ArrowDownRight className="h-4 w-4 text-destructive shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-foreground">Money out transactions</div>
-                  <div className="text-[11px] text-muted-foreground">{outCount.toLocaleString()} {outCount === 1 ? 'entry' : 'entries'}</div>
-                </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-              </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {shortcuts.map(s => (
+                <button
+                  key={s.key}
+                  type="button"
+                  onClick={s.onClick}
+                  aria-label={s.ariaLabel}
+                  className={cn(
+                    'min-h-[72px] w-full rounded-xl border-2 px-4 py-3 text-left transition-colors',
+                    'flex items-center gap-3 active:scale-[0.99] touch-manipulation',
+                    s.tone,
+                  )}
+                >
+                  <span className="shrink-0">{s.icon}</span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm font-semibold text-foreground leading-tight">{s.title} transactions</span>
+                    <span className="block text-[11px] text-muted-foreground mt-0.5">
+                      {s.count.toLocaleString()} {s.count === 1 ? 'entry' : 'entries'}
+                    </span>
+                  </span>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden="true" />
+                </button>
+              ))}
             </div>
           );
         })()}
