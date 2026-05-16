@@ -80,6 +80,30 @@ export function LedgerDrillDownDialog({ open, onOpenChange, title, spec, startDa
 
   const total = rows.reduce((s, r) => s + Number(r.amount || 0), 0);
 
+  // Debit/Credit breakdown (accounting convention):
+  //  - cash_in  → Debit  (asset/expense increase, or contra-revenue)
+  //  - cash_out → Credit (revenue/liability increase, or asset decrease)
+  // We surface both perspectives: raw direction sums AND per-category breakdown.
+  const debitTotal = rows
+    .filter(r => r.direction === 'cash_in')
+    .reduce((s, r) => s + Number(r.amount || 0), 0);
+  const creditTotal = rows
+    .filter(r => r.direction === 'cash_out')
+    .reduce((s, r) => s + Number(r.amount || 0), 0);
+  const netTotal = debitTotal - creditTotal;
+
+  const byCategory = rows.reduce<Record<string, { debit: number; credit: number; count: number }>>((acc, r) => {
+    const key = r.category;
+    if (!acc[key]) acc[key] = { debit: 0, credit: 0, count: 0 };
+    if (r.direction === 'cash_in') acc[key].debit += Number(r.amount || 0);
+    else acc[key].credit += Number(r.amount || 0);
+    acc[key].count += 1;
+    return acc;
+  }, {});
+  const categoryBreakdown = Object.entries(byCategory).sort(
+    ([, a], [, b]) => (b.debit + b.credit) - (a.debit + a.credit)
+  );
+
   const onCsv = () => {
     const headers = ['Date', 'Scope', 'Direction', 'Category', 'Amount', 'User', 'Linked Party', 'Source', 'Description'];
     const out = rows.map(r => [
@@ -116,6 +140,60 @@ export function LedgerDrillDownDialog({ open, onOpenChange, title, spec, startDa
             <FileSpreadsheet className="h-3.5 w-3.5 mr-1" /> CSV
           </Button>
         </div>
+
+        {!loading && !error && rows.length > 0 && (
+          <div className="border-b bg-muted/20">
+            <div className="grid grid-cols-3 gap-3 p-3 text-xs">
+              <div className="rounded-md border bg-background p-2">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Debit (cash_in)</div>
+                <div className="font-mono font-semibold text-success">{formatUGX(debitTotal)}</div>
+              </div>
+              <div className="rounded-md border bg-background p-2">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Credit (cash_out)</div>
+                <div className="font-mono font-semibold text-destructive">{formatUGX(creditTotal)}</div>
+              </div>
+              <div className="rounded-md border bg-background p-2">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Net (DR − CR)</div>
+                <div className={`font-mono font-semibold ${netTotal >= 0 ? 'text-success' : 'text-destructive'}`}>
+                  {netTotal >= 0 ? '+' : '−'}{formatUGX(Math.abs(netTotal))}
+                </div>
+              </div>
+            </div>
+
+            <details className="px-3 pb-3 text-xs">
+              <summary className="cursor-pointer text-muted-foreground hover:text-foreground select-none">
+                Per-category breakdown ({categoryBreakdown.length})
+              </summary>
+              <table className="w-full mt-2 text-[11px]">
+                <thead>
+                  <tr className="text-left text-muted-foreground border-b">
+                    <th className="py-1 pr-2 font-medium">Category</th>
+                    <th className="py-1 pr-2 font-medium text-right">Count</th>
+                    <th className="py-1 pr-2 font-medium text-right">Debit</th>
+                    <th className="py-1 pr-2 font-medium text-right">Credit</th>
+                    <th className="py-1 pr-2 font-medium text-right">Net</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {categoryBreakdown.map(([cat, v]) => {
+                    const net = v.debit - v.credit;
+                    return (
+                      <tr key={cat} className="border-b last:border-b-0">
+                        <td className="py-1 pr-2 font-mono">{cat}</td>
+                        <td className="py-1 pr-2 text-right">{v.count}</td>
+                        <td className="py-1 pr-2 text-right font-mono text-success">{v.debit ? formatUGX(v.debit) : '—'}</td>
+                        <td className="py-1 pr-2 text-right font-mono text-destructive">{v.credit ? formatUGX(v.credit) : '—'}</td>
+                        <td className={`py-1 pr-2 text-right font-mono ${net >= 0 ? 'text-success' : 'text-destructive'}`}>
+                          {net >= 0 ? '+' : '−'}{formatUGX(Math.abs(net))}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </details>
+          </div>
+        )}
 
         <div className="flex-1 overflow-auto">
           {loading && (
