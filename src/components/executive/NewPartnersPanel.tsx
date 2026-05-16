@@ -1157,7 +1157,6 @@ export function NewPartnersPanel() {
                 </div>
               )}
             </div>
-            </div>
               {/* Server-side pagination controls — browse every supporter, not just the first page. */}
               {totalPages > 1 && (
                 <div className="flex items-center justify-between gap-2 pt-1">
@@ -1189,6 +1188,7 @@ export function NewPartnersPanel() {
                   </div>
                 </div>
               )}
+            </div>
               );
             })()
           )}
