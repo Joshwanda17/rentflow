@@ -476,6 +476,16 @@ export function NewPartnersPanel() {
             {joined && joined.length > 0 && (
               <Badge className="bg-primary/15 text-primary border-0 text-xs font-bold">{joined.length}</Badge>
             )}
+            <Button
+              size="sm"
+              className="h-8 text-xs gap-1.5 shrink-0"
+              onClick={() => {
+                setCreateForUser(null);
+                setCreateOpen(true);
+              }}
+            >
+              <PlusCircle className="h-3.5 w-3.5" /> Create Portfolio
+            </Button>
           </div>
 
           {/* Filters */}
