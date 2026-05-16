@@ -391,7 +391,7 @@ export function AgentOpsHomeView({ range, onRangeChange, onOpenSection }: AgentO
       drillKey: 'active-agents',
       rawValue: data?.kpis.activeAgents.value ?? 0,
       prev: data?.kpis.activeAgents.prev ?? 0,
-      series: data?.trend.map((t) => (t.agents > 0 ? t.agents : 0)) ?? [],
+      series: data?.trend.map((t) => t.activeAgents) ?? [],
     },
   ];
 
@@ -422,6 +422,16 @@ export function AgentOpsHomeView({ range, onRangeChange, onOpenSection }: AgentO
           Live
         </Badge>
       </div>
+
+      {/* Active Agents hero — most-visible KPI: agents who posted ≥1 rent request in range */}
+      <ActiveAgentsHero
+        value={data?.kpis.activeAgents.value ?? 0}
+        prev={data?.kpis.activeAgents.prev ?? 0}
+        totalAgents={data?.totalAgentCount ?? 0}
+        loading={isLoading}
+        range={range}
+        onClick={() => setActiveDrill('active-agents')}
+      />
 
       {/* Daily Briefs grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
