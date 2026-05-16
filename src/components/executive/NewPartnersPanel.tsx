@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -350,6 +350,43 @@ export function NewPartnersPanel() {
     staleTime: 60_000,
   });
 
+  // ── Filtered partners (drives both the badge counts above the grid
+  // and the grid itself, so badges react instantly to the active filter). ──
+  const filteredPartners = useMemo(() => {
+    if (!joined) return [] as JoinedPartner[];
+    const q = partnerSearch.trim().toLowerCase();
+    const cutoff = Date.now() - 14 * 86400000;
+    const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+    const startOfWeek = new Date(startOfToday);
+    const dow = startOfWeek.getDay();
+    startOfWeek.setDate(startOfWeek.getDate() - ((dow + 6) % 7));
+    const startOfMonth = new Date(startOfToday.getFullYear(), startOfToday.getMonth(), 1);
+    return joined.filter(p => {
+      if (partnerFilter === 'with' && p.portfolio_count === 0) return false;
+      if (partnerFilter === 'without' && p.portfolio_count > 0) return false;
+      if (partnerFilter === 'recent' && new Date(p.created_at).getTime() < cutoff) return false;
+      if (partnerFilter === 'today' && new Date(p.created_at).getTime() < startOfToday.getTime()) return false;
+      if (partnerFilter === 'week' && new Date(p.created_at).getTime() < startOfWeek.getTime()) return false;
+      if (partnerFilter === 'month' && new Date(p.created_at).getTime() < startOfMonth.getTime()) return false;
+      if (partnerFilter === 'custom') {
+        const t = new Date(p.created_at).getTime();
+        if (customRange?.from) {
+          const from = new Date(customRange.from); from.setHours(0, 0, 0, 0);
+          if (t < from.getTime()) return false;
+        }
+        if (customRange?.to) {
+          const to = new Date(customRange.to); to.setHours(23, 59, 59, 999);
+          if (t > to.getTime()) return false;
+        }
+      }
+      if (q) {
+        const hay = `${p.full_name} ${p.phone}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [joined, partnerSearch, partnerFilter, customRange]);
+
   // ── Realtime: any new supporter role grant pops in instantly ──
   useEffect(() => {
     const channel = supabase
@@ -506,37 +543,6 @@ export function NewPartnersPanel() {
               <h3 className="text-sm font-bold">Joined Partners</h3>
               <p className="text-[10px] text-muted-foreground">Browse all partners, filter, activate portfolios & WhatsApp</p>
             </div>
-            {joined && joined.length > 0 && (() => {
-              const withCount = joined.filter(p => p.portfolio_count > 0).length;
-              const withoutCount = joined.length - withCount;
-              // All boundaries computed in the user's local browser timezone
-              // (NOT server time) so "today" / "this week" / "this month" match
-              // how the logged-in Partner Ops Manager reads the calendar.
-              const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
-              const startOfWeek = new Date(startOfToday);
-              // Week starts on Monday in local time
-              const dow = startOfWeek.getDay(); // 0=Sun..6=Sat
-              const daysSinceMonday = (dow + 6) % 7;
-              startOfWeek.setDate(startOfWeek.getDate() - daysSinceMonday);
-              const startOfMonth = new Date(startOfToday.getFullYear(), startOfToday.getMonth(), 1);
-              const todayCount = joined.filter(p => new Date(p.created_at).getTime() >= startOfToday.getTime()).length;
-              const weekCount = joined.filter(p => new Date(p.created_at).getTime() >= startOfWeek.getTime()).length;
-              const monthCount = joined.filter(p => new Date(p.created_at).getTime() >= startOfMonth.getTime()).length;
-              return (
-                <div className="flex flex-wrap items-center gap-1 justify-end">
-                  <Badge className="bg-primary/15 text-primary border-0 text-[10px] font-bold" title="Total partners">{joined.length} total</Badge>
-                  <Badge className="bg-emerald-500/15 text-emerald-600 border-0 text-[10px] font-bold" title="With portfolios">{withCount} active</Badge>
-                  <Badge className="bg-amber-500/15 text-amber-600 border-0 text-[10px] font-bold" title="No portfolio yet">{withoutCount} pending</Badge>
-                  {canWhatsAppPartners && (
-                    <>
-                      <Badge className="bg-sky-500/15 text-sky-600 border-0 text-[10px] font-bold" title="Joined today (your local time)">{todayCount} today</Badge>
-                      <Badge className="bg-indigo-500/15 text-indigo-600 border-0 text-[10px] font-bold" title="Joined since Monday (your local time)">{weekCount} this week</Badge>
-                      <Badge className="bg-violet-500/15 text-violet-600 border-0 text-[10px] font-bold" title="Joined since the 1st of this month (your local time)">{monthCount} this month</Badge>
-                    </>
-                  )}
-                </div>
-              );
-            })()}
             <Button
               size="sm"
               className="h-8 text-xs gap-1.5 shrink-0"
@@ -676,45 +682,52 @@ export function NewPartnersPanel() {
             <p className="text-xs text-muted-foreground italic">No partners yet.</p>
           ) : (
             (() => {
-              const q = partnerSearch.trim().toLowerCase();
-              const cutoff = Date.now() - 14 * 86400000;
+              const filtered = filteredPartners;
+              const withCount = filtered.filter(p => p.portfolio_count > 0).length;
+              const withoutCount = filtered.length - withCount;
               // Local-timezone calendar boundaries (browser tz of the logged-in user).
               const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
               const startOfWeek = new Date(startOfToday);
               const dow = startOfWeek.getDay();
               startOfWeek.setDate(startOfWeek.getDate() - ((dow + 6) % 7));
               const startOfMonth = new Date(startOfToday.getFullYear(), startOfToday.getMonth(), 1);
-              const filtered = joined.filter(p => {
-                if (partnerFilter === 'with' && p.portfolio_count === 0) return false;
-                if (partnerFilter === 'without' && p.portfolio_count > 0) return false;
-                if (partnerFilter === 'recent' && new Date(p.created_at).getTime() < cutoff) return false;
-                if (partnerFilter === 'today' && new Date(p.created_at).getTime() < startOfToday.getTime()) return false;
-                if (partnerFilter === 'week' && new Date(p.created_at).getTime() < startOfWeek.getTime()) return false;
-                if (partnerFilter === 'month' && new Date(p.created_at).getTime() < startOfMonth.getTime()) return false;
-                if (partnerFilter === 'custom') {
-                  const t = new Date(p.created_at).getTime();
-                  if (customRange?.from) {
-                    const from = new Date(customRange.from); from.setHours(0, 0, 0, 0);
-                    if (t < from.getTime()) return false;
-                  }
-                  if (customRange?.to) {
-                    const to = new Date(customRange.to); to.setHours(23, 59, 59, 999);
-                    if (t > to.getTime()) return false;
-                  }
-                }
-                if (q) {
-                  const hay = `${p.full_name} ${p.phone}`.toLowerCase();
-                  if (!hay.includes(q)) return false;
-                }
-                return true;
-              });
+              const todayCount = filtered.filter(p => new Date(p.created_at).getTime() >= startOfToday.getTime()).length;
+              const weekCount = filtered.filter(p => new Date(p.created_at).getTime() >= startOfWeek.getTime()).length;
+              const monthCount = filtered.filter(p => new Date(p.created_at).getTime() >= startOfMonth.getTime()).length;
+              const isFiltered = filtered.length !== joined.length;
+              const badges = (
+                <div className="flex flex-wrap items-center gap-1">
+                  <Badge
+                    className="bg-primary/15 text-primary border-0 text-[10px] font-bold"
+                    title={isFiltered ? 'Partners matching current filter' : 'Total partners'}
+                  >
+                    {filtered.length}{isFiltered ? ` of ${joined.length}` : ''} {isFiltered ? 'matched' : 'total'}
+                  </Badge>
+                  <Badge className="bg-emerald-500/15 text-emerald-600 border-0 text-[10px] font-bold" title="With portfolios (in current filter)">{withCount} active</Badge>
+                  <Badge className="bg-amber-500/15 text-amber-600 border-0 text-[10px] font-bold" title="No portfolio yet (in current filter)">{withoutCount} pending</Badge>
+                  {canWhatsAppPartners && (
+                    <>
+                      <Badge className="bg-sky-500/15 text-sky-600 border-0 text-[10px] font-bold" title="Joined today, in current filter (your local time)">{todayCount} today</Badge>
+                      <Badge className="bg-indigo-500/15 text-indigo-600 border-0 text-[10px] font-bold" title="Joined since Monday, in current filter (your local time)">{weekCount} this week</Badge>
+                      <Badge className="bg-violet-500/15 text-violet-600 border-0 text-[10px] font-bold" title="Joined since the 1st of this month, in current filter (your local time)">{monthCount} this month</Badge>
+                    </>
+                  )}
+                </div>
+              );
               if (filtered.length === 0) {
-                return <p className="text-xs text-muted-foreground italic">No partners match these filters.</p>;
+                return (
+                  <div className="space-y-2">
+                    {badges}
+                    <p className="text-xs text-muted-foreground italic">No partners match these filters.</p>
+                  </div>
+                );
               }
               const visible = filtered.slice(0, visiblePartnerCount);
               const hasMore = filtered.length > visible.length;
               return (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[520px] overflow-y-auto pr-1">
+            <div className="space-y-2">
+              {badges}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[520px] overflow-y-auto pr-1">
               <div className="col-span-full text-[10px] text-muted-foreground">
                 Showing {visible.length} of {filtered.length} matched · {joined.length} total
               </div>
@@ -809,6 +822,7 @@ export function NewPartnersPanel() {
                   </Button>
                 </div>
               )}
+            </div>
             </div>
               );
             })()
