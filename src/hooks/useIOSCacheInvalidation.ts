@@ -1,6 +1,7 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { isCriticalFlowActive } from '@/lib/criticalFlowGuard';
 
 declare const __BUILD_TIME__: number;
 
@@ -184,11 +185,23 @@ export function useIOSCacheInvalidation() {
         return;
       }
 
+      // If the user is mid-payment / mid-OTP, do NOT churn the cache or
+      // hot-swap the service worker — that visually looks like the app
+      // refreshed and threw away their in-flight payment.
+      if (isCriticalFlowActive()) {
+        console.log('[Mobile Cache] Critical flow active — skipping invalidation/SW update');
+        lastActiveRef.current = Date.now();
+        return;
+      }
+
       const timeSinceActive = Date.now() - lastActiveRef.current;
       const timeSinceRefresh = Date.now() - lastRefreshRef.current;
       
-      // iOS needs more aggressive threshold (5s), Android can be slightly more relaxed (10s)
-      const STALE_THRESHOLD = isIOS ? 5 * 1000 : 10 * 1000;
+      // 5s was far shorter than entering a MoMo PIN or reading an SMS OTP,
+      // which made every payment look like the app "refreshed". 60s for
+      // iOS, 90s for Android — long enough to cover external app round
+      // trips, short enough to keep data fresh on real session resumes.
+      const STALE_THRESHOLD = isIOS ? 60 * 1000 : 90 * 1000;
       const MIN_REFRESH_INTERVAL = 3 * 1000; // Don't refresh more than every 3 seconds
 
       console.log(`[Mobile Cache] App resumed after ${Math.round(timeSinceActive / 1000)}s`);
@@ -202,20 +215,28 @@ export function useIOSCacheInvalidation() {
       // Check for version changes first
       const versionChanged = checkVersionMismatch();
       
-      // If app was in background for more than threshold, do full refresh
-      if (timeSinceActive > STALE_THRESHOLD || versionChanged) {
-        console.log('[Mobile Cache] Data is stale - refreshing');
+      // Only full invalidate + SW swap when the build itself changed.
+      // Plain "stale" resumes use the lighter refetch so an open wizard
+      // keeps its state.
+      if (versionChanged) {
+        console.log('[Mobile Cache] Build changed - full refresh');
         await checkServiceWorkerUpdate();
         await invalidateAllData(true);
+      } else if (timeSinceActive > STALE_THRESHOLD) {
+        console.log('[Mobile Cache] Data stale - quick refetch');
+        await quickRefresh();
       } else {
-        // Even for short pauses, do a quick refetch
         await quickRefresh();
       }
     };
 
     // Handle page show event (reliable for both iOS bfcache and Android)
     const handlePageShow = (event: PageTransitionEvent) => {
-      if (event.persisted && mobileInfoRef.current.isMobilePWA) {
+      if (
+        event.persisted &&
+        mobileInfoRef.current.isMobilePWA &&
+        !isCriticalFlowActive()
+      ) {
         console.log('[Mobile Cache] Page restored from cache - forcing refresh');
         invalidateAllData(true);
         checkServiceWorkerUpdate();
@@ -225,7 +246,8 @@ export function useIOSCacheInvalidation() {
     // Handle focus (when switching back to app from another app)
     const handleFocus = () => {
       if (!mobileInfoRef.current.isMobilePWA) return;
-      
+      if (isCriticalFlowActive()) return;
+
       const timeSinceActive = Date.now() - lastActiveRef.current;
       const timeSinceRefresh = Date.now() - lastRefreshRef.current;
       
@@ -238,7 +260,7 @@ export function useIOSCacheInvalidation() {
 
     // Handle online event (network restored) - important for both platforms
     const handleOnline = () => {
-      if (mobileInfoRef.current.isMobilePWA) {
+      if (mobileInfoRef.current.isMobilePWA && !isCriticalFlowActive()) {
         console.log('[Mobile Cache] Network restored - refreshing data');
         invalidateAllData(true);
       }
