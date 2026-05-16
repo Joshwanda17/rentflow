@@ -587,16 +587,19 @@ export function NewPartnersPanel() {
             (() => {
               const q = partnerSearch.trim().toLowerCase();
               const cutoff = Date.now() - 14 * 86400000;
+              // Local-timezone calendar boundaries (browser tz of the logged-in user).
               const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
-              const weekCutoff = Date.now() - 7 * 86400000;
-              const monthCutoff = Date.now() - 30 * 86400000;
+              const startOfWeek = new Date(startOfToday);
+              const dow = startOfWeek.getDay();
+              startOfWeek.setDate(startOfWeek.getDate() - ((dow + 6) % 7));
+              const startOfMonth = new Date(startOfToday.getFullYear(), startOfToday.getMonth(), 1);
               const filtered = joined.filter(p => {
                 if (partnerFilter === 'with' && p.portfolio_count === 0) return false;
                 if (partnerFilter === 'without' && p.portfolio_count > 0) return false;
                 if (partnerFilter === 'recent' && new Date(p.created_at).getTime() < cutoff) return false;
                 if (partnerFilter === 'today' && new Date(p.created_at).getTime() < startOfToday.getTime()) return false;
-                if (partnerFilter === 'week' && new Date(p.created_at).getTime() < weekCutoff) return false;
-                if (partnerFilter === 'month' && new Date(p.created_at).getTime() < monthCutoff) return false;
+                if (partnerFilter === 'week' && new Date(p.created_at).getTime() < startOfWeek.getTime()) return false;
+                if (partnerFilter === 'month' && new Date(p.created_at).getTime() < startOfMonth.getTime()) return false;
                 if (q) {
                   const hay = `${p.full_name} ${p.phone}`.toLowerCase();
                   if (!hay.includes(q)) return false;
