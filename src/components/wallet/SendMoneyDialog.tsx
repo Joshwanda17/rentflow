@@ -402,12 +402,28 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                         initial={{ opacity: 0, y: -4 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0 }}
-                        className="flex items-center gap-2 rounded-md border border-success/30 bg-success/10 px-2.5 py-1.5"
+                        className="flex items-start gap-2 rounded-md border border-success/30 bg-success/10 px-2.5 py-1.5"
                       >
-                        <UserCheck className="h-3.5 w-3.5 text-success shrink-0" />
-                        <p className="text-xs text-foreground">
-                          Sending to <span className="font-semibold">{recipient.name}</span>
-                        </p>
+                        <UserCheck className="h-3.5 w-3.5 text-success shrink-0 mt-0.5" />
+                        <div className="text-xs text-foreground space-y-0.5 min-w-0">
+                          <p>
+                            Sending to <span className="font-semibold">{recipient.name}</span>
+                          </p>
+                          <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-muted-foreground">
+                            {recipient.phone && (
+                              <span className="flex items-center gap-1">
+                                <Phone className="h-3 w-3" />
+                                {recipient.phone}
+                              </span>
+                            )}
+                            {recipient.email && (
+                              <span className="flex items-center gap-1 truncate">
+                                <Mail className="h-3 w-3" />
+                                {recipient.email}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </motion.div>
                     )}
                     {recipient.status === 'found' && recipient.isSelf && (
