@@ -1534,16 +1534,43 @@ export function ComprehensiveCashMovement() {
           <div className="rounded-lg border border-border bg-success/5 p-2 sm:p-3">
             <div className="flex items-center gap-1 text-[10px] uppercase text-muted-foreground"><ArrowUpRight className="h-3 w-3 text-success" /> Money In</div>
             <div className="font-mono font-semibold text-success text-xs sm:text-base break-all">{formatUGX(totals.cashIn)}</div>
+            <button
+              type="button"
+              onClick={() => openPageDrill('cash_in')}
+              className="mt-1 text-[10px] sm:text-[11px] font-medium text-success/90 hover:text-success underline-offset-2 hover:underline inline-flex items-center gap-0.5"
+              aria-label="See where Money In comes from — open the transaction list filtered to cash in"
+            >
+              See where this comes from →
+            </button>
           </div>
           <div className="rounded-lg border border-border bg-destructive/5 p-2 sm:p-3">
             <div className="flex items-center gap-1 text-[10px] uppercase text-muted-foreground"><ArrowDownRight className="h-3 w-3 text-destructive" /> Money Out</div>
             <div className="font-mono font-semibold text-destructive text-xs sm:text-base break-all">{formatUGX(totals.cashOut)}</div>
+            <button
+              type="button"
+              onClick={() => openPageDrill('cash_out')}
+              className="mt-1 text-[10px] sm:text-[11px] font-medium text-destructive/90 hover:text-destructive underline-offset-2 hover:underline inline-flex items-center gap-0.5"
+              aria-label="See where Money Out comes from — open the transaction list filtered to cash out"
+            >
+              See where this comes from →
+            </button>
           </div>
           <div className={cn('rounded-lg border border-border p-2 sm:p-3', totals.net >= 0 ? 'bg-success/5' : 'bg-destructive/5')}>
             <div className="text-[10px] uppercase text-muted-foreground">Difference</div>
             <div className={cn('font-mono font-semibold text-xs sm:text-base break-all', totals.net >= 0 ? 'text-success' : 'text-destructive')}>
               {totals.net >= 0 ? '+' : ''}{formatUGX(totals.net)}
             </div>
+            <button
+              type="button"
+              onClick={() => openPageDrill('all')}
+              className={cn(
+                'mt-1 text-[10px] sm:text-[11px] font-medium underline-offset-2 hover:underline inline-flex items-center gap-0.5',
+                totals.net >= 0 ? 'text-success/90 hover:text-success' : 'text-destructive/90 hover:text-destructive',
+              )}
+              aria-label="See where the Difference comes from — open the full transaction list"
+            >
+              See where this comes from →
+            </button>
           </div>
         </div>
 
