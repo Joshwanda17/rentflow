@@ -440,6 +440,9 @@ export function TenantOpsLandlordFloatTimeline() {
     const tenantSet = new Set(tenantFilter);
     const landlordSet = new Set(landlordFilter);
     return events.filter((e) => {
+      if (outstandingOnly) {
+        if (e.kind !== 'allocation' || !((e.outstanding || 0) > 0)) return false;
+      }
       if (agentSet.size > 0 && !agentSet.has(e.agent_id)) return false;
       if (tenantSet.size > 0 && (!e.tenant_id || !tenantSet.has(e.tenant_id))) return false;
       if (landlordSet.size > 0) {
@@ -460,7 +463,7 @@ export function TenantOpsLandlordFloatTimeline() {
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q));
     });
-  }, [events, search, agentFilter, tenantFilter, landlordFilter]);
+  }, [events, search, agentFilter, tenantFilter, landlordFilter, outstandingOnly]);
 
   // Group by calendar day
   const grouped = useMemo(() => {
