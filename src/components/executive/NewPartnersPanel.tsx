@@ -350,6 +350,43 @@ export function NewPartnersPanel() {
     staleTime: 60_000,
   });
 
+  // ── Filtered partners (drives both the badge counts above the grid
+  // and the grid itself, so badges react instantly to the active filter). ──
+  const filteredPartners = useMemo(() => {
+    if (!joined) return [] as JoinedPartner[];
+    const q = partnerSearch.trim().toLowerCase();
+    const cutoff = Date.now() - 14 * 86400000;
+    const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+    const startOfWeek = new Date(startOfToday);
+    const dow = startOfWeek.getDay();
+    startOfWeek.setDate(startOfWeek.getDate() - ((dow + 6) % 7));
+    const startOfMonth = new Date(startOfToday.getFullYear(), startOfToday.getMonth(), 1);
+    return joined.filter(p => {
+      if (partnerFilter === 'with' && p.portfolio_count === 0) return false;
+      if (partnerFilter === 'without' && p.portfolio_count > 0) return false;
+      if (partnerFilter === 'recent' && new Date(p.created_at).getTime() < cutoff) return false;
+      if (partnerFilter === 'today' && new Date(p.created_at).getTime() < startOfToday.getTime()) return false;
+      if (partnerFilter === 'week' && new Date(p.created_at).getTime() < startOfWeek.getTime()) return false;
+      if (partnerFilter === 'month' && new Date(p.created_at).getTime() < startOfMonth.getTime()) return false;
+      if (partnerFilter === 'custom') {
+        const t = new Date(p.created_at).getTime();
+        if (customRange?.from) {
+          const from = new Date(customRange.from); from.setHours(0, 0, 0, 0);
+          if (t < from.getTime()) return false;
+        }
+        if (customRange?.to) {
+          const to = new Date(customRange.to); to.setHours(23, 59, 59, 999);
+          if (t > to.getTime()) return false;
+        }
+      }
+      if (q) {
+        const hay = `${p.full_name} ${p.phone}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [joined, partnerSearch, partnerFilter, customRange]);
+
   // ── Realtime: any new supporter role grant pops in instantly ──
   useEffect(() => {
     const channel = supabase
