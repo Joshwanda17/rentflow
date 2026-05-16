@@ -225,15 +225,17 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-lg max-h-[90dvh] p-0 gap-0 flex flex-col overflow-hidden">
+        <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-2 shrink-0 border-b">
           <DialogTitle className="flex items-center gap-2">
             <PlusCircle className="h-4 w-4 text-primary" />
             New Portfolio Account
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
+        {/* Scrollable body — keeps the sticky footer/action button out of the
+            way on mobile so it never overlaps inputs and stays fully tappable. */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-3 space-y-4">
           {/* Partner selection */}
           {!selectedUser ? (
             <div className="space-y-2">
@@ -425,7 +427,7 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
           )}
         </div>
 
-        <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:gap-2">
+        <DialogFooter className="shrink-0 flex-col-reverse gap-2 sm:flex-row sm:gap-2 px-4 sm:px-6 py-3 border-t bg-background pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
@@ -435,7 +437,7 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
           </Button>
           <Button
             onClick={handleCreate}
-            className="w-full sm:w-auto whitespace-normal text-center leading-tight min-h-[2.5rem] h-auto py-2"
+            className="w-full sm:w-auto whitespace-normal text-center leading-tight min-h-[2.75rem] h-auto py-2"
             disabled={
               saving ||
               !selectedUser ||
