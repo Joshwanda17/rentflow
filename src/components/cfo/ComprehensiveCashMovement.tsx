@@ -2579,9 +2579,15 @@ function WalletMovementSummary({
           {netDrill && (() => {
             const allWalletTxs: LedgerRow[] = [];
             for (const list of txByKey.values()) allWalletTxs.push(...list);
-            const dirFiltered = allWalletTxs.filter(r =>
-              netDrill.direction === 'all' ? true : r.direction === netDrill.direction
-            );
+            const dirFiltered = allWalletTxs.filter(r => {
+              if (netDrill.direction !== 'all' && r.direction !== netDrill.direction) return false;
+              if (netDrill.from !== undefined || netDrill.to !== undefined) {
+                const t = new Date(r.transaction_date).getTime();
+                if (netDrill.from !== undefined && t < netDrill.from) return false;
+                if (netDrill.to !== undefined && t >= netDrill.to) return false;
+              }
+              return true;
+            });
             const q = netDrillQuery.trim().toLowerCase();
             const searched = q
               ? dirFiltered.filter(r =>
@@ -2606,10 +2612,24 @@ function WalletMovementSummary({
                   <SheetTitle className="flex items-center gap-2">
                     Net flow transactions
                     <Badge variant="outline" className="text-[10px]">{periodLabel}</Badge>
+                    {netDrill.label && (
+                      <Badge variant="secondary" className="text-[10px]">{netDrill.label}</Badge>
+                    )}
                   </SheetTitle>
                   <SheetDescription>
-                    Every wallet-scope cash-in and cash-out that makes up Into − Out for this period.
+                    {netDrill.label
+                      ? `Wallet cash-in and cash-out within ${netDrill.label} that compose this bucket's net.`
+                      : 'Every wallet-scope cash-in and cash-out that makes up Into − Out for this period.'}
                   </SheetDescription>
+                  {netDrill.label && (
+                    <button
+                      type="button"
+                      onClick={() => setNetDrill({ direction: netDrill.direction })}
+                      className="self-start mt-1 text-[10px] underline text-muted-foreground hover:text-foreground"
+                    >
+                      Clear bucket filter · show full period
+                    </button>
+                  )}
                 </SheetHeader>
 
                 {/* Direction tabs */}
@@ -2622,7 +2642,7 @@ function WalletMovementSummary({
                     <button
                       key={opt.v}
                       type="button"
-                      onClick={() => setNetDrill({ direction: opt.v })}
+                      onClick={() => setNetDrill({ ...netDrill, direction: opt.v })}
                       className={cn(
                         'text-[11px] px-2.5 py-1 rounded-full border transition-colors',
                         netDrill.direction === opt.v
