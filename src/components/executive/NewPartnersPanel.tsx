@@ -1042,7 +1042,15 @@ export function NewPartnersPanel() {
           </div>
 
           {/* Segmented control — quick portfolio-status switch */}
-          <div className="flex rounded-lg border border-border/60 bg-muted/40 p-1 sm:p-0.5 text-xs sm:text-[11px] self-start overflow-x-auto max-w-full [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div
+            className="flex rounded-lg border border-border/60 bg-muted/40 p-1 sm:p-0.5 text-xs sm:text-[11px] self-start overflow-x-auto max-w-full [scrollbar-width:none] [&::-webkit-scrollbar]:hidden touch-pan-y select-none"
+            role="tablist"
+            aria-label="Portfolio status filter — swipe to switch"
+            {...makeSegmentSwipeHandlers(
+              ['all', 'just_joined', 'with', 'without'] as const,
+              partnerFilter,
+            )}
+          >
             {([
               { key: 'all', label: 'All', count: segmentCounts.all },
               { key: 'just_joined', label: `Just joined (${JUST_JOINED_DAYS}d)`, count: segmentCounts.justJoined },
@@ -1077,7 +1085,15 @@ export function NewPartnersPanel() {
             ))}
           </div>
           {/* Recent joins (no-portfolio activation backlog, scoped by window) */}
-          <div className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-muted/40 p-1 sm:p-0.5 text-xs sm:text-[11px] self-start overflow-x-auto max-w-full [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div
+            className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-muted/40 p-1 sm:p-0.5 text-xs sm:text-[11px] self-start overflow-x-auto max-w-full [scrollbar-width:none] [&::-webkit-scrollbar]:hidden touch-pan-y select-none"
+            role="tablist"
+            aria-label="Recent joins filter — swipe to switch"
+            {...makeSegmentSwipeHandlers(
+              ['recent_today', 'recent_week', 'recent_month'] as const,
+              partnerFilter,
+            )}
+          >
             <span className="pl-2 pr-1 text-[11px] sm:text-[10px] uppercase tracking-wide text-muted-foreground shrink-0">
               Recent joins
             </span>
