@@ -437,7 +437,11 @@ export function NewPartnersPanel() {
   // is fetched from `user_roles` with `.range()` + `{ count: 'exact' }` and
   // appended to the previously loaded rows, so the user can browse every
   // supporter without a manual "next page" click.
-  const PARTNERS_PAGE_SIZE = 200;
+  // Smaller first paint = faster TTFB on the partners grid. Subsequent pages
+  // are still appended via the infinite-scroll sentinel, so the user never
+  // perceives a gap, but the initial 3-roundtrip burst (user_roles → profiles
+  // + portfolios) now operates on ~100 rows instead of 200.
+  const PARTNERS_PAGE_SIZE = 100;
   const gridScrollRef = useRef<HTMLDivElement | null>(null);
   const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
 
@@ -459,15 +463,26 @@ export function NewPartnersPanel() {
       const pageIndex = pageParam as number;
       const from = pageIndex * PARTNERS_PAGE_SIZE;
       const to = from + PARTNERS_PAGE_SIZE - 1;
-      const { data: roles, count } = await supabase
+      // `count: 'exact'` is a planner-buster on large user_roles tables — it
+      // forces a full COUNT(*) on every page. We only need a total for the
+      // "joinedTotal" badge on first paint, so:
+      //   • first page → use the much cheaper `planned` (estimated) count
+      //   • later pages → skip count entirely and reuse the cached total
+      const wantCount = pageIndex === 0;
+      const query = supabase
         .from('user_roles')
-        .select('user_id, created_at', { count: 'exact' })
+        .select('user_id, created_at', wantCount ? { count: 'planned' } : undefined)
         .eq('role', 'supporter')
         .eq('enabled', true)
         .order('created_at', { ascending: false })
         .range(from, to);
+      const { data: roles, count } = await query;
       const rows = roles || [];
-      const total = count ?? rows.length;
+      // If estimate is missing/0 but we got rows, fall back to a safe floor so
+      // pagination doesn't terminate early.
+      const total = wantCount
+        ? Math.max(count ?? 0, rows.length)
+        : from + rows.length + (rows.length === PARTNERS_PAGE_SIZE ? 1 : 0);
       if (rows.length === 0) {
         return { rows: [] as JoinedPartner[], total, pageIndex };
       }
