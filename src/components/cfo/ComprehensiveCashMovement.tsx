@@ -967,7 +967,7 @@ export function ComprehensiveCashMovement() {
             Read-only summary of money flowing INTO and OUT OF user/operational
             wallets in the selected period. Reuses already-loaded ledger rows
             (no balance changes anywhere). */}
-        <WalletMovementSummary rows={rows} includeAdjustments={includeAdjustments} />
+        <WalletMovementSummary rows={rows} includeAdjustments={includeAdjustments} period={period} />
 
         {/* Quick filter chips */}
         <div className="space-y-1.5">
@@ -1736,7 +1736,15 @@ export function ComprehensiveCashMovement() {
 // Minimalist breakdown of money INTO and OUT OF wallets for the
 // currently loaded period. Pure read view — never mutates anything.
 // ─────────────────────────────────────────────────────────────
-function WalletMovementSummary({ rows, includeAdjustments }: { rows: LedgerRow[]; includeAdjustments: boolean }) {
+function WalletMovementSummary({
+  rows,
+  includeAdjustments,
+  period,
+}: {
+  rows: LedgerRow[];
+  includeAdjustments: boolean;
+  period: PeriodKey;
+}) {
   // Tracks which (direction|category) rows are expanded to reveal underlying
   // ledger transactions for the currently loaded period.
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -1775,6 +1783,96 @@ function WalletMovementSummary({ rows, includeAdjustments }: { rows: LedgerRow[]
     };
   }, [rows, includeAdjustments]);
 
+  // ── Previous-period comparison ──────────────────────────────
+  // Computes a same-length window immediately preceding the current period and
+  // pulls only wallet-scope ledger rows (small slice). "All time" has no prior
+  // window so comparison is skipped.
+  const priorRange = useMemo(() => {
+    const cur = periodRange(period);
+    if (!cur.from) return null;
+    const lengthMs = cur.to.getTime() - cur.from.getTime();
+    if (lengthMs <= 0) return null;
+    const priorTo = cur.from;
+    const priorFrom = new Date(cur.from.getTime() - lengthMs);
+    return { from: priorFrom, to: priorTo };
+  }, [period]);
+
+  const [priorTotals, setPriorTotals] = useState<{
+    inByCat: Map<string, number>;
+    outByCat: Map<string, number>;
+    totalIn: number;
+    totalOut: number;
+  } | null>(null);
+  const [priorLoading, setPriorLoading] = useState(false);
+
+  useEffect(() => {
+    if (!priorRange) { setPriorTotals(null); return; }
+    let cancelled = false;
+    setPriorLoading(true);
+    (async () => {
+      try {
+        const PAGE = 1000;
+        let offset = 0;
+        const inByCat = new Map<string, number>();
+        const outByCat = new Map<string, number>();
+        let totalIn = 0;
+        let totalOut = 0;
+        // Only wallet-scope rows are needed for this comparison.
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          const { data, error } = await supabase
+            .from('general_ledger')
+            .select('amount, direction, category, classification')
+            .eq('ledger_scope', 'wallet')
+            .gte('transaction_date', priorRange.from.toISOString())
+            .lt('transaction_date', priorRange.to.toISOString())
+            .order('transaction_date', { ascending: true })
+            .range(offset, offset + PAGE - 1);
+          if (error) throw error;
+          const batch = (data || []) as Array<Pick<LedgerRow, 'amount' | 'direction' | 'category' | 'classification'>>;
+          for (const r of batch) {
+            if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
+            const amt = Number(r.amount) || 0;
+            if (r.direction === 'cash_in') {
+              inByCat.set(r.category, (inByCat.get(r.category) || 0) + amt);
+              totalIn += amt;
+            } else if (r.direction === 'cash_out') {
+              outByCat.set(r.category, (outByCat.get(r.category) || 0) + amt);
+              totalOut += amt;
+            }
+          }
+          if (batch.length < PAGE) break;
+          offset += PAGE;
+          if (offset > 200_000) break;
+        }
+        if (!cancelled) setPriorTotals({ inByCat, outByCat, totalIn, totalOut });
+      } catch (err) {
+        console.error('[WalletMovementSummary] prior period load failed', err);
+        if (!cancelled) setPriorTotals(null);
+      } finally {
+        if (!cancelled) setPriorLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [priorRange, includeAdjustments]);
+
+  const formatDelta = (current: number, prior: number | undefined) => {
+    if (prior === undefined) return null;
+    const diff = current - prior;
+    if (prior === 0 && diff === 0) return { label: 'no change', tone: 'muted' as const, arrow: '·' };
+    if (prior === 0) return { label: 'new', tone: 'pos' as const, arrow: '▲' };
+    const pct = (diff / prior) * 100;
+    const arrow = diff > 0 ? '▲' : diff < 0 ? '▼' : '·';
+    const tone = diff > 0 ? 'pos' as const : diff < 0 ? 'neg' as const : 'muted' as const;
+    return { label: `${arrow} ${Math.abs(pct).toFixed(0)}%`, tone, arrow };
+  };
+  const toneClass = (tone: 'pos' | 'neg' | 'muted', context: 'in' | 'out') => {
+    // For inflows: up is good (success). For outflows: up is bad (destructive).
+    if (tone === 'muted') return 'text-muted-foreground';
+    if (context === 'in') return tone === 'pos' ? 'text-success' : 'text-destructive';
+    return tone === 'pos' ? 'text-destructive' : 'text-success';
+  };
+
   // Pre-bucket the underlying wallet-scope transactions per (direction|category)
   // so expanded rows render instantly without re-scanning the full ledger.
   const txByKey = useMemo(() => {
@@ -1807,6 +1905,11 @@ function WalletMovementSummary({ rows, includeAdjustments }: { rows: LedgerRow[]
     const isOpen = expanded.has(key);
     const txs = txByKey.get(key) || [];
     const amountClass = direction === 'cash_in' ? 'text-success' : 'text-destructive';
+    const priorAmt = priorTotals
+      ? (direction === 'cash_in' ? priorTotals.inByCat.get(cat) : priorTotals.outByCat.get(cat))
+      : undefined;
+    const delta = priorTotals ? formatDelta(amt, priorAmt ?? 0) : null;
+    const context = direction === 'cash_in' ? 'in' as const : 'out' as const;
     return (
       <div key={key} className="rounded border border-transparent hover:border-border/60">
         <button
@@ -1822,7 +1925,17 @@ function WalletMovementSummary({ rows, includeAdjustments }: { rows: LedgerRow[]
             <span className="text-muted-foreground truncate">{friendlyWalletLabel(cat, direction)}</span>
             <span className="text-[10px] text-muted-foreground/70 shrink-0">· {txs.length}</span>
           </span>
-          <span className={cn('font-mono shrink-0', amountClass)}>{formatUGX(amt)}</span>
+          <span className="flex items-center gap-1.5 shrink-0">
+            {delta && (
+              <span
+                className={cn('text-[10px] font-mono', toneClass(delta.tone, context))}
+                title={`Previous period: ${formatUGX(priorAmt ?? 0)}`}
+              >
+                {delta.label}
+              </span>
+            )}
+            <span className={cn('font-mono', amountClass)}>{formatUGX(amt)}</span>
+          </span>
         </button>
         {isOpen && (
           <div className="mt-1 mb-2 ml-4 border-l border-border/60 pl-2 space-y-1 max-h-72 overflow-y-auto">
@@ -1860,6 +1973,12 @@ function WalletMovementSummary({ rows, includeAdjustments }: { rows: LedgerRow[]
     );
   };
 
+  const priorWindowLabel = priorRange
+    ? `${format(priorRange.from, 'dd MMM')} – ${format(priorRange.to, 'dd MMM')}`
+    : null;
+  const totalInDelta = priorTotals ? formatDelta(summary.totalIn, priorTotals.totalIn) : null;
+  const totalOutDelta = priorTotals ? formatDelta(summary.totalOut, priorTotals.totalOut) : null;
+
   return (
     <div className="rounded-xl border border-border bg-muted/30 p-3 sm:p-4 space-y-3">
       <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -1868,6 +1987,12 @@ function WalletMovementSummary({ rows, includeAdjustments }: { rows: LedgerRow[]
           <p className="text-[11px] text-muted-foreground">
             How money moved between company funds and user/operational wallets. Tap a row to see transactions.
           </p>
+          {priorWindowLabel && (
+            <p className="text-[10px] text-muted-foreground/70 mt-0.5">
+              vs previous period: {priorWindowLabel}
+              {priorLoading && <span className="ml-1 italic">· loading…</span>}
+            </p>
+          )}
         </div>
         <div className={cn(
           'text-[11px] font-mono px-2 py-1 rounded border',
@@ -1886,8 +2011,18 @@ function WalletMovementSummary({ rows, includeAdjustments }: { rows: LedgerRow[]
             <div className="flex items-center gap-1.5 text-xs font-semibold text-success">
               <ArrowDownLeft className="h-3.5 w-3.5" /> Into wallets
             </div>
-            <div className="font-mono text-sm font-semibold text-success break-all">
-              {formatUGX(summary.totalIn)}
+            <div className="flex items-center gap-1.5 shrink-0">
+              {totalInDelta && (
+                <span
+                  className={cn('text-[10px] font-mono', toneClass(totalInDelta.tone, 'in'))}
+                  title={`Previous: ${formatUGX(priorTotals?.totalIn ?? 0)}`}
+                >
+                  {totalInDelta.label}
+                </span>
+              )}
+              <div className="font-mono text-sm font-semibold text-success break-all">
+                {formatUGX(summary.totalIn)}
+              </div>
             </div>
           </div>
           <div className="space-y-1">
@@ -1904,8 +2039,18 @@ function WalletMovementSummary({ rows, includeAdjustments }: { rows: LedgerRow[]
             <div className="flex items-center gap-1.5 text-xs font-semibold text-destructive">
               <ArrowUpRight className="h-3.5 w-3.5" /> Out of wallets
             </div>
-            <div className="font-mono text-sm font-semibold text-destructive break-all">
-              {formatUGX(summary.totalOut)}
+            <div className="flex items-center gap-1.5 shrink-0">
+              {totalOutDelta && (
+                <span
+                  className={cn('text-[10px] font-mono', toneClass(totalOutDelta.tone, 'out'))}
+                  title={`Previous: ${formatUGX(priorTotals?.totalOut ?? 0)}`}
+                >
+                  {totalOutDelta.label}
+                </span>
+              )}
+              <div className="font-mono text-sm font-semibold text-destructive break-all">
+                {formatUGX(summary.totalOut)}
+              </div>
             </div>
           </div>
           <div className="space-y-1">
