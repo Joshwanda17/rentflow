@@ -249,6 +249,19 @@ export function NewPartnersPanel() {
   // landed on) without looking at the small <Select> value.
   const [swipeHint, setSwipeHint] = useState<{ key: string; label: string; count: number } | null>(null);
   const swipeHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Collapsible panel ──
+  // The entire Joined Partners surface is collapsed by default. Tapping the
+  // header expands it. We persist the choice so a power-user who keeps it
+  // open isn't forced to re-expand on every navigation.
+  const [panelOpen, setPanelOpen] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('welile.partnerOps.panelOpen') === '1';
+    } catch { return false; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('welile.partnerOps.panelOpen', panelOpen ? '1' : '0'); } catch {}
+  }, [panelOpen]);
   const clearSwipeHintSoon = (ms = 900) => {
     if (swipeHintTimerRef.current) clearTimeout(swipeHintTimerRef.current);
     swipeHintTimerRef.current = setTimeout(() => setSwipeHint(null), ms);
@@ -513,6 +526,9 @@ export function NewPartnersPanel() {
       return loaded < lastPage.total ? lastPage.pageIndex + 1 : undefined;
     },
     staleTime: 60_000,
+    // Don't hit the database while the panel is collapsed — this is the
+    // primary perf win on the partners page for users who rarely open it.
+    enabled: panelOpen,
   });
   // Flatten every loaded page into a single `joined` array. Dedupe by
   // user_id in case a row appears across pages during a refetch.
@@ -979,22 +995,53 @@ export function NewPartnersPanel() {
           </div>
         )}
         <CardContent className="p-3 sm:p-4 space-y-3 sm:space-y-4 pb-20 sm:pb-4">
-          {/* Header */}
-          <div className="flex items-start gap-2">
+          {/* Header — entire row is a tap target that toggles the panel. The
+              body, sticky bar, and data fetch are all gated behind this
+              `panelOpen` flag, so an idle operator pays zero cost. */}
+          <button
+            type="button"
+            onClick={() => setPanelOpen(o => !o)}
+            aria-expanded={panelOpen}
+            aria-controls="joined-partners-body"
+            className="w-full flex items-center gap-2 text-left rounded-lg -m-1 p-1 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 transition-colors"
+          >
             <div className="p-1.5 rounded-lg bg-primary/15 shrink-0">
               <Sparkles className="h-4 w-4 text-primary" />
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <h3 className="text-sm font-bold">Joined Partners</h3>
-                {/* Total partner count badge — shows how many supporters exist
-                    in the database (not just what's been scrolled into view). */}
+            <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap">
+              <h3 className="text-sm font-bold">Joined Partners</h3>
+              {panelOpen && (
                 <span
                   className="inline-flex items-center gap-1 rounded-full bg-primary/15 text-primary px-1.5 py-0.5 text-[10px] font-semibold tabular-nums"
                   title="Total partners in the database"
                 >
                   {isLoading ? '…' : joinedTotal.toLocaleString()} total
                 </span>
+              )}
+              {!panelOpen && (
+                <span className="text-[10px] text-muted-foreground">
+                  Tap to load
+                </span>
+              )}
+            </div>
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 text-muted-foreground shrink-0 transition-transform",
+                panelOpen && "rotate-180",
+              )}
+            />
+          </button>
+
+          {panelOpen && (
+          <div id="joined-partners-body" className="space-y-3 sm:space-y-4">
+          {/* Secondary header row — total/loaded badges, filter summary,
+              description, and Create Portfolio CTA. Only relevant when the
+              panel is expanded. */}
+          <div className="flex items-start gap-2">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {/* Total partner count badge — shows how many supporters exist
+                    in the database (not just what's been scrolled into view). */}
                 {!isLoading && joined && joined.length < joinedTotal && (
                   <span
                     className="inline-flex items-center gap-1 rounded-full bg-muted text-muted-foreground px-1.5 py-0.5 text-[10px] font-medium tabular-nums"
@@ -1827,6 +1874,8 @@ export function NewPartnersPanel() {
               </div>
             )}
           </div>
+          </div>
+          )}
         </CardContent>
       </Card>
 
@@ -2096,7 +2145,7 @@ export function NewPartnersPanel() {
       {/* Sticky mobile action bar — primary filter, sort, and quick-activate
           stay reachable while Partner Ops scrolls a long partner list on a
           phone. Hidden on sm+ where the inline toolbar is already visible. */}
-      {(() => {
+      {panelOpen && (() => {
         const noPortfolioFilters: PartnerFilter[] = [
           'just_joined', 'without', 'recent_today', 'recent_week', 'recent_month',
         ];
