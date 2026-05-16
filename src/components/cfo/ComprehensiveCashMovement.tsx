@@ -1958,27 +1958,46 @@ function WalletMovementSummary({
   }, []);
   const bucketBreakdown = useMemo(() => {
     type BucketKey = 'withdrawable' | 'operational_float' | 'landlord_float';
-    const buckets: Record<BucketKey, { in: number; out: number }> = {
-      withdrawable: { in: 0, out: 0 },
-      operational_float: { in: 0, out: 0 },
-      landlord_float: { in: 0, out: 0 },
+    const buckets: Record<BucketKey, { in: number; out: number; inCount: number; outCount: number }> = {
+      withdrawable: { in: 0, out: 0, inCount: 0, outCount: 0 },
+      operational_float: { in: 0, out: 0, inCount: 0, outCount: 0 },
+      landlord_float: { in: 0, out: 0, inCount: 0, outCount: 0 },
     };
     // Clamp to the same period window as the rest of the cash-movement page.
     const { from, to } = periodRange(period);
     const fromTs = from ? from.getTime() : -Infinity;
     const toTs = to.getTime();
+    let scannedRows = 0;
+    let walletScopeRows = 0;
+    let adjustmentsSkipped = 0;
+    let outOfWindow = 0;
     for (const r of rows) {
+      scannedRows++;
       if (r.ledger_scope !== 'wallet') continue;
-      if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
+      walletScopeRows++;
+      if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) {
+        adjustmentsSkipped++;
+        continue;
+      }
       const t = new Date(r.transaction_date).getTime();
-      if (t < fromTs || t > toTs) continue;
+      if (t < fromTs || t > toTs) { outOfWindow++; continue; }
       const amt = Number(r.amount) || 0;
       if (amt <= 0) continue;
       const b = classifyBucket(r.category);
-      if (r.direction === 'cash_in') buckets[b].in += amt;
-      else if (r.direction === 'cash_out') buckets[b].out += amt;
+      if (r.direction === 'cash_in') { buckets[b].in += amt; buckets[b].inCount++; }
+      else if (r.direction === 'cash_out') { buckets[b].out += amt; buckets[b].outCount++; }
     }
-    return buckets;
+    return {
+      ...buckets,
+      meta: {
+        from,
+        to,
+        scannedRows,
+        walletScopeRows,
+        adjustmentsSkipped,
+        outOfWindow,
+      },
+    };
   }, [rows, includeAdjustments, classifyBucket, period]);
 
   // ── Previous-period comparison ──────────────────────────────
