@@ -449,7 +449,10 @@ export function NewPartnersPanel() {
                     size="sm"
                     variant="outline"
                     className="h-7 text-[10px] gap-1 shrink-0"
-                    onClick={() => openCreateFor({ id: p.user_id, full_name: p.full_name, phone: p.phone })}
+                    onClick={() => setActivateConfirm({
+                      user: { id: p.user_id, full_name: p.full_name, phone: p.phone },
+                      isFirst: p.portfolio_count === 0,
+                    })}
                   >
                     <PlusCircle className="h-3 w-3" />
                     {p.portfolio_count > 0 ? 'Add' : 'Activate'}
