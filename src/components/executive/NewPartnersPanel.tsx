@@ -469,6 +469,7 @@ export function NewPartnersPanel() {
     if (!joined) return [] as JoinedPartner[];
     const q = partnerSearch.trim().toLowerCase();
     const cutoff = Date.now() - 14 * 86400000;
+    const justJoinedCutoff = Date.now() - JUST_JOINED_DAYS * 86400000;
     const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
     const startOfWeek = new Date(startOfToday);
     const dow = startOfWeek.getDay();
@@ -477,6 +478,10 @@ export function NewPartnersPanel() {
     const filtered = joined.filter(p => {
       if (partnerFilter === 'with' && p.portfolio_count === 0) return false;
       if (partnerFilter === 'without' && p.portfolio_count > 0) return false;
+      if (partnerFilter === 'just_joined') {
+        if (p.portfolio_count > 0) return false;
+        if (new Date(p.created_at).getTime() < justJoinedCutoff) return false;
+      }
       if (partnerFilter === 'recent' && new Date(p.created_at).getTime() < cutoff) return false;
       if (partnerFilter === 'today' && new Date(p.created_at).getTime() < startOfToday.getTime()) return false;
       if (partnerFilter === 'week' && new Date(p.created_at).getTime() < startOfWeek.getTime()) return false;
