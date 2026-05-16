@@ -244,6 +244,19 @@ export function NewPartnersPanel() {
   // overlay. We keep the ref above for synchronous reads inside requestExpand.
   const [savingCount, setSavingCount] = useState(0);
 
+  // Transient "swipe hint" pill shown above the sticky mobile bar so the
+  // operator can see which filter their gesture is about to land on (and
+  // landed on) without looking at the small <Select> value.
+  const [swipeHint, setSwipeHint] = useState<{ key: string; label: string; count: number } | null>(null);
+  const swipeHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearSwipeHintSoon = (ms = 900) => {
+    if (swipeHintTimerRef.current) clearTimeout(swipeHintTimerRef.current);
+    swipeHintTimerRef.current = setTimeout(() => setSwipeHint(null), ms);
+  };
+  useEffect(() => () => {
+    if (swipeHintTimerRef.current) clearTimeout(swipeHintTimerRef.current);
+  }, []);
+
   // In-app modal state for the discard-changes confirmation (replaces window.confirm).
   const [discardPrompt, setDiscardPrompt] = useState<{
     portfolioId: string;
