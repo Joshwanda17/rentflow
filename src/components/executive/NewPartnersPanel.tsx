@@ -360,16 +360,24 @@ export function NewPartnersPanel() {
     // setSearchParams identity changes on every render; intentionally omitted.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [partnerSearch, partnerFilter, customRange, partnerSort]);
-  // Incremental render window for the partners grid — keeps DOM small
-  // even when up to 500 partners are loaded.
+  // Server-side pagination for the Joined Partners list. Each page is fetched
+  // from `user_roles` with `.range()` + `{ count: 'exact' }`, so the user can
+  // browse every supporter regardless of total count. Page index is 0-based.
+  const PARTNERS_PAGE_SIZE = 200;
+  const [partnersPageIndex, setPartnersPageIndex] = useState(0);
+  const gridScrollRef = useRef<HTMLDivElement | null>(null);
+  // Incremental render window WITHIN the current server page — keeps the
+  // initial DOM small while still letting the user scroll through all 200
+  // rows of a page without a manual "load more" click.
   const PARTNER_PAGE_SIZE = 30;
   const [visiblePartnerCount, setVisiblePartnerCount] = useState(PARTNER_PAGE_SIZE);
   const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
-  // Reset the window whenever the user changes search/filter so they
-  // never miss matches hidden below the previous slice.
+  // Reset the in-page render window whenever the user changes search/filter
+  // OR moves to a different server page, so the visible slice starts fresh.
   useEffect(() => {
     setVisiblePartnerCount(PARTNER_PAGE_SIZE);
-  }, [partnerSearch, partnerFilter, customRange]);
+    if (gridScrollRef.current) gridScrollRef.current.scrollTop = 0;
+  }, [partnerSearch, partnerFilter, customRange, partnersPageIndex]);
   // Auto-load the next page when the sentinel scrolls into view.
   useEffect(() => {
     const node = loadMoreSentinelRef.current;
