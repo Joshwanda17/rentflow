@@ -816,13 +816,13 @@ export function NewPartnersPanel() {
             </div>
           </div>
         )}
-        <CardContent className="p-4 space-y-4">
+        <CardContent className="p-3 sm:p-4 space-y-3 sm:space-y-4">
           {/* Header */}
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-primary/15">
+          <div className="flex items-start gap-2">
+            <div className="p-1.5 rounded-lg bg-primary/15 shrink-0">
               <Sparkles className="h-4 w-4 text-primary" />
             </div>
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
                 <h3 className="text-sm font-bold">Joined Partners</h3>
                 {/* Total partner count badge — shows how many supporters exist
@@ -865,17 +865,17 @@ export function NewPartnersPanel() {
                   return (
                     <span
                       className={cn(
-                        "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+                        "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold max-w-full",
                         isDefault
                           ? "bg-emerald-500/15 text-emerald-600"
                           : "bg-amber-500/15 text-amber-700"
                       )}
                       title={`Active filter${isDefault ? ' (default)' : ''}`}
                     >
-                      <Filter className="h-2.5 w-2.5" />
-                      <span>{label}</span>
+                      <Filter className="h-2.5 w-2.5 shrink-0" />
+                      <span className="truncate">{label}</span>
                       {isDefault && (
-                        <span className="rounded bg-emerald-500/20 px-1 text-[9px] uppercase tracking-wide">
+                        <span className="rounded bg-emerald-500/20 px-1 text-[9px] uppercase tracking-wide shrink-0">
                           default
                         </span>
                       )}
@@ -890,13 +890,15 @@ export function NewPartnersPanel() {
             </div>
             <Button
               size="sm"
-              className="h-8 text-xs gap-1.5 shrink-0"
+              className="h-8 text-xs gap-1.5 shrink-0 px-2 sm:px-3"
               onClick={() => {
                 setCreateForUser(null);
                 setCreateOpen(true);
               }}
             >
-              <PlusCircle className="h-3.5 w-3.5" /> Create Portfolio
+              <PlusCircle className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Create Portfolio</span>
+              <span className="sm:hidden">New</span>
             </Button>
           </div>
 
@@ -911,7 +913,7 @@ export function NewPartnersPanel() {
             const next = filteredPartners.find(p => p.portfolio_count === 0);
             if (!next) return null;
             return (
-              <div className="flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2">
+              <div className="flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-2 sm:px-3 py-2">
                 <div className="p-1 rounded-md bg-emerald-500/20 shrink-0">
                   <Zap className="h-3.5 w-3.5 text-emerald-600" />
                 </div>
@@ -941,7 +943,7 @@ export function NewPartnersPanel() {
                 </label>
                 <Button
                   size="sm"
-                  className="h-7 text-[11px] gap-1 shrink-0"
+                  className="h-7 text-[11px] gap-1 shrink-0 px-2"
                   onClick={() => {
                     autoAdvanceRef.current = autoAdvanceEnabled;
                     activationSucceededRef.current = false;
@@ -952,7 +954,9 @@ export function NewPartnersPanel() {
                     });
                   }}
                 >
-                  <PlusCircle className="h-3 w-3" /> Activate now
+                  <PlusCircle className="h-3 w-3" />
+                  <span className="hidden sm:inline">Activate now</span>
+                  <span className="sm:hidden">Activate</span>
                 </Button>
               </div>
             );
@@ -998,7 +1002,7 @@ export function NewPartnersPanel() {
           </div>
 
           {/* Segmented control — quick portfolio-status switch */}
-          <div className="inline-flex rounded-lg border border-border/60 bg-muted/40 p-0.5 text-[11px] self-start">
+          <div className="flex rounded-lg border border-border/60 bg-muted/40 p-0.5 text-[11px] self-start overflow-x-auto max-w-full [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {([
               { key: 'all', label: 'All', count: segmentCounts.all },
               { key: 'just_joined', label: `Just joined (${JUST_JOINED_DAYS}d)`, count: segmentCounts.justJoined },
@@ -1011,7 +1015,7 @@ export function NewPartnersPanel() {
                 onClick={() => setPartnerFilter(seg.key)}
                 aria-pressed={partnerFilter === seg.key}
                 className={cn(
-                  "px-2.5 py-1 rounded-md font-medium transition-colors inline-flex items-center gap-1.5",
+                  "px-2.5 py-1 rounded-md font-medium transition-colors inline-flex items-center gap-1.5 whitespace-nowrap shrink-0",
                   partnerFilter === seg.key
                     ? "bg-background text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
@@ -1033,7 +1037,7 @@ export function NewPartnersPanel() {
             ))}
           </div>
           {/* Recent joins (no-portfolio activation backlog, scoped by window) */}
-          <div className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-muted/40 p-0.5 text-[11px] self-start">
+          <div className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-muted/40 p-0.5 text-[11px] self-start overflow-x-auto max-w-full [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <span className="pl-2 pr-1 text-[10px] uppercase tracking-wide text-muted-foreground">
               Recent joins
             </span>
@@ -1048,7 +1052,7 @@ export function NewPartnersPanel() {
                 onClick={() => setPartnerFilter(seg.key)}
                 aria-pressed={partnerFilter === seg.key}
                 className={cn(
-                  "px-2.5 py-1 rounded-md font-medium transition-colors inline-flex items-center gap-1.5",
+                  "px-2.5 py-1 rounded-md font-medium transition-colors inline-flex items-center gap-1.5 whitespace-nowrap shrink-0",
                   partnerFilter === seg.key
                     ? "bg-background text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
@@ -1071,7 +1075,7 @@ export function NewPartnersPanel() {
           </div>
           {/* Sort dropdown — applies to the visible grid */}
           <Select value={partnerSort} onValueChange={(v) => setPartnerSort(v as PartnerSort)}>
-            <SelectTrigger className="h-8 w-[200px] text-[11px] self-start" aria-label="Sort partners">
+            <SelectTrigger className="h-8 w-full sm:w-[200px] text-[11px] self-start" aria-label="Sort partners">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
