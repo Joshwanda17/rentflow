@@ -2370,10 +2370,30 @@ function WalletMovementSummary({
           <div className="rounded-lg border border-border bg-background p-3">
             <div className="flex items-center justify-between gap-2 mb-1.5">
               <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">
-                Net flow trend · {periodLabel}
+                Net flow trend · {periodLabel} · {nets.length} {trendGroup === 'daily' ? 'day' : trendGroup === 'weekly' ? 'wk' : 'mo'}
+                {nets.length === 1 ? '' : 's'}
               </div>
-              <div className={cn('text-[10px] font-mono font-semibold', slopeTone)} title="Linear trend across the period">
-                {slopeLabel}
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-0.5 rounded border border-border bg-muted/40 p-0.5">
+                  {(['daily', 'weekly', 'monthly'] as const).map(g => (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() => setTrendGroup(g)}
+                      className={cn(
+                        'text-[10px] px-1.5 py-0.5 rounded transition-colors',
+                        trendGroup === g
+                          ? 'bg-background text-foreground shadow-sm font-semibold'
+                          : 'text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      {g === 'daily' ? 'D' : g === 'weekly' ? 'W' : 'M'}
+                    </button>
+                  ))}
+                </div>
+                <div className={cn('text-[10px] font-mono font-semibold', slopeTone)} title="Linear trend across the period">
+                  {slopeLabel}
+                </div>
               </div>
             </div>
             <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="w-full h-14 block" aria-label="Net flow sparkline">
