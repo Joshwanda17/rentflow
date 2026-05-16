@@ -23,6 +23,7 @@ import type { DateRange } from 'react-day-picker';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { UGANDA_BANKS } from '@/lib/ugandaBanks';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
+import { useSearchParams } from 'react-router-dom';
 import { clientLog } from '@/lib/clientLogger';
 
 // ════════════════════════════════════════════════════════════════
