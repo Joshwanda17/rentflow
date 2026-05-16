@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { format, startOfDay, startOfWeek, startOfMonth, startOfYear, subDays, subMonths, subYears, addDays, addWeeks, addMonths, differenceInCalendarDays } from 'date-fns';
-import { Loader2, RefreshCw, Calendar, FileSpreadsheet, FileText, ArrowUpRight, ArrowDownRight, ArrowDownLeft, ExternalLink, X, Filter, ChevronDown, ChevronUp, ChevronRight, Search } from 'lucide-react';
+import { Loader2, RefreshCw, Calendar, FileSpreadsheet, FileText, ArrowUpRight, ArrowDownRight, ArrowDownLeft, ExternalLink, X, Filter, ChevronDown, ChevronUp, ChevronRight, ChevronLeft, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +25,90 @@ import { Lock } from 'lucide-react';
 
 // Roles allowed to drill into individual ledger entries and export raw movement data
 const LEDGER_DETAIL_ROLES = new Set(['cfo', 'ceo', 'coo', 'super_admin', 'cto', 'manager']);
+
+// ─────────────────────────────────────────────────────────────
+// HScrollHint — wraps a horizontally scrollable region with subtle
+// gradient edges and mobile tap-to-scroll chevron buttons that fade
+// in/out based on scroll position. Purely presentational.
+// ─────────────────────────────────────────────────────────────
+function HScrollHint({ children, className, ariaLabel }: { children: React.ReactNode; className?: string; ariaLabel?: string }) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [atStart, setAtStart] = useState(true);
+  const [atEnd, setAtEnd] = useState(true);
+
+  const update = useCallback(() => {
+    const el = ref.current; if (!el) return;
+    const { scrollLeft, scrollWidth, clientWidth } = el;
+    setAtStart(scrollLeft <= 2);
+    setAtEnd(scrollLeft + clientWidth >= scrollWidth - 2);
+  }, []);
+
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    update();
+    el.addEventListener('scroll', update, { passive: true });
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => { el.removeEventListener('scroll', update); ro.disconnect(); };
+  }, [update]);
+
+  const nudge = (dir: 1 | -1) => {
+    const el = ref.current; if (!el) return;
+    el.scrollBy({ left: dir * Math.max(160, el.clientWidth * 0.6), behavior: 'smooth' });
+  };
+
+  return (
+    <div className="relative">
+      <div
+        ref={ref}
+        className={className}
+        role="region"
+        aria-label={ariaLabel}
+        tabIndex={0}
+      >
+        {children}
+      </div>
+      {/* Gradient edges — fade in only when more content lies in that direction */}
+      <div
+        aria-hidden="true"
+        className={cn(
+          'pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-background to-transparent transition-opacity duration-200',
+          atStart ? 'opacity-0' : 'opacity-100'
+        )}
+      />
+      <div
+        aria-hidden="true"
+        className={cn(
+          'pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-background to-transparent transition-opacity duration-200',
+          atEnd ? 'opacity-0' : 'opacity-100'
+        )}
+      />
+      {/* Tap-to-scroll buttons — mobile only */}
+      <button
+        type="button"
+        onClick={() => nudge(-1)}
+        aria-label="Scroll left to see earlier columns"
+        className={cn(
+          'sm:hidden absolute left-1 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-card/90 border border-border shadow-sm backdrop-blur flex items-center justify-center text-foreground transition-opacity duration-200',
+          atStart ? 'opacity-0 pointer-events-none' : 'opacity-100'
+        )}
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </button>
+      <button
+        type="button"
+        onClick={() => nudge(1)}
+        aria-label="Scroll right to see more columns"
+        className={cn(
+          'sm:hidden absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-card/90 border border-border shadow-sm backdrop-blur flex items-center justify-center text-foreground transition-opacity duration-200',
+          atEnd ? 'opacity-0 pointer-events-none' : 'opacity-100'
+        )}
+      >
+        <ChevronRight className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
 
 // ─────────────────────────────────────────────────────────────
 // Periods & granularity
@@ -2852,12 +2936,10 @@ export function ComprehensiveCashMovement() {
         ) : filteredAggregates.length === 0 ? (
           <div className="py-12 text-center text-muted-foreground text-sm">No money moved in this period.</div>
         ) : (
-          <div
-            id="cm-categories"
-            className="scroll-mt-24 border border-border rounded-lg overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] relative"
-            role="region"
-            aria-label="Categories breakdown — scroll sideways on small screens to see all columns"
-            tabIndex={0}
+          <div id="cm-categories" className="scroll-mt-24 border border-border rounded-lg overflow-hidden">
+          <HScrollHint
+            className="overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]"
+            ariaLabel="Categories breakdown — scroll sideways on small screens to see all columns"
           >
             <Table className="min-w-[640px]">
               <TableHeader className="sticky top-0 z-10 bg-background shadow-[0_1px_0_0_hsl(var(--border))]">
@@ -2902,6 +2984,7 @@ export function ComprehensiveCashMovement() {
                 ))}
               </TableBody>
             </Table>
+          </HScrollHint>
           </div>
         ))}
 
@@ -3212,11 +3295,9 @@ export function ComprehensiveCashMovement() {
                     </div>
                     {/* Mobile hint: full-detail table is also available below via horizontal scroll */}
                     <div className="hidden">{/* legacy spacer removed */}</div>
-                    <div
+                    <HScrollHint
                       className="overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] hidden sm:block"
-                      role="region"
-                      aria-label="Transactions table — scroll sideways to see all columns"
-                      tabIndex={0}
+                      ariaLabel="Transactions table — scroll sideways to see all columns"
                     >
                       <Table className="min-w-[720px]">
                       <TableHeader className="sticky top-0 z-10 bg-background shadow-[0_1px_0_0_hsl(var(--border))]">
@@ -3300,7 +3381,7 @@ export function ComprehensiveCashMovement() {
                         })}
                       </TableBody>
                     </Table>
-                    </div>
+                    </HScrollHint>
                     {(() => {
                       const total = filteredDrillRows.length;
                       const totalPages = Math.max(1, Math.ceil(total / drillPageSize));
