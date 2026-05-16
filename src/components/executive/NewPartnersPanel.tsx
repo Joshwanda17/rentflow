@@ -565,8 +565,8 @@ export function NewPartnersPanel() {
                 {canWhatsAppPartners && (
                   <>
                     <SelectItem value="today">Joined today</SelectItem>
-                    <SelectItem value="week">Joined this week (7d)</SelectItem>
-                    <SelectItem value="month">Joined this month (30d)</SelectItem>
+                    <SelectItem value="week">Joined this week (since Mon)</SelectItem>
+                    <SelectItem value="month">Joined this month (since 1st)</SelectItem>
                     <SelectItem value="recent">Joined in last 14 days</SelectItem>
                   </>
                 )}
