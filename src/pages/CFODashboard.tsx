@@ -87,8 +87,10 @@ export default function CFODashboard() {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      {/* Header */}
-      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-lg border-b">
+      {/* Header — solid background (no backdrop-blur) to avoid re-sampling
+          the live-updating dashboard underneath on every scroll frame,
+          which caused visible shake/jank. */}
+      <div className="sticky top-0 z-40 bg-background border-b shadow-sm">
         <div className="flex items-center gap-3 p-4 max-w-7xl mx-auto">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="h-10 w-10 shrink-0">
             <ArrowLeft className="h-5 w-5" />
