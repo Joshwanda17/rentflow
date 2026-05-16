@@ -292,7 +292,21 @@ export function NewPartnersPanel() {
   // Persisted in the URL (?jp_q, ?jp_f, ?jp_from, ?jp_to) so the panel
   // looks identical after a refresh or when the URL is shared.
   const [searchParams, setSearchParams] = useSearchParams();
-  const ALLOWED_FILTERS = ['all', 'just_joined', 'with', 'without', 'today', 'week', 'month', 'recent', 'custom'] as const;
+  const ALLOWED_FILTERS = [
+    'all',
+    'just_joined',
+    'with',
+    'without',
+    'today',
+    'week',
+    'month',
+    'recent',
+    'custom',
+    // "Recent joins" — no portfolio yet AND joined within window
+    'recent_today',
+    'recent_week',
+    'recent_month',
+  ] as const;
   type PartnerFilter = typeof ALLOWED_FILTERS[number];
   // "Just joined" = activation backlog: partners with no portfolio yet who
   // signed up within this rolling window. Keeps the default view truly fresh
@@ -486,6 +500,19 @@ export function NewPartnersPanel() {
       if (partnerFilter === 'today' && new Date(p.created_at).getTime() < startOfToday.getTime()) return false;
       if (partnerFilter === 'week' && new Date(p.created_at).getTime() < startOfWeek.getTime()) return false;
       if (partnerFilter === 'month' && new Date(p.created_at).getTime() < startOfMonth.getTime()) return false;
+      // Recent joins (no portfolio yet) — combines window + no-portfolio gate.
+      if (partnerFilter === 'recent_today') {
+        if (p.portfolio_count > 0) return false;
+        if (new Date(p.created_at).getTime() < startOfToday.getTime()) return false;
+      }
+      if (partnerFilter === 'recent_week') {
+        if (p.portfolio_count > 0) return false;
+        if (new Date(p.created_at).getTime() < startOfWeek.getTime()) return false;
+      }
+      if (partnerFilter === 'recent_month') {
+        if (p.portfolio_count > 0) return false;
+        if (new Date(p.created_at).getTime() < startOfMonth.getTime()) return false;
+      }
       if (partnerFilter === 'custom') {
         const t = new Date(p.created_at).getTime();
         if (customRange?.from) {
@@ -578,15 +605,35 @@ export function NewPartnersPanel() {
     const all = joined?.length ?? 0;
     let withP = 0;
     let justJoined = 0;
+    let recentToday = 0;
+    let recentWeek = 0;
+    let recentMonth = 0;
     const justJoinedCutoff = Date.now() - JUST_JOINED_DAYS * 86400000;
+    const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+    const startOfWeek = new Date(startOfToday);
+    const dow = startOfWeek.getDay();
+    startOfWeek.setDate(startOfWeek.getDate() - ((dow + 6) % 7));
+    const startOfMonth = new Date(startOfToday.getFullYear(), startOfToday.getMonth(), 1);
     for (const p of joined || []) {
       if (p.portfolio_count > 0) {
         withP++;
-      } else if (new Date(p.created_at).getTime() >= justJoinedCutoff) {
-        justJoined++;
+      } else {
+        const t = new Date(p.created_at).getTime();
+        if (t >= justJoinedCutoff) justJoined++;
+        if (t >= startOfToday.getTime()) recentToday++;
+        if (t >= startOfWeek.getTime()) recentWeek++;
+        if (t >= startOfMonth.getTime()) recentMonth++;
       }
     }
-    return { all, with: withP, without: all - withP, justJoined };
+    return {
+      all,
+      with: withP,
+      without: all - withP,
+      justJoined,
+      recentToday,
+      recentWeek,
+      recentMonth,
+    };
   }, [joined]);
 
   // ── Realtime: any new supporter role grant pops in instantly ──
@@ -797,6 +844,9 @@ export function NewPartnersPanel() {
               <SelectContent>
                 <SelectItem value="all">All partners</SelectItem>
                 <SelectItem value="just_joined">Just joined · no portfolio (last {JUST_JOINED_DAYS}d)</SelectItem>
+                <SelectItem value="recent_today">Recent joins · no portfolio · today</SelectItem>
+                <SelectItem value="recent_week">Recent joins · no portfolio · this week</SelectItem>
+                <SelectItem value="recent_month">Recent joins · no portfolio · this month</SelectItem>
                 {canWhatsAppPartners && (
                   <>
                     <SelectItem value="today">Joined today</SelectItem>
@@ -834,6 +884,43 @@ export function NewPartnersPanel() {
                     : "text-muted-foreground hover:text-foreground"
                 )}
                 aria-label={`${seg.label} (${seg.count})`}
+              >
+                <span>{seg.label}</span>
+                <span
+                  className={cn(
+                    "rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums leading-none",
+                    partnerFilter === seg.key
+                      ? "bg-muted text-foreground"
+                      : "bg-background/60 text-muted-foreground"
+                  )}
+                >
+                  {segmentCounts.all === 0 && isLoading ? '…' : seg.count}
+                </span>
+              </button>
+            ))}
+          </div>
+          {/* Recent joins (no-portfolio activation backlog, scoped by window) */}
+          <div className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-muted/40 p-0.5 text-[11px] self-start">
+            <span className="pl-2 pr-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+              Recent joins
+            </span>
+            {([
+              { key: 'recent_today', label: 'Today', count: segmentCounts.recentToday },
+              { key: 'recent_week',  label: 'Week',  count: segmentCounts.recentWeek  },
+              { key: 'recent_month', label: 'Month', count: segmentCounts.recentMonth },
+            ] as const).map(seg => (
+              <button
+                key={seg.key}
+                type="button"
+                onClick={() => setPartnerFilter(seg.key)}
+                aria-pressed={partnerFilter === seg.key}
+                className={cn(
+                  "px-2.5 py-1 rounded-md font-medium transition-colors inline-flex items-center gap-1.5",
+                  partnerFilter === seg.key
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                aria-label={`Recent joins · no portfolio · ${seg.label} (${seg.count})`}
               >
                 <span>{seg.label}</span>
                 <span
