@@ -158,6 +158,10 @@ export function NewPartnersPanel() {
   // Track which expanded inline-editor rows have unsaved changes (by portfolio id).
   // Lives in a ref so child updates do not re-render the parent.
   const dirtyRowsRef = useRef<Record<string, boolean>>({});
+  // Track which inline-editor rows are currently mid-save. Blocks collapse/switch
+  // so the user can't accidentally trigger an unsaved-change prompt or navigate
+  // away while the network request is in flight.
+  const savingRowsRef = useRef<Record<string, boolean>>({});
 
   /**
    * Wraps setExpandedId to prompt before discarding unsaved inline edits when
@@ -165,6 +169,10 @@ export function NewPartnersPanel() {
    */
   function requestExpand(nextId: string | null) {
     const currentId = expandedId;
+    if (currentId && savingRowsRef.current[currentId]) {
+      // A save is in flight on the current row — ignore collapse/switch.
+      return;
+    }
     if (currentId && currentId !== nextId && dirtyRowsRef.current[currentId]) {
       const ok = window.confirm('You have unsaved changes on this portfolio. Discard them?');
       if (!ok) return;
@@ -526,6 +534,10 @@ export function NewPartnersPanel() {
                           if (dirty) dirtyRowsRef.current[p.id] = true;
                           else delete dirtyRowsRef.current[p.id];
                         }}
+                        onSavingChange={(isSaving) => {
+                          if (isSaving) savingRowsRef.current[p.id] = true;
+                          else delete savingRowsRef.current[p.id];
+                        }}
                         onSaved={(updated) => {
                           setSelectedPortfolios(list => list.map(x => x.id === updated.id ? { ...x, ...updated } : x));
                           qc.invalidateQueries({ queryKey: ['exec-partner-portfolios'] });
@@ -584,12 +596,18 @@ interface InlinePortfolioRowProps {
   onToggle: () => void;
   onSaved: (updated: any) => void;
   onDirtyChange?: (dirty: boolean) => void;
+  onSavingChange?: (saving: boolean) => void;
   actingUserId?: string;
 }
 
-function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirtyChange, actingUserId }: InlinePortfolioRowProps) {
+function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirtyChange, onSavingChange, actingUserId }: InlinePortfolioRowProps) {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
+  // Mirror local saving state up to parent so it can block collapse/switch.
+  useEffect(() => {
+    onSavingChange?.(saving);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saving]);
   const initialForm = () => ({
     account_name: p.account_name || '',
     payout_day: p.payout_day ? String(p.payout_day) : '',
@@ -636,6 +654,7 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
 
   // Wraps onToggle so collapsing with unsaved changes prompts for confirmation.
   function requestToggle() {
+    if (saving) return; // block while a save is in flight
     if (expanded && dirty) {
       const ok = window.confirm('You have unsaved changes on this portfolio. Discard them?');
       if (!ok) return;
@@ -667,6 +686,7 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
     }
 
     setSaving(true);
+    onSavingChange?.(true);
     try {
       const patch: Record<string, any> = {
         account_name: form.account_name.trim() || null,
@@ -700,6 +720,7 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
       toast({ title: 'Save failed', description: e?.message || 'Try again', variant: 'destructive' });
     } finally {
       setSaving(false);
+      onSavingChange?.(false);
     }
   }
 
@@ -707,6 +728,7 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
     <div className="rounded-lg border border-border/60 bg-muted/30 overflow-hidden">
       <button
         onClick={requestToggle}
+        disabled={saving}
         className="w-full flex items-center justify-between gap-2 px-2.5 py-2 text-left hover:bg-muted transition-colors"
       >
         <div className="min-w-0 flex-1">
@@ -720,7 +742,9 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
             {p.display_currency || 'UGX'} {Number(p.investment_amount || 0).toLocaleString()} · {p.roi_percentage}% · {p.status}
           </p>
         </div>
-        {expanded ? (
+        {saving ? (
+          <Loader2 className="h-3.5 w-3.5 text-primary shrink-0 animate-spin" />
+        ) : expanded ? (
           <ChevronDown className="h-3.5 w-3.5 text-primary shrink-0 rotate-180 transition-transform" />
         ) : (
           <Pencil className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
