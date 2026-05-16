@@ -72,6 +72,25 @@ export default function FunderOnboarding() {
   // the row isn't on the current page (search/pagination independent).
   useEffect(() => {
     if (!focusUserId || !user || !roles.includes('manager')) return;
+    // Friendly guard: the focus param must look like a UUID. Anything
+    // else is almost certainly a stale/copied link and we shouldn't
+    // even bother round-tripping the DB for it.
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const isMalformed = !UUID_RE.test(focusUserId);
+    const clearFocusParam = () => {
+      const next = new URLSearchParams(searchParams);
+      next.delete('focus');
+      setSearchParams(next, { replace: true });
+    };
+    if (isMalformed) {
+      toast({
+        title: 'Invalid partner link',
+        description: "That partner link doesn't look right. Showing the full onboarding list instead.",
+        variant: 'destructive',
+      });
+      clearFocusParam();
+      return;
+    }
     let cancelled = false;
     (async () => {
       const { data, error } = await supabase
@@ -81,7 +100,26 @@ export default function FunderOnboarding() {
         .maybeSingle();
       if (cancelled) return;
       if (error || !data) {
-        toast({ title: 'Partner not found', description: 'The linked partner could not be loaded.', variant: 'destructive' });
+        toast({
+          title: "We couldn't find that partner",
+          description: error
+            ? "Something went wrong loading the linked partner. You can search for them below."
+            : "That partner may have been removed or never finished signing up. Showing the full onboarding list instead.",
+          variant: 'destructive',
+        });
+        clearFocusParam();
+        // Send the user back to where they came from (typically the
+        // Create Portfolio dialog) after a brief beat so they can read
+        // the toast. Falls back to the manager dashboard if there's no
+        // browser history.
+        setTimeout(() => {
+          if (window.history.length > 1) {
+            navigate(-1);
+          } else {
+            navigate(roleToSlug(role));
+          }
+        }, 1200);
+        return;
       } else {
         setSelected(data as FunderProfileRow);
         if (!data.funder_verified_at && !data.funder_rejected_at) {
@@ -99,9 +137,7 @@ export default function FunderOnboarding() {
         }
       }
       // Clear the param so a manual close + re-open doesn't keep re-firing.
-      const next = new URLSearchParams(searchParams);
-      next.delete('focus');
-      setSearchParams(next, { replace: true });
+      clearFocusParam();
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
