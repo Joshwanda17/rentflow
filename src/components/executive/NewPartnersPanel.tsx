@@ -152,7 +152,12 @@ export function NewPartnersPanel() {
   const [createForUser, setCreateForUser] = useState<PickedUser | null>(null);
   // Confirmation gate before opening the create-portfolio dialog from the
   // "Just Joined Partners" Activate button. Prevents accidental taps.
-  const [activateConfirm, setActivateConfirm] = useState<{ user: PickedUser; isFirst: boolean } | null>(null);
+  const [activateConfirm, setActivateConfirm] = useState<{
+    user: PickedUser;
+    isFirst: boolean;
+    portfolioCount: number;
+    joinedAt?: string;
+  } | null>(null);
   // User id currently being activated — keeps that row's Activate/Add button
   // disabled with a spinner from the moment the confirmation is accepted
   // until the create-portfolio dialog closes (server confirmed or cancelled).
@@ -485,7 +490,12 @@ export function NewPartnersPanel() {
                         openCreateFor(u);
                         return;
                       }
-                      setActivateConfirm({ user: u, isFirst: p.portfolio_count === 0 });
+                      setActivateConfirm({
+                        user: u,
+                        isFirst: p.portfolio_count === 0,
+                        portfolioCount: p.portfolio_count,
+                        joinedAt: p.created_at,
+                      });
                     }}
                   >
                     {activatingUserId === p.user_id ? (
@@ -734,6 +744,37 @@ export function NewPartnersPanel() {
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {activateConfirm && (
+            <div className="rounded-lg border border-border/60 bg-muted/40 p-3 text-xs space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-muted-foreground">Existing portfolios</span>
+                <span className="font-semibold text-foreground">
+                  {activateConfirm.portfolioCount}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-muted-foreground">Current status</span>
+                <Badge
+                  variant="outline"
+                  className={
+                    activateConfirm.portfolioCount === 0
+                      ? 'text-[10px] text-muted-foreground'
+                      : 'text-[10px] bg-success/15 text-success border-0'
+                  }
+                >
+                  {activateConfirm.portfolioCount === 0 ? 'Not yet activated' : 'Active partner'}
+                </Badge>
+              </div>
+              {activateConfirm.joinedAt && (
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-muted-foreground">Joined</span>
+                  <span className="text-foreground">
+                    {formatDistanceToNow(new Date(activateConfirm.joinedAt), { addSuffix: true })}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
