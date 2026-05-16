@@ -1084,6 +1084,164 @@ function FloatEventDrillDown({ event, allEvents, onClose }: FloatEventDrillDownP
 
   const kindLabel = event.kind === 'funding' ? 'CFO Funding' : event.kind === 'allocation' ? 'Tenant Earmark' : 'Landlord Payout';
 
+  // ───── Drill-down exports ─────
+  const drillFilenameBase = () => {
+    const refPart = (event.reference || event.id).toString().replace(/[^\w-]+/g, '_').slice(0, 32);
+    return `float-drilldown_${event.kind}_${refPart}_${format(new Date(event.at), 'yyyyMMdd-HHmm')}`;
+  };
+  const exportDrillCsv = () => {
+    const rows: (string | number)[][] = [];
+    const push = (section: string, key: string, value: any) => {
+      const v = value === null || value === undefined ? ''
+        : typeof value === 'object' ? JSON.stringify(value)
+        : String(value);
+      rows.push([section, key, v]);
+    };
+    push('event', 'kind', kindLabel);
+    push('event', 'date', format(new Date(event.at), 'yyyy-MM-dd HH:mm'));
+    push('event', 'amount_ugx', event.amount);
+    push('event', 'status', event.status);
+    push('event', 'agent_id', event.agent_id);
+    push('event', 'agent_name', event.agent_name);
+    push('event', 'tenant_id', event.tenant_id || '');
+    push('event', 'tenant_name', event.tenant_name || '');
+    push('event', 'landlord_name', event.landlord_name || '');
+    push('event', 'landlord_phone', event.landlord_phone || '');
+    push('event', 'reference_label', event.reference_label);
+    push('event', 'reference', event.reference || '');
+    push('event', 'source_table', event.source_table);
+    push('event', 'notes', event.notes || '');
+    if (event.kind === 'allocation') {
+      push('allocation_balance', 'allocated_ugx', event.allocated_amount || event.amount);
+      push('allocation_balance', 'paid_out_ugx', event.paid_out_amount || 0);
+      push('allocation_balance', 'outstanding_ugx', event.outstanding || 0);
+    }
+    if (chain?.wallet) {
+      push('wallet_snapshot', 'on_card_now_ugx', Number(chain.wallet.balance) || 0);
+      push('wallet_snapshot', 'lifetime_funded_ugx', Number(chain.wallet.total_funded) || 0);
+      push('wallet_snapshot', 'lifetime_paid_out_ugx', Number(chain.wallet.total_paid_out) || 0);
+      push('wallet_snapshot', 'region', chain.wallet.region || '');
+      push('wallet_snapshot', 'updated_at', chain.wallet.updated_at || '');
+    }
+    Object.entries(event.raw || {}).forEach(([k, v]) => push('record_fields', k, v));
+    (related.allocations || []).forEach((a: any) => {
+      push('related_allocation', `${a.id}|allocated_ugx`, Number(a.allocated_amount) || 0);
+      push('related_allocation', `${a.id}|paid_out_ugx`, Number(a.paid_out_amount) || 0);
+      push('related_allocation', `${a.id}|remaining_ugx`, Number(a.remaining_amount) || 0);
+      push('related_allocation', `${a.id}|status`, a.status);
+      push('related_allocation', `${a.id}|created_at`, a.created_at);
+    });
+    (related.payouts || []).forEach((p: any) => {
+      push('related_payout', `${p.id}|amount_ugx`, Number(p.amount) || 0);
+      push('related_payout', `${p.id}|status`, p.status);
+      push('related_payout', `${p.id}|transaction_id`, p.transaction_id || '');
+      push('related_payout', `${p.id}|momo_provider`, p.mobile_money_provider || '');
+      push('related_payout', `${p.id}|gps_match`, p.gps_match ?? '');
+      push('related_payout', `${p.id}|gps_distance_m`, p.gps_distance_meters ?? '');
+      push('related_payout', `${p.id}|created_at`, p.created_at);
+    });
+    exportToCSV({ headers: ['Section', 'Field', 'Value'], rows }, drillFilenameBase());
+    toast.success('Drill-down exported to CSV');
+  };
+  const exportDrillPdf = async () => {
+    try {
+      const { jsPDF } = await import('jspdf');
+      const autoTableMod: any = await import('jspdf-autotable');
+      const autoTable = autoTableMod.default || autoTableMod;
+      const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      doc.setFontSize(14);
+      doc.text(`${kindLabel} — ${fmtUgx(event.amount)}`, 40, 40);
+      doc.setFontSize(9);
+      doc.setTextColor(110);
+      doc.text(`${format(new Date(event.at), 'EEEE dd MMM yyyy · HH:mm')}  ·  Source: ${event.source_table}`, 40, 56);
+      doc.text(`Agent: ${event.agent_name}  ·  Ref (${event.reference_label}): ${event.reference || '—'}`, 40, 70);
+      let y = 86;
+      const section = (title: string, head: string[][], body: any[][]) => {
+        if (body.length === 0) return;
+        autoTable(doc, {
+          startY: y,
+          head,
+          body,
+          styles: { fontSize: 8, cellPadding: 3, overflow: 'linebreak' },
+          headStyles: { fillColor: [146, 52, 234], textColor: 255 },
+          alternateRowStyles: { fillColor: [248, 245, 255] },
+          margin: { left: 40, right: 40 },
+          didDrawPage: () => {
+            doc.setFontSize(10);
+            doc.setTextColor(80);
+            doc.text(title, 40, (doc as any).lastAutoTable?.startY ? (doc as any).lastAutoTable.startY - 6 : 86 - 6);
+          },
+        });
+        y = (doc as any).lastAutoTable.finalY + 18;
+      };
+      // Event summary + (optional) allocation balance + wallet snapshot
+      const summaryRows: any[][] = [
+        ['Status', event.status],
+        ['Tenant', event.tenant_name || '—'],
+        ['Landlord', [event.landlord_name, event.landlord_phone].filter(Boolean).join(' · ') || '—'],
+        ['Notes', event.notes || '—'],
+      ];
+      if (event.kind === 'allocation') {
+        summaryRows.push(['Allocated', fmtUgx(event.allocated_amount || event.amount)]);
+        summaryRows.push(['Paid out', fmtUgx(event.paid_out_amount || 0)]);
+        summaryRows.push(['Outstanding', fmtUgx(event.outstanding || 0)]);
+      }
+      if (chain?.wallet) {
+        summaryRows.push(['Wallet · On Card', fmtUgx(Number(chain.wallet.balance) || 0)]);
+        summaryRows.push(['Wallet · Lifetime Funded', fmtUgx(Number(chain.wallet.total_funded) || 0)]);
+        summaryRows.push(['Wallet · Lifetime Paid Out', fmtUgx(Number(chain.wallet.total_paid_out) || 0)]);
+      }
+      section('Event summary', [['Field', 'Value']], summaryRows);
+
+      // Raw record fields
+      const rawRows = Object.entries(event.raw || {}).map(([k, v]) => [
+        k,
+        v === null || v === undefined ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v),
+      ]);
+      section(`Record fields · ${event.source_table}`, [['Field', 'Value']], rawRows);
+
+      // Related allocations
+      if (related.allocations.length) {
+        section('Related allocations', [['Date', 'Status', 'Allocated', 'Paid Out', 'Outstanding']],
+          related.allocations.map((a: any) => [
+            format(new Date(a.created_at), 'yyyy-MM-dd HH:mm'),
+            a.status,
+            fmtUgx(Number(a.allocated_amount) || 0),
+            fmtUgx(Number(a.paid_out_amount) || 0),
+            fmtUgx(Number(a.remaining_amount) || 0),
+          ]));
+      }
+
+      // Related payouts
+      if (related.payouts.length) {
+        section('Related landlord payouts', [['Date', 'Status', 'Amount', 'TID', 'MoMo', 'GPS (m)']],
+          related.payouts.map((p: any) => [
+            format(new Date(p.created_at), 'yyyy-MM-dd HH:mm'),
+            p.status,
+            fmtUgx(Number(p.amount) || 0),
+            p.transaction_id || '',
+            p.mobile_money_provider || '',
+            typeof p.gps_distance_meters === 'number' ? Math.round(p.gps_distance_meters).toString() : '—',
+          ]));
+      }
+
+      doc.setFontSize(8);
+      doc.setTextColor(140);
+      doc.text(
+        `Generated ${format(new Date(), 'yyyy-MM-dd HH:mm')}`,
+        pageWidth - 40,
+        doc.internal.pageSize.getHeight() - 18,
+        { align: 'right' },
+      );
+      doc.save(`${drillFilenameBase()}.pdf`);
+      toast.success('Drill-down exported to PDF');
+    } catch (err) {
+      console.error(err);
+      toast.error('PDF export failed');
+    }
+  };
+
   return (
     <Dialog open={!!event} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-3xl">
@@ -1091,6 +1249,26 @@ function FloatEventDrillDown({ event, allEvents, onClose }: FloatEventDrillDownP
           <DialogTitle className="flex items-center gap-2 text-base">
             <Landmark className="h-4 w-4 text-[#9234EA]" />
             {kindLabel} · {fmtUgx(event.amount)}
+            <div className="ml-auto flex items-center gap-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs gap-1"
+                onClick={exportDrillCsv}
+                title="Export drill-down to CSV"
+              >
+                <Download className="h-3 w-3" /> CSV
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs gap-1"
+                onClick={exportDrillPdf}
+                title="Export drill-down to PDF"
+              >
+                <FileText className="h-3 w-3" /> PDF
+              </Button>
+            </div>
           </DialogTitle>
           <DialogDescription className="text-xs">
             {format(new Date(event.at), 'EEEE dd MMM yyyy · HH:mm')} · {event.source_table}
