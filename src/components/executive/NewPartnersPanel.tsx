@@ -155,19 +155,30 @@ export function NewPartnersPanel() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyRows, setHistoryRows] = useState<any[]>([]);
   const [inlineCreateOpen, setInlineCreateOpen] = useState(false);
-  // Track which expanded inline-editor rows have unsaved changes (by portfolio id).
-  // Lives in a ref so child updates do not re-render the parent.
-  const dirtyRowsRef = useRef<Record<string, boolean>>({});
+  // Track per-row unsaved change summaries (by portfolio id). The value is a list
+  // of human-readable diff lines (e.g. "Payout day: 5 → 12") so we can show the
+  // user exactly what's about to be discarded. Lives in a ref so child updates
+  // do not re-render the parent.
+  const dirtyRowsRef = useRef<Record<string, string[]>>({});
   // Track which inline-editor rows are currently mid-save. Blocks collapse/switch
   // so the user can't accidentally trigger an unsaved-change prompt or navigate
   // away while the network request is in flight.
   const savingRowsRef = useRef<Record<string, boolean>>({});
 
+  // In-app modal state for the discard-changes confirmation (replaces window.confirm).
+  const [discardPrompt, setDiscardPrompt] = useState<{
+    portfolioId: string;
+    portfolioLabel: string;
+    changes: string[];
+    action: 'collapse' | 'switch';
+    onConfirm: () => void;
+  } | null>(null);
+
   // Warn the user before they navigate away / reload / close the tab while any
   // expanded inline portfolio row still has unsaved edits.
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
-      const hasDirty = Object.values(dirtyRowsRef.current).some(Boolean);
+      const hasDirty = Object.values(dirtyRowsRef.current).some(v => v && v.length > 0);
       if (!hasDirty) return;
       e.preventDefault();
       // Required for Chrome to actually show the prompt.
@@ -188,10 +199,21 @@ export function NewPartnersPanel() {
       // A save is in flight on the current row — ignore collapse/switch.
       return;
     }
-    if (currentId && currentId !== nextId && dirtyRowsRef.current[currentId]) {
-      const ok = window.confirm('You have unsaved changes on this portfolio. Discard them?');
-      if (!ok) return;
-      delete dirtyRowsRef.current[currentId];
+    const changes = currentId ? dirtyRowsRef.current[currentId] : undefined;
+    if (currentId && currentId !== nextId && changes && changes.length > 0) {
+      const current = selectedPortfolios.find(x => x.id === currentId);
+      setDiscardPrompt({
+        portfolioId: currentId,
+        portfolioLabel: current?.account_name || current?.portfolio_code || 'this portfolio',
+        changes,
+        action: nextId === null ? 'collapse' : 'switch',
+        onConfirm: () => {
+          delete dirtyRowsRef.current[currentId];
+          setExpandedId(nextId);
+          setDiscardPrompt(null);
+        },
+      });
+      return;
     }
     setExpandedId(nextId);
   }
@@ -545,8 +567,8 @@ export function NewPartnersPanel() {
                         portfolio={p}
                         expanded={expandedId === p.id}
                         onToggle={() => requestExpand(expandedId === p.id ? null : p.id)}
-                        onDirtyChange={(dirty) => {
-                          if (dirty) dirtyRowsRef.current[p.id] = true;
+                        onDirtyChange={(changes) => {
+                          if (changes && changes.length > 0) dirtyRowsRef.current[p.id] = changes;
                           else delete dirtyRowsRef.current[p.id];
                         }}
                         onSavingChange={(isSaving) => {
@@ -598,6 +620,47 @@ export function NewPartnersPanel() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* In-app discard-changes confirmation (replaces window.confirm). */}
+      <AlertDialog
+        open={!!discardPrompt}
+        onOpenChange={(open) => { if (!open) setDiscardPrompt(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Discard unsaved changes
+              {discardPrompt?.action === 'switch' ? ' and switch portfolio?' : '?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>
+                  You have <span className="font-semibold">{discardPrompt?.changes.length ?? 0}</span> unsaved
+                  {' '}edit{(discardPrompt?.changes.length ?? 0) === 1 ? '' : 's'} on{' '}
+                  <span className="font-semibold">{discardPrompt?.portfolioLabel}</span>:
+                </p>
+                <ul className="text-xs bg-muted/50 border border-border/60 rounded-md p-2 space-y-1 max-h-48 overflow-auto">
+                  {discardPrompt?.changes.map((c, i) => (
+                    <li key={i} className="font-mono text-[11px] leading-snug">• {c}</li>
+                  ))}
+                </ul>
+                <p className="text-xs text-muted-foreground">
+                  These changes will be lost. This cannot be undone.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep editing</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); discardPrompt?.onConfirm(); }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Discard changes
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
@@ -610,7 +673,7 @@ interface InlinePortfolioRowProps {
   expanded: boolean;
   onToggle: () => void;
   onSaved: (updated: any) => void;
-  onDirtyChange?: (dirty: boolean) => void;
+  onDirtyChange?: (changes: string[]) => void;
   onSavingChange?: (saving: boolean) => void;
   actingUserId?: string;
 }
@@ -643,7 +706,7 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
       const fresh = initialForm();
       setForm(fresh);
       baselineRef.current = fresh;
-      onDirtyChange?.(false);
+      onDirtyChange?.([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [p.id, expanded]);
@@ -653,28 +716,45 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
   useEffect(() => {
     if (expanded) {
       baselineRef.current = form;
-      onDirtyChange?.(false);
+      onDirtyChange?.([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expanded]);
 
-  // Compute & report dirty state on every form change.
-  const dirty = expanded && JSON.stringify(form) !== JSON.stringify(baselineRef.current);
+  // Compute & report a human-readable diff on every form change.
+  const fieldLabels: Record<keyof ReturnType<typeof initialForm>, string> = {
+    account_name: 'Portfolio name',
+    payout_day: 'Payout day',
+    payment_method: 'Payment method',
+    mobile_money_number: 'Mobile number',
+    mobile_network: 'Network',
+    bank_name: 'Bank name',
+    bank_account_name: 'Account name',
+    account_number: 'Account number',
+  };
+  const changeList: string[] = expanded
+    ? (Object.keys(fieldLabels) as Array<keyof typeof fieldLabels>)
+        .filter(k => (form as any)[k] !== (baselineRef.current as any)[k])
+        .map(k => {
+          const before = (baselineRef.current as any)[k] || '—';
+          const after = (form as any)[k] || '—';
+          return `${fieldLabels[k]}: ${before} → ${after}`;
+        })
+    : [];
+  const dirty = changeList.length > 0;
+  const changeListKey = changeList.join('|');
   useEffect(() => {
-    onDirtyChange?.(dirty);
+    onDirtyChange?.(changeList);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dirty]);
+  }, [changeListKey]);
 
   const set = (k: string, v: string) => setForm(prev => ({ ...prev, [k]: v }));
 
-  // Wraps onToggle so collapsing with unsaved changes prompts for confirmation.
+  // Wraps onToggle. We DON'T prompt here anymore — the parent's requestExpand
+  // centralizes the in-app discard-changes confirmation. We only guard against
+  // toggling mid-save.
   function requestToggle() {
     if (saving) return; // block while a save is in flight
-    if (expanded && dirty) {
-      const ok = window.confirm('You have unsaved changes on this portfolio. Discard them?');
-      if (!ok) return;
-      onDirtyChange?.(false);
-    }
     onToggle();
   }
 
@@ -728,7 +808,7 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
       // Reset baseline so the post-save auto-collapse does not trigger the
       // "unsaved changes" prompt.
       baselineRef.current = { ...form };
-      onDirtyChange?.(false);
+      onDirtyChange?.([]);
       onSaved({ id: p.id, ...patch });
       onToggle(); // collapse
     } catch (e: any) {
