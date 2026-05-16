@@ -1329,6 +1329,43 @@ export function ComprehensiveCashMovement() {
           </div>
         </div>
 
+        {/* ─── Anomaly alerts (plain language) ───────────────────
+            Surfaces unusual spikes and quiet gaps in the selected
+            period so non-accounting readers notice them at a glance.
+            Read-only — derived from `rows` in `anomalyAlerts`. */}
+        {anomalyAlerts.length > 0 && (
+          <div className="rounded-xl border-2 border-amber-500/40 bg-amber-500/5 p-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+              <div className="text-sm font-semibold text-foreground">
+                Heads up — {anomalyAlerts.length} unusual {anomalyAlerts.length === 1 ? 'pattern' : 'patterns'} in this period
+              </div>
+            </div>
+            <ul className="space-y-1.5">
+              {anomalyAlerts.map((a, idx) => (
+                <li
+                  key={`${a.kind}-${a.date}-${idx}`}
+                  className="flex items-start gap-2 rounded-lg bg-card border border-border px-2.5 py-2"
+                >
+                  <div className={cn(
+                    'mt-0.5 h-6 w-6 rounded-full flex items-center justify-center shrink-0',
+                    a.kind === 'spike' ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' : 'bg-muted text-muted-foreground',
+                  )}>
+                    {a.kind === 'spike' ? <TrendingUp className="h-3.5 w-3.5" /> : <MinusCircle className="h-3.5 w-3.5" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[12px] sm:text-sm font-semibold leading-tight">{a.label}</div>
+                    <div className="text-[11px] text-muted-foreground leading-snug">{a.detail}</div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <p className="text-[10px] text-muted-foreground px-0.5">
+              "Unusual" means a day that's far above the period's typical daily flow, or a quiet day sandwiched between busy ones. This is a hint, not an error.
+            </p>
+          </div>
+        )}
+
         {/* ─── Tap to see details ──────────────────────────────────
             A simple, mobile-friendly list of individual cash-in /
             cash-out transactions for the current filters. Each row
