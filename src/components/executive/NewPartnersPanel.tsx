@@ -148,6 +148,62 @@ export function NewPartnersPanel() {
     setCreateOpen(true);
   }
 
+  async function revokePartner() {
+    if (!selected) return;
+    setRevokeBusy(true);
+    try {
+      const { error } = await supabase
+        .from('user_roles')
+        .update({ enabled: false })
+        .eq('user_id', selected.id)
+        .eq('role', 'supporter');
+      if (error) throw error;
+      await supabase.from('audit_logs').insert({
+        user_id: user?.id,
+        action_type: 'revoke_supporter_role',
+        table_name: 'user_roles',
+        record_id: selected.id,
+        metadata: { revoked_from: selected.full_name, phone: selected.phone, source: 'PartnerOps NewPartnersPanel' },
+      });
+      toast({ title: 'Partner role revoked', description: `${selected.full_name} is no longer a Partner.` });
+      setSelectedIsPartner(false);
+      setRevokeOpen(false);
+      qc.invalidateQueries({ queryKey: ['new-partners-panel'] });
+      if (historyOpen) loadHistory();
+    } catch (e: any) {
+      toast({ title: 'Could not revoke role', description: e?.message || 'Try again', variant: 'destructive' });
+    } finally {
+      setRevokeBusy(false);
+    }
+  }
+
+  async function loadHistory() {
+    if (!selected) return;
+    setHistoryLoading(true);
+    try {
+      const portfolioIds = selectedPortfolios.map(p => p.id);
+      const recordIds = [selected.id, ...portfolioIds];
+      const { data, error } = await supabase
+        .from('audit_logs')
+        .select('id, created_at, action_type, table_name, record_id, user_id, metadata')
+        .in('record_id', recordIds)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      setHistoryRows(data || []);
+    } catch (e: any) {
+      toast({ title: 'Could not load history', description: e?.message || 'Try again', variant: 'destructive' });
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
+
+  function toggleHistory() {
+    const next = !historyOpen;
+    setHistoryOpen(next);
+    if (next) loadHistory();
+  }
+
   return (
     <>
       <Card className="border-primary/30 bg-gradient-to-br from-primary/5 via-background to-background">
