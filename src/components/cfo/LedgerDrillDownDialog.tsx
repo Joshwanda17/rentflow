@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
-import { Loader2, FileSpreadsheet, Filter, ChevronDown, ChevronRight } from 'lucide-react';
+import { Loader2, FileSpreadsheet, Filter, ChevronDown, ChevronRight, Search } from 'lucide-react';
 import { format } from 'date-fns';
 import { exportToCSV } from '@/lib/exportUtils';
 import { formatDynamic as formatUGX } from '@/lib/currencyFormat';
