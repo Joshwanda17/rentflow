@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useQuery, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -498,6 +498,27 @@ export function NewPartnersPanel() {
       /* quota / private mode — ignore */
     }
   };
+  // Drops the persisted first-page cache so the next read goes straight to
+  // the database. Paired with `invalidateJoinedPartners` so that any
+  // create/update/enable/disable of a joined partner causes both the
+  // in-memory react-query cache AND the localStorage hydration cache to be
+  // discarded — otherwise repeat visitors would still see the stale row.
+  const clearFirstPageCache = () => {
+    if (typeof window === 'undefined') return;
+    try { localStorage.removeItem(PARTNERS_CACHE_KEY); } catch { /* ignore */ }
+  };
+  // Single funnel for "the joined partners list has changed". Every mutation
+  // path (create portfolio, edit profile, enable/disable role, realtime
+  // postgres_changes event) MUST call this instead of invalidating ad-hoc
+  // query keys, so we never have to chase down a missed key again.
+  const invalidateJoinedPartners = useCallback(() => {
+    clearFirstPageCache();
+    // The infinite list query uses the cursor-prefixed key.
+    qc.invalidateQueries({ queryKey: ['new-partners-panel-cursor'] });
+    // Legacy/sibling queries inside this panel (badges, search) share the
+    // base prefix — keep them in sync too.
+    qc.invalidateQueries({ queryKey: ['new-partners-panel'] });
+  }, [qc]);
 
   // ── All partners (infinite scroll) ──
   // Each scroll-triggered page fetches one slice of `user_roles`
