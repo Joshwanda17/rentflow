@@ -2004,10 +2004,6 @@ function WalletMovementSummary({
     return map;
   }, [rows, includeAdjustments]);
 
-  if (summary.inRows.length === 0 && summary.outRows.length === 0) {
-    return null;
-  }
-
   const renderCategoryRow = (
     cat: string,
     amt: number,
