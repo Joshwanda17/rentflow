@@ -517,7 +517,7 @@ export function NewPartnersPanel() {
     qc.invalidateQueries({ queryKey: ['new-partners-panel-cursor'] });
     // Legacy/sibling queries inside this panel (badges, search) share the
     // base prefix — keep them in sync too.
-    invalidateJoinedPartners();
+    qc.invalidateQueries({ queryKey: ['new-partners-panel'] });
   }, [qc]);
 
   // ── All partners (infinite scroll) ──
