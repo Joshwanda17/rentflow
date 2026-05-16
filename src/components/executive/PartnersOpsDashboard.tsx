@@ -27,6 +27,7 @@ import { PartnerFinancialActivity } from './PartnerFinancialActivity';
 import { PendingFunderApprovals } from './PendingFunderApprovals';
 import { PromissoryNotesQueue } from './PromissoryNotesQueue';
 import { NewPartnersPanel } from './NewPartnersPanel';
+import { PendingPartnerRequests } from './PendingPartnerRequests';
 
 type Tab = 'portfolios' | 'capital' | 'roi' | 'topups' | 'activity' | 'promissory' | 'withdrawals';
 
@@ -224,6 +225,9 @@ export function PartnersOpsDashboard() {
 
       {/* ═══ C. PENDING FUNDER APPROVALS ═══ */}
       <PendingFunderApprovals />
+
+      {/* ═══ C1. PENDING PARTNER ROLE REQUESTS ═══ */}
+      <PendingPartnerRequests />
 
       {/* ═══ C2. NEW PARTNERS SPOTLIGHT + SEARCH ═══ */}
       <NewPartnersPanel />
