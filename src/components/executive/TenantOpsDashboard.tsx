@@ -1226,6 +1226,8 @@ export function TenantOpsDashboard() {
         return <AgentAllocationReport />;
       case 'landlord-float':
         return <TenantOpsLandlordFloatPanel />;
+      case 'landlord-float-timeline':
+        return <TenantOpsLandlordFloatTimeline />;
       case 'daily-collections':
         return <DailyCollectionMonitoringDashboard mode="editable" title="Daily Collection Monitoring" />;
       default:
