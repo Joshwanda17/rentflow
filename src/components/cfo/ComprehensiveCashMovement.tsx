@@ -1386,7 +1386,7 @@ export function ComprehensiveCashMovement() {
     <Card className="border-border/60 shadow-sm">
       <CardContent
         className={cn(
-          'pt-5 pb-8 space-y-5 sm:space-y-4 px-4 sm:px-6',
+          'pt-6 pb-10 space-y-6 sm:space-y-4 px-4 sm:px-6',
           // ── Accessibility: ensure every interactive element inside the
           //    cash-movement panel shows a visible focus ring when reached
           //    via keyboard. Tailwind arbitrary variants apply the ring
@@ -1410,10 +1410,10 @@ export function ComprehensiveCashMovement() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div className="min-w-0">
-            <h3 id="cm-heading" className="text-lg sm:text-base font-semibold tracking-tight leading-tight">
+           <h3 id="cm-heading" className="text-xl sm:text-base font-semibold tracking-tight leading-snug">
               Money In &amp; Out
             </h3>
-            <p className="mt-1 text-xs sm:text-[11px] text-muted-foreground leading-relaxed">
+           <p className="mt-1.5 text-[13px] sm:text-[11px] text-muted-foreground leading-relaxed">
               {simpleMode
                 ? 'A simple picture of money flowing in and out of Welile, in plain English.'
                 : 'All money flowing in and out of Welile — updated live from the books.'}
