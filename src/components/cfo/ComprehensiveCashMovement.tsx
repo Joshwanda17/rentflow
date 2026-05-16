@@ -1464,7 +1464,44 @@ export function ComprehensiveCashMovement() {
                   </div>
                 ) : (
                   <div className="border border-border rounded-lg overflow-x-auto">
-                    <Table>
+                    <div className="block sm:hidden">
+                      {filteredDrillRows
+                        .slice(drillPage * drillPageSize, drillPage * drillPageSize + drillPageSize)
+                        .map((r, i) => {
+                          const amt = Number(r.amount) || 0;
+                          const isIn = r.direction === 'cash_in';
+                          const name = r.user_id ? partyNames[r.user_id] : null;
+                          return (
+                            <div key={r.id || `${r.reference_id}-${i}`} className="p-3 border-b border-border last:border-0 space-y-1.5">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="text-[11px] text-muted-foreground">{format(new Date(r.transaction_date), 'dd MMM yyyy · HH:mm')}</div>
+                                <div className={cn('font-mono text-sm font-semibold', isIn ? 'text-success' : 'text-destructive')}>
+                                  {isIn ? '+' : '−'}{formatUGX(amt)}
+                                </div>
+                              </div>
+                              <div className="font-mono text-[11px]">
+                                {r.id && canViewLedgerDetail ? (
+                                  <Link to={`/cfo/ledger/${r.id}`} target="_blank" rel="noopener" className="text-primary hover:underline inline-flex items-center gap-1">
+                                    <Highlight text={r.reference_id || r.id.slice(0, 8) + '…'} query={debouncedDrillQuery} />
+                                    <ExternalLink className="h-2.5 w-2.5" />
+                                  </Link>
+                                ) : (
+                                  <Highlight text={r.reference_id || '—'} query={debouncedDrillQuery} />
+                                )}
+                              </div>
+                              <div className="text-[11px]">
+                                <Highlight text={name || (r.linked_party ? prettifyCategory(r.linked_party) : '—')} query={debouncedDrillQuery} />
+                                {r.user_id && <span className="text-muted-foreground font-mono text-[10px] ml-1">· <Highlight text={r.user_id.slice(0, 8) + '…'} query={debouncedDrillQuery} /></span>}
+                              </div>
+                              {r.description && (
+                                <div className="text-[10px] text-muted-foreground line-clamp-1"><Highlight text={r.description} query={debouncedDrillQuery} /></div>
+                              )}
+                            </div>
+                          );
+                        })}
+                    </div>
+                    <div className="hidden sm:block">
+                      <Table>
                       <TableHeader>
                         <TableRow>
                           <TableHead className="text-xs">Date</TableHead>
