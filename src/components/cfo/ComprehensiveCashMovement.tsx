@@ -317,6 +317,27 @@ export function ComprehensiveCashMovement() {
     return { aggregates, bucketLabels, totals: { cashIn: totIn, cashOut: totOut, net: totIn - totOut } };
   }, [rows, granularity, includeAdjustments, scopeFilter]);
 
+  // ── Capital Inflows: platform-scope cash_in totals per category (from raw rows,
+  // independent of scopeFilter so the callout always reflects true inbound capital).
+  const capitalInflow = useMemo(() => {
+    const perCat = new Map<string, { total: number; count: number }>();
+    for (const r of rows) {
+      if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
+      if (r.ledger_scope !== 'platform' || r.direction !== 'cash_in') continue;
+      const cur = perCat.get(r.category) || { total: 0, count: 0 };
+      cur.total += Number(r.amount) || 0;
+      cur.count += 1;
+      perCat.set(r.category, cur);
+    }
+    const availableCategories = Array.from(perCat.entries())
+      .map(([category, v]) => ({ category, total: v.total, count: v.count }))
+      .sort((a, b) => b.total - a.total);
+    const selected = availableCategories.filter(c => capitalCategories.has(c.category));
+    const total = selected.reduce((s, c) => s + c.total, 0);
+    const entries = selected.reduce((s, c) => s + c.count, 0);
+    return { availableCategories, selected, total, entries };
+  }, [rows, includeAdjustments, capitalCategories]);
+
   const handleExport = () => {
     if (!canViewLedgerDetail) { toast.error('You do not have permission to export ledger data'); return; }
     if (!aggregates.length) { toast.error('Nothing to export'); return; }
