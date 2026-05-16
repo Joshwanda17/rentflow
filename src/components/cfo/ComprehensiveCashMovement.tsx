@@ -929,6 +929,73 @@ export function ComprehensiveCashMovement() {
           </div>
         </div>
 
+        {/* Quick filter chips */}
+        <div className="space-y-1.5">
+          <div className="text-[11px] text-muted-foreground flex items-center gap-1">
+            <Filter className="h-3.5 w-3.5" /> Quick find
+          </div>
+          <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 snap-x">
+            <Button
+              size="sm"
+              variant={directionQuickFilter === 'cash_in' ? 'default' : 'outline'}
+              className="text-xs h-8 shrink-0 snap-start"
+              onClick={() => setDirectionQuickFilter(f => f === 'cash_in' ? 'all' : 'cash_in')}
+            >
+              <ArrowUpRight className="h-3 w-3 mr-1" /> Money In
+            </Button>
+            <Button
+              size="sm"
+              variant={directionQuickFilter === 'cash_out' ? 'default' : 'outline'}
+              className="text-xs h-8 shrink-0 snap-start"
+              onClick={() => setDirectionQuickFilter(f => f === 'cash_out' ? 'all' : 'cash_out')}
+            >
+              <ArrowDownRight className="h-3 w-3 mr-1" /> Money Out
+            </Button>
+            <Button
+              size="sm"
+              variant={directionQuickFilter === 'net_positive' ? 'default' : 'outline'}
+              className="text-xs h-8 shrink-0 snap-start"
+              onClick={() => setDirectionQuickFilter(f => f === 'net_positive' ? 'all' : 'net_positive')}
+            >
+              Difference +
+            </Button>
+            <Button
+              size="sm"
+              variant={directionQuickFilter === 'net_negative' ? 'default' : 'outline'}
+              className="text-xs h-8 shrink-0 snap-start"
+              onClick={() => setDirectionQuickFilter(f => f === 'net_negative' ? 'all' : 'net_negative')}
+            >
+              Difference −
+            </Button>
+            {topCategoryChips.map(cat => (
+              <Button
+                key={cat}
+                size="sm"
+                variant={categoryQuickFilter === cat ? 'default' : 'outline'}
+                className="text-xs h-8 shrink-0 snap-start"
+                onClick={() => setCategoryQuickFilter(f => f === cat ? null : cat)}
+              >
+                {prettifyCategory(cat)}
+              </Button>
+            ))}
+            {(directionQuickFilter !== 'all' || categoryQuickFilter) && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-xs h-8 shrink-0 snap-start text-muted-foreground"
+                onClick={() => { setDirectionQuickFilter('all'); setCategoryQuickFilter(null); }}
+              >
+                <X className="h-3 w-3 mr-1" /> Clear
+              </Button>
+            )}
+          </div>
+          {filteredAggregates.length !== aggregates.length && (
+            <div className="text-[10px] text-muted-foreground px-1">
+              Showing {filteredAggregates.length} of {aggregates.length} types
+            </div>
+          )}
+        </div>
+
         {/* Capital Inflows callout — new money into the company */}
         <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-2.5 sm:p-3 space-y-2">
           <div className="flex items-center justify-between gap-2 flex-wrap">
