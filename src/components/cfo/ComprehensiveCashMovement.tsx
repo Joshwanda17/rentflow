@@ -941,6 +941,16 @@ export function ComprehensiveCashMovement() {
             {loading ? 'Loading…' : 'Reload'}
           </Button>
           <Button
+            onClick={() => setAutoRefresh(v => !v)}
+            variant={autoRefresh ? 'default' : 'outline'}
+            size="sm"
+            className="gap-2"
+            title={autoRefresh ? 'Auto-refresh every 60s — click to stop' : 'Refresh every 60 seconds'}
+          >
+            <RefreshCw className={cn('h-3.5 w-3.5', autoRefresh && 'animate-spin-slow')} />
+            {autoRefresh ? 'Auto · 1m' : 'Auto-refresh'}
+          </Button>
+          <Button
             onClick={handleExport}
             variant="outline" size="sm" className="gap-2"
             disabled={!aggregates.length || !canViewLedgerDetail}
