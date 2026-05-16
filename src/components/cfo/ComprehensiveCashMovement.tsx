@@ -813,8 +813,15 @@ export function ComprehensiveCashMovement() {
                 <button
                   key={c.category}
                   type="button"
-                  onClick={() => setDrill({ category: c.category, scope: 'platform', bucket: null, direction: 'cash_in' })}
-                  title={`Drill into ${prettifyCategory(c.category)} · Platform cash_in entries`}
+                  onClick={() => setDrill({
+                    category: c.category,
+                    scope: 'platform',
+                    bucket: null,
+                    direction: 'cash_in',
+                    dateFrom: capitalFrom || undefined,
+                    dateTo: capitalTo || undefined,
+                  })}
+                  title={`Drill into ${prettifyCategory(c.category)} · Platform cash_in entries${capitalRangeActive ? ` · ${capitalFrom || '…'} → ${capitalTo || '…'}` : ''}`}
                   className="inline-flex items-center gap-1 rounded-full border border-border bg-background hover:bg-primary/10 hover:border-primary/40 px-2 py-0.5 text-[11px] font-normal transition-colors"
                 >
                   <span className="font-medium">{prettifyCategory(c.category)}</span>
@@ -863,6 +870,45 @@ export function ComprehensiveCashMovement() {
 
           <Collapsible open={capitalPickerOpen} onOpenChange={setCapitalPickerOpen}>
             <CollapsibleContent className="space-y-2 pt-2 border-t border-primary/20">
+              {/* Date sub-range filter — scopes Capital Inflows totals & drill-downs */}
+              <div className="flex flex-wrap items-end gap-2 rounded-md border border-primary/20 bg-background/60 p-2">
+                <div className="flex flex-col gap-0.5">
+                  <label className="text-[10px] uppercase tracking-wider text-muted-foreground">From</label>
+                  <Input
+                    type="date"
+                    value={capitalFrom}
+                    max={capitalTo || undefined}
+                    onChange={(e) => setCapitalFrom(e.target.value)}
+                    className="h-7 text-[11px] w-[140px]"
+                  />
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <label className="text-[10px] uppercase tracking-wider text-muted-foreground">To</label>
+                  <Input
+                    type="date"
+                    value={capitalTo}
+                    min={capitalFrom || undefined}
+                    onChange={(e) => setCapitalTo(e.target.value)}
+                    className="h-7 text-[11px] w-[140px]"
+                  />
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-[11px] gap-1"
+                  disabled={!capitalRangeActive}
+                  onClick={() => { setCapitalFrom(''); setCapitalTo(''); }}
+                  title="Clear sub-range and use the full loaded period"
+                >
+                  <X className="h-3 w-3" />
+                  Clear
+                </Button>
+                <span className="text-[10px] text-muted-foreground ml-auto">
+                  {capitalRangeActive
+                    ? <>Filter active · totals & drill-downs scoped to <span className="font-mono text-primary">{capitalFrom || '…'} → {capitalTo || '…'}</span></>
+                    : <>No sub-range · using full period ({rangeLabel})</>}
+                </span>
+              </div>
               <div className="flex items-center justify-between">
                 <span className="text-[11px] text-muted-foreground">
                   Pick any platform cash_in category to include in the callout. Selection is saved per browser.
