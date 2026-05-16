@@ -61,6 +61,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [isFirstTx, setIsFirstTx] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [recipient, setRecipient] = useState<
     | { status: 'idle' }
     | { status: 'searching' }
@@ -212,6 +213,12 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
       return;
     }
 
+    // Open confirmation step — user must explicitly confirm before money is sent.
+    setConfirming(true);
+  };
+
+  const executeSend = async () => {
+    const amountNum = parseFloat(amount);
     setLoading(true);
     // Always send via matched phone (edge function accepts recipient_phone)
     const recipientPhone =
@@ -224,6 +231,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
       return;
     }
 
+    setConfirming(false);
     setSuccess(true);
     
     // Check if this was the first transaction and trigger celebration
@@ -264,6 +272,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
       setDescription('');
       setSuccess(false);
       setIsFirstTx(false);
+      setConfirming(false);
       setRecipient({ status: 'idle' });
     }
     onOpenChange(value);
