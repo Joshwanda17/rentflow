@@ -543,37 +543,6 @@ export function NewPartnersPanel() {
               <h3 className="text-sm font-bold">Joined Partners</h3>
               <p className="text-[10px] text-muted-foreground">Browse all partners, filter, activate portfolios & WhatsApp</p>
             </div>
-            {joined && joined.length > 0 && (() => {
-              const withCount = joined.filter(p => p.portfolio_count > 0).length;
-              const withoutCount = joined.length - withCount;
-              // All boundaries computed in the user's local browser timezone
-              // (NOT server time) so "today" / "this week" / "this month" match
-              // how the logged-in Partner Ops Manager reads the calendar.
-              const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
-              const startOfWeek = new Date(startOfToday);
-              // Week starts on Monday in local time
-              const dow = startOfWeek.getDay(); // 0=Sun..6=Sat
-              const daysSinceMonday = (dow + 6) % 7;
-              startOfWeek.setDate(startOfWeek.getDate() - daysSinceMonday);
-              const startOfMonth = new Date(startOfToday.getFullYear(), startOfToday.getMonth(), 1);
-              const todayCount = joined.filter(p => new Date(p.created_at).getTime() >= startOfToday.getTime()).length;
-              const weekCount = joined.filter(p => new Date(p.created_at).getTime() >= startOfWeek.getTime()).length;
-              const monthCount = joined.filter(p => new Date(p.created_at).getTime() >= startOfMonth.getTime()).length;
-              return (
-                <div className="flex flex-wrap items-center gap-1 justify-end">
-                  <Badge className="bg-primary/15 text-primary border-0 text-[10px] font-bold" title="Total partners">{joined.length} total</Badge>
-                  <Badge className="bg-emerald-500/15 text-emerald-600 border-0 text-[10px] font-bold" title="With portfolios">{withCount} active</Badge>
-                  <Badge className="bg-amber-500/15 text-amber-600 border-0 text-[10px] font-bold" title="No portfolio yet">{withoutCount} pending</Badge>
-                  {canWhatsAppPartners && (
-                    <>
-                      <Badge className="bg-sky-500/15 text-sky-600 border-0 text-[10px] font-bold" title="Joined today (your local time)">{todayCount} today</Badge>
-                      <Badge className="bg-indigo-500/15 text-indigo-600 border-0 text-[10px] font-bold" title="Joined since Monday (your local time)">{weekCount} this week</Badge>
-                      <Badge className="bg-violet-500/15 text-violet-600 border-0 text-[10px] font-bold" title="Joined since the 1st of this month (your local time)">{monthCount} this month</Badge>
-                    </>
-                  )}
-                </div>
-              );
-            })()}
             <Button
               size="sm"
               className="h-8 text-xs gap-1.5 shrink-0"
