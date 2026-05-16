@@ -227,7 +227,7 @@ export function LedgerDrillDownDialog({ open, onOpenChange, title, spec, startDa
           </div>
         )}
 
-        {!loading && !error && rows.length > 0 && (
+        {!loading && !error && visibleRows.length > 0 && (
           <div className="border-b bg-muted/20">
             <div className="grid grid-cols-3 gap-3 p-3 text-xs">
               <div className="rounded-md border bg-background p-2">
