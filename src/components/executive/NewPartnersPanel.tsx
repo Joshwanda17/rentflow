@@ -244,6 +244,19 @@ export function NewPartnersPanel() {
   // overlay. We keep the ref above for synchronous reads inside requestExpand.
   const [savingCount, setSavingCount] = useState(0);
 
+  // Transient "swipe hint" pill shown above the sticky mobile bar so the
+  // operator can see which filter their gesture is about to land on (and
+  // landed on) without looking at the small <Select> value.
+  const [swipeHint, setSwipeHint] = useState<{ key: string; label: string; count: number } | null>(null);
+  const swipeHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearSwipeHintSoon = (ms = 900) => {
+    if (swipeHintTimerRef.current) clearTimeout(swipeHintTimerRef.current);
+    swipeHintTimerRef.current = setTimeout(() => setSwipeHint(null), ms);
+  };
+  useEffect(() => () => {
+    if (swipeHintTimerRef.current) clearTimeout(swipeHintTimerRef.current);
+  }, []);
+
   // In-app modal state for the discard-changes confirmation (replaces window.confirm).
   const [discardPrompt, setDiscardPrompt] = useState<{
     portfolioId: string;
@@ -637,6 +650,46 @@ export function NewPartnersPanel() {
     };
   }, [filteredPartners]);
 
+  // ── Per-filter totals for the mobile swipe-hint pill ──
+  // Counts use the full `joined` dataset (ignoring search) so the pill always
+  // shows the true population behind each filter, matching what the operator
+  // would see if they actually committed to that filter with an empty search.
+  const FILTER_LABELS: Record<string, string> = {
+    all: 'All partners',
+    just_joined: 'Just joined · no portfolio',
+    recent_today: 'No portfolio · today',
+    recent_week: 'No portfolio · this week',
+    recent_month: 'No portfolio · this month',
+    with: 'With portfolios',
+    without: 'No portfolios yet',
+  };
+  const filterCounts = useMemo(() => {
+    const out: Record<string, number> = {
+      all: 0, just_joined: 0, recent_today: 0, recent_week: 0, recent_month: 0, with: 0, without: 0,
+    };
+    if (!joined) return out;
+    const justJoinedCutoff = Date.now() - JUST_JOINED_DAYS * 86400000;
+    const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+    const startOfWeek = new Date(startOfToday);
+    const dow = startOfWeek.getDay();
+    startOfWeek.setDate(startOfWeek.getDate() - ((dow + 6) % 7));
+    const startOfMonth = new Date(startOfToday.getFullYear(), startOfToday.getMonth(), 1);
+    const todayMs = startOfToday.getTime();
+    const weekMs = startOfWeek.getTime();
+    const monthMs = startOfMonth.getTime();
+    for (const p of joined) {
+      const t = new Date(p.created_at).getTime();
+      const empty = p.portfolio_count === 0;
+      out.all++;
+      if (empty) out.without++; else out.with++;
+      if (empty && t >= justJoinedCutoff) out.just_joined++;
+      if (empty && t >= todayMs) out.recent_today++;
+      if (empty && t >= weekMs) out.recent_week++;
+      if (empty && t >= monthMs) out.recent_month++;
+    }
+    return out;
+  }, [joined]);
+
   // ── Auto-advance: after a successful banner-driven activation, open the
   // create-portfolio dialog for the next no-portfolio candidate as soon as
   // the refreshed list is back and the previous dialog has closed. ──
@@ -831,25 +884,49 @@ export function NewPartnersPanel() {
   function makeSegmentSwipeHandlers<K extends PartnerFilter>(
     keys: readonly K[],
     activeKey: PartnerFilter,
+    onPreview?: (key: K | null) => void,
   ) {
     let startX = 0;
     let startY = 0;
     let startScroll = 0;
+    let lastPreview: K | null = null;
+    const previewKey = (dx: number, dy: number): K | null => {
+      if (Math.abs(dx) < 24) return null;
+      if (Math.abs(dx) < Math.abs(dy) * 1.5) return null;
+      const idx = keys.indexOf(activeKey as K);
+      let nextIdx: number;
+      if (idx === -1) nextIdx = dx < 0 ? 0 : keys.length - 1;
+      else nextIdx = dx < 0
+        ? Math.min(keys.length - 1, idx + 1)
+        : Math.max(0, idx - 1);
+      return keys[nextIdx];
+    };
     return {
       onTouchStart: (e: React.TouchEvent<HTMLDivElement>) => {
         const t = e.touches[0];
         startX = t.clientX;
         startY = t.clientY;
         startScroll = e.currentTarget.scrollLeft;
+        lastPreview = null;
+      },
+      onTouchMove: (e: React.TouchEvent<HTMLDivElement>) => {
+        if (!onPreview) return;
+        if (Math.abs(e.currentTarget.scrollLeft - startScroll) > 4) {
+          if (lastPreview !== null) { onPreview(null); lastPreview = null; }
+          return;
+        }
+        const t = e.touches[0];
+        const next = previewKey(t.clientX - startX, t.clientY - startY);
+        if (next !== lastPreview) { onPreview(next); lastPreview = next; }
       },
       onTouchEnd: (e: React.TouchEvent<HTMLDivElement>) => {
         const t = e.changedTouches[0];
         const dx = t.clientX - startX;
         const dy = t.clientY - startY;
         // Ignore if user actually scrolled the row horizontally.
-        if (Math.abs(e.currentTarget.scrollLeft - startScroll) > 4) return;
-        if (Math.abs(dx) < 50) return;
-        if (Math.abs(dx) < Math.abs(dy) * 1.5) return;
+        if (Math.abs(e.currentTarget.scrollLeft - startScroll) > 4) { onPreview?.(null); return; }
+        if (Math.abs(dx) < 50) { onPreview?.(null); return; }
+        if (Math.abs(dx) < Math.abs(dy) * 1.5) { onPreview?.(null); return; }
         const idx = keys.indexOf(activeKey as K);
         // If current filter isn't in this row, swipe lands on first/last.
         let nextIdx: number;
@@ -2034,8 +2111,29 @@ export function NewPartnersPanel() {
             {...makeSegmentSwipeHandlers(
               ['all', 'just_joined', 'recent_today', 'recent_week', 'recent_month', 'with', 'without'] as const,
               partnerFilter,
+              (key) => {
+                if (!key) { setSwipeHint(null); return; }
+                setSwipeHint({
+                  key,
+                  label: FILTER_LABELS[key] ?? key,
+                  count: filterCounts[key] ?? 0,
+                });
+                clearSwipeHintSoon(1400);
+              },
             )}
           >
+            {swipeHint && (
+              <div
+                className="pointer-events-none absolute left-1/2 -translate-x-1/2 -top-9 px-3 py-1.5 rounded-full bg-foreground text-background text-[11px] font-medium shadow-lg flex items-center gap-1.5 whitespace-nowrap animate-in fade-in slide-in-from-bottom-1"
+                role="status"
+                aria-live="polite"
+              >
+                <span className="truncate max-w-[60vw]">{swipeHint.label}</span>
+                <span className="px-1.5 py-0.5 rounded-full bg-background/20 text-background tabular-nums">
+                  {swipeHint.count}
+                </span>
+              </div>
+            )}
             <div className="flex items-center gap-1.5">
               <Select
                 value={partnerFilter}
