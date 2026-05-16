@@ -2356,7 +2356,7 @@ function WalletMovementSummary({
 
       {/* Net-flow sparkline — momentum across the selected period */}
       {(() => {
-        const { nets, labels, slope } = netTrend;
+        const { nets, labels, slope, ranges } = netTrend;
         const hasData = nets.some(v => v !== 0);
         if (!hasData) return null;
         const W = 600;
@@ -2418,15 +2418,32 @@ function WalletMovementSummary({
               <polygon points={areaPoints} fill="url(#netSparkGrad)" />
               {/* Line */}
               <polyline points={points} fill="none" stroke="hsl(var(--primary))" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
-              {/* Per-bucket dots with hover tooltips */}
-              {nets.map((v, i) => (
-                <g key={i}>
-                  <circle cx={xFor(i)} cy={yFor(v)} r={1.6} fill={v >= 0 ? 'hsl(var(--success))' : 'hsl(var(--destructive))'} />
-                  <title>{`${labels[i]}\nNet: ${(v >= 0 ? '+' : '−')}${formatUGX(Math.abs(v))}`}</title>
-                </g>
-              ))}
+              {/* Per-bucket clickable hit areas — opens the drill-down filtered to this bucket */}
+              {nets.map((v, i) => {
+                const r = ranges[i];
+                const openBucket = () => setNetDrill({ direction: 'all', from: r.from, to: r.to, label: labels[i] });
+                return (
+                  <g key={i} style={{ cursor: 'pointer' }} onClick={openBucket}>
+                    {/* Wide invisible hit area for easy tapping */}
+                    <rect
+                      x={Math.max(0, xFor(i) - xStep / 2)}
+                      y={0}
+                      width={Math.max(6, xStep)}
+                      height={H}
+                      fill="transparent"
+                    />
+                    <circle
+                      cx={xFor(i)}
+                      cy={yFor(v)}
+                      r={1.8}
+                      fill={v >= 0 ? 'hsl(var(--success))' : 'hsl(var(--destructive))'}
+                    />
+                    <title>{`${labels[i]}\nNet: ${(v >= 0 ? '+' : '−')}${formatUGX(Math.abs(v))}\nClick to view transactions`}</title>
+                  </g>
+                );
+              })}
               {/* Highlight last point */}
-              <circle cx={xFor(nets.length - 1)} cy={yFor(last)} r={2.6} fill={lastColor} stroke="hsl(var(--background))" strokeWidth="1" />
+              <circle cx={xFor(nets.length - 1)} cy={yFor(last)} r={2.6} fill={lastColor} stroke="hsl(var(--background))" strokeWidth="1" pointerEvents="none" />
             </svg>
             <div className="flex items-center justify-between text-[10px] text-muted-foreground mt-1 font-mono">
               <span>{labels[0]?.split(' – ')[0]}</span>
