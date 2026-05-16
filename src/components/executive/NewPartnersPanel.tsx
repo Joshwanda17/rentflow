@@ -885,6 +885,21 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
 
       {expanded && (
         <div className="border-t border-border/60 bg-background p-3 space-y-2.5">
+          <div className="flex items-center justify-between gap-2 rounded-md border border-border/60 bg-muted/40 px-2 py-1.5">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Zap className={cn("h-3.5 w-3.5 shrink-0", autoSave ? "text-primary" : "text-muted-foreground")} />
+              <span className="text-[11px] font-medium">Auto-save</span>
+              <span className="text-[9px] text-muted-foreground truncate">
+                {autoSave ? 'persists ~1.2s after you stop typing' : 'off — click Save before switching'}
+              </span>
+            </div>
+            <Switch
+              checked={autoSave}
+              onCheckedChange={setAutoSave}
+              disabled={saving}
+              aria-label="Toggle auto-save for inline portfolio edits"
+            />
+          </div>
           {dirty && (
             <div className="rounded-md border border-warning/40 bg-warning/5 p-2 space-y-1">
               <p className="text-[10px] font-semibold text-warning uppercase tracking-wide">
