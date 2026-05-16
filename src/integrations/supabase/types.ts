@@ -14793,6 +14793,10 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: Json
       }
+      list_joined_partners: {
+        Args: { p_limit?: number; p_offset?: number }
+        Returns: Json
+      }
       log_finops_provider_mismatch: {
         Args: {
           _attempted_amount?: number

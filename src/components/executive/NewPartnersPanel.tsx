@@ -475,51 +475,36 @@ export function NewPartnersPanel() {
     queryFn: async ({ pageParam }) => {
       const pageIndex = pageParam as number;
       const from = pageIndex * PARTNERS_PAGE_SIZE;
-      const to = from + PARTNERS_PAGE_SIZE - 1;
-      // `count: 'exact'` is a planner-buster on large user_roles tables — it
-      // forces a full COUNT(*) on every page. We only need a total for the
-      // "joinedTotal" badge on first paint, so:
-      //   • first page → use the much cheaper `planned` (estimated) count
-      //   • later pages → skip count entirely and reuse the cached total
-      const wantCount = pageIndex === 0;
-      const query = supabase
-        .from('user_roles')
-        .select('user_id, created_at', wantCount ? { count: 'planned' } : undefined)
-        .eq('role', 'supporter')
-        .eq('enabled', true)
-        .order('created_at', { ascending: false })
-        .range(from, to);
-      const { data: roles, count } = await query;
-      const rows = roles || [];
-      // If estimate is missing/0 but we got rows, fall back to a safe floor so
-      // pagination doesn't terminate early.
-      const total = wantCount
-        ? Math.max(count ?? 0, rows.length)
-        : from + rows.length + (rows.length === PARTNERS_PAGE_SIZE ? 1 : 0);
-      if (rows.length === 0) {
-        return { rows: [] as JoinedPartner[], total, pageIndex };
-      }
-
-      const ids = rows.map(r => r.user_id);
-      const [{ data: profiles }, { data: portfolios }] = await Promise.all([
-        supabase.from('profiles').select('id, full_name, phone').in('id', ids),
-        supabase.from('investor_portfolios').select('investor_id').in('investor_id', ids),
-      ]);
-      const pMap = new Map((profiles || []).map(p => [p.id, p]));
-      const countMap = new Map<string, number>();
-      (portfolios || []).forEach(p => {
-        if (!p.investor_id) return;
-        countMap.set(p.investor_id, (countMap.get(p.investor_id) || 0) + 1);
+      // Single-roundtrip server query backed by:
+      //   • partial index on user_roles (role='supporter' AND enabled=true,
+      //     created_at DESC) → cheap ORDER BY + cheap exact count
+      //   • btree index on investor_portfolios.investor_id → fast LATERAL
+      //     portfolio-count subquery
+      // Replaces the previous 3-query waterfall (user_roles → profiles +
+      // investor_portfolios) that did a full table scan for COUNT(*).
+      const { data, error } = await supabase.rpc('list_joined_partners', {
+        p_limit: PARTNERS_PAGE_SIZE,
+        p_offset: from,
       });
-
-      const built: JoinedPartner[] = rows.map(r => ({
+      if (error) throw error;
+      const payload = (data ?? { rows: [], total: 0 }) as {
+        rows: Array<{
+          user_id: string;
+          created_at: string;
+          full_name: string;
+          phone: string;
+          portfolio_count: number;
+        }>;
+        total: number;
+      };
+      const built: JoinedPartner[] = (payload.rows || []).map(r => ({
         user_id: r.user_id,
         created_at: r.created_at,
-        full_name: pMap.get(r.user_id)?.full_name || 'Unknown',
-        phone: pMap.get(r.user_id)?.phone || '—',
-        portfolio_count: countMap.get(r.user_id) || 0,
+        full_name: r.full_name || 'Unknown',
+        phone: r.phone || '—',
+        portfolio_count: r.portfolio_count ?? 0,
       }));
-      return { rows: built, total, pageIndex };
+      return { rows: built, total: payload.total ?? built.length, pageIndex };
     },
     getNextPageParam: (lastPage) => {
       const loaded = (lastPage.pageIndex + 1) * PARTNERS_PAGE_SIZE;
