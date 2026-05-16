@@ -12,8 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Activity, AlertCircle, FileText } from 'lucide-react';
-import { Download, FileDown } from 'lucide-react';
+import { Activity, AlertCircle, FileText, Download, FileDown } from 'lucide-react';
 import { formatDistanceToNow, subHours, subDays, format } from 'date-fns';
 import type { DateRange } from '../AgentOpsHomeView';
 import jsPDF from 'jspdf';
