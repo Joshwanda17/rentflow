@@ -55,6 +55,10 @@ export default function FunderOnboarding() {
   // executive coming from the "Partner Not Approved" gate in the
   // Create Portfolio dialog can verify them in one click.
   const focusUserId = searchParams.get('focus');
+  // Surviving copy of the deep-link target so the row-scroll/highlight
+  // effect can still match the row after we strip `?focus=` from the
+  // URL (we strip it to prevent re-firing on dialog close).
+  const [highlightId, setHighlightId] = useState<string | null>(null);
 
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
@@ -83,6 +87,16 @@ export default function FunderOnboarding() {
         if (!data.funder_verified_at && !data.funder_rejected_at) {
           setActionMode('approve');
         }
+        // Mark this row for scroll-into-view + ring highlight once the
+        // table renders it. We seed the search box with the partner's
+        // phone (most reliable unique field) so the row is guaranteed
+        // to appear on page 1 regardless of pagination.
+        setHighlightId(data.id);
+        if (data.phone) {
+          setSearch(data.phone);
+        } else if (data.full_name) {
+          setSearch(data.full_name);
+        }
       }
       // Clear the param so a manual close + re-open doesn't keep re-firing.
       const next = new URLSearchParams(searchParams);
@@ -92,6 +106,25 @@ export default function FunderOnboarding() {
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusUserId, user?.id, roles.join(',')]);
+
+  // Scroll the highlighted row into view + flash a ring once it renders.
+  // Runs whenever the page data changes (e.g. after the seeded search
+  // resolves). The ring is removed after 2.5s; the highlightId itself
+  // is cleared so the next manual interaction is unaffected.
+  useEffect(() => {
+    if (!highlightId) return;
+    const rows = data?.rows || [];
+    if (!rows.some(r => r.id === highlightId)) return;
+    const el = document.querySelector<HTMLElement>(`[data-partner-row-id="${highlightId}"]`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('ring-2', 'ring-primary', 'ring-offset-2', 'ring-offset-background');
+    const t = setTimeout(() => {
+      el.classList.remove('ring-2', 'ring-primary', 'ring-offset-2', 'ring-offset-background');
+      setHighlightId(null);
+    }, 2500);
+    return () => clearTimeout(t);
+  }, [highlightId, data?.rows]);
 
   // Reset to first page whenever search term or source filter changes
   useEffect(() => { setPage(0); }, [search, sourceFilter]);
