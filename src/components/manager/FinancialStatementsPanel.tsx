@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, createContext, useContext, useMemo } from 'react';
 import { format } from 'date-fns';
 import { FileText, TrendingUp, Wallet, BarChart3, Download, FileSpreadsheet, RefreshCw, Loader2, Calendar, ArrowUpRight, ArrowDownRight, Minus, GitCompareArrows, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,9 @@ import { exportToCSV } from '@/lib/exportUtils';
 import { useFinancialStatements, type StatementPeriod, type FinancialStatementsData, type ComparisonMode, type ComparisonMetrics, type DeltaValue } from '@/hooks/useFinancialStatements';
 import { Progress } from '@/components/ui/progress';
 import { ComprehensiveCashMovement } from '@/components/cfo/ComprehensiveCashMovement';
+import { LedgerDrillDownDialog } from '@/components/cfo/LedgerDrillDownDialog';
+import { FS_DRILL_MAP } from '@/components/cfo/financialStatementsDrillMap';
+import { startOfDay, endOfDay, subDays, startOfMonth, startOfYear } from 'date-fns';
 
 import { formatDynamic as formatUGX } from '@/lib/currencyFormat';
 
@@ -59,10 +62,25 @@ function LineItem({ label, value, negative, bold, indent, delta }: { label: stri
   const colored = negative
     ? value > 0 ? 'text-destructive' : 'text-muted-foreground'
     : value > 0 ? 'text-success' : value < 0 ? 'text-destructive' : 'text-muted-foreground';
+  const drill = useContext(DrillContext);
+  const trimmed = label.trim();
+  const spec = FS_DRILL_MAP[trimmed];
+  const clickable = !!spec && !!drill;
   return (
-    <div className={cn('flex justify-between items-center', indent && 'pl-4', bold ? 'font-semibold border-t border-border/50 pt-2 mt-1' : 'text-sm')}>
+    <div
+      className={cn(
+        'flex justify-between items-center',
+        indent && 'pl-4',
+        bold ? 'font-semibold border-t border-border/50 pt-2 mt-1' : 'text-sm',
+        clickable && 'cursor-pointer rounded hover:bg-muted/40 -mx-1 px-1 transition-colors'
+      )}
+      onClick={clickable ? () => drill!.open(trimmed) : undefined}
+      role={clickable ? 'button' : undefined}
+      title={clickable ? 'Click to view underlying ledger entries' : undefined}
+    >
       <span className={cn(bold ? '' : 'text-muted-foreground', 'flex items-center')}>
         {label}
+        {clickable && <span className="ml-1 text-[10px] text-primary/70">›</span>}
         {delta && <DeltaBadge delta={delta} />}
       </span>
       <span className={cn('font-mono', colored)}>
@@ -70,6 +88,27 @@ function LineItem({ label, value, negative, bold, indent, delta }: { label: stri
       </span>
     </div>
   );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Drill-down context — exposes startDate/endDate + open(label)
+// ─────────────────────────────────────────────────────────────
+interface DrillContextValue {
+  open: (label: string) => void;
+}
+const DrillContext = createContext<DrillContextValue | null>(null);
+
+function getEffectiveDates(period: StatementPeriod, startDate: Date | null, endDate: Date | null) {
+  if (startDate || endDate) return { start: startDate, end: endDate };
+  const now = new Date();
+  switch (period) {
+    case 'today':   return { start: startOfDay(now), end: endOfDay(now) };
+    case '7days':   return { start: startOfDay(subDays(now, 7)), end: endOfDay(now) };
+    case '30days':  return { start: startOfDay(subDays(now, 30)), end: endOfDay(now) };
+    case 'month':   return { start: startOfMonth(now), end: endOfDay(now) };
+    case 'year':    return { start: startOfYear(now), end: endOfDay(now) };
+    default:        return { start: null, end: null };
+  }
 }
 
 function SectionHeader({ children }: { children: React.ReactNode }) {
@@ -500,6 +539,13 @@ export function FinancialStatementsPanel() {
   const [sharing, setSharing] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
+  const [drillLabel, setDrillLabel] = useState<string | null>(null);
+  const drillDates = useMemo(
+    () => getEffectiveDates(filters.period, filters.startDate, filters.endDate),
+    [filters.period, filters.startDate, filters.endDate],
+  );
+  const drillCtx = useMemo<DrillContextValue>(() => ({ open: setDrillLabel }), []);
+
   useEffect(() => {
     generate();
   }, []);
@@ -904,6 +950,7 @@ export function FinancialStatementsPanel() {
   };
 
   return (
+    <DrillContext.Provider value={drillCtx}>
     <div className="space-y-4">
       {/* Period Selector */}
       <div className="flex flex-wrap gap-2 items-center">
@@ -1022,6 +1069,17 @@ export function FinancialStatementsPanel() {
           <p className="text-xs mt-1">Data is pulled live from the financial ledger</p>
         </div>
       )}
+
+      <LedgerDrillDownDialog
+        open={!!drillLabel}
+        onOpenChange={(o) => { if (!o) setDrillLabel(null); }}
+        title={drillLabel ?? ''}
+        spec={drillLabel ? FS_DRILL_MAP[drillLabel] ?? null : null}
+        startDate={drillDates.start}
+        endDate={drillDates.end}
+        periodLabel={data?.incomeStatement.period}
+      />
     </div>
+    </DrillContext.Provider>
   );
 }
