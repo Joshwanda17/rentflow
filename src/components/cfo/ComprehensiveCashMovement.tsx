@@ -967,7 +967,7 @@ export function ComprehensiveCashMovement() {
             Read-only summary of money flowing INTO and OUT OF user/operational
             wallets in the selected period. Reuses already-loaded ledger rows
             (no balance changes anywhere). */}
-        <WalletMovementSummary rows={rows} includeAdjustments={includeAdjustments} />
+        <WalletMovementSummary rows={rows} includeAdjustments={includeAdjustments} period={period} />
 
         {/* Quick filter chips */}
         <div className="space-y-1.5">
