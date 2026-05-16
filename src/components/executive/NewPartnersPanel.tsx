@@ -842,6 +842,17 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
     }
   }
 
+  // Debounced auto-save: when enabled, persist dirty edits after the user has
+  // stopped typing for ~1.2s. We skip if already saving or if there are no
+  // changes. The dependency uses the changeListKey so we only re-arm when the
+  // diff actually changes (not on every keystroke that keeps the same diff).
+  useEffect(() => {
+    if (!autoSave || !expanded || !dirty || saving) return;
+    const t = setTimeout(() => { handleSave(); }, 1200);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoSave, expanded, dirty, saving, changeListKey]);
+
   return (
     <div className="rounded-lg border border-border/60 bg-muted/30 overflow-hidden">
       <button
