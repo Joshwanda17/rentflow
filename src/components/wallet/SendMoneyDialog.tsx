@@ -836,10 +836,16 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                         // Mirror the inline validation text exactly so the
                         // hover tooltip matches searching / not-found / self
                         // / invalid / insufficient-balance cases verbatim.
+                        // The disabled reason is also announced via the
+                        // role="alert" aria-live region below, so we keep the
+                        // button's accessible name stable at "Send Money" and
+                        // expose the reason via aria-describedby instead of
+                        // mutating aria-label (which would break label-based
+                        // queries that match on "phone number" etc.).
                         title={disabledReason ?? undefined}
                         aria-disabled={sendDisabled}
-                        aria-label={
-                          disabledReason ? `Send Money — ${disabledReason}` : 'Send Money'
+                        aria-describedby={
+                          disabledReason ? 'send-money-disabled-reason' : undefined
                         }
                       >
                         {loading ? (
@@ -855,6 +861,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                     {disabledReason && !loading && (
                       <motion.p
                         key={disabledReason}
+                        id="send-money-disabled-reason"
                         initial={{ opacity: 0, y: -2 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0 }}
