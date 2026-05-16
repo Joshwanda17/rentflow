@@ -107,24 +107,6 @@ export default function FunderOnboarding() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusUserId, user?.id, roles.join(',')]);
 
-  // Scroll the highlighted row into view + flash a ring once it renders.
-  // Runs whenever the page data changes (e.g. after the seeded search
-  // resolves). The ring is removed after 2.5s; the highlightId itself
-  // is cleared so the next manual interaction is unaffected.
-  useEffect(() => {
-    if (!highlightId) return;
-    const rows = data?.rows || [];
-    if (!rows.some(r => r.id === highlightId)) return;
-    const el = document.querySelector<HTMLElement>(`[data-partner-row-id="${highlightId}"]`);
-    if (!el) return;
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    el.classList.add('ring-2', 'ring-primary', 'ring-offset-2', 'ring-offset-background');
-    const t = setTimeout(() => {
-      el.classList.remove('ring-2', 'ring-primary', 'ring-offset-2', 'ring-offset-background');
-      setHighlightId(null);
-    }, 2500);
-    return () => clearTimeout(t);
-  }, [highlightId, data?.rows]);
 
   // Reset to first page whenever search term or source filter changes
   useEffect(() => { setPage(0); }, [search, sourceFilter]);
