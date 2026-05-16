@@ -636,8 +636,18 @@ export function NewPartnersPanel() {
 
       <CreateInvestmentAccountDialog
         open={createOpen}
-        onOpenChange={setCreateOpen}
-        onSuccess={() => { handleSelect(selected); qc.invalidateQueries({ queryKey: ['exec-partner-portfolios'] }); qc.invalidateQueries({ queryKey: ['new-partners-panel'] }); }}
+        onOpenChange={(open) => {
+          setCreateOpen(open);
+          // Clear the per-row "Activating…" lock when the dialog closes
+          // (either after success or if the user cancels).
+          if (!open) setActivatingUserId(null);
+        }}
+        onSuccess={() => {
+          handleSelect(selected);
+          qc.invalidateQueries({ queryKey: ['exec-partner-portfolios'] });
+          qc.invalidateQueries({ queryKey: ['new-partners-panel'] });
+          setActivatingUserId(null);
+        }}
         prefillInvestorId={createForUser?.id}
         prefillInvestorName={createForUser?.full_name}
       />
@@ -677,6 +687,7 @@ export function NewPartnersPanel() {
                 if (activateConfirm) {
                   const u = activateConfirm.user;
                   setActivateConfirm(null);
+                  setActivatingUserId(u.id);
                   openCreateFor(u);
                 }
               }}
