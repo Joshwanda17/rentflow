@@ -1386,7 +1386,7 @@ export function ComprehensiveCashMovement() {
     <Card className="border-border/60 shadow-sm">
       <CardContent
         className={cn(
-          'pt-5 pb-8 space-y-5 sm:space-y-4 px-4 sm:px-6',
+          'pt-6 pb-10 space-y-6 sm:space-y-4 px-4 sm:px-6',
           // ── Accessibility: ensure every interactive element inside the
           //    cash-movement panel shows a visible focus ring when reached
           //    via keyboard. Tailwind arbitrary variants apply the ring
@@ -1410,10 +1410,10 @@ export function ComprehensiveCashMovement() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div className="min-w-0">
-            <h3 id="cm-heading" className="text-lg sm:text-base font-semibold tracking-tight leading-tight">
+           <h3 id="cm-heading" className="text-xl sm:text-base font-semibold tracking-tight leading-snug">
               Money In &amp; Out
             </h3>
-            <p className="mt-1 text-xs sm:text-[11px] text-muted-foreground leading-relaxed">
+           <p className="mt-1.5 text-[13px] sm:text-[11px] text-muted-foreground leading-relaxed">
               {simpleMode
                 ? 'A simple picture of money flowing in and out of Welile, in plain English.'
                 : 'All money flowing in and out of Welile — updated live from the books.'}
@@ -1443,9 +1443,9 @@ export function ComprehensiveCashMovement() {
             for sections that aren't rendered). */}
         <nav
           aria-label="Jump to section"
-          className="sticky top-0 z-30 -mx-3 sm:-mx-6 px-3 sm:px-6 py-1.5 bg-card/95 backdrop-blur border-y border-border"
+          className="sticky top-0 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2 sm:py-1.5 bg-card/95 backdrop-blur border-y border-border"
         >
-          <div className="flex items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold shrink-0 mr-1">
               Jump to:
             </span>
@@ -1484,7 +1484,7 @@ export function ComprehensiveCashMovement() {
             full-width bottom sheet on phones so options are easy to scan
             and tap with a thumb. Existing chip rows below remain for
             power users and are unchanged. */}
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 gap-2.5 sm:gap-2">
           {[
             {
               key: 'date' as const,
@@ -1516,7 +1516,7 @@ export function ComprehensiveCashMovement() {
               type="button"
               onClick={btn.onClick}
               className={cn(
-                'min-h-[64px] rounded-xl border-2 px-2.5 py-2 text-left flex flex-col gap-0.5 transition-colors',
+                'min-h-[68px] rounded-xl border-2 px-3 py-2.5 text-left flex flex-col gap-1 transition-colors',
                 'active:scale-[0.98] touch-manipulation',
                 btn.active
                   ? 'border-primary bg-primary/10 hover:bg-primary/15'
@@ -1533,7 +1533,7 @@ export function ComprehensiveCashMovement() {
                 {btn.icon}
                 {btn.label}
               </span>
-              <span className="text-[12px] sm:text-sm font-semibold leading-tight truncate">
+              <span className="text-[13px] sm:text-sm font-semibold leading-snug truncate">
                 {btn.value}
               </span>
             </button>
@@ -1564,9 +1564,9 @@ export function ComprehensiveCashMovement() {
         </div>
 
         {/* Group by + Where + adjustments */}
-        <div className="space-y-2">
+        <div className="space-y-3 sm:space-y-2">
           <div>
-            <div className="text-[11px] text-muted-foreground mb-1">Group by</div>
+            <div className="text-[11px] text-muted-foreground mb-1.5">Group by</div>
             <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
               {GRANULARITIES.map(g => (
                 <Button key={g.value} size="sm" variant={granularity === g.value ? 'default' : 'outline'} className="text-xs h-8 shrink-0" onClick={() => setGranularity(g.value)}>
@@ -1576,7 +1576,7 @@ export function ComprehensiveCashMovement() {
             </div>
           </div>
           <div>
-            <div className="text-[11px] text-muted-foreground mb-1">Where</div>
+            <div className="text-[11px] text-muted-foreground mb-1.5">Where</div>
             <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
               {(['all','platform','wallet','bridge'] as const).map(s => (
                 <Button key={s} size="sm" variant={scopeFilter === s ? 'default' : 'outline'} className="text-xs h-8 shrink-0" onClick={() => setScopeFilter(s)}>
@@ -1931,9 +1931,9 @@ export function ComprehensiveCashMovement() {
           )}
         </div>
 
-        <div id="cm-totals" className="scroll-mt-24 grid grid-cols-3 gap-1.5 sm:gap-2">
-          <div className="rounded-lg border border-border bg-success/5 p-2 sm:p-3">
-            <div className="flex items-center gap-1 text-[10px] uppercase text-muted-foreground"><ArrowUpRight className="h-3 w-3 text-success" /> Money In</div>
+        <div id="cm-totals" className="scroll-mt-24 grid grid-cols-3 gap-2 sm:gap-2">
+          <div className="rounded-lg border border-border bg-success/5 p-3 sm:p-3">
+            <div className="flex items-center gap-1 text-[10px] uppercase text-muted-foreground leading-snug"><ArrowUpRight className="h-3 w-3 text-success" /> Money In</div>
             <div className="font-mono font-semibold text-success text-xs sm:text-base break-all">{formatUGX(totals.cashIn)}</div>
             <button
               type="button"
@@ -1944,8 +1944,8 @@ export function ComprehensiveCashMovement() {
               See where this comes from →
             </button>
           </div>
-          <div className="rounded-lg border border-border bg-destructive/5 p-2 sm:p-3">
-            <div className="flex items-center gap-1 text-[10px] uppercase text-muted-foreground"><ArrowDownRight className="h-3 w-3 text-destructive" /> Money Out</div>
+          <div className="rounded-lg border border-border bg-destructive/5 p-3 sm:p-3">
+            <div className="flex items-center gap-1 text-[10px] uppercase text-muted-foreground leading-snug"><ArrowDownRight className="h-3 w-3 text-destructive" /> Money Out</div>
             <div className="font-mono font-semibold text-destructive text-xs sm:text-base break-all">{formatUGX(totals.cashOut)}</div>
             <button
               type="button"
@@ -1956,7 +1956,7 @@ export function ComprehensiveCashMovement() {
               See where this comes from →
             </button>
           </div>
-          <div className={cn('rounded-lg border border-border p-2 sm:p-3', totals.net >= 0 ? 'bg-success/5' : 'bg-destructive/5')}>
+          <div className={cn('rounded-lg border border-border p-3 sm:p-3', totals.net >= 0 ? 'bg-success/5' : 'bg-destructive/5')}>
             <div className="text-[10px] uppercase text-muted-foreground">Difference</div>
             <div className={cn('font-mono font-semibold text-xs sm:text-base break-all', totals.net >= 0 ? 'text-success' : 'text-destructive')}>
               {totals.net >= 0 ? '+' : ''}{formatUGX(totals.net)}
