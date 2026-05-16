@@ -1000,7 +1000,7 @@ export function NewPartnersPanel() {
           </div>
 
           {/* Segmented control — quick portfolio-status switch */}
-          <div className="inline-flex rounded-lg border border-border/60 bg-muted/40 p-0.5 text-[11px] self-start">
+          <div className="flex rounded-lg border border-border/60 bg-muted/40 p-0.5 text-[11px] self-start overflow-x-auto max-w-full [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {([
               { key: 'all', label: 'All', count: segmentCounts.all },
               { key: 'just_joined', label: `Just joined (${JUST_JOINED_DAYS}d)`, count: segmentCounts.justJoined },
@@ -1035,7 +1035,7 @@ export function NewPartnersPanel() {
             ))}
           </div>
           {/* Recent joins (no-portfolio activation backlog, scoped by window) */}
-          <div className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-muted/40 p-0.5 text-[11px] self-start">
+          <div className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-muted/40 p-0.5 text-[11px] self-start overflow-x-auto max-w-full [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <span className="pl-2 pr-1 text-[10px] uppercase tracking-wide text-muted-foreground">
               Recent joins
             </span>
@@ -1073,7 +1073,7 @@ export function NewPartnersPanel() {
           </div>
           {/* Sort dropdown — applies to the visible grid */}
           <Select value={partnerSort} onValueChange={(v) => setPartnerSort(v as PartnerSort)}>
-            <SelectTrigger className="h-8 w-[200px] text-[11px] self-start" aria-label="Sort partners">
+            <SelectTrigger className="h-8 w-full sm:w-[200px] text-[11px] self-start" aria-label="Sort partners">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
