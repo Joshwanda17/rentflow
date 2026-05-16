@@ -306,6 +306,23 @@ export function ComprehensiveCashMovement() {
   const [drillPage, setDrillPage] = useState(0);
   const [drillPageSize, setDrillPageSize] = useState<number>(100);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  // Drill date filter chips — narrow expanded transactions by a relative or custom range
+  type DrillDatePreset = 'inherit' | '1d' | '2d' | '3d' | '5d' | '7d' | '30d' | 'custom';
+  const [drillDatePreset, setDrillDatePreset] = useState<DrillDatePreset>('inherit');
+  const [drillCustomFrom, setDrillCustomFrom] = useState<string>('');
+  const [drillCustomTo, setDrillCustomTo] = useState<string>('');
+  const effectiveDrillRange = useMemo<{ from?: string; to?: string }>(() => {
+    if (drillDatePreset === 'inherit') return {};
+    if (drillDatePreset === 'custom') {
+      return { from: drillCustomFrom || undefined, to: drillCustomTo || undefined };
+    }
+    const days = parseInt(drillDatePreset, 10);
+    const today = new Date();
+    const from = new Date(today);
+    from.setDate(today.getDate() - (days - 1));
+    const fmt = (d: Date) => format(d, 'yyyy-MM-dd');
+    return { from: fmt(from), to: fmt(today) };
+  }, [drillDatePreset, drillCustomFrom, drillCustomTo]);
 
   // ── Capital Inflows callout (platform-scope cash_in for selected categories)
   const CAPITAL_INFLOW_DEFAULT = ['partner_funding', 'pending_portfolio_topup'];
