@@ -26,6 +26,7 @@ import { ShareSupporterRecruit } from '@/components/shared/ShareSupporterRecruit
 import { PartnerFinancialActivity } from './PartnerFinancialActivity';
 import { PendingFunderApprovals } from './PendingFunderApprovals';
 import { PromissoryNotesQueue } from './PromissoryNotesQueue';
+import { NewPartnersPanel } from './NewPartnersPanel';
 
 type Tab = 'portfolios' | 'capital' | 'roi' | 'topups' | 'activity' | 'promissory' | 'withdrawals';
 
@@ -223,6 +224,9 @@ export function PartnersOpsDashboard() {
 
       {/* ═══ C. PENDING FUNDER APPROVALS ═══ */}
       <PendingFunderApprovals />
+
+      {/* ═══ C2. NEW PARTNERS SPOTLIGHT + SEARCH ═══ */}
+      <NewPartnersPanel />
 
       {/* ═══ D. WITHDRAWAL QUEUE — now inside Withdrawals tab ═══ */}
 
