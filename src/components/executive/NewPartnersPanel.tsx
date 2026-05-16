@@ -628,6 +628,22 @@ export function NewPartnersPanel() {
                   </Button>
                 </div>
               ))}
+              {hasMore && (
+                <div
+                  ref={loadMoreSentinelRef}
+                  className="col-span-full flex justify-center py-2"
+                >
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-[10px] gap-1.5"
+                    onClick={() => setVisiblePartnerCount(c => c + PARTNER_PAGE_SIZE)}
+                  >
+                    <ChevronDown className="h-3 w-3" />
+                    Load more ({filtered.length - visible.length} remaining)
+                  </Button>
+                </div>
+              )}
             </div>
               );
             })()
