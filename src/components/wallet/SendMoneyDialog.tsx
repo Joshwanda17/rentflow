@@ -135,6 +135,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
         status: 'found',
         name: data.full_name || data.email || 'Unnamed user',
         phone: data.phone,
+        email: data.email || null,
         isSelf: data.id === user?.id,
       });
     }, 400);
