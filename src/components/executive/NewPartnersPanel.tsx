@@ -295,6 +295,16 @@ export function NewPartnersPanel() {
                       Make Partner
                     </Button>
                   )}
+                  {selectedIsPartner === true && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 text-xs gap-1.5 text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+                      onClick={() => setRevokeOpen(true)}
+                    >
+                      <ShieldOff className="h-3 w-3" /> Revoke Partner
+                    </Button>
+                  )}
                   <Button
                     size="sm"
                     variant="outline"
@@ -303,7 +313,51 @@ export function NewPartnersPanel() {
                   >
                     <PlusCircle className="h-3 w-3" /> New Portfolio
                   </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 text-xs gap-1.5"
+                    onClick={toggleHistory}
+                  >
+                    <History className="h-3 w-3" /> {historyOpen ? 'Hide' : 'View'} History
+                  </Button>
                 </div>
+
+                {historyOpen && (
+                  <div className="rounded-lg border border-border/60 bg-muted/20 p-2 space-y-1.5">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                      <History className="h-3 w-3" /> Audit history (last 50)
+                    </p>
+                    {historyLoading ? (
+                      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground p-2">
+                        <Loader2 className="h-3 w-3 animate-spin" /> Loading…
+                      </div>
+                    ) : historyRows.length === 0 ? (
+                      <p className="text-[10px] text-muted-foreground italic p-2">No audit entries for this partner yet.</p>
+                    ) : (
+                      <div className="max-h-64 overflow-y-auto space-y-1">
+                        {historyRows.map(row => (
+                          <div key={row.id} className="rounded-md bg-background border border-border/40 px-2 py-1.5">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-[11px] font-semibold truncate">{row.action_type}</span>
+                              <span className="text-[9px] text-muted-foreground shrink-0">
+                                {formatDistanceToNow(new Date(row.created_at), { addSuffix: true })}
+                              </span>
+                            </div>
+                            <p className="text-[9px] text-muted-foreground truncate">
+                              {row.table_name} · {row.record_id?.slice(0, 8)}
+                            </p>
+                            {row.metadata && Object.keys(row.metadata).length > 0 && (
+                              <pre className="mt-1 text-[9px] text-muted-foreground whitespace-pre-wrap break-all line-clamp-3">
+                                {JSON.stringify(row.metadata).slice(0, 200)}
+                              </pre>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Portfolio list to edit */}
                 {selectedPortfolios.length > 0 && (
