@@ -1672,8 +1672,10 @@ export function ComprehensiveCashMovement() {
           const visible = pageDrillRows.slice(0, pageDrillVisible);
           return (
             <Collapsible
-              onOpenChange={(o) => { if (o) setPageDrillVisible(25); }}
+              open={pageDrillOpen}
+              onOpenChange={(o) => { setPageDrillOpen(o); if (o) setPageDrillVisible(25); }}
             >
+              <div ref={pageDrillRef} />
               <CollapsibleTrigger asChild>
                 <button
                   type="button"
