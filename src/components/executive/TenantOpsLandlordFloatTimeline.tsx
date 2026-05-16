@@ -512,6 +512,41 @@ export function TenantOpsLandlordFloatTimeline() {
     payout:     { label: 'Landlord Payout',      icon: HandCoins, color: 'bg-emerald-100 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' },
   };
 
+  // ───── Priority for allocations with outstanding balance ─────
+  type Priority = {
+    level: 'low' | 'medium' | 'high' | 'critical';
+    label: string;
+    ageDays: number;
+    badgeClass: string;
+    borderClass: string;
+    icon: React.ElementType;
+  };
+  const priorityFor = (e: TimelineEvent): Priority | null => {
+    if (e.kind !== 'allocation' || !((e.outstanding || 0) > 0)) return null;
+    const ageDays = (Date.now() - new Date(e.at).getTime()) / 86_400_000;
+    const big = (e.outstanding || 0) >= 1_000_000;
+    if (ageDays >= 14 || big) {
+      return { level: 'critical', label: 'Critical', ageDays, icon: Flame,
+        badgeClass: 'bg-red-100 text-red-800 border-red-300',
+        borderClass: 'border-l-4 border-l-red-500' };
+    }
+    if (ageDays >= 7) {
+      return { level: 'high', label: 'Overdue', ageDays, icon: AlertOctagonOrTriangle(),
+        badgeClass: 'bg-orange-100 text-orange-800 border-orange-300',
+        borderClass: 'border-l-4 border-l-orange-500' };
+    }
+    if (ageDays >= 3) {
+      return { level: 'medium', label: 'Aging', ageDays, icon: AlertTriangle,
+        badgeClass: 'bg-amber-100 text-amber-800 border-amber-300',
+        borderClass: 'border-l-4 border-l-amber-500' };
+    }
+    return { level: 'low', label: 'Open', ageDays, icon: AlertCircle,
+      badgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
+      borderClass: 'border-l-2 border-l-amber-300' };
+  };
+  // tiny alias to keep the table above readable
+  function AlertOctagonOrTriangle() { return AlertTriangle; }
+
   // ───────────────────── Exports (respect current filters) ─────────────────────
   const exportFilenameBase = () => {
     const parts = ['float-timeline'];
