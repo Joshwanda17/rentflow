@@ -64,6 +64,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
   const [confirming, setConfirming] = useState(false);
   const [recipient, setRecipient] = useState<
     | { status: 'idle' }
+    | { status: 'invalid'; reason: string }
     | { status: 'searching' }
     | { status: 'found'; name: string; phone: string; email: string | null; isSelf: boolean }
     | { status: 'not_found' }
@@ -73,11 +74,34 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
   useEffect(() => {
     if (mode === 'phone') {
       const digits = phone.replace(/\D/g, '');
-      if (digits.length < 9) {
+      if (digits.length === 0) {
         setRecipient({ status: 'idle' });
         return;
       }
+      // Reject obviously wrong shapes early
+      if (digits.length < 9) {
+        setRecipient({
+          status: 'invalid',
+          reason: `Phone number too short (${digits.length}/9 digits).`,
+        });
+        return;
+      }
+      if (digits.length > 13) {
+        setRecipient({
+          status: 'invalid',
+          reason: 'Phone number is too long. Use a Ugandan format like 0783673998 or +256783673998.',
+        });
+        return;
+      }
       const last9 = digits.slice(-9);
+      // Ugandan mobile numbers always start with 7 (after the leading 0 / 256)
+      if (!/^7\d{8}$/.test(last9)) {
+        setRecipient({
+          status: 'invalid',
+          reason: 'Enter a valid Ugandan mobile number (e.g. 0783673998).',
+        });
+        return;
+      }
       setRecipient({ status: 'searching' });
       let cancelled = false;
       const timer = setTimeout(async () => {
@@ -109,9 +133,20 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
 
     // Email mode
     const trimmed = email.trim().toLowerCase();
-    const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
-    if (!validEmail) {
+    if (trimmed.length === 0) {
       setRecipient({ status: 'idle' });
+      return;
+    }
+    if (trimmed.length > 254) {
+      setRecipient({ status: 'invalid', reason: 'Email is too long.' });
+      return;
+    }
+    const validEmail = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(trimmed);
+    if (!validEmail) {
+      setRecipient({
+        status: 'invalid',
+        reason: 'Enter a valid email like name@example.com.',
+      });
       return;
     }
     setRecipient({ status: 'searching' });
@@ -184,32 +219,48 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
     
     const amountNum = parseFloat(amount);
     if (isNaN(amountNum) || amountNum <= 0) {
-      toast.error('Please enter a valid amount');
+      toast.error('Enter an amount greater than 0 UGX');
+      return;
+    }
+    if (wallet && amountNum > (wallet.balance || 0)) {
+      toast.error(`Insufficient balance. Available: ${formatCurrency(wallet.balance || 0)}`);
       return;
     }
     if (mode === 'phone' && !phone) {
-      toast.error('Please enter a recipient phone number');
+      toast.error('Enter the recipient phone number to continue');
       return;
     }
     if (mode === 'email' && !email) {
-      toast.error('Please enter a recipient email');
+      toast.error('Enter the recipient email to continue');
       return;
     }
 
+    if (recipient.status === 'invalid') {
+      toast.error(recipient.reason);
+      return;
+    }
     if (recipient.status === 'not_found') {
-      toast.error('No Welile user found for this phone number');
+      toast.error(
+        mode === 'email'
+          ? 'No Welile user found for this email address'
+          : 'No Welile user found for this phone number'
+      );
       return;
     }
     if (recipient.status === 'found' && recipient.isSelf) {
-      toast.error('You cannot send money to yourself');
+      toast.error("You can't send money to your own account");
       return;
     }
     if (recipient.status === 'searching') {
-      toast.error('Still looking up recipient, please wait…');
+      toast.error('Still verifying recipient — please wait a moment');
       return;
     }
     if (recipient.status === 'idle') {
-      toast.error(mode === 'email' ? 'Enter a valid recipient email' : 'Enter a valid recipient phone number');
+      toast.error(
+        mode === 'email'
+          ? 'Enter a valid recipient email like name@example.com'
+          : 'Enter a valid Ugandan phone number (e.g. 0783673998)'
+      );
       return;
     }
 
@@ -539,6 +590,18 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                         Sending blocked: no Welile user found for this {mode === 'email' ? 'email' : 'number'}.
                       </motion.p>
                     )}
+                    {recipient.status === 'invalid' && (
+                      <motion.p
+                        key="invalid"
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        className="text-xs text-destructive flex items-center gap-1.5"
+                      >
+                        <UserX className="h-3 w-3" />
+                        {recipient.reason}
+                      </motion.p>
+                    )}
                   </AnimatePresence>
                 </motion.div>
 
@@ -617,6 +680,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                           recipient.status === 'searching' ||
                           recipient.status === 'not_found' ||
                           recipient.status === 'idle' ||
+                          recipient.status === 'invalid' ||
                           (recipient.status === 'found' && recipient.isSelf)
                         }
                         className="gap-2"
