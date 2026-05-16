@@ -311,7 +311,26 @@ export function ComprehensiveCashMovement() {
   }, [simpleMode]);
   const [scopeFilter, setScopeFilter] = useState<'all' | 'platform' | 'wallet' | 'bridge'>('all');
   const [directionQuickFilter, setDirectionQuickFilter] = useState<'all' | 'cash_in' | 'cash_out' | 'net_positive' | 'net_negative'>('all');
-  const [categoryQuickFilter, setCategoryQuickFilter] = useState<string | null>(null);
+  // Persisted category quick filter — survives navigation, filter changes,
+  // and reloads. `null` (no filter) is stored as an empty string so absence
+  // is unambiguous. Pure UI state.
+  const CATEGORY_QUICK_FILTER_STORAGE = 'welile-cm-category-quick-filter';
+  const [categoryQuickFilter, setCategoryQuickFilter] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = window.localStorage.getItem(CATEGORY_QUICK_FILTER_STORAGE);
+      return raw && raw.length > 0 ? raw : null;
+    } catch {
+      return null;
+    }
+  });
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(CATEGORY_QUICK_FILTER_STORAGE, categoryQuickFilter ?? '');
+    } catch {
+      /* ignore quota / privacy-mode errors */
+    }
+  }, [categoryQuickFilter]);
   // Controls how many categories the Top Categories widget surfaces.
   // Persisted in localStorage so the choice survives navigation, filter
   // changes, and reloads. Pure UI state — does not change aggregation
