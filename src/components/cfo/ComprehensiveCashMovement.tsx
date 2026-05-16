@@ -1551,8 +1551,8 @@ export function ComprehensiveCashMovement() {
         </div>
 
         {/* Actions */}
-        <div className="flex flex-wrap gap-2">
-          <Button onClick={generate} disabled={loading} size="sm" className="gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button onClick={generate} disabled={loading} size="sm" className="gap-2 h-9 sm:h-8">
             {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
             {loading ? 'Loading…' : 'Reload'}
           </Button>
@@ -1560,7 +1560,7 @@ export function ComprehensiveCashMovement() {
             onClick={() => setAutoRefresh(v => !v)}
             variant={autoRefresh ? 'default' : 'outline'}
             size="sm"
-            className="gap-2"
+            className="gap-2 h-9 sm:h-8"
             title={autoRefresh ? 'Auto-refresh every 60s — click to stop' : 'Refresh every 60 seconds'}
           >
             <RefreshCw className={cn('h-3.5 w-3.5', autoRefresh && 'animate-spin-slow')} />
@@ -1568,7 +1568,7 @@ export function ComprehensiveCashMovement() {
           </Button>
           <Button
             onClick={handleExport}
-            variant="outline" size="sm" className="gap-2"
+            variant="outline" size="sm" className="gap-2 h-9 sm:h-8"
             disabled={!aggregates.length || !canViewLedgerDetail}
             title={!canViewLedgerDetail ? 'Only finance leaders can download these reports' : undefined}
           >
@@ -1577,7 +1577,7 @@ export function ComprehensiveCashMovement() {
           </Button>
           <Button
             onClick={handleExportPdf}
-            variant="outline" size="sm" className="gap-2"
+            variant="outline" size="sm" className="gap-2 h-9 sm:h-8"
             disabled={!aggregates.length || !canViewLedgerDetail}
             title={!canViewLedgerDetail ? 'Only finance leaders can download these reports' : undefined}
           >
@@ -1586,7 +1586,7 @@ export function ComprehensiveCashMovement() {
           </Button>
           <Button
             onClick={handleExportAllEntries}
-            variant="outline" size="sm" className="gap-2"
+            variant="outline" size="sm" className="gap-2 h-9 sm:h-8"
             disabled={!rows.length || !canViewLedgerDetail}
             title={!canViewLedgerDetail
               ? 'Only finance leaders can download these reports'
@@ -1596,12 +1596,12 @@ export function ComprehensiveCashMovement() {
             All transactions
           </Button>
           {!canViewLedgerDetail && (
-            <span className="text-[11px] text-muted-foreground self-center ml-1 inline-flex items-center gap-1">
+            <span className="text-xs text-muted-foreground self-center ml-1 inline-flex items-center gap-1">
               <Lock className="h-3 w-3" /> Downloads locked
             </span>
           )}
           {generatedAt && (
-            <span className="text-[11px] text-muted-foreground self-center ml-1 w-full sm:w-auto">
+            <span className="text-xs text-muted-foreground self-center sm:ml-1 w-full sm:w-auto">
               Updated {format(generatedAt, 'dd MMM HH:mm')} · {rows.length.toLocaleString()} transactions
             </span>
           )}
