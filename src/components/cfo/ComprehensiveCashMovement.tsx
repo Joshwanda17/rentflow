@@ -1368,29 +1368,31 @@ export function ComprehensiveCashMovement() {
   }, [buildSummaryCanvas, handleDownloadSummaryPng, period, rangeLabel]);
 
   return (
-    <Card>
-      <CardContent className="pt-4 pb-6 space-y-4 px-3 sm:px-6">
+    <Card className="border-border/60 shadow-sm">
+      <CardContent className="pt-5 pb-8 space-y-5 sm:space-y-4 px-4 sm:px-6">
         {/* Header */}
-        <div className="flex items-start justify-between flex-wrap gap-2">
-          <div>
-            <h3 className="text-base sm:text-sm font-semibold">Money In & Out</h3>
-            <p className="text-[11px] text-muted-foreground">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="text-lg sm:text-base font-semibold tracking-tight leading-tight">
+              Money In &amp; Out
+            </h3>
+            <p className="mt-1 text-xs sm:text-[11px] text-muted-foreground leading-relaxed">
               {simpleMode
                 ? 'A simple picture of money flowing in and out of Welile, in plain English.'
                 : 'All money flowing in and out of Welile — updated live from the books.'}
             </p>
           </div>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <Badge variant="outline" className="text-[10px]">{rangeLabel}</Badge>
+          <div className="flex items-center gap-2 flex-wrap shrink-0">
+            <Badge variant="outline" className="text-[10px] font-normal">{rangeLabel}</Badge>
             <Button
               size="sm"
               variant={simpleMode ? 'default' : 'outline'}
-              className="h-7 text-[11px] px-2 gap-1"
+              className="h-8 text-xs px-3 gap-1 rounded-full"
               onClick={() => setSimpleMode(v => !v)}
               title={simpleMode ? 'Switch to full detail view' : 'Switch to a simple, plain-English view'}
               aria-pressed={simpleMode}
             >
-              {simpleMode ? '😊 Simple view' : 'Detailed view'}
+              {simpleMode ? 'Simple view' : 'Detailed view'}
             </Button>
           </div>
         </div>
