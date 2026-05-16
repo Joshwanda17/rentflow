@@ -20,6 +20,7 @@ import { TenantOverviewList } from './TenantOverviewList';
 import { TenantDetailPanel } from './TenantDetailPanel';
 import { TenantRegistrationReview } from './TenantRegistrationReview';
 import { AgentAllocationReport } from './AgentAllocationReport';
+import { TenantOpsLandlordFloatPanel } from './TenantOpsLandlordFloatPanel';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -51,7 +52,7 @@ import { generateTenantOpsReportPdf } from '@/lib/generateTenantOpsReportPdf';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 
-type ActiveView = 'overview' | 'pipeline' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'transfer-audit' | 'collect-rent' | 'agent-tenants' | 'tenant-detail' | 'registration-review' | 'advance-requests' | 'agent-allocations' | 'daily-collections';
+type ActiveView = 'overview' | 'pipeline' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'transfer-audit' | 'collect-rent' | 'agent-tenants' | 'tenant-detail' | 'registration-review' | 'advance-requests' | 'agent-allocations' | 'daily-collections' | 'landlord-float';
 
 interface NavCard {
   id: ActiveView;
@@ -1037,6 +1038,13 @@ export function TenantOpsDashboard() {
       description: 'Holistic per-agent tenant repayment view',
       icon: Network,
       color: 'bg-indigo-500/10 text-indigo-600 border-indigo-200',
+    },
+    {
+      id: 'landlord-float' as ActiveView,
+      label: 'Agent Landlord Float',
+      description: 'Per-agent landlord-payout float balances & earmarks',
+      icon: Landmark,
+      color: 'bg-fuchsia-500/10 text-fuchsia-600 border-fuchsia-200',
     },
   ];
 
