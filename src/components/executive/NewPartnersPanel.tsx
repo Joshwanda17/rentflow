@@ -607,8 +607,8 @@ export function NewPartnersPanel() {
               </button>
             ))}
           </div>
-          <div className="hidden">
-            {canWhatsAppPartners && partnerFilter === 'custom' && (
+          {canWhatsAppPartners && partnerFilter === 'custom' && (
+            <div className="self-start">
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -649,8 +649,8 @@ export function NewPartnersPanel() {
                   />
                 </PopoverContent>
               </Popover>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Newly joined list */}
           {isLoading ? (
