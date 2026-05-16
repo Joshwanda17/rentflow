@@ -479,15 +479,22 @@ export function TenantOpsLandlordFloatTimeline() {
 
   const totals = useMemo(() => {
     let funded = 0, allocated = 0, paid = 0, outstanding = 0;
+    let overdueCount = 0, criticalCount = 0;
+    const now = Date.now();
     for (const e of filtered) {
       if (e.kind === 'funding') funded += e.amount;
       else if (e.kind === 'allocation') {
         allocated += e.amount;
         outstanding += e.outstanding || 0;
+        if ((e.outstanding || 0) > 0) {
+          const ageDays = (now - new Date(e.at).getTime()) / 86_400_000;
+          if (ageDays >= 7) overdueCount++;
+          if (ageDays >= 14 || (e.outstanding || 0) >= 1_000_000) criticalCount++;
+        }
       }
       else if (e.kind === 'payout') paid += e.amount;
     }
-    return { funded, allocated, paid, outstanding, count: filtered.length };
+    return { funded, allocated, paid, outstanding, overdueCount, criticalCount, count: filtered.length };
   }, [filtered]);
 
   const copyRef = async (ref: string) => {
