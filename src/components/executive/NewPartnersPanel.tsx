@@ -285,6 +285,28 @@ export function NewPartnersPanel() {
   // Filters for the all-partners list
   const [partnerSearch, setPartnerSearch] = useState('');
   const [partnerFilter, setPartnerFilter] = useState<'all' | 'with' | 'without' | 'recent'>('all');
+  // Incremental render window for the partners grid — keeps DOM small
+  // even when up to 500 partners are loaded.
+  const PARTNER_PAGE_SIZE = 30;
+  const [visiblePartnerCount, setVisiblePartnerCount] = useState(PARTNER_PAGE_SIZE);
+  const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+  // Reset the window whenever the user changes search/filter so they
+  // never miss matches hidden below the previous slice.
+  useEffect(() => {
+    setVisiblePartnerCount(PARTNER_PAGE_SIZE);
+  }, [partnerSearch, partnerFilter]);
+  // Auto-load the next page when the sentinel scrolls into view.
+  useEffect(() => {
+    const node = loadMoreSentinelRef.current;
+    if (!node || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some(e => e.isIntersecting)) {
+        setVisiblePartnerCount(c => c + PARTNER_PAGE_SIZE);
+      }
+    }, { root: null, rootMargin: '200px', threshold: 0 });
+    io.observe(node);
+    return () => io.disconnect();
+  }, [visiblePartnerCount, partnerSearch, partnerFilter]);
 
   // ── All partners (Partner Ops can browse, filter, and contact every joined partner) ──
   const { data: joined, isLoading } = useQuery({
@@ -543,12 +565,14 @@ export function NewPartnersPanel() {
               if (filtered.length === 0) {
                 return <p className="text-xs text-muted-foreground italic">No partners match these filters.</p>;
               }
+              const visible = filtered.slice(0, visiblePartnerCount);
+              const hasMore = filtered.length > visible.length;
               return (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[520px] overflow-y-auto pr-1">
               <div className="col-span-full text-[10px] text-muted-foreground">
-                Showing {filtered.length} of {joined.length} partners
+                Showing {visible.length} of {filtered.length} matched · {joined.length} total
               </div>
-              {filtered.map(p => (
+              {visible.map(p => (
                 <div key={p.user_id} className="rounded-xl border border-border/60 bg-card p-2.5 flex items-center gap-2.5">
                   <div className="h-9 w-9 rounded-full bg-primary/15 text-primary flex items-center justify-center text-xs font-bold shrink-0">
                     {(p.full_name || '?').slice(0, 1).toUpperCase()}
@@ -616,6 +640,22 @@ export function NewPartnersPanel() {
                   </Button>
                 </div>
               ))}
+              {hasMore && (
+                <div
+                  ref={loadMoreSentinelRef}
+                  className="col-span-full flex justify-center py-2"
+                >
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-[10px] gap-1.5"
+                    onClick={() => setVisiblePartnerCount(c => c + PARTNER_PAGE_SIZE)}
+                  >
+                    <ChevronDown className="h-3 w-3" />
+                    Load more ({filtered.length - visible.length} remaining)
+                  </Button>
+                </div>
+              )}
             </div>
               );
             })()
