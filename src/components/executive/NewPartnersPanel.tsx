@@ -393,6 +393,29 @@ export function NewPartnersPanel() {
         prefillInvestorId={createForUser?.id}
         prefillInvestorName={createForUser?.full_name}
       />
+
+      <AlertDialog open={revokeOpen} onOpenChange={setRevokeOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Revoke Partner role?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will disable the Partner (supporter) role for{' '}
+              <span className="font-semibold">{selected?.full_name}</span>. Their portfolios remain intact, but they will lose Partner access. This action is logged in the audit trail.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={revokeBusy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); revokePartner(); }}
+              disabled={revokeBusy}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {revokeBusy ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <ShieldOff className="h-3 w-3 mr-1" />}
+              Revoke
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
