@@ -291,7 +291,7 @@ export function LedgerDrillDownDialog({ open, onOpenChange, title, spec, startDa
           {!loading && !error && rows.length === 0 && (
             <div className="text-center py-12 text-sm text-muted-foreground">No ledger rows for this line item in the selected period.</div>
           )}
-          {!loading && rows.length > 0 && (
+          {!loading && visibleRows.length > 0 && (
             <table className="w-full text-xs">
               <thead className="sticky top-0 bg-background border-b">
                 <tr className="text-left text-muted-foreground">
@@ -305,7 +305,7 @@ export function LedgerDrillDownDialog({ open, onOpenChange, title, spec, startDa
                 </tr>
               </thead>
               <tbody>
-                {rows.map(r => (
+                {visibleRows.map(r => (
                   <tr key={r.id} className="border-b last:border-b-0 hover:bg-muted/30">
                     <td className="py-1.5 pr-2 whitespace-nowrap font-mono text-[11px]">
                       {format(new Date(r.transaction_date), 'MMM d HH:mm')}
