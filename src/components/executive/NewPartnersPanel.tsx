@@ -865,17 +865,17 @@ export function NewPartnersPanel() {
                   return (
                     <span
                       className={cn(
-                        "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+                        "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold max-w-full",
                         isDefault
                           ? "bg-emerald-500/15 text-emerald-600"
                           : "bg-amber-500/15 text-amber-700"
                       )}
                       title={`Active filter${isDefault ? ' (default)' : ''}`}
                     >
-                      <Filter className="h-2.5 w-2.5" />
-                      <span>{label}</span>
+                      <Filter className="h-2.5 w-2.5 shrink-0" />
+                      <span className="truncate">{label}</span>
                       {isDefault && (
-                        <span className="rounded bg-emerald-500/20 px-1 text-[9px] uppercase tracking-wide">
+                        <span className="rounded bg-emerald-500/20 px-1 text-[9px] uppercase tracking-wide shrink-0">
                           default
                         </span>
                       )}
