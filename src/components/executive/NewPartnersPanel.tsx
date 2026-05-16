@@ -856,7 +856,11 @@ export function NewPartnersPanel() {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={revokeBusy}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={(e) => { e.preventDefault(); revokePartner(); }}
+              onClick={(e) => {
+                e.preventDefault();
+                if (!isPageVisible()) return;
+                revokePartner();
+              }}
               disabled={revokeBusy || revokeConfirmText.trim().toUpperCase() !== 'REVOKE'}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
