@@ -1522,7 +1522,9 @@ export function ComprehensiveCashMovement() {
                   ? 'border-primary bg-primary/10 hover:bg-primary/15'
                   : 'border-border bg-card hover:bg-muted/60',
               )}
-              aria-label={`${btn.label}: ${btn.value}. Tap to change.`}
+              aria-label={`${btn.label} filter, currently ${btn.value}. Press to change.`}
+              aria-haspopup="dialog"
+              aria-pressed={btn.active}
             >
               <span className={cn(
                 'flex items-center gap-1.5 text-[10px] uppercase tracking-wide font-semibold',
