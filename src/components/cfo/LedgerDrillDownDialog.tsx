@@ -150,13 +150,33 @@ export function LedgerDrillDownDialog({ open, onOpenChange, title, spec, startDa
 
         <div className="flex items-center justify-between border-y py-2 text-xs">
           <div>
-            <span className="text-muted-foreground">Rows:</span> <span className="font-semibold">{rows.length}{rows.length === PAGE ? '+' : ''}</span>
+            <span className="text-muted-foreground">Rows:</span>{' '}
+            <span className="font-semibold">
+              {visibleRows.length}
+              {visibleRows.length === PAGE ? '+' : ''}
+              {visibleRows.length !== rows.length && (
+                <span className="text-muted-foreground font-normal"> / {rows.length}{rows.length === PAGE ? '+' : ''}</span>
+              )}
+            </span>
             <span className="mx-3 text-muted-foreground">·</span>
             <span className="text-muted-foreground">Total:</span> <span className="font-mono font-semibold">{formatUGX(total)}</span>
           </div>
-          <Button size="sm" variant="outline" onClick={onCsv} disabled={rows.length === 0}>
-            <FileSpreadsheet className="h-3.5 w-3.5 mr-1" /> CSV
-          </Button>
+          <div className="flex items-center gap-2">
+            {uniqueCategories.length > 1 && (
+              <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
+                <CollapsibleTrigger asChild>
+                  <Button size="sm" variant="ghost" className="h-7 px-2 text-xs">
+                    <Filter className="h-3.5 w-3.5 mr-1" />
+                    {filtersOpen ? 'Hide' : 'Filter'}
+                    {filtersOpen ? <ChevronDown className="h-3 w-3 ml-1" /> : <ChevronRight className="h-3 w-3 ml-1" />}
+                  </Button>
+                </CollapsibleTrigger>
+              </Collapsible>
+            )}
+            <Button size="sm" variant="outline" onClick={onCsv} disabled={visibleRows.length === 0}>
+              <FileSpreadsheet className="h-3.5 w-3.5 mr-1" /> CSV
+            </Button>
+          </div>
         </div>
 
         {!loading && !error && rows.length > 0 && (
