@@ -313,8 +313,26 @@ export function ComprehensiveCashMovement() {
   const [directionQuickFilter, setDirectionQuickFilter] = useState<'all' | 'cash_in' | 'cash_out' | 'net_positive' | 'net_negative'>('all');
   const [categoryQuickFilter, setCategoryQuickFilter] = useState<string | null>(null);
   // Controls how many categories the Top Categories widget surfaces.
-  // Pure UI state — does not change aggregation or table filters.
-  const [topCategoriesLimit, setTopCategoriesLimit] = useState<5 | 10>(5);
+  // Persisted in localStorage so the choice survives navigation, filter
+  // changes, and reloads. Pure UI state — does not change aggregation
+  // or table filters.
+  const TOP_CATEGORIES_LIMIT_STORAGE = 'welile-cm-top-categories-limit';
+  const [topCategoriesLimit, setTopCategoriesLimit] = useState<5 | 10>(() => {
+    if (typeof window === 'undefined') return 5;
+    try {
+      const raw = window.localStorage.getItem(TOP_CATEGORIES_LIMIT_STORAGE);
+      return raw === '10' ? 10 : 5;
+    } catch {
+      return 5;
+    }
+  });
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(TOP_CATEGORIES_LIMIT_STORAGE, String(topCategoriesLimit));
+    } catch {
+      /* ignore quota / privacy-mode errors */
+    }
+  }, [topCategoriesLimit]);
   // Page-level party filter — narrows totals and aggregates to a single
   // counterparty (resolved by user_id). `null` = everyone. Surfaced via the
   // big thumb-friendly Party button at the top of the page.
