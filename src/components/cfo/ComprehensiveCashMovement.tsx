@@ -1151,7 +1151,8 @@ export function ComprehensiveCashMovement() {
         </div>
         )}
 
-        {/* Capital Inflows callout — new money into the company */}
+        {/* Capital Inflows callout — new money into the company. Hidden in Simple view. */}
+        {!simpleMode && (
         <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-2.5 sm:p-3 space-y-2">
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-2">
@@ -1425,9 +1426,10 @@ export function ComprehensiveCashMovement() {
             </CollapsibleContent>
           </Collapsible>
         </div>
+        )}
 
-        {/* Category table */}
-        {loading ? (
+        {/* Category table — full breakdown, hidden in Simple view. */}
+        {!simpleMode && (loading ? (
           <div className="py-12 text-center text-muted-foreground text-sm">
             <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" /> Loading ledger…
           </div>
