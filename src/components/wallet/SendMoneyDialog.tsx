@@ -62,11 +62,19 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
   const [success, setSuccess] = useState(false);
   const [isFirstTx, setIsFirstTx] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  type RecipientMatch = {
+    id: string;
+    name: string;
+    phone: string;
+    email: string | null;
+    isSelf: boolean;
+  };
   const [recipient, setRecipient] = useState<
     | { status: 'idle' }
     | { status: 'invalid'; reason: string }
     | { status: 'searching' }
     | { status: 'found'; name: string; phone: string; email: string | null; isSelf: boolean }
+    | { status: 'multiple'; matches: RecipientMatch[] }
     | { status: 'not_found' }
   >({ status: 'idle' });
 
@@ -110,20 +118,31 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
           .from('profiles')
           .select('id, full_name, phone, email')
           .in('phone', variants)
-          .limit(1)
-          .maybeSingle();
+          .limit(10);
         if (cancelled) return;
-        if (error || !data) {
+        if (error || !data || data.length === 0) {
           setRecipient({ status: 'not_found' });
           return;
         }
-        setRecipient({
-          status: 'found',
-          name: data.full_name || data.email || 'Unnamed user',
-          phone: data.phone || phone,
-          email: data.email || null,
-          isSelf: data.id === user?.id,
-        });
+        const matches: RecipientMatch[] = data.map((d) => ({
+          id: d.id,
+          name: d.full_name || d.email || 'Unnamed user',
+          phone: d.phone || phone,
+          email: d.email || null,
+          isSelf: d.id === user?.id,
+        }));
+        if (matches.length === 1) {
+          const m = matches[0];
+          setRecipient({
+            status: 'found',
+            name: m.name,
+            phone: m.phone,
+            email: m.email,
+            isSelf: m.isSelf,
+          });
+        } else {
+          setRecipient({ status: 'multiple', matches });
+        }
       }, 400);
       return () => {
         cancelled = true;
@@ -156,24 +175,36 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
         .from('profiles')
         .select('id, full_name, phone, email')
         .ilike('email', trimmed)
-        .limit(1)
-        .maybeSingle();
+        .limit(10);
       if (cancelled) return;
-      if (error || !data) {
+      if (error || !data || data.length === 0) {
         setRecipient({ status: 'not_found' });
         return;
       }
-      if (!data.phone) {
+      const withPhone = data.filter((d) => !!d.phone);
+      if (withPhone.length === 0) {
         setRecipient({ status: 'not_found' });
         return;
       }
-      setRecipient({
-        status: 'found',
-        name: data.full_name || data.email || 'Unnamed user',
-        phone: data.phone,
-        email: data.email || null,
-        isSelf: data.id === user?.id,
-      });
+      const matches: RecipientMatch[] = withPhone.map((d) => ({
+        id: d.id,
+        name: d.full_name || d.email || 'Unnamed user',
+        phone: d.phone as string,
+        email: d.email || null,
+        isSelf: d.id === user?.id,
+      }));
+      if (matches.length === 1) {
+        const m = matches[0];
+        setRecipient({
+          status: 'found',
+          name: m.name,
+          phone: m.phone,
+          email: m.email,
+          isSelf: m.isSelf,
+        });
+      } else {
+        setRecipient({ status: 'multiple', matches });
+      }
     }, 400);
     return () => {
       cancelled = true;
@@ -253,6 +284,10 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
     }
     if (recipient.status === 'searching') {
       toast.error('Still verifying recipient — please wait a moment');
+      return;
+    }
+    if (recipient.status === 'multiple') {
+      toast.error('Multiple accounts match — pick the correct recipient to continue');
       return;
     }
     if (recipient.status === 'idle') {
