@@ -668,6 +668,17 @@ export function TenantOpsLandlordFloatTimeline() {
               Clear dates
             </Button>
           )}
+          <Button
+            variant={outstandingOnly ? 'default' : 'outline'}
+            size="sm"
+            className={cn('h-9 gap-1.5', outstandingOnly && 'bg-amber-500 hover:bg-amber-600 text-white border-amber-500')}
+            onClick={() => setOutstandingOnly((v) => !v)}
+            title="Show only allocations with a positive outstanding balance"
+            aria-pressed={outstandingOnly}
+          >
+            <AlertCircle className="h-3.5 w-3.5" />
+            Outstanding only
+          </Button>
           <div className="ml-auto flex items-center gap-1.5">
             <Button
               variant="outline"
