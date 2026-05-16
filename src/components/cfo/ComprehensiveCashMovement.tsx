@@ -1841,10 +1841,12 @@ function WalletMovementSummary({
   rows,
   includeAdjustments,
   period,
+  granularity,
 }: {
   rows: LedgerRow[];
   includeAdjustments: boolean;
   period: PeriodKey;
+  granularity: Granularity;
 }) {
   // Tracks which (direction|category) rows are expanded to reveal underlying
   // ledger transactions for the currently loaded period.
