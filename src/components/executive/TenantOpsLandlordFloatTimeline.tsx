@@ -7,17 +7,123 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import {
   Loader2, Landmark, Search, CalendarIcon, ArrowRight, Banknote, HandCoins,
-  Building2, Phone, Hash, Copy, CheckCircle2, X, Clock, Bookmark, Save, Trash2
+  Building2, Phone, Hash, Copy, CheckCircle2, X, Clock, Bookmark, Save, Trash2, ChevronsUpDown
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
 const fmt = (n: number) =>
   new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', maximumFractionDigits: 0 }).format(n || 0);
+
+// ───── Inline multi-select with search + checkboxes (Popover-based) ─────
+interface MultiSelectFilterProps {
+  label: string;
+  allLabel: string;
+  options: Array<[string, string]>; // [key, displayLabel]
+  selected: string[];
+  onChange: (next: string[]) => void;
+  width?: string;
+}
+function MultiSelectFilter({ label, allLabel, options, selected, onChange, width = 'w-[200px]' }: MultiSelectFilterProps) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const selectedSet = useMemo(() => new Set(selected), [selected]);
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    if (!needle) return options;
+    return options.filter(([, lbl]) => lbl.toLowerCase().includes(needle));
+  }, [options, q]);
+  const labelForKey = (k: string) => options.find(([key]) => key === k)?.[1] || k;
+  const toggle = (key: string) => {
+    onChange(selectedSet.has(key) ? selected.filter((s) => s !== key) : [...selected, key]);
+  };
+  const triggerText =
+    selected.length === 0
+      ? `${allLabel} (${options.length})`
+      : selected.length === 1
+      ? labelForKey(selected[0])
+      : `${label}: ${selected.length} selected`;
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className={cn('h-9 justify-between text-xs gap-2', width, selected.length === 0 && 'text-muted-foreground')}
+        >
+          <span className="truncate">{triggerText}</span>
+          <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="p-0 w-[280px]">
+        <div className="p-2 border-b">
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              autoFocus
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder={`Search ${label.toLowerCase()}…`}
+              className="h-8 pl-7 text-xs"
+            />
+          </div>
+          <div className="flex items-center justify-between mt-2 text-[10px] text-muted-foreground">
+            <span>{selected.length} of {options.length} selected</span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className="hover:text-foreground disabled:opacity-40"
+                disabled={filtered.length === 0}
+                onClick={() => {
+                  const visible = new Set(filtered.map(([k]) => k));
+                  const merged = Array.from(new Set([...selected, ...visible]));
+                  onChange(merged);
+                }}
+              >
+                Select all
+              </button>
+              <button
+                type="button"
+                className="hover:text-foreground disabled:opacity-40"
+                disabled={selected.length === 0}
+                onClick={() => onChange([])}
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="max-h-[260px] overflow-y-auto py-1">
+          {filtered.length === 0 ? (
+            <p className="px-3 py-4 text-[11px] text-center text-muted-foreground">No matches</p>
+          ) : (
+            filtered.map(([key, lbl]) => {
+              const isOn = selectedSet.has(key);
+              return (
+                <button
+                  type="button"
+                  key={key}
+                  onClick={() => toggle(key)}
+                  className={cn(
+                    'w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left hover:bg-muted',
+                    isOn && 'bg-[#9234EA]/5',
+                  )}
+                >
+                  <Checkbox checked={isOn} className="h-3.5 w-3.5 pointer-events-none" />
+                  <span className="truncate">{lbl}</span>
+                </button>
+              );
+            })
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 type EventKind = 'funding' | 'allocation' | 'payout';
 
@@ -51,9 +157,10 @@ export function TenantOpsLandlordFloatTimeline() {
   const [from, setFrom] = useState<Date | undefined>(undefined);
   const [to, setTo] = useState<Date | undefined>(undefined);
   const [search, setSearch] = useState('');
-  const [agentFilter, setAgentFilter] = useState<string>('all');
-  const [tenantFilter, setTenantFilter] = useState<string>('all');
-  const [landlordFilter, setLandlordFilter] = useState<string>('all');
+  // Empty array = "All"; otherwise filter to selected keys (OR-include)
+  const [agentFilter, setAgentFilter] = useState<string[]>([]);
+  const [tenantFilter, setTenantFilter] = useState<string[]>([]);
+  const [landlordFilter, setLandlordFilter] = useState<string[]>([]);
 
   // ───────────────────── Presets (localStorage) ─────────────────────
   interface Preset {
@@ -62,12 +169,14 @@ export function TenantOpsLandlordFloatTimeline() {
     from: string | null;   // ISO
     to: string | null;     // ISO
     search: string;
-    agentFilter: string;
-    tenantFilter: string;
-    landlordFilter: string;
+    agentFilter: string[];
+    tenantFilter: string[];
+    landlordFilter: string[];
   }
-  const PRESETS_KEY = 'tenant-ops-float-timeline-presets-v1';
-  const ACTIVE_KEY = 'tenant-ops-float-timeline-active-preset-v1';
+  const PRESETS_KEY = 'tenant-ops-float-timeline-presets-v2';
+  const ACTIVE_KEY = 'tenant-ops-float-timeline-active-preset-v2';
+  const LEGACY_PRESETS_KEY = 'tenant-ops-float-timeline-presets-v1';
+  const LEGACY_ACTIVE_KEY = 'tenant-ops-float-timeline-active-preset-v1';
   const [presets, setPresets] = useState<Preset[]>([]);
   const [activePresetId, setActivePresetId] = useState<string>('');
   const [presetName, setPresetName] = useState('');
@@ -76,8 +185,28 @@ export function TenantOpsLandlordFloatTimeline() {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(PRESETS_KEY);
-      if (raw) setPresets(JSON.parse(raw));
-      const active = localStorage.getItem(ACTIVE_KEY);
+      if (raw) {
+        setPresets(JSON.parse(raw));
+      } else {
+        // One-time migration from v1 single-select presets
+        const legacy = localStorage.getItem(LEGACY_PRESETS_KEY);
+        if (legacy) {
+          const parsed = JSON.parse(legacy) as Array<any>;
+          const migrated: Preset[] = parsed.map((p) => ({
+            id: p.id,
+            name: p.name,
+            from: p.from ?? null,
+            to: p.to ?? null,
+            search: p.search ?? '',
+            agentFilter: p.agentFilter && p.agentFilter !== 'all' ? [p.agentFilter] : [],
+            tenantFilter: p.tenantFilter && p.tenantFilter !== 'all' ? [p.tenantFilter] : [],
+            landlordFilter: p.landlordFilter && p.landlordFilter !== 'all' ? [p.landlordFilter] : [],
+          }));
+          setPresets(migrated);
+          try { localStorage.setItem(PRESETS_KEY, JSON.stringify(migrated)); } catch { /* quota */ }
+        }
+      }
+      const active = localStorage.getItem(ACTIVE_KEY) || localStorage.getItem(LEGACY_ACTIVE_KEY);
       if (active) setActivePresetId(active);
     } catch { /* ignore corrupt storage */ }
   }, []);
@@ -91,9 +220,9 @@ export function TenantOpsLandlordFloatTimeline() {
     setFrom(p.from ? new Date(p.from) : undefined);
     setTo(p.to ? new Date(p.to) : undefined);
     setSearch(p.search || '');
-    setAgentFilter(p.agentFilter || 'all');
-    setTenantFilter(p.tenantFilter || 'all');
-    setLandlordFilter(p.landlordFilter || 'all');
+    setAgentFilter(Array.isArray(p.agentFilter) ? p.agentFilter : []);
+    setTenantFilter(Array.isArray(p.tenantFilter) ? p.tenantFilter : []);
+    setLandlordFilter(Array.isArray(p.landlordFilter) ? p.landlordFilter : []);
     setActivePresetId(p.id);
     try { localStorage.setItem(ACTIVE_KEY, p.id); } catch { /* ignore */ }
     toast.success(`Loaded preset: ${p.name}`);
@@ -137,7 +266,7 @@ export function TenantOpsLandlordFloatTimeline() {
 
   const hasAnyFilter =
     !!from || !!to || !!search.trim() ||
-    agentFilter !== 'all' || tenantFilter !== 'all' || landlordFilter !== 'all';
+    agentFilter.length > 0 || tenantFilter.length > 0 || landlordFilter.length > 0;
 
   const fromIso = from ? new Date(new Date(from).setHours(0, 0, 0, 0)).toISOString() : null;
   const toIso = to ? new Date(new Date(to).setHours(23, 59, 59, 999)).toISOString() : null;
@@ -288,12 +417,15 @@ export function TenantOpsLandlordFloatTimeline() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
+    const agentSet = new Set(agentFilter);
+    const tenantSet = new Set(tenantFilter);
+    const landlordSet = new Set(landlordFilter);
     return events.filter((e) => {
-      if (agentFilter !== 'all' && e.agent_id !== agentFilter) return false;
-      if (tenantFilter !== 'all' && e.tenant_id !== tenantFilter) return false;
-      if (landlordFilter !== 'all') {
+      if (agentSet.size > 0 && !agentSet.has(e.agent_id)) return false;
+      if (tenantSet.size > 0 && (!e.tenant_id || !tenantSet.has(e.tenant_id))) return false;
+      if (landlordSet.size > 0) {
         const key = `${e.landlord_name || ''}|${e.landlord_phone || ''}`;
-        if (key !== landlordFilter) return false;
+        if (!landlordSet.has(key)) return false;
       }
       if (!q) return true;
       return [
@@ -496,45 +628,36 @@ export function TenantOpsLandlordFloatTimeline() {
 
         {/* Party filters */}
         <div className="flex flex-wrap items-center gap-2 mb-3">
-          <Select value={agentFilter} onValueChange={setAgentFilter}>
-            <SelectTrigger className="h-9 w-[180px] text-xs">
-              <SelectValue placeholder="Agent" />
-            </SelectTrigger>
-            <SelectContent className="max-h-[280px]">
-              <SelectItem value="all">All agents ({agentOptions.length})</SelectItem>
-              {agentOptions.map(([id, label]) => (
-                <SelectItem key={id} value={id} className="text-xs">{label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={tenantFilter} onValueChange={setTenantFilter}>
-            <SelectTrigger className="h-9 w-[180px] text-xs">
-              <SelectValue placeholder="Tenant" />
-            </SelectTrigger>
-            <SelectContent className="max-h-[280px]">
-              <SelectItem value="all">All tenants ({tenantOptions.length})</SelectItem>
-              {tenantOptions.map(([id, label]) => (
-                <SelectItem key={id} value={id} className="text-xs">{label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={landlordFilter} onValueChange={setLandlordFilter}>
-            <SelectTrigger className="h-9 w-[220px] text-xs">
-              <SelectValue placeholder="Landlord" />
-            </SelectTrigger>
-            <SelectContent className="max-h-[280px]">
-              <SelectItem value="all">All landlords ({landlordOptions.length})</SelectItem>
-              {landlordOptions.map(([key, label]) => (
-                <SelectItem key={key} value={key} className="text-xs">{label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {(agentFilter !== 'all' || tenantFilter !== 'all' || landlordFilter !== 'all') && (
+          <MultiSelectFilter
+            label="Agents"
+            allLabel="All agents"
+            options={agentOptions}
+            selected={agentFilter}
+            onChange={setAgentFilter}
+            width="w-[200px]"
+          />
+          <MultiSelectFilter
+            label="Tenants"
+            allLabel="All tenants"
+            options={tenantOptions}
+            selected={tenantFilter}
+            onChange={setTenantFilter}
+            width="w-[200px]"
+          />
+          <MultiSelectFilter
+            label="Landlords"
+            allLabel="All landlords"
+            options={landlordOptions}
+            selected={landlordFilter}
+            onChange={setLandlordFilter}
+            width="w-[240px]"
+          />
+          {(agentFilter.length > 0 || tenantFilter.length > 0 || landlordFilter.length > 0) && (
             <Button
               variant="ghost"
               size="sm"
               className="h-9"
-              onClick={() => { setAgentFilter('all'); setTenantFilter('all'); setLandlordFilter('all'); }}
+              onClick={() => { setAgentFilter([]); setTenantFilter([]); setLandlordFilter([]); }}
             >
               Clear party filters
             </Button>
