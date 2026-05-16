@@ -285,6 +285,16 @@ export function NewPartnersPanel() {
   // Filters for the all-partners list
   const [partnerSearch, setPartnerSearch] = useState('');
   const [partnerFilter, setPartnerFilter] = useState<'all' | 'with' | 'without' | 'recent'>('all');
+  // Incremental render window for the partners grid — keeps DOM small
+  // even when up to 500 partners are loaded.
+  const PARTNER_PAGE_SIZE = 30;
+  const [visiblePartnerCount, setVisiblePartnerCount] = useState(PARTNER_PAGE_SIZE);
+  const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+  // Reset the window whenever the user changes search/filter so they
+  // never miss matches hidden below the previous slice.
+  useEffect(() => {
+    setVisiblePartnerCount(PARTNER_PAGE_SIZE);
+  }, [partnerSearch, partnerFilter]);
 
   // ── All partners (Partner Ops can browse, filter, and contact every joined partner) ──
   const { data: joined, isLoading } = useQuery({
