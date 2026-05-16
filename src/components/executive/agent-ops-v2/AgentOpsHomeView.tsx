@@ -604,7 +604,7 @@ function ActiveAgentsHero({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <div className="h-9 w-9 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center ring-1 ring-white/25">
-              <Activity className="h-4.5 w-4.5 text-white" />
+              <Activity className="h-5 w-5 text-white" />
             </div>
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-wider text-white/90">
