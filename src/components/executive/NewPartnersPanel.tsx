@@ -288,9 +288,53 @@ export function NewPartnersPanel() {
   }
 
   // Filters for the all-partners list
-  const [partnerSearch, setPartnerSearch] = useState('');
-  const [partnerFilter, setPartnerFilter] = useState<'all' | 'with' | 'without' | 'today' | 'week' | 'month' | 'recent' | 'custom'>('all');
-  const [customRange, setCustomRange] = useState<DateRange | undefined>();
+  // Persisted in the URL (?jp_q, ?jp_f, ?jp_from, ?jp_to) so the panel
+  // looks identical after a refresh or when the URL is shared.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const ALLOWED_FILTERS = ['all', 'with', 'without', 'today', 'week', 'month', 'recent', 'custom'] as const;
+  type PartnerFilter = typeof ALLOWED_FILTERS[number];
+  const parseDateParam = (v: string | null): Date | undefined => {
+    if (!v) return undefined;
+    const d = new Date(v);
+    return isNaN(d.getTime()) ? undefined : d;
+  };
+  const [partnerSearch, setPartnerSearch] = useState<string>(
+    () => searchParams.get('jp_q') ?? ''
+  );
+  const [partnerFilter, setPartnerFilter] = useState<PartnerFilter>(() => {
+    const raw = searchParams.get('jp_f');
+    return (ALLOWED_FILTERS as readonly string[]).includes(raw ?? '')
+      ? (raw as PartnerFilter)
+      : 'all';
+  });
+  const [customRange, setCustomRange] = useState<DateRange | undefined>(() => {
+    const from = parseDateParam(searchParams.get('jp_from'));
+    const to = parseDateParam(searchParams.get('jp_to'));
+    return from || to ? { from, to } : undefined;
+  });
+  // Push state back into the URL whenever the user changes a filter.
+  // `replace: true` avoids polluting the browser back-stack.
+  useEffect(() => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      const q = partnerSearch.trim();
+      if (q) next.set('jp_q', q); else next.delete('jp_q');
+      if (partnerFilter !== 'all') next.set('jp_f', partnerFilter); else next.delete('jp_f');
+      if (partnerFilter === 'custom' && customRange?.from) {
+        next.set('jp_from', format(customRange.from, 'yyyy-MM-dd'));
+      } else {
+        next.delete('jp_from');
+      }
+      if (partnerFilter === 'custom' && customRange?.to) {
+        next.set('jp_to', format(customRange.to, 'yyyy-MM-dd'));
+      } else {
+        next.delete('jp_to');
+      }
+      return next;
+    }, { replace: true });
+    // setSearchParams identity changes on every render; intentionally omitted.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [partnerSearch, partnerFilter, customRange]);
   // Incremental render window for the partners grid — keeps DOM small
   // even when up to 500 partners are loaded.
   const PARTNER_PAGE_SIZE = 30;
