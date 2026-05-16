@@ -737,7 +737,8 @@ export function ComprehensiveCashMovement() {
                 <div className="font-mono text-lg font-bold text-primary">{formatUGX(capitalInflow.total)}</div>
                 <div className="text-[10px] text-muted-foreground">
                   {capitalInflow.selected.length} categor{capitalInflow.selected.length === 1 ? 'y' : 'ies'} ·
-                  {' '}{capitalInflow.entries.toLocaleString()} ledger entries · {rangeLabel}
+                  {' '}{capitalInflow.entries.toLocaleString()} ledger entries · {rangeLabel} ·
+                  {' '}{GRANULARITIES.find(g => g.value === granularity)?.label || granularity} buckets
                 </div>
               </div>
             </div>
@@ -767,6 +768,41 @@ export function ComprehensiveCashMovement() {
                   <ExternalLink className="h-3 w-3 text-muted-foreground" />
                 </button>
               ))}
+            </div>
+          )}
+
+          {/* Per-bucket strip — synced to current granularity */}
+          {capitalInflow.selected.length > 0 && capitalInflow.bucketLabels.length > 0 && (
+            <div className="pt-2 border-t border-primary/20 space-y-1">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                <span>By {GRANULARITIES.find(g => g.value === granularity)?.label || granularity} bucket</span>
+                {capitalInflow.peakBucket && (
+                  <span>Peak: <span className="text-primary font-mono">{capitalInflow.peakBucket}</span> · {formatUGX(capitalInflow.bucketTotals[capitalInflow.peakBucket] || 0)}</span>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {capitalInflow.bucketLabels.map(b => {
+                  const val = capitalInflow.bucketTotals[b] || 0;
+                  const isPeak = b === capitalInflow.peakBucket && val > 0;
+                  return (
+                    <div
+                      key={b}
+                      className={cn(
+                        'rounded border px-1.5 py-0.5 text-[10px] font-mono',
+                        val === 0
+                          ? 'border-border bg-background text-muted-foreground/60'
+                          : isPeak
+                            ? 'border-primary/50 bg-primary/15 text-primary font-semibold'
+                            : 'border-primary/20 bg-background text-foreground',
+                      )}
+                      title={`${b}: ${formatUGX(val)}`}
+                    >
+                      <span className="text-muted-foreground mr-1">{b}</span>
+                      {val > 0 ? formatUGX(val) : '·'}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 
