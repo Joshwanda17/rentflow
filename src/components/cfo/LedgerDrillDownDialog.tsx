@@ -291,6 +291,9 @@ export function LedgerDrillDownDialog({ open, onOpenChange, title, spec, startDa
           {!loading && !error && rows.length === 0 && (
             <div className="text-center py-12 text-sm text-muted-foreground">No ledger rows for this line item in the selected period.</div>
           )}
+          {!loading && !error && rows.length > 0 && visibleRows.length === 0 && (
+            <div className="text-center py-12 text-sm text-muted-foreground">All categories are hidden. Select at least one category above.</div>
+          )}
           {!loading && visibleRows.length > 0 && (
             <table className="w-full text-xs">
               <thead className="sticky top-0 bg-background border-b">
