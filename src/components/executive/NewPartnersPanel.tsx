@@ -321,6 +321,9 @@ export function NewPartnersPanel() {
       toast({ title: '✅ Partner role granted', description: `${selected.full_name} is now a Partner.` });
       setSelectedIsPartner(true);
       qc.invalidateQueries({ queryKey: ['new-partners-panel'] });
+      // Force the dialog's approval-status query to refetch so the
+      // "Partner Not Approved" lock / button label clears immediately.
+      qc.invalidateQueries({ queryKey: ['funder-approval-status', selected.id] });
     } catch (e: any) {
       toast({ title: 'Could not grant role', description: e?.message || 'Try again', variant: 'destructive' });
     } finally {
