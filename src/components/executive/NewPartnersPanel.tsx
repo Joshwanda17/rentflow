@@ -577,8 +577,16 @@ export function NewPartnersPanel() {
   const segmentCounts = useMemo(() => {
     const all = joined?.length ?? 0;
     let withP = 0;
-    for (const p of joined || []) if (p.portfolio_count > 0) withP++;
-    return { all, with: withP, without: all - withP };
+    let justJoined = 0;
+    const justJoinedCutoff = Date.now() - JUST_JOINED_DAYS * 86400000;
+    for (const p of joined || []) {
+      if (p.portfolio_count > 0) {
+        withP++;
+      } else if (new Date(p.created_at).getTime() >= justJoinedCutoff) {
+        justJoined++;
+      }
+    }
+    return { all, with: withP, without: all - withP, justJoined };
   }, [joined]);
 
   // ── Realtime: any new supporter role grant pops in instantly ──
