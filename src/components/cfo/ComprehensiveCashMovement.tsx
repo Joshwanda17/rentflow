@@ -312,6 +312,16 @@ export function ComprehensiveCashMovement() {
   const [scopeFilter, setScopeFilter] = useState<'all' | 'platform' | 'wallet' | 'bridge'>('all');
   const [directionQuickFilter, setDirectionQuickFilter] = useState<'all' | 'cash_in' | 'cash_out' | 'net_positive' | 'net_negative'>('all');
   const [categoryQuickFilter, setCategoryQuickFilter] = useState<string | null>(null);
+  // Page-level party filter — narrows totals and aggregates to a single
+  // counterparty (resolved by user_id). `null` = everyone. Surfaced via the
+  // big thumb-friendly Party button at the top of the page.
+  const [partyQuickFilter, setPartyQuickFilter] = useState<string | null>(null);
+  // Bottom-sheet open states for the thumb-friendly Date/Direction/Party
+  // pickers. Each opens a full-width sheet that's easy to tap on a phone.
+  const [dateSheetOpen, setDateSheetOpen] = useState(false);
+  const [directionSheetOpen, setDirectionSheetOpen] = useState(false);
+  const [partySheetOpen, setPartySheetOpen] = useState(false);
+  const [partySearch, setPartySearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<LedgerRow[]>([]);
   const [generatedAt, setGeneratedAt] = useState<Date | null>(null);
