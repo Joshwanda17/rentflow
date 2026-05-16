@@ -835,6 +835,24 @@ function InlineCreatePortfolioForm({ partner, actingUserId, onCreated, onCancel 
       return;
     }
 
+    // Validate + normalize payout/mobile/bank fields before sending to the
+    // edge function (which writes to investor_portfolios).
+    let validated;
+    try {
+      validated = validatePortfolioPayoutFields({
+        payment_method: form.payment_method,
+        payout_day: form.payout_day,
+        mobile_money_number: form.mobile_money_number,
+        mobile_network: form.mobile_network,
+        bank_name: form.bank_name,
+        bank_account_name: form.bank_account_name,
+        account_number: form.account_number,
+      });
+    } catch (e: any) {
+      toast({ title: 'Check the form', description: e?.message || 'Invalid value', variant: 'destructive' });
+      return;
+    }
+
     setSaving(true);
     try {
       const response = await supabase.functions.invoke('create-investor-portfolio', {
@@ -845,14 +863,14 @@ function InlineCreatePortfolioForm({ partner, actingUserId, onCreated, onCancel 
           roi_percentage: parseFloat(form.roi_percentage),
           roi_mode: form.roi_mode,
           portfolio_pin: form.portfolio_pin,
-          payout_day: parseInt(form.payout_day),
+          payout_day: validated.payout_day ?? parseInt(form.payout_day),
           contribution_date: form.contribution_date || null,
           payment_method: form.payment_method || null,
-          mobile_network: form.mobile_network || null,
-          mobile_money_number: form.mobile_money_number || null,
-          bank_name: form.bank_name || null,
-          account_name: form.bank_account_name || form.account_name || null,
-          account_number: form.account_number || null,
+          mobile_network: validated.mobile_network,
+          mobile_money_number: validated.mobile_money_number,
+          bank_name: validated.bank_name,
+          account_name: validated.bank_account_name || form.account_name || null,
+          account_number: validated.account_number,
         },
       });
       if (response.error || response.data?.error) {
