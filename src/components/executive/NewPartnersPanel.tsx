@@ -884,25 +884,49 @@ export function NewPartnersPanel() {
   function makeSegmentSwipeHandlers<K extends PartnerFilter>(
     keys: readonly K[],
     activeKey: PartnerFilter,
+    onPreview?: (key: K | null) => void,
   ) {
     let startX = 0;
     let startY = 0;
     let startScroll = 0;
+    let lastPreview: K | null = null;
+    const previewKey = (dx: number, dy: number): K | null => {
+      if (Math.abs(dx) < 24) return null;
+      if (Math.abs(dx) < Math.abs(dy) * 1.5) return null;
+      const idx = keys.indexOf(activeKey as K);
+      let nextIdx: number;
+      if (idx === -1) nextIdx = dx < 0 ? 0 : keys.length - 1;
+      else nextIdx = dx < 0
+        ? Math.min(keys.length - 1, idx + 1)
+        : Math.max(0, idx - 1);
+      return keys[nextIdx];
+    };
     return {
       onTouchStart: (e: React.TouchEvent<HTMLDivElement>) => {
         const t = e.touches[0];
         startX = t.clientX;
         startY = t.clientY;
         startScroll = e.currentTarget.scrollLeft;
+        lastPreview = null;
+      },
+      onTouchMove: (e: React.TouchEvent<HTMLDivElement>) => {
+        if (!onPreview) return;
+        if (Math.abs(e.currentTarget.scrollLeft - startScroll) > 4) {
+          if (lastPreview !== null) { onPreview(null); lastPreview = null; }
+          return;
+        }
+        const t = e.touches[0];
+        const next = previewKey(t.clientX - startX, t.clientY - startY);
+        if (next !== lastPreview) { onPreview(next); lastPreview = next; }
       },
       onTouchEnd: (e: React.TouchEvent<HTMLDivElement>) => {
         const t = e.changedTouches[0];
         const dx = t.clientX - startX;
         const dy = t.clientY - startY;
         // Ignore if user actually scrolled the row horizontally.
-        if (Math.abs(e.currentTarget.scrollLeft - startScroll) > 4) return;
-        if (Math.abs(dx) < 50) return;
-        if (Math.abs(dx) < Math.abs(dy) * 1.5) return;
+        if (Math.abs(e.currentTarget.scrollLeft - startScroll) > 4) { onPreview?.(null); return; }
+        if (Math.abs(dx) < 50) { onPreview?.(null); return; }
+        if (Math.abs(dx) < Math.abs(dy) * 1.5) { onPreview?.(null); return; }
         const idx = keys.indexOf(activeKey as K);
         // If current filter isn't in this row, swipe lands on first/last.
         let nextIdx: number;
