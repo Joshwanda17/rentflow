@@ -393,7 +393,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                         className="text-xs text-muted-foreground flex items-center gap-1.5"
                       >
                         <Loader2 className="h-3 w-3 animate-spin" />
-                        Looking up recipient…
+                        Looking up recipient… sending is paused until we confirm them.
                       </motion.p>
                     )}
                     {recipient.status === 'found' && !recipient.isSelf && (
@@ -435,7 +435,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                         className="text-xs text-destructive flex items-center gap-1.5"
                       >
                         <UserX className="h-3 w-3" />
-                        That's your own account.
+                        Sending blocked: this {mode === 'email' ? 'email' : 'number'} is your own account.
                       </motion.p>
                     )}
                     {recipient.status === 'not_found' && (
@@ -447,7 +447,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                         className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5"
                       >
                         <UserX className="h-3 w-3" />
-                        No Welile user found for this {mode === 'email' ? 'email' : 'number'}.
+                        Sending blocked: no Welile user found for this {mode === 'email' ? 'email' : 'number'}.
                       </motion.p>
                     )}
                   </AnimatePresence>
