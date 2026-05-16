@@ -722,8 +722,29 @@ export function NewPartnersPanel() {
               <Sparkles className="h-4 w-4 text-primary" />
             </div>
             <div className="flex-1">
-              <h3 className="text-sm font-bold">Joined Partners</h3>
-              <p className="text-[10px] text-muted-foreground">Browse all partners, filter, activate portfolios & WhatsApp</p>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <h3 className="text-sm font-bold">Joined Partners</h3>
+                {/* Total partner count badge — shows how many supporters exist
+                    in the database (not just what's been scrolled into view). */}
+                <span
+                  className="inline-flex items-center gap-1 rounded-full bg-primary/15 text-primary px-1.5 py-0.5 text-[10px] font-semibold tabular-nums"
+                  title="Total partners in the database"
+                >
+                  {isLoading ? '…' : joinedTotal.toLocaleString()} total
+                </span>
+                {!isLoading && joined && joined.length < joinedTotal && (
+                  <span
+                    className="inline-flex items-center gap-1 rounded-full bg-muted text-muted-foreground px-1.5 py-0.5 text-[10px] font-medium tabular-nums"
+                    title={`Loaded so far · ${PARTNERS_PAGE_SIZE} per scroll`}
+                  >
+                    {joined.length.toLocaleString()} loaded
+                  </span>
+                )}
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Browse all partners, filter, activate portfolios & WhatsApp
+                {' '}· {PARTNERS_PAGE_SIZE} loaded per scroll
+              </p>
             </div>
             <Button
               size="sm"
