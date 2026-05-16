@@ -1929,7 +1929,7 @@ export function ComprehensiveCashMovement() {
               open={pageDrillOpen}
               onOpenChange={(o) => { setPageDrillOpen(o); if (o) setPageDrillVisible(25); }}
             >
-              <div ref={pageDrillRef} />
+              <div id="cm-transactions" ref={pageDrillRef} className="scroll-mt-24" />
               <CollapsibleTrigger asChild>
                 <button
                   type="button"
