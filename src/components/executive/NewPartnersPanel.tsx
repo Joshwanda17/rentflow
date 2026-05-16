@@ -849,7 +849,7 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
   // diff actually changes (not on every keystroke that keeps the same diff).
   useEffect(() => {
     if (!autoSave || !expanded || !dirty || saving) return;
-    const t = setTimeout(() => { handleSave(); }, 1200);
+    const t = setTimeout(() => { handleSave({ collapseAfter: false, silent: true }); }, 1200);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoSave, expanded, dirty, saving, changeListKey]);
