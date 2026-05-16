@@ -320,6 +320,86 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                 }
               </motion.p>
             </motion.div>
+          ) : confirming ? (
+            <motion.div
+              key="confirm"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className="relative"
+            >
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <CheckCircle className="h-5 w-5 text-primary" />
+                  </div>
+                  Confirm transfer
+                </DialogTitle>
+                <DialogDescription>
+                  Review the recipient before sending. This cannot be undone.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="mt-4 space-y-3">
+                <div className="rounded-lg border border-border/60 bg-background/50 p-4 space-y-2">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Sending to</p>
+                  <p className="text-base font-semibold">
+                    {recipient.status === 'found' ? recipient.name : '—'}
+                  </p>
+                  <div className="space-y-1 text-sm text-muted-foreground">
+                    {recipient.status === 'found' && recipient.phone && (
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-3.5 w-3.5" />
+                        <span className="text-foreground">{recipient.phone}</span>
+                      </div>
+                    )}
+                    {recipient.status === 'found' && recipient.email && (
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-3.5 w-3.5" />
+                        <span className="text-foreground truncate">{recipient.email}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-border/60 bg-background/50 p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs uppercase tracking-wide text-muted-foreground">Amount</span>
+                    <span className="text-lg font-bold">{formatCurrency(parseFloat(amount) || 0)}</span>
+                  </div>
+                  {description.trim() && (
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-xs uppercase tracking-wide text-muted-foreground pt-0.5">For</span>
+                      <span className="text-sm text-foreground text-right break-words">{description.trim()}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <DialogFooter className="gap-2 sm:gap-0 mt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setConfirming(false)}
+                  disabled={loading}
+                >
+                  Back
+                </Button>
+                <Button
+                  type="button"
+                  onClick={executeSend}
+                  disabled={loading}
+                  className="gap-2"
+                >
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                  Confirm & Send
+                </Button>
+              </DialogFooter>
+            </motion.div>
           ) : (
             <motion.div
               key="form"
