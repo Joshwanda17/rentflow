@@ -393,7 +393,7 @@ export function NewPartnersPanel() {
         .eq('role', 'supporter')
         .eq('enabled', true)
         .order('created_at', { ascending: false })
-        .limit(500);
+        .limit(2000);
       const rows = roles || [];
       if (rows.length === 0) return [] as JoinedPartner[];
 
