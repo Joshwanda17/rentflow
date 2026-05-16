@@ -186,6 +186,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
       setDescription('');
       setSuccess(false);
       setIsFirstTx(false);
+      setRecipient({ status: 'idle' });
       onOpenChange(false);
     }, isFirstTx ? 3000 : 1500);
   };
@@ -197,6 +198,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
       setDescription('');
       setSuccess(false);
       setIsFirstTx(false);
+      setRecipient({ status: 'idle' });
     }
     onOpenChange(value);
   };
