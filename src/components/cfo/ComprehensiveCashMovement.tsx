@@ -1853,14 +1853,14 @@ function WalletMovementSummary({
 
   // Net-flow KPI drill-down — opens a sheet listing every wallet-scope
   // cash_in / cash_out transaction that makes up Into − Out for the period.
-  const [netDrill, setNetDrill] = useState<null | { direction: 'all' | 'cash_in' | 'cash_out'; from?: number; to?: number; label?: string }>(null);
+  const [netDrill, setNetDrill] = useState<null | { direction: 'all' | 'cash_in' | 'cash_out'; from?: number; to?: number; label?: string; bucket?: 'withdrawable' | 'operational_float' | 'landlord_float' }>(null);
   const [netDrillQuery, setNetDrillQuery] = useState('');
   const [netDrillPage, setNetDrillPage] = useState(0);
   const NET_DRILL_PAGE_SIZE = 100;
   useEffect(() => {
     setNetDrillPage(0);
     setNetDrillQuery('');
-  }, [netDrill?.direction, netDrill?.from, netDrill?.to]);
+  }, [netDrill?.direction, netDrill?.from, netDrill?.to, netDrill?.bucket]);
 
   const summary = useMemo(() => {
     const inMap = new Map<string, number>();
