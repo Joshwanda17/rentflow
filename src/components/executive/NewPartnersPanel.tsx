@@ -514,9 +514,13 @@ export function NewPartnersPanel() {
                   <Badge className="bg-primary/15 text-primary border-0 text-[10px] font-bold" title="Total partners">{joined.length} total</Badge>
                   <Badge className="bg-emerald-500/15 text-emerald-600 border-0 text-[10px] font-bold" title="With portfolios">{withCount} active</Badge>
                   <Badge className="bg-amber-500/15 text-amber-600 border-0 text-[10px] font-bold" title="No portfolio yet">{withoutCount} pending</Badge>
-                  <Badge className="bg-sky-500/15 text-sky-600 border-0 text-[10px] font-bold" title="Joined today">{todayCount} today</Badge>
-                  <Badge className="bg-indigo-500/15 text-indigo-600 border-0 text-[10px] font-bold" title="Joined this week">{weekCount} 7d</Badge>
-                  <Badge className="bg-violet-500/15 text-violet-600 border-0 text-[10px] font-bold" title="Joined this month">{monthCount} 30d</Badge>
+                  {canWhatsAppPartners && (
+                    <>
+                      <Badge className="bg-sky-500/15 text-sky-600 border-0 text-[10px] font-bold" title="Joined today">{todayCount} today</Badge>
+                      <Badge className="bg-indigo-500/15 text-indigo-600 border-0 text-[10px] font-bold" title="Joined this week">{weekCount} 7d</Badge>
+                      <Badge className="bg-violet-500/15 text-violet-600 border-0 text-[10px] font-bold" title="Joined this month">{monthCount} 30d</Badge>
+                    </>
+                  )}
                 </div>
               );
             })()}
@@ -550,10 +554,14 @@ export function NewPartnersPanel() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All partners</SelectItem>
-                <SelectItem value="today">Joined today</SelectItem>
-                <SelectItem value="week">Joined this week (7d)</SelectItem>
-                <SelectItem value="month">Joined this month (30d)</SelectItem>
-                <SelectItem value="recent">Joined in last 14 days</SelectItem>
+                {canWhatsAppPartners && (
+                  <>
+                    <SelectItem value="today">Joined today</SelectItem>
+                    <SelectItem value="week">Joined this week (7d)</SelectItem>
+                    <SelectItem value="month">Joined this month (30d)</SelectItem>
+                    <SelectItem value="recent">Joined in last 14 days</SelectItem>
+                  </>
+                )}
                 <SelectItem value="with">With portfolios</SelectItem>
                 <SelectItem value="without">No portfolios yet</SelectItem>
               </SelectContent>
