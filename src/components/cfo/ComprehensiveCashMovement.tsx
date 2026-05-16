@@ -295,6 +295,20 @@ export function ComprehensiveCashMovement() {
   const [period, setPeriod] = useState<PeriodKey>('24h');
   const [granularity, setGranularity] = useState<Granularity>('daily');
   const [includeAdjustments, setIncludeAdjustments] = useState(false);
+  // Plain-English / "Simple" mode — hides accounting jargon, big tables,
+  // and matrix views so a non-tech reader sees just the friendly summary.
+  // Persisted; defaults to ON for phone-sized screens.
+  const [simpleMode, setSimpleMode] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    const saved = window.localStorage.getItem('welile.cashMovement.simpleMode');
+    if (saved === '1') return true;
+    if (saved === '0') return false;
+    return window.matchMedia?.('(max-width: 640px)').matches ?? true;
+  });
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem('welile.cashMovement.simpleMode', simpleMode ? '1' : '0');
+  }, [simpleMode]);
   const [scopeFilter, setScopeFilter] = useState<'all' | 'platform' | 'wallet' | 'bridge'>('all');
   const [directionQuickFilter, setDirectionQuickFilter] = useState<'all' | 'cash_in' | 'cash_out' | 'net_positive' | 'net_negative'>('all');
   const [categoryQuickFilter, setCategoryQuickFilter] = useState<string | null>(null);
@@ -888,9 +902,25 @@ export function ComprehensiveCashMovement() {
         <div className="flex items-start justify-between flex-wrap gap-2">
           <div>
             <h3 className="text-base sm:text-sm font-semibold">Money In & Out</h3>
-            <p className="text-[11px] text-muted-foreground">All money flowing in and out of Welile — updated live from the books.</p>
+            <p className="text-[11px] text-muted-foreground">
+              {simpleMode
+                ? 'A simple picture of money flowing in and out of Welile, in plain English.'
+                : 'All money flowing in and out of Welile — updated live from the books.'}
+            </p>
           </div>
-          <Badge variant="outline" className="text-[10px]">{rangeLabel}</Badge>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Badge variant="outline" className="text-[10px]">{rangeLabel}</Badge>
+            <Button
+              size="sm"
+              variant={simpleMode ? 'default' : 'outline'}
+              className="h-7 text-[11px] px-2 gap-1"
+              onClick={() => setSimpleMode(v => !v)}
+              title={simpleMode ? 'Switch to full detail view' : 'Switch to a simple, plain-English view'}
+              aria-pressed={simpleMode}
+            >
+              {simpleMode ? '😊 Simple view' : 'Detailed view'}
+            </Button>
+          </div>
         </div>
 
         {/* Period — horizontal scroll on mobile so it never crams */}
@@ -994,7 +1024,45 @@ export function ComprehensiveCashMovement() {
         {/* ─── Wallet Money Movement (minimalist) ───
             Primary view: money flowing INTO and OUT OF user/operational wallets
             in the selected period. Shown first by default. */}
-        <WalletMovementSummary rows={rows} includeAdjustments={includeAdjustments} period={period} />
+        {!simpleMode && (
+          <WalletMovementSummary rows={rows} includeAdjustments={includeAdjustments} period={period} />
+        )}
+
+        {/* Plain-English summary — one friendly sentence anyone can read.
+            Shown only in Simple mode so non-tech / non-accounting users get
+            the headline without scrolling through tables and matrices. */}
+        {simpleMode && (
+          <div className={cn(
+            'rounded-lg border-2 p-3 sm:p-4 space-y-2',
+            totals.net >= 0 ? 'border-success/40 bg-success/5' : 'border-destructive/40 bg-destructive/5'
+          )}>
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+              In plain English · {PERIODS.find(p => p.value === period)?.label || period}
+            </div>
+            <p className="text-sm sm:text-base leading-relaxed">
+              {totals.cashIn === 0 && totals.cashOut === 0 ? (
+                <>No money moved during this period.</>
+              ) : (
+                <>
+                  <span className="font-semibold text-success">{formatUGX(totals.cashIn)}</span>
+                  {' came '}<span className="font-semibold">IN</span>{' and '}
+                  <span className="font-semibold text-destructive">{formatUGX(totals.cashOut)}</span>
+                  {' went '}<span className="font-semibold">OUT</span>{'. '}
+                  {totals.net > 0 ? (
+                    <>Welile <span className="font-semibold text-success">gained {formatUGX(totals.net)}</span> overall.</>
+                  ) : totals.net < 0 ? (
+                    <>Welile <span className="font-semibold text-destructive">spent {formatUGX(Math.abs(totals.net))}</span> more than it received.</>
+                  ) : (
+                    <>Money in and out balanced exactly.</>
+                  )}
+                </>
+              )}
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+              Tap <span className="font-semibold">Detailed view</span> at the top for the full breakdown, tables, and downloads.
+            </p>
+          </div>
+        )}
 
         {/* Totals strip (full ledger scope: platform + wallet) */}
         <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
@@ -1014,7 +1082,8 @@ export function ComprehensiveCashMovement() {
           </div>
         </div>
 
-        {/* Quick filter chips */}
+        {/* Quick filter chips — power-user shortcuts, hidden in Simple view. */}
+        {!simpleMode && (
         <div className="space-y-1.5">
           <div className="text-[11px] text-muted-foreground flex items-center gap-1">
             <Filter className="h-3.5 w-3.5" /> Quick find
@@ -1080,8 +1149,10 @@ export function ComprehensiveCashMovement() {
             </div>
           )}
         </div>
+        )}
 
-        {/* Capital Inflows callout — new money into the company */}
+        {/* Capital Inflows callout — new money into the company. Hidden in Simple view. */}
+        {!simpleMode && (
         <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-2.5 sm:p-3 space-y-2">
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-2">
@@ -1355,9 +1426,10 @@ export function ComprehensiveCashMovement() {
             </CollapsibleContent>
           </Collapsible>
         </div>
+        )}
 
-        {/* Category table */}
-        {loading ? (
+        {/* Category table — full breakdown, hidden in Simple view. */}
+        {!simpleMode && (loading ? (
           <div className="py-12 text-center text-muted-foreground text-sm">
             <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" /> Loading ledger…
           </div>
@@ -1409,10 +1481,10 @@ export function ComprehensiveCashMovement() {
               </TableBody>
             </Table>
           </div>
-        )}
+        ))}
 
-        {/* Time-series matrix */}
-        {filteredAggregates.length > 0 && bucketLabels.length > 0 && (
+        {/* Time-series matrix — hidden in Simple view. */}
+        {!simpleMode && filteredAggregates.length > 0 && bucketLabels.length > 0 && (
           <div className="space-y-2">
             <h4 className="text-xs font-semibold text-primary uppercase tracking-wider">{granularity === 'daily' ? 'Daily' : granularity === 'weekly' ? 'Weekly' : 'Monthly'} difference by type</h4>
             <p className="text-[11px] text-muted-foreground">Money In minus Money Out for each {granularity === 'daily' ? 'day' : granularity === 'weekly' ? 'week' : 'month'}. Swipe sideways to see more.</p>
