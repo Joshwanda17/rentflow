@@ -913,8 +913,8 @@ export function NewPartnersPanel() {
             const next = filteredPartners.find(p => p.portfolio_count === 0);
             if (!next) return null;
             return (
-              <div className="flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2">
-                <div className="p-1 rounded-md bg-emerald-500/20 shrink-0">
+              <div className="flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-2 sm:px-3 py-2">
+                <div className="p-1 rounded-md bg-emerald-500/20 shrink-0 hidden xs:block sm:block">
                   <Zap className="h-3.5 w-3.5 text-emerald-600" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -943,7 +943,7 @@ export function NewPartnersPanel() {
                 </label>
                 <Button
                   size="sm"
-                  className="h-7 text-[11px] gap-1 shrink-0"
+                  className="h-7 text-[11px] gap-1 shrink-0 px-2"
                   onClick={() => {
                     autoAdvanceRef.current = autoAdvanceEnabled;
                     activationSucceededRef.current = false;
@@ -954,7 +954,9 @@ export function NewPartnersPanel() {
                     });
                   }}
                 >
-                  <PlusCircle className="h-3 w-3" /> Activate now
+                  <PlusCircle className="h-3 w-3" />
+                  <span className="hidden sm:inline">Activate now</span>
+                  <span className="sm:hidden">Activate</span>
                 </Button>
               </div>
             );
