@@ -126,6 +126,39 @@ function prettifyCategory(c: string): string {
 }
 
 // ─────────────────────────────────────────────────────────────
+// Friendly labels for the minimalist Wallet Money Movement panel.
+// Maps raw ledger categories to plain-English descriptions of what
+// physically moved in or out of a user/operational wallet.
+// ─────────────────────────────────────────────────────────────
+const WALLET_FLOW_LABEL_IN: Record<string, string> = {
+  deposit: 'User & proxy-agent deposits',
+  agent_float_deposit: 'Operational float deposits (agents)',
+  landlord_float_deposit: 'Landlord float deposits (CFO)',
+  rent_payment: 'Rent collected into agent float',
+  partner_commission: 'Partner commissions credited',
+  agent_commission: 'Agent commissions credited',
+  business_advance_commission: 'Advance commissions credited',
+  roi_payout: 'Returns paid to supporters',
+  roi_wallet_credit: 'Returns paid to supporters',
+  payroll: 'Payroll credited',
+  payroll_growth: 'Payroll growth credited',
+  tenant_placement_bonus: 'Tenant placement bonuses',
+  system_balance_correction: 'Balance corrections (in)',
+};
+const WALLET_FLOW_LABEL_OUT: Record<string, string> = {
+  withdrawal: 'Personal wallet withdrawals',
+  partner_funding: 'Float swept to company (partner)',
+  agent_float_allocation: 'Float allocated to tenants/landlords',
+  rent_repayment: 'Rent repaid from wallet',
+  advance_recovery: 'Advance auto-recovery',
+  system_balance_correction: 'Balance corrections (out)',
+};
+function friendlyWalletLabel(category: string, direction: 'cash_in' | 'cash_out'): string {
+  const map = direction === 'cash_in' ? WALLET_FLOW_LABEL_IN : WALLET_FLOW_LABEL_OUT;
+  return map[category] || prettifyCategory(category);
+}
+
+// ─────────────────────────────────────────────────────────────
 // Wallet-impact map — explains which wallet buckets move (or don't)
 // when a Capital Inflows category posts. The Comprehensive view shows
 // the PLATFORM cash_in leg only; the wallet effect is the *paired*
@@ -930,6 +963,12 @@ export function ComprehensiveCashMovement() {
           </div>
         </div>
 
+        {/* ─── Wallet Money Movement (minimalist) ───
+            Read-only summary of money flowing INTO and OUT OF user/operational
+            wallets in the selected period. Reuses already-loaded ledger rows
+            (no balance changes anywhere). */}
+        <WalletMovementSummary rows={rows} includeAdjustments={includeAdjustments} />
+
         {/* Quick filter chips */}
         <div className="space-y-1.5">
           <div className="text-[11px] text-muted-foreground flex items-center gap-1">
@@ -1689,5 +1728,113 @@ export function ComprehensiveCashMovement() {
         </Sheet>
       </CardContent>
     </Card>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// WalletMovementSummary
+// Minimalist breakdown of money INTO and OUT OF wallets for the
+// currently loaded period. Pure read view — never mutates anything.
+// ─────────────────────────────────────────────────────────────
+function WalletMovementSummary({ rows, includeAdjustments }: { rows: LedgerRow[]; includeAdjustments: boolean }) {
+  const summary = useMemo(() => {
+    const inMap = new Map<string, number>();
+    const outMap = new Map<string, number>();
+    let totalIn = 0;
+    let totalOut = 0;
+    for (const r of rows) {
+      if (r.ledger_scope !== 'wallet') continue;
+      if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
+      const amt = Number(r.amount) || 0;
+      if (r.direction === 'cash_in') {
+        inMap.set(r.category, (inMap.get(r.category) || 0) + amt);
+        totalIn += amt;
+      } else if (r.direction === 'cash_out') {
+        outMap.set(r.category, (outMap.get(r.category) || 0) + amt);
+        totalOut += amt;
+      }
+    }
+    const sortDesc = (m: Map<string, number>) =>
+      Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
+    return {
+      inRows: sortDesc(inMap),
+      outRows: sortDesc(outMap),
+      totalIn,
+      totalOut,
+      net: totalIn - totalOut,
+    };
+  }, [rows, includeAdjustments]);
+
+  if (summary.inRows.length === 0 && summary.outRows.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="rounded-xl border border-border bg-muted/30 p-3 sm:p-4 space-y-3">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div>
+          <h4 className="text-sm font-semibold">Wallet Money Movement</h4>
+          <p className="text-[11px] text-muted-foreground">
+            How money moved between company funds and user/operational wallets. Read-only.
+          </p>
+        </div>
+        <div className={cn(
+          'text-[11px] font-mono px-2 py-1 rounded border',
+          summary.net >= 0
+            ? 'bg-success/10 text-success border-success/30'
+            : 'bg-destructive/10 text-destructive border-destructive/30'
+        )}>
+          Net into wallets: {summary.net >= 0 ? '+' : ''}{formatUGX(summary.net)}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* Into wallets */}
+        <div className="rounded-lg border border-border bg-background p-3 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-success">
+              <ArrowDownLeft className="h-3.5 w-3.5" /> Into wallets
+            </div>
+            <div className="font-mono text-sm font-semibold text-success break-all">
+              {formatUGX(summary.totalIn)}
+            </div>
+          </div>
+          <div className="space-y-1">
+            {summary.inRows.length === 0 && (
+              <div className="text-[11px] text-muted-foreground italic">No inflows in this period.</div>
+            )}
+            {summary.inRows.map(([cat, amt]) => (
+              <div key={cat} className="flex items-center justify-between gap-2 text-[12px]">
+                <span className="text-muted-foreground truncate">{friendlyWalletLabel(cat, 'cash_in')}</span>
+                <span className="font-mono text-foreground shrink-0">{formatUGX(amt)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Out of wallets */}
+        <div className="rounded-lg border border-border bg-background p-3 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-destructive">
+              <ArrowUpRight className="h-3.5 w-3.5" /> Out of wallets
+            </div>
+            <div className="font-mono text-sm font-semibold text-destructive break-all">
+              {formatUGX(summary.totalOut)}
+            </div>
+          </div>
+          <div className="space-y-1">
+            {summary.outRows.length === 0 && (
+              <div className="text-[11px] text-muted-foreground italic">No outflows in this period.</div>
+            )}
+            {summary.outRows.map(([cat, amt]) => (
+              <div key={cat} className="flex items-center justify-between gap-2 text-[12px]">
+                <span className="text-muted-foreground truncate">{friendlyWalletLabel(cat, 'cash_out')}</span>
+                <span className="font-mono text-foreground shrink-0">{formatUGX(amt)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
