@@ -1889,6 +1889,81 @@ export function NewPartnersPanel() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Sticky mobile action bar — primary filter, sort, and quick-activate
+          stay reachable while Partner Ops scrolls a long partner list on a
+          phone. Hidden on sm+ where the inline toolbar is already visible. */}
+      {(() => {
+        const noPortfolioFilters: PartnerFilter[] = [
+          'just_joined', 'without', 'recent_today', 'recent_week', 'recent_month',
+        ];
+        const nextCandidate = noPortfolioFilters.includes(partnerFilter)
+          ? filteredPartners.find(p => p.portfolio_count === 0)
+          : null;
+        return (
+          <div
+            className="sm:hidden fixed inset-x-0 bottom-0 z-40 border-t border-primary/30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-4px_12px_-4px_rgba(0,0,0,0.15)]"
+            role="toolbar"
+            aria-label="Partner list quick actions"
+          >
+            <div className="flex items-center gap-1.5">
+              <Select
+                value={partnerFilter}
+                onValueChange={(v) => setPartnerFilter(v as PartnerFilter)}
+              >
+                <SelectTrigger className="h-9 text-[11px] flex-1 min-w-0" aria-label="Filter partners">
+                  <Filter className="h-3.5 w-3.5 mr-1 text-muted-foreground shrink-0" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All partners</SelectItem>
+                  <SelectItem value="just_joined">Just joined · no portfolio</SelectItem>
+                  <SelectItem value="recent_today">No portfolio · today</SelectItem>
+                  <SelectItem value="recent_week">No portfolio · this week</SelectItem>
+                  <SelectItem value="recent_month">No portfolio · this month</SelectItem>
+                  <SelectItem value="with">With portfolios</SelectItem>
+                  <SelectItem value="without">No portfolios yet</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={partnerSort}
+                onValueChange={(v) => setPartnerSort(v as PartnerSort)}
+              >
+                <SelectTrigger className="h-9 text-[11px] flex-1 min-w-0" aria-label="Sort partners">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="recent">Newest first</SelectItem>
+                  <SelectItem value="status_active">Active first</SelectItem>
+                  <SelectItem value="status_none">None first</SelectItem>
+                  <SelectItem value="count_desc">Count: high → low</SelectItem>
+                  <SelectItem value="count_asc">Count: low → high</SelectItem>
+                  <SelectItem value="name">Name (A–Z)</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                className="h-9 text-[11px] gap-1 shrink-0 px-2 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50"
+                disabled={!nextCandidate}
+                title={nextCandidate ? `Activate ${nextCandidate.full_name}` : 'No candidate in current filter'}
+                onClick={() => {
+                  if (!nextCandidate) return;
+                  autoAdvanceRef.current = autoAdvanceEnabled;
+                  activationSucceededRef.current = false;
+                  openCreateFor({
+                    id: nextCandidate.user_id,
+                    full_name: nextCandidate.full_name,
+                    phone: nextCandidate.phone,
+                  });
+                }}
+              >
+                <Zap className="h-3.5 w-3.5" />
+                Activate
+              </Button>
+            </div>
+          </div>
+        );
+      })()}
     </>
   );
 }
