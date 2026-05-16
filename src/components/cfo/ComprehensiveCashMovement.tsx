@@ -110,9 +110,9 @@ type Aggregate = {
 };
 
 const SCOPE_LABEL: Record<string, string> = {
-  platform: 'Platform',
-  wallet:   'User Custody',
-  bridge:   'Bridge',
+  platform: 'Company',
+  wallet:   'User Wallets',
+  bridge:   'Transfers',
 };
 
 const SCOPE_BADGE: Record<string, string> = {
