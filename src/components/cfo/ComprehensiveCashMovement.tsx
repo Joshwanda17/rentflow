@@ -2171,7 +2171,13 @@ function WalletMovementSummary({
       }
       slope = den === 0 ? 0 : num / den;
     }
-    return { nets, labels, slope };
+    // Bucket ranges (ms) so clicks on sparkline points can open the
+    // drill-down sheet scoped to that specific bucket window.
+    const ranges = starts.map((s, i) => ({
+      from: s.getTime(),
+      to: (starts[i + 1] ? starts[i + 1].getTime() : endTs + 1),
+    }));
+    return { nets, labels, slope, ranges };
   }, [rows, includeAdjustments, period, trendGroup]);
 
   // ── Exports ─────────────────────────────────────────────────
