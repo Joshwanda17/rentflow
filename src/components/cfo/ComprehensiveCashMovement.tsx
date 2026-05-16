@@ -2089,6 +2089,52 @@ function WalletMovementSummary({
   const totalInDelta = priorTotals ? formatDelta(summary.totalIn, priorTotals.totalIn) : null;
   const totalOutDelta = priorTotals ? formatDelta(summary.totalOut, priorTotals.totalOut) : null;
 
+  // ── Net-flow trend buckets ─────────────────────────────────
+  // Bucket wallet-scope rows into ~32 evenly sized time slices across the
+  // currently loaded period, summing net per bucket. Powers the sparkline
+  // shown under the Net Flow KPI so trend/momentum is visible at a glance.
+  const netTrend = useMemo(() => {
+    const cur = periodRange(period);
+    const minTs = cur.from ? cur.from.getTime() : (
+      rows.length ? Math.min(...rows.map(r => new Date(r.transaction_date).getTime())) : Date.now()
+    );
+    const maxTs = cur.to.getTime();
+    const span = Math.max(1, maxTs - minTs);
+    const BUCKETS = 32;
+    const step = span / BUCKETS;
+    const nets = new Array<number>(BUCKETS).fill(0);
+    const labels = new Array<string>(BUCKETS).fill('');
+    for (let i = 0; i < BUCKETS; i++) {
+      const start = new Date(minTs + i * step);
+      const end = new Date(minTs + (i + 1) * step);
+      labels[i] = `${format(start, 'dd MMM HH:mm')} – ${format(end, 'dd MMM HH:mm')}`;
+    }
+    for (const r of rows) {
+      if (r.ledger_scope !== 'wallet') continue;
+      if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
+      if (r.direction !== 'cash_in' && r.direction !== 'cash_out') continue;
+      const t = new Date(r.transaction_date).getTime();
+      if (t < minTs || t > maxTs) continue;
+      const idx = Math.min(BUCKETS - 1, Math.max(0, Math.floor((t - minTs) / step)));
+      const amt = Number(r.amount) || 0;
+      nets[idx] += r.direction === 'cash_in' ? amt : -amt;
+    }
+    // Linear-regression slope on bucket index → net, to label momentum
+    let slope = 0;
+    const n = nets.length;
+    if (n > 1) {
+      const meanX = (n - 1) / 2;
+      const meanY = nets.reduce((s, v) => s + v, 0) / n;
+      let num = 0, den = 0;
+      for (let i = 0; i < n; i++) {
+        num += (i - meanX) * (nets[i] - meanY);
+        den += (i - meanX) ** 2;
+      }
+      slope = den === 0 ? 0 : num / den;
+    }
+    return { nets, labels, slope };
+  }, [rows, includeAdjustments, period]);
+
   // ── Exports ─────────────────────────────────────────────────
   const currentRange = useMemo(() => periodRange(period), [period]);
   const periodLabel = PERIODS.find(p => p.value === period)?.label ?? period;
