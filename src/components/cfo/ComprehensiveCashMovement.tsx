@@ -1327,7 +1327,7 @@ export function ComprehensiveCashMovement() {
         )}
 
         {/* Time-series matrix */}
-        {aggregates.length > 0 && bucketLabels.length > 0 && (
+        {filteredAggregates.length > 0 && bucketLabels.length > 0 && (
           <div className="space-y-2">
             <h4 className="text-xs font-semibold text-primary uppercase tracking-wider">{granularity === 'daily' ? 'Daily' : granularity === 'weekly' ? 'Weekly' : 'Monthly'} difference by type</h4>
             <p className="text-[11px] text-muted-foreground">Money In minus Money Out for each {granularity === 'daily' ? 'day' : granularity === 'weekly' ? 'week' : 'month'}. Swipe sideways to see more.</p>
