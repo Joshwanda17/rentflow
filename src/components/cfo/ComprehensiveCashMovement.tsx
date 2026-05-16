@@ -2768,6 +2768,7 @@ function WalletMovementSummary({
                 if (netDrill.from !== undefined && t < netDrill.from) return false;
                 if (netDrill.to !== undefined && t >= netDrill.to) return false;
               }
+              if (netDrill.bucket && classifyBucket(r.category) !== netDrill.bucket) return false;
               return true;
             });
             const q = netDrillQuery.trim().toLowerCase();
