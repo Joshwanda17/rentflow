@@ -500,6 +500,19 @@ export function NewPartnersPanel() {
       if (partnerFilter === 'today' && new Date(p.created_at).getTime() < startOfToday.getTime()) return false;
       if (partnerFilter === 'week' && new Date(p.created_at).getTime() < startOfWeek.getTime()) return false;
       if (partnerFilter === 'month' && new Date(p.created_at).getTime() < startOfMonth.getTime()) return false;
+      // Recent joins (no portfolio yet) — combines window + no-portfolio gate.
+      if (partnerFilter === 'recent_today') {
+        if (p.portfolio_count > 0) return false;
+        if (new Date(p.created_at).getTime() < startOfToday.getTime()) return false;
+      }
+      if (partnerFilter === 'recent_week') {
+        if (p.portfolio_count > 0) return false;
+        if (new Date(p.created_at).getTime() < startOfWeek.getTime()) return false;
+      }
+      if (partnerFilter === 'recent_month') {
+        if (p.portfolio_count > 0) return false;
+        if (new Date(p.created_at).getTime() < startOfMonth.getTime()) return false;
+      }
       if (partnerFilter === 'custom') {
         const t = new Date(p.created_at).getTime();
         if (customRange?.from) {
