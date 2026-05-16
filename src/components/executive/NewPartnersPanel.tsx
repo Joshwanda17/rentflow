@@ -2077,7 +2077,7 @@ export function NewPartnersPanel() {
               </Select>
               <Button
                 size="sm"
-                className="h-11 text-xs gap-1 shrink-0 px-3 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                className="h-11 text-xs gap-1 shrink-0 px-3 max-w-[55%] bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={!nextCandidate || activating}
                 aria-busy={activating}
                 title={
@@ -2101,7 +2101,7 @@ export function NewPartnersPanel() {
                 {activating
                   ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   : <Zap className="h-3.5 w-3.5" />}
-                {activateLabel}
+                <span className="truncate">{activateLabel}</span>
               </Button>
             </div>
           </div>
