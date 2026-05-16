@@ -705,9 +705,18 @@ export function NewPartnersPanel() {
         open={createOpen}
         onOpenChange={(open) => {
           setCreateOpen(open);
-          // Clear the per-row "Activating…" lock when the dialog closes
-          // (either after success or if the user cancels).
-          if (!open) setActivatingUserId(null);
+          // The dialog itself only auto-closes on success (see
+          // CreateInvestmentAccountDialog: onOpenChange(false) is called
+          // immediately after onSuccess and is NOT called in the catch
+          // block). So a close here means either: (a) success path, or
+          // (b) the user explicitly dismissed (cancel / X / escape).
+          // In both cases we fully reset local state so the next
+          // activation starts from a clean slate and the correct row
+          // button re-enables.
+          if (!open) {
+            setActivatingUserId(null);
+            setCreateForUser(null);
+          }
         }}
         onSuccess={() => {
           handleSelect(selected);
@@ -723,6 +732,11 @@ export function NewPartnersPanel() {
           if (selected?.id && selected.id !== createForUser?.id) {
             qc.invalidateQueries({ queryKey: ['funder-approval-status', selected.id] });
           }
+          // Full local-state reset on error: re-enable the row button
+          // AND drop the pending partner pointer. The create dialog
+          // itself stays open (it only closes on success) so the
+          // operator can correct input and resubmit, or use the Retry
+          // action on the toast which re-arms both fields.
           setActivatingUserId(null);
         }}
         onError={(message, details) => {
