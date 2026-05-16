@@ -444,7 +444,7 @@ export function ComprehensiveCashMovement() {
   // Per-bucket totals follow the current `granularity` so the callout stays in sync
   // with the time-series matrix shown in the table below.
   const capitalInflow = useMemo(() => {
-    const perCat = new Map<string, { total: number; count: number; buckets: Record<string, number> }>();
+    const perCat = new Map<string, { total: number; count: number; buckets: Record<string, number>; groupIds: Set<string>; walletIn: number; walletOut: number; walletCount: number }>();
     const bucketSet = new Set<string>();
     for (const r of rows) {
       if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
@@ -453,26 +453,73 @@ export function ComprehensiveCashMovement() {
       const amt = Number(r.amount) || 0;
       const bk = bucketKey(new Date(r.transaction_date), granularity);
       bucketSet.add(bk);
-      const cur = perCat.get(r.category) || { total: 0, count: 0, buckets: {} };
+      const cur = perCat.get(r.category) || { total: 0, count: 0, buckets: {}, groupIds: new Set<string>(), walletIn: 0, walletOut: 0, walletCount: 0 };
       cur.total += amt;
       cur.count += 1;
       cur.buckets[bk] = (cur.buckets[bk] || 0) + amt;
+      if (r.transaction_group_id) cur.groupIds.add(r.transaction_group_id);
       perCat.set(r.category, cur);
     }
+
+    // Second pass — fold in matching wallet-scope legs when toggle is on.
+    // We pair by transaction_group_id (the canonical balanced-leg link).
+    if (includeWalletLegs && perCat.size > 0) {
+      // Build reverse index: group_id -> array of categories it belongs to
+      const groupToCats = new Map<string, string[]>();
+      for (const [cat, v] of perCat.entries()) {
+        for (const gid of v.groupIds) {
+          const arr = groupToCats.get(gid) || [];
+          arr.push(cat);
+          groupToCats.set(gid, arr);
+        }
+      }
+      for (const r of rows) {
+        if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
+        if (r.ledger_scope !== 'wallet') continue;
+        if (!r.transaction_group_id) continue;
+        const cats = groupToCats.get(r.transaction_group_id);
+        if (!cats) continue;
+        const amt = Number(r.amount) || 0;
+        for (const cat of cats) {
+          const cur = perCat.get(cat)!;
+          if (r.direction === 'cash_in') cur.walletIn += amt;
+          else                            cur.walletOut += amt;
+          cur.walletCount += 1;
+        }
+      }
+    }
+
     const availableCategories = Array.from(perCat.entries())
-      .map(([category, v]) => ({ category, total: v.total, count: v.count, buckets: v.buckets }))
+      .map(([category, v]) => ({
+        category,
+        total: v.total,
+        count: v.count,
+        buckets: v.buckets,
+        walletIn: v.walletIn,
+        walletOut: v.walletOut,
+        walletNet: v.walletIn - v.walletOut,
+        walletCount: v.walletCount,
+      }))
       .sort((a, b) => b.total - a.total);
     const selected = availableCategories.filter(c => capitalCategories.has(c.category));
     const total = selected.reduce((s, c) => s + c.total, 0);
     const entries = selected.reduce((s, c) => s + c.count, 0);
+    const walletInTotal  = selected.reduce((s, c) => s + c.walletIn,  0);
+    const walletOutTotal = selected.reduce((s, c) => s + c.walletOut, 0);
+    const walletEntries  = selected.reduce((s, c) => s + c.walletCount, 0);
     const bucketLabels = Array.from(bucketSet).sort();
     const bucketTotals: Record<string, number> = {};
     for (const b of bucketLabels) {
       bucketTotals[b] = selected.reduce((s, c) => s + (c.buckets[b] || 0), 0);
     }
     const peakBucket = bucketLabels.reduce((max, b) => bucketTotals[b] > (bucketTotals[max] || 0) ? b : max, bucketLabels[0] || '');
-    return { availableCategories, selected, total, entries, bucketLabels, bucketTotals, peakBucket };
-  }, [rows, includeAdjustments, capitalCategories, granularity, capitalFrom, capitalTo]);
+    return {
+      availableCategories, selected, total, entries,
+      bucketLabels, bucketTotals, peakBucket,
+      walletInTotal, walletOutTotal, walletEntries,
+      walletNetTotal: walletInTotal - walletOutTotal,
+    };
+  }, [rows, includeAdjustments, capitalCategories, granularity, capitalFrom, capitalTo, includeWalletLegs]);
 
   const handleExport = () => {
     if (!canViewLedgerDetail) { toast.error('You do not have permission to export ledger data'); return; }
