@@ -192,6 +192,24 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
    */
   const [errorFieldId, setErrorFieldId] = useState<string | null>(null);
   /**
+   * Full diagnostics for the last failed submit attempt. Surfaced as a
+   * persistent in-form panel (not just a toast) so the user can read the
+   * raw edge-function / database response, copy it for support, and see
+   * an HTTP status code when one is available. Cleared on next submit,
+   * on successful submit, or when the user dismisses the panel.
+   */
+  const [submitError, setSubmitError] = useState<{
+    message: string;
+    status?: number | string;
+    code?: string;
+    details?: string;
+    hint?: string;
+    body?: string;
+    raw: string;
+    at: string;
+  } | null>(null);
+  const [showRawError, setShowRawError] = useState(false);
+  /**
    * Controls the "Paste SMS" sheet. When open, the agent pastes the
    * full SMS body into a textarea and we parse it on submit. Far more
    * reliable than `navigator.clipboard.readText()` which Safari, in-app
