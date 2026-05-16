@@ -884,17 +884,32 @@ export function NewPartnersPanel() {
                       <span className="flex items-center gap-0.5"><Clock className="h-2.5 w-2.5" />{formatDistanceToNow(new Date(p.created_at), { addSuffix: true })}</span>
                     </div>
                   </div>
-                  {/* Dedicated Portfolio status column */}
-                  <div className="shrink-0 w-20 border-l border-border/50 pl-2 flex flex-col items-start justify-center">
-                    <span className="text-[9px] uppercase tracking-wide text-muted-foreground">Portfolio</span>
-                    {p.portfolio_count > 0 ? (
-                      <span className="text-[10px] font-semibold text-emerald-600">
-                        Active <span className="text-muted-foreground font-normal">· {p.portfolio_count}</span>
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-semibold text-amber-600">None yet</span>
-                    )}
-                  </div>
+                   {/* Dedicated Portfolio status column — clickable, opens this partner's portfolio details */}
+                   <button
+                     type="button"
+                     className="shrink-0 w-20 border-l border-border/50 pl-2 flex flex-col items-start justify-center text-left rounded hover:bg-muted/40 focus:outline-none focus:ring-1 focus:ring-primary/40 transition-colors"
+                     title={p.portfolio_count > 0
+                       ? `Open ${p.full_name}'s portfolio details (${p.portfolio_count})`
+                       : `Open ${p.full_name}'s portfolio details`}
+                     aria-label={`Open ${p.full_name}'s portfolio details`}
+                     onClick={() => {
+                       handleSelect({ id: p.user_id, full_name: p.full_name, phone: p.phone });
+                       setTimeout(() => {
+                         document
+                           .getElementById('partner-portfolio-details')
+                           ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                       }, 50);
+                     }}
+                   >
+                     <span className="text-[9px] uppercase tracking-wide text-muted-foreground">Portfolio</span>
+                     {p.portfolio_count > 0 ? (
+                       <span className="text-[10px] font-semibold text-emerald-600 underline-offset-2 hover:underline">
+                         Active <span className="text-muted-foreground font-normal">· {p.portfolio_count}</span>
+                       </span>
+                     ) : (
+                       <span className="text-[10px] font-semibold text-amber-600 underline-offset-2 hover:underline">None yet</span>
+                     )}
+                   </button>
                   {canWhatsAppPartners && (
                   <Button
                     size="icon"
@@ -987,7 +1002,7 @@ export function NewPartnersPanel() {
             />
 
             {selected && (
-              <div className="rounded-xl border border-border/60 bg-card p-3 space-y-3">
+              <div id="partner-portfolio-details" className="rounded-xl border border-border/60 bg-card p-3 space-y-3 scroll-mt-4">
                 <div className="flex items-center gap-2 text-xs">
                   {selectedIsPartner === null ? (
                     <span className="text-muted-foreground flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Checking…</span>
