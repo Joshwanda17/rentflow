@@ -14,10 +14,11 @@ import { cn } from '@/lib/utils';
 import {
   Loader2, Landmark, Search, CalendarIcon, ArrowRight, Banknote, HandCoins,
   Building2, Phone, Hash, Copy, CheckCircle2, X, Clock, Bookmark, Save, Trash2, ChevronsUpDown,
-  AlertCircle, ChevronRight, MapPin, Wallet, FileText
+  AlertCircle, ChevronRight, MapPin, Wallet, FileText, Download
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { exportToCSV } from '@/lib/exportUtils';
 
 const fmt = (n: number) =>
   new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', maximumFractionDigits: 0 }).format(n || 0);
