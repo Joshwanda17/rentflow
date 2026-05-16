@@ -2263,6 +2263,65 @@ function WalletMovementSummary({
         );
       })()}
 
+      {/* Top drivers — top 3 inflow and outflow categories powering the net result */}
+      {(summary.inRows.length > 0 || summary.outRows.length > 0) && (
+        <div className="rounded-lg border border-border bg-muted/30 p-3">
+          <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-2">
+            Top drivers · {periodLabel}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <div className="text-[10px] font-semibold text-success mb-1 flex items-center gap-1">
+                <ArrowDownLeft className="h-3 w-3" /> Top inflows
+              </div>
+              {summary.inRows.length === 0 ? (
+                <div className="text-[11px] text-muted-foreground italic">No inflows.</div>
+              ) : (
+                <ol className="space-y-1">
+                  {summary.inRows.slice(0, 3).map(([cat, amt], i) => {
+                    const share = summary.totalIn > 0 ? (amt / summary.totalIn) * 100 : 0;
+                    return (
+                      <li key={`in-${cat}`} className="flex items-center justify-between gap-2 text-[11px]">
+                        <span className="flex items-center gap-1.5 min-w-0">
+                          <span className="text-[10px] text-muted-foreground/70 w-3 shrink-0">{i + 1}.</span>
+                          <span className="truncate text-foreground/90">{friendlyWalletLabel(cat, 'cash_in')}</span>
+                          <span className="text-[10px] text-muted-foreground/70 shrink-0">· {share.toFixed(0)}%</span>
+                        </span>
+                        <span className="font-mono text-success shrink-0">{formatUGX(amt)}</span>
+                      </li>
+                    );
+                  })}
+                </ol>
+              )}
+            </div>
+            <div>
+              <div className="text-[10px] font-semibold text-destructive mb-1 flex items-center gap-1">
+                <ArrowUpRight className="h-3 w-3" /> Top outflows
+              </div>
+              {summary.outRows.length === 0 ? (
+                <div className="text-[11px] text-muted-foreground italic">No outflows.</div>
+              ) : (
+                <ol className="space-y-1">
+                  {summary.outRows.slice(0, 3).map(([cat, amt], i) => {
+                    const share = summary.totalOut > 0 ? (amt / summary.totalOut) * 100 : 0;
+                    return (
+                      <li key={`out-${cat}`} className="flex items-center justify-between gap-2 text-[11px]">
+                        <span className="flex items-center gap-1.5 min-w-0">
+                          <span className="text-[10px] text-muted-foreground/70 w-3 shrink-0">{i + 1}.</span>
+                          <span className="truncate text-foreground/90">{friendlyWalletLabel(cat, 'cash_out')}</span>
+                          <span className="text-[10px] text-muted-foreground/70 shrink-0">· {share.toFixed(0)}%</span>
+                        </span>
+                        <span className="font-mono text-destructive shrink-0">{formatUGX(amt)}</span>
+                      </li>
+                    );
+                  })}
+                </ol>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {/* Into wallets */}
         <div className="rounded-lg border border-border bg-background p-3 space-y-2">
