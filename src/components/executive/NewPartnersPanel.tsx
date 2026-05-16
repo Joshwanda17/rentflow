@@ -794,8 +794,36 @@ export function NewPartnersPanel() {
 
           {/* Newly joined list */}
           {isLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-16 w-full rounded-xl" />)}
+            <div className="space-y-2">
+              {/* Badge-strip skeleton — mirrors the real strip's pill count and
+                  spacing so the layout doesn't jump once data arrives. */}
+              <div className="flex flex-wrap items-center gap-1" aria-hidden="true">
+                {(canWhatsAppPartners
+                  ? [56, 60, 68, 56, 72, 80]
+                  : [56, 60, 68]
+                ).map((w, i) => (
+                  <Skeleton key={i} className="h-5 rounded-full" style={{ width: w }} />
+                ))}
+              </div>
+              {/* Showing N of M placeholder line */}
+              <Skeleton className="h-3 w-40 rounded" />
+              {/* Grid skeleton — same 2-column layout as the real grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {[1, 2, 3, 4, 5, 6].map(i => (
+                  <div
+                    key={i}
+                    className="rounded-xl border border-border/60 bg-card p-2.5 flex items-center gap-2.5"
+                  >
+                    <Skeleton className="h-9 w-9 rounded-full shrink-0" />
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <Skeleton className="h-3 w-32 rounded" />
+                      <Skeleton className="h-2.5 w-44 rounded" />
+                    </div>
+                    <Skeleton className="h-8 w-16 rounded shrink-0" />
+                    <Skeleton className="h-7 w-14 rounded shrink-0" />
+                  </div>
+                ))}
+              </div>
             </div>
           ) : !joined || joined.length === 0 ? (
             <p className="text-xs text-muted-foreground italic">No partners yet.</p>
