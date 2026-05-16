@@ -116,6 +116,11 @@ export function LedgerDrillDownDialog({ open, onOpenChange, title, spec, startDa
     [rows, selectedCategories]
   );
 
+  useEffect(() => {
+    if (uniqueCategories.length === 0) return;
+    localStorage.setItem(storageKey, JSON.stringify(Array.from(selectedCategories)));
+  }, [selectedCategories, storageKey, uniqueCategories.length]);
+
   const total = visibleRows.reduce((s, r) => s + Number(r.amount || 0), 0);
 
   // Debit/Credit breakdown (accounting convention):
