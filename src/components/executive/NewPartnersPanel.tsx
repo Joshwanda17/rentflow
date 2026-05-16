@@ -159,6 +159,8 @@ export function NewPartnersPanel() {
   const [activatingUserId, setActivatingUserId] = useState<string | null>(null);
   const [revokeOpen, setRevokeOpen] = useState(false);
   const [revokeBusy, setRevokeBusy] = useState(false);
+  // Typed confirmation phrase the operator must enter before Revoke unlocks.
+  const [revokeConfirmText, setRevokeConfirmText] = useState('');
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyRows, setHistoryRows] = useState<any[]>([]);
@@ -722,7 +724,13 @@ export function NewPartnersPanel() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={revokeOpen} onOpenChange={setRevokeOpen}>
+      <AlertDialog
+        open={revokeOpen}
+        onOpenChange={(open) => {
+          setRevokeOpen(open);
+          if (!open) setRevokeConfirmText('');
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Revoke Partner role?</AlertDialogTitle>
@@ -731,11 +739,25 @@ export function NewPartnersPanel() {
               <span className="font-semibold">{selected?.full_name}</span>. Their portfolios remain intact, but they will lose Partner access. This action is logged in the audit trail.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="space-y-2 py-2">
+            <label htmlFor="revoke-confirm-input" className="text-sm font-medium">
+              Type <span className="font-mono font-semibold">REVOKE</span> to confirm
+            </label>
+            <Input
+              id="revoke-confirm-input"
+              autoComplete="off"
+              autoCapitalize="characters"
+              value={revokeConfirmText}
+              onChange={(e) => setRevokeConfirmText(e.target.value)}
+              placeholder="REVOKE"
+              disabled={revokeBusy}
+            />
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={revokeBusy}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => { e.preventDefault(); revokePartner(); }}
-              disabled={revokeBusy}
+              disabled={revokeBusy || revokeConfirmText.trim().toUpperCase() !== 'REVOKE'}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {revokeBusy ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <ShieldOff className="h-3 w-3 mr-1" />}
