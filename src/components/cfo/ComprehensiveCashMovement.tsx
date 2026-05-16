@@ -1082,7 +1082,8 @@ export function ComprehensiveCashMovement() {
           </div>
         </div>
 
-        {/* Quick filter chips */}
+        {/* Quick filter chips — power-user shortcuts, hidden in Simple view. */}
+        {!simpleMode && (
         <div className="space-y-1.5">
           <div className="text-[11px] text-muted-foreground flex items-center gap-1">
             <Filter className="h-3.5 w-3.5" /> Quick find
@@ -1148,6 +1149,7 @@ export function ComprehensiveCashMovement() {
             </div>
           )}
         </div>
+        )}
 
         {/* Capital Inflows callout — new money into the company */}
         <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-2.5 sm:p-3 space-y-2">
