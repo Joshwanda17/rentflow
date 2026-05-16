@@ -461,6 +461,44 @@ export function NewPartnersPanel() {
   const gridScrollRef = useRef<HTMLDivElement | null>(null);
   const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
 
+  // ── First-page client cache ──
+  // Persists the first cursor page in localStorage so a returning operator
+  // sees results instantly (zero network round-trips on mount). The cache
+  // is keyed by page size + a 5-minute TTL; a background refetch still runs
+  // to reconcile any newly-joined supporters.
+  const PARTNERS_CACHE_KEY = `welile.partnerOps.firstPage.v1.${PARTNERS_PAGE_SIZE}`;
+  const PARTNERS_CACHE_TTL_MS = 5 * 60_000;
+  type FirstPageCache = {
+    rows: JoinedPartner[];
+    total: number | null;
+    nextCursor: { created_at: string; user_id: string } | null;
+    cachedAt: number;
+  };
+  const readFirstPageCache = (): FirstPageCache | null => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem(PARTNERS_CACHE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as FirstPageCache;
+      if (!parsed || !Array.isArray(parsed.rows)) return null;
+      if (Date.now() - (parsed.cachedAt ?? 0) > PARTNERS_CACHE_TTL_MS) return null;
+      return parsed;
+    } catch {
+      return null;
+    }
+  };
+  const writeFirstPageCache = (page: Omit<FirstPageCache, 'cachedAt'>) => {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(
+        PARTNERS_CACHE_KEY,
+        JSON.stringify({ ...page, cachedAt: Date.now() }),
+      );
+    } catch {
+      /* quota / private mode — ignore */
+    }
+  };
+
   // ── All partners (infinite scroll) ──
   // Each scroll-triggered page fetches one slice of `user_roles`
   // (role=supporter) ordered by newest first, plus the exact total count.
@@ -504,16 +542,33 @@ export function NewPartnersPanel() {
         phone: r.phone || '—',
         portfolio_count: r.portfolio_count ?? 0,
       }));
-      return {
+      const result = {
         rows: built,
         total: payload.total ?? null,
         nextCursor: payload.next_cursor ?? null,
       };
+      // Persist only the first page (cursor === null) — that's the page
+      // every returning visitor sees first and the one worth instant-paint.
+      if (cursor === null) {
+        writeFirstPageCache(result);
+      }
+      return result;
     },
     // Only fetch the next page when the sentinel requests it — react-query
     // returns `undefined` here to mark the list as fully loaded.
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     staleTime: 60_000,
+    // Hydrate from localStorage so the grid paints instantly on repeat
+    // visits while a background refetch reconciles new supporters.
+    initialData: () => {
+      const cached = readFirstPageCache();
+      if (!cached) return undefined;
+      return {
+        pages: [{ rows: cached.rows, total: cached.total, nextCursor: cached.nextCursor }],
+        pageParams: [null as null | { created_at: string; user_id: string }],
+      };
+    },
+    initialDataUpdatedAt: () => readFirstPageCache()?.cachedAt,
     // Don't hit the database while the panel is collapsed — this is the
     // primary perf win on the partners page for users who rarely open it.
     enabled: panelOpen,
