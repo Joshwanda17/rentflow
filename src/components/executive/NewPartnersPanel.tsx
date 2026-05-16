@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Sparkles, UserPlus, Pencil, Loader2, Phone, Clock, ShieldCheck, PlusCircle, Save, X, ChevronDown, ShieldOff, History, Zap } from 'lucide-react';
+import { Sparkles, UserPlus, Pencil, Loader2, Phone, Clock, ShieldCheck, PlusCircle, Save, X, ChevronDown, ShieldOff, History, Zap, MessageCircle, Search, Filter } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { UGANDA_BANKS } from '@/lib/ugandaBanks';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
@@ -276,19 +276,21 @@ export function NewPartnersPanel() {
     setExpandedId(nextId);
   }
 
-  // ── Just-joined partners (last 14 days) ──
+  // Filters for the all-partners list
+  const [partnerSearch, setPartnerSearch] = useState('');
+  const [partnerFilter, setPartnerFilter] = useState<'all' | 'with' | 'without' | 'recent'>('all');
+
+  // ── All partners (Partner Ops can browse, filter, and contact every joined partner) ──
   const { data: joined, isLoading } = useQuery({
     queryKey: ['new-partners-panel'],
     queryFn: async () => {
-      const since = new Date(Date.now() - 14 * 86400000).toISOString();
       const { data: roles } = await supabase
         .from('user_roles')
         .select('user_id, created_at')
         .eq('role', 'supporter')
         .eq('enabled', true)
-        .gte('created_at', since)
         .order('created_at', { ascending: false })
-        .limit(12);
+        .limit(500);
       const rows = roles || [];
       if (rows.length === 0) return [] as JoinedPartner[];
 
@@ -468,12 +470,37 @@ export function NewPartnersPanel() {
               <Sparkles className="h-4 w-4 text-primary" />
             </div>
             <div className="flex-1">
-              <h3 className="text-sm font-bold">Just Joined Partners</h3>
-              <p className="text-[10px] text-muted-foreground">Welcome, activate & set up their first portfolio</p>
+              <h3 className="text-sm font-bold">Joined Partners</h3>
+              <p className="text-[10px] text-muted-foreground">Browse all partners, filter, activate portfolios & WhatsApp</p>
             </div>
             {joined && joined.length > 0 && (
               <Badge className="bg-primary/15 text-primary border-0 text-xs font-bold">{joined.length}</Badge>
             )}
+          </div>
+
+          {/* Filters */}
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+              <Input
+                value={partnerSearch}
+                onChange={(e) => setPartnerSearch(e.target.value)}
+                placeholder="Search by name or phone…"
+                className="h-8 pl-7 text-xs"
+              />
+            </div>
+            <Select value={partnerFilter} onValueChange={(v) => setPartnerFilter(v as typeof partnerFilter)}>
+              <SelectTrigger className="h-8 text-xs w-full sm:w-[200px]">
+                <Filter className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All partners</SelectItem>
+                <SelectItem value="recent">Joined in last 14 days</SelectItem>
+                <SelectItem value="with">With portfolios</SelectItem>
+                <SelectItem value="without">No portfolios yet</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Newly joined list */}
@@ -482,10 +509,30 @@ export function NewPartnersPanel() {
               {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-16 w-full rounded-xl" />)}
             </div>
           ) : !joined || joined.length === 0 ? (
-            <p className="text-xs text-muted-foreground italic">No new partners joined in the last 14 days.</p>
+            <p className="text-xs text-muted-foreground italic">No partners yet.</p>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {joined.map(p => (
+            (() => {
+              const q = partnerSearch.trim().toLowerCase();
+              const cutoff = Date.now() - 14 * 86400000;
+              const filtered = joined.filter(p => {
+                if (partnerFilter === 'with' && p.portfolio_count === 0) return false;
+                if (partnerFilter === 'without' && p.portfolio_count > 0) return false;
+                if (partnerFilter === 'recent' && new Date(p.created_at).getTime() < cutoff) return false;
+                if (q) {
+                  const hay = `${p.full_name} ${p.phone}`.toLowerCase();
+                  if (!hay.includes(q)) return false;
+                }
+                return true;
+              });
+              if (filtered.length === 0) {
+                return <p className="text-xs text-muted-foreground italic">No partners match these filters.</p>;
+              }
+              return (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[520px] overflow-y-auto pr-1">
+              <div className="col-span-full text-[10px] text-muted-foreground">
+                Showing {filtered.length} of {joined.length} partners
+              </div>
+              {filtered.map(p => (
                 <div key={p.user_id} className="rounded-xl border border-border/60 bg-card p-2.5 flex items-center gap-2.5">
                   <div className="h-9 w-9 rounded-full bg-primary/15 text-primary flex items-center justify-center text-xs font-bold shrink-0">
                     {(p.full_name || '?').slice(0, 1).toUpperCase()}
@@ -500,6 +547,25 @@ export function NewPartnersPanel() {
                       <Badge variant="outline" className="mt-1 text-[9px] py-0 px-1.5">{p.portfolio_count} portfolio{p.portfolio_count > 1 ? 's' : ''}</Badge>
                     )}
                   </div>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className="h-7 w-7 shrink-0 border-success/40 text-success hover:bg-success/10 hover:text-success"
+                    title={`WhatsApp ${p.full_name}`}
+                    disabled={!p.phone || p.phone === '—'}
+                    onClick={() => {
+                      const digits = (p.phone || '').replace(/\D/g, '');
+                      if (!digits) return;
+                      const intl = digits.startsWith('0') ? '256' + digits.slice(1) : digits;
+                      const msg = encodeURIComponent(
+                        `Hello ${p.full_name?.split(' ')[0] || ''}, this is Welile Partner Operations. `
+                        + `Thank you for joining as a Partner. How can we help you today?`
+                      );
+                      window.open(`https://wa.me/${intl}?text=${msg}`, '_blank', 'noopener,noreferrer');
+                    }}
+                  >
+                    <MessageCircle className="h-3.5 w-3.5" />
+                  </Button>
                   <Button
                     size="sm"
                     variant="outline"
@@ -533,6 +599,8 @@ export function NewPartnersPanel() {
                 </div>
               ))}
             </div>
+              );
+            })()
           )}
 
           {/* Divider */}
