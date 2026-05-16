@@ -963,6 +963,12 @@ export function ComprehensiveCashMovement() {
           </div>
         </div>
 
+        {/* ─── Wallet Money Movement (minimalist) ───
+            Read-only summary of money flowing INTO and OUT OF user/operational
+            wallets in the selected period. Reuses already-loaded ledger rows
+            (no balance changes anywhere). */}
+        <WalletMovementSummary rows={rows} includeAdjustments={includeAdjustments} />
+
         {/* Quick filter chips */}
         <div className="space-y-1.5">
           <div className="text-[11px] text-muted-foreground flex items-center gap-1">
