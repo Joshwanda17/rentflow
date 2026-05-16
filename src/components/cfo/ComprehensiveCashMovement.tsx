@@ -261,6 +261,8 @@ export function ComprehensiveCashMovement() {
   const [granularity, setGranularity] = useState<Granularity>('daily');
   const [includeAdjustments, setIncludeAdjustments] = useState(false);
   const [scopeFilter, setScopeFilter] = useState<'all' | 'platform' | 'wallet' | 'bridge'>('all');
+  const [directionQuickFilter, setDirectionQuickFilter] = useState<'all' | 'cash_in' | 'cash_out' | 'net_positive' | 'net_negative'>('all');
+  const [categoryQuickFilter, setCategoryQuickFilter] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<LedgerRow[]>([]);
   const [generatedAt, setGeneratedAt] = useState<Date | null>(null);
