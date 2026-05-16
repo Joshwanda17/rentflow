@@ -598,14 +598,24 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, actingU
   const set = (k: string, v: string) => setForm(prev => ({ ...prev, [k]: v }));
 
   async function handleSave() {
-    // Light client-side validation
-    const payoutDayNum = form.payout_day ? parseInt(form.payout_day) : null;
-    if (payoutDayNum !== null && (Number.isNaN(payoutDayNum) || payoutDayNum < 1 || payoutDayNum > 28)) {
-      toast({ title: 'Payout day must be 1–28', variant: 'destructive' });
-      return;
-    }
     if (form.account_name.length > 100) {
       toast({ title: 'Portfolio name too long', variant: 'destructive' });
+      return;
+    }
+
+    let validated;
+    try {
+      validated = validatePortfolioPayoutFields({
+        payment_method: form.payment_method,
+        payout_day: form.payout_day,
+        mobile_money_number: form.mobile_money_number,
+        mobile_network: form.mobile_network,
+        bank_name: form.bank_name,
+        bank_account_name: form.bank_account_name,
+        account_number: form.account_number,
+      });
+    } catch (e: any) {
+      toast({ title: 'Check the form', description: e?.message || 'Invalid value', variant: 'destructive' });
       return;
     }
 
@@ -613,13 +623,13 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, actingU
     try {
       const patch: Record<string, any> = {
         account_name: form.account_name.trim() || null,
-        payout_day: payoutDayNum,
+        payout_day: validated.payout_day,
         payment_method: form.payment_method,
-        mobile_money_number: form.payment_method === 'mobile_money' ? (form.mobile_money_number.trim() || null) : null,
-        mobile_network: form.payment_method === 'mobile_money' ? (form.mobile_network.trim() || null) : null,
-        bank_name: form.payment_method === 'bank' ? (form.bank_name.trim() || null) : null,
-        bank_account_name: form.payment_method === 'bank' ? (form.bank_account_name.trim() || null) : null,
-        account_number: form.payment_method === 'bank' ? (form.account_number.trim() || null) : null,
+        mobile_money_number: validated.mobile_money_number,
+        mobile_network: validated.mobile_network,
+        bank_name: validated.bank_name,
+        bank_account_name: validated.bank_account_name,
+        account_number: validated.account_number,
       };
       const { error } = await supabase.from('investor_portfolios').update(patch).eq('id', p.id);
       if (error) throw error;
