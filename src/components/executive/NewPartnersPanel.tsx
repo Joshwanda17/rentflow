@@ -844,6 +844,9 @@ export function NewPartnersPanel() {
               <SelectContent>
                 <SelectItem value="all">All partners</SelectItem>
                 <SelectItem value="just_joined">Just joined · no portfolio (last {JUST_JOINED_DAYS}d)</SelectItem>
+                <SelectItem value="recent_today">Recent joins · no portfolio · today</SelectItem>
+                <SelectItem value="recent_week">Recent joins · no portfolio · this week</SelectItem>
+                <SelectItem value="recent_month">Recent joins · no portfolio · this month</SelectItem>
                 {canWhatsAppPartners && (
                   <>
                     <SelectItem value="today">Joined today</SelectItem>
