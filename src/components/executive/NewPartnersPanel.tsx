@@ -2017,11 +2017,14 @@ export function NewPartnersPanel() {
         // spinner on Activate so the operator can't change the candidate
         // mid-flow or double-tap.
         const activating = createOpen || pendingAutoAdvance;
+        const candidateFirstName = nextCandidate?.full_name?.trim().split(/\s+/)[0] ?? '';
         const activateLabel = pendingAutoAdvance
           ? 'Next…'
           : createOpen
             ? 'Activating…'
-            : 'Activate';
+            : nextCandidate
+              ? `Activate ${candidateFirstName}`
+              : 'No candidate';
         return (
           <div
             className="sm:hidden fixed inset-x-0 bottom-0 z-40 border-t border-primary/30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-4px_12px_-4px_rgba(0,0,0,0.15)]"
@@ -2074,7 +2077,7 @@ export function NewPartnersPanel() {
               </Select>
               <Button
                 size="sm"
-                className="h-11 text-xs gap-1 shrink-0 px-3 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                className="h-11 text-xs gap-1 shrink-0 px-3 max-w-[55%] bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={!nextCandidate || activating}
                 aria-busy={activating}
                 title={
@@ -2098,7 +2101,7 @@ export function NewPartnersPanel() {
                 {activating
                   ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   : <Zap className="h-3.5 w-3.5" />}
-                {activateLabel}
+                <span className="truncate">{activateLabel}</span>
               </Button>
             </div>
           </div>
