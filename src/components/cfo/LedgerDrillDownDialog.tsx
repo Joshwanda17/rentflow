@@ -82,7 +82,21 @@ export function LedgerDrillDownDialog({ open, onOpenChange, title, spec, startDa
     return () => { cancelled = true; };
   }, [open, spec, startDate, endDate]);
 
-  const total = rows.reduce((s, r) => s + Number(r.amount || 0), 0);
+  const uniqueCategories = useMemo(() =>
+    Array.from(new Set(rows.map(r => r.category))).sort(),
+    [rows]
+  );
+
+  useEffect(() => {
+    setSelectedCategories(new Set(uniqueCategories));
+  }, [uniqueCategories.join(',')]);
+
+  const visibleRows = useMemo(() =>
+    rows.filter(r => selectedCategories.has(r.category)),
+    [rows, selectedCategories]
+  );
+
+  const total = visibleRows.reduce((s, r) => s + Number(r.amount || 0), 0);
 
   // Debit/Credit breakdown (accounting convention):
   //  - cash_in  → Debit  (asset/expense increase, or contra-revenue)
