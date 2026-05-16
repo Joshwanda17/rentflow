@@ -595,6 +595,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                       required
                     />
                   )}
+                  <div role="status" aria-live="polite" aria-atomic="true">
                   <AnimatePresence mode="wait">
                     {recipient.status === 'searching' && (
                       <motion.p
@@ -731,6 +732,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                       </motion.p>
                     )}
                   </AnimatePresence>
+                  </div>
                 </motion.div>
 
                 <motion.div variants={itemVariants} className="space-y-2">
@@ -822,8 +824,9 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                         initial={{ opacity: 0, y: -2 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0 }}
-                        role="status"
-                        aria-live="polite"
+                        role="alert"
+                        aria-live="assertive"
+                        aria-atomic="true"
                         className="mt-2 text-xs text-muted-foreground text-right"
                       >
                         {disabledReason}
