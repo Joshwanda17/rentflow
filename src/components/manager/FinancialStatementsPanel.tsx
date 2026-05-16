@@ -539,6 +539,13 @@ export function FinancialStatementsPanel() {
   const [sharing, setSharing] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
+  const [drillLabel, setDrillLabel] = useState<string | null>(null);
+  const drillDates = useMemo(
+    () => getEffectiveDates(filters.period, filters.startDate, filters.endDate),
+    [filters.period, filters.startDate, filters.endDate],
+  );
+  const drillCtx = useMemo<DrillContextValue>(() => ({ open: setDrillLabel }), []);
+
   useEffect(() => {
     generate();
   }, []);
@@ -943,6 +950,7 @@ export function FinancialStatementsPanel() {
   };
 
   return (
+    <DrillContext.Provider value={drillCtx}>
     <div className="space-y-4">
       {/* Period Selector */}
       <div className="flex flex-wrap gap-2 items-center">
@@ -1061,6 +1069,17 @@ export function FinancialStatementsPanel() {
           <p className="text-xs mt-1">Data is pulled live from the financial ledger</p>
         </div>
       )}
+
+      <LedgerDrillDownDialog
+        open={!!drillLabel}
+        onOpenChange={(o) => { if (!o) setDrillLabel(null); }}
+        title={drillLabel ?? ''}
+        spec={drillLabel ? FS_DRILL_MAP[drillLabel] ?? null : null}
+        startDate={drillDates.start}
+        endDate={drillDates.end}
+        periodLabel={data?.incomeStatement.period}
+      />
     </div>
+    </DrillContext.Provider>
   );
 }
