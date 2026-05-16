@@ -968,7 +968,7 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
           )}
 
           <div className="flex items-center gap-2 pt-1">
-            <Button size="sm" className="h-8 text-xs gap-1.5 flex-1" onClick={handleSave} disabled={saving}>
+            <Button size="sm" className="h-8 text-xs gap-1.5 flex-1" onClick={() => handleSave()} disabled={saving}>
               {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
               Save changes
             </Button>
