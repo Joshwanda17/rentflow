@@ -575,6 +575,26 @@ export function ComprehensiveCashMovement() {
       .map(a => a.category);
   }, [aggregates]);
 
+  // Top Categories summary: merges per-category aggregates across ledger scopes
+  // for the current filters and surfaces the biggest movers so users can tap
+  // a chip to filter the Categories table without scrolling. Pure derivation.
+  const topCategoriesSummary = useMemo(() => {
+    const map = new Map<string, { category: string; cashIn: number; cashOut: number; count: number }>();
+    for (const a of aggregates) {
+      const cur = map.get(a.category) || { category: a.category, cashIn: 0, cashOut: 0, count: 0 };
+      cur.cashIn += a.cashIn;
+      cur.cashOut += a.cashOut;
+      cur.count += a.count;
+      map.set(a.category, cur);
+    }
+    const all = Array.from(map.values()).map(c => ({ ...c, total: c.cashIn + c.cashOut, net: c.cashIn - c.cashOut }));
+    const grandTotal = all.reduce((s, c) => s + c.total, 0) || 1;
+    return {
+      top: all.sort((a, b) => b.total - a.total).slice(0, 5).map(c => ({ ...c, share: c.total / grandTotal })),
+      categoryCount: all.length,
+    };
+  }, [aggregates]);
+
   // Top parties for the thumb-friendly Party picker. Aggregates the loaded
   // ledger rows by `user_id` (ignoring rows without one), totalling cash flow
   // so the most-active counterparties surface first. Pure UI/derivation —
@@ -1827,6 +1847,73 @@ export function ComprehensiveCashMovement() {
             </button>
           </div>
         </div>
+
+        {/* ─── Top Categories summary ───────────────────────────
+            Shows the biggest categories for the current filters.
+            Tapping a chip toggles `categoryQuickFilter`, filtering
+            the Categories table below, and smooth-scrolls to it.
+            Pure presentation — no ledger writes. */}
+        {topCategoriesSummary.top.length > 0 && (
+          <div className="rounded-xl border border-border bg-card p-3 sm:p-4 space-y-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-xs sm:text-sm font-semibold text-foreground inline-flex items-center gap-1.5">
+                <span aria-hidden>🏷️</span> Top categories
+                <span className="text-[10px] font-normal text-muted-foreground">
+                  · {topCategoriesSummary.categoryCount} total
+                </span>
+              </div>
+              {categoryQuickFilter && (
+                <button
+                  type="button"
+                  onClick={() => setCategoryQuickFilter(null)}
+                  className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline inline-flex items-center gap-1"
+                  aria-label="Clear category filter"
+                >
+                  <X className="h-3 w-3" /> Clear
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {topCategoriesSummary.top.map(c => {
+                const active = categoryQuickFilter === c.category;
+                return (
+                  <button
+                    key={c.category}
+                    type="button"
+                    onClick={() => {
+                      setCategoryQuickFilter(f => f === c.category ? null : c.category);
+                      requestAnimationFrame(() => {
+                        document.getElementById('cm-categories')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      });
+                    }}
+                    aria-pressed={active}
+                    title={`${prettifyCategory(c.category)} · ${c.count} entr${c.count === 1 ? 'y' : 'ies'} · tap to filter the table`}
+                    className={cn(
+                      'group flex flex-col items-start gap-0.5 rounded-lg border px-2.5 py-1.5 text-left transition-all active:scale-[0.98]',
+                      'min-w-[120px] max-w-full',
+                      active
+                        ? 'border-primary bg-primary/10 ring-1 ring-primary'
+                        : 'border-border bg-muted/30 hover:bg-muted/60 hover:border-primary/40',
+                    )}
+                  >
+                    <span className="text-[11px] font-medium truncate max-w-full">
+                      {prettifyCategory(c.category)}
+                    </span>
+                    <span className="font-mono text-[11px] font-semibold text-foreground">
+                      {formatUGX(c.total)}
+                    </span>
+                    <span className="text-[9px] uppercase tracking-wide text-muted-foreground">
+                      {(c.share * 100).toFixed(0)}% · {c.count} entr{c.count === 1 ? 'y' : 'ies'}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="text-[10px] text-muted-foreground">
+              Tap a category to filter the table below.
+            </div>
+          </div>
+        )}
 
         {/* ─── Share / Download summary ───────────────────────────
             Exports the same plain-English summary (period, In, Out,
