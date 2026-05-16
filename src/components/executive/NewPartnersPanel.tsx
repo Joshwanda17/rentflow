@@ -607,6 +607,21 @@ export function NewPartnersPanel() {
               </button>
             ))}
           </div>
+          {(partnerFilter !== 'all' || partnerSearch.trim() !== '' || customRange?.from || customRange?.to) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setPartnerFilter('all');
+                setPartnerSearch('');
+                setCustomRange(undefined);
+              }}
+              className="self-start h-8 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-3.5 w-3.5 mr-1" />
+              Reset filters
+            </Button>
+          )}
           {canWhatsAppPartners && partnerFilter === 'custom' && (
             <div className="self-start">
               <Popover>
