@@ -312,6 +312,15 @@ export function NewPartnersPanel() {
     const to = parseDateParam(searchParams.get('jp_to'));
     return from || to ? { from, to } : undefined;
   });
+  // Sort order for the partners grid.
+  const ALLOWED_SORTS = ['recent', 'portfolio_desc', 'portfolio_asc', 'name'] as const;
+  type PartnerSort = typeof ALLOWED_SORTS[number];
+  const [partnerSort, setPartnerSort] = useState<PartnerSort>(() => {
+    const raw = searchParams.get('jp_s');
+    return (ALLOWED_SORTS as readonly string[]).includes(raw ?? '')
+      ? (raw as PartnerSort)
+      : 'recent';
+  });
   // Push state back into the URL whenever the user changes a filter.
   // `replace: true` avoids polluting the browser back-stack.
   useEffect(() => {
