@@ -1481,6 +1481,14 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                 <div className="flex flex-wrap items-center gap-2 pt-1">
                   <button
                     type="button"
+                    disabled={isSubmitting}
+                    onClick={() => { if (!isSubmitting) handleSubmit(); }}
+                    className="text-[11px] font-semibold px-3 py-1.5 rounded-md bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {isSubmitting ? 'Retrying…' : 'Retry now'}
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setShowRawError(v => !v)}
                     className="text-[11px] underline text-muted-foreground hover:text-foreground"
                   >
