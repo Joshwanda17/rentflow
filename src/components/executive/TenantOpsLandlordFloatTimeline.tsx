@@ -684,6 +684,63 @@ export function TenantOpsLandlordFloatTimeline() {
           )}
         </div>
 
+        {/* Selected-party chips (removable) */}
+        {(agentFilter.length + tenantFilter.length + landlordFilter.length) > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 mb-3">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mr-1">
+              Active:
+            </span>
+            {agentFilter.map((id) => {
+              const label = agentOptions.find(([k]) => k === id)?.[1] || id;
+              return (
+                <button
+                  key={`agent-${id}`}
+                  type="button"
+                  onClick={() => setAgentFilter(agentFilter.filter((x) => x !== id))}
+                  className="group inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 text-blue-700 text-[11px] pl-2 pr-1 py-0.5 hover:bg-blue-100"
+                  title="Remove agent filter"
+                >
+                  <span className="text-[9px] uppercase tracking-wider opacity-60">Agent</span>
+                  <span className="font-medium truncate max-w-[140px]">{label}</span>
+                  <X className="h-3 w-3 opacity-60 group-hover:opacity-100" />
+                </button>
+              );
+            })}
+            {tenantFilter.map((id) => {
+              const label = tenantOptions.find(([k]) => k === id)?.[1] || id;
+              return (
+                <button
+                  key={`tenant-${id}`}
+                  type="button"
+                  onClick={() => setTenantFilter(tenantFilter.filter((x) => x !== id))}
+                  className="group inline-flex items-center gap-1 rounded-full border border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700 text-[11px] pl-2 pr-1 py-0.5 hover:bg-fuchsia-100"
+                  title="Remove tenant filter"
+                >
+                  <span className="text-[9px] uppercase tracking-wider opacity-60">Tenant</span>
+                  <span className="font-medium truncate max-w-[140px]">{label}</span>
+                  <X className="h-3 w-3 opacity-60 group-hover:opacity-100" />
+                </button>
+              );
+            })}
+            {landlordFilter.map((key) => {
+              const label = landlordOptions.find(([k]) => k === key)?.[1] || key;
+              return (
+                <button
+                  key={`landlord-${key}`}
+                  type="button"
+                  onClick={() => setLandlordFilter(landlordFilter.filter((x) => x !== key))}
+                  className="group inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 text-[11px] pl-2 pr-1 py-0.5 hover:bg-emerald-100"
+                  title="Remove landlord filter"
+                >
+                  <span className="text-[9px] uppercase tracking-wider opacity-60">Landlord</span>
+                  <span className="font-medium truncate max-w-[180px]">{label}</span>
+                  <X className="h-3 w-3 opacity-60 group-hover:opacity-100" />
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* Totals strip */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 rounded-lg border-2 border-[#9234EA]/20 bg-[#9234EA]/5 p-3 text-center mb-3">
           <div>
