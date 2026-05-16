@@ -291,6 +291,10 @@ export function ComprehensiveCashMovement() {
   // "use the full loaded period".
   const [capitalFrom, setCapitalFrom] = useState<string>('');
   const [capitalTo, setCapitalTo] = useState<string>('');
+  // Toggle: also surface the matching wallet-scope legs (cash_in/cash_out on
+  // agent/partner wallets) that share a transaction_group_id with each
+  // selected platform.cash_in entry. Off = pure platform-only inflow view.
+  const [includeWalletLegs, setIncludeWalletLegs] = useState<boolean>(false);
   const capitalRangeActive = !!(capitalFrom || capitalTo);
   const inCapitalRange = (iso: string) => {
     if (!capitalRangeActive) return true;
@@ -440,7 +444,7 @@ export function ComprehensiveCashMovement() {
   // Per-bucket totals follow the current `granularity` so the callout stays in sync
   // with the time-series matrix shown in the table below.
   const capitalInflow = useMemo(() => {
-    const perCat = new Map<string, { total: number; count: number; buckets: Record<string, number> }>();
+    const perCat = new Map<string, { total: number; count: number; buckets: Record<string, number>; groupIds: Set<string>; walletIn: number; walletOut: number; walletCount: number }>();
     const bucketSet = new Set<string>();
     for (const r of rows) {
       if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
@@ -449,26 +453,73 @@ export function ComprehensiveCashMovement() {
       const amt = Number(r.amount) || 0;
       const bk = bucketKey(new Date(r.transaction_date), granularity);
       bucketSet.add(bk);
-      const cur = perCat.get(r.category) || { total: 0, count: 0, buckets: {} };
+      const cur = perCat.get(r.category) || { total: 0, count: 0, buckets: {}, groupIds: new Set<string>(), walletIn: 0, walletOut: 0, walletCount: 0 };
       cur.total += amt;
       cur.count += 1;
       cur.buckets[bk] = (cur.buckets[bk] || 0) + amt;
+      if (r.transaction_group_id) cur.groupIds.add(r.transaction_group_id);
       perCat.set(r.category, cur);
     }
+
+    // Second pass — fold in matching wallet-scope legs when toggle is on.
+    // We pair by transaction_group_id (the canonical balanced-leg link).
+    if (includeWalletLegs && perCat.size > 0) {
+      // Build reverse index: group_id -> array of categories it belongs to
+      const groupToCats = new Map<string, string[]>();
+      for (const [cat, v] of perCat.entries()) {
+        for (const gid of v.groupIds) {
+          const arr = groupToCats.get(gid) || [];
+          arr.push(cat);
+          groupToCats.set(gid, arr);
+        }
+      }
+      for (const r of rows) {
+        if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
+        if (r.ledger_scope !== 'wallet') continue;
+        if (!r.transaction_group_id) continue;
+        const cats = groupToCats.get(r.transaction_group_id);
+        if (!cats) continue;
+        const amt = Number(r.amount) || 0;
+        for (const cat of cats) {
+          const cur = perCat.get(cat)!;
+          if (r.direction === 'cash_in') cur.walletIn += amt;
+          else                            cur.walletOut += amt;
+          cur.walletCount += 1;
+        }
+      }
+    }
+
     const availableCategories = Array.from(perCat.entries())
-      .map(([category, v]) => ({ category, total: v.total, count: v.count, buckets: v.buckets }))
+      .map(([category, v]) => ({
+        category,
+        total: v.total,
+        count: v.count,
+        buckets: v.buckets,
+        walletIn: v.walletIn,
+        walletOut: v.walletOut,
+        walletNet: v.walletIn - v.walletOut,
+        walletCount: v.walletCount,
+      }))
       .sort((a, b) => b.total - a.total);
     const selected = availableCategories.filter(c => capitalCategories.has(c.category));
     const total = selected.reduce((s, c) => s + c.total, 0);
     const entries = selected.reduce((s, c) => s + c.count, 0);
+    const walletInTotal  = selected.reduce((s, c) => s + c.walletIn,  0);
+    const walletOutTotal = selected.reduce((s, c) => s + c.walletOut, 0);
+    const walletEntries  = selected.reduce((s, c) => s + c.walletCount, 0);
     const bucketLabels = Array.from(bucketSet).sort();
     const bucketTotals: Record<string, number> = {};
     for (const b of bucketLabels) {
       bucketTotals[b] = selected.reduce((s, c) => s + (c.buckets[b] || 0), 0);
     }
     const peakBucket = bucketLabels.reduce((max, b) => bucketTotals[b] > (bucketTotals[max] || 0) ? b : max, bucketLabels[0] || '');
-    return { availableCategories, selected, total, entries, bucketLabels, bucketTotals, peakBucket };
-  }, [rows, includeAdjustments, capitalCategories, granularity, capitalFrom, capitalTo]);
+    return {
+      availableCategories, selected, total, entries,
+      bucketLabels, bucketTotals, peakBucket,
+      walletInTotal, walletOutTotal, walletEntries,
+      walletNetTotal: walletInTotal - walletOutTotal,
+    };
+  }, [rows, includeAdjustments, capitalCategories, granularity, capitalFrom, capitalTo, includeWalletLegs]);
 
   const handleExport = () => {
     if (!canViewLedgerDetail) { toast.error('You do not have permission to export ledger data'); return; }
@@ -858,9 +909,32 @@ export function ComprehensiveCashMovement() {
                   {' '}{capitalInflow.entries.toLocaleString()} ledger entries · {rangeLabel} ·
                   {' '}{GRANULARITIES.find(g => g.value === granularity)?.label || granularity} buckets
                 </div>
+                {includeWalletLegs && (
+                  <div className="text-[10px] mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
+                    <span className="text-muted-foreground">Matching wallet legs:</span>
+                    <span><span className="text-muted-foreground">in</span> <span className="font-mono text-emerald-500">+{formatUGX(capitalInflow.walletInTotal)}</span></span>
+                    <span><span className="text-muted-foreground">out</span> <span className="font-mono text-rose-500">−{formatUGX(capitalInflow.walletOutTotal)}</span></span>
+                    <span><span className="text-muted-foreground">net</span> <span className={cn('font-mono', capitalInflow.walletNetTotal >= 0 ? 'text-emerald-500' : 'text-rose-500')}>{capitalInflow.walletNetTotal >= 0 ? '+' : '−'}{formatUGX(Math.abs(capitalInflow.walletNetTotal))}</span></span>
+                    <span className="text-muted-foreground">· {capitalInflow.walletEntries.toLocaleString()} legs</span>
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-1.5">
+              <label
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-md border px-2 h-7 text-[11px] cursor-pointer transition-colors',
+                  includeWalletLegs ? 'border-primary/50 bg-primary/15 text-primary' : 'border-border bg-background hover:bg-muted/50',
+                )}
+                title="Off: only platform.cash_in legs. On: also surface the matching wallet-scope debits/credits (agents/partners) sharing each transaction_group_id."
+              >
+                <Checkbox
+                  checked={includeWalletLegs}
+                  onCheckedChange={(v) => setIncludeWalletLegs(!!v)}
+                  className="h-3.5 w-3.5"
+                />
+                <span>Include wallet legs</span>
+              </label>
               <Button
                 size="sm"
                 variant="outline"
@@ -929,6 +1003,14 @@ export function ComprehensiveCashMovement() {
                         <span className="font-medium">{prettifyCategory(c.category)}</span>
                         <span className="font-mono text-primary">{formatUGX(c.total)}</span>
                         <span className="text-muted-foreground">({c.count})</span>
+                        {includeWalletLegs && (c.walletIn > 0 || c.walletOut > 0) && (
+                          <span className="ml-1 inline-flex items-center gap-0.5 rounded bg-muted/60 px-1 text-[10px]">
+                            <span className="text-muted-foreground">w:</span>
+                            <span className="font-mono text-emerald-500">+{formatUGX(c.walletIn)}</span>
+                            <span className="text-muted-foreground">/</span>
+                            <span className="font-mono text-rose-500">−{formatUGX(c.walletOut)}</span>
+                          </span>
+                        )}
                         <Info className="h-3 w-3 text-muted-foreground" />
                         <ExternalLink className="h-3 w-3 text-muted-foreground" />
                       </button>
