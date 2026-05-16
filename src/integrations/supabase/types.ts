@@ -14797,6 +14797,14 @@ export type Database = {
         Args: { p_limit?: number; p_offset?: number }
         Returns: Json
       }
+      list_joined_partners_cursor: {
+        Args: {
+          p_after_created_at?: string
+          p_after_user_id?: string
+          p_limit?: number
+        }
+        Returns: Json
+      }
       log_finops_provider_mismatch: {
         Args: {
           _attempted_amount?: number
