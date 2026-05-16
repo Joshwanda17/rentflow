@@ -14,6 +14,7 @@ import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { useOffline } from '@/contexts/OfflineContext';
 import { CommissionCelebration } from './CommissionCelebration';
 import { captureOfflineDraft } from '@/lib/offlineCollectionDrafts';
+import { setCriticalFlowActive } from '@/lib/criticalFlowGuard';
 
 /**
  * Translate raw RPC / Postgres errors into something an agent can act on.
