@@ -1075,8 +1075,21 @@ export function NewPartnersPanel() {
             />
           </button>
 
-          {panelOpen && (
-          <div id="joined-partners-body" className="space-y-3 sm:space-y-4">
+          {/* Smooth expand/collapse — grid-rows trick animates from 0fr → 1fr
+              based on `panelOpen`, so the body's natural height grows/shrinks
+              with a real CSS transition instead of snapping open. The body
+              stays mounted (children still gated by `panelOpen` for cost
+              control via the query's `enabled` flag). */}
+          <div
+            id="joined-partners-body"
+            className={cn(
+              "grid transition-[grid-template-rows,opacity] duration-300 ease-out motion-reduce:transition-none",
+              panelOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0 pointer-events-none",
+            )}
+            aria-hidden={!panelOpen}
+          >
+            <div className="overflow-hidden min-h-0">
+              <div className="space-y-3 sm:space-y-4">
           {/* Secondary header row — total/loaded badges, filter summary,
               description, and Create Portfolio CTA. Only relevant when the
               panel is expanded. */}
@@ -1927,9 +1940,10 @@ export function NewPartnersPanel() {
                 )}
               </div>
             )}
+              </div>
+            </div>
           </div>
           </div>
-          )}
         </CardContent>
       </Card>
 
