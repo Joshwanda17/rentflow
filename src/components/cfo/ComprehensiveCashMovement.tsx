@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { format, startOfDay, startOfWeek, startOfMonth, startOfYear, subDays, subMonths, subYears, addDays, addWeeks, addMonths, differenceInCalendarDays } from 'date-fns';
-import { Loader2, RefreshCw, Calendar, FileSpreadsheet, FileText, ArrowUpRight, ArrowDownRight, ArrowDownLeft, ExternalLink, X, Filter, ChevronDown, ChevronUp, ChevronRight } from 'lucide-react';
+import { Loader2, RefreshCw, Calendar, FileSpreadsheet, FileText, ArrowUpRight, ArrowDownRight, ArrowDownLeft, ExternalLink, X, Filter, ChevronDown, ChevronUp, ChevronRight, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -371,6 +371,21 @@ export function ComprehensiveCashMovement() {
   // programmatically and scroll it into view.
   const [pageDrillOpen, setPageDrillOpen] = useState<boolean>(false);
   const pageDrillRef = useRef<HTMLDivElement | null>(null);
+  // Page-level quick search across the "Tap to see details" transaction
+  // list. Matches reference_id, party name/UUID, description, category,
+  // and amount (digits-only). Persisted so the filter survives navigation
+  // and reloads. Debounced 200ms to keep typing snappy on large lists.
+  const PAGE_SEARCH_STORAGE = 'welile-cm-page-search';
+  const [pageSearch, setPageSearch] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    try { return window.localStorage.getItem(PAGE_SEARCH_STORAGE) || ''; } catch { return ''; }
+  });
+  const [debouncedPageSearch, setDebouncedPageSearch] = useState<string>(pageSearch);
+  useEffect(() => {
+    try { window.localStorage.setItem(PAGE_SEARCH_STORAGE, pageSearch); } catch { /* ignore */ }
+    const t = window.setTimeout(() => setDebouncedPageSearch(pageSearch), 200);
+    return () => window.clearTimeout(t);
+  }, [pageSearch]);
   const openPageDrill = useCallback(
     (dir: 'all' | 'cash_in' | 'cash_out' | 'net_positive' | 'net_negative') => {
       setDirectionQuickFilter(dir);
@@ -2067,6 +2082,8 @@ export function ComprehensiveCashMovement() {
             tables, just a tappable list. Read-only view derived from
             the same `rows` everything else on the page uses. */}
         {(() => {
+          const sq = debouncedPageSearch.trim().toLowerCase();
+          const sqDigits = sq.replace(/[^0-9]/g, '');
           const pageDrillRows = rows
             .filter(r => {
               if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) return false;
@@ -2074,16 +2091,61 @@ export function ComprehensiveCashMovement() {
               if (partyQuickFilter && r.user_id !== partyQuickFilter) return false;
               if (directionQuickFilter === 'cash_in' && r.direction !== 'cash_in') return false;
               if (directionQuickFilter === 'cash_out' && r.direction !== 'cash_out') return false;
+              if (sq) {
+                const name = r.user_id ? (partyNames[r.user_id] || '') : '';
+                const amtStr = String(Math.trunc(Number(r.amount) || 0));
+                const hay = [
+                  r.reference_id || '',
+                  r.description || '',
+                  prettifyCategory(r.category || ''),
+                  r.linked_party ? prettifyCategory(r.linked_party) : '',
+                  name,
+                  r.user_id || '',
+                  r.transaction_group_id || '',
+                ].join(' ').toLowerCase();
+                const textMatch = hay.includes(sq);
+                const amountMatch = sqDigits.length > 0 && amtStr.includes(sqDigits);
+                if (!textMatch && !amountMatch) return false;
+              }
               return true;
             })
             .sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime());
           const visible = pageDrillRows.slice(0, pageDrillVisible);
+          const searchActive = sq.length > 0;
           return (
             <Collapsible
-              open={pageDrillOpen}
+              open={pageDrillOpen || searchActive}
               onOpenChange={(o) => { setPageDrillOpen(o); if (o) setPageDrillVisible(25); }}
             >
               <div id="cm-transactions" ref={pageDrillRef} className="scroll-mt-24" />
+              {/* Quick search — filter the list without opening details */}
+              <div className="relative mb-2">
+                <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="search"
+                  inputMode="search"
+                  value={pageSearch}
+                  onChange={(e) => setPageSearch(e.target.value)}
+                  placeholder="Search reference, party or amount…"
+                  aria-label="Search transactions by reference, party, or amount"
+                  className="w-full h-10 pl-9 pr-9 rounded-lg border border-border bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40"
+                />
+                {pageSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setPageSearch('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
+                    aria-label="Clear search"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              {searchActive && (
+                <div className="text-[11px] text-muted-foreground mb-1.5 px-1">
+                  {pageDrillRows.length.toLocaleString()} match{pageDrillRows.length === 1 ? '' : 'es'} for “{debouncedPageSearch}”
+                </div>
+              )}
               <CollapsibleTrigger asChild>
                 <button
                   type="button"
