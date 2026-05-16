@@ -1737,6 +1737,16 @@ export function ComprehensiveCashMovement() {
 // currently loaded period. Pure read view — never mutates anything.
 // ─────────────────────────────────────────────────────────────
 function WalletMovementSummary({ rows, includeAdjustments }: { rows: LedgerRow[]; includeAdjustments: boolean }) {
+  // Tracks which (direction|category) rows are expanded to reveal underlying
+  // ledger transactions for the currently loaded period.
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggleExpanded = (key: string) =>
+    setExpanded(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+
   const summary = useMemo(() => {
     const inMap = new Map<string, number>();
     const outMap = new Map<string, number>();
@@ -1765,9 +1775,90 @@ function WalletMovementSummary({ rows, includeAdjustments }: { rows: LedgerRow[]
     };
   }, [rows, includeAdjustments]);
 
+  // Pre-bucket the underlying wallet-scope transactions per (direction|category)
+  // so expanded rows render instantly without re-scanning the full ledger.
+  const txByKey = useMemo(() => {
+    const map = new Map<string, LedgerRow[]>();
+    for (const r of rows) {
+      if (r.ledger_scope !== 'wallet') continue;
+      if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
+      if (r.direction !== 'cash_in' && r.direction !== 'cash_out') continue;
+      const key = `${r.direction}|${r.category}`;
+      const list = map.get(key);
+      if (list) list.push(r); else map.set(key, [r]);
+    }
+    // Newest first within each bucket.
+    for (const list of map.values()) {
+      list.sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime());
+    }
+    return map;
+  }, [rows, includeAdjustments]);
+
   if (summary.inRows.length === 0 && summary.outRows.length === 0) {
     return null;
   }
+
+  const renderCategoryRow = (
+    cat: string,
+    amt: number,
+    direction: 'cash_in' | 'cash_out',
+  ) => {
+    const key = `${direction}|${cat}`;
+    const isOpen = expanded.has(key);
+    const txs = txByKey.get(key) || [];
+    const amountClass = direction === 'cash_in' ? 'text-success' : 'text-destructive';
+    return (
+      <div key={key} className="rounded border border-transparent hover:border-border/60">
+        <button
+          type="button"
+          onClick={() => toggleExpanded(key)}
+          aria-expanded={isOpen}
+          className="w-full flex items-center justify-between gap-2 text-[12px] py-1 px-1 -mx-1 rounded hover:bg-muted/50 transition-colors text-left"
+        >
+          <span className="flex items-center gap-1 min-w-0">
+            {isOpen
+              ? <ChevronUp className="h-3 w-3 text-muted-foreground shrink-0" />
+              : <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />}
+            <span className="text-muted-foreground truncate">{friendlyWalletLabel(cat, direction)}</span>
+            <span className="text-[10px] text-muted-foreground/70 shrink-0">· {txs.length}</span>
+          </span>
+          <span className={cn('font-mono shrink-0', amountClass)}>{formatUGX(amt)}</span>
+        </button>
+        {isOpen && (
+          <div className="mt-1 mb-2 ml-4 border-l border-border/60 pl-2 space-y-1 max-h-72 overflow-y-auto">
+            {txs.length === 0 && (
+              <div className="text-[11px] text-muted-foreground italic">No transactions.</div>
+            )}
+            {txs.map((t, i) => (
+              <div key={t.id || `${t.transaction_date}-${i}`} className="flex items-start justify-between gap-2 text-[11px]">
+                <div className="min-w-0 flex-1">
+                  <div className="text-foreground/80">
+                    {format(new Date(t.transaction_date), 'dd MMM HH:mm')}
+                    {t.linked_party && (
+                      <span className="text-muted-foreground"> · {t.linked_party}</span>
+                    )}
+                  </div>
+                  {t.description && (
+                    <div className="text-muted-foreground truncate">{t.description}</div>
+                  )}
+                  {(t.reference_id || t.source_table) && (
+                    <div className="text-[10px] text-muted-foreground/70 font-mono truncate">
+                      {t.source_table && <span>{t.source_table}</span>}
+                      {t.source_table && t.reference_id && <span> · </span>}
+                      {t.reference_id && <span>{t.reference_id}</span>}
+                    </div>
+                  )}
+                </div>
+                <div className={cn('font-mono shrink-0', amountClass)}>
+                  {formatUGX(Number(t.amount) || 0)}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="rounded-xl border border-border bg-muted/30 p-3 sm:p-4 space-y-3">
@@ -1775,7 +1866,7 @@ function WalletMovementSummary({ rows, includeAdjustments }: { rows: LedgerRow[]
         <div>
           <h4 className="text-sm font-semibold">Wallet Money Movement</h4>
           <p className="text-[11px] text-muted-foreground">
-            How money moved between company funds and user/operational wallets. Read-only.
+            How money moved between company funds and user/operational wallets. Tap a row to see transactions.
           </p>
         </div>
         <div className={cn(
@@ -1803,12 +1894,7 @@ function WalletMovementSummary({ rows, includeAdjustments }: { rows: LedgerRow[]
             {summary.inRows.length === 0 && (
               <div className="text-[11px] text-muted-foreground italic">No inflows in this period.</div>
             )}
-            {summary.inRows.map(([cat, amt]) => (
-              <div key={cat} className="flex items-center justify-between gap-2 text-[12px]">
-                <span className="text-muted-foreground truncate">{friendlyWalletLabel(cat, 'cash_in')}</span>
-                <span className="font-mono text-foreground shrink-0">{formatUGX(amt)}</span>
-              </div>
-            ))}
+            {summary.inRows.map(([cat, amt]) => renderCategoryRow(cat, amt, 'cash_in'))}
           </div>
         </div>
 
@@ -1826,12 +1912,7 @@ function WalletMovementSummary({ rows, includeAdjustments }: { rows: LedgerRow[]
             {summary.outRows.length === 0 && (
               <div className="text-[11px] text-muted-foreground italic">No outflows in this period.</div>
             )}
-            {summary.outRows.map(([cat, amt]) => (
-              <div key={cat} className="flex items-center justify-between gap-2 text-[12px]">
-                <span className="text-muted-foreground truncate">{friendlyWalletLabel(cat, 'cash_out')}</span>
-                <span className="font-mono text-foreground shrink-0">{formatUGX(amt)}</span>
-              </div>
-            ))}
+            {summary.outRows.map(([cat, amt]) => renderCategoryRow(cat, amt, 'cash_out'))}
           </div>
         </div>
       </div>
