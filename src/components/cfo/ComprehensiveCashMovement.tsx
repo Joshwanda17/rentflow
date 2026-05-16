@@ -2138,6 +2138,8 @@ function WalletMovementSummary({
     }
     if (starts.length === 0) starts.push(startFor(earliest));
     const nets = new Array<number>(starts.length).fill(0);
+    const ins = new Array<number>(starts.length).fill(0);
+    const outs = new Array<number>(starts.length).fill(0);
     const labels = starts.map((s, i) => labelFor(s, starts[i + 1] ?? advance(s)));
     const idxFor = (t: number) => {
       // binary search for bucket whose start <= t
@@ -2156,28 +2158,35 @@ function WalletMovementSummary({
       const t = new Date(r.transaction_date).getTime();
       if (t < minTs || t > endTs) continue;
       const amt = Number(r.amount) || 0;
-      nets[idxFor(t)] += r.direction === 'cash_in' ? amt : -amt;
+      const i = idxFor(t);
+      if (r.direction === 'cash_in') { ins[i] += amt; nets[i] += amt; }
+      else { outs[i] += amt; nets[i] -= amt; }
     }
-    // Linear-regression slope on bucket index → net, to label momentum
-    let slope = 0;
-    const n = nets.length;
-    if (n > 1) {
+    // Linear-regression slope helper on bucket index → value, for momentum labels
+    const slopeOf = (arr: number[]) => {
+      const n = arr.length;
+      if (n <= 1) return 0;
       const meanX = (n - 1) / 2;
-      const meanY = nets.reduce((s, v) => s + v, 0) / n;
+      const meanY = arr.reduce((s, v) => s + v, 0) / n;
       let num = 0, den = 0;
       for (let i = 0; i < n; i++) {
-        num += (i - meanX) * (nets[i] - meanY);
+        num += (i - meanX) * (arr[i] - meanY);
         den += (i - meanX) ** 2;
       }
-      slope = den === 0 ? 0 : num / den;
-    }
+      return den === 0 ? 0 : num / den;
+    };
+    const slope = slopeOf(nets);
+    const inSlope = slopeOf(ins);
+    const outSlope = slopeOf(outs);
+    const totalIn = ins.reduce((s, v) => s + v, 0);
+    const totalOut = outs.reduce((s, v) => s + v, 0);
     // Bucket ranges (ms) so clicks on sparkline points can open the
     // drill-down sheet scoped to that specific bucket window.
     const ranges = starts.map((s, i) => ({
       from: s.getTime(),
       to: (starts[i + 1] ? starts[i + 1].getTime() : endTs + 1),
     }));
-    return { nets, labels, slope, ranges };
+    return { nets, ins, outs, labels, slope, inSlope, outSlope, totalIn, totalOut, ranges };
   }, [rows, includeAdjustments, period, trendGroup]);
 
   // ── Exports ─────────────────────────────────────────────────
@@ -2356,7 +2365,7 @@ function WalletMovementSummary({
 
       {/* Net-flow sparkline — momentum across the selected period */}
       {(() => {
-        const { nets, labels, slope, ranges } = netTrend;
+        const { nets, ins, outs, labels, slope, inSlope, outSlope, totalIn, totalOut, ranges } = netTrend;
         const hasData = nets.some(v => v !== 0);
         if (!hasData) return null;
         const W = 600;
@@ -2448,6 +2457,45 @@ function WalletMovementSummary({
             <div className="flex items-center justify-between text-[10px] text-muted-foreground mt-1 font-mono">
               <span>{labels[0]?.split(' – ')[0]}</span>
               <span>{labels[labels.length - 1]?.split(' – ')[1]}</span>
+            </div>
+            {/* Legend — Into vs Out contribution and momentum */}
+            <div className="mt-2 pt-2 border-t border-border/60 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px]">
+              {(() => {
+                const tone = (s: number, positiveGood: boolean) => {
+                  if (s === 0) return 'text-muted-foreground';
+                  const good = positiveGood ? s > 0 : s < 0;
+                  return good ? 'text-success' : 'text-destructive';
+                };
+                const arrow = (s: number) => (s > 0 ? '▲' : s < 0 ? '▼' : '·');
+                return (
+                  <>
+                    <span className="flex items-center gap-1.5">
+                      <span className="inline-block h-2 w-2 rounded-sm bg-success" aria-hidden />
+                      <span className="text-muted-foreground">Into</span>
+                      <span className="font-mono text-success">{formatUGX(totalIn)}</span>
+                      <span className={cn('font-mono font-semibold', tone(inSlope, true))} title="Inflow momentum">
+                        {arrow(inSlope)}
+                      </span>
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="inline-block h-2 w-2 rounded-sm bg-destructive" aria-hidden />
+                      <span className="text-muted-foreground">Out</span>
+                      <span className="font-mono text-destructive">{formatUGX(totalOut)}</span>
+                      <span className={cn('font-mono font-semibold', tone(outSlope, false))} title="Outflow momentum (rising outflow is worsening)">
+                        {arrow(outSlope)}
+                      </span>
+                    </span>
+                    <span className="flex items-center gap-1.5 ml-auto">
+                      <span className="inline-block h-[2px] w-3 rounded bg-primary" aria-hidden />
+                      <span className="text-muted-foreground">Net</span>
+                      <span className={cn('font-mono font-semibold', (totalIn - totalOut) >= 0 ? 'text-success' : 'text-destructive')}>
+                        {(totalIn - totalOut) >= 0 ? '+' : '−'}{formatUGX(Math.abs(totalIn - totalOut))}
+                      </span>
+                      <span className={cn('font-mono font-semibold', tone(slope, true))}>{arrow(slope)}</span>
+                    </span>
+                  </>
+                );
+              })()}
             </div>
           </div>
         );
