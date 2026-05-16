@@ -454,7 +454,10 @@ export function NewPartnersPanel() {
   // are still appended via the infinite-scroll sentinel, so the user never
   // perceives a gap, but the initial 3-roundtrip burst (user_roles → profiles
   // + portfolios) now operates on ~100 rows instead of 200.
-  const PARTNERS_PAGE_SIZE = 100;
+  // Cursor-based pagination: each page is a keyset slice on
+  // (created_at DESC, user_id DESC). We never re-scan from offset 0, so the
+  // next page is O(p_limit) regardless of how deep the user has scrolled.
+  const PARTNERS_PAGE_SIZE = 60;
   const gridScrollRef = useRef<HTMLDivElement | null>(null);
   const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
 
@@ -470,24 +473,20 @@ export function NewPartnersPanel() {
     fetchNextPage,
     hasNextPage,
   } = useInfiniteQuery({
-    queryKey: ['new-partners-panel-infinite', PARTNERS_PAGE_SIZE],
-    initialPageParam: 0,
+    queryKey: ['new-partners-panel-cursor', PARTNERS_PAGE_SIZE],
+    initialPageParam: null as null | { created_at: string; user_id: string },
     queryFn: async ({ pageParam }) => {
-      const pageIndex = pageParam as number;
-      const from = pageIndex * PARTNERS_PAGE_SIZE;
-      // Single-roundtrip server query backed by:
-      //   • partial index on user_roles (role='supporter' AND enabled=true,
-      //     created_at DESC) → cheap ORDER BY + cheap exact count
-      //   • btree index on investor_portfolios.investor_id → fast LATERAL
-      //     portfolio-count subquery
-      // Replaces the previous 3-query waterfall (user_roles → profiles +
-      // investor_portfolios) that did a full table scan for COUNT(*).
-      const { data, error } = await supabase.rpc('list_joined_partners', {
+      // Keyset pagination — only the first page (cursor=null) pays for an
+      // exact total. Subsequent pages do zero count work, and the seek
+      // predicate hits the partial index on user_roles directly.
+      const cursor = pageParam as null | { created_at: string; user_id: string };
+      const { data, error } = await supabase.rpc('list_joined_partners_cursor', {
         p_limit: PARTNERS_PAGE_SIZE,
-        p_offset: from,
+        p_after_created_at: cursor?.created_at ?? undefined,
+        p_after_user_id: cursor?.user_id ?? undefined,
       });
       if (error) throw error;
-      const payload = (data ?? { rows: [], total: 0 }) as {
+      const payload = (data ?? { rows: [], total: 0, next_cursor: null }) as {
         rows: Array<{
           user_id: string;
           created_at: string;
@@ -495,7 +494,8 @@ export function NewPartnersPanel() {
           phone: string;
           portfolio_count: number;
         }>;
-        total: number;
+        total: number | null;
+        next_cursor: { created_at: string; user_id: string } | null;
       };
       const built: JoinedPartner[] = (payload.rows || []).map(r => ({
         user_id: r.user_id,
@@ -504,12 +504,15 @@ export function NewPartnersPanel() {
         phone: r.phone || '—',
         portfolio_count: r.portfolio_count ?? 0,
       }));
-      return { rows: built, total: payload.total ?? built.length, pageIndex };
+      return {
+        rows: built,
+        total: payload.total ?? null,
+        nextCursor: payload.next_cursor ?? null,
+      };
     },
-    getNextPageParam: (lastPage) => {
-      const loaded = (lastPage.pageIndex + 1) * PARTNERS_PAGE_SIZE;
-      return loaded < lastPage.total ? lastPage.pageIndex + 1 : undefined;
-    },
+    // Only fetch the next page when the sentinel requests it — react-query
+    // returns `undefined` here to mark the list as fully loaded.
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     staleTime: 60_000,
     // Don't hit the database while the panel is collapsed — this is the
     // primary perf win on the partners page for users who rarely open it.
@@ -530,7 +533,7 @@ export function NewPartnersPanel() {
     }
     return out;
   }, [partnersInfinite]);
-  const joinedTotal = partnersInfinite?.pages[0]?.total ?? 0;
+  const joinedTotal = partnersInfinite?.pages[0]?.total ?? joined?.length ?? 0;
   // Sentinel-driven auto-load: when the bottom sentinel scrolls into view
   // (within 200px) and we're not already fetching, request the next page.
   useEffect(() => {
