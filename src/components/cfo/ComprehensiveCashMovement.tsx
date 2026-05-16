@@ -272,6 +272,7 @@ export function ComprehensiveCashMovement() {
   const [debouncedDrillQuery, setDebouncedDrillQuery] = useState('');
   const [drillPage, setDrillPage] = useState(0);
   const [drillPageSize, setDrillPageSize] = useState<number>(100);
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
 
   // ── Capital Inflows callout (platform-scope cash_in for selected categories)
   const CAPITAL_INFLOW_DEFAULT = ['partner_funding', 'pending_portfolio_topup'];
