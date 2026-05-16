@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useStaffPermissions } from '@/hooks/useStaffPermissions';
@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Sparkles, UserPlus, Pencil, Loader2, Phone, Clock, ShieldCheck, PlusCircle, Save, X, ChevronDown, ShieldOff, History, Zap, MessageCircle, Search, Filter, CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Sparkles, UserPlus, Pencil, Loader2, Phone, Clock, ShieldCheck, PlusCircle, Save, X, ChevronDown, ShieldOff, History, Zap, MessageCircle, Search, Filter, CalendarIcon } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
@@ -360,46 +360,31 @@ export function NewPartnersPanel() {
     // setSearchParams identity changes on every render; intentionally omitted.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [partnerSearch, partnerFilter, customRange, partnerSort]);
-  // Server-side pagination for the Joined Partners list. Each page is fetched
-  // from `user_roles` with `.range()` + `{ count: 'exact' }`, so the user can
-  // browse every supporter regardless of total count. Page index is 0-based.
+  // Infinite scroll for the Joined Partners list. Each scroll-triggered page
+  // is fetched from `user_roles` with `.range()` + `{ count: 'exact' }` and
+  // appended to the previously loaded rows, so the user can browse every
+  // supporter without a manual "next page" click.
   const PARTNERS_PAGE_SIZE = 200;
-  const [partnersPageIndex, setPartnersPageIndex] = useState(0);
   const gridScrollRef = useRef<HTMLDivElement | null>(null);
-  // Incremental render window WITHIN the current server page — keeps the
-  // initial DOM small while still letting the user scroll through all 200
-  // rows of a page without a manual "load more" click.
-  const PARTNER_PAGE_SIZE = 30;
-  const [visiblePartnerCount, setVisiblePartnerCount] = useState(PARTNER_PAGE_SIZE);
   const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
-  // Reset the in-page render window whenever the user changes search/filter
-  // OR moves to a different server page, so the visible slice starts fresh.
-  useEffect(() => {
-    setVisiblePartnerCount(PARTNER_PAGE_SIZE);
-    if (gridScrollRef.current) gridScrollRef.current.scrollTop = 0;
-  }, [partnerSearch, partnerFilter, customRange, partnersPageIndex]);
-  // Auto-load the next page when the sentinel scrolls into view.
-  useEffect(() => {
-    const node = loadMoreSentinelRef.current;
-    if (!node || typeof IntersectionObserver === 'undefined') return;
-    const io = new IntersectionObserver((entries) => {
-      if (entries.some(e => e.isIntersecting)) {
-        setVisiblePartnerCount(c => c + PARTNER_PAGE_SIZE);
-      }
-    }, { root: null, rootMargin: '200px', threshold: 0 });
-    io.observe(node);
-    return () => io.disconnect();
-  }, [visiblePartnerCount, partnerSearch, partnerFilter]);
 
-  // ── All partners (paginated, server-side) ──
-  // Each page fetches one slice of `user_roles` (role=supporter) ordered by
-  // newest first, plus the exact total count so the UI can render real
-  // prev/next controls. `placeholderData: keepPreviousData` keeps the current
-  // page visible while the next one loads, avoiding a skeleton flash.
-  const { data: joinedPage, isLoading, isFetching } = useQuery({
-    queryKey: ['new-partners-panel', partnersPageIndex, PARTNERS_PAGE_SIZE],
-    queryFn: async () => {
-      const from = partnersPageIndex * PARTNERS_PAGE_SIZE;
+  // ── All partners (infinite scroll) ──
+  // Each scroll-triggered page fetches one slice of `user_roles`
+  // (role=supporter) ordered by newest first, plus the exact total count.
+  // Pages are appended into a single `joined` array so filters and badges
+  // operate over every row the user has loaded so far.
+  const {
+    data: partnersInfinite,
+    isLoading,
+    isFetchingNextPage,
+    fetchNextPage,
+    hasNextPage,
+  } = useInfiniteQuery({
+    queryKey: ['new-partners-panel-infinite', PARTNERS_PAGE_SIZE],
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) => {
+      const pageIndex = pageParam as number;
+      const from = pageIndex * PARTNERS_PAGE_SIZE;
       const to = from + PARTNERS_PAGE_SIZE - 1;
       const { data: roles, count } = await supabase
         .from('user_roles')
@@ -410,7 +395,9 @@ export function NewPartnersPanel() {
         .range(from, to);
       const rows = roles || [];
       const total = count ?? rows.length;
-      if (rows.length === 0) return { rows: [] as JoinedPartner[], total };
+      if (rows.length === 0) {
+        return { rows: [] as JoinedPartner[], total, pageIndex };
+      }
 
       const ids = rows.map(r => r.user_id);
       const [{ data: profiles }, { data: portfolios }] = await Promise.all([
@@ -431,18 +418,43 @@ export function NewPartnersPanel() {
         phone: pMap.get(r.user_id)?.phone || '—',
         portfolio_count: countMap.get(r.user_id) || 0,
       }));
-      return { rows: built, total };
+      return { rows: built, total, pageIndex };
+    },
+    getNextPageParam: (lastPage) => {
+      const loaded = (lastPage.pageIndex + 1) * PARTNERS_PAGE_SIZE;
+      return loaded < lastPage.total ? lastPage.pageIndex + 1 : undefined;
     },
     staleTime: 60_000,
-    placeholderData: keepPreviousData,
   });
-  const joined = joinedPage?.rows;
-  const joinedTotal = joinedPage?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(joinedTotal / PARTNERS_PAGE_SIZE));
-  // Clamp page if total shrinks (e.g. after a refetch).
+  // Flatten every loaded page into a single `joined` array. Dedupe by
+  // user_id in case a row appears across pages during a refetch.
+  const joined = useMemo(() => {
+    if (!partnersInfinite) return undefined;
+    const seen = new Set<string>();
+    const out: JoinedPartner[] = [];
+    for (const page of partnersInfinite.pages) {
+      for (const r of page.rows) {
+        if (seen.has(r.user_id)) continue;
+        seen.add(r.user_id);
+        out.push(r);
+      }
+    }
+    return out;
+  }, [partnersInfinite]);
+  const joinedTotal = partnersInfinite?.pages[0]?.total ?? 0;
+  // Sentinel-driven auto-load: when the bottom sentinel scrolls into view
+  // (within 200px) and we're not already fetching, request the next page.
   useEffect(() => {
-    if (partnersPageIndex > totalPages - 1) setPartnersPageIndex(totalPages - 1);
-  }, [totalPages, partnersPageIndex]);
+    const node = loadMoreSentinelRef.current;
+    if (!node || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some(e => e.isIntersecting) && hasNextPage && !isFetchingNextPage) {
+        fetchNextPage();
+      }
+    }, { root: gridScrollRef.current ?? null, rootMargin: '200px', threshold: 0 });
+    io.observe(node);
+    return () => io.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage, joined?.length]);
 
   // ── Filtered partners (drives both the badge counts above the grid
   // and the grid itself, so badges react instantly to the active filter). ──
@@ -1012,22 +1024,24 @@ export function NewPartnersPanel() {
                             setCustomRange(undefined);
                           }}
                         >
-                          Show all {joinedTotal || joined.length} on this page
+                          Show all {joined.length.toLocaleString()} loaded
                         </Button>
                       </div>
                     </div>
                   </div>
                 );
               }
-              const visible = filtered.slice(0, visiblePartnerCount);
-              const hasMore = filtered.length > visible.length;
+              // Infinite scroll renders every filtered row that has been
+              // loaded so far. New server pages are appended automatically
+              // when the sentinel scrolls into view.
+              const visible = filtered;
               return (
             <div className="space-y-2">
               {badges}
               <div ref={gridScrollRef} className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[520px] overflow-y-auto pr-1">
               <div className="col-span-full text-[10px] text-muted-foreground">
-                Showing {visible.length} of {filtered.length} matched on page {partnersPageIndex + 1}
-                {' '}of {totalPages} · {joinedTotal.toLocaleString()} total partners
+                Showing {visible.length} matched · {joined.length.toLocaleString()} loaded
+                {' '}of {joinedTotal.toLocaleString()} total partners
               </div>
               {visible.map(p => (
                 <div key={p.user_id} className="rounded-xl border border-border/60 bg-card p-2.5 flex items-center gap-2.5">
@@ -1140,54 +1154,32 @@ export function NewPartnersPanel() {
                   </Button>
                 </div>
               ))}
-              {hasMore && (
-                <div
-                  ref={loadMoreSentinelRef}
-                  className="col-span-full flex justify-center py-2"
-                >
+              {/* Auto-load sentinel — IntersectionObserver triggers
+                  fetchNextPage when this scrolls into view. */}
+              <div
+                ref={loadMoreSentinelRef}
+                className="col-span-full flex justify-center py-2 text-[10px] text-muted-foreground"
+              >
+                {isFetchingNextPage ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Loading more partners…
+                  </span>
+                ) : hasNextPage ? (
                   <Button
                     size="sm"
                     variant="outline"
                     className="h-7 text-[10px] gap-1.5"
-                    onClick={() => setVisiblePartnerCount(c => c + PARTNER_PAGE_SIZE)}
+                    onClick={() => fetchNextPage()}
                   >
                     <ChevronDown className="h-3 w-3" />
-                    Load more ({filtered.length - visible.length} remaining)
+                    Load more ({Math.max(0, joinedTotal - joined.length)} remaining)
                   </Button>
-                </div>
-              )}
+                ) : joined.length > 0 ? (
+                  <span>End of list · {joined.length.toLocaleString()} partners loaded</span>
+                ) : null}
+              </div>
             </div>
-              {/* Server-side pagination controls — browse every supporter, not just the first page. */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between gap-2 pt-1">
-                  <p className="text-[10px] text-muted-foreground">
-                    Page <span className="font-semibold text-foreground">{partnersPageIndex + 1}</span> of {totalPages}
-                    {' '}· {PARTNERS_PAGE_SIZE} per page
-                  </p>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 px-2 text-[10px] gap-1"
-                      disabled={partnersPageIndex === 0 || isFetching}
-                      onClick={() => setPartnersPageIndex(i => Math.max(0, i - 1))}
-                    >
-                      <ChevronLeft className="h-3 w-3" />
-                      Prev
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 px-2 text-[10px] gap-1"
-                      disabled={partnersPageIndex >= totalPages - 1 || isFetching}
-                      onClick={() => setPartnersPageIndex(i => Math.min(totalPages - 1, i + 1))}
-                    >
-                      Next
-                      {isFetching ? <Loader2 className="h-3 w-3 animate-spin" /> : <ChevronRight className="h-3 w-3" />}
-                    </Button>
-                  </div>
-                </div>
-              )}
             </div>
               );
             })()
