@@ -1981,6 +1981,92 @@ function WalletMovementSummary({
   const totalInDelta = priorTotals ? formatDelta(summary.totalIn, priorTotals.totalIn) : null;
   const totalOutDelta = priorTotals ? formatDelta(summary.totalOut, priorTotals.totalOut) : null;
 
+  // ── Exports ─────────────────────────────────────────────────
+  const currentRange = useMemo(() => periodRange(period), [period]);
+  const periodLabel = PERIODS.find(p => p.value === period)?.label ?? period;
+  const rangeLabel = currentRange.from
+    ? `${format(currentRange.from, 'dd MMM yyyy')} – ${format(currentRange.to, 'dd MMM yyyy')}`
+    : `All time – ${format(currentRange.to, 'dd MMM yyyy')}`;
+
+  const buildExportRows = () => {
+    const rowsOut: Array<{ section: string; label: string; amount: number; prior: number; count: number }> = [];
+    const pushSection = (
+      section: string,
+      entries: [string, number][],
+      priorMap: Map<string, number> | undefined,
+      direction: 'cash_in' | 'cash_out',
+    ) => {
+      for (const [cat, amt] of entries) {
+        rowsOut.push({
+          section,
+          label: friendlyWalletLabel(cat, direction),
+          amount: amt,
+          prior: priorMap?.get(cat) ?? 0,
+          count: (txByKey.get(`${direction}|${cat}`) || []).length,
+        });
+      }
+    };
+    pushSection('Into wallets', summary.inRows, priorTotals?.inByCat, 'cash_in');
+    pushSection('Out of wallets', summary.outRows, priorTotals?.outByCat, 'cash_out');
+    return rowsOut;
+  };
+
+  const handleExportCsv = () => {
+    const exportRows = buildExportRows();
+    const headers = ['Section', 'Category', 'Amount (UGX)', 'Previous period (UGX)', 'Change %', 'Transactions'];
+    const body: (string | number)[][] = exportRows.map(r => {
+      const pct = r.prior === 0 ? (r.amount === 0 ? '0' : 'new') : (((r.amount - r.prior) / r.prior) * 100).toFixed(1);
+      return [r.section, r.label, Math.round(r.amount), Math.round(r.prior), pct, r.count];
+    });
+    // Totals
+    body.push([]);
+    body.push(['Totals', 'Into wallets', Math.round(summary.totalIn), Math.round(priorTotals?.totalIn ?? 0), '', '']);
+    body.push(['Totals', 'Out of wallets', Math.round(summary.totalOut), Math.round(priorTotals?.totalOut ?? 0), '', '']);
+    body.push(['Totals', 'Net into wallets', Math.round(summary.net), Math.round((priorTotals?.totalIn ?? 0) - (priorTotals?.totalOut ?? 0)), '', '']);
+    downloadCsv(`wallet-money-movement-${period}-${format(new Date(), 'yyyyMMdd-HHmm')}.csv`, headers, body);
+    toast.success('CSV downloaded');
+  };
+
+  const handleExportPdf = () => {
+    const exportRows = buildExportRows();
+    const doc = new jsPDF();
+    doc.setFontSize(14);
+    doc.text('Wallet Money Movement', 14, 16);
+    doc.setFontSize(10);
+    doc.text(`Period: ${periodLabel} (${rangeLabel})`, 14, 23);
+    if (priorWindowLabel) {
+      doc.text(`Compared to previous period: ${priorWindowLabel}`, 14, 29);
+    }
+
+    const tableStartY = priorWindowLabel ? 35 : 29;
+    autoTable(doc, {
+      startY: tableStartY,
+      head: [['Section', 'Category', 'Amount (UGX)', 'Previous (UGX)', 'Change %', 'Txns']],
+      body: exportRows.map(r => {
+        const pct = r.prior === 0 ? (r.amount === 0 ? '0%' : 'new') : `${(((r.amount - r.prior) / r.prior) * 100).toFixed(1)}%`;
+        return [
+          r.section,
+          r.label,
+          formatUGX(r.amount),
+          formatUGX(r.prior),
+          pct,
+          String(r.count),
+        ];
+      }),
+      foot: [
+        ['Totals', 'Into wallets',  formatUGX(summary.totalIn),  formatUGX(priorTotals?.totalIn ?? 0),  '', ''],
+        ['Totals', 'Out of wallets', formatUGX(summary.totalOut), formatUGX(priorTotals?.totalOut ?? 0), '', ''],
+        ['Totals', 'Net into wallets', formatUGX(summary.net), formatUGX((priorTotals?.totalIn ?? 0) - (priorTotals?.totalOut ?? 0)), '', ''],
+      ],
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [30, 30, 30] },
+      footStyles: { fillColor: [240, 240, 240], textColor: 20, fontStyle: 'bold' },
+    });
+
+    doc.save(`wallet-money-movement-${period}-${format(new Date(), 'yyyyMMdd-HHmm')}.pdf`);
+    toast.success('PDF downloaded');
+  };
+
   return (
     <div className="rounded-xl border border-border bg-muted/30 p-3 sm:p-4 space-y-3">
       <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -1996,13 +2082,33 @@ function WalletMovementSummary({
             </p>
           )}
         </div>
-        <div className={cn(
-          'text-[11px] font-mono px-2 py-1 rounded border',
-          summary.net >= 0
-            ? 'bg-success/10 text-success border-success/30'
-            : 'bg-destructive/10 text-destructive border-destructive/30'
-        )}>
-          Net into wallets: {summary.net >= 0 ? '+' : ''}{formatUGX(summary.net)}
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 px-2 text-[11px] gap-1"
+            onClick={handleExportCsv}
+            title="Download summary as CSV"
+          >
+            <FileSpreadsheet className="h-3 w-3" /> CSV
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 px-2 text-[11px] gap-1"
+            onClick={handleExportPdf}
+            title="Download summary as PDF"
+          >
+            <FileText className="h-3 w-3" /> PDF
+          </Button>
+          <div className={cn(
+            'text-[11px] font-mono px-2 py-1 rounded border',
+            summary.net >= 0
+              ? 'bg-success/10 text-success border-success/30'
+              : 'bg-destructive/10 text-destructive border-destructive/30'
+          )}>
+            Net into wallets: {summary.net >= 0 ? '+' : ''}{formatUGX(summary.net)}
+          </div>
         </div>
       </div>
 
