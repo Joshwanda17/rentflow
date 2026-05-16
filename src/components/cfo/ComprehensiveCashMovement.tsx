@@ -713,6 +713,88 @@ export function ComprehensiveCashMovement() {
           </div>
         </div>
 
+        {/* Capital Inflows callout — platform cash_in for selected categories */}
+        <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-3 space-y-2">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-2">
+              <ArrowUpRight className="h-4 w-4 text-primary" />
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Capital Inflows · Platform Cash In</div>
+                <div className="font-mono text-lg font-bold text-primary">{formatUGX(capitalInflow.total)}</div>
+                <div className="text-[10px] text-muted-foreground">
+                  {capitalInflow.selected.length} categor{capitalInflow.selected.length === 1 ? 'y' : 'ies'} ·
+                  {' '}{capitalInflow.entries.toLocaleString()} ledger entries · {rangeLabel}
+                </div>
+              </div>
+            </div>
+            <Collapsible open={capitalPickerOpen} onOpenChange={setCapitalPickerOpen}>
+              <CollapsibleTrigger asChild>
+                <Button size="sm" variant="outline" className="text-xs h-7">
+                  {capitalPickerOpen ? 'Hide' : 'Edit categories'}
+                </Button>
+              </CollapsibleTrigger>
+            </Collapsible>
+          </div>
+
+          {/* Selected category chips with per-category totals */}
+          {capitalInflow.selected.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {capitalInflow.selected.map(c => (
+                <Badge key={c.category} variant="outline" className="bg-background text-[11px] font-normal gap-1">
+                  <span className="font-medium">{prettifyCategory(c.category)}</span>
+                  <span className="font-mono text-primary">{formatUGX(c.total)}</span>
+                </Badge>
+              ))}
+            </div>
+          )}
+
+          <Collapsible open={capitalPickerOpen} onOpenChange={setCapitalPickerOpen}>
+            <CollapsibleContent className="space-y-2 pt-2 border-t border-primary/20">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-muted-foreground">
+                  Pick any platform cash_in category to include in the callout. Selection is saved per browser.
+                </span>
+                <div className="flex gap-1">
+                  <Button size="sm" variant="ghost" className="h-6 text-[11px]"
+                    onClick={() => setCapitalCategories(new Set(capitalInflow.availableCategories.map(c => c.category)))}>
+                    All
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-6 text-[11px]"
+                    onClick={() => setCapitalCategories(new Set())}>None</Button>
+                  <Button size="sm" variant="ghost" className="h-6 text-[11px]"
+                    onClick={() => setCapitalCategories(new Set(CAPITAL_INFLOW_DEFAULT))}>Defaults</Button>
+                </div>
+              </div>
+              {capitalInflow.availableCategories.length === 0 ? (
+                <p className="text-[11px] text-muted-foreground">No platform cash_in categories in this period.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5 max-h-64 overflow-y-auto">
+                  {capitalInflow.availableCategories.map(c => {
+                    const checked = capitalCategories.has(c.category);
+                    return (
+                      <label key={c.category}
+                        className={cn(
+                          'flex items-center gap-2 rounded border px-2 py-1.5 text-[11px] cursor-pointer',
+                          checked ? 'border-primary/40 bg-primary/10' : 'border-border bg-background hover:bg-muted/50',
+                        )}>
+                        <Checkbox checked={checked} onCheckedChange={(v) => {
+                          setCapitalCategories(prev => {
+                            const next = new Set(prev);
+                            if (v) next.add(c.category); else next.delete(c.category);
+                            return next;
+                          });
+                        }} />
+                        <span className="flex-1 truncate">{prettifyCategory(c.category)}</span>
+                        <span className="font-mono text-muted-foreground">{formatUGX(c.total)}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
+        </div>
+
         {/* Category table */}
         {loading ? (
           <div className="py-12 text-center text-muted-foreground text-sm">
