@@ -1043,9 +1043,9 @@ export function ComprehensiveCashMovement() {
           {capitalInflow.selected.length > 0 && capitalInflow.bucketLabels.length > 0 && (
             <div className="pt-2 border-t border-primary/20 space-y-1">
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-                <span>By {GRANULARITIES.find(g => g.value === granularity)?.label || granularity} bucket</span>
+                <span>By {(GRANULARITIES.find(g => g.value === granularity)?.label || granularity).toLowerCase()}</span>
                 {capitalInflow.peakBucket && (
-                  <span>Peak: <span className="text-primary font-mono">{capitalInflow.peakBucket}</span> · {formatUGX(capitalInflow.bucketTotals[capitalInflow.peakBucket] || 0)}</span>
+                  <span>Best day: <span className="text-primary font-mono">{capitalInflow.peakBucket}</span> · {formatUGX(capitalInflow.bucketTotals[capitalInflow.peakBucket] || 0)}</span>
                 )}
               </div>
               <div className="flex flex-wrap gap-1">
@@ -1117,7 +1117,7 @@ export function ComprehensiveCashMovement() {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[11px] text-muted-foreground">
-                  Pick any platform cash_in category to include in the callout. Selection is saved per browser.
+                  Tick the types of money you want to count above. We remember your choice on this device.
                 </span>
                 <div className="flex gap-1">
                   <Button size="sm" variant="ghost" className="h-6 text-[11px]"
@@ -1142,7 +1142,7 @@ export function ComprehensiveCashMovement() {
                 </div>
               </div>
               {capitalInflow.availableCategories.length === 0 ? (
-                <p className="text-[11px] text-muted-foreground">No platform cash_in categories in this period.</p>
+                <p className="text-[11px] text-muted-foreground">No new money came in during this period.</p>
               ) : (
                 <TooltipProvider delayDuration={150}>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5 max-h-64 overflow-y-auto">
