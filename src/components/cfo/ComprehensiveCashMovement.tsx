@@ -1050,28 +1050,40 @@ export function ComprehensiveCashMovement() {
               {capitalInflow.availableCategories.length === 0 ? (
                 <p className="text-[11px] text-muted-foreground">No platform cash_in categories in this period.</p>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5 max-h-64 overflow-y-auto">
-                  {capitalInflow.availableCategories.map(c => {
-                    const checked = capitalCategories.has(c.category);
-                    return (
-                      <label key={c.category}
-                        className={cn(
-                          'flex items-center gap-2 rounded border px-2 py-1.5 text-[11px] cursor-pointer',
-                          checked ? 'border-primary/40 bg-primary/10' : 'border-border bg-background hover:bg-muted/50',
-                        )}>
-                        <Checkbox checked={checked} onCheckedChange={(v) => {
-                          setCapitalCategories(prev => {
-                            const next = new Set(prev);
-                            if (v) next.add(c.category); else next.delete(c.category);
-                            return next;
-                          });
-                        }} />
-                        <span className="flex-1 truncate">{prettifyCategory(c.category)}</span>
-                        <span className="font-mono text-muted-foreground">{formatUGX(c.total)}</span>
-                      </label>
-                    );
-                  })}
-                </div>
+                <TooltipProvider delayDuration={150}>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5 max-h-64 overflow-y-auto">
+                    {capitalInflow.availableCategories.map(c => {
+                      const checked = capitalCategories.has(c.category);
+                      return (
+                        <label key={c.category}
+                          className={cn(
+                            'flex items-center gap-2 rounded border px-2 py-1.5 text-[11px] cursor-pointer',
+                            checked ? 'border-primary/40 bg-primary/10' : 'border-border bg-background hover:bg-muted/50',
+                          )}>
+                          <Checkbox checked={checked} onCheckedChange={(v) => {
+                            setCapitalCategories(prev => {
+                              const next = new Set(prev);
+                              if (v) next.add(c.category); else next.delete(c.category);
+                              return next;
+                            });
+                          }} />
+                          <span className="flex-1 truncate">{prettifyCategory(c.category)}</span>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button type="button" onClick={(e) => e.preventDefault()} className="text-muted-foreground hover:text-primary">
+                                <Info className="h-3 w-3" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="left" className="bg-popover border-border">
+                              <WalletImpactTooltipContent category={c.category} />
+                            </TooltipContent>
+                          </Tooltip>
+                          <span className="font-mono text-muted-foreground">{formatUGX(c.total)}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </TooltipProvider>
               )}
             </CollapsibleContent>
           </Collapsible>
