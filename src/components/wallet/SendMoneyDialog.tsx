@@ -861,6 +861,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                     {disabledReason && !loading && (
                       <motion.p
                         key={disabledReason}
+                        id="send-money-disabled-reason"
                         initial={{ opacity: 0, y: -2 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0 }}
