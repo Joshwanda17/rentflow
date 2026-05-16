@@ -821,11 +821,26 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                         Cancel
                       </Button>
                     </motion.div>
-                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                    <motion.div
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      // Native tooltip on the wrapper so it still shows even when
+                      // the underlying <button> is disabled (disabled buttons
+                      // don't reliably emit hover events in all browsers).
+                      title={disabledReason ?? undefined}
+                    >
                       <Button
                         type="submit"
                         disabled={sendDisabled}
                         className="gap-2"
+                        // Mirror the inline validation text exactly so the
+                        // hover tooltip matches searching / not-found / self
+                        // / invalid / insufficient-balance cases verbatim.
+                        title={disabledReason ?? undefined}
+                        aria-disabled={sendDisabled}
+                        aria-label={
+                          disabledReason ? `Send Money — ${disabledReason}` : 'Send Money'
+                        }
                       >
                         {loading ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
