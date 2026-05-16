@@ -1597,9 +1597,19 @@ export function NewPartnersPanel() {
           if (!open) {
             setActivatingUserId(null);
             setCreateForUser(null);
+            // If this close came from a successful activation AND the
+            // operator opened the dialog via the quick-activate banner,
+            // queue an auto-advance to the next no-portfolio candidate.
+            if (autoAdvanceRef.current && activationSucceededRef.current) {
+              setPendingAutoAdvance(true);
+            }
+            autoAdvanceRef.current = false;
+            activationSucceededRef.current = false;
           }
         }}
         onSuccess={() => {
+          activationSucceededRef.current = true;
+          lastActivatedIdRef.current = createForUser?.id ?? null;
           handleSelect(selected);
           qc.invalidateQueries({ queryKey: ['exec-partner-portfolios'] });
           qc.invalidateQueries({ queryKey: ['new-partners-panel'] });
