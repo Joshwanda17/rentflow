@@ -1469,6 +1469,7 @@ export function ComprehensiveCashMovement() {
                   setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 30);
                 }}
                 className="shrink-0 inline-flex items-center gap-1 rounded-full border border-border bg-background hover:bg-accent hover:text-accent-foreground px-2.5 py-1 text-[11px] font-medium transition-colors"
+                aria-label={`Jump to ${item.label} section`}
               >
                 <span aria-hidden="true">{item.emoji}</span>
                 <span>{item.label}</span>
