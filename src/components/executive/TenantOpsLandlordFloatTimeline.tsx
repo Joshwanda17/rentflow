@@ -14,10 +14,11 @@ import { cn } from '@/lib/utils';
 import {
   Loader2, Landmark, Search, CalendarIcon, ArrowRight, Banknote, HandCoins,
   Building2, Phone, Hash, Copy, CheckCircle2, X, Clock, Bookmark, Save, Trash2, ChevronsUpDown,
-  AlertCircle, ChevronRight, MapPin, Wallet, FileText
+  AlertCircle, ChevronRight, MapPin, Wallet, FileText, Download
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { exportToCSV } from '@/lib/exportUtils';
 
 const fmt = (n: number) =>
   new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', maximumFractionDigits: 0 }).format(n || 0);
@@ -500,6 +501,105 @@ export function TenantOpsLandlordFloatTimeline() {
     payout:     { label: 'Landlord Payout',      icon: HandCoins, color: 'bg-emerald-100 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' },
   };
 
+  // ───────────────────── Exports (respect current filters) ─────────────────────
+  const exportFilenameBase = () => {
+    const parts = ['float-timeline'];
+    if (from) parts.push(format(from, 'yyyyMMdd'));
+    if (to) parts.push(format(to, 'yyyyMMdd'));
+    return parts.join('_');
+  };
+  const filterSummaryLines = () => {
+    const lines: string[] = [];
+    lines.push(`Date range: ${from ? format(from, 'dd MMM yyyy') : '—'} → ${to ? format(to, 'dd MMM yyyy') : '—'}`);
+    if (search.trim()) lines.push(`Search: "${search.trim()}"`);
+    if (agentFilter.length) lines.push(`Agents: ${agentFilter.map((k) => agentOptions.find(([x]) => x === k)?.[1] || k).join(', ')}`);
+    if (tenantFilter.length) lines.push(`Tenants: ${tenantFilter.map((k) => tenantOptions.find(([x]) => x === k)?.[1] || k).join(', ')}`);
+    if (landlordFilter.length) lines.push(`Landlords: ${landlordFilter.map((k) => landlordOptions.find(([x]) => x === k)?.[1] || k).join(', ')}`);
+    return lines;
+  };
+  const exportCsv = () => {
+    if (filtered.length === 0) { toast.error('Nothing to export'); return; }
+    const rows = filtered.map((e) => [
+      format(new Date(e.at), 'yyyy-MM-dd HH:mm'),
+      kindMeta[e.kind].label,
+      e.amount,
+      e.outstanding ?? '',
+      e.status,
+      e.agent_name || '',
+      e.tenant_name || '',
+      e.landlord_name || '',
+      e.landlord_phone || '',
+      e.reference_label,
+      e.reference || '',
+      e.source_table,
+      e.notes || '',
+    ]);
+    exportToCSV(
+      {
+        headers: ['Date', 'Event', 'Amount (UGX)', 'Outstanding (UGX)', 'Status', 'Agent', 'Tenant', 'Landlord', 'Landlord Phone', 'Reference Type', 'Reference', 'Source', 'Notes'],
+        rows,
+      },
+      exportFilenameBase(),
+    );
+    toast.success(`Exported ${filtered.length} events to CSV`);
+  };
+  const exportPdf = async () => {
+    if (filtered.length === 0) { toast.error('Nothing to export'); return; }
+    try {
+      const { jsPDF } = await import('jspdf');
+      const autoTableMod: any = await import('jspdf-autotable');
+      const autoTable = autoTableMod.default || autoTableMod;
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      doc.setFontSize(14);
+      doc.text('Landlord Float Allocation Timeline', 40, 36);
+      doc.setFontSize(9);
+      doc.setTextColor(110);
+      const summary = filterSummaryLines();
+      summary.forEach((ln, i) => doc.text(ln, 40, 52 + i * 12));
+      const totalsLine = `Events: ${totals.count}  ·  CFO Funded: ${fmt(totals.funded)}  ·  Earmarked: ${fmt(totals.allocated)}  ·  Paid: ${fmt(totals.paid)}  ·  Outstanding: ${fmt(totals.outstanding)}`;
+      doc.text(totalsLine, 40, 52 + summary.length * 12);
+      const startY = 60 + summary.length * 12 + 8;
+      autoTable(doc, {
+        startY,
+        head: [['Date', 'Event', 'Amount', 'Outstanding', 'Status', 'Agent', 'Tenant', 'Landlord', 'Ref Type', 'Reference']],
+        body: filtered.map((e) => [
+          format(new Date(e.at), 'yyyy-MM-dd HH:mm'),
+          kindMeta[e.kind].label,
+          fmt(e.amount),
+          e.kind === 'allocation' ? fmt(e.outstanding || 0) : '—',
+          e.status,
+          e.agent_name || '',
+          e.tenant_name || '',
+          [e.landlord_name, e.landlord_phone].filter(Boolean).join(' · '),
+          e.reference_label,
+          e.reference || '',
+        ]),
+        styles: { fontSize: 7, cellPadding: 3, overflow: 'linebreak' },
+        headStyles: { fillColor: [146, 52, 234], textColor: 255 },
+        alternateRowStyles: { fillColor: [248, 245, 255] },
+        margin: { left: 40, right: 40 },
+        didDrawPage: () => {
+          const pageCount = (doc as any).internal.getNumberOfPages();
+          const cur = (doc as any).internal.getCurrentPageInfo().pageNumber;
+          doc.setFontSize(8);
+          doc.setTextColor(140);
+          doc.text(
+            `Generated ${format(new Date(), 'yyyy-MM-dd HH:mm')} · Page ${cur} of ${pageCount}`,
+            pageWidth - 40,
+            doc.internal.pageSize.getHeight() - 18,
+            { align: 'right' },
+          );
+        },
+      });
+      doc.save(`${exportFilenameBase()}_${format(new Date(), 'yyyyMMdd')}.pdf`);
+      toast.success(`Exported ${filtered.length} events to PDF`);
+    } catch (err) {
+      console.error(err);
+      toast.error('PDF export failed');
+    }
+  };
+
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -564,6 +664,30 @@ export function TenantOpsLandlordFloatTimeline() {
               Clear dates
             </Button>
           )}
+          <div className="ml-auto flex items-center gap-1.5">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 gap-1.5"
+              onClick={exportCsv}
+              disabled={filtered.length === 0}
+              title="Export current filtered view to CSV"
+            >
+              <Download className="h-3.5 w-3.5" />
+              CSV
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 gap-1.5"
+              onClick={exportPdf}
+              disabled={filtered.length === 0}
+              title="Export current filtered view to PDF"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              PDF
+            </Button>
+          </div>
         </div>
 
         {/* Presets bar */}
