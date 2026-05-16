@@ -1094,6 +1094,45 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       } else if (msg) {
         friendly = msg;
       }
+      // Pull as much diagnostic info as we can off whatever was thrown —
+      // PostgREST errors expose code/details/hint, Functions errors expose
+      // a Response on `context`, and plain throws have only a message.
+      let status: number | string | undefined =
+        error?.status ?? error?.context?.status ?? error?.statusCode;
+      let body: string | undefined;
+      try {
+        const ctx = error?.context;
+        if (ctx && typeof ctx.text === 'function') {
+          body = await ctx.clone().text();
+        } else if (typeof ctx === 'string') {
+          body = ctx;
+        } else if (ctx && typeof ctx === 'object') {
+          body = JSON.stringify(ctx, null, 2);
+        }
+      } catch {
+        /* ignore body extraction failures */
+      }
+      let raw = '';
+      try {
+        raw = JSON.stringify(
+          error,
+          Object.getOwnPropertyNames(error ?? {}),
+          2,
+        );
+      } catch {
+        raw = String(error);
+      }
+      setSubmitError({
+        message: friendly,
+        status,
+        code: error?.code,
+        details: error?.details,
+        hint: error?.hint,
+        body,
+        raw,
+        at: new Date().toISOString(),
+      });
+      setShowRawError(false);
       toast.error('Failed to submit deposit', { description: friendly });
       setStep('form');
     } finally {
