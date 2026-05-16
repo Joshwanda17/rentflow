@@ -560,3 +560,105 @@ export { fmtMoney, pctChange };
 
 // silence unused import warning for isAfter (kept for future filtering use)
 void isAfter;
+
+/* ------------------------------------------------------------------
+ * ActiveAgentsHero
+ * Big, glanceable hero KPI for "Active Agents" — defined strictly as
+ * unique agents who posted ≥1 rent (tenant) request in the selected
+ * window. Surfaces share-of-fleet so Agent Ops can spot drop-offs.
+ * ------------------------------------------------------------------ */
+function ActiveAgentsHero({
+  value,
+  prev,
+  totalAgents,
+  loading,
+  range,
+  onClick,
+}: {
+  value: number;
+  prev: number;
+  totalAgents: number;
+  loading?: boolean;
+  range: DateRange;
+  onClick: () => void;
+}) {
+  const pct = pctChange(value, prev);
+  const isUp = pct >= 0;
+  const share = totalAgents > 0 ? Math.min(100, (value / totalAgents) * 100) : 0;
+  const rangeLabel = range === '24h' ? 'last 24h' : range === '7d' ? 'last 7 days' : 'last 30 days';
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'relative w-full text-left overflow-hidden rounded-2xl border border-amber-300/50',
+        'bg-gradient-to-br from-amber-500 via-orange-500 to-rose-500 p-4 sm:p-6 shadow-lg',
+        'hover:shadow-xl active:scale-[0.99] transition-all touch-manipulation',
+      )}
+    >
+      <div className="pointer-events-none absolute -top-10 -right-10 h-40 w-40 rounded-full bg-white/15 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-12 -left-12 h-48 w-48 rounded-full bg-white/10 blur-3xl" />
+
+      <div className="relative flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <div className="h-9 w-9 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center ring-1 ring-white/25">
+              <Activity className="h-4.5 w-4.5 text-white" />
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-white/90">
+                Active Agents
+              </p>
+              <p className="text-[10px] text-white/75 leading-tight">
+                Posted ≥1 tenant request · {rangeLabel}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-3 flex items-end gap-3 flex-wrap">
+            {loading ? (
+              <Loader2 className="h-10 w-10 text-white animate-spin" />
+            ) : (
+              <span className="text-5xl sm:text-6xl font-extrabold text-white tabular-nums leading-none">
+                {value.toLocaleString()}
+              </span>
+            )}
+            {totalAgents > 0 && !loading && (
+              <span className="text-sm font-semibold text-white/85 pb-1">
+                / {totalAgents.toLocaleString()} total
+              </span>
+            )}
+            {!loading && (
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold pb-1',
+                  isUp ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800',
+                )}
+              >
+                {isUp ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                {Math.abs(pct).toFixed(0)}%
+              </span>
+            )}
+          </div>
+
+          {totalAgents > 0 && !loading && (
+            <div className="mt-3 max-w-md">
+              <div className="h-2 rounded-full bg-white/20 overflow-hidden">
+                <div
+                  className="h-full bg-white rounded-full transition-all"
+                  style={{ width: `${share}%` }}
+                />
+              </div>
+              <p className="text-[10px] text-white/85 mt-1">
+                {share.toFixed(1)}% of fleet active · vs previous {value === prev ? 'flat' : `${prev.toLocaleString()}`}
+              </p>
+            </div>
+          )}
+        </div>
+
+        <ChevronRight className="h-5 w-5 text-white/80 shrink-0 mt-1" />
+      </div>
+    </button>
+  );
+}
