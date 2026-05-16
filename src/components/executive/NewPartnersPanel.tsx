@@ -391,19 +391,26 @@ export function NewPartnersPanel() {
     return () => io.disconnect();
   }, [visiblePartnerCount, partnerSearch, partnerFilter]);
 
-  // ── All partners (Partner Ops can browse, filter, and contact every joined partner) ──
-  const { data: joined, isLoading } = useQuery({
-    queryKey: ['new-partners-panel'],
+  // ── All partners (paginated, server-side) ──
+  // Each page fetches one slice of `user_roles` (role=supporter) ordered by
+  // newest first, plus the exact total count so the UI can render real
+  // prev/next controls. `placeholderData: keepPreviousData` keeps the current
+  // page visible while the next one loads, avoiding a skeleton flash.
+  const { data: joinedPage, isLoading, isFetching } = useQuery({
+    queryKey: ['new-partners-panel', partnersPageIndex, PARTNERS_PAGE_SIZE],
     queryFn: async () => {
-      const { data: roles } = await supabase
+      const from = partnersPageIndex * PARTNERS_PAGE_SIZE;
+      const to = from + PARTNERS_PAGE_SIZE - 1;
+      const { data: roles, count } = await supabase
         .from('user_roles')
-        .select('user_id, created_at')
+        .select('user_id, created_at', { count: 'exact' })
         .eq('role', 'supporter')
         .eq('enabled', true)
         .order('created_at', { ascending: false })
-        .limit(2000);
+        .range(from, to);
       const rows = roles || [];
-      if (rows.length === 0) return [] as JoinedPartner[];
+      const total = count ?? rows.length;
+      if (rows.length === 0) return { rows: [] as JoinedPartner[], total };
 
       const ids = rows.map(r => r.user_id);
       const [{ data: profiles }, { data: portfolios }] = await Promise.all([
@@ -417,16 +424,25 @@ export function NewPartnersPanel() {
         countMap.set(p.investor_id, (countMap.get(p.investor_id) || 0) + 1);
       });
 
-      return rows.map(r => ({
+      const built: JoinedPartner[] = rows.map(r => ({
         user_id: r.user_id,
         created_at: r.created_at,
         full_name: pMap.get(r.user_id)?.full_name || 'Unknown',
         phone: pMap.get(r.user_id)?.phone || '—',
         portfolio_count: countMap.get(r.user_id) || 0,
-      })) as JoinedPartner[];
+      }));
+      return { rows: built, total };
     },
     staleTime: 60_000,
+    placeholderData: keepPreviousData,
   });
+  const joined = joinedPage?.rows;
+  const joinedTotal = joinedPage?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(joinedTotal / PARTNERS_PAGE_SIZE));
+  // Clamp page if total shrinks (e.g. after a refetch).
+  useEffect(() => {
+    if (partnersPageIndex > totalPages - 1) setPartnersPageIndex(totalPages - 1);
+  }, [totalPages, partnersPageIndex]);
 
   // ── Filtered partners (drives both the badge counts above the grid
   // and the grid itself, so badges react instantly to the active filter). ──
