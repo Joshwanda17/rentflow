@@ -295,6 +295,18 @@ export function NewPartnersPanel() {
   useEffect(() => {
     setVisiblePartnerCount(PARTNER_PAGE_SIZE);
   }, [partnerSearch, partnerFilter]);
+  // Auto-load the next page when the sentinel scrolls into view.
+  useEffect(() => {
+    const node = loadMoreSentinelRef.current;
+    if (!node || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some(e => e.isIntersecting)) {
+        setVisiblePartnerCount(c => c + PARTNER_PAGE_SIZE);
+      }
+    }, { root: null, rootMargin: '200px', threshold: 0 });
+    io.observe(node);
+    return () => io.disconnect();
+  }, [visiblePartnerCount, partnerSearch, partnerFilter]);
 
   // ── All partners (Partner Ops can browse, filter, and contact every joined partner) ──
   const { data: joined, isLoading } = useQuery({
