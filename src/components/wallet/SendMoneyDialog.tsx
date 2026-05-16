@@ -21,7 +21,7 @@ import { useConfetti } from '@/components/Confetti';
 import { toast } from 'sonner';
 import { 
   Loader2, Send, Phone, Coins, FileText, CheckCircle, Sparkles, UserCheck, UserX,
-  UtensilsCrossed, ShoppingCart, Fuel, Car, Hotel, Stethoscope, 
+  Mail, UtensilsCrossed, ShoppingCart, Fuel, Car, Hotel, Stethoscope, 
   Wrench, Coffee, Zap, Droplets, Scissors, BookOpen, Baby, Shirt, PawPrint, Bike
 } from 'lucide-react';
 
@@ -54,6 +54,8 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
   const { triggerCelebration, markCelebrated } = useFirstTransactionCelebration();
   const { fireSuccess } = useConfetti();
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [mode, setMode] = useState<'phone' | 'email'>('phone');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
@@ -66,22 +68,57 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
     | { status: 'not_found' }
   >({ status: 'idle' });
 
-  // Debounced recipient lookup by phone (last 9 digits, multi-format)
+  // Debounced recipient lookup (phone OR email depending on mode)
   useEffect(() => {
-    const digits = phone.replace(/\D/g, '');
-    if (digits.length < 9) {
+    if (mode === 'phone') {
+      const digits = phone.replace(/\D/g, '');
+      if (digits.length < 9) {
+        setRecipient({ status: 'idle' });
+        return;
+      }
+      const last9 = digits.slice(-9);
+      setRecipient({ status: 'searching' });
+      let cancelled = false;
+      const timer = setTimeout(async () => {
+        const variants = [`0${last9}`, `256${last9}`, `+256${last9}`, last9];
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, full_name, phone, email')
+          .in('phone', variants)
+          .limit(1)
+          .maybeSingle();
+        if (cancelled) return;
+        if (error || !data) {
+          setRecipient({ status: 'not_found' });
+          return;
+        }
+        setRecipient({
+          status: 'found',
+          name: data.full_name || data.email || 'Unnamed user',
+          phone: data.phone || phone,
+          isSelf: data.id === user?.id,
+        });
+      }, 400);
+      return () => {
+        cancelled = true;
+        clearTimeout(timer);
+      };
+    }
+
+    // Email mode
+    const trimmed = email.trim().toLowerCase();
+    const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+    if (!validEmail) {
       setRecipient({ status: 'idle' });
       return;
     }
-    const last9 = digits.slice(-9);
     setRecipient({ status: 'searching' });
     let cancelled = false;
     const timer = setTimeout(async () => {
-      const variants = [`0${last9}`, `256${last9}`, `+256${last9}`, last9];
       const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name, phone, email')
-        .in('phone', variants)
+        .ilike('email', trimmed)
         .limit(1)
         .maybeSingle();
       if (cancelled) return;
@@ -89,10 +126,14 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
         setRecipient({ status: 'not_found' });
         return;
       }
+      if (!data.phone) {
+        setRecipient({ status: 'not_found' });
+        return;
+      }
       setRecipient({
         status: 'found',
         name: data.full_name || data.email || 'Unnamed user',
-        phone: data.phone || phone,
+        phone: data.phone,
         isSelf: data.id === user?.id,
       });
     }, 400);
@@ -100,7 +141,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [phone, user?.id]);
+  }, [mode, phone, email, user?.id]);
 
   const categories = [
     { icon: UtensilsCrossed, label: 'Food', keywords: ['food', 'eat', 'lunch', 'dinner', 'breakfast', 'meal', 'chakula'] },
@@ -139,8 +180,16 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
     e.preventDefault();
     
     const amountNum = parseFloat(amount);
-    if (!phone || isNaN(amountNum) || amountNum <= 0) {
-      toast.error('Please enter valid phone number and amount');
+    if (isNaN(amountNum) || amountNum <= 0) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+    if (mode === 'phone' && !phone) {
+      toast.error('Please enter a recipient phone number');
+      return;
+    }
+    if (mode === 'email' && !email) {
+      toast.error('Please enter a recipient email');
       return;
     }
 
@@ -157,12 +206,15 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
       return;
     }
     if (recipient.status === 'idle') {
-      toast.error('Enter a valid recipient phone number');
+      toast.error(mode === 'email' ? 'Enter a valid recipient email' : 'Enter a valid recipient phone number');
       return;
     }
 
     setLoading(true);
-    const { error } = await sendMoney(phone, amountNum, description);
+    // Always send via matched phone (edge function accepts recipient_phone)
+    const recipientPhone =
+      recipient.status === 'found' ? recipient.phone : phone;
+    const { error } = await sendMoney(recipientPhone, amountNum, description);
     setLoading(false);
 
     if (error) {
@@ -190,6 +242,8 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
     
     setTimeout(() => {
       setPhone('');
+      setEmail('');
+      setMode('phone');
       setAmount('');
       setDescription('');
       setSuccess(false);
@@ -202,6 +256,8 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
   const handleClose = (value: boolean) => {
     if (!value) {
       setPhone('');
+      setEmail('');
+      setMode('phone');
       setAmount('');
       setDescription('');
       setSuccess(false);
@@ -285,18 +341,46 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                 animate="visible"
               >
                 <motion.div variants={itemVariants} className="space-y-2">
-                  <Label htmlFor="phone" className="flex items-center gap-2">
-                    <Phone className="h-3.5 w-3.5 text-muted-foreground" />
-                    Recipient Phone Number
-                  </Label>
-                  <PhoneInput
-                    id="phone"
-                    placeholder="e.g. 0783673998"
-                    value={phone}
-                    onChange={(v) => setPhone(v)}
-                    className="bg-background/50 border-border/50 focus:border-primary/50 transition-all"
-                    required
-                  />
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor={mode === 'phone' ? 'phone' : 'email'} className="flex items-center gap-2">
+                      {mode === 'phone' ? (
+                        <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                      ) : (
+                        <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                      )}
+                      Recipient {mode === 'phone' ? 'Phone Number' : 'Email'}
+                    </Label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMode(mode === 'phone' ? 'email' : 'phone');
+                        setRecipient({ status: 'idle' });
+                      }}
+                      className="text-xs text-primary hover:underline"
+                    >
+                      Use {mode === 'phone' ? 'email' : 'phone'} instead
+                    </button>
+                  </div>
+                  {mode === 'phone' ? (
+                    <PhoneInput
+                      id="phone"
+                      placeholder="e.g. 0783673998"
+                      value={phone}
+                      onChange={(v) => setPhone(v)}
+                      className="bg-background/50 border-border/50 focus:border-primary/50 transition-all"
+                      required
+                    />
+                  ) : (
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="recipient@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="bg-background/50 border-border/50 focus:border-primary/50 transition-all"
+                      required
+                    />
+                  )}
                   <AnimatePresence mode="wait">
                     {recipient.status === 'searching' && (
                       <motion.p
@@ -333,7 +417,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                         className="text-xs text-destructive flex items-center gap-1.5"
                       >
                         <UserX className="h-3 w-3" />
-                        That's your own number.
+                        That's your own account.
                       </motion.p>
                     )}
                     {recipient.status === 'not_found' && (
@@ -345,7 +429,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                         className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5"
                       >
                         <UserX className="h-3 w-3" />
-                        No Welile user found for this number.
+                        No Welile user found for this {mode === 'email' ? 'email' : 'number'}.
                       </motion.p>
                     )}
                   </AnimatePresence>
