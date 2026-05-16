@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
     // Allowed production categories
     const ALLOWED_CATEGORIES = [
       'roi_wallet_credit', 'roi_expense', 'agent_commission_earned',
-      'system_balance_correction', 'wallet_transfer', 'wallet_deduction',
+      'system_balance_correction', 'wallet_transfer',
       'access_fee_collected', 'registration_fee_collected',
       'marketing_expense', 'payroll_expense', 'general_admin_expense',
       'research_development_expense', 'tax_expense', 'interest_expense', 'equipment_expense',
