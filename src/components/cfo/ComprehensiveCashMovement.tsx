@@ -902,9 +902,25 @@ export function ComprehensiveCashMovement() {
         <div className="flex items-start justify-between flex-wrap gap-2">
           <div>
             <h3 className="text-base sm:text-sm font-semibold">Money In & Out</h3>
-            <p className="text-[11px] text-muted-foreground">All money flowing in and out of Welile — updated live from the books.</p>
+            <p className="text-[11px] text-muted-foreground">
+              {simpleMode
+                ? 'A simple picture of money flowing in and out of Welile, in plain English.'
+                : 'All money flowing in and out of Welile — updated live from the books.'}
+            </p>
           </div>
-          <Badge variant="outline" className="text-[10px]">{rangeLabel}</Badge>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Badge variant="outline" className="text-[10px]">{rangeLabel}</Badge>
+            <Button
+              size="sm"
+              variant={simpleMode ? 'default' : 'outline'}
+              className="h-7 text-[11px] px-2 gap-1"
+              onClick={() => setSimpleMode(v => !v)}
+              title={simpleMode ? 'Switch to full detail view' : 'Switch to a simple, plain-English view'}
+              aria-pressed={simpleMode}
+            >
+              {simpleMode ? '😊 Simple view' : 'Detailed view'}
+            </Button>
+          </div>
         </div>
 
         {/* Period — horizontal scroll on mobile so it never crams */}
