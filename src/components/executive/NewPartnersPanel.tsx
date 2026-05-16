@@ -462,6 +462,37 @@ export function NewPartnersPanel() {
     return sorted;
   }, [joined, partnerSearch, partnerFilter, customRange, partnerSort]);
 
+  // ── Memoized badge counts ──
+  // Calculated once per change of `filteredPartners` (instead of recomputed on
+  // every render inside the JSX IIFE) so the click-to-filter badge strip
+  // updates smoothly without re-running 6 array passes on unrelated renders.
+  const badgeCounts = useMemo(() => {
+    const filtered = filteredPartners;
+    const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+    const startOfWeek = new Date(startOfToday);
+    const dow = startOfWeek.getDay();
+    startOfWeek.setDate(startOfWeek.getDate() - ((dow + 6) % 7));
+    const startOfMonth = new Date(startOfToday.getFullYear(), startOfToday.getMonth(), 1);
+    let withCount = 0, todayCount = 0, weekCount = 0, monthCount = 0;
+    const todayMs = startOfToday.getTime();
+    const weekMs = startOfWeek.getTime();
+    const monthMs = startOfMonth.getTime();
+    for (const p of filtered) {
+      if (p.portfolio_count > 0) withCount++;
+      const t = new Date(p.created_at).getTime();
+      if (t >= todayMs) todayCount++;
+      if (t >= weekMs) weekCount++;
+      if (t >= monthMs) monthCount++;
+    }
+    return {
+      withCount,
+      withoutCount: filtered.length - withCount,
+      todayCount,
+      weekCount,
+      monthCount,
+    };
+  }, [filteredPartners]);
+
   // ── Realtime: any new supporter role grant pops in instantly ──
   useEffect(() => {
     const channel = supabase
