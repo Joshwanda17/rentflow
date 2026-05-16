@@ -155,19 +155,30 @@ export function NewPartnersPanel() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyRows, setHistoryRows] = useState<any[]>([]);
   const [inlineCreateOpen, setInlineCreateOpen] = useState(false);
-  // Track which expanded inline-editor rows have unsaved changes (by portfolio id).
-  // Lives in a ref so child updates do not re-render the parent.
-  const dirtyRowsRef = useRef<Record<string, boolean>>({});
+  // Track per-row unsaved change summaries (by portfolio id). The value is a list
+  // of human-readable diff lines (e.g. "Payout day: 5 → 12") so we can show the
+  // user exactly what's about to be discarded. Lives in a ref so child updates
+  // do not re-render the parent.
+  const dirtyRowsRef = useRef<Record<string, string[]>>({});
   // Track which inline-editor rows are currently mid-save. Blocks collapse/switch
   // so the user can't accidentally trigger an unsaved-change prompt or navigate
   // away while the network request is in flight.
   const savingRowsRef = useRef<Record<string, boolean>>({});
 
+  // In-app modal state for the discard-changes confirmation (replaces window.confirm).
+  const [discardPrompt, setDiscardPrompt] = useState<{
+    portfolioId: string;
+    portfolioLabel: string;
+    changes: string[];
+    action: 'collapse' | 'switch';
+    onConfirm: () => void;
+  } | null>(null);
+
   // Warn the user before they navigate away / reload / close the tab while any
   // expanded inline portfolio row still has unsaved edits.
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
-      const hasDirty = Object.values(dirtyRowsRef.current).some(Boolean);
+      const hasDirty = Object.values(dirtyRowsRef.current).some(v => v && v.length > 0);
       if (!hasDirty) return;
       e.preventDefault();
       // Required for Chrome to actually show the prompt.
@@ -188,10 +199,21 @@ export function NewPartnersPanel() {
       // A save is in flight on the current row — ignore collapse/switch.
       return;
     }
-    if (currentId && currentId !== nextId && dirtyRowsRef.current[currentId]) {
-      const ok = window.confirm('You have unsaved changes on this portfolio. Discard them?');
-      if (!ok) return;
-      delete dirtyRowsRef.current[currentId];
+    const changes = currentId ? dirtyRowsRef.current[currentId] : undefined;
+    if (currentId && currentId !== nextId && changes && changes.length > 0) {
+      const current = selectedPortfolios.find(x => x.id === currentId);
+      setDiscardPrompt({
+        portfolioId: currentId,
+        portfolioLabel: current?.account_name || current?.portfolio_code || 'this portfolio',
+        changes,
+        action: nextId === null ? 'collapse' : 'switch',
+        onConfirm: () => {
+          delete dirtyRowsRef.current[currentId];
+          setExpandedId(nextId);
+          setDiscardPrompt(null);
+        },
+      });
+      return;
     }
     setExpandedId(nextId);
   }
