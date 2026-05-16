@@ -1934,12 +1934,15 @@ function WalletMovementSummary({
   const formatDelta = (current: number, prior: number | undefined) => {
     if (prior === undefined) return null;
     const diff = current - prior;
-    if (prior === 0 && diff === 0) return { label: 'no change', tone: 'muted' as const, arrow: '·' };
-    if (prior === 0) return { label: 'new', tone: 'pos' as const, arrow: '▲' };
+    const absLabel = diff === 0
+      ? ''
+      : `${diff > 0 ? '+' : '−'}${formatUGX(Math.abs(diff))}`;
+    if (prior === 0 && diff === 0) return { label: 'no change', absLabel: '', diff, tone: 'muted' as const, arrow: '·' };
+    if (prior === 0) return { label: 'new', absLabel, diff, tone: 'pos' as const, arrow: '▲' };
     const pct = (diff / prior) * 100;
     const arrow = diff > 0 ? '▲' : diff < 0 ? '▼' : '·';
     const tone = diff > 0 ? 'pos' as const : diff < 0 ? 'neg' as const : 'muted' as const;
-    return { label: `${arrow} ${Math.abs(pct).toFixed(0)}%`, tone, arrow };
+    return { label: `${arrow} ${Math.abs(pct).toFixed(0)}%`, absLabel, diff, tone, arrow };
   };
   const toneClass = (tone: 'pos' | 'neg' | 'muted', context: 'in' | 'out') => {
     // For inflows: up is good (success). For outflows: up is bad (destructive).
