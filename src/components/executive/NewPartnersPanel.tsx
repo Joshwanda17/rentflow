@@ -751,13 +751,15 @@ export function NewPartnersPanel() {
           </div>
           {/* Sort dropdown — applies to the visible grid */}
           <Select value={partnerSort} onValueChange={(v) => setPartnerSort(v as PartnerSort)}>
-            <SelectTrigger className="h-8 w-[170px] text-[11px] self-start" aria-label="Sort partners">
+            <SelectTrigger className="h-8 w-[200px] text-[11px] self-start" aria-label="Sort partners">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="recent">Newest first</SelectItem>
-              <SelectItem value="portfolio_desc">With portfolios first</SelectItem>
-              <SelectItem value="portfolio_asc">No portfolio first</SelectItem>
+              <SelectItem value="status_active">Status: Active first</SelectItem>
+              <SelectItem value="status_none">Status: None first</SelectItem>
+              <SelectItem value="count_desc">Portfolio count: high → low</SelectItem>
+              <SelectItem value="count_asc">Portfolio count: low → high</SelectItem>
               <SelectItem value="name">Name (A–Z)</SelectItem>
             </SelectContent>
           </Select>
