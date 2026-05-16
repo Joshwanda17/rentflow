@@ -3451,6 +3451,69 @@ export function ComprehensiveCashMovement() {
             </div>
           </SheetContent>
         </Sheet>
+
+        {/* ─── Mobile sticky bottom action bar ──────────────────────
+            Keeps the two most-reached actions — Reset filters and the
+            Simple/Detailed view toggle — within thumb's reach at the
+            bottom of the viewport on phones. Hidden on sm+ where the
+            in-flow header controls are already visible. */}
+        {(() => {
+          const hasActiveFilters =
+            !!categoryQuickFilter ||
+            topCategoriesLimit !== 5 ||
+            directionQuickFilter !== 'all' ||
+            !!partyQuickFilter ||
+            !!pageSearch ||
+            scopeFilter !== 'all';
+          return (
+            <>
+              {/* Spacer so the last bit of content isn't covered by the bar */}
+              <div className="h-20 sm:hidden" aria-hidden="true" />
+              <div
+                className={cn(
+                  'sm:hidden fixed inset-x-0 bottom-0 z-40',
+                  'bg-card/95 backdrop-blur border-t border-border',
+                  'px-3 pt-2 pb-[max(env(safe-area-inset-bottom),0.5rem)]',
+                )}
+                role="toolbar"
+                aria-label="Cash movement quick actions"
+              >
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 h-11 gap-2"
+                    onClick={() => {
+                      setCategoryQuickFilter(null);
+                      setTopCategoriesLimit(5);
+                      setDirectionQuickFilter('all');
+                      setPartyQuickFilter(null);
+                      setPageSearch('');
+                      setScopeFilter('all');
+                    }}
+                    disabled={!hasActiveFilters}
+                    aria-label="Reset all filters back to defaults"
+                  >
+                    <X className="h-4 w-4" />
+                    Reset filters
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={simpleMode ? 'default' : 'secondary'}
+                    size="sm"
+                    className="flex-1 h-11 gap-2"
+                    onClick={() => setSimpleMode(v => !v)}
+                    aria-pressed={simpleMode}
+                    aria-label={simpleMode ? 'Switch to detailed view' : 'Switch to simple view'}
+                  >
+                    {simpleMode ? 'Simple view' : 'Detailed view'}
+                  </Button>
+                </div>
+              </div>
+            </>
+          );
+        })()}
       </CardContent>
     </Card>
   );
