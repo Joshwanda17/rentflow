@@ -562,6 +562,63 @@ export type Database = {
           },
         ]
       }
+      agent_allocation_traces: {
+        Row: {
+          agent_id: string
+          amount: number
+          commission_earned: number
+          created_at: string
+          float_after: number
+          float_before: number
+          id: string
+          landlord_id: string | null
+          legs: Json
+          notes: string | null
+          outstanding_after: number
+          outstanding_before: number
+          rent_request_id: string
+          tenant_id: string
+          tracking_id: string | null
+          transaction_group: string | null
+        }
+        Insert: {
+          agent_id: string
+          amount: number
+          commission_earned: number
+          created_at?: string
+          float_after: number
+          float_before: number
+          id?: string
+          landlord_id?: string | null
+          legs: Json
+          notes?: string | null
+          outstanding_after: number
+          outstanding_before: number
+          rent_request_id: string
+          tenant_id: string
+          tracking_id?: string | null
+          transaction_group?: string | null
+        }
+        Update: {
+          agent_id?: string
+          amount?: number
+          commission_earned?: number
+          created_at?: string
+          float_after?: number
+          float_before?: number
+          id?: string
+          landlord_id?: string | null
+          legs?: Json
+          notes?: string | null
+          outstanding_after?: number
+          outstanding_before?: number
+          rent_request_id?: string
+          tenant_id?: string
+          tracking_id?: string | null
+          transaction_group?: string | null
+        }
+        Relationships: []
+      }
       agent_capabilities: {
         Row: {
           agent_id: string
