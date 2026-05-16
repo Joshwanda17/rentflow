@@ -1090,7 +1090,6 @@ export function NewPartnersPanel() {
           >
             <div className="overflow-hidden min-h-0">
               <div className="space-y-3 sm:space-y-4">
-              {panelOpen && (
           {/* Secondary header row — total/loaded badges, filter summary,
               description, and Create Portfolio CTA. Only relevant when the
               panel is expanded. */}
@@ -1941,7 +1940,6 @@ export function NewPartnersPanel() {
                 )}
               </div>
             )}
-              )}
               </div>
             </div>
           </div>
