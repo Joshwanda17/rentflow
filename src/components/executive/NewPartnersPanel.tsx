@@ -306,7 +306,10 @@ export function NewPartnersPanel() {
     const raw = searchParams.get('jp_f');
     return (ALLOWED_FILTERS as readonly string[]).includes(raw ?? '')
       ? (raw as PartnerFilter)
-      : 'all';
+      // Default view = newest joiners who don't have a portfolio yet, so
+      // Partner Ops immediately sees the activation backlog instead of the
+      // already-onboarded majority.
+      : 'without';
   });
   const [customRange, setCustomRange] = useState<DateRange | undefined>(() => {
     const from = parseDateParam(searchParams.get('jp_from'));
