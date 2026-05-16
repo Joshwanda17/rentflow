@@ -26,12 +26,18 @@ function extractWalletMovementSummaryBlock(src: string): string {
 describe('WalletMovementSummary (bucket flow panel) — read-only safety guard', () => {
   const block = extractWalletMovementSummaryBlock(SOURCE);
 
-  const forbidden = ['.insert(', '.update(', '.delete(', '.upsert(', '.rpc('];
-  for (const token of forbidden) {
+  // Supabase chain methods are unique enough that string scans suffice for
+  // insert/update/upsert/rpc. `.delete(` is special — Set/Map also expose it
+  // — so we only flag it when used at the end of a chain (`).delete(`).
+  const forbiddenStrings = ['.insert(', '.update(', '.upsert(', '.rpc('];
+  for (const token of forbiddenStrings) {
     it(`must not contain forbidden Supabase call ${token}`, () => {
       expect(block.includes(token), `Found ${token} in WalletMovementSummary`).toBe(false);
     });
   }
+  it('must not contain a chained Supabase .delete( call', () => {
+    expect(/\)\s*\.\s*delete\s*\(/.test(block)).toBe(false);
+  });
 
   it('must not write to wallets, general_ledger, or wallet_ledger tables directly', () => {
     const writeTargets = [
