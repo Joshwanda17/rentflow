@@ -322,6 +322,10 @@ export function ComprehensiveCashMovement() {
   const [directionSheetOpen, setDirectionSheetOpen] = useState(false);
   const [partySheetOpen, setPartySheetOpen] = useState(false);
   const [partySearch, setPartySearch] = useState('');
+  // "Tap to see details" — how many rows of the page-level transaction
+  // drilldown list are currently rendered. Starts small for phone perf,
+  // grows in chunks when the user taps "Show more".
+  const [pageDrillVisible, setPageDrillVisible] = useState<number>(25);
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<LedgerRow[]>([]);
   const [generatedAt, setGeneratedAt] = useState<Date | null>(null);
