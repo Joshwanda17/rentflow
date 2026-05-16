@@ -396,6 +396,17 @@ export function ComprehensiveCashMovement() {
 
   useEffect(() => { generate(); /* eslint-disable-next-line */ }, [period]);
 
+  // Auto-refresh every 60s when enabled (skip while a fetch is in flight,
+  // and skip while a drill-down sheet is open to avoid disturbing the user).
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const id = window.setInterval(() => {
+      if (!loading && !drill) generate();
+    }, 60_000);
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoRefresh, loading, drill, period]);
+
   // Reset search + pagination when opening a new drill
   useEffect(() => {
     setDrillQuery('');
