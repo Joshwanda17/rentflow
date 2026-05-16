@@ -433,6 +433,13 @@ export function AgentOpsHomeView({ range, onRangeChange, onOpenSection }: AgentO
         onClick={() => setActiveDrill('active-agents')}
       />
 
+      {/* Active agents per-bucket trend — small time-series under the hero */}
+      <ActiveAgentsTrendChart
+        data={data?.trend ?? []}
+        range={range}
+        loading={isLoading}
+      />
+
       {/* Daily Briefs grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
         {cards.map((c) => (
