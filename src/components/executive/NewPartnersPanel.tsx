@@ -1031,15 +1031,17 @@ export function NewPartnersPanel() {
                   </div>
                 );
               }
-              const visible = filtered.slice(0, visiblePartnerCount);
-              const hasMore = filtered.length > visible.length;
+              // Infinite scroll renders every filtered row that has been
+              // loaded so far. New server pages are appended automatically
+              // when the sentinel scrolls into view.
+              const visible = filtered;
               return (
             <div className="space-y-2">
               {badges}
               <div ref={gridScrollRef} className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[520px] overflow-y-auto pr-1">
               <div className="col-span-full text-[10px] text-muted-foreground">
-                Showing {visible.length} of {filtered.length} matched on page {partnersPageIndex + 1}
-                {' '}of {totalPages} · {joinedTotal.toLocaleString()} total partners
+                Showing {visible.length} matched · {joined.length.toLocaleString()} loaded
+                {' '}of {joinedTotal.toLocaleString()} total partners
               </div>
               {visible.map(p => (
                 <div key={p.user_id} className="rounded-xl border border-border/60 bg-card p-2.5 flex items-center gap-2.5">
@@ -1152,54 +1154,32 @@ export function NewPartnersPanel() {
                   </Button>
                 </div>
               ))}
-              {hasMore && (
-                <div
-                  ref={loadMoreSentinelRef}
-                  className="col-span-full flex justify-center py-2"
-                >
+              {/* Auto-load sentinel — IntersectionObserver triggers
+                  fetchNextPage when this scrolls into view. */}
+              <div
+                ref={loadMoreSentinelRef}
+                className="col-span-full flex justify-center py-2 text-[10px] text-muted-foreground"
+              >
+                {isFetchingNextPage ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Loading more partners…
+                  </span>
+                ) : hasNextPage ? (
                   <Button
                     size="sm"
                     variant="outline"
                     className="h-7 text-[10px] gap-1.5"
-                    onClick={() => setVisiblePartnerCount(c => c + PARTNER_PAGE_SIZE)}
+                    onClick={() => fetchNextPage()}
                   >
                     <ChevronDown className="h-3 w-3" />
-                    Load more ({filtered.length - visible.length} remaining)
+                    Load more ({Math.max(0, joinedTotal - joined.length)} remaining)
                   </Button>
-                </div>
-              )}
+                ) : joined.length > 0 ? (
+                  <span>End of list · {joined.length.toLocaleString()} partners loaded</span>
+                ) : null}
+              </div>
             </div>
-              {/* Server-side pagination controls — browse every supporter, not just the first page. */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between gap-2 pt-1">
-                  <p className="text-[10px] text-muted-foreground">
-                    Page <span className="font-semibold text-foreground">{partnersPageIndex + 1}</span> of {totalPages}
-                    {' '}· {PARTNERS_PAGE_SIZE} per page
-                  </p>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 px-2 text-[10px] gap-1"
-                      disabled={partnersPageIndex === 0 || isFetching}
-                      onClick={() => setPartnersPageIndex(i => Math.max(0, i - 1))}
-                    >
-                      <ChevronLeft className="h-3 w-3" />
-                      Prev
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 px-2 text-[10px] gap-1"
-                      disabled={partnersPageIndex >= totalPages - 1 || isFetching}
-                      onClick={() => setPartnersPageIndex(i => Math.min(totalPages - 1, i + 1))}
-                    >
-                      Next
-                      {isFetching ? <Loader2 className="h-3 w-3 animate-spin" /> : <ChevronRight className="h-3 w-3" />}
-                    </Button>
-                  </div>
-                </div>
-              )}
             </div>
               );
             })()
