@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import {
   Loader2, Landmark, Search, CalendarIcon, ArrowRight, Banknote, HandCoins,
@@ -50,6 +51,9 @@ export function TenantOpsLandlordFloatTimeline() {
   const [from, setFrom] = useState<Date | undefined>(undefined);
   const [to, setTo] = useState<Date | undefined>(undefined);
   const [search, setSearch] = useState('');
+  const [agentFilter, setAgentFilter] = useState<string>('all');
+  const [tenantFilter, setTenantFilter] = useState<string>('all');
+  const [landlordFilter, setLandlordFilter] = useState<string>('all');
 
   const fromIso = from ? new Date(new Date(from).setHours(0, 0, 0, 0)).toISOString() : null;
   const toIso = to ? new Date(new Date(to).setHours(23, 59, 59, 999)).toISOString() : null;
@@ -174,11 +178,41 @@ export function TenantOpsLandlordFloatTimeline() {
     staleTime: 30_000,
   });
 
+  // Build distinct option lists from the loaded events
+  const { agentOptions, tenantOptions, landlordOptions } = useMemo(() => {
+    const agents = new Map<string, string>();
+    const tenants = new Map<string, string>();
+    const landlords = new Map<string, string>(); // key = name|phone
+    for (const e of events) {
+      if (e.agent_id) agents.set(e.agent_id, e.agent_name || 'Unknown Agent');
+      if (e.tenant_id) tenants.set(e.tenant_id, e.tenant_name || 'Unknown Tenant');
+      if (e.landlord_name || e.landlord_phone) {
+        const key = `${e.landlord_name || ''}|${e.landlord_phone || ''}`;
+        const label = e.landlord_name
+          ? `${e.landlord_name}${e.landlord_phone ? ` · ${e.landlord_phone}` : ''}`
+          : (e.landlord_phone as string);
+        landlords.set(key, label);
+      }
+    }
+    const sortByLabel = (a: [string, string], b: [string, string]) => a[1].localeCompare(b[1]);
+    return {
+      agentOptions: [...agents.entries()].sort(sortByLabel),
+      tenantOptions: [...tenants.entries()].sort(sortByLabel),
+      landlordOptions: [...landlords.entries()].sort(sortByLabel),
+    };
+  }, [events]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return events;
-    return events.filter((e) =>
-      [
+    return events.filter((e) => {
+      if (agentFilter !== 'all' && e.agent_id !== agentFilter) return false;
+      if (tenantFilter !== 'all' && e.tenant_id !== tenantFilter) return false;
+      if (landlordFilter !== 'all') {
+        const key = `${e.landlord_name || ''}|${e.landlord_phone || ''}`;
+        if (key !== landlordFilter) return false;
+      }
+      if (!q) return true;
+      return [
         e.reference,
         e.agent_name,
         e.tenant_name,
@@ -189,9 +223,9 @@ export function TenantOpsLandlordFloatTimeline() {
         e.notes,
       ]
         .filter(Boolean)
-        .some((v) => String(v).toLowerCase().includes(q)),
-    );
-  }, [events, search]);
+        .some((v) => String(v).toLowerCase().includes(q));
+    });
+  }, [events, search, agentFilter, tenantFilter, landlordFilter]);
 
   // Group by calendar day
   const grouped = useMemo(() => {
@@ -292,6 +326,53 @@ export function TenantOpsLandlordFloatTimeline() {
           {(from || to) && (
             <Button variant="ghost" size="sm" className="h-9" onClick={() => { setFrom(undefined); setTo(undefined); }}>
               Clear dates
+            </Button>
+          )}
+        </div>
+
+        {/* Party filters */}
+        <div className="flex flex-wrap items-center gap-2 mb-3">
+          <Select value={agentFilter} onValueChange={setAgentFilter}>
+            <SelectTrigger className="h-9 w-[180px] text-xs">
+              <SelectValue placeholder="Agent" />
+            </SelectTrigger>
+            <SelectContent className="max-h-[280px]">
+              <SelectItem value="all">All agents ({agentOptions.length})</SelectItem>
+              {agentOptions.map(([id, label]) => (
+                <SelectItem key={id} value={id} className="text-xs">{label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={tenantFilter} onValueChange={setTenantFilter}>
+            <SelectTrigger className="h-9 w-[180px] text-xs">
+              <SelectValue placeholder="Tenant" />
+            </SelectTrigger>
+            <SelectContent className="max-h-[280px]">
+              <SelectItem value="all">All tenants ({tenantOptions.length})</SelectItem>
+              {tenantOptions.map(([id, label]) => (
+                <SelectItem key={id} value={id} className="text-xs">{label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={landlordFilter} onValueChange={setLandlordFilter}>
+            <SelectTrigger className="h-9 w-[220px] text-xs">
+              <SelectValue placeholder="Landlord" />
+            </SelectTrigger>
+            <SelectContent className="max-h-[280px]">
+              <SelectItem value="all">All landlords ({landlordOptions.length})</SelectItem>
+              {landlordOptions.map(([key, label]) => (
+                <SelectItem key={key} value={key} className="text-xs">{label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {(agentFilter !== 'all' || tenantFilter !== 'all' || landlordFilter !== 'all') && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-9"
+              onClick={() => { setAgentFilter('all'); setTenantFilter('all'); setLandlordFilter('all'); }}
+            >
+              Clear party filters
             </Button>
           )}
         </div>
