@@ -1012,7 +1012,7 @@ export function NewPartnersPanel() {
                             setCustomRange(undefined);
                           }}
                         >
-                          Show all {joined.length}
+                          Show all {joinedTotal || joined.length} on this page
                         </Button>
                       </div>
                     </div>
@@ -1024,9 +1024,10 @@ export function NewPartnersPanel() {
               return (
             <div className="space-y-2">
               {badges}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[520px] overflow-y-auto pr-1">
+              <div ref={gridScrollRef} className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[520px] overflow-y-auto pr-1">
               <div className="col-span-full text-[10px] text-muted-foreground">
-                Showing {visible.length} of {filtered.length} matched · {joined.length} total
+                Showing {visible.length} of {filtered.length} matched on page {partnersPageIndex + 1}
+                {' '}of {totalPages} · {joinedTotal.toLocaleString()} total partners
               </div>
               {visible.map(p => (
                 <div key={p.user_id} className="rounded-xl border border-border/60 bg-card p-2.5 flex items-center gap-2.5">
