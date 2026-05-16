@@ -1003,6 +1003,14 @@ export function ComprehensiveCashMovement() {
                         <span className="font-medium">{prettifyCategory(c.category)}</span>
                         <span className="font-mono text-primary">{formatUGX(c.total)}</span>
                         <span className="text-muted-foreground">({c.count})</span>
+                        {includeWalletLegs && (c.walletIn > 0 || c.walletOut > 0) && (
+                          <span className="ml-1 inline-flex items-center gap-0.5 rounded bg-muted/60 px-1 text-[10px]">
+                            <span className="text-muted-foreground">w:</span>
+                            <span className="font-mono text-emerald-500">+{formatUGX(c.walletIn)}</span>
+                            <span className="text-muted-foreground">/</span>
+                            <span className="font-mono text-rose-500">−{formatUGX(c.walletOut)}</span>
+                          </span>
+                        )}
                         <Info className="h-3 w-3 text-muted-foreground" />
                         <ExternalLink className="h-3 w-3 text-muted-foreground" />
                       </button>
