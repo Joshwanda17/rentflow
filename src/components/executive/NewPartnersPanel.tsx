@@ -453,13 +453,21 @@ export function NewPartnersPanel() {
                     size="sm"
                     variant="outline"
                     className="h-7 text-[10px] gap-1 shrink-0"
+                    disabled={activatingUserId === p.user_id}
+                    aria-busy={activatingUserId === p.user_id}
                     onClick={() => setActivateConfirm({
                       user: { id: p.user_id, full_name: p.full_name, phone: p.phone },
                       isFirst: p.portfolio_count === 0,
                     })}
                   >
-                    <PlusCircle className="h-3 w-3" />
-                    {p.portfolio_count > 0 ? 'Add' : 'Activate'}
+                    {activatingUserId === p.user_id ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <PlusCircle className="h-3 w-3" />
+                    )}
+                    {activatingUserId === p.user_id
+                      ? 'Activating…'
+                      : p.portfolio_count > 0 ? 'Add' : 'Activate'}
                   </Button>
                 </div>
               ))}
