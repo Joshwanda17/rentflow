@@ -42,6 +42,12 @@ export function LedgerDrillDownDialog({ open, onOpenChange, title, spec, startDa
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const storageKey = useMemo(() => {
+    const s = startDate ? startDate.toISOString() : 'all';
+    const e = endDate ? endDate.toISOString() : 'all';
+    return `welile-drill-categories|${title}|${s}|${e}`;
+  }, [title, startDate, endDate]);
+
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
   const [filtersOpen, setFiltersOpen] = useState(false);
 
@@ -88,8 +94,22 @@ export function LedgerDrillDownDialog({ open, onOpenChange, title, spec, startDa
   );
 
   useEffect(() => {
+    if (uniqueCategories.length === 0) return;
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (raw) {
+        const saved = JSON.parse(raw) as string[];
+        const restored = new Set(saved.filter(c => uniqueCategories.includes(c)));
+        if (restored.size > 0) {
+          setSelectedCategories(restored);
+          return;
+        }
+      }
+    } catch {
+      // ignore malformed storage
+    }
     setSelectedCategories(new Set(uniqueCategories));
-  }, [uniqueCategories.join(',')]);
+  }, [uniqueCategories.join(','), storageKey]);
 
   const visibleRows = useMemo(() =>
     rows.filter(r => selectedCategories.has(r.category)),
