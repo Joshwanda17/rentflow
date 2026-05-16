@@ -1622,6 +1622,59 @@ export function ComprehensiveCashMovement() {
           )}
         </div>
 
+        {/* ─── Page-level empty state ───────────────────────────────
+            When the ledger query returned zero rows for the current
+            period + scope, show a clear, friendly explanation with a
+            couple of one-tap suggestions (widen period, drop scope
+            filter, include adjustments). Skipped while loading the
+            very first batch so users don't see a flash of "no data". */}
+        {!loading && rows.length === 0 && generatedAt && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="rounded-2xl border border-dashed border-border bg-muted/20 p-6 sm:p-8 text-center space-y-3"
+          >
+            <div className="mx-auto h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+              <Filter className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div>
+              <div className="text-sm sm:text-base font-semibold text-foreground">
+                No cash movements yet
+              </div>
+              <p className="mt-1 text-xs sm:text-[13px] text-muted-foreground max-w-md mx-auto leading-relaxed">
+                Nothing posted to the ledger for{' '}
+                <span className="font-medium text-foreground">
+                  {PERIODS.find(p => p.value === period)?.label || period}
+                </span>
+                {scopeFilter !== 'all' && (
+                  <> in the <span className="font-medium text-foreground">{scopeFilter}</span> scope</>
+                )}
+                . Try widening the period or clearing filters.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 justify-center pt-1">
+              {period !== '30d' && (
+                <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setPeriod('30d')}>
+                  Try last 30 days
+                </Button>
+              )}
+              {scopeFilter !== 'all' && (
+                <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setScopeFilter('all')}>
+                  Clear scope filter
+                </Button>
+              )}
+              {!includeAdjustments && (
+                <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setIncludeAdjustments(true)}>
+                  Include adjustments
+                </Button>
+              )}
+              <Button size="sm" variant="default" className="h-8 text-xs gap-1.5" onClick={generate}>
+                <RefreshCw className="h-3.5 w-3.5" /> Reload
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* ─── Wallet Money Movement (minimalist) ───
             Primary view: money flowing INTO and OUT OF user/operational wallets
             in the selected period. Shown first by default. */}
@@ -2164,9 +2217,77 @@ export function ComprehensiveCashMovement() {
               </CollapsibleTrigger>
               <CollapsibleContent className="pt-2">
                 {pageDrillRows.length === 0 ? (
-                  <div className="text-xs text-muted-foreground text-center py-6 border border-dashed border-border rounded-lg">
-                    No transactions match the current filters.
-                  </div>
+                  (() => {
+                    const activeChips: { label: string; onClear: () => void }[] = [];
+                    if (searchActive) activeChips.push({ label: `Search: "${debouncedPageSearch}"`, onClear: () => setPageSearch('') });
+                    if (directionQuickFilter !== 'all') {
+                      const lbl = directionQuickFilter === 'cash_in' ? 'Money in'
+                        : directionQuickFilter === 'cash_out' ? 'Money out'
+                        : directionQuickFilter === 'net_positive' ? 'Net positive'
+                        : 'Net negative';
+                      activeChips.push({ label: lbl, onClear: () => setDirectionQuickFilter('all') });
+                    }
+                    if (scopeFilter !== 'all') {
+                      activeChips.push({ label: `Scope: ${scopeFilter}`, onClear: () => setScopeFilter('all') });
+                    }
+                    if (partyQuickFilter) {
+                      const partyLabel = partyNames[partyQuickFilter] || `${partyQuickFilter.slice(0, 8)}…`;
+                      activeChips.push({ label: `Party: ${partyLabel}`, onClear: () => setPartyQuickFilter(null) });
+                    }
+                    if (!includeAdjustments) {
+                      // not really an active filter exclusion the user picked, skip
+                    }
+                    return (
+                      <div
+                        role="status"
+                        aria-live="polite"
+                        className="text-center py-8 px-4 border border-dashed border-border rounded-xl bg-muted/10 space-y-3"
+                      >
+                        <div className="mx-auto h-9 w-9 rounded-full bg-muted flex items-center justify-center">
+                          <Search className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <div className="text-sm font-semibold text-foreground">
+                          No transactions match
+                        </div>
+                        <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
+                          {activeChips.length > 0
+                            ? 'Try removing one of the filters below, or clear them all.'
+                            : 'There are no transactions to show for this period. Try widening the date range above.'}
+                        </p>
+                        {activeChips.length > 0 && (
+                          <>
+                            <div className="flex flex-wrap justify-center gap-1.5 pt-1">
+                              {activeChips.map((c, i) => (
+                                <button
+                                  key={i}
+                                  type="button"
+                                  onClick={c.onClear}
+                                  className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2.5 py-1 text-[11px] text-foreground hover:bg-muted transition-colors"
+                                  aria-label={`Remove filter ${c.label}`}
+                                >
+                                  {c.label}
+                                  <X className="h-3 w-3 text-muted-foreground" />
+                                </button>
+                              ))}
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 text-xs mt-1"
+                              onClick={() => {
+                                setPageSearch('');
+                                setDirectionQuickFilter('all');
+                                setScopeFilter('all');
+                                setPartyQuickFilter(null);
+                              }}
+                            >
+                              Clear all filters
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })()
                 ) : (
                   <>
                     <ul className="divide-y divide-border rounded-xl border border-border bg-card overflow-hidden">
@@ -2872,8 +2993,23 @@ export function ComprehensiveCashMovement() {
                 </div>
 
                 {filteredDrillRows.length === 0 ? (
-                  <div className="py-12 text-center text-muted-foreground text-sm">
-                    {drillQuery ? 'Nothing matches your search.' : 'No transactions to show.'}
+                  <div className="py-12 px-4 text-center space-y-3 border border-dashed border-border rounded-lg bg-muted/10">
+                    <div className="mx-auto h-9 w-9 rounded-full bg-muted flex items-center justify-center">
+                      {drillQuery ? <Search className="h-4 w-4 text-muted-foreground" /> : <Filter className="h-4 w-4 text-muted-foreground" />}
+                    </div>
+                    <div className="text-sm font-semibold text-foreground">
+                      {drillQuery ? 'No matches for your search' : 'Nothing to show here'}
+                    </div>
+                    <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
+                      {drillQuery
+                        ? `Try a different reference, party, or amount — or clear the search to see all ${drillRows.length.toLocaleString()} entries.`
+                        : 'There are no ledger entries for this category and date range. Try a wider drill date range above.'}
+                    </p>
+                    {drillQuery && (
+                      <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setDrillQuery('')}>
+                        <X className="h-3.5 w-3.5 mr-1" /> Clear search
+                      </Button>
+                    )}
                   </div>
                 ) : (
                   <div className="border border-border rounded-lg overflow-x-auto">
