@@ -781,9 +781,10 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
     onToggle();
   }
 
-  async function handleSave() {
+  async function handleSave(opts: { collapseAfter?: boolean; silent?: boolean } = {}) {
+    const { collapseAfter = true, silent = false } = opts;
     if (form.account_name.length > 100) {
-      toast({ title: 'Portfolio name too long', variant: 'destructive' });
+      if (!silent) toast({ title: 'Portfolio name too long', variant: 'destructive' });
       return;
     }
 
@@ -799,7 +800,7 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
         account_number: form.account_number,
       });
     } catch (e: any) {
-      toast({ title: 'Check the form', description: e?.message || 'Invalid value', variant: 'destructive' });
+      if (!silent) toast({ title: 'Check the form', description: e?.message || 'Invalid value', variant: 'destructive' });
       return;
     }
 
@@ -827,13 +828,13 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirty
         metadata: { source: 'PartnerOps NewPartnersPanel inline', changes: patch },
       });
 
-      toast({ title: '✅ Portfolio updated' });
+      toast({ title: silent ? '⚡ Auto-saved' : '✅ Portfolio updated' });
       // Reset baseline so the post-save auto-collapse does not trigger the
       // "unsaved changes" prompt.
       baselineRef.current = { ...form };
       onDirtyChange?.([]);
       onSaved({ id: p.id, ...patch });
-      onToggle(); // collapse
+      if (collapseAfter) onToggle(); // collapse
     } catch (e: any) {
       toast({ title: 'Save failed', description: e?.message || 'Try again', variant: 'destructive' });
     } finally {
