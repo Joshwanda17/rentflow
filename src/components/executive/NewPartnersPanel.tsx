@@ -1044,12 +1044,26 @@ export function NewPartnersPanel() {
           <button
             type="button"
             onClick={() => setPanelOpen(o => !o)}
+            onKeyDown={(e) => {
+              // Native <button> already handles Enter/Space, but we add an
+              // explicit handler so assistive tech with custom key remapping
+              // (and tests) get a deterministic toggle path.
+              if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+                e.preventDefault();
+                setPanelOpen(o => !o);
+              }
+            }}
             aria-expanded={panelOpen}
             aria-controls="joined-partners-body"
+            aria-label={
+              panelOpen
+                ? `Collapse Joined Partners (${joinedTotal.toLocaleString()} total)`
+                : 'Expand Joined Partners — tap to load'
+            }
             className="w-full flex items-center gap-2 text-left rounded-lg -m-1 p-1 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 transition-colors"
           >
             <div className="p-1.5 rounded-lg bg-primary/15 shrink-0">
-              <Sparkles className="h-4 w-4 text-primary" />
+              <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />
             </div>
             <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap">
               <h3 className="text-sm font-bold">Joined Partners</h3>
@@ -1072,6 +1086,7 @@ export function NewPartnersPanel() {
                 "h-4 w-4 text-muted-foreground shrink-0 transition-transform",
                 panelOpen && "rotate-180",
               )}
+              aria-hidden="true"
             />
           </button>
 
@@ -1082,11 +1097,18 @@ export function NewPartnersPanel() {
               control via the query's `enabled` flag). */}
           <div
             id="joined-partners-body"
+            role="region"
+            aria-label="Joined Partners list"
             className={cn(
               "grid transition-[grid-template-rows,opacity] duration-300 ease-out motion-reduce:transition-none",
               panelOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0 pointer-events-none",
             )}
             aria-hidden={!panelOpen}
+            // `inert` removes the collapsed subtree from sequential focus and
+            // assistive-tech navigation without unmounting it (preserves the
+            // smooth open/close animation). Supported in all modern browsers;
+            // cast to any so TS accepts it on a plain div.
+            {...({ inert: !panelOpen ? '' : undefined } as any)}
           >
             <div className="overflow-hidden min-h-0">
               <div className="space-y-3 sm:space-y-4">
