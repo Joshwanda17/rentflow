@@ -2559,11 +2559,24 @@ function WalletMovementSummary({
 
       {/* Wallet bucket flow — Withdrawable / Operational float / Landlord float, in & out */}
       {(() => {
-        const items: { key: string; label: string; sub: string; in: number; out: number; accent: string }[] = [
+        const items: {
+          key: 'withdrawable' | 'operational_float' | 'landlord_float';
+          label: string;
+          sub: string;
+          definition: string;
+          inExamples: string;
+          outExamples: string;
+          in: number;
+          out: number;
+          accent: string;
+        }[] = [
           {
             key: 'withdrawable',
             label: 'Withdrawable balances',
-            sub: 'User-spendable wallet (deposits, commissions, ROI, withdrawals)',
+            sub: 'User-spendable cash — what users can withdraw or spend.',
+            definition: 'The wallet bucket users can actually withdraw to MoMo or bank. Routed by Wallet Routing v2 when recipient_type = "user". Includes commissions, Returns paid to supporters, partner commissions, and direct user deposits.',
+            inExamples: 'User deposits routed to user, commissions earned, Returns paid to supporters, partner commissions, bonuses, payroll credits.',
+            outExamples: 'User withdrawals, wallet-funded rent payments, wallet → platform debits (CFO Direct Debit).',
             in: bucketBreakdown.withdrawable.in,
             out: bucketBreakdown.withdrawable.out,
             accent: 'text-primary',
@@ -2571,7 +2584,10 @@ function WalletMovementSummary({
           {
             key: 'operational_float',
             label: 'Operational float',
-            sub: 'Agent / partner float (rent collected, allocations, sweeps)',
+            sub: 'Company money on agent/partner wallets — never withdrawable.',
+            definition: 'The float_balance bucket on agent and partner wallets. This is company capital held to facilitate rent collection and allocation. Routed when recipient_type = "operational_wallet". Cannot be withdrawn by the holder.',
+            inExamples: 'Rent collected by agents, partner float top-ups, CFO float deposits routed to operational wallets.',
+            outExamples: 'Float allocated to tenants/landlords, partner sweeps back to platform capital, agent float used for rent.',
             in: bucketBreakdown.operational_float.in,
             out: bucketBreakdown.operational_float.out,
             accent: 'text-amber-600',
@@ -2579,7 +2595,10 @@ function WalletMovementSummary({
           {
             key: 'landlord_float',
             label: 'Landlord float',
-            sub: 'Landlord payout float (CFO deposits, landlord payouts)',
+            sub: 'Capital earmarked for landlord rent payouts.',
+            definition: 'A dedicated float used to pay landlords. CFO deposits seed it; landlord payouts draw it down. Tracked separately so landlord-payout coverage is visible without mixing with general operational float.',
+            inExamples: 'CFO landlord-float deposits, returns swept into landlord-payout reserves.',
+            outExamples: 'Landlord payouts sent against allocated tenants.',
             in: bucketBreakdown.landlord_float.in,
             out: bucketBreakdown.landlord_float.out,
             accent: 'text-sky-600',
@@ -2588,16 +2607,35 @@ function WalletMovementSummary({
         const anyActivity = items.some(i => i.in > 0 || i.out > 0);
         if (!anyActivity) return null;
         return (
+          <TooltipProvider delayDuration={150}>
           <div className="rounded-lg border border-border bg-muted/30 p-3">
-            <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-2">
-              Wallet bucket flow · {periodLabel}
+            <div className="flex items-center gap-1.5 mb-2">
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">
+                Wallet bucket flow · {periodLabel}
+              </div>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button type="button" className="text-muted-foreground hover:text-foreground" aria-label="How this is calculated">
+                    <Info className="h-3 w-3" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs text-[11px] leading-snug">
+                  <p className="font-semibold mb-1">How this is derived</p>
+                  <p>Sums every <span className="font-mono">ledger_scope = 'wallet'</span> entry in <span className="font-mono">general_ledger</span> within the selected period. Each row is classified by category into one of three buckets, then split by direction:</p>
+                  <ul className="list-disc ml-4 mt-1 space-y-0.5">
+                    <li><span className="font-semibold">In</span> = sum of <span className="font-mono">cash_in</span> legs landing in that bucket.</li>
+                    <li><span className="font-semibold">Out</span> = sum of <span className="font-mono">cash_out</span> legs leaving that bucket.</li>
+                    <li><span className="font-semibold">Net</span> = In − Out for the period (positive = bucket grew).</li>
+                  </ul>
+                  <p className="mt-1 opacity-80">Admin corrections are excluded unless "Include adjustments" is on. Wallet balances are never mutated by this view.</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               {items.map(it => {
                 const net = it.in - it.out;
-                const bucketKeyTyped = it.key as 'withdrawable' | 'operational_float' | 'landlord_float';
                 const openDrill = (direction: 'all' | 'cash_in' | 'cash_out') =>
-                  setNetDrill({ direction, bucket: bucketKeyTyped, label: it.label });
+                  setNetDrill({ direction, bucket: it.key, label: it.label });
                 return (
                   <div
                     key={it.key}
@@ -2606,46 +2644,84 @@ function WalletMovementSummary({
                     tabIndex={0}
                     onClick={() => openDrill('all')}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDrill('all'); } }}
-                    title={`Open ${it.label} transactions for ${periodLabel}`}
+                    title={`Click to open ${it.label} transactions for ${periodLabel}`}
                   >
                     <div className="flex items-baseline justify-between gap-2">
-                      <div className={cn('text-[11px] font-semibold truncate', it.accent)}>{it.label}</div>
+                      <div className="flex items-center gap-1 min-w-0">
+                        <div className={cn('text-[11px] font-semibold truncate', it.accent)}>{it.label}</div>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-muted-foreground/70 hover:text-foreground shrink-0"
+                              aria-label={`What is ${it.label}`}
+                            >
+                              <Info className="h-3 w-3" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs text-[11px] leading-snug">
+                            <p className={cn('font-semibold mb-1', it.accent)}>{it.label}</p>
+                            <p>{it.definition}</p>
+                            <p className="mt-1"><span className="text-success font-semibold">In:</span> {it.inExamples}</p>
+                            <p className="mt-1"><span className="text-destructive font-semibold">Out:</span> {it.outExamples}</p>
+                            <p className="mt-1 opacity-80">Net = In − Out for {periodLabel}.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
                       <div
                         className={cn(
                           'font-mono text-[10px] shrink-0',
                           net > 0 ? 'text-success' : net < 0 ? 'text-destructive' : 'text-muted-foreground',
                         )}
-                        title="Net = In − Out"
+                        title={`Net = In (${formatUGX(it.in)}) − Out (${formatUGX(it.out)}) for ${periodLabel}`}
                       >
-                        {net > 0 ? '+' : ''}{formatUGX(net)}
+                        Net {net > 0 ? '+' : ''}{formatUGX(net)}
                       </div>
                     </div>
                     <div className="text-[10px] text-muted-foreground leading-snug line-clamp-2">{it.sub}</div>
                     <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/60">
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); openDrill('cash_in'); }}
-                        className="flex items-center gap-1 text-[10px] text-success hover:underline focus:outline-none focus-visible:ring-1 focus-visible:ring-success rounded px-1 -mx-1"
-                        title={`Open ${it.label} — In only`}
-                      >
-                        <ArrowDownLeft className="h-3 w-3" />
-                        <span className="font-mono">{formatUGX(it.in)}</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); openDrill('cash_out'); }}
-                        className="flex items-center gap-1 text-[10px] text-destructive hover:underline focus:outline-none focus-visible:ring-1 focus-visible:ring-destructive rounded px-1 -mx-1"
-                        title={`Open ${it.label} — Out only`}
-                      >
-                        <ArrowUpRight className="h-3 w-3" />
-                        <span className="font-mono">{formatUGX(it.out)}</span>
-                      </button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); openDrill('cash_in'); }}
+                            className="flex items-center gap-1 text-[10px] text-success hover:underline focus:outline-none focus-visible:ring-1 focus-visible:ring-success rounded px-1 -mx-1"
+                          >
+                            <ArrowDownLeft className="h-3 w-3" />
+                            <span className="font-mono">In · {formatUGX(it.in)}</span>
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs text-[11px] leading-snug">
+                          <p className="font-semibold text-success mb-1">In — money entering {it.label}</p>
+                          <p>Sum of every <span className="font-mono">cash_in</span> wallet-scope ledger leg classified to this bucket within {periodLabel}.</p>
+                          <p className="mt-1 opacity-80">Click to drill into the underlying transactions.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); openDrill('cash_out'); }}
+                            className="flex items-center gap-1 text-[10px] text-destructive hover:underline focus:outline-none focus-visible:ring-1 focus-visible:ring-destructive rounded px-1 -mx-1"
+                          >
+                            <ArrowUpRight className="h-3 w-3" />
+                            <span className="font-mono">Out · {formatUGX(it.out)}</span>
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs text-[11px] leading-snug">
+                          <p className="font-semibold text-destructive mb-1">Out — money leaving {it.label}</p>
+                          <p>Sum of every <span className="font-mono">cash_out</span> wallet-scope ledger leg classified to this bucket within {periodLabel}.</p>
+                          <p className="mt-1 opacity-80">Click to drill into the underlying transactions.</p>
+                        </TooltipContent>
+                      </Tooltip>
                     </div>
                   </div>
                 );
               })}
             </div>
           </div>
+          </TooltipProvider>
         );
       })()}
 
