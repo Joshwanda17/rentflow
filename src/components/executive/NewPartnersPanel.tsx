@@ -802,17 +802,9 @@ export function NewPartnersPanel() {
           ) : (
             (() => {
               const filtered = filteredPartners;
-              const withCount = filtered.filter(p => p.portfolio_count > 0).length;
-              const withoutCount = filtered.length - withCount;
-              // Local-timezone calendar boundaries (browser tz of the logged-in user).
-              const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
-              const startOfWeek = new Date(startOfToday);
-              const dow = startOfWeek.getDay();
-              startOfWeek.setDate(startOfWeek.getDate() - ((dow + 6) % 7));
-              const startOfMonth = new Date(startOfToday.getFullYear(), startOfToday.getMonth(), 1);
-              const todayCount = filtered.filter(p => new Date(p.created_at).getTime() >= startOfToday.getTime()).length;
-              const weekCount = filtered.filter(p => new Date(p.created_at).getTime() >= startOfWeek.getTime()).length;
-              const monthCount = filtered.filter(p => new Date(p.created_at).getTime() >= startOfMonth.getTime()).length;
+              // Counts come from the memoized `badgeCounts` so we only pay the
+              // 6 array-pass cost when `filteredPartners` actually changes.
+              const { withCount, withoutCount, todayCount, weekCount, monthCount } = badgeCounts;
               const isFiltered = filtered.length !== joined.length;
               // Click-to-filter badge strip. Each badge sets the corresponding
               // partnerFilter so the grid re-filters instantly; clicking the
