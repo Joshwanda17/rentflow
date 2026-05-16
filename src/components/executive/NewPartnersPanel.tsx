@@ -1786,25 +1786,66 @@ export function NewPartnersPanel() {
                   fetchNextPage when this scrolls into view. */}
               <div
                 ref={loadMoreSentinelRef}
-                className="col-span-full flex justify-center py-2 text-[10px] text-muted-foreground"
+                className="col-span-full flex flex-col gap-2 py-2 text-[10px] text-muted-foreground"
+                role="status"
+                aria-live="polite"
               >
                 {isFetchingNextPage ? (
-                  <span className="inline-flex items-center gap-1.5">
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                    Loading more partners…
-                  </span>
+                  <>
+                    <div className="flex items-center justify-center gap-1.5 text-primary">
+                      <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
+                      <span>Loading more partners…</span>
+                    </div>
+                    {/* Skeleton placeholders for the incoming page so the
+                        scroll area doesn't collapse while the request runs. */}
+                    <div className="space-y-1.5" aria-hidden="true">
+                      {[0, 1, 2].map((i) => (
+                        <div
+                          key={i}
+                          className="flex items-center gap-2 rounded-md border border-border/40 bg-muted/20 p-2"
+                        >
+                          <Skeleton className="h-9 w-9 rounded-full shrink-0" />
+                          <div className="flex-1 space-y-1.5 min-w-0">
+                            <Skeleton className="h-3 w-32 rounded" />
+                            <Skeleton className="h-2.5 w-44 rounded" />
+                          </div>
+                          <Skeleton className="h-8 w-16 rounded shrink-0" />
+                          <Skeleton className="h-7 w-14 rounded shrink-0" />
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : isFetchNextPageError || (partnersError && joined.length > 0) ? (
+                  <div
+                    role="alert"
+                    className="flex items-center justify-between gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-2 py-1.5 text-destructive"
+                  >
+                    <span className="inline-flex items-center gap-1.5">
+                      <AlertCircle className="h-3 w-3" aria-hidden="true" />
+                      Couldn't load more partners.
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-6 text-[10px] gap-1 border-destructive/50 text-destructive hover:bg-destructive/15 hover:text-destructive"
+                      onClick={() => fetchNextPage()}
+                    >
+                      <RefreshCw className="h-3 w-3" />
+                      Retry
+                    </Button>
+                  </div>
                 ) : hasNextPage ? (
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-7 text-[10px] gap-1.5"
+                    className="h-7 text-[10px] gap-1.5 self-center"
                     onClick={() => fetchNextPage()}
                   >
                     <ChevronDown className="h-3 w-3" />
                     Load more ({Math.max(0, joinedTotal - joined.length)} remaining)
                   </Button>
                 ) : joined.length > 0 ? (
-                  <span>End of list · {joined.length.toLocaleString()} partners loaded</span>
+                  <span className="text-center">End of list · {joined.length.toLocaleString()} partners loaded</span>
                 ) : null}
               </div>
             </div>
