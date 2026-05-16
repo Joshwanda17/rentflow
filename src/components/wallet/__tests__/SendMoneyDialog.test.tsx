@@ -160,4 +160,83 @@ describe('SendMoneyDialog', () => {
     await waitFor(() => expect(walletState.sendMoney).toHaveBeenCalledTimes(1));
     expect(walletState.sendMoney).toHaveBeenCalledWith(MATCHED_PHONE, 1500, 'food');
   });
+
+  describe('Send button tooltip + aria-label mirror disabledReason', () => {
+    const getSendBtn = () => screen.getByRole('button', { name: /Send Money/i });
+
+    it('shows the "Verifying recipient" reason while the lookup is in flight', async () => {
+      const user = userEvent.setup();
+      // Keep supabase pending so the dialog stays in the "searching" state.
+      let resolveLookup: ((v: any) => void) | null = null;
+      supaState.response = new Promise((res) => {
+        resolveLookup = res;
+      }) as any;
+
+      renderDialog();
+      await user.type(screen.getByLabelText(/Recipient Phone Number/i), '0783673998');
+
+      await waitFor(() => {
+        const btn = getSendBtn();
+        expect(btn).toBeDisabled();
+        expect(btn).toHaveAttribute('title', 'Verifying recipient on Welile…');
+        expect(btn).toHaveAttribute('aria-label', 'Send Money — Verifying recipient on Welile…');
+      });
+
+      // Cleanup so the pending promise doesn't leak between tests.
+      resolveLookup?.({ data: [], error: null });
+    });
+
+    it('shows the "No Welile user found" reason when the phone lookup returns empty', async () => {
+      const user = userEvent.setup();
+      supaState.response = { data: [], error: null };
+
+      renderDialog();
+      await user.type(screen.getByLabelText(/Recipient Phone Number/i), '0783673998');
+
+      await waitFor(
+        () => {
+          const btn = getSendBtn();
+          expect(btn).toBeDisabled();
+          expect(btn).toHaveAttribute(
+            'title',
+            'No Welile user found for this phone number.'
+          );
+          expect(btn).toHaveAttribute(
+            'aria-label',
+            'Send Money — No Welile user found for this phone number.'
+          );
+        },
+        { timeout: 2000 }
+      );
+    });
+
+    it('shows the "your own account" reason when the matched profile is the current user', async () => {
+      const user = userEvent.setup();
+      supaState.response = {
+        data: [
+          { id: 'me', full_name: 'Me Self', phone: '+256700000001', email: 'me@example.com' },
+        ],
+        error: null,
+      };
+
+      renderDialog();
+      await user.type(screen.getByLabelText(/Recipient Phone Number/i), '0700000001');
+
+      await waitFor(
+        () => {
+          const btn = getSendBtn();
+          expect(btn).toBeDisabled();
+          expect(btn).toHaveAttribute(
+            'title',
+            "You can't send money to your own account."
+          );
+          expect(btn).toHaveAttribute(
+            'aria-label',
+            "Send Money — You can't send money to your own account."
+          );
+        },
+        { timeout: 2000 }
+      );
+    });
+  });
 });
