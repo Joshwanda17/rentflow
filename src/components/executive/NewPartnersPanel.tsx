@@ -583,13 +583,14 @@ interface InlinePortfolioRowProps {
   expanded: boolean;
   onToggle: () => void;
   onSaved: (updated: any) => void;
+  onDirtyChange?: (dirty: boolean) => void;
   actingUserId?: string;
 }
 
-function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, actingUserId }: InlinePortfolioRowProps) {
+function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, onDirtyChange, actingUserId }: InlinePortfolioRowProps) {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
+  const initialForm = () => ({
     account_name: p.account_name || '',
     payout_day: p.payout_day ? String(p.payout_day) : '',
     payment_method: p.payment_method || 'mobile_money',
@@ -599,24 +600,49 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, actingU
     bank_account_name: p.bank_account_name || '',
     account_number: p.account_number || '',
   });
+  const [form, setForm] = useState(initialForm);
+  // Snapshot of the form when the row was opened — used to detect unsaved edits.
+  const baselineRef = useRef(form);
 
   // Re-sync when underlying portfolio prop changes (e.g. realtime update)
   useEffect(() => {
     if (!expanded) {
-      setForm({
-        account_name: p.account_name || '',
-        payout_day: p.payout_day ? String(p.payout_day) : '',
-        payment_method: p.payment_method || 'mobile_money',
-        mobile_money_number: p.mobile_money_number || '',
-        mobile_network: p.mobile_network || '',
-        bank_name: p.bank_name || '',
-        bank_account_name: p.bank_account_name || '',
-        account_number: p.account_number || '',
-      });
+      const fresh = initialForm();
+      setForm(fresh);
+      baselineRef.current = fresh;
+      onDirtyChange?.(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [p.id, expanded]);
 
+  // Re-baseline whenever the row first expands (handles cases where the
+  // collapsed-state effect was skipped, e.g. mounted already-expanded).
+  useEffect(() => {
+    if (expanded) {
+      baselineRef.current = form;
+      onDirtyChange?.(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expanded]);
+
+  // Compute & report dirty state on every form change.
+  const dirty = expanded && JSON.stringify(form) !== JSON.stringify(baselineRef.current);
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dirty]);
+
   const set = (k: string, v: string) => setForm(prev => ({ ...prev, [k]: v }));
+
+  // Wraps onToggle so collapsing with unsaved changes prompts for confirmation.
+  function requestToggle() {
+    if (expanded && dirty) {
+      const ok = window.confirm('You have unsaved changes on this portfolio. Discard them?');
+      if (!ok) return;
+      onDirtyChange?.(false);
+    }
+    onToggle();
+  }
 
   async function handleSave() {
     if (form.account_name.length > 100) {
@@ -664,6 +690,10 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, actingU
       });
 
       toast({ title: '✅ Portfolio updated' });
+      // Reset baseline so the post-save auto-collapse does not trigger the
+      // "unsaved changes" prompt.
+      baselineRef.current = { ...form };
+      onDirtyChange?.(false);
       onSaved({ id: p.id, ...patch });
       onToggle(); // collapse
     } catch (e: any) {
