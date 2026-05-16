@@ -383,32 +383,99 @@ export function ActiveAgentsList({ range }: { range: DateRange }) {
       </div>
 
       <div className="space-y-2 overflow-y-auto max-h-[50vh] pr-1">
-        {shown.map((r, idx) => (
-          <div
-            key={r.agent_id}
-            className="flex items-center gap-3 p-2.5 rounded-xl border border-border/50 bg-card min-h-[52px]"
-          >
-            <div className="text-xs font-semibold text-muted-foreground tabular-nums w-5 text-center shrink-0">
-              {idx + 1}
-            </div>
-            <UserAvatar avatarUrl={r.avatar_url} fullName={r.full_name ?? undefined} size="sm" />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-foreground truncate">
-                {r.full_name || r.phone || 'Unnamed agent'}
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                Last request {formatDistanceToNow(new Date(r.lastRequestAt), { addSuffix: true })}
-              </p>
-            </div>
-            <Badge
-              variant="secondary"
-              className="gap-1 text-[11px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 shrink-0"
+        {shown.map((r, idx) => {
+          const isOpen = expanded.has(r.agent_id);
+          const reqs = filtered.byAgent.get(r.agent_id) ?? [];
+          const toggle = () => {
+            setExpanded((prev) => {
+              const next = new Set(prev);
+              if (next.has(r.agent_id)) next.delete(r.agent_id);
+              else next.add(r.agent_id);
+              return next;
+            });
+          };
+          return (
+            <div
+              key={r.agent_id}
+              className="rounded-xl border border-border/50 bg-card overflow-hidden"
             >
-              <FileText className="h-3 w-3" />
-              {r.requestCount.toLocaleString()}
-            </Badge>
-          </div>
-        ))}
+              <button
+                type="button"
+                onClick={toggle}
+                className="w-full flex items-center gap-3 p-2.5 min-h-[52px] text-left hover:bg-muted/40 transition-colors"
+                aria-expanded={isOpen}
+              >
+                <div className="text-xs font-semibold text-muted-foreground tabular-nums w-5 text-center shrink-0">
+                  {idx + 1}
+                </div>
+                <UserAvatar avatarUrl={r.avatar_url} fullName={r.full_name ?? undefined} size="sm" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-foreground truncate">
+                    {r.full_name || r.phone || 'Unnamed agent'}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Last request {formatDistanceToNow(new Date(r.lastRequestAt), { addSuffix: true })}
+                  </p>
+                </div>
+                <Badge
+                  variant="secondary"
+                  className="gap-1 text-[11px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 shrink-0"
+                >
+                  <FileText className="h-3 w-3" />
+                  {r.requestCount.toLocaleString()}
+                </Badge>
+                {isOpen ? (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                )}
+              </button>
+              {isOpen && (
+                <div className="border-t border-border/50 bg-muted/20 px-2.5 py-2 space-y-1.5">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold px-1">
+                    {reqs.length.toLocaleString()} {reqs.length === 1 ? 'request' : 'requests'} in {rangeLabel.toLowerCase()}
+                  </p>
+                  {reqs.map((req) => (
+                    <div
+                      key={req.id}
+                      className="flex items-center gap-2 rounded-lg bg-background border border-border/40 px-2 py-1.5"
+                    >
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] font-medium shrink-0"
+                      >
+                        {req.status ?? 'unknown'}
+                      </Badge>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium text-foreground truncate">
+                          {req.house_category ?? 'Uncategorized'}
+                          {req.rent_amount != null && (
+                            <span className="text-muted-foreground font-normal">
+                              {' · '}UGX {Number(req.rent_amount).toLocaleString()}
+                            </span>
+                          )}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground tabular-nums">
+                          {format(new Date(req.created_at), 'MMM d, HH:mm')} · #{req.id.slice(0, 8)}
+                        </p>
+                      </div>
+                      <a
+                        href={`/coo/rent-requests?id=${req.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline shrink-0"
+                      >
+                        View
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
 
         {visible < aggregatedRows.length && (
           <Button
