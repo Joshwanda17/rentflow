@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -34,6 +35,7 @@ interface UserResult {
 export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, onError, prefillInvestorId, prefillInvestorName }: CreateInvestmentAccountDialogProps) {
   const { toast } = useToast();
   const { user } = useAuth();
+  const qc = useQueryClient();
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [users, setUsers] = useState<UserResult[]>([]);
@@ -41,6 +43,15 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
   const [selectedUser, setSelectedUser] = useState<UserResult | null>(null);
   const { status: approvalStatus, isApproved, isLoading: approvalLoading } =
     useFunderApprovalStatus(selectedUser?.id);
+
+  // When the dialog opens or the selected partner changes, force a fresh
+  // approval-status fetch so the "Partner Not Approved" gate / button label
+  // reflects the live DB state (e.g. right after Partner Ops verifies them).
+  useEffect(() => {
+    if (open && selectedUser?.id) {
+      qc.invalidateQueries({ queryKey: ['funder-approval-status', selectedUser.id] });
+    }
+  }, [open, selectedUser?.id, qc]);
 
   const [partnerBalance, setPartnerBalance] = useState<number | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
