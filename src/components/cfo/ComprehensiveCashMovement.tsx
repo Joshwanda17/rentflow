@@ -2546,6 +2546,77 @@ function WalletMovementSummary({
         );
       })()}
 
+      {/* Wallet bucket flow — Withdrawable / Operational float / Landlord float, in & out */}
+      {(() => {
+        const items: { key: string; label: string; sub: string; in: number; out: number; accent: string }[] = [
+          {
+            key: 'withdrawable',
+            label: 'Withdrawable balances',
+            sub: 'User-spendable wallet (deposits, commissions, ROI, withdrawals)',
+            in: bucketBreakdown.withdrawable.in,
+            out: bucketBreakdown.withdrawable.out,
+            accent: 'text-primary',
+          },
+          {
+            key: 'operational_float',
+            label: 'Operational float',
+            sub: 'Agent / partner float (rent collected, allocations, sweeps)',
+            in: bucketBreakdown.operational_float.in,
+            out: bucketBreakdown.operational_float.out,
+            accent: 'text-amber-600',
+          },
+          {
+            key: 'landlord_float',
+            label: 'Landlord float',
+            sub: 'Landlord payout float (CFO deposits, landlord payouts)',
+            in: bucketBreakdown.landlord_float.in,
+            out: bucketBreakdown.landlord_float.out,
+            accent: 'text-sky-600',
+          },
+        ];
+        const anyActivity = items.some(i => i.in > 0 || i.out > 0);
+        if (!anyActivity) return null;
+        return (
+          <div className="rounded-lg border border-border bg-muted/30 p-3">
+            <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-2">
+              Wallet bucket flow · {periodLabel}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {items.map(it => {
+                const net = it.in - it.out;
+                return (
+                  <div key={it.key} className="rounded-md border border-border bg-background p-2.5 space-y-1.5">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <div className={cn('text-[11px] font-semibold truncate', it.accent)}>{it.label}</div>
+                      <div
+                        className={cn(
+                          'font-mono text-[10px] shrink-0',
+                          net > 0 ? 'text-success' : net < 0 ? 'text-destructive' : 'text-muted-foreground',
+                        )}
+                        title="Net = In − Out"
+                      >
+                        {net > 0 ? '+' : ''}{formatUGX(net)}
+                      </div>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground leading-snug line-clamp-2">{it.sub}</div>
+                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/60">
+                      <div className="flex items-center gap-1 text-[10px] text-success">
+                        <ArrowDownLeft className="h-3 w-3" />
+                        <span className="font-mono">{formatUGX(it.in)}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-[10px] text-destructive">
+                        <ArrowUpRight className="h-3 w-3" />
+                        <span className="font-mono">{formatUGX(it.out)}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Top drivers — top 3 inflow and outflow categories powering the net result */}
       {(summary.inRows.length > 0 || summary.outRows.length > 0) && (
         <div className="rounded-lg border border-border bg-muted/30 p-3">
