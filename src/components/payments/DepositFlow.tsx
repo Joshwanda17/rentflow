@@ -889,6 +889,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
 
   const handleSubmit = async () => {
     if (!validateForm()) return;
+    setSubmitError(null);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
