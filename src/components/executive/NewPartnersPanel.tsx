@@ -314,10 +314,24 @@ export function NewPartnersPanel() {
     return from || to ? { from, to } : undefined;
   });
   // Sort order for the partners grid.
-  const ALLOWED_SORTS = ['recent', 'portfolio_desc', 'portfolio_asc', 'name'] as const;
+  // - status_active / status_none: group by portfolio status (active vs none),
+  //   then by newest within each group.
+  // - count_desc / count_asc: explicit count ordering regardless of status.
+  // Legacy values (portfolio_desc / portfolio_asc) are aliased to the count
+  // variants so existing share links keep working.
+  const ALLOWED_SORTS = [
+    'recent',
+    'status_active',
+    'status_none',
+    'count_desc',
+    'count_asc',
+    'name',
+  ] as const;
   type PartnerSort = typeof ALLOWED_SORTS[number];
   const [partnerSort, setPartnerSort] = useState<PartnerSort>(() => {
     const raw = searchParams.get('jp_s');
+    if (raw === 'portfolio_desc') return 'count_desc';
+    if (raw === 'portfolio_asc') return 'count_asc';
     return (ALLOWED_SORTS as readonly string[]).includes(raw ?? '')
       ? (raw as PartnerSort)
       : 'recent';
@@ -443,16 +457,32 @@ export function NewPartnersPanel() {
     });
     // Apply sort as a final stable pass.
     const sorted = [...filtered];
-    if (partnerSort === 'portfolio_desc') {
+    if (partnerSort === 'count_desc') {
       sorted.sort((a, b) =>
         b.portfolio_count - a.portfolio_count
         || new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
-    } else if (partnerSort === 'portfolio_asc') {
+    } else if (partnerSort === 'count_asc') {
       sorted.sort((a, b) =>
         a.portfolio_count - b.portfolio_count
         || new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
+    } else if (partnerSort === 'status_active') {
+      // Active (>=1) first, then None (0); newest within each group.
+      sorted.sort((a, b) => {
+        const ag = a.portfolio_count > 0 ? 0 : 1;
+        const bg = b.portfolio_count > 0 ? 0 : 1;
+        return ag - bg
+          || new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+    } else if (partnerSort === 'status_none') {
+      // None (0) first, then Active (>=1); newest within each group.
+      sorted.sort((a, b) => {
+        const ag = a.portfolio_count === 0 ? 0 : 1;
+        const bg = b.portfolio_count === 0 ? 0 : 1;
+        return ag - bg
+          || new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
     } else if (partnerSort === 'name') {
       sorted.sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''));
     } else {
@@ -721,13 +751,15 @@ export function NewPartnersPanel() {
           </div>
           {/* Sort dropdown — applies to the visible grid */}
           <Select value={partnerSort} onValueChange={(v) => setPartnerSort(v as PartnerSort)}>
-            <SelectTrigger className="h-8 w-[170px] text-[11px] self-start" aria-label="Sort partners">
+            <SelectTrigger className="h-8 w-[200px] text-[11px] self-start" aria-label="Sort partners">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="recent">Newest first</SelectItem>
-              <SelectItem value="portfolio_desc">With portfolios first</SelectItem>
-              <SelectItem value="portfolio_asc">No portfolio first</SelectItem>
+              <SelectItem value="status_active">Status: Active first</SelectItem>
+              <SelectItem value="status_none">Status: None first</SelectItem>
+              <SelectItem value="count_desc">Portfolio count: high → low</SelectItem>
+              <SelectItem value="count_asc">Portfolio count: low → high</SelectItem>
               <SelectItem value="name">Name (A–Z)</SelectItem>
             </SelectContent>
           </Select>
