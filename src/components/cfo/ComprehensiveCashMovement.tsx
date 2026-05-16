@@ -1865,7 +1865,35 @@ export function ComprehensiveCashMovement() {
                   · {topCategoriesSummary.categoryCount} total
                 </span>
               </div>
-              {categoryQuickFilter && (
+              <div className="flex items-center gap-2">
+                <div
+                  role="group"
+                  aria-label="Number of top categories to show"
+                  className="inline-flex rounded-md border border-border overflow-hidden"
+                >
+                  {[5, 10].map(n => {
+                    const active = topCategoriesLimit === n;
+                    const disabled = n === 10 && topCategoriesSummary.categoryCount <= 5;
+                    return (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setTopCategoriesLimit(n as 5 | 10)}
+                        disabled={disabled}
+                        aria-pressed={active}
+                        className={cn(
+                          'px-2 py-0.5 text-[11px] font-medium transition-colors',
+                          active ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:bg-muted',
+                          disabled && 'opacity-40 cursor-not-allowed',
+                        )}
+                        title={disabled ? `Only ${topCategoriesSummary.categoryCount} categories available` : `Show top ${n}`}
+                      >
+                        Top {n}
+                      </button>
+                    );
+                  })}
+                </div>
+                {categoryQuickFilter && (
                 <button
                   type="button"
                   onClick={() => setCategoryQuickFilter(null)}
@@ -1874,7 +1902,8 @@ export function ComprehensiveCashMovement() {
                 >
                   <X className="h-3 w-3" /> Clear
                 </button>
-              )}
+                )}
+              </div>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {topCategoriesSummary.top.map(c => {
