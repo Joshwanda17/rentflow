@@ -153,6 +153,10 @@ export function NewPartnersPanel() {
   // Confirmation gate before opening the create-portfolio dialog from the
   // "Just Joined Partners" Activate button. Prevents accidental taps.
   const [activateConfirm, setActivateConfirm] = useState<{ user: PickedUser; isFirst: boolean } | null>(null);
+  // User id currently being activated — keeps that row's Activate/Add button
+  // disabled with a spinner from the moment the confirmation is accepted
+  // until the create-portfolio dialog closes (server confirmed or cancelled).
+  const [activatingUserId, setActivatingUserId] = useState<string | null>(null);
   const [revokeOpen, setRevokeOpen] = useState(false);
   const [revokeBusy, setRevokeBusy] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
