@@ -330,13 +330,22 @@ export function NewPartnersPanel() {
     () => searchParams.get('jp_q') ?? ''
   );
   const [partnerFilter, setPartnerFilter] = useState<PartnerFilter>(() => {
+    // Priority: URL param > localStorage > default. URL wins so shared links
+    // still override, but a plain refresh restores the operator's last view.
     const raw = searchParams.get('jp_f');
-    return (ALLOWED_FILTERS as readonly string[]).includes(raw ?? '')
-      ? (raw as PartnerFilter)
-      // Default view = partners who joined in the last JUST_JOINED_DAYS days
-      // AND don't have a portfolio yet, so Partner Ops sees a truly fresh
-      // activation backlog instead of every dormant no-portfolio account.
-      : 'just_joined';
+    if ((ALLOWED_FILTERS as readonly string[]).includes(raw ?? '')) {
+      return raw as PartnerFilter;
+    }
+    try {
+      const stored = localStorage.getItem('welile.partnerOps.partnerFilter');
+      if (stored && (ALLOWED_FILTERS as readonly string[]).includes(stored)) {
+        return stored as PartnerFilter;
+      }
+    } catch { /* ignore (private mode / quota) */ }
+    // Default view = partners who joined in the last JUST_JOINED_DAYS days
+    // AND don't have a portfolio yet, so Partner Ops sees a truly fresh
+    // activation backlog instead of every dormant no-portfolio account.
+    return 'just_joined';
   });
   const [customRange, setCustomRange] = useState<DateRange | undefined>(() => {
     const from = parseDateParam(searchParams.get('jp_from'));
@@ -362,10 +371,31 @@ export function NewPartnersPanel() {
     const raw = searchParams.get('jp_s');
     if (raw === 'portfolio_desc') return 'count_desc';
     if (raw === 'portfolio_asc') return 'count_asc';
-    return (ALLOWED_SORTS as readonly string[]).includes(raw ?? '')
-      ? (raw as PartnerSort)
-      : 'recent';
+    if ((ALLOWED_SORTS as readonly string[]).includes(raw ?? '')) {
+      return raw as PartnerSort;
+    }
+    try {
+      const stored = localStorage.getItem('welile.partnerOps.partnerSort');
+      if (stored === 'portfolio_desc') return 'count_desc';
+      if (stored === 'portfolio_asc') return 'count_asc';
+      if (stored && (ALLOWED_SORTS as readonly string[]).includes(stored)) {
+        return stored as PartnerSort;
+      }
+    } catch { /* ignore */ }
+    return 'recent';
   });
+  // Persist filter & sort selections so they survive a page refresh even
+  // when the URL has been cleaned (e.g. after navigating from a share link).
+  useEffect(() => {
+    try {
+      localStorage.setItem('welile.partnerOps.partnerFilter', partnerFilter);
+    } catch { /* ignore */ }
+  }, [partnerFilter]);
+  useEffect(() => {
+    try {
+      localStorage.setItem('welile.partnerOps.partnerSort', partnerSort);
+    } catch { /* ignore */ }
+  }, [partnerSort]);
   // Push state back into the URL whenever the user changes a filter.
   // `replace: true` avoids polluting the browser back-stack.
   useEffect(() => {
