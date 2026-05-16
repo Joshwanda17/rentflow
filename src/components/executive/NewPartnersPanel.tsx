@@ -632,3 +632,274 @@ function InlinePortfolioRow({ portfolio: p, expanded, onToggle, onSaved, actingU
     </div>
   );
 }
+
+// ════════════════════════════════════════════════════════════════
+// InlineCreatePortfolioForm — create a new portfolio without a dialog
+// ════════════════════════════════════════════════════════════════
+interface InlineCreatePortfolioFormProps {
+  partner: PickedUser;
+  actingUserId?: string;
+  onCreated: () => void;
+  onCancel: () => void;
+}
+
+function InlineCreatePortfolioForm({ partner, actingUserId, onCreated, onCancel }: InlineCreatePortfolioFormProps) {
+  const { toast } = useToast();
+  const [saving, setSaving] = useState(false);
+  const [balance, setBalance] = useState<number | null>(null);
+  const [balanceLoading, setBalanceLoading] = useState(true);
+  const [form, setForm] = useState({
+    account_name: '',
+    investment_amount: '',
+    roi_percentage: '20',
+    duration_months: '12',
+    roi_mode: 'monthly_payout',
+    portfolio_pin: String(Math.floor(1000 + Math.random() * 9000)),
+    payout_day: '15',
+    contribution_date: new Date().toISOString().slice(0, 10),
+    payment_method: '',
+    mobile_network: '',
+    mobile_money_number: '',
+    bank_name: '',
+    bank_account_name: '',
+    account_number: '',
+  });
+  const set = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }));
+
+  // Load partner total wallet balance (deposits land in float, matches edge fn gate)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setBalanceLoading(true);
+      const { data } = await supabase
+        .from('wallets')
+        .select('balance')
+        .eq('user_id', partner.id)
+        .maybeSingle();
+      if (cancelled) return;
+      const bal = data ? Number(data.balance) || 0 : 0;
+      setBalance(bal);
+      setForm(p => ({ ...p, investment_amount: bal > 0 ? String(Math.floor(bal)) : '' }));
+      setBalanceLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [partner.id]);
+
+  function regenPin() {
+    set('portfolio_pin', String(Math.floor(1000 + Math.random() * 9000)));
+  }
+
+  async function handleCreate() {
+    const amt = parseFloat(form.investment_amount);
+    if (!form.investment_amount || isNaN(amt) || amt < 50000) {
+      toast({ title: 'Investment must be at least UGX 50,000', variant: 'destructive' });
+      return;
+    }
+    if (balance === null) {
+      toast({ title: 'Partner wallet balance not loaded yet', variant: 'destructive' });
+      return;
+    }
+    if (amt > balance) {
+      toast({
+        title: 'Insufficient partner wallet balance',
+        description: `${partner.full_name} has UGX ${balance.toLocaleString()} available. Top up first.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (!/^\d{4}$/.test(form.portfolio_pin)) {
+      toast({ title: 'Portfolio PIN must be exactly 4 digits', variant: 'destructive' });
+      return;
+    }
+    if (form.account_name.length > 100) {
+      toast({ title: 'Portfolio name too long', variant: 'destructive' });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const response = await supabase.functions.invoke('create-investor-portfolio', {
+        body: {
+          investor_id: partner.id,
+          investment_amount: amt,
+          duration_months: parseInt(form.duration_months),
+          roi_percentage: parseFloat(form.roi_percentage),
+          roi_mode: form.roi_mode,
+          portfolio_pin: form.portfolio_pin,
+          payout_day: parseInt(form.payout_day),
+          contribution_date: form.contribution_date || null,
+          payment_method: form.payment_method || null,
+          mobile_network: form.mobile_network || null,
+          mobile_money_number: form.mobile_money_number || null,
+          bank_name: form.bank_name || null,
+          account_name: form.bank_account_name || form.account_name || null,
+          account_number: form.account_number || null,
+        },
+      });
+      if (response.error || response.data?.error) {
+        const msg = await extractEdgeFunctionError(response, 'Failed to create portfolio');
+        throw new Error(msg);
+      }
+      const code = response.data?.portfolio?.portfolio_code || '';
+      await supabase.from('audit_logs').insert({
+        user_id: actingUserId,
+        action_type: 'create_portfolio_inline',
+        table_name: 'investor_portfolios',
+        record_id: response.data?.portfolio?.id || partner.id,
+        metadata: { source: 'PartnerOps NewPartnersPanel inline', partner: partner.full_name, amount: amt, code },
+      });
+      toast({ title: `✅ Portfolio ${code} created — pending approval` });
+      onCreated();
+    } catch (e: any) {
+      toast({ title: 'Creation failed', description: e?.message || 'Try again', variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="rounded-lg border border-primary/40 bg-primary/5 p-3 space-y-2.5">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-semibold flex items-center gap-1">
+          <PlusCircle className="h-3.5 w-3.5 text-primary" /> New portfolio for {partner.full_name}
+        </p>
+        <span className="text-[10px] text-muted-foreground">
+          {balanceLoading ? 'Loading wallet…' : `Wallet: UGX ${(balance ?? 0).toLocaleString()}`}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-1 col-span-2">
+          <Label className="text-[10px]">Portfolio name (optional)</Label>
+          <Input value={form.account_name} onChange={e => set('account_name', e.target.value)} placeholder="e.g. Premium Fund" className="h-8 text-xs" maxLength={100} />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-[10px]">From Wallet (UGX) *</Label>
+          <Input
+            type="number"
+            min={50000}
+            max={balance ?? undefined}
+            value={form.investment_amount}
+            onChange={e => set('investment_amount', e.target.value)}
+            disabled={balanceLoading}
+            className="h-8 text-xs"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-[10px]">ROI %</Label>
+          <Input type="number" min={0} max={100} value={form.roi_percentage} onChange={e => set('roi_percentage', e.target.value)} className="h-8 text-xs" />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-[10px]">Duration</Label>
+          <Select value={form.duration_months} onValueChange={v => set('duration_months', v)}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="3">3 Months</SelectItem>
+              <SelectItem value="6">6 Months</SelectItem>
+              <SelectItem value="12">12 Months</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-[10px]">ROI Mode</Label>
+          <Select value={form.roi_mode} onValueChange={v => set('roi_mode', v)}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="monthly_payout">Monthly Payout</SelectItem>
+              <SelectItem value="monthly_compounding">Compounding</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-[10px]">Contribution Date</Label>
+          <Input
+            type="date"
+            value={form.contribution_date}
+            max={new Date().toISOString().slice(0, 10)}
+            onChange={e => {
+              const v = e.target.value;
+              const day = v ? Math.min(28, Number(v.slice(8, 10)) || 15) : 15;
+              setForm(p => ({ ...p, contribution_date: v, payout_day: String(day) }));
+            }}
+            className="h-8 text-xs"
+          />
+        </div>
+        <div className="space-y-1">
+          <div className="flex items-center justify-between">
+            <Label className="text-[10px]">PIN (4 digits) *</Label>
+            <button type="button" onClick={regenPin} className="text-[9px] text-primary hover:underline flex items-center gap-0.5">
+              <Sparkles className="h-2.5 w-2.5" /> Gen
+            </button>
+          </div>
+          <Input
+            type="text"
+            inputMode="numeric"
+            maxLength={4}
+            value={form.portfolio_pin}
+            onChange={e => set('portfolio_pin', e.target.value.replace(/\D/g, '').slice(0, 4))}
+            className="h-8 text-xs font-mono tracking-widest"
+          />
+        </div>
+        <div className="space-y-1 col-span-2">
+          <Label className="text-[10px]">Payout Method (optional)</Label>
+          <Select value={form.payment_method} onValueChange={v => set('payment_method', v)}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select method" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="mobile_money">📱 Mobile Money</SelectItem>
+              <SelectItem value="bank">🏦 Bank Transfer</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {form.payment_method === 'mobile_money' && (
+          <>
+            <div className="space-y-1">
+              <Label className="text-[10px]">Network</Label>
+              <Select value={form.mobile_network} onValueChange={v => set('mobile_network', v)}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="mtn">MTN</SelectItem>
+                  <SelectItem value="airtel">Airtel</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[10px]">MoMo Number</Label>
+              <Input value={form.mobile_money_number} onChange={e => set('mobile_money_number', e.target.value)} placeholder="0770000000" className="h-8 text-xs" inputMode="tel" />
+            </div>
+          </>
+        )}
+        {form.payment_method === 'bank' && (
+          <>
+            <div className="space-y-1 col-span-2">
+              <Label className="text-[10px]">Bank</Label>
+              <Select value={form.bank_name} onValueChange={v => set('bank_name', v)}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select bank" /></SelectTrigger>
+                <SelectContent>
+                  {UGANDA_BANKS.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[10px]">Account Name</Label>
+              <Input value={form.bank_account_name} onChange={e => set('bank_account_name', e.target.value)} className="h-8 text-xs" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[10px]">Account Number</Label>
+              <Input value={form.account_number} onChange={e => set('account_number', e.target.value)} className="h-8 text-xs" />
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="flex justify-end gap-2 pt-1">
+        <Button size="sm" variant="ghost" className="h-8 text-xs gap-1" onClick={onCancel} disabled={saving}>
+          <X className="h-3 w-3" /> Cancel
+        </Button>
+        <Button size="sm" className="h-8 text-xs gap-1" onClick={handleCreate} disabled={saving || balanceLoading}>
+          {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+          Create Portfolio
+        </Button>
+      </div>
+    </div>
+  );
+}
