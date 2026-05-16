@@ -744,7 +744,7 @@ export function ComprehensiveCashMovement() {
                 <button
                   key={c.category}
                   type="button"
-                  onClick={() => setDrill({ category: c.category, scope: 'platform', bucket: null })}
+                  onClick={() => setDrill({ category: c.category, scope: 'platform', bucket: null, direction: 'cash_in' })}
                   title={`Drill into ${prettifyCategory(c.category)} · Platform cash_in entries`}
                   className="inline-flex items-center gap-1 rounded-full border border-border bg-background hover:bg-primary/10 hover:border-primary/40 px-2 py-0.5 text-[11px] font-normal transition-colors"
                 >
