@@ -256,6 +256,8 @@ export function ComprehensiveCashMovement() {
       if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) return false;
       if (r.category !== drill.category || r.ledger_scope !== drill.scope) return false;
       if (drill.direction && r.direction !== drill.direction) return false;
+      if (drill.dateFrom && r.transaction_date.slice(0, 10) < drill.dateFrom) return false;
+      if (drill.dateTo && r.transaction_date.slice(0, 10) > drill.dateTo) return false;
       if (drill.bucket) {
         const bk = bucketKey(new Date(r.transaction_date), granularity);
         if (bk !== drill.bucket) return false;
