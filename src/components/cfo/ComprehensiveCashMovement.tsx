@@ -994,7 +994,12 @@ export function ComprehensiveCashMovement() {
         {/* ─── Wallet Money Movement (minimalist) ───
             Primary view: money flowing INTO and OUT OF user/operational wallets
             in the selected period. Shown first by default. */}
-        <WalletMovementSummary rows={rows} includeAdjustments={includeAdjustments} period={period} />
+        <WalletMovementSummary
+          rows={rows}
+          includeAdjustments={includeAdjustments}
+          period={period}
+          granularity={granularity}
+        />
 
         {/* Totals strip (full ledger scope: platform + wallet) */}
         <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
