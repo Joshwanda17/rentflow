@@ -75,11 +75,14 @@ const FORBIDDEN_TOKENS = [
   "withdrawable_balance",
   "float_balance",
   "advance_balance",
-  ".update(",
-  ".insert(",
-  ".upsert(",
-  ".delete(",
 ];
+// NOTE: generic write tokens (`.update(`, `.insert(`, `.upsert(`,
+// `.delete(`) are intentionally NOT scanned here because the Cache API
+// (`caches.delete`) and ServiceWorkerRegistration (`registration.update`)
+// legitimately use those names in `public/sw.js` and
+// `useIOSCacheInvalidation.ts`. Generic write detection is covered by
+// the runtime guard below, which records every Supabase call and fails
+// on any mutation regardless of the calling code.
 
 function scan(filePath: string): string[] {
   const src = readFileSync(resolve(filePath), "utf8");
