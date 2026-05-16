@@ -314,10 +314,24 @@ export function NewPartnersPanel() {
     return from || to ? { from, to } : undefined;
   });
   // Sort order for the partners grid.
-  const ALLOWED_SORTS = ['recent', 'portfolio_desc', 'portfolio_asc', 'name'] as const;
+  // - status_active / status_none: group by portfolio status (active vs none),
+  //   then by newest within each group.
+  // - count_desc / count_asc: explicit count ordering regardless of status.
+  // Legacy values (portfolio_desc / portfolio_asc) are aliased to the count
+  // variants so existing share links keep working.
+  const ALLOWED_SORTS = [
+    'recent',
+    'status_active',
+    'status_none',
+    'count_desc',
+    'count_asc',
+    'name',
+  ] as const;
   type PartnerSort = typeof ALLOWED_SORTS[number];
   const [partnerSort, setPartnerSort] = useState<PartnerSort>(() => {
     const raw = searchParams.get('jp_s');
+    if (raw === 'portfolio_desc') return 'count_desc';
+    if (raw === 'portfolio_asc') return 'count_asc';
     return (ALLOWED_SORTS as readonly string[]).includes(raw ?? '')
       ? (raw as PartnerSort)
       : 'recent';
