@@ -232,8 +232,6 @@ export function AgentOpsHomeView({ range, onRangeChange, onOpenSection }: AgentO
         rentRequestsPrev,
         earningsCurr,
         earningsPrev,
-        activeAgentsCurr,
-        activeAgentsPrev,
       ] = await Promise.all([
         supabase.from('user_roles').select('user_id, created_at').eq('role', 'agent').gte('created_at', rangeStart),
         supabase
@@ -242,10 +240,10 @@ export function AgentOpsHomeView({ range, onRangeChange, onOpenSection }: AgentO
           .eq('role', 'agent')
           .gte('created_at', prevRangeStart)
           .lt('created_at', rangeStart),
-        supabase.from('rent_requests').select('id, created_at').gte('created_at', rangeStart),
+        supabase.from('rent_requests').select('id, agent_id, created_at').gte('created_at', rangeStart),
         supabase
           .from('rent_requests')
-          .select('id', { count: 'exact', head: true })
+          .select('id, agent_id')
           .gte('created_at', prevRangeStart)
           .lt('created_at', rangeStart),
         // Source of truth: wallet-scoped general ledger commission credits.
@@ -265,15 +263,6 @@ export function AgentOpsHomeView({ range, onRangeChange, onOpenSection }: AgentO
           .in('direction', COMMISSION_CREDIT_DIRECTIONS)
           .gte('created_at', prevRangeStart)
           .lt('created_at', rangeStart),
-        supabase
-          .from('profiles')
-          .select('id', { count: 'exact', head: true })
-          .gte('last_active_at', rangeStart),
-        supabase
-          .from('profiles')
-          .select('id', { count: 'exact', head: true })
-          .gte('last_active_at', prevRangeStart)
-          .lt('last_active_at', rangeStart),
       ]);
 
       const currentCommissionRows = (earningsCurr.data ?? []) as CommissionLedgerRow[];
@@ -288,14 +277,18 @@ export function AgentOpsHomeView({ range, onRangeChange, onOpenSection }: AgentO
       const newAgentsByBucket = new Map(buckets.map((b) => [bucketKey(b.date, range), 0]));
       const rentByBucket = new Map(buckets.map((b) => [bucketKey(b.date, range), 0]));
       const earningsByBucket = new Map(buckets.map((b) => [bucketKey(b.date, range), 0]));
+      const activeAgentsByBucket = new Map<string, Set<string>>(
+        buckets.map((b) => [bucketKey(b.date, range), new Set<string>()]),
+      );
 
       ((newAgentsCurr.data ?? []) as TimestampRow[]).forEach((r) => {
         const k = bucketKey(new Date(r.created_at), range);
         if (newAgentsByBucket.has(k)) newAgentsByBucket.set(k, (newAgentsByBucket.get(k) || 0) + 1);
       });
-      ((rentRequestsCurr.data ?? []) as TimestampRow[]).forEach((r) => {
-        const k = bucketKey(new Date(r.created_at), range);
+      ((rentRequestsCurr.data ?? []) as Array<TimestampRow & { agent_id?: string | null }>).forEach((r) => {
+        const k = bucketKey(new Date(r.created_at!), range);
         if (rentByBucket.has(k)) rentByBucket.set(k, (rentByBucket.get(k) || 0) + 1);
+        if (r.agent_id && activeAgentsByBucket.has(k)) activeAgentsByBucket.get(k)!.add(r.agent_id);
       });
       currentCommissionRows.forEach((r) => {
         const k = bucketKey(new Date(r.transaction_date || r.created_at), range);
@@ -310,29 +303,42 @@ export function AgentOpsHomeView({ range, onRangeChange, onOpenSection }: AgentO
           agents: newAgentsByBucket.get(k) || 0,
           requests: rentByBucket.get(k) || 0,
           commission: earningsByBucket.get(k) || 0,
+          activeAgents: activeAgentsByBucket.get(k)?.size || 0,
         };
       });
 
-      // Active vs inactive: total agents - active in range
+      // Active vs inactive: total agents vs unique agents who posted at least 1 rent request in range
       const totalAgents = await supabase
         .from('user_roles')
         .select('user_id', { count: 'exact', head: true })
         .eq('role', 'agent');
       const totalAgentCount = totalAgents.count || 0;
-      const activeCount = activeAgentsCurr.count || 0;
+      const activeCurrSet = new Set(
+        ((rentRequestsCurr.data ?? []) as Array<{ agent_id?: string | null }>)
+          .map((r) => r.agent_id)
+          .filter((id): id is string => !!id),
+      );
+      const activePrevSet = new Set(
+        ((rentRequestsPrev.data ?? []) as Array<{ agent_id?: string | null }>)
+          .map((r) => r.agent_id)
+          .filter((id): id is string => !!id),
+      );
+      const activeCount = activeCurrSet.size;
+      const activePrevCount = activePrevSet.size;
 
       return {
         kpis: {
           newAgents: { value: newAgentsCurrCount, prev: newAgentsPrev.count || 0 },
           rentRequests: { value: rentCurrCount, prev: rentRequestsPrev.count || 0 },
           commission: { value: earningsCurrTotal, prev: earningsPrevTotal },
-          activeAgents: { value: activeCount, prev: activeAgentsPrev.count || 0 },
+          activeAgents: { value: activeCount, prev: activePrevCount },
         },
         trend,
         activity: {
           active: activeCount,
           inactive: Math.max(0, totalAgentCount - activeCount),
         },
+        totalAgentCount,
       };
     },
     staleTime: 60_000,
