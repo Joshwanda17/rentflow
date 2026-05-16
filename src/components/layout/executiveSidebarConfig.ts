@@ -100,6 +100,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Full Ledger', icon: ClipboardList, id: 'ledger' },
         { label: 'Detailed Ledgers', icon: BookOpen, id: 'advanced-ledgers' },
         { label: 'Approval History', icon: ShieldCheck, id: 'approval-audit' },
+        { label: 'Allocation Traces', icon: ClipboardList, id: 'allocation-traces' },
         { label: 'System Health', icon: Activity, id: 'ledger-health' },
         { label: 'Capital Opportunities', icon: TrendingUp, id: 'capital-opportunities' },
         { label: 'Angel Pool', icon: Layers, id: 'angel-pool' },

@@ -51,6 +51,7 @@ import { FieldCashExposureCard } from '@/components/cfo/FieldCashExposureCard';
 import { CFOAgentOpsFloatSender } from '@/components/cfo/CFOAgentOpsFloatSender';
 import { CFOImpactKPIStrip } from '@/components/cfo/CFOImpactKPIStrip';
 import { CFOWalletActivities } from '@/components/cfo/CFOWalletActivities';
+import { AgentAllocationTracesPanel } from '@/components/cfo/AgentAllocationTracesPanel';
 import { usePersistedActiveTab } from '@/hooks/usePersistedActiveTab';
 
 export default function CFODashboardPage() {
@@ -97,6 +98,8 @@ export default function CFODashboardPage() {
         );
       case 'statements':
         return <FinancialStatementsPanel />;
+      case 'allocation-traces':
+        return <AgentAllocationTracesPanel />;
       case 'solvency':
         return (
           <div className="space-y-6">
