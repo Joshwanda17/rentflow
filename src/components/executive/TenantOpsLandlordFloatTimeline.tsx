@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 import {
   Loader2, Landmark, Search, CalendarIcon, ArrowRight, Banknote, HandCoins,
   Building2, Phone, Hash, Copy, CheckCircle2, X, Clock, Bookmark, Save, Trash2, ChevronsUpDown,
-  AlertCircle, ChevronRight, MapPin, Wallet, FileText, Download
+  AlertCircle, ChevronRight, MapPin, Wallet, FileText, Download, AlertTriangle, Flame
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -479,15 +479,22 @@ export function TenantOpsLandlordFloatTimeline() {
 
   const totals = useMemo(() => {
     let funded = 0, allocated = 0, paid = 0, outstanding = 0;
+    let overdueCount = 0, criticalCount = 0;
+    const now = Date.now();
     for (const e of filtered) {
       if (e.kind === 'funding') funded += e.amount;
       else if (e.kind === 'allocation') {
         allocated += e.amount;
         outstanding += e.outstanding || 0;
+        if ((e.outstanding || 0) > 0) {
+          const ageDays = (now - new Date(e.at).getTime()) / 86_400_000;
+          if (ageDays >= 7) overdueCount++;
+          if (ageDays >= 14 || (e.outstanding || 0) >= 1_000_000) criticalCount++;
+        }
       }
       else if (e.kind === 'payout') paid += e.amount;
     }
-    return { funded, allocated, paid, outstanding, count: filtered.length };
+    return { funded, allocated, paid, outstanding, overdueCount, criticalCount, count: filtered.length };
   }, [filtered]);
 
   const copyRef = async (ref: string) => {
@@ -503,6 +510,39 @@ export function TenantOpsLandlordFloatTimeline() {
     funding:    { label: 'CFO Funding',          icon: Banknote,  color: 'bg-blue-100 text-blue-700 border-blue-200',     dot: 'bg-blue-500' },
     allocation: { label: 'Tenant Earmark',       icon: Building2, color: 'bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200', dot: 'bg-fuchsia-500' },
     payout:     { label: 'Landlord Payout',      icon: HandCoins, color: 'bg-emerald-100 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' },
+  };
+
+  // ───── Priority for allocations with outstanding balance ─────
+  type Priority = {
+    level: 'low' | 'medium' | 'high' | 'critical';
+    label: string;
+    ageDays: number;
+    badgeClass: string;
+    borderClass: string;
+    icon: React.ElementType;
+  };
+  const priorityFor = (e: TimelineEvent): Priority | null => {
+    if (e.kind !== 'allocation' || !((e.outstanding || 0) > 0)) return null;
+    const ageDays = (Date.now() - new Date(e.at).getTime()) / 86_400_000;
+    const big = (e.outstanding || 0) >= 1_000_000;
+    if (ageDays >= 14 || big) {
+      return { level: 'critical', label: 'Critical', ageDays, icon: Flame,
+        badgeClass: 'bg-red-100 text-red-800 border-red-300',
+        borderClass: 'border-l-4 border-l-red-500' };
+    }
+    if (ageDays >= 7) {
+      return { level: 'high', label: 'Overdue', ageDays, icon: AlertTriangle,
+        badgeClass: 'bg-orange-100 text-orange-800 border-orange-300',
+        borderClass: 'border-l-4 border-l-orange-500' };
+    }
+    if (ageDays >= 3) {
+      return { level: 'medium', label: 'Aging', ageDays, icon: AlertTriangle,
+        badgeClass: 'bg-amber-100 text-amber-800 border-amber-300',
+        borderClass: 'border-l-4 border-l-amber-500' };
+    }
+    return { level: 'low', label: 'Open', ageDays, icon: AlertCircle,
+      badgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
+      borderClass: 'border-l-2 border-l-amber-300' };
   };
 
   // ───────────────────── Exports (respect current filters) ─────────────────────
@@ -899,6 +939,20 @@ export function TenantOpsLandlordFloatTimeline() {
             <p className={cn('font-bold text-sm', totals.outstanding > 0 ? 'text-amber-600' : 'text-muted-foreground')}>
               {fmt(totals.outstanding)}
             </p>
+            {(totals.overdueCount > 0 || totals.criticalCount > 0) && (
+              <p className="text-[10px] mt-0.5 inline-flex items-center gap-1 justify-center flex-wrap">
+                {totals.criticalCount > 0 && (
+                  <span className="inline-flex items-center gap-0.5 text-red-700 font-semibold">
+                    <Flame className="h-2.5 w-2.5" />{totals.criticalCount} critical
+                  </span>
+                )}
+                {totals.overdueCount > 0 && (
+                  <span className="inline-flex items-center gap-0.5 text-orange-700 font-semibold">
+                    <AlertTriangle className="h-2.5 w-2.5" />{totals.overdueCount} overdue
+                  </span>
+                )}
+              </p>
+            )}
           </div>
         </div>
 
@@ -926,13 +980,18 @@ export function TenantOpsLandlordFloatTimeline() {
                   {dayEvents.map((e) => {
                     const meta = kindMeta[e.kind];
                     const Icon = meta.icon;
+                    const prio = priorityFor(e);
+                    const PrioIcon = prio?.icon;
                     return (
                       <li key={e.id} className="ml-4">
                         <span className={cn('absolute -left-1.5 mt-1.5 h-3 w-3 rounded-full ring-4 ring-background', meta.dot)} />
                         <button
                           type="button"
                           onClick={() => setDrillEvent(e)}
-                          className="w-full text-left rounded-lg border p-2.5 bg-card hover:border-[#9234EA]/50 hover:shadow-sm transition focus:outline-none focus:ring-2 focus:ring-[#9234EA]/40"
+                          className={cn(
+                            'w-full text-left rounded-lg border p-2.5 bg-card hover:border-[#9234EA]/50 hover:shadow-sm transition focus:outline-none focus:ring-2 focus:ring-[#9234EA]/40',
+                            prio?.borderClass,
+                          )}
                         >
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex items-start gap-2 min-w-0">
@@ -947,10 +1006,18 @@ export function TenantOpsLandlordFloatTimeline() {
                                     {format(new Date(e.at), 'HH:mm')}
                                   </Badge>
                                   <Badge variant="outline" className="text-[9px] px-1.5 py-0 capitalize">{e.status}</Badge>
-                                  {e.kind === 'allocation' && (e.outstanding || 0) > 0 && (
-                                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-amber-50 text-amber-700 border-amber-200">
-                                      <AlertCircle className="h-2.5 w-2.5 mr-1" />
-                                      Outstanding {fmt(e.outstanding || 0)}
+                                  {prio && PrioIcon && (
+                                    <Badge
+                                      variant="outline"
+                                      className={cn(
+                                        'text-[9px] px-1.5 py-0 font-semibold inline-flex items-center gap-1',
+                                        prio.badgeClass,
+                                        prio.level === 'critical' && 'animate-pulse',
+                                      )}
+                                      title={`${prio.label} · ${Math.floor(prio.ageDays)}d old · ${fmt(e.outstanding || 0)} outstanding`}
+                                    >
+                                      <PrioIcon className="h-2.5 w-2.5" />
+                                      {prio.label} · {Math.floor(prio.ageDays)}d · {fmt(e.outstanding || 0)}
                                     </Badge>
                                   )}
                                 </div>
