@@ -126,6 +126,39 @@ function prettifyCategory(c: string): string {
 }
 
 // ─────────────────────────────────────────────────────────────
+// Friendly labels for the minimalist Wallet Money Movement panel.
+// Maps raw ledger categories to plain-English descriptions of what
+// physically moved in or out of a user/operational wallet.
+// ─────────────────────────────────────────────────────────────
+const WALLET_FLOW_LABEL_IN: Record<string, string> = {
+  deposit: 'User & proxy-agent deposits',
+  agent_float_deposit: 'Operational float deposits (agents)',
+  landlord_float_deposit: 'Landlord float deposits (CFO)',
+  rent_payment: 'Rent collected into agent float',
+  partner_commission: 'Partner commissions credited',
+  agent_commission: 'Agent commissions credited',
+  business_advance_commission: 'Advance commissions credited',
+  roi_payout: 'Returns paid to supporters',
+  roi_wallet_credit: 'Returns paid to supporters',
+  payroll: 'Payroll credited',
+  payroll_growth: 'Payroll growth credited',
+  tenant_placement_bonus: 'Tenant placement bonuses',
+  system_balance_correction: 'Balance corrections (in)',
+};
+const WALLET_FLOW_LABEL_OUT: Record<string, string> = {
+  withdrawal: 'Personal wallet withdrawals',
+  partner_funding: 'Float swept to company (partner)',
+  agent_float_allocation: 'Float allocated to tenants/landlords',
+  rent_repayment: 'Rent repaid from wallet',
+  advance_recovery: 'Advance auto-recovery',
+  system_balance_correction: 'Balance corrections (out)',
+};
+function friendlyWalletLabel(category: string, direction: 'cash_in' | 'cash_out'): string {
+  const map = direction === 'cash_in' ? WALLET_FLOW_LABEL_IN : WALLET_FLOW_LABEL_OUT;
+  return map[category] || prettifyCategory(category);
+}
+
+// ─────────────────────────────────────────────────────────────
 // Wallet-impact map — explains which wallet buckets move (or don't)
 // when a Capital Inflows category posts. The Comprehensive view shows
 // the PLATFORM cash_in leg only; the wallet effect is the *paired*
