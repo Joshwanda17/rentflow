@@ -306,6 +306,23 @@ export function ComprehensiveCashMovement() {
   const [drillPage, setDrillPage] = useState(0);
   const [drillPageSize, setDrillPageSize] = useState<number>(100);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  // Drill date filter chips — narrow expanded transactions by a relative or custom range
+  type DrillDatePreset = 'inherit' | '1d' | '2d' | '3d' | '5d' | '7d' | '30d' | 'custom';
+  const [drillDatePreset, setDrillDatePreset] = useState<DrillDatePreset>('inherit');
+  const [drillCustomFrom, setDrillCustomFrom] = useState<string>('');
+  const [drillCustomTo, setDrillCustomTo] = useState<string>('');
+  const effectiveDrillRange = useMemo<{ from?: string; to?: string }>(() => {
+    if (drillDatePreset === 'inherit') return {};
+    if (drillDatePreset === 'custom') {
+      return { from: drillCustomFrom || undefined, to: drillCustomTo || undefined };
+    }
+    const days = parseInt(drillDatePreset, 10);
+    const today = new Date();
+    const from = new Date(today);
+    from.setDate(today.getDate() - (days - 1));
+    const fmt = (d: Date) => format(d, 'yyyy-MM-dd');
+    return { from: fmt(from), to: fmt(today) };
+  }, [drillDatePreset, drillCustomFrom, drillCustomTo]);
 
   // ── Capital Inflows callout (platform-scope cash_in for selected categories)
   const CAPITAL_INFLOW_DEFAULT = ['partner_funding', 'pending_portfolio_topup'];
@@ -381,6 +398,9 @@ export function ComprehensiveCashMovement() {
     setDrillQuery('');
     setDebouncedDrillQuery('');
     setDrillPage(0);
+    setDrillDatePreset('inherit');
+    setDrillCustomFrom('');
+    setDrillCustomTo('');
   }, [drill?.category, drill?.scope, drill?.bucket]);
   useEffect(() => { setDrillPage(0); }, [debouncedDrillQuery, drillPageSize]);
 
@@ -393,19 +413,21 @@ export function ComprehensiveCashMovement() {
   // Drill-down filtered rows
   const drillRows = useMemo(() => {
     if (!drill) return [] as LedgerRow[];
+    const effFrom = effectiveDrillRange.from ?? drill.dateFrom;
+    const effTo = effectiveDrillRange.to ?? drill.dateTo;
     return rows.filter(r => {
       if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) return false;
       if (r.category !== drill.category || r.ledger_scope !== drill.scope) return false;
       if (drill.direction && r.direction !== drill.direction) return false;
-      if (drill.dateFrom && r.transaction_date.slice(0, 10) < drill.dateFrom) return false;
-      if (drill.dateTo && r.transaction_date.slice(0, 10) > drill.dateTo) return false;
+      if (effFrom && r.transaction_date.slice(0, 10) < effFrom) return false;
+      if (effTo && r.transaction_date.slice(0, 10) > effTo) return false;
       if (drill.bucket) {
         const bk = bucketKey(new Date(r.transaction_date), granularity);
         if (bk !== drill.bucket) return false;
       }
       return true;
     }).sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime());
-  }, [rows, drill, includeAdjustments, granularity]);
+  }, [rows, drill, includeAdjustments, granularity, effectiveDrillRange]);
 
   // Apply search filter (reference id, transaction group, party name, user id, source table, linked party, description)
   const filteredDrillRows = useMemo(() => {
@@ -1495,6 +1517,57 @@ export function ComprehensiveCashMovement() {
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
+                  )}
+                </div>
+
+                {/* Date filter chips — narrow drill-down by recent window or custom range */}
+                <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground mr-1">Date</span>
+                  {([
+                    { v: 'inherit', label: 'All' },
+                    { v: '1d', label: 'Today' },
+                    { v: '2d', label: '2d' },
+                    { v: '3d', label: '3d' },
+                    { v: '5d', label: '5d' },
+                    { v: '7d', label: '7d' },
+                    { v: '30d', label: '30d' },
+                    { v: 'custom', label: 'Custom' },
+                  ] as { v: DrillDatePreset; label: string }[]).map(opt => (
+                    <button
+                      key={opt.v}
+                      type="button"
+                      onClick={() => setDrillDatePreset(opt.v)}
+                      className={cn(
+                        'rounded-full border px-2 py-0.5 text-[11px] transition-colors',
+                        drillDatePreset === opt.v
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-background border-border hover:bg-muted'
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                  {drillDatePreset === 'custom' && (
+                    <div className="flex items-center gap-1 ml-1">
+                      <Input
+                        type="date"
+                        value={drillCustomFrom}
+                        onChange={(e) => setDrillCustomFrom(e.target.value)}
+                        className="h-7 text-[11px] w-[130px]"
+                      />
+                      <span className="text-[11px] text-muted-foreground">→</span>
+                      <Input
+                        type="date"
+                        value={drillCustomTo}
+                        onChange={(e) => setDrillCustomTo(e.target.value)}
+                        className="h-7 text-[11px] w-[130px]"
+                      />
+                    </div>
+                  )}
+                  {drillDatePreset !== 'inherit' && (effectiveDrillRange.from || effectiveDrillRange.to) && (
+                    <span className="text-[10px] text-muted-foreground ml-1 font-mono">
+                      {effectiveDrillRange.from || '…'} → {effectiveDrillRange.to || '…'}
+                    </span>
                   )}
                 </div>
 
