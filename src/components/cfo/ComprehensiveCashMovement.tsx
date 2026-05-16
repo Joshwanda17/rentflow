@@ -371,6 +371,21 @@ export function ComprehensiveCashMovement() {
   // programmatically and scroll it into view.
   const [pageDrillOpen, setPageDrillOpen] = useState<boolean>(false);
   const pageDrillRef = useRef<HTMLDivElement | null>(null);
+  // Page-level quick search across the "Tap to see details" transaction
+  // list. Matches reference_id, party name/UUID, description, category,
+  // and amount (digits-only). Persisted so the filter survives navigation
+  // and reloads. Debounced 200ms to keep typing snappy on large lists.
+  const PAGE_SEARCH_STORAGE = 'welile-cm-page-search';
+  const [pageSearch, setPageSearch] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    try { return window.localStorage.getItem(PAGE_SEARCH_STORAGE) || ''; } catch { return ''; }
+  });
+  const [debouncedPageSearch, setDebouncedPageSearch] = useState<string>(pageSearch);
+  useEffect(() => {
+    try { window.localStorage.setItem(PAGE_SEARCH_STORAGE, pageSearch); } catch { /* ignore */ }
+    const t = window.setTimeout(() => setDebouncedPageSearch(pageSearch), 200);
+    return () => window.clearTimeout(t);
+  }, [pageSearch]);
   const openPageDrill = useCallback(
     (dir: 'all' | 'cash_in' | 'cash_out' | 'net_positive' | 'net_negative') => {
       setDirectionQuickFilter(dir);
