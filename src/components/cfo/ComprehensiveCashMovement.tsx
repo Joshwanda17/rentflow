@@ -31,10 +31,11 @@ const LEDGER_DETAIL_ROLES = new Set(['cfo', 'ceo', 'coo', 'super_admin', 'cto', 
 // ─────────────────────────────────────────────────────────────
 
 type PeriodKey =
-  | 'today' | '7d' | '14d' | '30d' | '90d' | '120d' | '180d'
+  | '24h' | 'today' | '7d' | '14d' | '30d' | '90d' | '120d' | '180d'
   | '1y' | 'ytd' | 'all';
 
 const PERIODS: { value: PeriodKey; label: string }[] = [
+  { value: '24h',    label: 'Last 24h' },
   { value: 'today',  label: 'Today' },
   { value: '7d',     label: '7 Days' },
   { value: '14d',    label: '14 Days' },
@@ -57,6 +58,7 @@ const GRANULARITIES: { value: Granularity; label: string }[] = [
 function periodRange(p: PeriodKey): { from: Date | null; to: Date } {
   const now = new Date();
   switch (p) {
+    case '24h':   return { from: subDays(now, 1), to: now };
     case 'today': return { from: startOfDay(now), to: now };
     case '7d':    return { from: subDays(now, 7), to: now };
     case '14d':   return { from: subDays(now, 14), to: now };
@@ -290,7 +292,7 @@ export function ComprehensiveCashMovement() {
     return (roles || []).some(r => LEDGER_DETAIL_ROLES.has(r));
   }, [role, roles]);
 
-  const [period, setPeriod] = useState<PeriodKey>('30d');
+  const [period, setPeriod] = useState<PeriodKey>('24h');
   const [granularity, setGranularity] = useState<Granularity>('daily');
   const [includeAdjustments, setIncludeAdjustments] = useState(false);
   const [scopeFilter, setScopeFilter] = useState<'all' | 'platform' | 'wallet' | 'bridge'>('all');
@@ -967,7 +969,12 @@ export function ComprehensiveCashMovement() {
           )}
         </div>
 
-        {/* Totals strip */}
+        {/* ─── Wallet Money Movement (minimalist) ───
+            Primary view: money flowing INTO and OUT OF user/operational wallets
+            in the selected period. Shown first by default. */}
+        <WalletMovementSummary rows={rows} includeAdjustments={includeAdjustments} period={period} />
+
+        {/* Totals strip (full ledger scope: platform + wallet) */}
         <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
           <div className="rounded-lg border border-border bg-success/5 p-2 sm:p-3">
             <div className="flex items-center gap-1 text-[10px] uppercase text-muted-foreground"><ArrowUpRight className="h-3 w-3 text-success" /> Money In</div>
@@ -984,12 +991,6 @@ export function ComprehensiveCashMovement() {
             </div>
           </div>
         </div>
-
-        {/* ─── Wallet Money Movement (minimalist) ───
-            Read-only summary of money flowing INTO and OUT OF user/operational
-            wallets in the selected period. Reuses already-loaded ledger rows
-            (no balance changes anywhere). */}
-        <WalletMovementSummary rows={rows} includeAdjustments={includeAdjustments} period={period} />
 
         {/* Quick filter chips */}
         <div className="space-y-1.5">
