@@ -59,6 +59,11 @@ export default function FunderOnboarding() {
   // effect can still match the row after we strip `?focus=` from the
   // URL (we strip it to prevent re-firing on dialog close).
   const [highlightId, setHighlightId] = useState<string | null>(null);
+  // Sticky record of which partner (if any) was opened via `?focus=`.
+  // Lets the verify-completion telemetry distinguish operator-driven
+  // browsing from deep-link verifications coming from the Create
+  // Portfolio dialog. Not cleared until the dialog closes.
+  const [deepLinkPartnerId, setDeepLinkPartnerId] = useState<string | null>(null);
 
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
@@ -122,6 +127,7 @@ export default function FunderOnboarding() {
         return;
       } else {
         setSelected(data as FunderProfileRow);
+        setDeepLinkPartnerId(data.id);
         if (!data.funder_verified_at && !data.funder_rejected_at) {
           setActionMode('approve');
         }
@@ -330,9 +336,31 @@ export default function FunderOnboarding() {
       title: actionMode === 'approve' ? 'Funder verified' : 'Funder rejected',
       description: selected.full_name || selected.email || 'Updated',
     });
+    // Telemetry: record which partner was verified/rejected from this
+    // dashboard, and whether the operator arrived via a deep link from
+    // the Create Portfolio dialog. Fire-and-forget; failures only warn.
+    const fromDeepLink = deepLinkPartnerId === selected.id;
+    supabase.from('audit_logs').insert({
+      user_id: user.id,
+      action_type: actionMode === 'approve'
+        ? 'partner_verification_approved'
+        : 'partner_verification_rejected',
+      table_name: 'profiles',
+      record_id: selected.id,
+      metadata: {
+        source: fromDeepLink ? 'create_investment_account_dialog' : 'partner_onboarding_dashboard',
+        from_deep_link: fromDeepLink,
+        partner_name: selected.full_name || null,
+        partner_phone: selected.phone || null,
+        reason: actionReason.trim(),
+      },
+    }).then(({ error: auditErr }) => {
+      if (auditErr) console.warn('[partner-verify telemetry] insert failed:', auditErr.message);
+    });
     setActionMode(null);
     setActionReason('');
     setSelected(null);
+    setDeepLinkPartnerId(null);
     queryClient.invalidateQueries({ queryKey: ['funder-onboarding-self-registered'] });
     queryClient.invalidateQueries({ queryKey: ['funder-onboarding-kpis'] });
   };

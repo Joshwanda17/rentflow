@@ -470,7 +470,30 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
               variant="outline"
               className="w-full sm:w-auto whitespace-normal text-center leading-tight min-h-[2.75rem] h-auto py-2 border-amber-400 text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-950/40"
             >
-              <Link to={`/partner-onboarding?focus=${selectedUser.id}`}>
+              <Link
+                to={`/partner-onboarding?focus=${selectedUser.id}`}
+                onClick={() => {
+                  // Telemetry: record that an operator clicked the deep-link
+                  // gate from the Create Portfolio dialog. Fire-and-forget;
+                  // we never block the navigation on this insert.
+                  if (user && selectedUser) {
+                    supabase.from('audit_logs').insert({
+                      user_id: user.id,
+                      action_type: 'partner_verify_link_clicked',
+                      table_name: 'profiles',
+                      record_id: selectedUser.id,
+                      metadata: {
+                        source: 'create_investment_account_dialog',
+                        partner_name: selectedUser.full_name || null,
+                        partner_phone: selectedUser.phone || null,
+                        reason: 'Operator clicked Verify in Partner Onboarding deep link from Create Portfolio gate',
+                      },
+                    }).then(({ error }) => {
+                      if (error) console.warn('[verify-link telemetry] insert failed:', error.message);
+                    });
+                  }
+                }}
+              >
                 <Lock className="h-3.5 w-3.5 mr-1.5 shrink-0" />
                 <span className="sm:hidden">Verify partner</span>
                 <span className="hidden sm:inline">Verify in Partner Onboarding</span>
