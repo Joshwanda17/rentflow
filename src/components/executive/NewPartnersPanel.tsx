@@ -2031,6 +2031,10 @@ export function NewPartnersPanel() {
             role="toolbar"
             aria-label="Partner list quick actions"
             aria-busy={activating}
+            {...makeSegmentSwipeHandlers(
+              ['all', 'just_joined', 'recent_today', 'recent_week', 'recent_month', 'with', 'without'] as const,
+              partnerFilter,
+            )}
           >
             <div className="flex items-center gap-1.5">
               <Select
