@@ -192,6 +192,24 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
    */
   const [errorFieldId, setErrorFieldId] = useState<string | null>(null);
   /**
+   * Full diagnostics for the last failed submit attempt. Surfaced as a
+   * persistent in-form panel (not just a toast) so the user can read the
+   * raw edge-function / database response, copy it for support, and see
+   * an HTTP status code when one is available. Cleared on next submit,
+   * on successful submit, or when the user dismisses the panel.
+   */
+  const [submitError, setSubmitError] = useState<{
+    message: string;
+    status?: number | string;
+    code?: string;
+    details?: string;
+    hint?: string;
+    body?: string;
+    raw: string;
+    at: string;
+  } | null>(null);
+  const [showRawError, setShowRawError] = useState(false);
+  /**
    * Controls the "Paste SMS" sheet. When open, the agent pastes the
    * full SMS body into a textarea and we parse it on submit. Far more
    * reliable than `navigator.clipboard.readText()` which Safari, in-app
@@ -871,6 +889,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
 
   const handleSubmit = async () => {
     if (!validateForm()) return;
+    setSubmitError(null);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -1076,6 +1095,45 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       } else if (msg) {
         friendly = msg;
       }
+      // Pull as much diagnostic info as we can off whatever was thrown —
+      // PostgREST errors expose code/details/hint, Functions errors expose
+      // a Response on `context`, and plain throws have only a message.
+      let status: number | string | undefined =
+        error?.status ?? error?.context?.status ?? error?.statusCode;
+      let body: string | undefined;
+      try {
+        const ctx = error?.context;
+        if (ctx && typeof ctx.text === 'function') {
+          body = await ctx.clone().text();
+        } else if (typeof ctx === 'string') {
+          body = ctx;
+        } else if (ctx && typeof ctx === 'object') {
+          body = JSON.stringify(ctx, null, 2);
+        }
+      } catch {
+        /* ignore body extraction failures */
+      }
+      let raw = '';
+      try {
+        raw = JSON.stringify(
+          error,
+          Object.getOwnPropertyNames(error ?? {}),
+          2,
+        );
+      } catch {
+        raw = String(error);
+      }
+      setSubmitError({
+        message: friendly,
+        status,
+        code: error?.code,
+        details: error?.details,
+        hint: error?.hint,
+        body,
+        raw,
+        at: new Date().toISOString(),
+      });
+      setShowRawError(false);
       toast.error('Failed to submit deposit', { description: friendly });
       setStep('form');
     } finally {
@@ -1106,6 +1164,8 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     setEditStatus(null);
     setBreakdownChoice('pending');
     setErrorFieldId(null);
+    setSubmitError(null);
+    setShowRawError(false);
     onOpenChange(false);
   };
 
@@ -1365,6 +1425,116 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                 {getProviderLabel()}
               </span>
             </div>
+
+            {/* ─── Detailed submit error panel ─────────────────────────
+                Shows the full edge-function / database response so users
+                (and support) can see exactly what failed instead of a
+                disappearing toast. */}
+            {submitError && (
+              <div
+                role="alert"
+                className="rounded-xl border border-destructive/40 bg-destructive/5 p-3 space-y-2"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-destructive">
+                      Deposit didn’t go through
+                    </p>
+                    <p className="text-xs text-foreground/90 mt-0.5 break-words">
+                      {submitError.message}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setSubmitError(null); setShowRawError(false); }}
+                    aria-label="Dismiss error"
+                    className="text-muted-foreground hover:text-foreground text-xs px-2 py-1 rounded hover:bg-muted shrink-0"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-1.5 text-[10px]">
+                  {submitError.status !== undefined && (
+                    <span className="px-2 py-0.5 rounded-full bg-destructive/10 text-destructive font-mono">
+                      HTTP {submitError.status}
+                    </span>
+                  )}
+                  {submitError.code && (
+                    <span className="px-2 py-0.5 rounded-full bg-muted text-foreground font-mono">
+                      code: {submitError.code}
+                    </span>
+                  )}
+                  <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-mono">
+                    {new Date(submitError.at).toLocaleTimeString()}
+                  </span>
+                </div>
+                {(submitError.details || submitError.hint) && (
+                  <div className="text-xs text-foreground/80 space-y-0.5">
+                    {submitError.details && (
+                      <p><span className="font-semibold">Details:</span> {submitError.details}</p>
+                    )}
+                    {submitError.hint && (
+                      <p><span className="font-semibold">Hint:</span> {submitError.hint}</p>
+                    )}
+                  </div>
+                )}
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowRawError(v => !v)}
+                    className="text-[11px] underline text-muted-foreground hover:text-foreground"
+                  >
+                    {showRawError ? 'Hide full response' : 'Show full response'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const payload = [
+                          `Time: ${submitError.at}`,
+                          submitError.status !== undefined ? `Status: ${submitError.status}` : null,
+                          submitError.code ? `Code: ${submitError.code}` : null,
+                          `Message: ${submitError.message}`,
+                          submitError.details ? `Details: ${submitError.details}` : null,
+                          submitError.hint ? `Hint: ${submitError.hint}` : null,
+                          submitError.body ? `\nBody:\n${submitError.body}` : null,
+                          `\nRaw:\n${submitError.raw}`,
+                        ].filter(Boolean).join('\n');
+                        await navigator.clipboard.writeText(payload);
+                        toast.success('Error details copied');
+                      } catch {
+                        toast.error('Could not copy');
+                      }
+                    }}
+                    className="text-[11px] underline text-muted-foreground hover:text-foreground"
+                  >
+                    Copy for support
+                  </button>
+                </div>
+                {showRawError && (
+                  <div className="space-y-1.5">
+                    {submitError.body && (
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
+                          Response body
+                        </p>
+                        <pre className="text-[11px] leading-snug bg-background border border-border rounded-md p-2 max-h-48 overflow-auto whitespace-pre-wrap break-words font-mono">
+                          {submitError.body}
+                        </pre>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
+                        Raw error
+                      </p>
+                      <pre className="text-[11px] leading-snug bg-background border border-border rounded-md p-2 max-h-48 overflow-auto whitespace-pre-wrap break-words font-mono">
+                        {submitError.raw}
+                      </pre>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* ─── MoMo Instructions (Tab-Based) ─── */}
             {channel === 'momo' && (
