@@ -1588,6 +1588,52 @@ export function ComprehensiveCashMovement() {
             );
           })()
         )}
+        {/* ─── Tap-to-drill shortcuts (Simple mode) ───────────────
+            Two big rows directly under the Glance hero that jump
+            straight to the filtered transaction list (Money in or
+            Money out) without scrolling. Shows live counts so users
+            see how many entries they'll land on. */}
+        {simpleMode && (() => {
+          const inCount = rows.reduce((n, r) => n + (r.direction === 'cash_in' ? 1 : 0), 0);
+          const outCount = rows.reduce((n, r) => n + (r.direction === 'cash_out' ? 1 : 0), 0);
+          return (
+            <div className="space-y-2">
+              <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold px-1">
+                Tap to drill down
+              </div>
+              <button
+                type="button"
+                onClick={() => openPageDrill('cash_in')}
+                className="w-full flex items-center gap-3 rounded-xl border-2 border-success/40 bg-success/5 hover:bg-success/10 active:scale-[0.99] transition px-3 py-3 min-h-[64px] text-left"
+                aria-label={`See every Money-In transaction (${inCount.toLocaleString()})`}
+              >
+                <span className="text-2xl shrink-0" aria-hidden="true">💰</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold text-foreground">See every Money-In transaction</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {inCount.toLocaleString()} {inCount === 1 ? 'entry' : 'entries'} · jumps straight to the list
+                  </div>
+                </div>
+                <span className="text-success text-lg shrink-0" aria-hidden="true">→</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => openPageDrill('cash_out')}
+                className="w-full flex items-center gap-3 rounded-xl border-2 border-destructive/40 bg-destructive/5 hover:bg-destructive/10 active:scale-[0.99] transition px-3 py-3 min-h-[64px] text-left"
+                aria-label={`See every Money-Out transaction (${outCount.toLocaleString()})`}
+              >
+                <span className="text-2xl shrink-0" aria-hidden="true">💸</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold text-foreground">See every Money-Out transaction</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {outCount.toLocaleString()} {outCount === 1 ? 'entry' : 'entries'} · jumps straight to the list
+                  </div>
+                </div>
+                <span className="text-destructive text-lg shrink-0" aria-hidden="true">→</span>
+              </button>
+            </div>
+          );
+        })()}
         {simpleMode && (
           <div className={cn(
             'rounded-lg border-2 p-3 sm:p-4 space-y-2',
