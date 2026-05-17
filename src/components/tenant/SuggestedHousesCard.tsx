@@ -126,7 +126,7 @@ export function SuggestedHousesCard({ userId, onViewAll }: SuggestedHousesCardPr
                     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onViewAll(); }
                   }}
                   aria-label={`Browse listed houses like ${house.title}`}
-                  className="flex-1 min-w-0 space-y-1 text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/40 rounded-md"
+                  className="flex-1 min-w-0 space-y-1 text-left cursor-pointer rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 >
                   <p className="font-semibold text-sm truncate">{house.title}</p>
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
