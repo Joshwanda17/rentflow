@@ -48,10 +48,18 @@ export function BusinessAdvanceNotificationPreferences({ userId }: { userId: str
     const { error } = await supabase.from('profiles').update({ [col]: value }).eq('id', userId);
     setSaving(null);
     if (error) {
-      toast.error('Could not save preference');
+      toast.error('Could not save preference', {
+        description: `We couldn't update your ${field === 'sms' ? 'SMS' : 'email'} alert setting. Please try again.`,
+      });
       if (field === 'sms') setSms(!value); else setEmail(!value);
     } else {
-      toast.success(value ? 'Alerts on' : 'Alerts off');
+      const channelLabel = field === 'sms' ? 'SMS alerts' : 'Email alerts';
+      const destination = field === 'sms' ? phone : emailAddr;
+      toast.success(value ? `${channelLabel} turned on` : `${channelLabel} turned off`, {
+        description: value
+          ? `We'll notify you${destination ? ` at ${destination}` : ''} when your Business Advance moves between stages.`
+          : `You won't receive ${field === 'sms' ? 'SMS' : 'email'} updates for Business Advance stage changes.`,
+      });
     }
   };
 
