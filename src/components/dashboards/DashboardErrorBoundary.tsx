@@ -1,8 +1,9 @@
 import { Component, ReactNode } from 'react';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Send, Check } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Props {
   children: ReactNode;
@@ -15,11 +16,19 @@ interface Props {
    * invalidate caches, etc. Boundary state is cleared after this resolves.
    */
   onReset?: () => void | Promise<void>;
+  /** Captured automatically and used for "Report this error". */
+  reportContext?: {
+    userId?: string | null;
+    role?: string | null;
+    route?: string;
+  };
 }
 
 interface State {
   hasError: boolean;
   message?: string;
+  componentStack?: string;
+  reportState?: 'idle' | 'sending' | 'sent' | 'failed';
 }
 
 /**
@@ -40,11 +49,12 @@ export class DashboardErrorBoundaryInner extends Component<Props, State> {
       error,
       info.componentStack,
     );
+    this.setState({ componentStack: info.componentStack, reportState: 'idle' });
   }
 
   componentDidUpdate(prevProps: Props) {
     if (this.state.hasError && prevProps.resetKey !== this.props.resetKey) {
-      this.setState({ hasError: false, message: undefined });
+      this.setState({ hasError: false, message: undefined, componentStack: undefined, reportState: 'idle' });
     }
   }
 
@@ -54,7 +64,33 @@ export class DashboardErrorBoundaryInner extends Component<Props, State> {
     } catch (err) {
       console.error('[DashboardErrorBoundary] onReset failed:', err);
     }
-    this.setState({ hasError: false, message: undefined });
+    this.setState({ hasError: false, message: undefined, componentStack: undefined, reportState: 'idle' });
+  };
+
+  handleReportError = async () => {
+    if (this.state.reportState === 'sending' || this.state.reportState === 'sent') return;
+    this.setState({ reportState: 'sending' });
+    try {
+      const ctx = this.props.reportContext ?? {};
+      const { error } = await supabase.from('client_error_reports').insert({
+        user_id: ctx.userId ?? null,
+        role: ctx.role ?? null,
+        label: this.props.label ?? null,
+        route: ctx.route ?? (typeof window !== 'undefined' ? window.location.pathname : null),
+        message: this.state.message ?? null,
+        component_stack: this.state.componentStack ?? null,
+        user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
+        context: {
+          href: typeof window !== 'undefined' ? window.location.href : null,
+          reported_at: new Date().toISOString(),
+        },
+      });
+      if (error) throw error;
+      this.setState({ reportState: 'sent' });
+    } catch (err) {
+      console.error('[DashboardErrorBoundary] failed to send error report:', err);
+      this.setState({ reportState: 'failed' });
+    }
   };
 
   handleReload = () => {
@@ -122,7 +158,40 @@ export class DashboardErrorBoundaryInner extends Component<Props, State> {
                 >
                   Clear cache &amp; restart
                 </button>
+                <button
+                  type="button"
+                  onClick={this.handleReportError}
+                  disabled={this.state.reportState === 'sending' || this.state.reportState === 'sent'}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium hover:bg-muted transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {this.state.reportState === 'sent' ? (
+                    <>
+                      <Check className="h-4 w-4" />
+                      Reported
+                    </>
+                  ) : this.state.reportState === 'sending' ? (
+                    <>
+                      <Send className="h-4 w-4 animate-pulse" />
+                      Sending…
+                    </>
+                  ) : this.state.reportState === 'failed' ? (
+                    <>
+                      <Send className="h-4 w-4" />
+                      Retry report
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4" />
+                      Report this error
+                    </>
+                  )}
+                </button>
               </div>
+              {this.state.reportState === 'failed' && (
+                <p className="mt-2 text-xs text-destructive">
+                  Couldn't send the report. Please try again.
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -154,6 +223,11 @@ export function DashboardErrorBoundary(props: Props) {
       {...props}
       resetKey={props.resetKey ?? autoKey}
       onReset={handleReset}
+      reportContext={props.reportContext ?? {
+        userId: user?.id ?? null,
+        role: role ?? null,
+        route: location.pathname,
+      }}
     />
   );
 }
