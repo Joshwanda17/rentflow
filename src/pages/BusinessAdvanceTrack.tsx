@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Briefcase, ArrowRight, Shield, Lock, UserPlus, CheckCircle2, ChevronDown, TrendingUp, Sparkles, BadgeCheck } from 'lucide-react';
+import { Loader2, Briefcase, ArrowRight, Shield, Lock, UserPlus, CheckCircle2, ChevronDown, TrendingUp, Sparkles, BadgeCheck, Share2, Link2, Check } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
@@ -34,6 +34,29 @@ export default function BusinessAdvanceTrack() {
   const [accountReady, setAccountReady] = useState(false);
   const [trackerOpen, setTrackerOpen] = useState(true);
   const [authedUserId, setAuthedUserId] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const trackingUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/business-advance/track?phone=${encodeURIComponent(phone)}`
+    : '';
+
+  const shareMessage = `Get a Rent Business Advance up to UGX 30,000,000 with Welile — your rent history is your collateral. Fast, fair working capital for business owners. Track or apply here: ${trackingUrl}`;
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(trackingUrl);
+      setCopied(true);
+      toast.success('Tracking link copied');
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error('Could not copy link');
+    }
+  };
+
+  const handleShareWhatsApp = () => {
+    const url = `https://wa.me/?text=${encodeURIComponent(shareMessage)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
 
   const aliveRef = useRef(true);
   const load = useCallback(async () => {
@@ -135,6 +158,39 @@ export default function BusinessAdvanceTrack() {
             </div>
           </CardContent>
         </Card>
+
+        {phone && (
+          <Card className="border-primary/20 shadow-sm">
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Share2 className="h-4 w-4 text-primary" />
+                <p className="text-sm font-semibold">Share with a business owner</p>
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Spread the word — help another owner access up to UGX 30,000,000 in working capital.
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  onClick={handleShareWhatsApp}
+                  className="h-10 gap-1.5 bg-[#25D366] hover:bg-[#1ebe5d] text-white"
+                >
+                  <Share2 className="h-4 w-4" />
+                  WhatsApp
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCopyLink}
+                  className="h-10 gap-1.5"
+                >
+                  {copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Link2 className="h-4 w-4" />}
+                  {copied ? 'Copied' : 'Copy link'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {loading ? (
           <Card><CardContent className="py-10 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></CardContent></Card>
