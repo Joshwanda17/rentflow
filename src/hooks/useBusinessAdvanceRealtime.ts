@@ -1,6 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+
+export type RealtimeStatus = 'connecting' | 'live' | 'polling';
 
 /**
  * Shared realtime subscription for the `business_advances` table so the
@@ -16,12 +18,17 @@ export function useBusinessAdvanceRealtime(
   channelKey: string | null | undefined,
   onChange: () => void,
   opts?: { filter?: string }
-) {
+): RealtimeStatus {
   const warnedRef = useRef(false);
   const reconnectedRef = useRef(false);
+  const [status, setStatus] = useState<RealtimeStatus>('connecting');
 
   useEffect(() => {
-    if (!channelKey) return;
+    if (!channelKey) {
+      setStatus('connecting');
+      return;
+    }
+    setStatus('connecting');
     let cancelled = false;
     let pollTimer: ReturnType<typeof setInterval> | null = null;
     let connectTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -63,6 +70,7 @@ export function useBusinessAdvanceRealtime(
             connectTimeout = null;
           }
           stopPollingFallback();
+          setStatus('live');
           if (warnedRef.current && !reconnectedRef.current) {
             reconnectedRef.current = true;
             toast.success('Live updates reconnected', {
@@ -92,6 +100,7 @@ export function useBusinessAdvanceRealtime(
             }
           }
           startPollingFallback();
+          setStatus('polling');
         }
       });
 
@@ -106,6 +115,7 @@ export function useBusinessAdvanceRealtime(
         });
       }
       startPollingFallback();
+      setStatus('polling');
     }, 10000);
 
     return () => {
@@ -116,6 +126,8 @@ export function useBusinessAdvanceRealtime(
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelKey, opts?.filter]);
+
+  return status;
 }
 
 export default useBusinessAdvanceRealtime;
