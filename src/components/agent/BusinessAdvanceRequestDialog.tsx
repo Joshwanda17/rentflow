@@ -448,6 +448,7 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
           applicant_location_accuracy: applicantGps?.accuracy ?? null,
           applicant_location_captured_at: applicantGps ? new Date().toISOString() : null,
           applicant_location_manual: applicantManualLocation.trim() || null,
+          location_history: locationHistory,
           tenant_alternate_phone: tenantAltPhone ? tenantAltPhone.replace(/\s/g, '') : null,
           next_of_kin_name: nokName.trim() || null,
           next_of_kin_phone: nokPhone ? nokPhone.replace(/\s/g, '') : null,
