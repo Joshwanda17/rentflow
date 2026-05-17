@@ -118,11 +118,15 @@ export function SuggestedHousesCard({ userId, onViewAll }: SuggestedHousesCardPr
                 </button>
 
                 {/* Details */}
-                <button
-                  type="button"
+                <div
+                  role="button"
+                  tabIndex={0}
                   onClick={onViewAll}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onViewAll(); }
+                  }}
                   aria-label={`Browse listed houses like ${house.title}`}
-                  className="flex-1 min-w-0 space-y-1 text-left focus:outline-none focus:ring-2 focus:ring-primary/40 rounded-md"
+                  className="flex-1 min-w-0 space-y-1 text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/40 rounded-md"
                 >
                   <p className="font-semibold text-sm truncate">{house.title}</p>
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -145,7 +149,7 @@ export function SuggestedHousesCard({ userId, onViewAll }: SuggestedHousesCardPr
                       )}
                     </div>
                   </div>
-                </button>
+                </div>
               </div>
             </CardContent>
           </Card>
