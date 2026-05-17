@@ -1,15 +1,17 @@
-import { useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Home, MapPin, DoorOpen, CheckCircle, Clock, AlertTriangle, RotateCcw } from 'lucide-react';
+import { Home, MapPin, DoorOpen, CheckCircle, Clock, AlertTriangle, RotateCcw, Building2, ChevronDown, ChevronRight, User, UserCog, Pencil } from 'lucide-react';
 import { useHouseListings, HouseListing } from '@/hooks/useHouseListings';
 import { formatUGX } from '@/lib/rentCalculations';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { TenantProfileView } from './TenantProfileView';
+import { ReassignAgentDialog } from '@/components/shared/ReassignAgentDialog';
 
 interface AgentListingsSheetProps {
   open: boolean;
@@ -25,6 +27,50 @@ export function AgentListingsSheet({ open, onOpenChange }: AgentListingsSheetPro
     limit: 100,
   });
   const [relisting, setRelisting] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [viewingTenantId, setViewingTenantId] = useState<string | null>(null);
+  const [reassignTarget, setReassignTarget] = useState<{
+    rentRequestId: string; tenantName: string; currentAgentId: string;
+  } | null>(null);
+
+  // Enrich with landlord profile + tenant profile + active rent_request id for each occupied house.
+  const [enrichment, setEnrichment] = useState<{
+    landlords: Record<string, { name: string; phone: string | null }>;
+    tenants: Record<string, { name: string; phone: string | null }>;
+    activeRequestByTenant: Record<string, { id: string; agent_id: string | null }>;
+  }>({ landlords: {}, tenants: {}, activeRequestByTenant: {} });
+
+  useEffect(() => {
+    let cancelled = false;
+    async function run() {
+      if (!listings.length) return;
+      const landlordIds = Array.from(new Set(listings.map(l => l.landlord_id).filter(Boolean) as string[]));
+      const tenantIds = Array.from(new Set(listings.map(l => l.tenant_id).filter(Boolean) as string[]));
+      const [landlords, tenants, reqs] = await Promise.all([
+        landlordIds.length
+          ? supabase.from('profiles').select('id,full_name,phone').in('id', landlordIds)
+          : Promise.resolve({ data: [] as any }),
+        tenantIds.length
+          ? supabase.from('profiles').select('id,full_name,phone').in('id', tenantIds)
+          : Promise.resolve({ data: [] as any }),
+        tenantIds.length
+          ? supabase.from('rent_requests').select('id,tenant_id,agent_id,created_at').in('tenant_id', tenantIds).order('created_at', { ascending: false })
+          : Promise.resolve({ data: [] as any }),
+      ]);
+      if (cancelled) return;
+      const lmap: Record<string, { name: string; phone: string | null }> = {};
+      for (const p of (landlords.data ?? []) as any[]) lmap[p.id] = { name: p.full_name || 'Unknown landlord', phone: p.phone ?? null };
+      const tmap: Record<string, { name: string; phone: string | null }> = {};
+      for (const p of (tenants.data ?? []) as any[]) tmap[p.id] = { name: p.full_name || 'Unknown tenant', phone: p.phone ?? null };
+      const rmap: Record<string, { id: string; agent_id: string | null }> = {};
+      for (const r of (reqs.data ?? []) as any[]) {
+        if (!rmap[r.tenant_id]) rmap[r.tenant_id] = { id: r.id, agent_id: r.agent_id };
+      }
+      setEnrichment({ landlords: lmap, tenants: tmap, activeRequestByTenant: rmap });
+    }
+    run();
+    return () => { cancelled = true; };
+  }, [listings]);
 
   const handleRelist = async (listing: HouseListing) => {
     setRelisting(listing.id);
@@ -45,6 +91,25 @@ export function AgentListingsSheet({ open, onOpenChange }: AgentListingsSheetPro
 
   const rejected = listings.filter(l => l.status === 'rejected');
   const others = listings.filter(l => l.status !== 'rejected');
+
+  // Group `others` by landlord_id
+  const grouped = useMemo(() => {
+    type Group = { landlord_id: string | null; name: string; phone: string | null; houses: HouseListing[] };
+    const map = new Map<string, Group>();
+    for (const h of others) {
+      const key = h.landlord_id ?? '__none__';
+      const prof = h.landlord_id ? enrichment.landlords[h.landlord_id] : null;
+      const g = map.get(key) ?? {
+        landlord_id: h.landlord_id ?? null,
+        name: prof?.name ?? (h.landlord_id ? 'Loading…' : 'No landlord on file'),
+        phone: prof?.phone ?? null,
+        houses: [],
+      };
+      g.houses.push(h);
+      map.set(key, g);
+    }
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [others, enrichment.landlords]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -114,41 +179,124 @@ export function AgentListingsSheet({ open, onOpenChange }: AgentListingsSheetPro
                 </div>
               )}
 
-              {/* Other listings */}
-              {others.map(l => (
-                <motion.div
-                  key={l.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="rounded-xl border border-border bg-card p-3 space-y-2"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-sm truncate">{l.title}</p>
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <MapPin className="h-3 w-3" />
-                        <span className="truncate">{l.address}, {l.region}</span>
+              {/* Houses grouped by landlord */}
+              {grouped.map(g => {
+                const key = g.landlord_id ?? '__none__';
+                const isOpen = expanded[key] !== false; // default open
+                return (
+                  <div key={key} className="rounded-xl border border-border bg-card overflow-hidden">
+                    <button
+                      onClick={() => setExpanded(s => ({ ...s, [key]: !isOpen }))}
+                      className="w-full text-left p-3 active:bg-muted/50 transition-colors flex items-center justify-between gap-2 min-h-[56px]"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Building2 className="h-4 w-4 text-sky-600 shrink-0" />
+                        <div className="min-w-0">
+                          <p className="font-bold text-sm truncate">{g.name}</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            {g.phone ? `${g.phone} · ` : ''}{g.houses.length} house{g.houses.length === 1 ? '' : 's'}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                    <Badge variant={l.status === 'available' ? 'default' : 'secondary'} className="text-[10px] shrink-0">
-                      {l.status === 'available' ? (
-                        <><CheckCircle className="h-3 w-3 mr-1" /> Available</>
-                      ) : l.status === 'occupied' ? (
-                        <><DoorOpen className="h-3 w-3 mr-1" /> Occupied</>
-                      ) : (
-                        <><Clock className="h-3 w-3 mr-1" /> {l.status}</>
-                      )}
-                    </Badge>
+                      {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                    </button>
+
+                    {isOpen && (
+                      <div className="border-t bg-muted/10 p-2 space-y-2">
+                        {g.houses.map(l => {
+                          const tenant = l.tenant_id ? enrichment.tenants[l.tenant_id] : null;
+                          const req = l.tenant_id ? enrichment.activeRequestByTenant[l.tenant_id] : null;
+                          return (
+                            <motion.div
+                              key={l.id}
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              className="rounded-lg border border-border bg-background p-3 space-y-2"
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-semibold text-sm truncate">{l.title}</p>
+                                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                    <MapPin className="h-3 w-3" />
+                                    <span className="truncate">{l.address}, {l.region}</span>
+                                  </div>
+                                </div>
+                                <Badge variant={l.status === 'available' ? 'default' : 'secondary'} className="text-[10px] shrink-0">
+                                  {l.status === 'available' ? (
+                                    <><CheckCircle className="h-3 w-3 mr-1" /> Available</>
+                                  ) : l.status === 'occupied' ? (
+                                    <><DoorOpen className="h-3 w-3 mr-1" /> Occupied</>
+                                  ) : (
+                                    <><Clock className="h-3 w-3 mr-1" /> {l.status}</>
+                                  )}
+                                </Badge>
+                              </div>
+
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-muted-foreground">{formatUGX(l.monthly_rent)}/mo</span>
+                                <span className="font-bold text-success">{formatUGX(l.daily_rate)}/day</span>
+                              </div>
+
+                              <div className="rounded-md bg-muted/40 p-2 text-[11px] flex items-center gap-1.5">
+                                <User className="h-3 w-3 shrink-0" />
+                                <span className="font-medium">Tenant:</span>
+                                <span className="truncate flex-1">
+                                  {tenant ? `${tenant.name}${tenant.phone ? ` · ${tenant.phone}` : ''}` : '—'}
+                                </span>
+                              </div>
+
+                              {l.tenant_id && (
+                                <div className="flex flex-wrap gap-1.5">
+                                  <Button
+                                    size="sm" variant="outline" className="h-8 text-xs gap-1"
+                                    onClick={() => setViewingTenantId(l.tenant_id!)}
+                                  >
+                                    <Pencil className="h-3 w-3" /> Change tenant profile
+                                  </Button>
+                                  {req && (
+                                    <Button
+                                      size="sm" variant="outline" className="h-8 text-xs gap-1"
+                                      onClick={() => setReassignTarget({
+                                        rentRequestId: req.id,
+                                        tenantName: tenant?.name ?? 'tenant',
+                                        currentAgentId: req.agent_id ?? (l.agent_id ?? ''),
+                                      })}
+                                    >
+                                      <UserCog className="h-3 w-3" /> Reassign agent
+                                    </Button>
+                                  )}
+                                </div>
+                              )}
+                            </motion.div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">{formatUGX(l.monthly_rent)}/mo</span>
-                    <span className="text-sm font-bold text-success">{formatUGX(l.daily_rate)}/day</span>
-                  </div>
-                </motion.div>
-              ))}
+                );
+              })}
             </>
           )}
         </div>
+
+        {/* Tenant profile editor */}
+        {viewingTenantId && (
+          <Sheet open={!!viewingTenantId} onOpenChange={(o) => !o && setViewingTenantId(null)}>
+            <SheetContent side="bottom" className="h-[95vh] rounded-t-3xl p-0 flex flex-col overflow-y-auto">
+              <TenantProfileView tenantId={viewingTenantId} onBack={() => setViewingTenantId(null)} />
+            </SheetContent>
+          </Sheet>
+        )}
+
+        {/* Reassign agent dialog */}
+        {reassignTarget && (
+          <ReassignAgentDialog
+            open={!!reassignTarget}
+            onOpenChange={(o) => !o && setReassignTarget(null)}
+            target={{ kind: 'rent_request', ...reassignTarget }}
+            onComplete={refresh}
+          />
+        )}
       </SheetContent>
     </Sheet>
   );
