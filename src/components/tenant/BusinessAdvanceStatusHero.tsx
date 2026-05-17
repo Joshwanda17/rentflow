@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Sparkles } from 'lucide-react';
 import BusinessAdvanceStatusTracker, { AdvanceStatusRow } from '@/components/business-advance/BusinessAdvanceStatusTracker';
+import { useBusinessAdvanceRealtime } from '@/hooks/useBusinessAdvanceRealtime';
 
 const ACTIVE_STATUSES = ['pending','agent_ops_approved','tenant_ops_approved','landlord_ops_approved','coo_approved','active'] as const;
 
@@ -39,16 +39,11 @@ export function BusinessAdvanceStatusHero() {
     },
   });
 
-  useEffect(() => {
-    if (!user?.id) return;
-    const ch = supabase
-      .channel('tenant-business-advance-hero-' + user.id)
-      .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'business_advances', filter: `tenant_id=eq.${user.id}` },
-        () => refetch())
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
-  }, [user?.id, refetch]);
+  useBusinessAdvanceRealtime(
+    user?.id ? `tenant-hero-${user.id}` : null,
+    () => { refetch(); },
+    user?.id ? { filter: `tenant_id=eq.${user.id}` } : undefined
+  );
 
   if (!data) return null;
 
