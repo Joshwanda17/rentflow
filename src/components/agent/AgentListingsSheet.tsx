@@ -528,5 +528,24 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
         )}
       </SheetContent>
     </Sheet>
+    {(() => {
+      const detailListing = detailListingId ? listings.find(l => l.id === detailListingId) ?? null : null;
+      const detailTenant = detailListing?.tenant_id ? enrichment.tenants[detailListing.tenant_id] : null;
+      const detailLandlord = detailListing?.landlord_id ? enrichment.landlords[detailListing.landlord_id] : null;
+      const detailReq = detailListing?.tenant_id ? enrichment.activeRequestByTenant[detailListing.tenant_id] : null;
+      return (
+        <HouseDetailSheet
+          open={!!detailListingId}
+          onOpenChange={(o) => !o && setDetailListingId(null)}
+          listing={detailListing}
+          tenant={detailTenant}
+          landlord={detailLandlord}
+          activeRequest={detailReq}
+          onChangeTenantProfile={(tid) => setViewingTenantId(tid)}
+          onReassignAgent={(args) => setReassignTarget(args)}
+        />
+      );
+    })()}
+    </>
   );
 }
