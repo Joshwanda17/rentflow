@@ -100,6 +100,29 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
   const [businessGeocoding, setBusinessGeocoding] = useState(false);
   const [gpsLoading, setGpsLoading] = useState(false);
 
+  // Append-only audit trail of every GPS capture, reverse-geocode, and manual
+  // address edit during this session. Persisted to business_advances.location_history.
+  type LocationHistoryEntry = {
+    ts: string;
+    event:
+      | 'gps_captured'
+      | 'reverse_geocoded'
+      | 'manual_edit'
+      | 'autofill_from_geocode';
+    source: 'applicant' | 'business';
+    field?: 'manual_location' | 'business_address';
+    lat?: number;
+    lng?: number;
+    accuracy?: number;
+    address?: string;
+    previous?: string;
+    value?: string;
+  };
+  const [locationHistory, setLocationHistory] = useState<LocationHistoryEntry[]>([]);
+  const appendHistory = useCallback((entry: Omit<LocationHistoryEntry, 'ts'>) => {
+    setLocationHistory((prev) => [...prev, { ts: new Date().toISOString(), ...entry }]);
+  }, []);
+
   const reset = () => {
     setStep('amount');
     setPrincipal(''); setReason(''); setRentHistory([]);
@@ -110,6 +133,7 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
     setApplicantGps(null); setApplicantManualLocation('');
     setApplicantGeocoded(null); setApplicantGeocoding(false);
     setBusinessGeocoded(null); setBusinessGeocoding(false);
+    setLocationHistory([]);
     setBusinessName(''); setBusinessType(''); setBusinessAddress(''); setBusinessCity('Kampala');
     setMonthlyRevenue(''); setYearsInBusiness(''); setGps(null);
     setActivationLink(null);
@@ -126,6 +150,13 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
         const acc = pos.coords.accuracy;
         setGps({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: acc });
         setGpsLoading(false);
+        appendHistory({
+          event: 'gps_captured',
+          source: 'business',
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: acc,
+        });
         if (acc > GPS_MAX_ACCURACY_M) {
           toast.error(`Business GPS too weak (±${Math.round(acc)}m). Move outside and retry.`);
         } else if (acc > GPS_GOOD_ACCURACY_M) {
@@ -138,7 +169,24 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
         setBusinessGeocoding(false);
         if (geo?.address) {
           setBusinessGeocoded(geo.address);
-          setBusinessAddress((prev) => (prev.trim() ? prev : geo.address));
+          appendHistory({
+            event: 'reverse_geocoded',
+            source: 'business',
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            address: geo.address,
+          });
+          setBusinessAddress((prev) => {
+            if (prev.trim()) return prev;
+            appendHistory({
+              event: 'autofill_from_geocode',
+              source: 'business',
+              field: 'business_address',
+              previous: prev,
+              value: geo.address,
+            });
+            return geo.address;
+          });
         }
       },
       () => { setGpsLoading(false); toast.error('Could not get GPS'); },
@@ -155,6 +203,13 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
         const acc = pos.coords.accuracy;
         setApplicantGps({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: acc });
         setApplicantGpsLoading(false);
+        appendHistory({
+          event: 'gps_captured',
+          source: 'applicant',
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: acc,
+        });
         if (acc > GPS_MAX_ACCURACY_M) {
           toast.error(`GPS too weak (±${Math.round(acc)}m). Move outside or retry.`);
         } else if (acc > GPS_GOOD_ACCURACY_M) {
@@ -167,7 +222,24 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
         setApplicantGeocoding(false);
         if (geo?.address) {
           setApplicantGeocoded(geo.address);
-          setApplicantManualLocation((prev) => (prev.trim() ? prev : geo.address));
+          appendHistory({
+            event: 'reverse_geocoded',
+            source: 'applicant',
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            address: geo.address,
+          });
+          setApplicantManualLocation((prev) => {
+            if (prev.trim()) return prev;
+            appendHistory({
+              event: 'autofill_from_geocode',
+              source: 'applicant',
+              field: 'manual_location',
+              previous: prev,
+              value: geo.address,
+            });
+            return geo.address;
+          });
         }
       },
       (err) => {
@@ -376,6 +448,7 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
           applicant_location_accuracy: applicantGps?.accuracy ?? null,
           applicant_location_captured_at: applicantGps ? new Date().toISOString() : null,
           applicant_location_manual: applicantManualLocation.trim() || null,
+          location_history: locationHistory,
           tenant_alternate_phone: tenantAltPhone ? tenantAltPhone.replace(/\s/g, '') : null,
           next_of_kin_name: nokName.trim() || null,
           next_of_kin_phone: nokPhone ? nokPhone.replace(/\s/g, '') : null,
@@ -713,6 +786,21 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
               <Input
                 value={applicantManualLocation}
                 onChange={(e) => setApplicantManualLocation(e.target.value)}
+                onBlur={(e) => {
+                  const v = e.target.value.trim();
+                  const last = [...locationHistory].reverse().find(
+                    (h) => h.source === 'applicant' && h.field === 'manual_location'
+                  );
+                  if (v && v !== (last?.value ?? '')) {
+                    appendHistory({
+                      event: 'manual_edit',
+                      source: 'applicant',
+                      field: 'manual_location',
+                      previous: last?.value ?? '',
+                      value: v,
+                    });
+                  }
+                }}
                 placeholder="Manual location (e.g. Bukoto, Plot 4, near St. Jude clinic)"
               />
               {applicantGeocoding && (
@@ -733,7 +821,16 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
                       size="sm"
                       variant="outline"
                       className="h-7 text-[11px] shrink-0"
-                      onClick={() => setApplicantManualLocation(applicantGeocoded)}
+                      onClick={() => {
+                        appendHistory({
+                          event: 'manual_edit',
+                          source: 'applicant',
+                          field: 'manual_location',
+                          previous: applicantManualLocation,
+                          value: applicantGeocoded,
+                        });
+                        setApplicantManualLocation(applicantGeocoded);
+                      }}
                     >
                       Use this
                     </Button>
@@ -890,7 +987,26 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
 
             <div className="space-y-2">
               <Label>Business address *</Label>
-              <Input value={businessAddress} onChange={(e) => setBusinessAddress(e.target.value)} placeholder="Plot 12, Kampala Road" />
+              <Input
+                value={businessAddress}
+                onChange={(e) => setBusinessAddress(e.target.value)}
+                onBlur={(e) => {
+                  const v = e.target.value.trim();
+                  const last = [...locationHistory].reverse().find(
+                    (h) => h.source === 'business' && h.field === 'business_address'
+                  );
+                  if (v && v !== (last?.value ?? '')) {
+                    appendHistory({
+                      event: 'manual_edit',
+                      source: 'business',
+                      field: 'business_address',
+                      previous: last?.value ?? '',
+                      value: v,
+                    });
+                  }
+                }}
+                placeholder="Plot 12, Kampala Road"
+              />
               {businessGeocoding && (
                 <p className="text-[11px] text-muted-foreground flex items-center gap-1">
                   <Loader2 className="h-3 w-3 animate-spin" /> Looking up address from GPS…
@@ -909,7 +1025,16 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
                       size="sm"
                       variant="outline"
                       className="h-7 text-[11px] shrink-0"
-                      onClick={() => setBusinessAddress(businessGeocoded)}
+                      onClick={() => {
+                        appendHistory({
+                          event: 'manual_edit',
+                          source: 'business',
+                          field: 'business_address',
+                          previous: businessAddress,
+                          value: businessGeocoded,
+                        });
+                        setBusinessAddress(businessGeocoded);
+                      }}
                     >
                       Use this
                     </Button>
