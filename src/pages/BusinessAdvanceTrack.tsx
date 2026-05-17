@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import BusinessAdvanceStatusTracker, { AdvanceStatusRow } from '@/components/business-advance/BusinessAdvanceStatusTracker';
 import { useBusinessAdvanceRealtime } from '@/hooks/useBusinessAdvanceRealtime';
+import { BusinessAdvanceAuditLog } from '@/components/business-advance/BusinessAdvanceAuditLog';
 
 export default function BusinessAdvanceTrack() {
   const [params] = useSearchParams();
@@ -113,6 +114,9 @@ export default function BusinessAdvanceTrack() {
             <Card className="border-primary/20 shadow-lg">
               <CardContent className="p-5">
                 <BusinessAdvanceStatusTracker row={row} />
+                <div className="mt-3">
+                  <BusinessAdvanceAuditLog advanceId={row.id} phone={phone} />
+                </div>
               </CardContent>
             </Card>
 
