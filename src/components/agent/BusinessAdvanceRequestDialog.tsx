@@ -618,6 +618,31 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
                   ? `📍 Applicant GPS captured (±${Math.round(applicantGps.accuracy)}m)`
                   : 'Capture applicant GPS'}
               </Button>
+              {applicantGps && (() => {
+                const acc = applicantGps.accuracy;
+                const tone =
+                  acc > GPS_MAX_ACCURACY_M
+                    ? 'border-destructive/40 bg-destructive/10 text-destructive'
+                    : acc > GPS_GOOD_ACCURACY_M
+                    ? 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400'
+                    : 'border-green-500/40 bg-green-500/10 text-green-700 dark:text-green-400';
+                const label =
+                  acc > GPS_MAX_ACCURACY_M
+                    ? `Too weak (±${Math.round(acc)}m). Retry outside or fill the manual field below.`
+                    : acc > GPS_GOOD_ACCURACY_M
+                    ? `Acceptable but weak (±${Math.round(acc)}m). Consider retrying for a tighter fix.`
+                    : `Good accuracy (±${Math.round(acc)}m)`;
+                return (
+                  <>
+                    <div className={`rounded-md border p-2 text-[11px] ${tone}`}>{label}</div>
+                    <LocationMapPreview
+                      lat={applicantGps.lat}
+                      lng={applicantGps.lng}
+                      accuracy={applicantGps.accuracy}
+                    />
+                  </>
+                );
+              })()}
               <Input
                 value={applicantManualLocation}
                 onChange={(e) => setApplicantManualLocation(e.target.value)}
