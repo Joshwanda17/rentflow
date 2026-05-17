@@ -171,6 +171,34 @@ Deno.serve(async (req) => {
     const copy = copyForStatus(new_status, adv.business_name, Number(adv.principal), adv.rejection_reason);
     const trackUrl = tenant?.phone ? `${PUBLIC_TRACK_BASE}?phone=${encodeURIComponent(tenant.phone)}` : PUBLIC_TRACK_BASE;
 
+    // Helper — records each delivery attempt for troubleshooting.
+    const logAttempt = async (entry: {
+      channel: 'sms' | 'email' | 'push';
+      recipient: string | null;
+      outcome: 'sent' | 'failed' | 'skipped' | 'opted_out';
+      http_status?: number | null;
+      error_message?: string | null;
+      provider_response?: string | null;
+      metadata?: Record<string, unknown>;
+    }) => {
+      try {
+        await admin.from('business_advance_notification_log').insert({
+          advance_id: adv.id,
+          tenant_id: adv.tenant_id,
+          new_status,
+          channel: entry.channel,
+          recipient: entry.recipient,
+          outcome: entry.outcome,
+          http_status: entry.http_status ?? null,
+          error_message: entry.error_message ?? null,
+          provider_response: entry.provider_response ? entry.provider_response.slice(0, 4000) : null,
+          metadata: { title: copy.title, ...(entry.metadata ?? {}) },
+        });
+      } catch (e) {
+        console.warn('[notify-business-advance-status] log insert failed', (e as Error)?.message);
+      }
+    };
+
     // 1) In-app event (drives realtime tracker + activity feed)
     await admin.from("system_events").insert({
       event_type: "business_advance.status_changed",
@@ -200,8 +228,15 @@ Deno.serve(async (req) => {
           },
         },
       });
+      await logAttempt({ channel: 'push', recipient: adv.tenant_id, outcome: 'sent' });
     } catch (e) {
       console.warn("[notify-business-advance-status] push failed:", (e as Error)?.message);
+      await logAttempt({
+        channel: 'push',
+        recipient: adv.tenant_id,
+        outcome: 'failed',
+        error_message: (e as Error)?.message ?? 'unknown',
+      });
     }
 
     // 3) SMS / WhatsApp-openable text fallback
@@ -211,8 +246,24 @@ Deno.serve(async (req) => {
       const text = `${copy.title}\n${copy.body}\nTrack: ${trackUrl}`;
       smsResult = await sendSMS(tenant.phone, text);
       console.log("[notify-business-advance-status] SMS result", smsResult);
+      await logAttempt({
+        channel: 'sms',
+        recipient: tenant.phone,
+        outcome: smsResult.ok ? 'sent' : 'failed',
+        http_status: smsResult.status,
+        error_message: smsResult.ok ? null : `Provider returned status ${smsResult.status}`,
+        provider_response: smsResult.raw ?? null,
+      });
     } else if (tenant?.phone && !smsOptIn) {
       console.log("[notify-business-advance-status] SMS skipped — tenant opted out");
+      await logAttempt({ channel: 'sms', recipient: tenant.phone, outcome: 'opted_out' });
+    } else {
+      await logAttempt({
+        channel: 'sms',
+        recipient: tenant?.phone ?? null,
+        outcome: 'skipped',
+        error_message: tenant?.phone ? null : 'No phone on tenant profile',
+      });
     }
 
     // 4) Email (best-effort via Gmail connector)
@@ -233,11 +284,37 @@ Deno.serve(async (req) => {
       try {
         emailResult = await sendEmail(emailAddr, copy.title, copy.title, copy.body, trackUrl);
         console.log("[notify-business-advance-status] Email result", emailResult?.status);
+        await logAttempt({
+          channel: 'email',
+          recipient: emailAddr,
+          outcome: emailResult?.ok ? 'sent' : 'failed',
+          http_status: emailResult?.status ?? null,
+          error_message: emailResult?.ok ? null : `Gmail gateway returned ${emailResult?.status}`,
+          provider_response: emailResult?.raw ?? null,
+        });
       } catch (e) {
         console.warn("[notify-business-advance-status] email failed:", (e as Error)?.message);
+        await logAttempt({
+          channel: 'email',
+          recipient: emailAddr,
+          outcome: 'failed',
+          error_message: (e as Error)?.message ?? 'unknown',
+        });
       }
     } else if (emailAddr && !emailOptIn) {
       console.log("[notify-business-advance-status] Email skipped — tenant opted out");
+      await logAttempt({ channel: 'email', recipient: emailAddr, outcome: 'opted_out' });
+    } else {
+      await logAttempt({
+        channel: 'email',
+        recipient: emailAddr ?? null,
+        outcome: 'skipped',
+        error_message: !emailAddr
+          ? 'No email on tenant profile'
+          : !/.+@.+\..+/.test(emailAddr)
+            ? 'Invalid email format'
+            : 'Stage not eligible for email',
+      });
     }
 
     return new Response(

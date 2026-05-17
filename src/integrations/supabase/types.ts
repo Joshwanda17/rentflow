@@ -3247,6 +3247,59 @@ export type Database = {
           },
         ]
       }
+      business_advance_notification_log: {
+        Row: {
+          advance_id: string
+          channel: string
+          created_at: string
+          error_message: string | null
+          http_status: number | null
+          id: string
+          metadata: Json
+          new_status: string
+          outcome: string
+          provider_response: string | null
+          recipient: string | null
+          tenant_id: string | null
+        }
+        Insert: {
+          advance_id: string
+          channel: string
+          created_at?: string
+          error_message?: string | null
+          http_status?: number | null
+          id?: string
+          metadata?: Json
+          new_status: string
+          outcome: string
+          provider_response?: string | null
+          recipient?: string | null
+          tenant_id?: string | null
+        }
+        Update: {
+          advance_id?: string
+          channel?: string
+          created_at?: string
+          error_message?: string | null
+          http_status?: number | null
+          id?: string
+          metadata?: Json
+          new_status?: string
+          outcome?: string
+          provider_response?: string | null
+          recipient?: string | null
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_advance_notification_log_advance_id_fkey"
+            columns: ["advance_id"]
+            isOneToOne: false
+            referencedRelation: "business_advances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_advance_repayments: {
         Row: {
           advance_id: string
