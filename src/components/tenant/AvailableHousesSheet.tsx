@@ -394,8 +394,12 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                 {filtered.length} house{filtered.length !== 1 ? 's' : ''} available
                 {hasGPS ? ' · sorted by distance' : ''}
               </p>
-              {filtered.map(listing => (
-                <HouseCard key={listing.id} listing={listing} />
+              {filtered.map((listing, idx) => (
+                <HouseCard
+                  key={listing.id}
+                  listing={listing}
+                  highlighted={idx === 0 && searchText.trim().length > 0}
+                />
               ))}
             </>
           )}
