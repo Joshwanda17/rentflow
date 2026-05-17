@@ -14523,6 +14523,18 @@ export type Database = {
       get_approximate_user_count: { Args: never; Returns: number }
       get_buffer_metrics: { Args: never; Returns: Json }
       get_buffer_trend_data: { Args: never; Returns: Json }
+      get_business_advance_audit_log: {
+        Args: { p_advance_id: string; p_phone?: string }
+        Returns: {
+          actor_id: string
+          actor_name: string
+          actor_role: string
+          label: string
+          notes: string
+          occurred_at: string
+          stage: string
+        }[]
+      }
       get_business_advance_public_status: {
         Args: { p_phone: string }
         Returns: {
