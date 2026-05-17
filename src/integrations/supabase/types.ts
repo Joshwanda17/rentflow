@@ -9260,6 +9260,7 @@ export type Database = {
           residence_lat: number | null
           residence_lng: number | null
           residence_updated_at: string | null
+          routing_preferences: Json
           seller_application_status: string | null
           signup_source: string | null
           sub_county: string | null
@@ -9317,6 +9318,7 @@ export type Database = {
           residence_lat?: number | null
           residence_lng?: number | null
           residence_updated_at?: string | null
+          routing_preferences?: Json
           seller_application_status?: string | null
           signup_source?: string | null
           sub_county?: string | null
@@ -9374,6 +9376,7 @@ export type Database = {
           residence_lat?: number | null
           residence_lng?: number | null
           residence_updated_at?: string | null
+          routing_preferences?: Json
           seller_application_status?: string | null
           signup_source?: string | null
           sub_county?: string | null
