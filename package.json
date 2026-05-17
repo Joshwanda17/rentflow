@@ -11,7 +11,9 @@
     "guard:persona-routes": "node scripts/guard-persona-routes.mjs",
     "guard:frontend-ledger-writes": "node scripts/guard-frontend-ledger-writes.mjs",
     "guard:deposit-purpose": "node scripts/guard-deposit-purpose.mjs",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install chromium"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -99,6 +101,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
+    "@playwright/test": "^1.60.0",
     "@tailwindcss/typography": "^0.5.16",
     "@types/node": "^22.16.5",
     "@types/qrcode": "^1.5.6",
