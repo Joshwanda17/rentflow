@@ -145,6 +145,20 @@ interface AgentDashboardProps {
 }
 
 export default function AgentDashboard({ user, signOut, currentRole, availableRoles, onRoleChange, addRoleComponent }: AgentDashboardProps) {
+  // ── DEV/QA: deliberate crash switch to verify DashboardErrorBoundary fallback.
+  // Trigger by visiting /dashboard/agent?crash=1 (render-time throw)
+  // or ?crash=effect (post-mount throw inside a useEffect).
+  // Safe to leave in: only fires when the query param is explicitly set.
+  const [qaCrashAfterMount, setQaCrashAfterMount] = useState(false);
+  if (qaCrashAfterMount) {
+    throw new Error('[AgentDashboard] Deliberate post-mount crash for ErrorBoundary QA (mode=effect)');
+  }
+  if (typeof window !== 'undefined') {
+    const crashMode = new URLSearchParams(window.location.search).get('crash');
+    if (crashMode && crashMode !== 'effect') {
+      throw new Error(`[AgentDashboard] Deliberate crash for ErrorBoundary QA (mode=${crashMode})`);
+    }
+  }
   const navigate = useNavigate();
   const { profile } = useProfile();
   const { refreshEarnings, totalEarnings } = useAgentEarnings();
@@ -187,6 +201,15 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
   // Poll local IndexedDB for duplicate entries needing reconciliation
   useEffect(() => {
+    // ── DEV/QA: post-mount crash to verify ErrorBoundary catches effect errors.
+    if (typeof window !== 'undefined') {
+      const crashMode = new URLSearchParams(window.location.search).get('crash');
+      if (crashMode === 'effect') {
+        // Flip flag so the next render throws — Error Boundaries only catch
+        // errors thrown during render/lifecycle, not async setTimeout throws.
+        setTimeout(() => setQaCrashAfterMount(true), 50);
+      }
+    }
     if (!user?.id) return;
     let alive = true;
     const tick = async () => {
