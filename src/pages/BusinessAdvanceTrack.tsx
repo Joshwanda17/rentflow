@@ -7,9 +7,10 @@ import { Loader2, Briefcase, ArrowRight, Shield, Lock, UserPlus, CheckCircle2, C
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import BusinessAdvanceStatusTracker, { AdvanceStatusRow } from '@/components/business-advance/BusinessAdvanceStatusTracker';
+import BusinessAdvanceStatusTracker, { AdvanceStatusRow, getActiveAdvanceStage } from '@/components/business-advance/BusinessAdvanceStatusTracker';
 import { useBusinessAdvanceRealtime } from '@/hooks/useBusinessAdvanceRealtime';
 import { BusinessAdvanceAuditLog } from '@/components/business-advance/BusinessAdvanceAuditLog';
+import { BusinessAdvanceDocumentUploadPanel } from '@/components/business-advance/DocumentUploadPanel';
 import { LiveUpdatingBadge } from '@/components/business-advance/LiveUpdatingBadge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { BusinessAdvanceNotificationPreferences } from '@/components/business-advance/NotificationPreferences';
@@ -177,6 +178,20 @@ export default function BusinessAdvanceTrack() {
                     <div className="mt-3">
                       <BusinessAdvanceAuditLog advanceId={row.id} phone={phone} />
                     </div>
+                    {authedUserId && (() => {
+                      const stage = getActiveAdvanceStage(row);
+                      if (!stage) return null;
+                      return (
+                        <div className="mt-3">
+                          <BusinessAdvanceDocumentUploadPanel
+                            advanceId={row.id}
+                            tenantId={authedUserId}
+                            stageKey={stage.key}
+                            stageLabel={stage.label}
+                          />
+                        </div>
+                      );
+                    })()}
                     {authedUserId && (
                       <div className="mt-3">
                         <BusinessAdvanceNotificationPreferences userId={authedUserId} />

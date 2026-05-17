@@ -3,11 +3,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Sparkles } from 'lucide-react';
-import BusinessAdvanceStatusTracker, { AdvanceStatusRow } from '@/components/business-advance/BusinessAdvanceStatusTracker';
+import BusinessAdvanceStatusTracker, { AdvanceStatusRow, getActiveAdvanceStage } from '@/components/business-advance/BusinessAdvanceStatusTracker';
 import { useBusinessAdvanceRealtime } from '@/hooks/useBusinessAdvanceRealtime';
 import { BusinessAdvanceAuditLog } from '@/components/business-advance/BusinessAdvanceAuditLog';
 import { LiveUpdatingBadge } from '@/components/business-advance/LiveUpdatingBadge';
 import { BusinessAdvanceNotificationPreferences } from '@/components/business-advance/NotificationPreferences';
+import { BusinessAdvanceDocumentUploadPanel } from '@/components/business-advance/DocumentUploadPanel';
 
 const ACTIVE_STATUSES = ['pending','agent_ops_approved','tenant_ops_approved','landlord_ops_approved','coo_approved','active'] as const;
 
@@ -50,6 +51,8 @@ export function BusinessAdvanceStatusHero() {
 
   if (!data) return null;
 
+  const activeStage = getActiveAdvanceStage(data);
+
   return (
     <Card className="border-primary/30 bg-gradient-to-br from-primary/5 via-background to-primary/5 shadow-md">
       <CardContent className="p-4 space-y-3">
@@ -61,6 +64,14 @@ export function BusinessAdvanceStatusHero() {
           <LiveUpdatingBadge status={rtStatus} />
         </div>
         <BusinessAdvanceStatusTracker row={data} compact />
+        {activeStage && user?.id && (
+          <BusinessAdvanceDocumentUploadPanel
+            advanceId={data.id}
+            tenantId={user.id}
+            stageKey={activeStage.key}
+            stageLabel={activeStage.label}
+          />
+        )}
         <BusinessAdvanceAuditLog advanceId={data.id} />
         {user?.id && <BusinessAdvanceNotificationPreferences userId={user.id} />}
       </CardContent>
