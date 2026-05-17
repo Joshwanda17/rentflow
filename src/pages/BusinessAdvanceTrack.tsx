@@ -178,6 +178,20 @@ export default function BusinessAdvanceTrack() {
                     <div className="mt-3">
                       <BusinessAdvanceAuditLog advanceId={row.id} phone={phone} />
                     </div>
+                    {authedUserId && (() => {
+                      const stage = getActiveAdvanceStage(row);
+                      if (!stage) return null;
+                      return (
+                        <div className="mt-3">
+                          <BusinessAdvanceDocumentUploadPanel
+                            advanceId={row.id}
+                            tenantId={authedUserId}
+                            stageKey={stage.key}
+                            stageLabel={stage.label}
+                          />
+                        </div>
+                      );
+                    })()}
                     {authedUserId && (
                       <div className="mt-3">
                         <BusinessAdvanceNotificationPreferences userId={authedUserId} />
