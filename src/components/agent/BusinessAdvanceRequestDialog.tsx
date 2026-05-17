@@ -17,6 +17,7 @@ import RentHistoryCaptureGrid, { RentHistoryEntry } from './RentHistoryCaptureGr
 import AdvanceLimitMarketingCard from './AdvanceLimitMarketingCard';
 import { isContactPickerSupported, pickContact } from '@/lib/contactPicker';
 import LocationMapPreview from '@/components/shared/LocationMapPreview';
+import { reverseGeocode } from '@/lib/reverseGeocode';
 
 // GPS accuracy thresholds (metres)
 const GPS_GOOD_ACCURACY_M = 50;   // good enough — green
@@ -82,6 +83,8 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
   const [applicantGps, setApplicantGps] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
   const [applicantGpsLoading, setApplicantGpsLoading] = useState(false);
   const [applicantManualLocation, setApplicantManualLocation] = useState('');
+  const [applicantGeocoded, setApplicantGeocoded] = useState<string | null>(null);
+  const [applicantGeocoding, setApplicantGeocoding] = useState(false);
 
   const contactPickerOk = useMemo(() => isContactPickerSupported(), []);
 
@@ -93,6 +96,8 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
   const [monthlyRevenue, setMonthlyRevenue] = useState('');
   const [yearsInBusiness, setYearsInBusiness] = useState('');
   const [gps, setGps] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
+  const [businessGeocoded, setBusinessGeocoded] = useState<string | null>(null);
+  const [businessGeocoding, setBusinessGeocoding] = useState(false);
   const [gpsLoading, setGpsLoading] = useState(false);
 
   const reset = () => {
@@ -103,6 +108,8 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
     setTenantAltPhone(''); setNokName(''); setNokPhone(''); setNokRelationship('');
     setGuarantorName(''); setGuarantorPhone('');
     setApplicantGps(null); setApplicantManualLocation('');
+    setApplicantGeocoded(null); setApplicantGeocoding(false);
+    setBusinessGeocoded(null); setBusinessGeocoding(false);
     setBusinessName(''); setBusinessType(''); setBusinessAddress(''); setBusinessCity('Kampala');
     setMonthlyRevenue(''); setYearsInBusiness(''); setGps(null);
     setActivationLink(null);
@@ -113,8 +120,9 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
   const captureGPS = useCallback(() => {
     if (!navigator.geolocation) return toast.error('GPS not supported');
     setGpsLoading(true);
+    setBusinessGeocoded(null);
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
+      async (pos) => {
         const acc = pos.coords.accuracy;
         setGps({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: acc });
         setGpsLoading(false);
@@ -125,6 +133,13 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
         } else {
           toast.success(`Business location captured (±${Math.round(acc)}m)`);
         }
+        setBusinessGeocoding(true);
+        const geo = await reverseGeocode(pos.coords.latitude, pos.coords.longitude);
+        setBusinessGeocoding(false);
+        if (geo?.address) {
+          setBusinessGeocoded(geo.address);
+          setBusinessAddress((prev) => (prev.trim() ? prev : geo.address));
+        }
       },
       () => { setGpsLoading(false); toast.error('Could not get GPS'); },
       { enableHighAccuracy: true, timeout: 20000 }
@@ -134,8 +149,9 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
   const captureApplicantGPS = useCallback(() => {
     if (!navigator.geolocation) return toast.error('GPS not supported on this device');
     setApplicantGpsLoading(true);
+    setApplicantGeocoded(null);
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
+      async (pos) => {
         const acc = pos.coords.accuracy;
         setApplicantGps({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: acc });
         setApplicantGpsLoading(false);
@@ -145,6 +161,13 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
           toast.warning(`Captured at ±${Math.round(acc)}m — consider retrying for better accuracy.`);
         } else {
           toast.success(`Applicant location captured (±${Math.round(acc)}m)`);
+        }
+        setApplicantGeocoding(true);
+        const geo = await reverseGeocode(pos.coords.latitude, pos.coords.longitude);
+        setApplicantGeocoding(false);
+        if (geo?.address) {
+          setApplicantGeocoded(geo.address);
+          setApplicantManualLocation((prev) => (prev.trim() ? prev : geo.address));
         }
       },
       (err) => {
@@ -692,6 +715,31 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
                 onChange={(e) => setApplicantManualLocation(e.target.value)}
                 placeholder="Manual location (e.g. Bukoto, Plot 4, near St. Jude clinic)"
               />
+              {applicantGeocoding && (
+                <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Looking up address from GPS…
+                </p>
+              )}
+              {applicantGeocoded && (
+                <div className="flex items-start gap-2 rounded-md border border-border bg-muted/30 p-2">
+                  <MapPin className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] text-muted-foreground">Detected address</p>
+                    <p className="text-xs break-words">{applicantGeocoded}</p>
+                  </div>
+                  {applicantManualLocation.trim() !== applicantGeocoded && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-[11px] shrink-0"
+                      onClick={() => setApplicantManualLocation(applicantGeocoded)}
+                    >
+                      Use this
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
 
             <Separator />
@@ -843,6 +891,31 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
             <div className="space-y-2">
               <Label>Business address *</Label>
               <Input value={businessAddress} onChange={(e) => setBusinessAddress(e.target.value)} placeholder="Plot 12, Kampala Road" />
+              {businessGeocoding && (
+                <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Looking up address from GPS…
+                </p>
+              )}
+              {businessGeocoded && (
+                <div className="flex items-start gap-2 rounded-md border border-border bg-muted/30 p-2">
+                  <MapPin className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] text-muted-foreground">Detected address</p>
+                    <p className="text-xs break-words">{businessGeocoded}</p>
+                  </div>
+                  {businessAddress.trim() !== businessGeocoded && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-[11px] shrink-0"
+                      onClick={() => setBusinessAddress(businessGeocoded)}
+                    >
+                      Use this
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
