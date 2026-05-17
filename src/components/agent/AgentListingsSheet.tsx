@@ -399,7 +399,7 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
           )}
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 space-y-3">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 space-y-3">
           {!loading && listings.length > 0 && hasActiveFilter && (() => {
             const SORT_LABELS: Record<SheetFilters['sortBy'], string> = {
               newest: 'Newest first',
