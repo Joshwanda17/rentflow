@@ -229,6 +229,9 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
     const id = tenantNationalId.trim().toUpperCase();
     if (id.length < 10 || id.length > 14 || !/^[A-Z0-9]+$/.test(id)) return 'National ID must be 10-14 alphanumeric';
     if (!hasSmartphone) return 'Business tenants must have a smartphone to manage their dashboard';
+    if (applicantGps && applicantGps.accuracy > GPS_MAX_ACCURACY_M && !applicantManualLocation.trim()) {
+      return `Applicant GPS is too weak (±${Math.round(applicantGps.accuracy)}m). Retry or fill the manual location field.`;
+    }
     return null;
   };
 
