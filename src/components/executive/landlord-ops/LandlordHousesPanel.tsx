@@ -5,8 +5,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  Building2, Home, Search, User, UserPlus, UserX, UserCog, ChevronDown, ChevronRight, Loader2,
+  Building2, Home, Search, User, UserPlus, UserX, UserCog, ChevronDown, ChevronRight, Loader2, X,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { BindTenantToHouseDialog } from './BindTenantToHouseDialog';
@@ -38,6 +39,8 @@ interface LandlordGroup {
 
 export function LandlordHousesPanel() {
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'occupied' | 'vacant'>('all');
+  const [regionFilter, setRegionFilter] = useState<string>('all');
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   const housesQuery = useQuery({
@@ -94,19 +97,49 @@ export function LandlordHousesPanel() {
     return Array.from(byLandlord.values()).sort((a, b) => a.landlord_name.localeCompare(b.landlord_name));
   }, [housesQuery.data, profilesQuery.data]);
 
+  const regions = useMemo(() => {
+    const set = new Set<string>();
+    for (const h of housesQuery.data ?? []) if (h.region) set.add(h.region);
+    return Array.from(set).sort();
+  }, [housesQuery.data]);
+
+  const profs = profilesQuery.data ?? {};
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return groups;
-    return groups.filter(g =>
-      g.landlord_name.toLowerCase().includes(q) ||
-      (g.landlord_phone ?? '').includes(q) ||
-      g.houses.some(h =>
+    const houseMatches = (h: HouseRow) => {
+      if (regionFilter !== 'all' && h.region !== regionFilter) return false;
+      if (statusFilter === 'occupied' && !h.tenant_id) return false;
+      if (statusFilter === 'vacant' && h.tenant_id) return false;
+      if (!q) return true;
+      const tenant = h.tenant_id ? profs[h.tenant_id] : null;
+      const agent = profs[h.agent_id];
+      return (
         h.title.toLowerCase().includes(q) ||
         h.address.toLowerCase().includes(q) ||
-        h.region.toLowerCase().includes(q),
-      ),
-    );
-  }, [groups, search]);
+        h.region.toLowerCase().includes(q) ||
+        (tenant?.name.toLowerCase().includes(q) ?? false) ||
+        (tenant?.phone ?? '').includes(q) ||
+        (agent?.name.toLowerCase().includes(q) ?? false) ||
+        (agent?.phone ?? '').includes(q)
+      );
+    };
+    const landlordTextMatch = (g: LandlordGroup) =>
+      !q || g.landlord_name.toLowerCase().includes(q) || (g.landlord_phone ?? '').includes(q);
+
+    return groups
+      .map(g => {
+        const houses = g.houses.filter(houseMatches);
+        if (houses.length === 0 && !landlordTextMatch(g)) return null;
+        if (houses.length === 0) return null;
+        const occupied = houses.filter(h => h.tenant_id).length;
+        return { ...g, houses, occupied, vacant: houses.length - occupied };
+      })
+      .filter(Boolean) as LandlordGroup[];
+  }, [groups, search, statusFilter, regionFilter, profs]);
+
+  const hasActiveFilter = search.trim().length > 0 || statusFilter !== 'all' || regionFilter !== 'all';
+  const totalHouses = filtered.reduce((s, g) => s + g.houses.length, 0);
 
   // ── Action dialog state ──
   const [bindFor, setBindFor] = useState<{ landlordId: string; landlordName: string; houseId: string; currentTenantId: string | null } | null>(null);
@@ -117,7 +150,6 @@ export function LandlordHousesPanel() {
   const refetch = () => {
     housesQuery.refetch();
   };
-  const profs = profilesQuery.data ?? {};
 
   if (housesQuery.isLoading) {
     return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
@@ -130,14 +162,53 @@ export function LandlordHousesPanel() {
         Houses by Landlord
       </h2>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search landlord, house, or address…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="pl-9"
-        />
+      <div className="space-y-2">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search landlord, house, tenant, agent, phone…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="pl-9 pr-9"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              aria-label="Clear search"
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
+            <SelectTrigger className="h-9 w-auto min-w-[140px] text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All houses</SelectItem>
+              <SelectItem value="occupied">Occupied only</SelectItem>
+              <SelectItem value="vacant">Vacant only</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={regionFilter} onValueChange={setRegionFilter}>
+            <SelectTrigger className="h-9 w-auto min-w-[140px] text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All regions</SelectItem>
+              {regions.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          {hasActiveFilter && (
+            <Button
+              variant="ghost" size="sm" className="h-9 text-xs gap-1"
+              onClick={() => { setSearch(''); setStatusFilter('all'); setRegionFilter('all'); }}
+            >
+              <X className="h-3 w-3" /> Clear
+            </Button>
+          )}
+          <div className="ml-auto text-[11px] text-muted-foreground self-center">
+            {filtered.length} landlord{filtered.length === 1 ? '' : 's'} · {totalHouses} house{totalHouses === 1 ? '' : 's'}
+          </div>
+        </div>
       </div>
 
       {filtered.length === 0 ? (
