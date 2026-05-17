@@ -18,6 +18,11 @@ const lazy = lazyWithRetry;
 import { AuthProvider } from "@/hooks/useAuth";
 import { CombinedSettingsProvider } from "@/hooks/useCombinedSettings";
 
+// Dev-only e2e harness (lazy + tree-shaken in prod via the import.meta.env.DEV guard below).
+const BusinessAdvanceHarness = lazyWithRetry(
+  () => import("@/pages/__e2e/BusinessAdvanceHarness"),
+);
+
 // Deferred language/currency — not needed for first paint
 const LanguageProvider = lazyWithRetry(() => import("@/hooks/useLanguage").then(m => ({ default: m.LanguageProvider })));
 const CurrencyProvider = lazyWithRetry(() => import("@/hooks/useCurrency").then(m => ({ default: m.CurrencyProvider })));
@@ -302,6 +307,17 @@ function AppRoutes() {
           <Route path="/dashboard/funder" element={<Dashboard />} />
           <Route path="/dashboard/manager" element={<Dashboard />} />
           <Route path="/dashboard/*" element={<DashboardRedirect />} />
+          {/* Dev-only Playwright harnesses — stripped from production builds. */}
+          {import.meta.env.DEV && (
+            <Route
+              path="/__e2e/business-advance"
+              element={
+                <Suspense fallback={null}>
+                  <BusinessAdvanceHarness />
+                </Suspense>
+              }
+            />
+          )}
           <Route path="/select-role" element={<SelectRole />} />
           <Route path="/transactions" element={<TransactionHistory />} />
           <Route path="/financial-statement" element={<FinancialStatement />} />
