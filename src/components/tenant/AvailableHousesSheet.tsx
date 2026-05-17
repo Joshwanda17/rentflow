@@ -160,6 +160,7 @@ function HouseCard({ listing }: { listing: HouseListing }) {
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
+      data-house-card=""
       className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm"
     >
       <div className="relative">
