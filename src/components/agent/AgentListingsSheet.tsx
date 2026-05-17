@@ -58,12 +58,16 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
     statusFilter: 'all' | 'occupied' | 'vacant' | 'rejected';
     regionFilter: string;
     sortBy: 'newest' | 'oldest' | 'title' | 'region' | 'occupied_first' | 'vacant_first' | 'price_asc' | 'price_desc';
+    minPrice: string;
+    maxPrice: string;
   };
-  const DEFAULT_FILTERS: SheetFilters = { search: '', statusFilter: 'all', regionFilter: 'all', sortBy: 'newest' };
+  const DEFAULT_FILTERS: SheetFilters = { search: '', statusFilter: 'all', regionFilter: 'all', sortBy: 'newest', minPrice: '', maxPrice: '' };
   const [search, setSearch] = useState(DEFAULT_FILTERS.search);
   const [statusFilter, setStatusFilter] = useState<SheetFilters['statusFilter']>(DEFAULT_FILTERS.statusFilter);
   const [regionFilter, setRegionFilter] = useState<string>(DEFAULT_FILTERS.regionFilter);
   const [sortBy, setSortBy] = useState<SheetFilters['sortBy']>(DEFAULT_FILTERS.sortBy);
+  const [minPrice, setMinPrice] = useState<string>(DEFAULT_FILTERS.minPrice);
+  const [maxPrice, setMaxPrice] = useState<string>(DEFAULT_FILTERS.maxPrice);
   const hydratedKeyRef = useRef<string | null>(null);
 
   // Re-hydrate filters whenever the active user (storage key) changes.
@@ -76,11 +80,15 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
       setStatusFilter(next.statusFilter);
       setRegionFilter(next.regionFilter);
       setSortBy(next.sortBy);
+      setMinPrice(next.minPrice ?? '');
+      setMaxPrice(next.maxPrice ?? '');
     } catch {
       setSearch(DEFAULT_FILTERS.search);
       setStatusFilter(DEFAULT_FILTERS.statusFilter);
       setRegionFilter(DEFAULT_FILTERS.regionFilter);
       setSortBy(DEFAULT_FILTERS.sortBy);
+      setMinPrice(DEFAULT_FILTERS.minPrice);
+      setMaxPrice(DEFAULT_FILTERS.maxPrice);
     }
     hydratedKeyRef.current = storageKey;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -89,9 +97,9 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
   useEffect(() => {
     if (hydratedKeyRef.current !== storageKey) return;
     try {
-      localStorage.setItem(storageKey, JSON.stringify({ search, statusFilter, regionFilter, sortBy }));
+      localStorage.setItem(storageKey, JSON.stringify({ search, statusFilter, regionFilter, sortBy, minPrice, maxPrice }));
     } catch { /* ignore */ }
-  }, [search, statusFilter, regionFilter, sortBy, storageKey]);
+  }, [search, statusFilter, regionFilter, sortBy, minPrice, maxPrice, storageKey]);
 
   // Enrich with landlord profile + tenant profile + active rent_request id for each occupied house.
   const [enrichment, setEnrichment] = useState<{
@@ -214,10 +222,15 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
   }, [listings]);
 
   const q = search.trim().toLowerCase();
+  const minPriceNum = minPrice.trim() ? Number(minPrice) : null;
+  const maxPriceNum = maxPrice.trim() ? Number(maxPrice) : null;
   const matchHouse = (l: HouseListing) => {
     if (regionFilter !== 'all' && l.region !== regionFilter) return false;
     if (statusFilter === 'occupied' && !l.tenant_id) return false;
     if (statusFilter === 'vacant' && (l.tenant_id || l.status !== 'available')) return false;
+    const rent = l.monthly_rent ?? 0;
+    if (minPriceNum !== null && !Number.isNaN(minPriceNum) && rent < minPriceNum) return false;
+    if (maxPriceNum !== null && !Number.isNaN(maxPriceNum) && rent > maxPriceNum) return false;
     if (!q) return true;
     const tenant = l.tenant_id ? enrichment.tenants[l.tenant_id] : null;
     const landlord = l.landlord_id ? enrichment.landlords[l.landlord_id] : null;
@@ -256,18 +269,18 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
       .map(g => ({ ...g, houses: sortHouses(g.houses.filter(matchHouse)) }))
       .filter(g => g.houses.length > 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [grouped, search, statusFilter, regionFilter, enrichment, sortBy]);
+  }, [grouped, search, statusFilter, regionFilter, enrichment, sortBy, minPrice, maxPrice]);
 
   const filteredRejected = useMemo(() => {
     if (statusFilter !== 'all' && statusFilter !== 'rejected') return [];
     return sortHouses(rejected.filter(matchHouse));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rejected, search, statusFilter, regionFilter, enrichment, sortBy]);
+  }, [rejected, search, statusFilter, regionFilter, enrichment, sortBy, minPrice, maxPrice]);
 
-  const hasActiveFilter = q.length > 0 || statusFilter !== 'all' || regionFilter !== 'all' || sortBy !== 'newest';
+  const hasActiveFilter = q.length > 0 || statusFilter !== 'all' || regionFilter !== 'all' || sortBy !== 'newest' || minPrice.trim() !== '' || maxPrice.trim() !== '';
 
   const searchRef = useRef<HTMLInputElement>(null);
-  const clearAll = () => { setSearch(''); setStatusFilter('all'); setRegionFilter('all'); setSortBy('newest'); };
+  const clearAll = () => { setSearch(''); setStatusFilter('all'); setRegionFilter('all'); setSortBy('newest'); setMinPrice(''); setMaxPrice(''); };
   useFilterKeyboardShortcuts({ inputRef: searchRef, onClear: clearAll, hasActiveFilter, enabled: open });
 
   return (
@@ -347,6 +360,39 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
                 >
                   <X className="h-3 w-3" /> Reset filters
                 </Button>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-muted-foreground shrink-0">Rent UGX</span>
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  placeholder="Min"
+                  value={minPrice}
+                  onChange={e => setMinPrice(e.target.value.replace(/[^0-9]/g, ''))}
+                  className="h-8 text-xs"
+                  aria-label="Minimum monthly rent in UGX"
+                />
+                <span className="text-xs text-muted-foreground">–</span>
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  placeholder="Max"
+                  value={maxPrice}
+                  onChange={e => setMaxPrice(e.target.value.replace(/[^0-9]/g, ''))}
+                  className="h-8 text-xs"
+                  aria-label="Maximum monthly rent in UGX"
+                />
+                {(minPrice || maxPrice) && (
+                  <Button
+                    variant="ghost" size="icon" className="h-8 w-8 shrink-0"
+                    aria-label="Clear price range"
+                    onClick={() => { setMinPrice(''); setMaxPrice(''); }}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                )}
               </div>
             </div>
           )}
