@@ -39,6 +39,7 @@ export function AgentListingsSheet({ open, onOpenChange }: AgentListingsSheetPro
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'occupied' | 'vacant' | 'rejected'>('all');
   const [regionFilter, setRegionFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'title' | 'region' | 'occupied_first' | 'vacant_first'>('newest');
 
   // Enrich with landlord profile + tenant profile + active rent_request id for each occupied house.
   const [enrichment, setEnrichment] = useState<{
@@ -143,21 +144,37 @@ export function AgentListingsSheet({ open, onOpenChange }: AgentListingsSheetPro
     );
   };
 
+  const sortHouses = (arr: HouseListing[]) => {
+    const copy = [...arr];
+    copy.sort((a, b) => {
+      switch (sortBy) {
+        case 'oldest': return (a.created_at || '').localeCompare(b.created_at || '');
+        case 'title': return a.title.localeCompare(b.title);
+        case 'region': return (a.region || '').localeCompare(b.region || '') || a.title.localeCompare(b.title);
+        case 'occupied_first': return (a.tenant_id ? 0 : 1) - (b.tenant_id ? 0 : 1);
+        case 'vacant_first': return (a.tenant_id ? 1 : 0) - (b.tenant_id ? 1 : 0);
+        case 'newest':
+        default: return (b.created_at || '').localeCompare(a.created_at || '');
+      }
+    });
+    return copy;
+  };
+
   const filteredGrouped = useMemo(() => {
     if (statusFilter === 'rejected') return [];
     return grouped
-      .map(g => ({ ...g, houses: g.houses.filter(matchHouse) }))
+      .map(g => ({ ...g, houses: sortHouses(g.houses.filter(matchHouse)) }))
       .filter(g => g.houses.length > 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [grouped, search, statusFilter, regionFilter, enrichment]);
+  }, [grouped, search, statusFilter, regionFilter, enrichment, sortBy]);
 
   const filteredRejected = useMemo(() => {
     if (statusFilter !== 'all' && statusFilter !== 'rejected') return [];
-    return rejected.filter(matchHouse);
+    return sortHouses(rejected.filter(matchHouse));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rejected, search, statusFilter, regionFilter, enrichment]);
+  }, [rejected, search, statusFilter, regionFilter, enrichment, sortBy]);
 
-  const hasActiveFilter = q.length > 0 || statusFilter !== 'all' || regionFilter !== 'all';
+  const hasActiveFilter = q.length > 0 || statusFilter !== 'all' || regionFilter !== 'all' || sortBy !== 'newest';
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -204,10 +221,21 @@ export function AgentListingsSheet({ open, onOpenChange }: AgentListingsSheetPro
                     {regions.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
                   </SelectContent>
                 </Select>
+                <Select value={sortBy} onValueChange={(v: any) => setSortBy(v)}>
+                  <SelectTrigger className="h-8 w-auto min-w-[140px] text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="newest">Newest first</SelectItem>
+                    <SelectItem value="oldest">Oldest first</SelectItem>
+                    <SelectItem value="title">Title (A–Z)</SelectItem>
+                    <SelectItem value="region">Region (A–Z)</SelectItem>
+                    <SelectItem value="occupied_first">Occupied first</SelectItem>
+                    <SelectItem value="vacant_first">Vacant first</SelectItem>
+                  </SelectContent>
+                </Select>
                 {hasActiveFilter && (
                   <Button
                     variant="ghost" size="sm" className="h-8 text-xs gap-1"
-                    onClick={() => { setSearch(''); setStatusFilter('all'); setRegionFilter('all'); }}
+                    onClick={() => { setSearch(''); setStatusFilter('all'); setRegionFilter('all'); setSortBy('newest'); }}
                   >
                     <X className="h-3 w-3" /> Clear
                   </Button>
