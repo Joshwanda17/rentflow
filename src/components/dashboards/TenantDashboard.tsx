@@ -882,7 +882,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         onPayWelile={() => hasAcceptedTerms ? setShowPaymentPartners(true) : setShowAgreementModal(true)}
         onRepaymentSchedule={() => setShowRepaymentSchedule(prev => !prev)}
         onRentCalculator={() => setShowCalculator(true)}
-        onBrowseHouses={() => { setMenuOpen(false); setHousesOpen(true); }}
+        onBrowseHouses={() => { openHousesSheet(); }}
         extraContent={
           <div className="space-y-4">
             <TrustBoostBanner />
@@ -895,12 +895,12 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               <LockedActionTooltip isLocked={!hasAcceptedTerms && !agreementLoading}>
                 <RentRequestButton userId={user.id} onSuccess={fetchData} />
               </LockedActionTooltip>
-              <FindAHouseCTA onClick={() => { hapticTap(); setMenuOpen(false); setHousesOpen(true); }} />
+              <FindAHouseCTA onClick={() => { hapticTap(); openHousesSheet(); }} />
             </div>
-            <SuggestedHousesCard userId={user.id} onViewAll={() => { setMenuOpen(false); setHousesOpen(true); }} />
+            <SuggestedHousesCard userId={user.id} onViewAll={() => { openHousesSheet(); }} />
             <NearbyHousesPreview
-              onViewAll={() => { setMenuOpen(false); setHousesOpen(true); }}
-              onSelectHouse={() => { hapticTap(); setMenuOpen(false); setHousesOpen(true); }}
+              onViewAll={() => { openHousesSheet(); }}
+              onSelectHouse={() => { hapticTap(); openHousesSheet(); }}
             />
             {rentRequests.length > 0 && (
               <RentProcessTracker
