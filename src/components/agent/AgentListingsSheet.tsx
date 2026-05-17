@@ -3,7 +3,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Home, MapPin, DoorOpen, CheckCircle, Clock, AlertTriangle, RotateCcw, Building2, ChevronDown, ChevronRight, User, UserCog, Pencil, Search, X, MoreVertical, Eye, Trash2, Loader2 } from 'lucide-react';
+import { Home, MapPin, DoorOpen, CheckCircle, Clock, AlertTriangle, RotateCcw, Building2, ChevronDown, ChevronRight, User, UserCog, Pencil, Search, X, MoreVertical, Eye, Trash2, Loader2, MessageCircle } from 'lucide-react';
 import { Plus } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -167,6 +167,22 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
     } finally {
       setDeleting(false);
     }
+  };
+
+  const shareOnWhatsApp = (l: HouseListing) => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const link = `${origin}/house/${l.short_code || l.id}`;
+    const lines = [
+      `🏠 *${l.title}* is available for rent`,
+      `📍 ${l.address}${l.region ? `, ${l.region}` : ''}`,
+      `💰 ${formatUGX(l.monthly_rent)}/month  (≈ ${formatUGX(l.daily_rate)}/day on Welile)`,
+      ``,
+      `Pay daily, weekly, or monthly through Welile — no big upfront deposit needed.`,
+      `View & reserve here: ${link}`,
+    ];
+    const text = encodeURIComponent(lines.join('\n'));
+    const url = `https://wa.me/?text=${text}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const rejected = listings.filter(l => l.status === 'rejected');
@@ -496,6 +512,11 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
                                       <DropdownMenuItem onClick={() => setEditingListing(l)}>
                                         <Pencil className="h-4 w-4 mr-2" /> Edit listing
                                       </DropdownMenuItem>
+                                      {!l.tenant_id && l.status === 'available' && (
+                                        <DropdownMenuItem onClick={() => shareOnWhatsApp(l)}>
+                                          <MessageCircle className="h-4 w-4 mr-2 text-emerald-600" /> Share on WhatsApp
+                                        </DropdownMenuItem>
+                                      )}
                                       <DropdownMenuSeparator />
                                       <DropdownMenuItem
                                         className="text-destructive focus:text-destructive"
@@ -513,6 +534,19 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
                                 <span className="text-muted-foreground">{formatUGX(l.monthly_rent)}/mo</span>
                                 <span className="font-bold text-success">{formatUGX(l.daily_rate)}/day</span>
                               </div>
+
+                              {!l.tenant_id && l.status === 'available' && (
+                                <div onClick={(e) => e.stopPropagation()}>
+                                  <Button
+                                    size="sm"
+                                    className="w-full h-9 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                                    onClick={() => shareOnWhatsApp(l)}
+                                  >
+                                    <MessageCircle className="h-3.5 w-3.5" />
+                                    Share to tenants on WhatsApp
+                                  </Button>
+                                </div>
+                              )}
 
                               <div className="rounded-md bg-muted/40 p-2 text-[11px] flex items-center gap-1.5">
                                 <User className="h-3 w-3 shrink-0" />
