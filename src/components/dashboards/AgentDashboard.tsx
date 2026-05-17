@@ -343,7 +343,13 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
         {/* Profile + Name + AI ID */}
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate('/settings')} className="shrink-0">
+          <button
+            type="button"
+            onClick={() => { hapticTap(); navigate('/settings'); }}
+            aria-label="Open profile and settings"
+            className="shrink-0 rounded-full touch-manipulation active:scale-95 transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            style={{ WebkitTapHighlightColor: 'transparent' }}
+          >
             <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="lg" />
           </button>
           <div className="flex-1 min-w-0">
