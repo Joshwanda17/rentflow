@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { TenantProfileView } from './TenantProfileView';
 import { ReassignAgentDialog } from '@/components/shared/ReassignAgentDialog';
 import { HouseActivityTimeline } from '@/components/shared/HouseActivityTimeline';
+import { HighlightText } from '@/components/shared/HighlightText';
 
 interface AgentListingsSheetProps {
   open: boolean;
@@ -305,10 +306,10 @@ export function AgentListingsSheet({ open, onOpenChange }: AgentListingsSheetPro
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
-                          <p className="font-semibold text-sm truncate">{l.title}</p>
+                          <p className="font-semibold text-sm truncate"><HighlightText text={l.title} query={search} /></p>
                           <div className="flex items-center gap-1 text-xs text-muted-foreground">
                             <MapPin className="h-3 w-3" />
-                            <span className="truncate">{l.address}, {l.region}</span>
+                            <span className="truncate"><HighlightText text={l.address} query={search} />, <HighlightText text={l.region} query={search} /></span>
                           </div>
                         </div>
                         <Badge variant="destructive" className="text-[10px] shrink-0">
@@ -346,9 +347,9 @@ export function AgentListingsSheet({ open, onOpenChange }: AgentListingsSheetPro
                       <div className="flex items-center gap-2 min-w-0">
                         <Building2 className="h-4 w-4 text-sky-600 shrink-0" />
                         <div className="min-w-0">
-                          <p className="font-bold text-sm truncate">{g.name}</p>
+                          <p className="font-bold text-sm truncate"><HighlightText text={g.name} query={search} /></p>
                           <p className="text-[11px] text-muted-foreground">
-                            {g.phone ? `${g.phone} · ` : ''}{g.houses.length} house{g.houses.length === 1 ? '' : 's'}
+                            {g.phone ? <><HighlightText text={g.phone} query={search} /> · </> : ''}{g.houses.length} house{g.houses.length === 1 ? '' : 's'}
                           </p>
                         </div>
                       </div>
@@ -369,10 +370,10 @@ export function AgentListingsSheet({ open, onOpenChange }: AgentListingsSheetPro
                             >
                               <div className="flex items-start justify-between gap-2">
                                 <div className="min-w-0 flex-1">
-                                  <p className="font-semibold text-sm truncate">{l.title}</p>
+                                  <p className="font-semibold text-sm truncate"><HighlightText text={l.title} query={search} /></p>
                                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
                                     <MapPin className="h-3 w-3" />
-                                    <span className="truncate">{l.address}, {l.region}</span>
+                                    <span className="truncate"><HighlightText text={l.address} query={search} />, <HighlightText text={l.region} query={search} /></span>
                                   </div>
                                 </div>
                                 <Badge variant={l.status === 'available' ? 'default' : 'secondary'} className="text-[10px] shrink-0">
@@ -395,7 +396,12 @@ export function AgentListingsSheet({ open, onOpenChange }: AgentListingsSheetPro
                                 <User className="h-3 w-3 shrink-0" />
                                 <span className="font-medium">Tenant:</span>
                                 <span className="truncate flex-1">
-                                  {tenant ? `${tenant.name}${tenant.phone ? ` · ${tenant.phone}` : ''}` : '—'}
+                                  {tenant ? (
+                                    <>
+                                      <HighlightText text={tenant.name} query={search} />
+                                      {tenant.phone ? <> · <HighlightText text={tenant.phone} query={search} /></> : null}
+                                    </>
+                                  ) : '—'}
                                 </span>
                               </div>
 
