@@ -399,6 +399,54 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 space-y-3">
+          {!loading && listings.length > 0 && hasActiveFilter && (() => {
+            const SORT_LABELS: Record<SheetFilters['sortBy'], string> = {
+              newest: 'Newest first',
+              oldest: 'Oldest first',
+              title: 'Title (A–Z)',
+              region: 'Region (A–Z)',
+              occupied_first: 'Occupied first',
+              vacant_first: 'Vacant first',
+              price_asc: 'Price (low → high)',
+              price_desc: 'Price (high → low)',
+            };
+            const STATUS_LABELS: Record<SheetFilters['statusFilter'], string> = {
+              all: 'All', vacant: 'Available', occupied: 'Occupied', rejected: 'Rejected',
+            };
+            type Chip = { key: string; label: string; onRemove: () => void };
+            const chips: Chip[] = [];
+            if (q) chips.push({ key: 'q', label: `“${search}”`, onRemove: () => setSearch('') });
+            if (statusFilter !== 'all') chips.push({ key: 's', label: STATUS_LABELS[statusFilter], onRemove: () => setStatusFilter('all') });
+            if (regionFilter !== 'all') chips.push({ key: 'r', label: regionFilter, onRemove: () => setRegionFilter('all') });
+            if (minPrice || maxPrice) {
+              const lo = minPrice ? formatUGX(Number(minPrice)) : 'Any';
+              const hi = maxPrice ? formatUGX(Number(maxPrice)) : 'Any';
+              chips.push({ key: 'p', label: `${lo} – ${hi}`, onRemove: () => { setMinPrice(''); setMaxPrice(''); } });
+            }
+            if (sortBy !== 'newest') chips.push({ key: 'sort', label: `Sort: ${SORT_LABELS[sortBy]}`, onRemove: () => setSortBy('newest') });
+            if (chips.length === 0) return null;
+            return (
+              <div className="flex flex-wrap items-center gap-1.5 -mt-1">
+                {chips.map(c => (
+                  <button
+                    key={c.key}
+                    onClick={c.onRemove}
+                    className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary border border-primary/20 px-2.5 py-1 text-[11px] font-medium hover:bg-primary/15 transition-colors"
+                    aria-label={`Remove filter ${c.label}`}
+                  >
+                    <span className="truncate max-w-[160px]">{c.label}</span>
+                    <X className="h-3 w-3 shrink-0" />
+                  </button>
+                ))}
+                <button
+                  onClick={clearAll}
+                  className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline ml-1"
+                >
+                  Clear all
+                </button>
+              </div>
+            );
+          })()}
           {loading ? (
             Array.from({ length: 3 }).map((_, i) => (
               <Skeleton key={i} className="h-28 w-full rounded-2xl" />
