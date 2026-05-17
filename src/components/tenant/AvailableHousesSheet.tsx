@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Search, MapPin, Droplets, Zap, ShieldCheck, Car, Sofa, Home, DoorOpen, ChevronLeft, ChevronRight, Clock, ExternalLink, ZoomIn, Navigation } from 'lucide-react';
+import { Search, MapPin, Droplets, Zap, ShieldCheck, Car, Sofa, Home, DoorOpen, ChevronLeft, ChevronRight, Clock, ExternalLink, ZoomIn, Navigation, X } from 'lucide-react';
 import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
 import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
 import { useNearbyHouses, HouseListing } from '@/hooks/useHouseListings';
@@ -372,6 +372,22 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                 ))}
               </SelectContent>
             </Select>
+            {(searchText.trim().length > 0 || selectedRegion !== 'All Regions' || selectedCategory !== 'all') && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchText('');
+                  setSelectedRegion('All Regions');
+                  setSelectedCategory('all');
+                  // Keep keyboard focus usable by returning it to the primary control.
+                  requestAnimationFrame(() => searchInputRef.current?.focus());
+                }}
+                aria-label="Clear search and filters"
+                className="inline-flex items-center gap-1 h-9 px-3 rounded-md border border-border bg-background text-xs font-medium text-foreground hover:bg-muted active:scale-95 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              >
+                <X className="h-3.5 w-3.5" /> Clear
+              </button>
+            )}
           </div>
         </SheetHeader>
 
