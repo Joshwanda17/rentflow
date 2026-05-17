@@ -888,7 +888,11 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <AgentLandlordMapSheet open={landlordMapOpen} onOpenChange={setLandlordMapOpen} />
       <RentalFinderSheet open={rentalFinderOpen} onOpenChange={setRentalFinderOpen} />
       <ListEmptyHouseDialog open={listHouseOpen} onOpenChange={setListHouseOpen} onSuccess={refreshOfflineData} />
-      <AgentListingsSheet open={myListingsOpen} onOpenChange={setMyListingsOpen} />
+      <AgentListingsSheet
+        open={myListingsOpen}
+        onOpenChange={setMyListingsOpen}
+        onListHouse={() => setListHouseOpen(true)}
+      />
 
       {/* Phase 1: Agent Operations Dialogs */}
       <AgentVisitPaymentWizard open={visitDialogOpen} onOpenChange={setVisitDialogOpen} onSuccess={refreshOfflineData} />
