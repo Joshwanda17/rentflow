@@ -6,6 +6,7 @@ import { Sparkles } from 'lucide-react';
 import BusinessAdvanceStatusTracker, { AdvanceStatusRow } from '@/components/business-advance/BusinessAdvanceStatusTracker';
 import { useBusinessAdvanceRealtime } from '@/hooks/useBusinessAdvanceRealtime';
 import { BusinessAdvanceAuditLog } from '@/components/business-advance/BusinessAdvanceAuditLog';
+import { LiveUpdatingBadge } from '@/components/business-advance/LiveUpdatingBadge';
 
 const ACTIVE_STATUSES = ['pending','agent_ops_approved','tenant_ops_approved','landlord_ops_approved','coo_approved','active'] as const;
 
@@ -40,7 +41,7 @@ export function BusinessAdvanceStatusHero() {
     },
   });
 
-  useBusinessAdvanceRealtime(
+  const rtStatus = useBusinessAdvanceRealtime(
     user?.id ? `tenant-hero-${user.id}` : null,
     () => { refetch(); },
     user?.id ? { filter: `tenant_id=eq.${user.id}` } : undefined
@@ -51,9 +52,12 @@ export function BusinessAdvanceStatusHero() {
   return (
     <Card className="border-primary/30 bg-gradient-to-br from-primary/5 via-background to-primary/5 shadow-md">
       <CardContent className="p-4 space-y-3">
-        <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider font-bold text-primary">
-          <Sparkles className="h-3 w-3" />
-          {data.status === 'active' ? 'Your Business Advance is active' : 'Your Business Advance is being reviewed'}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider font-bold text-primary">
+            <Sparkles className="h-3 w-3" />
+            {data.status === 'active' ? 'Your Business Advance is active' : 'Your Business Advance is being reviewed'}
+          </div>
+          <LiveUpdatingBadge status={rtStatus} />
         </div>
         <BusinessAdvanceStatusTracker row={data} compact />
         <BusinessAdvanceAuditLog advanceId={data.id} />
