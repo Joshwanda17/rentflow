@@ -9256,6 +9256,8 @@ export type Database = {
           agent_type: string | null
           always_share_location: boolean | null
           avatar_url: string | null
+          business_advance_notify_email: boolean
+          business_advance_notify_sms: boolean
           city: string | null
           country: string | null
           country_code: string | null
@@ -9314,6 +9316,8 @@ export type Database = {
           agent_type?: string | null
           always_share_location?: boolean | null
           avatar_url?: string | null
+          business_advance_notify_email?: boolean
+          business_advance_notify_sms?: boolean
           city?: string | null
           country?: string | null
           country_code?: string | null
@@ -9372,6 +9376,8 @@ export type Database = {
           agent_type?: string | null
           always_share_location?: boolean | null
           avatar_url?: string | null
+          business_advance_notify_email?: boolean
+          business_advance_notify_sms?: boolean
           city?: string | null
           country?: string | null
           country_code?: string | null
