@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useMapLinkAnnouncer } from '@/hooks/useMapLinkAnnouncer';
 import { Input } from '@/components/ui/input';
@@ -250,6 +250,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
   const [selectedRegion, setSelectedRegion] = useState('All Regions');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [geoDefaultApplied, setGeoDefaultApplied] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!geoDefaultApplied && geo.city && !geo.loading) {
@@ -284,7 +285,15 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[95vh] rounded-t-3xl p-0 flex flex-col">
+      <SheetContent
+        side="bottom"
+        className="h-[95vh] rounded-t-3xl p-0 flex flex-col"
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+          // Focus the primary control (search input) when the sheet opens.
+          requestAnimationFrame(() => searchInputRef.current?.focus());
+        }}
+      >
         <SheetHeader className="px-5 pt-5 pb-3 border-b border-border space-y-3">
           <SheetTitle className="flex items-center gap-2">
             <Home className="h-5 w-5 text-primary" />
@@ -296,6 +305,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
+              ref={searchInputRef}
               placeholder="Search by region, district, or address..."
               value={searchText}
               onChange={e => setSearchText(e.target.value)}
