@@ -2,6 +2,7 @@ import { Component, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface Props {
   children: ReactNode;
@@ -9,6 +10,11 @@ interface Props {
   label?: string;
   /** When this value changes, the boundary automatically clears its error state. */
   resetKey?: string | number;
+  /**
+   * Called when the user clicks "Try again". Use this to refetch data,
+   * invalidate caches, etc. Boundary state is cleared after this resolves.
+   */
+  onReset?: () => void | Promise<void>;
 }
 
 interface State {
@@ -42,7 +48,12 @@ export class DashboardErrorBoundaryInner extends Component<Props, State> {
     }
   }
 
-  handleTryAgain = () => {
+  handleTryAgain = async () => {
+    try {
+      await this.props.onReset?.();
+    } catch (err) {
+      console.error('[DashboardErrorBoundary] onReset failed:', err);
+    }
     this.setState({ hasError: false, message: undefined });
   };
 
@@ -127,8 +138,24 @@ export class DashboardErrorBoundaryInner extends Component<Props, State> {
 export function DashboardErrorBoundary(props: Props) {
   const location = useLocation();
   const { user, role } = useAuth();
+  const queryClient = useQueryClient();
   const autoKey = `${location.pathname}|${user?.id ?? 'anon'}|${role ?? 'none'}`;
-  return <DashboardErrorBoundaryInner {...props} resetKey={props.resetKey ?? autoKey} />;
+  const handleReset = async () => {
+    if (props.onReset) {
+      await props.onReset();
+      return;
+    }
+    // Default: invalidate all React Query caches so the dashboard refetches
+    // fresh data when it re-mounts after the boundary clears.
+    await queryClient.invalidateQueries();
+  };
+  return (
+    <DashboardErrorBoundaryInner
+      {...props}
+      resetKey={props.resetKey ?? autoKey}
+      onReset={handleReset}
+    />
+  );
 }
 
 export default DashboardErrorBoundary;
