@@ -196,8 +196,14 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
       const el = housesTriggerRef.current;
       housesTriggerRef.current = null;
       if (el && typeof el.focus === 'function') {
-        // Wait for Radix to release its focus trap before restoring.
-        requestAnimationFrame(() => { try { el.focus(); } catch { /* ignore */ } });
+        // Wait for Radix to fully tear down its focus trap (Escape and
+        // overlay-click close paths still hold it for a tick) before
+        // restoring focus to the exact triggering card.
+        const restore = () => { try { el.focus({ preventScroll: false }); } catch { /* ignore */ } };
+        requestAnimationFrame(() => requestAnimationFrame(restore));
+        // Belt-and-braces fallback in case the element was momentarily
+        // detached during the sheet's exit animation.
+        setTimeout(restore, 120);
       }
     }
   }, []);
