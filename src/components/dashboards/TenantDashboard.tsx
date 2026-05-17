@@ -183,6 +183,24 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   }, []);
   const [depositOpen, setDepositOpen] = useState(false);
   const [housesOpen, setHousesOpen] = useState(false);
+  const housesTriggerRef = useRef<HTMLElement | null>(null);
+  const openHousesSheet = useCallback(() => {
+    const active = (typeof document !== 'undefined' ? document.activeElement : null) as HTMLElement | null;
+    if (active && typeof active.focus === 'function') housesTriggerRef.current = active;
+    setMenuOpen(false);
+    setHousesOpen(true);
+  }, []);
+  const handleHousesOpenChange = useCallback((next: boolean) => {
+    setHousesOpen(next);
+    if (!next) {
+      const el = housesTriggerRef.current;
+      housesTriggerRef.current = null;
+      if (el && typeof el.focus === 'function') {
+        // Wait for Radix to release its focus trap before restoring.
+        requestAnimationFrame(() => { try { el.focus(); } catch { /* ignore */ } });
+      }
+    }
+  }, []);
   const [shareBreadOpen, setShareBreadOpen] = useState(false);
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
   const [claimBreadOpen, setClaimBreadOpen] = useState(false);
