@@ -90,7 +90,7 @@ export function RentDiscountCarousel({ discountPct, onSelectHouse }: RentDiscoun
                   type="button"
                   onClick={() => { hapticTap(); onSelectHouse?.(); }}
                   aria-label={`View available houses like ${r.title}`}
-                  className="block w-full text-left focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  className="block w-full text-left rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 >
                 <div className="relative h-32 w-full bg-muted">
                   <img
