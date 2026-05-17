@@ -5,6 +5,7 @@ import { roleToSlug, slugToRole } from '@/lib/roleRoutes';
 import { getPreferredDefaultRole, isAgentAutoDefaultDisabled } from '@/hooks/useAppPreferences';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 /**
  * Catch-all redirect for the legacy `/dashboard` URL.
@@ -43,6 +44,17 @@ export default function DashboardRedirect() {
       return;
     }
 
+    // Small helper: surface the routing decision so users understand
+    // why they landed on a particular dashboard.
+    const explain = (target: AppRole, reason: string) => {
+      try {
+        toast.message(`Opened ${target} dashboard`, {
+          description: reason,
+          duration: 4500,
+        });
+      } catch {}
+    };
+
     // No roles at all → onboarding picker. This is the lost-roles case.
     if (roles.length === 0) {
       navigate('/select-role', { replace: true, state: { reason: 'no-roles' } });
@@ -60,6 +72,13 @@ export default function DashboardRedirect() {
     const explicit: Array<AppRole | null> = [pathHint, queryHint, preferredRole];
     const explicitHonored = explicit.find((c): c is AppRole => !!c && roles.includes(c));
     if (explicitHonored) {
+      const why =
+        explicitHonored === pathHint
+          ? 'You opened this URL directly.'
+          : explicitHonored === queryHint
+            ? 'Followed the role hint in your link.'
+            : 'Matches your chosen home screen in Settings.';
+      explain(explicitHonored, why);
       navigate(roleToSlug(explicitHonored), { replace: true });
       return;
     }
@@ -87,9 +106,16 @@ export default function DashboardRedirect() {
     // rent request (as agent_id), default them to the agent dashboard.
     // Cached per-user in localStorage so we only hit the DB once.
     const cacheKey = `welile_has_posted_rent_request_${user.id}`;
-    const goAgent = () => navigate(roleToSlug('agent'), { replace: true });
+    const goAgent = () => {
+      explain('agent', 'You hold the agent role and have posted a rent request before. Turn this off in Settings → Roles → Home Screen.');
+      navigate(roleToSlug('agent'), { replace: true });
+    };
     const fallback = () => {
       const honored = role && roles.includes(role) ? role : roles[0];
+      const why = honored === role
+        ? 'Continuing where you last left off.'
+        : `Defaulted to your first available role (${honored}).`;
+      explain(honored, why);
       navigate(roleToSlug(honored), { replace: true });
     };
 
