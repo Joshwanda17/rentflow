@@ -835,6 +835,27 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
               {gpsLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Navigation className="h-4 w-4 mr-2" />}
               {gps ? `📍 GPS captured (±${Math.round(gps.accuracy)}m)` : 'Capture business GPS *'}
             </Button>
+            {gps && (
+              <>
+                {(() => {
+                  const acc = gps.accuracy;
+                  const tone =
+                    acc > GPS_MAX_ACCURACY_M
+                      ? 'border-destructive/40 bg-destructive/10 text-destructive'
+                      : acc > GPS_GOOD_ACCURACY_M
+                      ? 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400'
+                      : 'border-green-500/40 bg-green-500/10 text-green-700 dark:text-green-400';
+                  const label =
+                    acc > GPS_MAX_ACCURACY_M
+                      ? `Too weak (±${Math.round(acc)}m) — retry outside.`
+                      : acc > GPS_GOOD_ACCURACY_M
+                      ? `Acceptable but weak (±${Math.round(acc)}m). Consider retrying.`
+                      : `Good accuracy (±${Math.round(acc)}m)`;
+                  return <div className={`rounded-md border p-2 text-[11px] ${tone}`}>{label}</div>;
+                })()}
+                <LocationMapPreview lat={gps.lat} lng={gps.lng} accuracy={gps.accuracy} />
+              </>
+            )}
 
             <div className="grid grid-cols-2 gap-2">
               <Button variant="outline" onClick={() => setStep('tenant')}>Back</Button>
