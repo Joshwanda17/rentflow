@@ -285,7 +285,7 @@ export function AgentListingsSheet({ open, onOpenChange }: AgentListingsSheetPro
               )}
 
               {/* Houses grouped by landlord */}
-              {grouped.map(g => {
+              {filteredGrouped.map(g => {
                 const key = g.landlord_id ?? '__none__';
                 const isOpen = expanded[key] !== false; // default open
                 return (
