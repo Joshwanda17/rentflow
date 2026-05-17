@@ -4,6 +4,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Home, MapPin, DoorOpen, CheckCircle, Clock, AlertTriangle, RotateCcw, Building2, ChevronDown, ChevronRight, User, UserCog, Pencil, Search, X } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useHouseListings, HouseListing } from '@/hooks/useHouseListings';
@@ -21,9 +22,10 @@ import { useFilterKeyboardShortcuts } from '@/hooks/useFilterKeyboardShortcuts';
 interface AgentListingsSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onListHouse?: () => void;
 }
 
-export function AgentListingsSheet({ open, onOpenChange }: AgentListingsSheetProps) {
+export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentListingsSheetProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const { listings, loading, refresh } = useHouseListings({
@@ -297,9 +299,25 @@ export function AgentListingsSheet({ open, onOpenChange }: AgentListingsSheetPro
               <Skeleton key={i} className="h-28 w-full rounded-2xl" />
             ))
           ) : listings.length === 0 ? (
-            <div className="text-center py-16 space-y-2">
-              <Home className="h-10 w-10 text-muted-foreground/30 mx-auto" />
-              <p className="text-muted-foreground text-sm">No houses listed yet</p>
+            <div className="text-center py-16 px-6 space-y-4 max-w-sm mx-auto">
+              <div className="mx-auto h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+                <Home className="h-8 w-8 text-primary" />
+              </div>
+              <div className="space-y-1">
+                <p className="font-semibold text-base">No houses listed yet</p>
+                <p className="text-sm text-muted-foreground">
+                  Start building your portfolio by listing an empty house. Earn a placement bonus when a tenant moves in.
+                </p>
+              </div>
+              {onListHouse && (
+                <Button
+                  onClick={() => { onOpenChange(false); onListHouse(); }}
+                  className="gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  List your first house
+                </Button>
+              )}
             </div>
           ) : (
             <>
