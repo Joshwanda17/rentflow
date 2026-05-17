@@ -38,12 +38,35 @@ interface LandlordGroup {
   vacant: number;
 }
 
+const FILTERS_STORAGE_KEY = 'landlord-houses-panel:filters:v1';
+type PanelFilters = {
+  search: string;
+  statusFilter: 'all' | 'occupied' | 'vacant';
+  regionFilter: string;
+  sortBy: 'newest' | 'oldest' | 'title' | 'region' | 'occupied_first' | 'vacant_first';
+};
+const DEFAULT_FILTERS: PanelFilters = { search: '', statusFilter: 'all', regionFilter: 'all', sortBy: 'newest' };
+function loadFilters(): PanelFilters {
+  try {
+    const raw = localStorage.getItem(FILTERS_STORAGE_KEY);
+    if (!raw) return DEFAULT_FILTERS;
+    return { ...DEFAULT_FILTERS, ...JSON.parse(raw) };
+  } catch { return DEFAULT_FILTERS; }
+}
+
 export function LandlordHousesPanel() {
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'occupied' | 'vacant'>('all');
-  const [regionFilter, setRegionFilter] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'title' | 'region' | 'occupied_first' | 'vacant_first'>('newest');
+  const initial = (typeof window !== 'undefined') ? loadFilters() : DEFAULT_FILTERS;
+  const [search, setSearch] = useState(initial.search);
+  const [statusFilter, setStatusFilter] = useState<PanelFilters['statusFilter']>(initial.statusFilter);
+  const [regionFilter, setRegionFilter] = useState<string>(initial.regionFilter);
+  const [sortBy, setSortBy] = useState<PanelFilters['sortBy']>(initial.sortBy);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify({ search, statusFilter, regionFilter, sortBy }));
+    } catch { /* ignore */ }
+  }, [search, statusFilter, regionFilter, sortBy]);
 
   const housesQuery = useQuery({
     queryKey: ['landlord-houses-panel'],
