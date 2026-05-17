@@ -1,4 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { fetchServerRoutingPrefs, saveServerRoutingPrefs } from '@/lib/routingPrefsServer';
 
 export type DefaultRolePreference = 'auto' | 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager' | 'ceo' | 'coo' | 'cfo' | 'cto' | 'cmo' | 'crm' | 'employee' | 'operations' | 'super_admin';
 
@@ -64,10 +66,57 @@ export function useAppPreferences() {
     value: AppPreferences[K]
   ) => {
     setPreferences(prev => ({ ...prev, [key]: value }));
+    // Mirror routing-relevant prefs to the user's profile so cleared
+    // localStorage on another device still gets the same default.
+    if (key === 'defaultRole' || key === 'disableAgentAutoDefault') {
+      supabase.auth.getUser().then(({ data }) => {
+        const uid = data?.user?.id;
+        if (!uid) return;
+        saveServerRoutingPrefs(uid, { [key]: value } as any);
+      }).catch(() => {});
+    }
   }, []);
 
   const resetPreferences = useCallback(() => {
     setPreferences(DEFAULT_PREFERENCES);
+  }, []);
+
+  // On mount, hydrate routing prefs from the server. Server wins ONLY for
+  // routing-related keys, and ONLY if localStorage didn't already have an
+  // explicit non-default value (so a fresh wipe on a new device still
+  // recovers the user's choice).
+  const hydratedRef = useRef(false);
+  useEffect(() => {
+    if (hydratedRef.current) return;
+    hydratedRef.current = true;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase.auth.getUser();
+        const uid = data?.user?.id;
+        if (!uid) return;
+        const server = await fetchServerRoutingPrefs(uid);
+        if (!server || cancelled) return;
+        setPreferences(prev => {
+          let local: Partial<AppPreferences> = {};
+          try {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (stored) local = JSON.parse(stored);
+          } catch {}
+          const next = { ...prev };
+          // Apply server value only if local has no explicit override.
+          if (server.defaultRole && !('defaultRole' in local)) {
+            next.defaultRole = server.defaultRole;
+          }
+          if (typeof server.disableAgentAutoDefault === 'boolean'
+              && !('disableAgentAutoDefault' in local)) {
+            next.disableAgentAutoDefault = server.disableAgentAutoDefault;
+          }
+          return next;
+        });
+      } catch {}
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   return {
