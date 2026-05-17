@@ -88,7 +88,10 @@ export function useHouseListings(options: UseHouseListingsOptions = {}) {
 
       if (options.status) {
         query = query.eq('status', options.status);
-      } else {
+      } else if (!options.agentId) {
+        // Default to only "available" for public/marketplace queries.
+        // When an agent is viewing THEIR OWN listings, show every status
+        // (available, occupied, rejected, etc.) so they can manage them all.
         query = query.eq('status', 'available');
       }
 
