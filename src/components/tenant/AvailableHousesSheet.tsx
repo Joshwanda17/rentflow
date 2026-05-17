@@ -251,6 +251,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [geoDefaultApplied, setGeoDefaultApplied] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!geoDefaultApplied && geo.city && !geo.loading) {
@@ -307,16 +308,41 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
               : 'Available Houses — Daily Rent'}
           </SheetTitle>
 
-          <div className="relative">
+          <form
+            role="search"
+            onSubmit={(e) => {
+              e.preventDefault();
+              // Dismiss on-screen keyboards, then move focus to the first
+              // result so screen readers and keyboard users land on content.
+              searchInputRef.current?.blur();
+              const firstResult = resultsRef.current?.querySelector<HTMLElement>(
+                '[data-house-card] a, [data-house-card] button, [data-house-card]'
+              );
+              if (firstResult) {
+                firstResult.scrollIntoView({ block: 'start', behavior: 'smooth' });
+                if (typeof firstResult.focus === 'function') {
+                  try { firstResult.focus({ preventScroll: true }); } catch { /* ignore */ }
+                }
+              }
+            }}
+            className="relative"
+          >
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               ref={searchInputRef}
+              type="search"
+              enterKeyHint="search"
               placeholder="Search by region, district, or address..."
               value={searchText}
               onChange={e => setSearchText(e.target.value)}
               className="pl-10"
+              aria-label="Search houses by region, district, or address"
             />
-          </div>
+            {/* Hidden submit so pressing Enter triggers onSubmit reliably. */}
+            <button type="submit" className="sr-only" tabIndex={-1} aria-hidden="true">
+              Search
+            </button>
+          </form>
 
           <div className="flex gap-2">
             <Select value={selectedRegion} onValueChange={setSelectedRegion}>
@@ -342,7 +368,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
           </div>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 space-y-3">
+        <div ref={resultsRef} className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 space-y-3">
           {loading ? (
             Array.from({ length: 4 }).map((_, i) => (
               <Skeleton key={i} className="h-40 w-full rounded-2xl" />
