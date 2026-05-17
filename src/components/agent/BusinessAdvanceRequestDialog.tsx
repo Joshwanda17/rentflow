@@ -576,6 +576,9 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
                   </Button>
                 )}
               </div>
+              {tenantPhone && !isValidUgPhone(tenantPhone) && (
+                <p className="text-[11px] text-destructive">Enter a valid Ugandan number (e.g. 0783 123 456)</p>
+              )}
               {!contactPickerOk && (
                 <p className="text-[10px] text-muted-foreground">
                   Phonebook picker not supported on this device — type the number manually.
@@ -604,7 +607,7 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
             </div>
 
             <div className="space-y-2">
-              <Label>Alternate phone (optional)</Label>
+              <Label>Alternate phone *</Label>
               <div className="flex gap-2">
                 <Input
                   inputMode="tel"
@@ -625,6 +628,12 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
                   </Button>
                 )}
               </div>
+              {tenantAltPhone && !isValidUgPhone(tenantAltPhone) && (
+                <p className="text-[11px] text-destructive">Enter a valid Ugandan number (e.g. 0783 123 456)</p>
+              )}
+              {isValidUgPhone(tenantAltPhone) && cleanPhone(tenantAltPhone) === cleanPhone(tenantPhone) && (
+                <p className="text-[11px] text-destructive">Alternate phone must differ from the tenant phone</p>
+              )}
             </div>
 
             <Separator />
