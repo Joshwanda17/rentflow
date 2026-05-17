@@ -1,71 +1,91 @@
 ## Goal
 
-Eliminate stale proxy partner records permanently by switching from per-approval cards (with fragile balance math) to **one card per partner driven by `v_user_wallet_strict`**, plus a settlement table for audit. Lock the withdraw button immediately on submit.
+Let **Landlord Ops** bind a specific tenant (from an existing rent request) to a specific house, and swap that tenant if they abscond. Let **Agents** see, per landlord they manage, every house plus the tenant attached, and reassign the tenant or the managing agent.
 
-## End-state behavior
+## Data model (already in place — no migration needed)
 
-1. Proxy Partners list shows **one card per linked proxy partner** whose live withdrawable (from `v_user_wallet_strict`) > UGX 0 AND who has at least one CFO-approved unsettled ROI approval.
-2. The amount on the card = the partner's strict live withdrawable (ledger truth — cannot be stale).
-3. When a proxy withdrawal is **submitted**, the card's button locks instantly.
-4. When `approve-withdrawal` completes, the function inserts settlement rows linking that withdrawal to the partner's oldest unsettled CFO approvals (FIFO), summing up to the withdrawn amount → those approvals are marked settled and excluded next render.
-5. Only approvals carrying `metadata.coo_approved_by` AND `metadata.cfo_approved_by` (existing CFO-approval gate) are eligible.
+- `house_listings.tenant_id` (nullable uuid) — the current occupant. This is the binding.
+- `house_listings.agent_id` (uuid, NOT NULL) — the managing agent.
+- `house_listings.landlord_id` (uuid) — owning landlord.
+- `rent_requests.tenant_id` / `agent_id` / `landlord_id` — the request side.
 
-## Database (one migration)
+Binding rules:
+- **Assign tenant → house** = set `house_listings.tenant_id = <rent_request.tenant_id>` for a chosen `house_listings.id` owned by the same landlord.
+- **Remove tenant (absconded)** = `tenant_id = NULL`, status → `available`.
+- **Swap tenant** = atomic: clear old, set new.
+- **Reassign managing agent** = update `house_listings.agent_id`.
+- **Reassign tenant's agent on rent request** = update `rent_requests.agent_id` for that tenant's active request.
 
-Create `proxy_payout_settlements`:
+A "tenant placement" trigger already pays the listing agent a UGX 5,000 bounty the first time `tenant_id` flips from NULL → set, so the existing memory rule keeps working.
 
-```text
-id              uuid pk
-approval_id     uuid  -- pending_wallet_operations.id
-withdrawal_id   uuid  -- withdrawal_requests.id
-partner_id      uuid  -- supporter / linked_party
-agent_id        uuid
-amount_settled  numeric
-settled_at      timestamptz default now()
-unique (approval_id)   -- one approval can only be settled once
-```
+## Migration
 
-- RLS: agent can SELECT own rows; service role full access; CFO/manager SELECT all.
-- Index on `(agent_id, partner_id)` and `(withdrawal_id)`.
+One small migration to add three SECURITY DEFINER RPCs with strict authorization checks and audit logging — UI never writes `house_listings`/`rent_requests` directly for these ops:
 
-**Backfill for the current 7 stale rows + future-proof:** insert synthetic settlement rows for every existing partner where strict live withdrawable = 0 but unsettled CFO approvals still exist (closes them out without touching ledger).
+1. `landlord_ops_bind_tenant_to_house(p_house_id, p_rent_request_id, p_reason)`
+   - Asserts caller has `landlord_ops` department (via existing dept check) OR is `manager`.
+   - Asserts rent_request.landlord_id matches house.landlord_id.
+   - Sets `house_listings.tenant_id = rr.tenant_id`, `status = 'occupied'`.
+   - Inserts `audit_logs` row (`action_type='tenant_bound_to_house'`, 10-char reason).
+   - Emits `system_event` `house.tenant_bound`.
 
-## Edge function: `approve-withdrawal`
+2. `landlord_ops_remove_tenant_from_house(p_house_id, p_reason)` (absconded / vacated)
+   - Same auth.
+   - Clears `tenant_id`, sets `status='available'`.
+   - Audit + `house.tenant_removed` event.
 
-After the existing `status: completed` update, when the withdrawal has `proxy_partner_id` (or `linked_party`):
+3. `reassign_house_agent(p_house_id, p_new_agent_id, p_reason)` and
+   `reassign_rent_request_agent(p_rent_request_id, p_new_agent_id, p_reason)`
+   - Landlord Ops or manager only.
+   - Asserts new agent has `agent` role.
+   - Audit + `house.agent_reassigned` / `rent_request.agent_reassigned` events.
 
-1. Fetch all unsettled CFO-approved `pending_wallet_operations` for that partner ordered by `created_at ASC`.
-2. Walk them, accumulate amounts up to the withdrawal's amount, insert one `proxy_payout_settlements` row per approval consumed.
-3. Last partial approval gets a partial-settlement row (still marked settled — splitting approvals is out of scope; FIFO closes the oldest first).
+All RPCs `SET search_path = public` and use the standard `audit_logs` schema (`action_type`, `table_name`, `record_id`, mandatory reason ≥10 chars) per Audit Governance memory.
 
-## Frontend: `ProxyPartnerFunds.tsx` rewrite (focused)
+## UI changes
 
-Replace the per-approval rendering loop with **partner-aggregated cards**:
+### Landlord Ops — `src/components/executive/LandlordOpsDashboard.tsx`
 
-1. Query approved CFO ops (existing logic) → group by `partnerId`.
-2. LEFT JOIN with `proxy_payout_settlements` → drop approvals where `id` exists in settlements.
-3. Drop partners whose remaining unsettled approval count = 0.
-4. For each remaining partner, fetch `v_user_wallet_strict.available` → that's the card's "To Withdraw" amount.
-5. Drop partners where strict available ≤ UGX 50 (dust threshold).
-6. Card shows: partner name + portfolio + phone + live withdrawable. Single "Withdraw" button.
-7. On submit: optimistic local `submittingPartnerIds: Set<string>` → button disabled + spinner until refetch confirms partner gone or `in_flight` flag returns true.
-8. Real-time subscription on `proxy_payout_settlements` (INSERT) → refetch list on any new settlement.
+New row of actions inside each landlord card (or a new tab "Houses & Tenants"):
+- **Bind Tenant to House** dialog: pick a house (filtered to that landlord, vacant or occupied), pick a pending/approved rent request for that landlord, type a ≥10-char reason. Confirm → calls RPC #1.
+- **Remove Tenant (Absconded)**: on an occupied house card, "Remove Tenant" button → reason dialog → RPC #2.
+- **Swap Tenant**: shortcut that calls #2 then #1 in sequence inside the same dialog.
 
-## Files
+Reuse `EmptyHouseActionDialog` patterns and `AssignPersonDialog` UX. No new top-level component beyond:
+- `src/components/executive/landlord-ops/BindTenantToHouseDialog.tsx`
+- `src/components/executive/landlord-ops/RemoveTenantDialog.tsx`
 
-- **NEW** `supabase/migrations/<ts>_proxy_payout_settlements.sql` — table + RLS + indexes + backfill.
-- **EDIT** `supabase/functions/approve-withdrawal/index.ts` — insert settlement rows after status update.
-- **EDIT** `src/components/agent/ProxyPartnerFunds.tsx` — partner-aggregated cards, submit lock, settlement-aware filter, realtime sub.
+### Agent — `src/components/agent/AgentListingsSheet.tsx` (already lists houses they manage)
 
-## Out of scope
+Per house card, add an "Attached tenant" line and two actions:
+- **Change tenant profile** → opens existing `TenantProfileView` for the attached tenant in edit mode (no schema change; uses existing tenant profile editing path). For agents we only let them edit fields the agent role already controls.
+- **Reassign tenant's agent**: select another agent from their downline (`SubAgentsList` data) → RPC #4.
 
-- No changes to CFO approval flow.
-- No changes to `pending_wallet_operations` schema (keep settlement out-of-band so audit trail is preserved).
-- No ledger changes (already source of truth).
+Group the houses by landlord (the user's exact ask: "houses they manage attached to each house to each landlord"). Add a collapsible landlord header listing landlord name + count of houses.
 
-## Verification
+### Read-only data hooks
 
-1. After migration runs, the 7 currently-visible cards (Caleb, Olweny, Hellen, Shakilah, Gideon, Musene, Nassanga) are evaluated against `v_user_wallet_strict` — those with 0 withdrawable disappear instantly.
-2. Submit a withdrawal → button locks immediately.
-3. CFO approves → settlement row inserted → card disappears within 1 refresh cycle.
-4. Repeat for the same partner with a fresh CFO approval → card reappears.
+Extend `useNearbyHouses` is not needed; add:
+- `src/hooks/useLandlordOpsHouses.ts` — fetches a landlord's houses with current tenant profile join.
+- `src/hooks/useAgentManagedHouses.ts` — fetches agent's houses grouped by landlord with attached tenant profile.
+
+## Out of scope (call out)
+
+- Wallet / ledger movements when swapping tenants — none. The existing rent billing engine continues to bill against `rent_requests`; this change only retargets which house a tenant physically occupies.
+- Listing bounty: unaffected — already paid on the first NULL→set transition; subsequent swaps will not re-trigger it (the existing trigger checks `placement_bonus_paid_at IS NULL`).
+- Trust signals: the new RPCs will emit `system_events` so the Trust Coverage Engine can attribute behavior; no new score factors.
+
+## Files touched
+
+- New migration (RPCs only, no table changes).
+- `src/components/executive/LandlordOpsDashboard.tsx` (wire new dialogs).
+- `src/components/executive/landlord-ops/BindTenantToHouseDialog.tsx` (new).
+- `src/components/executive/landlord-ops/RemoveTenantDialog.tsx` (new).
+- `src/components/agent/AgentListingsSheet.tsx` (group by landlord, add actions).
+- `src/components/agent/ReassignTenantAgentDialog.tsx` (new).
+- `src/hooks/useLandlordOpsHouses.ts` (new).
+- `src/hooks/useAgentManagedHouses.ts` (new).
+
+## Approval
+
+Reply "go" to proceed. The migration will be submitted first; UI changes ship in the same response after you approve it.
