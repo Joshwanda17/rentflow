@@ -201,7 +201,14 @@ export function ReassignAgentDialog({ open, onOpenChange, target, onComplete }: 
           ) : (
             <>
               <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button>
-              <Button onClick={() => setConfirming(true)} disabled={!canSubmit}>
+              <Button
+                onClick={() => {
+                  setSubmitAttempted(true);
+                  setReasonTouched(true);
+                  if (canSubmit) setConfirming(true);
+                }}
+                disabled={busy}
+              >
                 Review reassignment
               </Button>
             </>

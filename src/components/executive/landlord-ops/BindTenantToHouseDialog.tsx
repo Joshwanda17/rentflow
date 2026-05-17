@@ -263,7 +263,14 @@ export function BindTenantToHouseDialog({
           ) : (
             <>
               <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button>
-              <Button onClick={() => setConfirming(true)} disabled={!canSubmit}>
+              <Button
+                onClick={() => {
+                  setSubmitAttempted(true);
+                  setReasonTouched(true);
+                  if (canSubmit) setConfirming(true);
+                }}
+                disabled={busy}
+              >
                 {isSwap ? 'Review swap' : 'Review bind'}
               </Button>
             </>

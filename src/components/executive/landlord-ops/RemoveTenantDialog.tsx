@@ -118,7 +118,15 @@ export function RemoveTenantDialog({ open, onOpenChange, houseId, houseTitle, on
           ) : (
             <>
               <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button>
-              <Button variant="destructive" onClick={() => setConfirming(true)} disabled={!canSubmit}>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  setSubmitAttempted(true);
+                  setReasonTouched(true);
+                  if (canSubmit) setConfirming(true);
+                }}
+                disabled={busy}
+              >
                 Review removal
               </Button>
             </>
