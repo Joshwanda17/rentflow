@@ -29,6 +29,14 @@ interface Props {
 }
 
 const UG_PHONE = /^0[3-9][0-9]{8}$/;
+const cleanPhone = (raw: string) => (raw || '').replace(/\s/g, '');
+const isValidUgPhone = (raw: string) => UG_PHONE.test(cleanPhone(raw));
+const phoneErrorText = (raw: string, label: string): string | null => {
+  const v = cleanPhone(raw);
+  if (!v) return `${label} phone required`;
+  if (!UG_PHONE.test(v)) return `${label} phone must be a valid Ugandan number (e.g. 0783 123 456)`;
+  return null;
+};
 const formatCurrency = (raw: string) => {
   const d = raw.replace(/\D/g, '');
   return d ? Number(d).toLocaleString('en-UG') : '';
@@ -231,8 +239,24 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
 
   const validateTenant = (): string | null => {
     if (!tenantName.trim()) return 'Tenant name required';
-    const cleanPhone = tenantPhone.replace(/\s/g, '');
-    if (!UG_PHONE.test(cleanPhone)) return 'Valid Ugandan phone required (e.g. 0783 123 456)';
+    const tenantErr = phoneErrorText(tenantPhone, 'Tenant');
+    if (tenantErr) return tenantErr;
+    const altErr = phoneErrorText(tenantAltPhone, 'Alternate');
+    if (altErr) return altErr;
+    if (cleanPhone(tenantAltPhone) === cleanPhone(tenantPhone)) {
+      return 'Alternate phone must differ from the tenant phone';
+    }
+    if (!nokName.trim()) return 'Next-of-kin name required';
+    const nokErr = phoneErrorText(nokPhone, 'Next-of-kin');
+    if (nokErr) return nokErr;
+    if (!nokRelationship.trim()) return 'Next-of-kin relationship required';
+    if (!guarantorName.trim()) return 'Guarantor name required';
+    const guarErr = phoneErrorText(guarantorPhone, 'Guarantor');
+    if (guarErr) return guarErr;
+    const allPhones = [tenantPhone, tenantAltPhone, nokPhone, guarantorPhone].map(cleanPhone);
+    if (new Set(allPhones).size !== allPhones.length) {
+      return 'Each phone (tenant, alternate, next-of-kin, guarantor) must be unique';
+    }
     const id = tenantNationalId.trim().toUpperCase();
     if (id.length < 10 || id.length > 14 || !/^[A-Z0-9]+$/.test(id)) return 'National ID must be 10-14 alphanumeric';
     if (!hasSmartphone) return 'Business tenants must have a smartphone to manage their dashboard';
@@ -255,13 +279,13 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
     if (!user) return toast.error('Not signed in');
     setLoading(true);
     try {
-      const cleanPhone = tenantPhone.replace(/\s/g, '');
+      const tenantPhoneClean = cleanPhone(tenantPhone);
       let tenantId: string | null = null;
 
       const { data: existing } = await supabase
         .from('profiles')
         .select('id')
-        .eq('phone', cleanPhone)
+        .eq('phone', tenantPhoneClean)
         .maybeSingle();
 
       if (existing?.id) {
@@ -270,7 +294,7 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
         const { data: regData, error: regErr } = await supabase.functions.invoke('register-tenant', {
           body: {
             full_name: tenantName.trim(),
-            phone: cleanPhone,
+            phone: tenantPhoneClean,
             national_id: tenantNationalId.trim().toUpperCase(),
             email: tenantEmail.trim() || undefined,
           },
@@ -281,7 +305,7 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
 
       if (!tenantId) throw new Error('Could not resolve tenant');
 
-      const activation = `${getPublicOrigin()}/activate?phone=${encodeURIComponent(cleanPhone)}&type=business`;
+      const activation = `${getPublicOrigin()}/activate?phone=${encodeURIComponent(tenantPhoneClean)}&type=business`;
 
       // Persist rent history records (status pending — back-office will verify)
       const validHistory = rentHistory.filter(
@@ -552,6 +576,9 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
                   </Button>
                 )}
               </div>
+              {tenantPhone && !isValidUgPhone(tenantPhone) && (
+                <p className="text-[11px] text-destructive">Enter a valid Ugandan number (e.g. 0783 123 456)</p>
+              )}
               {!contactPickerOk && (
                 <p className="text-[10px] text-muted-foreground">
                   Phonebook picker not supported on this device — type the number manually.
@@ -580,7 +607,7 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
             </div>
 
             <div className="space-y-2">
-              <Label>Alternate phone (optional)</Label>
+              <Label>Alternate phone *</Label>
               <div className="flex gap-2">
                 <Input
                   inputMode="tel"
@@ -601,6 +628,12 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
                   </Button>
                 )}
               </div>
+              {tenantAltPhone && !isValidUgPhone(tenantAltPhone) && (
+                <p className="text-[11px] text-destructive">Enter a valid Ugandan number (e.g. 0783 123 456)</p>
+              )}
+              {isValidUgPhone(tenantAltPhone) && cleanPhone(tenantAltPhone) === cleanPhone(tenantPhone) && (
+                <p className="text-[11px] text-destructive">Alternate phone must differ from the tenant phone</p>
+              )}
             </div>
 
             <Separator />
@@ -666,19 +699,19 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
             {/* Next of kin */}
             <div className="space-y-2 rounded-lg border border-border p-3">
               <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-                Next of kin (optional)
+                Next of kin *
               </Label>
               <Input
                 value={nokName}
                 onChange={(e) => setNokName(e.target.value)}
-                placeholder="Full name"
+                placeholder="Full name *"
               />
               <div className="flex gap-2">
                 <Input
                   inputMode="tel"
                   value={nokPhone}
                   onChange={(e) => setNokPhone(formatPhone(e.target.value))}
-                  placeholder="Phone number"
+                  placeholder="Phone number *"
                   className="flex-1"
                 />
                 {contactPickerOk && (
@@ -693,29 +726,32 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
                   </Button>
                 )}
               </div>
+              {nokPhone && !isValidUgPhone(nokPhone) && (
+                <p className="text-[11px] text-destructive">Enter a valid Ugandan number (e.g. 0783 123 456)</p>
+              )}
               <Input
                 value={nokRelationship}
                 onChange={(e) => setNokRelationship(e.target.value)}
-                placeholder="Relationship (e.g. spouse, brother)"
+                placeholder="Relationship (e.g. spouse, brother) *"
               />
             </div>
 
             {/* Guarantor */}
             <div className="space-y-2 rounded-lg border border-border p-3">
               <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-                Guarantor (optional)
+                Guarantor *
               </Label>
               <Input
                 value={guarantorName}
                 onChange={(e) => setGuarantorName(e.target.value)}
-                placeholder="Full name"
+                placeholder="Full name *"
               />
               <div className="flex gap-2">
                 <Input
                   inputMode="tel"
                   value={guarantorPhone}
                   onChange={(e) => setGuarantorPhone(formatPhone(e.target.value))}
-                  placeholder="Phone number"
+                  placeholder="Phone number *"
                   className="flex-1"
                 />
                 {contactPickerOk && (
@@ -730,6 +766,9 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
                   </Button>
                 )}
               </div>
+              {guarantorPhone && !isValidUgPhone(guarantorPhone) && (
+                <p className="text-[11px] text-destructive">Enter a valid Ugandan number (e.g. 0783 123 456)</p>
+              )}
             </div>
 
             <div className="flex items-start gap-2 rounded-lg border border-border p-3">
@@ -770,6 +809,7 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
             <div className="grid grid-cols-2 gap-2">
               <Button variant="outline" onClick={() => setStep('amount')}>Back</Button>
               <Button
+                disabled={validateTenant() !== null}
                 onClick={() => {
                   const err = validateTenant();
                   if (err) return toast.error(err);
