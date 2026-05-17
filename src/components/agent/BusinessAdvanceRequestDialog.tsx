@@ -785,6 +785,21 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
               <Input
                 value={applicantManualLocation}
                 onChange={(e) => setApplicantManualLocation(e.target.value)}
+                onBlur={(e) => {
+                  const v = e.target.value.trim();
+                  const last = [...locationHistory].reverse().find(
+                    (h) => h.source === 'applicant' && h.field === 'manual_location'
+                  );
+                  if (v && v !== (last?.value ?? '')) {
+                    appendHistory({
+                      event: 'manual_edit',
+                      source: 'applicant',
+                      field: 'manual_location',
+                      previous: last?.value ?? '',
+                      value: v,
+                    });
+                  }
+                }}
                 placeholder="Manual location (e.g. Bukoto, Plot 4, near St. Jude clinic)"
               />
               {applicantGeocoding && (
@@ -805,7 +820,16 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
                       size="sm"
                       variant="outline"
                       className="h-7 text-[11px] shrink-0"
-                      onClick={() => setApplicantManualLocation(applicantGeocoded)}
+                      onClick={() => {
+                        appendHistory({
+                          event: 'manual_edit',
+                          source: 'applicant',
+                          field: 'manual_location',
+                          previous: applicantManualLocation,
+                          value: applicantGeocoded,
+                        });
+                        setApplicantManualLocation(applicantGeocoded);
+                      }}
                     >
                       Use this
                     </Button>
@@ -962,7 +986,26 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
 
             <div className="space-y-2">
               <Label>Business address *</Label>
-              <Input value={businessAddress} onChange={(e) => setBusinessAddress(e.target.value)} placeholder="Plot 12, Kampala Road" />
+              <Input
+                value={businessAddress}
+                onChange={(e) => setBusinessAddress(e.target.value)}
+                onBlur={(e) => {
+                  const v = e.target.value.trim();
+                  const last = [...locationHistory].reverse().find(
+                    (h) => h.source === 'business' && h.field === 'business_address'
+                  );
+                  if (v && v !== (last?.value ?? '')) {
+                    appendHistory({
+                      event: 'manual_edit',
+                      source: 'business',
+                      field: 'business_address',
+                      previous: last?.value ?? '',
+                      value: v,
+                    });
+                  }
+                }}
+                placeholder="Plot 12, Kampala Road"
+              />
               {businessGeocoding && (
                 <p className="text-[11px] text-muted-foreground flex items-center gap-1">
                   <Loader2 className="h-3 w-3 animate-spin" /> Looking up address from GPS…
@@ -981,7 +1024,16 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
                       size="sm"
                       variant="outline"
                       className="h-7 text-[11px] shrink-0"
-                      onClick={() => setBusinessAddress(businessGeocoded)}
+                      onClick={() => {
+                        appendHistory({
+                          event: 'manual_edit',
+                          source: 'business',
+                          field: 'business_address',
+                          previous: businessAddress,
+                          value: businessGeocoded,
+                        });
+                        setBusinessAddress(businessGeocoded);
+                      }}
                     >
                       Use this
                     </Button>
