@@ -362,3 +362,17 @@ export function BusinessAdvanceStatusTracker({ row, compact = false }: { row: Ad
 }
 
 export default BusinessAdvanceStatusTracker;
+
+/**
+ * Derive the active stage (key + label) for a given advance row so external
+ * components (e.g. the document-upload panel) can scope themselves to whichever
+ * stage the request is currently sitting at. Returns null when the request is
+ * rejected, completed, or fully past the timeline.
+ */
+export function getActiveAdvanceStage(row: AdvanceStatusRow): { key: string; label: string } | null {
+  if (row.status === 'rejected' || row.status === 'defaulted' || row.status === 'completed') return null;
+  for (const s of STAGES) {
+    if (!row[s.tsField]) return { key: s.key, label: s.label };
+  }
+  return null;
+}
