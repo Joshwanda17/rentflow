@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -28,38 +28,39 @@ export default function BusinessAdvanceTrack() {
   const [fullName, setFullName] = useState('');
   const [accountReady, setAccountReady] = useState(false);
 
-  useEffect(() => {
-    let alive = true;
-    const load = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (alive) setIsAuthed(!!user);
-
-      if (!phone) {
-        if (alive) { setError('Missing phone number in the link'); setLoading(false); }
-        return;
-      }
-      const { data, error } = await supabase.rpc('get_business_advance_public_status', { p_phone: phone });
-      if (!alive) return;
-      if (error) {
-        setError(error.message);
-      } else if (!data || (Array.isArray(data) && data.length === 0)) {
-        setError('No Business Advance request found for this number yet.');
-      } else {
-        const r = Array.isArray(data) ? data[0] : data;
-        setRow(r as AdvanceStatusRow);
-      }
-      setLoading(false);
-    };
-    load();
-    (window as any).__refreshBATrack = load;
-    return () => { alive = false; };
+  const aliveRef = useRef(true);
+  const load = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (aliveRef.current) setIsAuthed(!!user);
+    if (!phone) {
+      if (aliveRef.current) { setError('Missing phone number in the link'); setLoading(false); }
+      return;
+    }
+    const { data, error } = await supabase.rpc('get_business_advance_public_status', { p_phone: phone });
+    if (!aliveRef.current) return;
+    if (error) {
+      setError(error.message);
+    } else if (!data || (Array.isArray(data) && data.length === 0)) {
+      setError('No Business Advance request found for this number yet.');
+    } else {
+      const r = Array.isArray(data) ? data[0] : data;
+      setRow(r as AdvanceStatusRow);
+      setError(null);
+    }
+    setLoading(false);
   }, [phone]);
+
+  useEffect(() => {
+    aliveRef.current = true;
+    load();
+    return () => { aliveRef.current = false; };
+  }, [load]);
 
   // Shared realtime — covers INSERT (request just created) and UPDATE
   // (stage advanced) so the public tracker mirrors the tenant dashboard hero.
   useBusinessAdvanceRealtime(
     phone ? `public-track-${phone}` : null,
-    () => { (window as any).__refreshBATrack?.(); }
+    () => { load(); }
   );
 
   const handleClaim = async () => {
