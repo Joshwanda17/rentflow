@@ -57,7 +57,7 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
     search: string;
     statusFilter: 'all' | 'occupied' | 'vacant' | 'rejected';
     regionFilter: string;
-    sortBy: 'newest' | 'oldest' | 'title' | 'region' | 'occupied_first' | 'vacant_first';
+    sortBy: 'newest' | 'oldest' | 'title' | 'region' | 'occupied_first' | 'vacant_first' | 'price_asc' | 'price_desc';
   };
   const DEFAULT_FILTERS: SheetFilters = { search: '', statusFilter: 'all', regionFilter: 'all', sortBy: 'newest' };
   const [search, setSearch] = useState(DEFAULT_FILTERS.search);
@@ -241,6 +241,8 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
         case 'region': return (a.region || '').localeCompare(b.region || '') || a.title.localeCompare(b.title);
         case 'occupied_first': return (a.tenant_id ? 0 : 1) - (b.tenant_id ? 0 : 1);
         case 'vacant_first': return (a.tenant_id ? 1 : 0) - (b.tenant_id ? 1 : 0);
+        case 'price_asc': return (a.monthly_rent ?? 0) - (b.monthly_rent ?? 0);
+        case 'price_desc': return (b.monthly_rent ?? 0) - (a.monthly_rent ?? 0);
         case 'newest':
         default: return (b.created_at || '').localeCompare(a.created_at || '');
       }
@@ -333,6 +335,8 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
                     <SelectItem value="region">Region (A–Z)</SelectItem>
                     <SelectItem value="occupied_first">Occupied first</SelectItem>
                     <SelectItem value="vacant_first">Vacant first</SelectItem>
+                    <SelectItem value="price_asc">Price (low → high)</SelectItem>
+                    <SelectItem value="price_desc">Price (high → low)</SelectItem>
                   </SelectContent>
                 </Select>
                 <Button
