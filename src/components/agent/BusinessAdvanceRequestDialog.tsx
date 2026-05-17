@@ -488,7 +488,12 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
   const shareWhatsApp = () => {
     if (!activationLink) return;
     const msg = encodeURIComponent(
-      `Hi ${tenantName}, your Business Advance request has been submitted. Open this link to see live approval progress and manage everything from your dashboard: ${activationLink}`
+      `Hi ${tenantName}, great news — your *Rent Business Advance* with Welile is now in motion! 🚀\n\n` +
+      `💼 Access working capital up to *UGX 30,000,000* — powered by your rent payment history, not endless paperwork.\n` +
+      `✅ Built for business owners like you\n` +
+      `✅ No bank queues, no hidden traps\n` +
+      `✅ Trust-scored, fair, and fast\n\n` +
+      `Tap the link below to track live approval progress and unlock your dashboard:\n${activationLink}`
     );
     const phone = tenantPhone.replace(/\D/g, '');
     const intl = phone.startsWith('0') ? `256${phone.slice(1)}` : phone;
