@@ -77,6 +77,58 @@ async function sendSMS(phone: string, message: string): Promise<{ ok: boolean; s
   return { ok: res.ok, status: res.status, raw };
 }
 
+async function sendEmail(
+  to: string,
+  subject: string,
+  title: string,
+  body: string,
+  trackUrl: string,
+): Promise<{ ok: boolean; status: number; raw?: string }> {
+  const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+  const gmailKey = Deno.env.get("GOOGLE_MAIL_API_KEY");
+  if (!lovableKey || !gmailKey) {
+    console.warn("[notify-business-advance-status] Gmail connector creds missing — skipping email");
+    return { ok: false, status: 0 };
+  }
+
+  const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;background:#ffffff;padding:24px;color:#0f172a">
+  <div style="max-width:560px;margin:0 auto;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden">
+    <div style="background:#0f172a;color:#fff;padding:18px 22px;font-weight:600;font-size:14px;letter-spacing:.3px">WELILE · Business Advance</div>
+    <div style="padding:22px">
+      <h1 style="margin:0 0 12px;font-size:20px;color:#0f172a">${title}</h1>
+      <p style="margin:0 0 18px;font-size:15px;line-height:1.55;color:#334155">${body}</p>
+      <a href="${trackUrl}" style="display:inline-block;background:#16a34a;color:#fff;text-decoration:none;padding:11px 18px;border-radius:8px;font-weight:600;font-size:14px">Track live status</a>
+      <p style="margin:24px 0 0;font-size:12px;color:#94a3b8">You can also reply to this email if you have questions.</p>
+    </div>
+  </div></body></html>`;
+
+  const raw = [
+    `To: ${to}`,
+    `Subject: ${subject}`,
+    'MIME-Version: 1.0',
+    'Content-Type: text/html; charset="UTF-8"',
+    '',
+    html,
+  ].join('\r\n');
+  const b64 = btoa(unescape(encodeURIComponent(raw)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+  const res = await fetch(
+    "https://connector-gateway.lovable.dev/google_mail/gmail/v1/users/me/messages/send",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${lovableKey}`,
+        "X-Connection-Api-Key": gmailKey,
+      },
+      body: JSON.stringify({ raw: b64 }),
+    },
+  );
+  const text = await res.text();
+  return { ok: res.ok, status: res.status, raw: text };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -112,7 +164,7 @@ Deno.serve(async (req) => {
 
     const { data: tenant } = await admin
       .from("profiles")
-      .select("phone, full_name")
+      .select("phone, full_name, email")
       .eq("id", adv.tenant_id)
       .maybeSingle();
 
@@ -160,8 +212,30 @@ Deno.serve(async (req) => {
       console.log("[notify-business-advance-status] SMS result", smsResult);
     }
 
+    // 4) Email (best-effort via Gmail connector)
+    let emailResult: { ok: boolean; status: number; raw?: string } | null = null;
+    const emailAddr = (tenant as any)?.email as string | undefined;
+    const NOTIFY_STAGES: Status[] = [
+      "pending",
+      "agent_ops_approved",
+      "tenant_ops_approved",
+      "landlord_ops_approved",
+      "coo_approved",
+      "active",
+      "rejected",
+      "completed",
+    ];
+    if (emailAddr && /.+@.+\..+/.test(emailAddr) && NOTIFY_STAGES.includes(new_status)) {
+      try {
+        emailResult = await sendEmail(emailAddr, copy.title, copy.title, copy.body, trackUrl);
+        console.log("[notify-business-advance-status] Email result", emailResult?.status);
+      } catch (e) {
+        console.warn("[notify-business-advance-status] email failed:", (e as Error)?.message);
+      }
+    }
+
     return new Response(
-      JSON.stringify({ ok: true, notified: !!tenant?.phone, sms: smsResult }),
+      JSON.stringify({ ok: true, notified: !!tenant?.phone, sms: smsResult, email: emailResult }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
