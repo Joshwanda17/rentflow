@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -15,6 +15,7 @@ import { RemoveTenantDialog } from './RemoveTenantDialog';
 import { ReassignAgentDialog } from '@/components/shared/ReassignAgentDialog';
 import { HouseActivityTimeline } from '@/components/shared/HouseActivityTimeline';
 import { HighlightText } from '@/components/shared/HighlightText';
+import { useFilterKeyboardShortcuts } from '@/hooks/useFilterKeyboardShortcuts';
 
 interface HouseRow {
   id: string;
@@ -68,6 +69,9 @@ export function LandlordHousesPanel() {
       localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify({ search, statusFilter, regionFilter, sortBy }));
     } catch { /* ignore */ }
   }, [search, statusFilter, regionFilter, sortBy]);
+
+  const searchRef = useRef<HTMLInputElement>(null);
+  const clearAll = () => { setSearch(''); setStatusFilter('all'); setRegionFilter('all'); setSortBy('newest'); };
 
   const housesQuery = useQuery({
     queryKey: ['landlord-houses-panel'],
@@ -176,6 +180,8 @@ export function LandlordHousesPanel() {
   }, [groups, search, statusFilter, regionFilter, profs, sortBy]);
 
   const hasActiveFilter = search.trim().length > 0 || statusFilter !== 'all' || regionFilter !== 'all' || sortBy !== 'newest';
+
+  useFilterKeyboardShortcuts({ inputRef: searchRef, onClear: clearAll, hasActiveFilter });
   const totalHouses = filtered.reduce((s, g) => s + g.houses.length, 0);
 
   // ── Action dialog state ──
@@ -203,7 +209,8 @@ export function LandlordHousesPanel() {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search landlord, house, tenant, agent, phone…"
+            ref={searchRef}
+            placeholder="Search landlord, house, tenant, agent, phone…  ( / to focus, Esc to clear )"
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="pl-9 pr-9"
@@ -248,7 +255,7 @@ export function LandlordHousesPanel() {
           {hasActiveFilter && (
             <Button
               variant="ghost" size="sm" className="h-9 text-xs gap-1"
-              onClick={() => { setSearch(''); setStatusFilter('all'); setRegionFilter('all'); setSortBy('newest'); }}
+              onClick={clearAll}
             >
               <X className="h-3 w-3" /> Clear
             </Button>
