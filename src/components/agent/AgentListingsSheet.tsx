@@ -3,8 +3,11 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Home, MapPin, DoorOpen, CheckCircle, Clock, AlertTriangle, RotateCcw, Building2, ChevronDown, ChevronRight, User, UserCog, Pencil, Search, X } from 'lucide-react';
+import { Home, MapPin, DoorOpen, CheckCircle, Clock, AlertTriangle, RotateCcw, Building2, ChevronDown, ChevronRight, User, UserCog, Pencil, Search, X, MoreVertical, Eye, Trash2, Loader2 } from 'lucide-react';
 import { Plus } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { EditHouseListingDialog } from './EditHouseListingDialog';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -40,6 +43,9 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
   const [timelineOpen, setTimelineOpen] = useState<Record<string, boolean>>({});
   const [viewingTenantId, setViewingTenantId] = useState<string | null>(null);
   const [detailListingId, setDetailListingId] = useState<string | null>(null);
+  const [editingListing, setEditingListing] = useState<HouseListing | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<HouseListing | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [reassignTarget, setReassignTarget] = useState<{
     rentRequestId: string; tenantName: string; currentAgentId: string;
   } | null>(null);
