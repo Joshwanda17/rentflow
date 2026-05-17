@@ -4,6 +4,7 @@ import { useAuth, type AppRole } from '@/hooks/useAuth';
 import { roleToSlug, slugToRole } from '@/lib/roleRoutes';
 import { getPreferredDefaultRole, isAgentAutoDefaultDisabled } from '@/hooks/useAppPreferences';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchServerRoutingPrefs } from '@/lib/routingPrefsServer';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -60,6 +61,19 @@ export default function DashboardRedirect() {
       navigate('/select-role', { replace: true, state: { reason: 'no-roles' } });
       return;
     }
+
+    // Detect whether the local prefs file actually has explicit routing
+    // entries. If it doesn't (fresh device, cleared storage, private mode,
+    // etc.) we'll consult the server before falling through to the
+    // auto-agent rule, so the user's choice still applies across devices.
+    const hasLocalRoutingPrefs = (() => {
+      try {
+        const raw = localStorage.getItem('welile_app_preferences');
+        if (!raw) return false;
+        const parsed = JSON.parse(raw);
+        return 'defaultRole' in parsed || 'disableAgentAutoDefault' in parsed;
+      } catch { return false; }
+    })();
 
     // Pick the first hint the user actually still holds.
     // Priority: explicit URL/query hint → user's chosen default →
@@ -119,6 +133,39 @@ export default function DashboardRedirect() {
       navigate(roleToSlug(honored), { replace: true });
     };
 
+    // Server-side fallback: if no local routing prefs are saved, ask the
+    // user's profile what they chose previously (synced across devices).
+    // Race with a short timeout so we never hang the redirect.
+    const applyServerPrefsThenDecide = async () => {
+      const server = await fetchServerRoutingPrefs(user.id, 1200);
+      if (server) {
+        if (server.defaultRole && server.defaultRole !== 'auto'
+            && roles.includes(server.defaultRole as AppRole)) {
+          const target = server.defaultRole as AppRole;
+          explain(target, 'Synced from your saved choice on another device.');
+          navigate(roleToSlug(target), { replace: true });
+          return true;
+        }
+        if (server.disableAgentAutoDefault) {
+          // User opted out elsewhere — skip the agent rule.
+          fallback();
+          return true;
+        }
+      }
+      return false;
+    };
+
+    if (!hasLocalRoutingPrefs) {
+      applyServerPrefsThenDecide().then((handled) => {
+        if (handled) return;
+        runAgentAutoRule();
+      });
+      return;
+    }
+
+    runAgentAutoRule();
+
+    function runAgentAutoRule() {
     if (roles.includes('agent') && !isAgentAutoDefaultDisabled()) {
       let cached: string | null = null;
       try { cached = localStorage.getItem(cacheKey); } catch {}
@@ -149,7 +196,7 @@ export default function DashboardRedirect() {
     }
 
     fallback();
-    return;
+    }
   }, [loading, user, role, roles, pathHint, queryHint, hasUnknownPathSlug, navigate]);
 
   // While auth resolves, show the same skeleton the dashboard uses so
