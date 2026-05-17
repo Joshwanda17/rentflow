@@ -169,7 +169,7 @@ function PriorityTile({
       onClick={onClick}
       aria-label={ariaLabel ?? `${label}: ${valueLabel}${sub ? ` — ${sub}` : ''}`}
       title={title ?? label}
-      className="flex flex-col items-start gap-2 p-4 rounded-2xl bg-card border border-border/60 active:scale-[0.97] active:bg-accent/40 transition-all min-h-[112px] text-left hover:border-border touch-manipulation"
+      className="flex flex-col items-start gap-2 p-4 rounded-2xl bg-card border border-border/60 active:scale-[0.97] active:bg-accent/40 transition-all min-h-[112px] text-left hover:border-border touch-manipulation focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:border-primary"
       style={{ WebkitTapHighlightColor: 'transparent' }}
     >
       <div className="flex items-center justify-between w-full">
