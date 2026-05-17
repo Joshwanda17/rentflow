@@ -14,6 +14,8 @@ import { Badge } from '@/components/ui/badge';
 import { useMapLinkAnnouncer } from '@/hooks/useMapLinkAnnouncer';
 
 interface NearbyHousesPreviewProps {
+  /** When set, tapping a house card opens the listed-houses sheet instead of navigating to the detail page. */
+  onSelectHouse?: () => void;
   onViewAll: () => void;
 }
 
