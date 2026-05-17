@@ -41,6 +41,28 @@ export function BusinessAdvanceNotificationPreferences({ userId }: { userId: str
   }, [userId]);
 
   const update = async (field: 'sms' | 'email', value: boolean) => {
+    // Guard: cannot enable a channel that has no destination on file
+    if (value && field === 'sms' && !phone) {
+      toast.error('No phone number on file', {
+        description: 'Add a phone number to your profile before turning on SMS alerts.',
+        action: {
+          label: 'Open profile',
+          onClick: () => { window.location.href = '/profile'; },
+        },
+      });
+      return;
+    }
+    if (value && field === 'email' && !emailAddr) {
+      toast.error('No email address on file', {
+        description: 'Add an email to your profile before turning on email alerts.',
+        action: {
+          label: 'Open profile',
+          onClick: () => { window.location.href = '/profile'; },
+        },
+      });
+      return;
+    }
+
     const col = field === 'sms' ? 'business_advance_notify_sms' : 'business_advance_notify_email';
     setSaving(field);
     // optimistic
@@ -85,13 +107,15 @@ export function BusinessAdvanceNotificationPreferences({ userId }: { userId: str
           <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
           <span>
             SMS
-            {phone && <span className="block text-[10px] text-muted-foreground font-normal">{phone}</span>}
+            {phone
+              ? <span className="block text-[10px] text-muted-foreground font-normal">{phone}</span>
+              : <span className="block text-[10px] text-amber-600 font-normal">Add a phone number in your profile to enable</span>}
           </span>
         </Label>
         <Switch
           id="ba-notify-sms"
           checked={sms}
-          disabled={saving === 'sms'}
+          disabled={saving === 'sms' || !phone}
           onCheckedChange={(v) => update('sms', v)}
         />
       </div>
