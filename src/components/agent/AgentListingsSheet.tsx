@@ -18,6 +18,7 @@ import { ReassignAgentDialog } from '@/components/shared/ReassignAgentDialog';
 import { HouseActivityTimeline } from '@/components/shared/HouseActivityTimeline';
 import { HighlightText } from '@/components/shared/HighlightText';
 import { useFilterKeyboardShortcuts } from '@/hooks/useFilterKeyboardShortcuts';
+import { HouseDetailSheet } from './HouseDetailSheet';
 
 interface AgentListingsSheetProps {
   open: boolean;
@@ -37,6 +38,7 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [timelineOpen, setTimelineOpen] = useState<Record<string, boolean>>({});
   const [viewingTenantId, setViewingTenantId] = useState<string | null>(null);
+  const [detailListingId, setDetailListingId] = useState<string | null>(null);
   const [reassignTarget, setReassignTarget] = useState<{
     rentRequestId: string; tenantName: string; currentAgentId: string;
   } | null>(null);
@@ -224,6 +226,7 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
   useFilterKeyboardShortcuts({ inputRef: searchRef, onClear: clearAll, hasActiveFilter, enabled: open });
 
   return (
+    <>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[90vh] rounded-t-3xl p-0 flex flex-col">
         <SheetHeader className="px-5 pt-5 pb-3 border-b border-border">
@@ -408,7 +411,17 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
                               key={l.id}
                               initial={{ opacity: 0 }}
                               animate={{ opacity: 1 }}
-                              className="rounded-lg border border-border bg-background p-3 space-y-2"
+                              role="button"
+                              tabIndex={0}
+                              aria-label={`Open details for ${l.title}`}
+                              onClick={() => setDetailListingId(l.id)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  setDetailListingId(l.id);
+                                }
+                              }}
+                              className="rounded-lg border border-border bg-background p-3 space-y-2 cursor-pointer hover:bg-accent/30 active:bg-accent/40 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                             >
                               <div className="flex items-start justify-between gap-2">
                                 <div className="min-w-0 flex-1">
@@ -448,7 +461,7 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
                               </div>
 
                               {l.tenant_id && (
-                                <div className="flex flex-wrap gap-1.5">
+                                <div className="flex flex-wrap gap-1.5" onClick={(e) => e.stopPropagation()}>
                                   <Button
                                     size="sm" variant="outline" className="h-8 text-xs gap-1"
                                     onClick={() => setViewingTenantId(l.tenant_id!)}
@@ -469,7 +482,7 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
                                   )}
                                 </div>
                               )}
-                              <div>
+                              <div onClick={(e) => e.stopPropagation()}>
                                 <Button
                                   size="sm" variant="ghost" className="h-7 text-[11px] gap-1 px-2"
                                   onClick={() => setTimelineOpen(s => ({ ...s, [l.id]: !s[l.id] }))}
@@ -516,5 +529,24 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
         )}
       </SheetContent>
     </Sheet>
+    {(() => {
+      const detailListing = detailListingId ? listings.find(l => l.id === detailListingId) ?? null : null;
+      const detailTenant = detailListing?.tenant_id ? enrichment.tenants[detailListing.tenant_id] : null;
+      const detailLandlord = detailListing?.landlord_id ? enrichment.landlords[detailListing.landlord_id] : null;
+      const detailReq = detailListing?.tenant_id ? enrichment.activeRequestByTenant[detailListing.tenant_id] : null;
+      return (
+        <HouseDetailSheet
+          open={!!detailListingId}
+          onOpenChange={(o) => !o && setDetailListingId(null)}
+          listing={detailListing}
+          tenant={detailTenant}
+          landlord={detailLandlord}
+          activeRequest={detailReq}
+          onChangeTenantProfile={(tid) => setViewingTenantId(tid)}
+          onReassignAgent={(args) => setReassignTarget(args)}
+        />
+      );
+    })()}
+    </>
   );
 }
