@@ -12,6 +12,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { BindTenantToHouseDialog } from './BindTenantToHouseDialog';
 import { RemoveTenantDialog } from './RemoveTenantDialog';
 import { ReassignAgentDialog } from '@/components/shared/ReassignAgentDialog';
+import { HouseActivityTimeline } from '@/components/shared/HouseActivityTimeline';
 
 interface HouseRow {
   id: string;
@@ -111,6 +112,7 @@ export function LandlordHousesPanel() {
   const [bindFor, setBindFor] = useState<{ landlordId: string; landlordName: string; houseId: string; currentTenantId: string | null } | null>(null);
   const [removeFor, setRemoveFor] = useState<{ houseId: string; houseTitle: string } | null>(null);
   const [reassignFor, setReassignFor] = useState<{ houseId: string; houseTitle: string; currentAgentId: string } | null>(null);
+  const [timelineOpen, setTimelineOpen] = useState<Record<string, boolean>>({});
 
   const refetch = () => {
     housesQuery.refetch();
@@ -230,7 +232,20 @@ export function LandlordHousesPanel() {
                               <UserCog className="h-3 w-3" />
                               Reassign agent
                             </Button>
+                            <Button
+                              size="sm" variant="ghost" className="h-8 text-xs gap-1"
+                              onClick={() => setTimelineOpen(s => ({ ...s, [h.id]: !s[h.id] }))}
+                              aria-expanded={!!timelineOpen[h.id]}
+                            >
+                              {timelineOpen[h.id] ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                              Timeline
+                            </Button>
                           </div>
+                          {timelineOpen[h.id] && (
+                            <div className="rounded-md border bg-muted/10 p-2">
+                              <HouseActivityTimeline houseId={h.id} />
+                            </div>
+                          )}
                         </div>
                       );
                     })}
