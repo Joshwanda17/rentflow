@@ -150,6 +150,13 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
         const acc = pos.coords.accuracy;
         setGps({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: acc });
         setGpsLoading(false);
+        appendHistory({
+          event: 'gps_captured',
+          source: 'business',
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: acc,
+        });
         if (acc > GPS_MAX_ACCURACY_M) {
           toast.error(`Business GPS too weak (±${Math.round(acc)}m). Move outside and retry.`);
         } else if (acc > GPS_GOOD_ACCURACY_M) {
@@ -162,7 +169,24 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
         setBusinessGeocoding(false);
         if (geo?.address) {
           setBusinessGeocoded(geo.address);
-          setBusinessAddress((prev) => (prev.trim() ? prev : geo.address));
+          appendHistory({
+            event: 'reverse_geocoded',
+            source: 'business',
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            address: geo.address,
+          });
+          setBusinessAddress((prev) => {
+            if (prev.trim()) return prev;
+            appendHistory({
+              event: 'autofill_from_geocode',
+              source: 'business',
+              field: 'business_address',
+              previous: prev,
+              value: geo.address,
+            });
+            return geo.address;
+          });
         }
       },
       () => { setGpsLoading(false); toast.error('Could not get GPS'); },
@@ -179,6 +203,13 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
         const acc = pos.coords.accuracy;
         setApplicantGps({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: acc });
         setApplicantGpsLoading(false);
+        appendHistory({
+          event: 'gps_captured',
+          source: 'applicant',
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: acc,
+        });
         if (acc > GPS_MAX_ACCURACY_M) {
           toast.error(`GPS too weak (±${Math.round(acc)}m). Move outside or retry.`);
         } else if (acc > GPS_GOOD_ACCURACY_M) {
@@ -191,7 +222,24 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
         setApplicantGeocoding(false);
         if (geo?.address) {
           setApplicantGeocoded(geo.address);
-          setApplicantManualLocation((prev) => (prev.trim() ? prev : geo.address));
+          appendHistory({
+            event: 'reverse_geocoded',
+            source: 'applicant',
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            address: geo.address,
+          });
+          setApplicantManualLocation((prev) => {
+            if (prev.trim()) return prev;
+            appendHistory({
+              event: 'autofill_from_geocode',
+              source: 'applicant',
+              field: 'manual_location',
+              previous: prev,
+              value: geo.address,
+            });
+            return geo.address;
+          });
         }
       },
       (err) => {
