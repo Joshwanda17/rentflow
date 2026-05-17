@@ -164,7 +164,7 @@ Deno.serve(async (req) => {
 
     const { data: tenant } = await admin
       .from("profiles")
-      .select("phone, full_name, email")
+      .select("phone, full_name, email, business_advance_notify_sms, business_advance_notify_email")
       .eq("id", adv.tenant_id)
       .maybeSingle();
 
@@ -206,10 +206,13 @@ Deno.serve(async (req) => {
 
     // 3) SMS / WhatsApp-openable text fallback
     let smsResult: { ok: boolean; status: number; raw?: string } | null = null;
-    if (tenant?.phone) {
+    const smsOptIn = (tenant as any)?.business_advance_notify_sms !== false;
+    if (tenant?.phone && smsOptIn) {
       const text = `${copy.title}\n${copy.body}\nTrack: ${trackUrl}`;
       smsResult = await sendSMS(tenant.phone, text);
       console.log("[notify-business-advance-status] SMS result", smsResult);
+    } else if (tenant?.phone && !smsOptIn) {
+      console.log("[notify-business-advance-status] SMS skipped — tenant opted out");
     }
 
     // 4) Email (best-effort via Gmail connector)
@@ -225,13 +228,16 @@ Deno.serve(async (req) => {
       "rejected",
       "completed",
     ];
-    if (emailAddr && /.+@.+\..+/.test(emailAddr) && NOTIFY_STAGES.includes(new_status)) {
+    const emailOptIn = (tenant as any)?.business_advance_notify_email !== false;
+    if (emailAddr && /.+@.+\..+/.test(emailAddr) && NOTIFY_STAGES.includes(new_status) && emailOptIn) {
       try {
         emailResult = await sendEmail(emailAddr, copy.title, copy.title, copy.body, trackUrl);
         console.log("[notify-business-advance-status] Email result", emailResult?.status);
       } catch (e) {
         console.warn("[notify-business-advance-status] email failed:", (e as Error)?.message);
       }
+    } else if (emailAddr && !emailOptIn) {
+      console.log("[notify-business-advance-status] Email skipped — tenant opted out");
     }
 
     return new Response(

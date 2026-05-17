@@ -7,6 +7,7 @@ import BusinessAdvanceStatusTracker, { AdvanceStatusRow } from '@/components/bus
 import { useBusinessAdvanceRealtime } from '@/hooks/useBusinessAdvanceRealtime';
 import { BusinessAdvanceAuditLog } from '@/components/business-advance/BusinessAdvanceAuditLog';
 import { LiveUpdatingBadge } from '@/components/business-advance/LiveUpdatingBadge';
+import { BusinessAdvanceNotificationPreferences } from '@/components/business-advance/NotificationPreferences';
 
 const ACTIVE_STATUSES = ['pending','agent_ops_approved','tenant_ops_approved','landlord_ops_approved','coo_approved','active'] as const;
 
@@ -61,6 +62,7 @@ export function BusinessAdvanceStatusHero() {
         </div>
         <BusinessAdvanceStatusTracker row={data} compact />
         <BusinessAdvanceAuditLog advanceId={data.id} />
+        {user?.id && <BusinessAdvanceNotificationPreferences userId={user.id} />}
       </CardContent>
     </Card>
   );
