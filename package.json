@@ -11,7 +11,9 @@
     "guard:persona-routes": "node scripts/guard-persona-routes.mjs",
     "guard:frontend-ledger-writes": "node scripts/guard-frontend-ledger-writes.mjs",
     "guard:deposit-purpose": "node scripts/guard-deposit-purpose.mjs",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install chromium"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
