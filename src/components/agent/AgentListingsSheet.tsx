@@ -614,6 +614,38 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
         />
       );
     })()}
+    <EditHouseListingDialog
+      open={!!editingListing}
+      onOpenChange={(o) => !o && setEditingListing(null)}
+      listing={editingListing}
+      onSaved={refresh}
+    />
+    <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && !deleting && setDeleteTarget(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Remove this listing?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {deleteTarget ? (
+              <>
+                <span className="font-medium text-foreground">{deleteTarget.title}</span> will be removed from your account.
+                This action cannot be undone.
+              </>
+            ) : null}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={(e) => { e.preventDefault(); handleDelete(); }}
+            disabled={deleting}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
+          >
+            {deleting && <Loader2 className="h-4 w-4 animate-spin" />}
+            Remove
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     </>
   );
 }
