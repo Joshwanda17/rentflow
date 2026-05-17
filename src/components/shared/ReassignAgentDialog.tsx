@@ -1,0 +1,156 @@
+import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import { Loader2, UserCog, Search } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+
+type Target =
+  | { kind: 'house'; houseId: string; houseTitle: string; currentAgentId: string }
+  | { kind: 'rent_request'; rentRequestId: string; tenantName: string; currentAgentId: string };
+
+interface ReassignAgentDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  target: Target;
+  onComplete?: () => void;
+}
+
+export function ReassignAgentDialog({ open, onOpenChange, target, onComplete }: ReassignAgentDialogProps) {
+  const { toast } = useToast();
+  const [agentId, setAgentId] = useState('');
+  const [reason, setReason] = useState('');
+  const [search, setSearch] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => { if (open) { setAgentId(''); setReason(''); setSearch(''); } }, [open]);
+
+  const agentsQuery = useQuery({
+    queryKey: ['reassign-agent-pool'],
+    enabled: open,
+    queryFn: async () => {
+      const { data: roleRows, error } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'agent')
+        .limit(500);
+      if (error) throw error;
+      const ids = Array.from(new Set((roleRows ?? []).map(r => r.user_id)));
+      if (!ids.length) return [] as Array<{ id: string; name: string; phone: string | null }>;
+      const { data: profs } = await supabase
+        .from('profiles')
+        .select('id,full_name,phone')
+        .in('id', ids);
+      return ((profs ?? []) as Array<{ id: string; full_name: string | null; phone: string | null }>).map(p => ({
+        id: p.id,
+        name: p.full_name || 'Unnamed agent',
+        phone: p.phone ?? null,
+      })).sort((a, b) => a.name.localeCompare(b.name));
+    },
+  });
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const all = agentsQuery.data ?? [];
+    if (!q) return all;
+    return all.filter(a => a.name.toLowerCase().includes(q) || (a.phone ?? '').includes(q));
+  }, [agentsQuery.data, search]);
+
+  const canSubmit = !!agentId && agentId !== target.currentAgentId && reason.trim().length >= 10 && !busy;
+
+  const handleSubmit = async () => {
+    if (!canSubmit) return;
+    setBusy(true);
+    try {
+      const rpc = target.kind === 'house' ? 'reassign_house_agent' : 'reassign_rent_request_agent';
+      const args =
+        target.kind === 'house'
+          ? { p_house_id: target.houseId, p_new_agent_id: agentId, p_reason: reason.trim() }
+          : { p_rent_request_id: target.rentRequestId, p_new_agent_id: agentId, p_reason: reason.trim() };
+      const { error } = await supabase.rpc(rpc as any, args as any);
+      if (error) throw error;
+      toast({ title: 'Agent reassigned' });
+      onComplete?.();
+      onOpenChange(false);
+    } catch (e: any) {
+      toast({ title: 'Failed', description: e.message ?? String(e), variant: 'destructive' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const subject = target.kind === 'house'
+    ? <>house <span className="font-medium">{target.houseTitle}</span></>
+    : <>tenant <span className="font-medium">{target.tenantName}</span></>;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <UserCog className="h-5 w-5 text-primary" />
+            Reassign managing agent
+          </DialogTitle>
+          <DialogDescription>Pick a different agent to manage {subject}.</DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search agents by name or phone"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="pl-8"
+              disabled={busy}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>New agent</Label>
+            <Select value={agentId} onValueChange={setAgentId} disabled={busy}>
+              <SelectTrigger><SelectValue placeholder="Pick an agent" /></SelectTrigger>
+              <SelectContent className="max-h-72">
+                {filtered.map(a => (
+                  <SelectItem key={a.id} value={a.id} disabled={a.id === target.currentAgentId}>
+                    {a.name}{a.phone ? ` · ${a.phone}` : ''}{a.id === target.currentAgentId ? ' (current)' : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {agentsQuery.isLoading && <p className="text-xs text-muted-foreground">Loading agents…</p>}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Reason (min 10 characters)</Label>
+            <Textarea
+              value={reason}
+              onChange={e => setReason(e.target.value)}
+              placeholder="e.g. Current agent on leave; reassigning to nearest sub-agent"
+              rows={3}
+              disabled={busy}
+            />
+            <p className="text-[11px] text-muted-foreground">{reason.trim().length}/10</p>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button>
+          <Button onClick={handleSubmit} disabled={!canSubmit}>
+            {busy && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+            Reassign
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
