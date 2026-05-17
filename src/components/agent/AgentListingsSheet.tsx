@@ -410,7 +410,17 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
                               key={l.id}
                               initial={{ opacity: 0 }}
                               animate={{ opacity: 1 }}
-                              className="rounded-lg border border-border bg-background p-3 space-y-2"
+                              role="button"
+                              tabIndex={0}
+                              aria-label={`Open details for ${l.title}`}
+                              onClick={() => setDetailListingId(l.id)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  setDetailListingId(l.id);
+                                }
+                              }}
+                              className="rounded-lg border border-border bg-background p-3 space-y-2 cursor-pointer hover:bg-accent/30 active:bg-accent/40 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                             >
                               <div className="flex items-start justify-between gap-2">
                                 <div className="min-w-0 flex-1">
@@ -450,7 +460,7 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
                               </div>
 
                               {l.tenant_id && (
-                                <div className="flex flex-wrap gap-1.5">
+                                <div className="flex flex-wrap gap-1.5" onClick={(e) => e.stopPropagation()}>
                                   <Button
                                     size="sm" variant="outline" className="h-8 text-xs gap-1"
                                     onClick={() => setViewingTenantId(l.tenant_id!)}
@@ -471,7 +481,7 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
                                   )}
                                 </div>
                               )}
-                              <div>
+                              <div onClick={(e) => e.stopPropagation()}>
                                 <Button
                                   size="sm" variant="ghost" className="h-7 text-[11px] gap-1 px-2"
                                   onClick={() => setTimelineOpen(s => ({ ...s, [l.id]: !s[l.id] }))}
