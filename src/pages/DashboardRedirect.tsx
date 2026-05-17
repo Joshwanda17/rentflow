@@ -3,6 +3,7 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth, type AppRole } from '@/hooks/useAuth';
 import { roleToSlug, slugToRole } from '@/lib/roleRoutes';
 import { getPreferredDefaultRole } from '@/hooks/useAppPreferences';
+import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
 
 /**
@@ -49,22 +50,23 @@ export default function DashboardRedirect() {
     }
 
     // Pick the first hint the user actually still holds.
-    // Priority: explicit URL/query hint → user's chosen default → cached auth.role.
+    // Priority: explicit URL/query hint → user's chosen default →
+    // "agent if they have ever posted a rent request" auto-rule → cached auth.role.
     const preferred = getPreferredDefaultRole();
     const preferredRole: AppRole | null =
       preferred !== 'auto' ? (preferred as AppRole) : null;
-    const candidates: Array<AppRole | null> = [pathHint, queryHint, preferredRole, role];
-    const honored = candidates.find((c): c is AppRole => !!c && roles.includes(c));
-    if (honored) {
-      navigate(roleToSlug(honored), { replace: true });
+
+    // Honor explicit hints / user-chosen default first.
+    const explicit: Array<AppRole | null> = [pathHint, queryHint, preferredRole];
+    const explicitHonored = explicit.find((c): c is AppRole => !!c && roles.includes(c));
+    if (explicitHonored) {
+      navigate(roleToSlug(explicitHonored), { replace: true });
       return;
     }
 
     // A specific persona was requested but the user no longer has it
     // (revoked access, expired link) OR the URL contains an unknown
-    // persona slug like `/dashboard/foo`. Send them to the role picker
-    // so they can choose from what they DO have, instead of landing on
-    // a broken dashboard screen.
+    // persona slug like `/dashboard/foo`. Send them to the role picker.
     if (pathHint || queryHint || hasUnknownPathSlug) {
       const requestedSlug = hasUnknownPathSlug
         ? location.pathname
@@ -81,8 +83,47 @@ export default function DashboardRedirect() {
       return;
     }
 
-    // Bare `/dashboard` with no hint: forward to the first available role.
-    navigate(roleToSlug(roles[0]), { replace: true });
+    // Auto rule: if the user holds the 'agent' role AND has ever posted a
+    // rent request (as agent_id), default them to the agent dashboard.
+    // Cached per-user in localStorage so we only hit the DB once.
+    const cacheKey = `welile_has_posted_rent_request_${user.id}`;
+    const goAgent = () => navigate(roleToSlug('agent'), { replace: true });
+    const fallback = () => {
+      const honored = role && roles.includes(role) ? role : roles[0];
+      navigate(roleToSlug(honored), { replace: true });
+    };
+
+    if (roles.includes('agent')) {
+      let cached: string | null = null;
+      try { cached = localStorage.getItem(cacheKey); } catch {}
+      if (cached === '1') { goAgent(); return; }
+      if (cached === '0') { fallback(); return; }
+
+      // Unknown — check once, then route. Don't block UI longer than 1.5s.
+      let settled = false;
+      const timeout = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        fallback();
+      }, 1500);
+      supabase
+        .from('rent_requests')
+        .select('id', { head: true, count: 'exact' })
+        .eq('agent_id', user.id)
+        .limit(1)
+        .then(({ count, error }) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
+          const has = !error && (count ?? 0) > 0;
+          try { localStorage.setItem(cacheKey, has ? '1' : '0'); } catch {}
+          if (has) goAgent(); else fallback();
+        });
+      return;
+    }
+
+    fallback();
+    return;
   }, [loading, user, role, roles, pathHint, queryHint, hasUnknownPathSlug, navigate]);
 
   // While auth resolves, show the same skeleton the dashboard uses so
