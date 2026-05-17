@@ -16,6 +16,7 @@ import { ReassignAgentDialog } from '@/components/shared/ReassignAgentDialog';
 import { HouseActivityTimeline } from '@/components/shared/HouseActivityTimeline';
 import { HighlightText } from '@/components/shared/HighlightText';
 import { useFilterKeyboardShortcuts } from '@/hooks/useFilterKeyboardShortcuts';
+import { useAuth } from '@/hooks/useAuth';
 
 interface HouseRow {
   id: string;
@@ -40,7 +41,9 @@ interface LandlordGroup {
   vacant: number;
 }
 
-const FILTERS_STORAGE_KEY = 'landlord-houses-panel:filters:v1';
+const FILTERS_STORAGE_PREFIX = 'landlord-houses-panel:filters:v2';
+const storageKeyFor = (uid: string | null | undefined) =>
+  uid ? `${FILTERS_STORAGE_PREFIX}:${uid}` : `${FILTERS_STORAGE_PREFIX}:anon`;
 type PanelFilters = {
   search: string;
   statusFilter: 'all' | 'occupied' | 'vacant';
@@ -48,27 +51,43 @@ type PanelFilters = {
   sortBy: 'newest' | 'oldest' | 'title' | 'region' | 'occupied_first' | 'vacant_first';
 };
 const DEFAULT_FILTERS: PanelFilters = { search: '', statusFilter: 'all', regionFilter: 'all', sortBy: 'newest' };
-function loadFilters(): PanelFilters {
+function loadFilters(key: string): PanelFilters {
   try {
-    const raw = localStorage.getItem(FILTERS_STORAGE_KEY);
+    const raw = localStorage.getItem(key);
     if (!raw) return DEFAULT_FILTERS;
     return { ...DEFAULT_FILTERS, ...JSON.parse(raw) };
   } catch { return DEFAULT_FILTERS; }
 }
 
 export function LandlordHousesPanel() {
-  const initial = (typeof window !== 'undefined') ? loadFilters() : DEFAULT_FILTERS;
-  const [search, setSearch] = useState(initial.search);
-  const [statusFilter, setStatusFilter] = useState<PanelFilters['statusFilter']>(initial.statusFilter);
-  const [regionFilter, setRegionFilter] = useState<string>(initial.regionFilter);
-  const [sortBy, setSortBy] = useState<PanelFilters['sortBy']>(initial.sortBy);
+  const { user } = useAuth();
+  const storageKey = storageKeyFor(user?.id);
+  const [search, setSearch] = useState(DEFAULT_FILTERS.search);
+  const [statusFilter, setStatusFilter] = useState<PanelFilters['statusFilter']>(DEFAULT_FILTERS.statusFilter);
+  const [regionFilter, setRegionFilter] = useState<string>(DEFAULT_FILTERS.regionFilter);
+  const [sortBy, setSortBy] = useState<PanelFilters['sortBy']>(DEFAULT_FILTERS.sortBy);
+  const hydratedKeyRef = useRef<string | null>(null);
+
+  // Re-hydrate when the active user (and therefore the scoped key) changes.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const next = loadFilters(storageKey);
+    setSearch(next.search);
+    setStatusFilter(next.statusFilter);
+    setRegionFilter(next.regionFilter);
+    setSortBy(next.sortBy);
+    hydratedKeyRef.current = storageKey;
+  }, [storageKey]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
+    // Only persist after we have hydrated for this user — prevents writing
+    // the previous user's filters under the new user's key.
+    if (hydratedKeyRef.current !== storageKey) return;
     try {
-      localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify({ search, statusFilter, regionFilter, sortBy }));
+      localStorage.setItem(storageKey, JSON.stringify({ search, statusFilter, regionFilter, sortBy }));
     } catch { /* ignore */ }
-  }, [search, statusFilter, regionFilter, sortBy]);
+  }, [search, statusFilter, regionFilter, sortBy, storageKey]);
 
   const searchRef = useRef<HTMLInputElement>(null);
   const clearAll = () => { setSearch(''); setStatusFilter('all'); setRegionFilter('all'); setSortBy('newest'); };
