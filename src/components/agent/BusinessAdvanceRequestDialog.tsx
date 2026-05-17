@@ -279,13 +279,13 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
     if (!user) return toast.error('Not signed in');
     setLoading(true);
     try {
-      const cleanPhone = tenantPhone.replace(/\s/g, '');
+      const tenantPhoneClean = cleanPhone(tenantPhone);
       let tenantId: string | null = null;
 
       const { data: existing } = await supabase
         .from('profiles')
         .select('id')
-        .eq('phone', cleanPhone)
+        .eq('phone', tenantPhoneClean)
         .maybeSingle();
 
       if (existing?.id) {
@@ -294,7 +294,7 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
         const { data: regData, error: regErr } = await supabase.functions.invoke('register-tenant', {
           body: {
             full_name: tenantName.trim(),
-            phone: cleanPhone,
+            phone: tenantPhoneClean,
             national_id: tenantNationalId.trim().toUpperCase(),
             email: tenantEmail.trim() || undefined,
           },
@@ -305,7 +305,7 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
 
       if (!tenantId) throw new Error('Could not resolve tenant');
 
-      const activation = `${getPublicOrigin()}/activate?phone=${encodeURIComponent(cleanPhone)}&type=business`;
+      const activation = `${getPublicOrigin()}/activate?phone=${encodeURIComponent(tenantPhoneClean)}&type=business`;
 
       // Persist rent history records (status pending — back-office will verify)
       const validHistory = rentHistory.filter(
