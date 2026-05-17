@@ -111,6 +111,14 @@ export default function BusinessAdvanceTrack() {
     return () => { aliveRef.current = false; };
   }, [load]);
 
+  // Fire a one-shot 'tracker_view' analytics event once the live approval
+  // tracker has data to display for this phone.
+  useEffect(() => {
+    if (!row || trackerViewLoggedRef.current) return;
+    trackerViewLoggedRef.current = true;
+    void logShareEvent('tracker_view');
+  }, [row, logShareEvent]);
+
   // Shared realtime — covers INSERT (request just created) and UPDATE
   // (stage advanced) so the public tracker mirrors the tenant dashboard hero.
   const rtStatus = useBusinessAdvanceRealtime(
