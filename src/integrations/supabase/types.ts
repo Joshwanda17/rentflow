@@ -3849,6 +3849,45 @@ export type Database = {
         }
         Relationships: []
       }
+      client_error_reports: {
+        Row: {
+          component_stack: string | null
+          context: Json
+          created_at: string
+          id: string
+          label: string | null
+          message: string | null
+          role: string | null
+          route: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          component_stack?: string | null
+          context?: Json
+          created_at?: string
+          id?: string
+          label?: string | null
+          message?: string | null
+          role?: string | null
+          route?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          component_stack?: string | null
+          context?: Json
+          created_at?: string
+          id?: string
+          label?: string | null
+          message?: string | null
+          role?: string | null
+          route?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       commission_accrual_ledger: {
         Row: {
           agent_id: string | null
