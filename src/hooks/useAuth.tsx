@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, createContext, useContext, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { setReportingTags } from '@/lib/errorReporting';
 import {
   setCachedSession,
   clearSessionCache,
@@ -200,6 +201,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setRolesWithRef([]);
     clearSessionCache();
   };
+
+  // Keep the error-reporting pipeline tagged with the current user + role so
+  // every captured exception (boundary, window.onerror, unhandledrejection)
+  // is traceable per identity.
+  useEffect(() => {
+    setReportingTags({ userId: user?.id ?? null, role: role ?? null });
+  }, [user?.id, role]);
 
   return (
     <AuthContext.Provider
