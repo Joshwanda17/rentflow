@@ -14770,6 +14770,18 @@ export type Database = {
           status: string
         }[]
       }
+      get_house_activity_timeline: {
+        Args: { p_house_id: string }
+        Returns: {
+          action_type: string
+          actor_id: string
+          actor_name: string
+          created_at: string
+          id: string
+          metadata: Json
+          reason: string
+        }[]
+      }
       get_ledger_balance: { Args: { p_user_id: string }; Returns: number }
       get_ledger_integrity_checks: { Args: never; Returns: Json }
       get_ledger_summary: {

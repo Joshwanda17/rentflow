@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { TenantProfileView } from './TenantProfileView';
 import { ReassignAgentDialog } from '@/components/shared/ReassignAgentDialog';
+import { HouseActivityTimeline } from '@/components/shared/HouseActivityTimeline';
 
 interface AgentListingsSheetProps {
   open: boolean;
@@ -28,6 +29,7 @@ export function AgentListingsSheet({ open, onOpenChange }: AgentListingsSheetPro
   });
   const [relisting, setRelisting] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [timelineOpen, setTimelineOpen] = useState<Record<string, boolean>>({});
   const [viewingTenantId, setViewingTenantId] = useState<string | null>(null);
   const [reassignTarget, setReassignTarget] = useState<{
     rentRequestId: string; tenantName: string; currentAgentId: string;
@@ -267,6 +269,21 @@ export function AgentListingsSheet({ open, onOpenChange }: AgentListingsSheetPro
                                   )}
                                 </div>
                               )}
+                              <div>
+                                <Button
+                                  size="sm" variant="ghost" className="h-7 text-[11px] gap-1 px-2"
+                                  onClick={() => setTimelineOpen(s => ({ ...s, [l.id]: !s[l.id] }))}
+                                  aria-expanded={!!timelineOpen[l.id]}
+                                >
+                                  {timelineOpen[l.id] ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                                  Timeline
+                                </Button>
+                                {timelineOpen[l.id] && (
+                                  <div className="mt-1 rounded-md border bg-muted/10 p-2">
+                                    <HouseActivityTimeline houseId={l.id} />
+                                  </div>
+                                )}
+                              </div>
                             </motion.div>
                           );
                         })}
