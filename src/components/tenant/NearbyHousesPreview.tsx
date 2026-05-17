@@ -14,6 +14,8 @@ import { Badge } from '@/components/ui/badge';
 import { useMapLinkAnnouncer } from '@/hooks/useMapLinkAnnouncer';
 
 interface NearbyHousesPreviewProps {
+  /** When set, tapping a house card opens the listed-houses sheet instead of navigating to the detail page. */
+  onSelectHouse?: () => void;
   onViewAll: () => void;
 }
 
@@ -47,7 +49,7 @@ function MiniMapThumb({ lat, lng, title }: { lat: number | null; lng: number | n
   );
 }
 
-function MiniHouseCard({ listing }: { listing: HouseListing }) {
+function MiniHouseCard({ listing, onSelectHouse }: { listing: HouseListing; onSelectHouse?: () => void }) {
   const navigate = useNavigate();
   const dist = listing.distance_km;
   const isPending = !listing.verified || listing.status === 'pending';
@@ -64,7 +66,10 @@ function MiniHouseCard({ listing }: { listing: HouseListing }) {
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      onClick={() => navigate(`/house/${listing.id}`)}
+      onClick={() => {
+        if (onSelectHouse) onSelectHouse();
+        else navigate(`/house/${listing.id}`);
+      }}
       className="min-w-[240px] max-w-[240px] snap-start rounded-2xl border border-border bg-card overflow-hidden shadow-sm cursor-pointer active:scale-[0.97] transition-transform touch-manipulation"
     >
       {/* Cover image with carousel */}
@@ -175,7 +180,7 @@ function MiniHouseCard({ listing }: { listing: HouseListing }) {
   );
 }
 
-export function NearbyHousesPreview({ onViewAll }: NearbyHousesPreviewProps) {
+export function NearbyHousesPreview({ onViewAll, onSelectHouse }: NearbyHousesPreviewProps) {
   const geo = useGeolocation(true);
   const { listings, loading } = useNearbyHouses({
     latitude: geo.latitude,
@@ -223,7 +228,7 @@ export function NearbyHousesPreview({ onViewAll }: NearbyHousesPreviewProps) {
 
       <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4 scrollbar-hide">
         {listings.map(listing => (
-          <MiniHouseCard key={listing.id} listing={listing} />
+          <MiniHouseCard key={listing.id} listing={listing} onSelectHouse={onSelectHouse} />
         ))}
       </div>
     </div>

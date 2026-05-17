@@ -118,7 +118,16 @@ export function SuggestedHousesCard({ userId, onViewAll }: SuggestedHousesCardPr
                 </button>
 
                 {/* Details */}
-                <div className="flex-1 min-w-0 space-y-1">
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={onViewAll}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onViewAll(); }
+                  }}
+                  aria-label={`Browse listed houses like ${house.title}`}
+                  className="flex-1 min-w-0 space-y-1 text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/40 rounded-md"
+                >
                   <p className="font-semibold text-sm truncate">{house.title}</p>
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
                     <MapPin className="h-3 w-3 shrink-0" />
@@ -128,7 +137,10 @@ export function SuggestedHousesCard({ userId, onViewAll }: SuggestedHousesCardPr
                     <Badge variant="outline" className="text-[9px] h-4 px-1">{house.house_category}</Badge>
                     <Badge variant="outline" className="text-[9px] h-4 px-1">{house.number_of_rooms} rooms</Badge>
                   </div>
-                  <div className="flex items-center justify-between pt-0.5">
+                  <div
+                    className="flex items-center justify-between pt-0.5"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <p className="text-sm font-black text-success">{formatUGX(house.daily_rate)}<span className="text-[10px] font-normal text-muted-foreground">/day</span></p>
                     <div className="flex items-center gap-1">
                       <ShareHouseButton listingId={house.id} title={house.title} region={house.region} dailyRate={house.daily_rate} shortCode={house.short_code} />
