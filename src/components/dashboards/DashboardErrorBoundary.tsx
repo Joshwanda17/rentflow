@@ -1,10 +1,13 @@
 import { Component, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 
 interface Props {
   children: ReactNode;
   /** Friendly role label shown in the fallback, e.g. "agent dashboard". */
   label?: string;
+  /** When this value changes, the boundary automatically clears its error state. */
+  resetKey?: string | number;
 }
 
 interface State {
@@ -17,7 +20,7 @@ interface State {
  * error inside the dashboard subtree from blanking out the whole app — instead
  * the user sees a readable message with Reload / Sign out actions.
  */
-export class DashboardErrorBoundary extends Component<Props, State> {
+export class DashboardErrorBoundaryInner extends Component<Props, State> {
   state: State = { hasError: false };
 
   static getDerivedStateFromError(error: Error): State {
@@ -31,6 +34,16 @@ export class DashboardErrorBoundary extends Component<Props, State> {
       info.componentStack,
     );
   }
+
+  componentDidUpdate(prevProps: Props) {
+    if (this.state.hasError && prevProps.resetKey !== this.props.resetKey) {
+      this.setState({ hasError: false, message: undefined });
+    }
+  }
+
+  handleTryAgain = () => {
+    this.setState({ hasError: false, message: undefined });
+  };
 
   handleReload = () => {
     try { window.location.reload(); } catch { /* ignore */ }
@@ -77,10 +90,17 @@ export class DashboardErrorBoundary extends Component<Props, State> {
               <div className="mt-4 flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={this.handleReload}
+                  onClick={this.handleTryAgain}
                   className="inline-flex items-center gap-1.5 rounded-lg bg-primary text-primary-foreground px-3 py-2 text-sm font-medium hover:opacity-90 transition-opacity"
                 >
                   <RefreshCw className="h-4 w-4" />
+                  Try again
+                </button>
+                <button
+                  type="button"
+                  onClick={this.handleReload}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium hover:bg-muted transition-colors"
+                >
                   Reload
                 </button>
                 <button
@@ -97,6 +117,15 @@ export class DashboardErrorBoundary extends Component<Props, State> {
       </div>
     );
   }
+}
+
+/**
+ * Route-aware wrapper: forwards the current pathname as `resetKey`, so the
+ * boundary clears its error state automatically when the user navigates away.
+ */
+export function DashboardErrorBoundary(props: Props) {
+  const location = useLocation();
+  return <DashboardErrorBoundaryInner {...props} resetKey={props.resetKey ?? location.pathname} />;
 }
 
 export default DashboardErrorBoundary;
