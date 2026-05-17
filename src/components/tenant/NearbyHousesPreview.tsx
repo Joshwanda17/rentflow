@@ -66,11 +66,21 @@ function MiniHouseCard({ listing, onSelectHouse }: { listing: HouseListing; onSe
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
+      role="button"
+      tabIndex={0}
+      aria-label={`View available houses like ${listing.title}`}
       onClick={() => {
         if (onSelectHouse) onSelectHouse();
         else navigate(`/house/${listing.id}`);
       }}
-      className="min-w-[240px] max-w-[240px] snap-start rounded-2xl border border-border bg-card overflow-hidden shadow-sm cursor-pointer active:scale-[0.97] transition-transform touch-manipulation"
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          if (onSelectHouse) onSelectHouse();
+          else navigate(`/house/${listing.id}`);
+        }
+      }}
+      className="min-w-[240px] max-w-[240px] snap-start rounded-2xl border border-border bg-card overflow-hidden shadow-sm cursor-pointer active:scale-[0.97] transition-transform touch-manipulation focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
       {/* Cover image with carousel */}
       <div className="relative w-full h-28 bg-muted">
