@@ -180,6 +180,8 @@ export function LandlordHousesPanel() {
   }, [groups, search, statusFilter, regionFilter, profs, sortBy]);
 
   const hasActiveFilter = search.trim().length > 0 || statusFilter !== 'all' || regionFilter !== 'all' || sortBy !== 'newest';
+
+  useFilterKeyboardShortcuts({ inputRef: searchRef, onClear: clearAll, hasActiveFilter });
   const totalHouses = filtered.reduce((s, g) => s + g.houses.length, 0);
 
   // ── Action dialog state ──
@@ -253,7 +255,7 @@ export function LandlordHousesPanel() {
           {hasActiveFilter && (
             <Button
               variant="ghost" size="sm" className="h-9 text-xs gap-1"
-              onClick={() => { setSearch(''); setStatusFilter('all'); setRegionFilter('all'); setSortBy('newest'); }}
+              onClick={clearAll}
             >
               <X className="h-3 w-3" /> Clear
             </Button>
