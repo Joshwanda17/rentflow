@@ -64,6 +64,25 @@ export default function DashboardRedirect() {
       return;
     }
 
+    // A specific persona was requested but the user no longer has it
+    // (revoked access, expired link) OR the URL contains an unknown
+    // persona slug like `/dashboard/foo`. Send them to the role picker.
+    if (pathHint || queryHint || hasUnknownPathSlug) {
+      const requestedSlug = hasUnknownPathSlug
+        ? location.pathname
+        : queryHint
+          ? `/dashboard/${queryHint === 'supporter' ? 'funder' : queryHint}`
+          : location.pathname;
+      navigate('/select-role', {
+        replace: true,
+        state: {
+          reason: hasUnknownPathSlug ? 'unknown-slug' : 'role-not-held',
+          requestedSlug,
+        },
+      });
+      return;
+    }
+
     // Auto rule: if the user holds the 'agent' role AND has ever posted a
     // rent request (as agent_id), default them to the agent dashboard.
     // Cached per-user in localStorage so we only hit the DB once.
@@ -105,28 +124,6 @@ export default function DashboardRedirect() {
 
     fallback();
     return;
-
-    // A specific persona was requested but the user no longer has it
-    // (revoked access, expired link) OR the URL contains an unknown
-    // persona slug like `/dashboard/foo`. Send them to the role picker
-    // so they can choose from what they DO have, instead of landing on
-    // a broken dashboard screen.
-    if (pathHint || queryHint || hasUnknownPathSlug) {
-      const requestedSlug = hasUnknownPathSlug
-        ? location.pathname
-        : queryHint
-          ? `/dashboard/${queryHint === 'supporter' ? 'funder' : queryHint}`
-          : location.pathname;
-      navigate('/select-role', {
-        replace: true,
-        state: {
-          reason: hasUnknownPathSlug ? 'unknown-slug' : 'role-not-held',
-          requestedSlug,
-        },
-      });
-      return;
-    }
-
   }, [loading, user, role, roles, pathHint, queryHint, hasUnknownPathSlug, navigate]);
 
   // While auth resolves, show the same skeleton the dashboard uses so
