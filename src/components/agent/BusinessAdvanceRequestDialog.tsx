@@ -16,6 +16,11 @@ import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import RentHistoryCaptureGrid, { RentHistoryEntry } from './RentHistoryCaptureGrid';
 import AdvanceLimitMarketingCard from './AdvanceLimitMarketingCard';
 import { isContactPickerSupported, pickContact } from '@/lib/contactPicker';
+import LocationMapPreview from '@/components/shared/LocationMapPreview';
+
+// GPS accuracy thresholds (metres)
+const GPS_GOOD_ACCURACY_M = 50;   // good enough — green
+const GPS_MAX_ACCURACY_M = 200;   // hard reject — must retry or use manual
 
 interface Props {
   open: boolean;
@@ -102,9 +107,16 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
     setGpsLoading(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setGps({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy });
+        const acc = pos.coords.accuracy;
+        setGps({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: acc });
         setGpsLoading(false);
-        toast.success('Business location captured');
+        if (acc > GPS_MAX_ACCURACY_M) {
+          toast.error(`Business GPS too weak (±${Math.round(acc)}m). Move outside and retry.`);
+        } else if (acc > GPS_GOOD_ACCURACY_M) {
+          toast.warning(`Business location captured at ±${Math.round(acc)}m — consider retrying.`);
+        } else {
+          toast.success(`Business location captured (±${Math.round(acc)}m)`);
+        }
       },
       () => { setGpsLoading(false); toast.error('Could not get GPS'); },
       { enableHighAccuracy: true, timeout: 20000 }
@@ -116,9 +128,16 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
     setApplicantGpsLoading(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setApplicantGps({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy });
+        const acc = pos.coords.accuracy;
+        setApplicantGps({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: acc });
         setApplicantGpsLoading(false);
-        toast.success('Applicant location captured');
+        if (acc > GPS_MAX_ACCURACY_M) {
+          toast.error(`GPS too weak (±${Math.round(acc)}m). Move outside or retry.`);
+        } else if (acc > GPS_GOOD_ACCURACY_M) {
+          toast.warning(`Captured at ±${Math.round(acc)}m — consider retrying for better accuracy.`);
+        } else {
+          toast.success(`Applicant location captured (±${Math.round(acc)}m)`);
+        }
       },
       (err) => {
         setApplicantGpsLoading(false);
@@ -217,6 +236,9 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
     const id = tenantNationalId.trim().toUpperCase();
     if (id.length < 10 || id.length > 14 || !/^[A-Z0-9]+$/.test(id)) return 'National ID must be 10-14 alphanumeric';
     if (!hasSmartphone) return 'Business tenants must have a smartphone to manage their dashboard';
+    if (applicantGps && applicantGps.accuracy > GPS_MAX_ACCURACY_M && !applicantManualLocation.trim()) {
+      return `Applicant GPS is too weak (±${Math.round(applicantGps.accuracy)}m). Retry or fill the manual location field.`;
+    }
     return null;
   };
 
@@ -225,6 +247,7 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
     if (!businessType) return 'Business type required';
     if (!businessAddress.trim()) return 'Business address required';
     if (!gps) return 'Capture business GPS location';
+    if (gps.accuracy > GPS_MAX_ACCURACY_M) return `Business GPS too weak (±${Math.round(gps.accuracy)}m). Retry outside for a stronger signal.`;
     return null;
   };
 
@@ -606,6 +629,31 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
                   ? `📍 Applicant GPS captured (±${Math.round(applicantGps.accuracy)}m)`
                   : 'Capture applicant GPS'}
               </Button>
+              {applicantGps && (() => {
+                const acc = applicantGps.accuracy;
+                const tone =
+                  acc > GPS_MAX_ACCURACY_M
+                    ? 'border-destructive/40 bg-destructive/10 text-destructive'
+                    : acc > GPS_GOOD_ACCURACY_M
+                    ? 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400'
+                    : 'border-green-500/40 bg-green-500/10 text-green-700 dark:text-green-400';
+                const label =
+                  acc > GPS_MAX_ACCURACY_M
+                    ? `Too weak (±${Math.round(acc)}m). Retry outside or fill the manual field below.`
+                    : acc > GPS_GOOD_ACCURACY_M
+                    ? `Acceptable but weak (±${Math.round(acc)}m). Consider retrying for a tighter fix.`
+                    : `Good accuracy (±${Math.round(acc)}m)`;
+                return (
+                  <>
+                    <div className={`rounded-md border p-2 text-[11px] ${tone}`}>{label}</div>
+                    <LocationMapPreview
+                      lat={applicantGps.lat}
+                      lng={applicantGps.lng}
+                      accuracy={applicantGps.accuracy}
+                    />
+                  </>
+                );
+              })()}
               <Input
                 value={applicantManualLocation}
                 onChange={(e) => setApplicantManualLocation(e.target.value)}
@@ -787,6 +835,27 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
               {gpsLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Navigation className="h-4 w-4 mr-2" />}
               {gps ? `📍 GPS captured (±${Math.round(gps.accuracy)}m)` : 'Capture business GPS *'}
             </Button>
+            {gps && (
+              <>
+                {(() => {
+                  const acc = gps.accuracy;
+                  const tone =
+                    acc > GPS_MAX_ACCURACY_M
+                      ? 'border-destructive/40 bg-destructive/10 text-destructive'
+                      : acc > GPS_GOOD_ACCURACY_M
+                      ? 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400'
+                      : 'border-green-500/40 bg-green-500/10 text-green-700 dark:text-green-400';
+                  const label =
+                    acc > GPS_MAX_ACCURACY_M
+                      ? `Too weak (±${Math.round(acc)}m) — retry outside.`
+                      : acc > GPS_GOOD_ACCURACY_M
+                      ? `Acceptable but weak (±${Math.round(acc)}m). Consider retrying.`
+                      : `Good accuracy (±${Math.round(acc)}m)`;
+                  return <div className={`rounded-md border p-2 text-[11px] ${tone}`}>{label}</div>;
+                })()}
+                <LocationMapPreview lat={gps.lat} lng={gps.lng} accuracy={gps.accuracy} />
+              </>
+            )}
 
             <div className="grid grid-cols-2 gap-2">
               <Button variant="outline" onClick={() => setStep('tenant')}>Back</Button>
