@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import BusinessAdvanceStatusTracker, { AdvanceStatusRow } from '@/components/business-advance/BusinessAdvanceStatusTracker';
+import { useBusinessAdvanceRealtime } from '@/hooks/useBusinessAdvanceRealtime';
 
 export default function BusinessAdvanceTrack() {
   const [params] = useSearchParams();
@@ -50,14 +51,16 @@ export default function BusinessAdvanceTrack() {
       setLoading(false);
     };
     load();
-
-    // Live updates
-    const ch = supabase
-      .channel('public-advance-track')
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'business_advances' }, () => load())
-      .subscribe();
-    return () => { alive = false; supabase.removeChannel(ch); };
+    (window as any).__refreshBATrack = load;
+    return () => { alive = false; };
   }, [phone]);
+
+  // Shared realtime — covers INSERT (request just created) and UPDATE
+  // (stage advanced) so the public tracker mirrors the tenant dashboard hero.
+  useBusinessAdvanceRealtime(
+    phone ? `public-track-${phone}` : null,
+    () => { (window as any).__refreshBATrack?.(); }
+  );
 
   const handleClaim = async () => {
     if (password.length < 8) return toast.error('Password must be at least 8 characters');
