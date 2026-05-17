@@ -15,7 +15,7 @@ import { BUSINESS_TYPES, projectOutstanding, formatUGX } from '@/lib/businessAdv
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import RentHistoryCaptureGrid, { RentHistoryEntry } from './RentHistoryCaptureGrid';
 import AdvanceLimitMarketingCard from './AdvanceLimitMarketingCard';
-import { isContactPickerSupported, pickContact, normaliseUgPhone } from '@/lib/contactPicker';
+import { isContactPickerSupported, pickContact } from '@/lib/contactPicker';
 
 interface Props {
   open: boolean;
