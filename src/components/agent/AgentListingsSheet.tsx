@@ -229,16 +229,25 @@ export function AgentListingsSheet({ open, onOpenChange }: AgentListingsSheetPro
             </div>
           ) : (
             <>
+              {filteredRejected.length === 0 && filteredGrouped.length === 0 && hasActiveFilter && (
+                <div className="text-center py-12 space-y-2">
+                  <Search className="h-8 w-8 text-muted-foreground/40 mx-auto" />
+                  <p className="text-sm text-muted-foreground">No houses match your filters</p>
+                  <Button variant="outline" size="sm" onClick={() => { setSearch(''); setStatusFilter('all'); setRegionFilter('all'); }}>
+                    Clear filters
+                  </Button>
+                </div>
+              )}
               {/* Rejected listings - shown prominently at top */}
-              {rejected.length > 0 && (
+              {filteredRejected.length > 0 && (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 px-1">
                     <AlertTriangle className="h-4 w-4 text-destructive" />
                     <p className="text-xs font-bold text-destructive">
-                      {rejected.length} Rejected — needs revision
+                      {filteredRejected.length} Rejected — needs revision
                     </p>
                   </div>
-                  {rejected.map(l => (
+                  {filteredRejected.map(l => (
                     <motion.div
                       key={l.id}
                       initial={{ opacity: 0 }}
