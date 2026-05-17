@@ -29,6 +29,14 @@ interface Props {
 }
 
 const UG_PHONE = /^0[3-9][0-9]{8}$/;
+const cleanPhone = (raw: string) => (raw || '').replace(/\s/g, '');
+const isValidUgPhone = (raw: string) => UG_PHONE.test(cleanPhone(raw));
+const phoneErrorText = (raw: string, label: string): string | null => {
+  const v = cleanPhone(raw);
+  if (!v) return `${label} phone required`;
+  if (!UG_PHONE.test(v)) return `${label} phone must be a valid Ugandan number (e.g. 0783 123 456)`;
+  return null;
+};
 const formatCurrency = (raw: string) => {
   const d = raw.replace(/\D/g, '');
   return d ? Number(d).toLocaleString('en-UG') : '';
@@ -231,8 +239,24 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
 
   const validateTenant = (): string | null => {
     if (!tenantName.trim()) return 'Tenant name required';
-    const cleanPhone = tenantPhone.replace(/\s/g, '');
-    if (!UG_PHONE.test(cleanPhone)) return 'Valid Ugandan phone required (e.g. 0783 123 456)';
+    const tenantErr = phoneErrorText(tenantPhone, 'Tenant');
+    if (tenantErr) return tenantErr;
+    const altErr = phoneErrorText(tenantAltPhone, 'Alternate');
+    if (altErr) return altErr;
+    if (cleanPhone(tenantAltPhone) === cleanPhone(tenantPhone)) {
+      return 'Alternate phone must differ from the tenant phone';
+    }
+    if (!nokName.trim()) return 'Next-of-kin name required';
+    const nokErr = phoneErrorText(nokPhone, 'Next-of-kin');
+    if (nokErr) return nokErr;
+    if (!nokRelationship.trim()) return 'Next-of-kin relationship required';
+    if (!guarantorName.trim()) return 'Guarantor name required';
+    const guarErr = phoneErrorText(guarantorPhone, 'Guarantor');
+    if (guarErr) return guarErr;
+    const allPhones = [tenantPhone, tenantAltPhone, nokPhone, guarantorPhone].map(cleanPhone);
+    if (new Set(allPhones).size !== allPhones.length) {
+      return 'Each phone (tenant, alternate, next-of-kin, guarantor) must be unique';
+    }
     const id = tenantNationalId.trim().toUpperCase();
     if (id.length < 10 || id.length > 14 || !/^[A-Z0-9]+$/.test(id)) return 'National ID must be 10-14 alphanumeric';
     if (!hasSmartphone) return 'Business tenants must have a smartphone to manage their dashboard';
