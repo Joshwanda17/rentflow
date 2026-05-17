@@ -3,7 +3,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Home, MapPin, DoorOpen, CheckCircle, Clock, AlertTriangle, RotateCcw, Building2, ChevronDown, ChevronRight, User, UserCog, Pencil, Search, X, MoreVertical, Eye, Trash2, Loader2, MessageCircle } from 'lucide-react';
+import { Home, MapPin, DoorOpen, CheckCircle, Clock, AlertTriangle, RotateCcw, Building2, ChevronDown, ChevronRight, ChevronUp, User, UserCog, Pencil, Search, X, MoreVertical, Eye, Trash2, Loader2, MessageCircle } from 'lucide-react';
 import { Plus } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -46,6 +46,7 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
   const [editingListing, setEditingListing] = useState<HouseListing | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<HouseListing | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [chipsCollapsed, setChipsCollapsed] = useState(false);
   const [reassignTarget, setReassignTarget] = useState<{
     rentRequestId: string; tenantName: string; currentAgentId: string;
   } | null>(null);
@@ -426,24 +427,46 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
             if (sortBy !== 'newest') chips.push({ key: 'sort', label: `Sort: ${SORT_LABELS[sortBy]}`, onRemove: () => setSortBy('newest') });
             if (chips.length === 0) return null;
             return (
-              <div className="sticky top-0 z-10 -mx-4 -mt-4 px-4 pt-3 pb-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border flex flex-wrap items-center gap-1.5">
-                {chips.map(c => (
+              <div className="sticky top-0 z-10 -mx-4 -mt-4 px-4 pt-3 pb-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border">
+                {chipsCollapsed ? (
                   <button
-                    key={c.key}
-                    onClick={c.onRemove}
-                    className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary border border-primary/20 px-2.5 py-1 text-[11px] font-medium hover:bg-primary/15 transition-colors"
-                    aria-label={`Remove filter ${c.label}`}
+                    onClick={() => setChipsCollapsed(false)}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary border border-primary/20 px-2.5 py-1 text-[11px] font-medium hover:bg-primary/15 transition-colors"
+                    aria-expanded={false}
+                    aria-label="Show active filters"
                   >
-                    <span className="truncate max-w-[160px]">{c.label}</span>
-                    <X className="h-3 w-3 shrink-0" />
+                    <span>{chips.length} filter{chips.length === 1 ? '' : 's'} active</span>
+                    <ChevronDown className="h-3 w-3" />
                   </button>
-                ))}
-                <button
-                  onClick={clearAll}
-                  className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline ml-1"
-                >
-                  Clear all
-                </button>
+                ) : (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {chips.map(c => (
+                      <button
+                        key={c.key}
+                        onClick={c.onRemove}
+                        className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary border border-primary/20 px-2.5 py-1 text-[11px] font-medium hover:bg-primary/15 transition-colors"
+                        aria-label={`Remove filter ${c.label}`}
+                      >
+                        <span className="truncate max-w-[160px]">{c.label}</span>
+                        <X className="h-3 w-3 shrink-0" />
+                      </button>
+                    ))}
+                    <button
+                      onClick={clearAll}
+                      className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline ml-1"
+                    >
+                      Clear all
+                    </button>
+                    <button
+                      onClick={() => setChipsCollapsed(true)}
+                      className="ml-auto inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                      aria-expanded={true}
+                      aria-label="Hide active filters"
+                    >
+                      Hide <ChevronUp className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })()}
