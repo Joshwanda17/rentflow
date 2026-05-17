@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Home, User, AlertTriangle } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
+import { FieldError, FormErrorBanner, reasonError, parseRpcError } from '@/components/shared/FormFeedback';
 
 interface BindTenantToHouseDialogProps {
   open: boolean;
@@ -37,6 +38,9 @@ export function BindTenantToHouseDialog({
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [reasonTouched, setReasonTouched] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -44,6 +48,9 @@ export function BindTenantToHouseDialog({
       setRequestId('');
       setReason('');
       setConfirming(false);
+      setSubmitAttempted(false);
+      setReasonTouched(false);
+      setFormError(null);
     }
   }, [open, preselectedHouseId]);
 
@@ -98,9 +105,17 @@ export function BindTenantToHouseDialog({
     [requestsQuery.data, requestId],
   );
 
-  const canSubmit = !!houseId && !!requestId && reason.trim().length >= 10 && !busy;
+  const errors = {
+    house: !houseId ? 'Pick a house to bind.' : null,
+    request: !requestId ? 'Pick the tenant\'s rent request.' : null,
+    reason: reasonError(reason),
+  };
+  const reasonErrText = (reasonTouched || submitAttempted) ? errors.reason : null;
+  const canSubmit = !errors.house && !errors.request && !errors.reason && !busy;
 
   const handleSubmit = async () => {
+    setSubmitAttempted(true);
+    setFormError(null);
     if (!canSubmit) return;
     setBusy(true);
     try {
@@ -125,7 +140,9 @@ export function BindTenantToHouseDialog({
       onComplete?.();
       onOpenChange(false);
     } catch (e: any) {
-      toast({ title: 'Failed', description: e.message ?? String(e), variant: 'destructive' });
+      const msg = parseRpcError(e);
+      setFormError(msg);
+      toast({ title: 'Failed', description: msg, variant: 'destructive' });
     } finally {
       setBusy(false);
     }
@@ -146,6 +163,7 @@ export function BindTenantToHouseDialog({
         </DialogHeader>
 
         <div className="space-y-4">
+          <FormErrorBanner message={formError} />
           <div className="space-y-1.5">
             <Label>House</Label>
             <Select value={houseId} onValueChange={setHouseId} disabled={busy || !!preselectedHouseId}>
@@ -162,6 +180,7 @@ export function BindTenantToHouseDialog({
               </SelectContent>
             </Select>
             {housesQuery.isLoading && <p className="text-xs text-muted-foreground">Loading houses…</p>}
+            {submitAttempted && <FieldError message={errors.house} />}
           </div>
 
           {selectedHouse && (
@@ -198,6 +217,7 @@ export function BindTenantToHouseDialog({
             {!requestsQuery.isLoading && (requestsQuery.data ?? []).length === 0 && (
               <p className="text-xs text-muted-foreground">No rent requests on file for this landlord.</p>
             )}
+            {submitAttempted && <FieldError message={errors.request} />}
           </div>
 
           <div className="space-y-1.5">
@@ -205,11 +225,15 @@ export function BindTenantToHouseDialog({
             <Textarea
               value={reason}
               onChange={e => setReason(e.target.value)}
+              onBlur={() => setReasonTouched(true)}
+              maxLength={500}
+              aria-invalid={!!reasonErrText}
               placeholder="e.g. Tenant signed lease today; binding to confirmed house"
               rows={3}
               disabled={busy}
             />
             <p className="text-[11px] text-muted-foreground">{reason.trim().length}/10</p>
+            <FieldError message={reasonErrText} />
           </div>
         </div>
 
@@ -239,7 +263,14 @@ export function BindTenantToHouseDialog({
           ) : (
             <>
               <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button>
-              <Button onClick={() => setConfirming(true)} disabled={!canSubmit}>
+              <Button
+                onClick={() => {
+                  setSubmitAttempted(true);
+                  setReasonTouched(true);
+                  if (canSubmit) setConfirming(true);
+                }}
+                disabled={busy}
+              >
                 {isSwap ? 'Review swap' : 'Review bind'}
               </Button>
             </>

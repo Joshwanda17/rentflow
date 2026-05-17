@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/select';
 import { Loader2, UserCog, Search, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { FieldError, FormErrorBanner, reasonError, parseRpcError } from '@/components/shared/FormFeedback';
 
 type Target =
   | { kind: 'house'; houseId: string; houseTitle: string; currentAgentId: string }
@@ -32,8 +33,16 @@ export function ReassignAgentDialog({ open, onOpenChange, target, onComplete }: 
   const [search, setSearch] = useState('');
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [reasonTouched, setReasonTouched] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
-  useEffect(() => { if (open) { setAgentId(''); setReason(''); setSearch(''); setConfirming(false); } }, [open]);
+  useEffect(() => {
+    if (open) {
+      setAgentId(''); setReason(''); setSearch(''); setConfirming(false);
+      setSubmitAttempted(false); setReasonTouched(false); setFormError(null);
+    }
+  }, [open]);
 
   const agentsQuery = useQuery({
     queryKey: ['reassign-agent-pool'],
@@ -66,13 +75,24 @@ export function ReassignAgentDialog({ open, onOpenChange, target, onComplete }: 
     return all.filter(a => a.name.toLowerCase().includes(q) || (a.phone ?? '').includes(q));
   }, [agentsQuery.data, search]);
 
-  const canSubmit = !!agentId && agentId !== target.currentAgentId && reason.trim().length >= 10 && !busy;
+  const errors = {
+    agent: !agentId
+      ? 'Pick a new agent.'
+      : agentId === target.currentAgentId
+        ? 'New agent must be different from the current agent.'
+        : null,
+    reason: reasonError(reason),
+  };
+  const reasonErrText = (reasonTouched || submitAttempted) ? errors.reason : null;
+  const canSubmit = !errors.agent && !errors.reason && !busy;
   const selectedAgent = useMemo(
     () => (agentsQuery.data ?? []).find(a => a.id === agentId),
     [agentsQuery.data, agentId],
   );
 
   const handleSubmit = async () => {
+    setSubmitAttempted(true);
+    setFormError(null);
     if (!canSubmit) return;
     setBusy(true);
     try {
@@ -87,7 +107,9 @@ export function ReassignAgentDialog({ open, onOpenChange, target, onComplete }: 
       onComplete?.();
       onOpenChange(false);
     } catch (e: any) {
-      toast({ title: 'Failed', description: e.message ?? String(e), variant: 'destructive' });
+      const msg = parseRpcError(e);
+      setFormError(msg);
+      toast({ title: 'Failed', description: msg, variant: 'destructive' });
     } finally {
       setBusy(false);
     }
@@ -109,6 +131,7 @@ export function ReassignAgentDialog({ open, onOpenChange, target, onComplete }: 
         </DialogHeader>
 
         <div className="space-y-4">
+          <FormErrorBanner message={formError} />
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -133,6 +156,7 @@ export function ReassignAgentDialog({ open, onOpenChange, target, onComplete }: 
               </SelectContent>
             </Select>
             {agentsQuery.isLoading && <p className="text-xs text-muted-foreground">Loading agents…</p>}
+            {submitAttempted && <FieldError message={errors.agent} />}
           </div>
 
           <div className="space-y-1.5">
@@ -140,11 +164,15 @@ export function ReassignAgentDialog({ open, onOpenChange, target, onComplete }: 
             <Textarea
               value={reason}
               onChange={e => setReason(e.target.value)}
+              onBlur={() => setReasonTouched(true)}
+              maxLength={500}
+              aria-invalid={!!reasonErrText}
               placeholder="e.g. Current agent on leave; reassigning to nearest sub-agent"
               rows={3}
               disabled={busy}
             />
             <p className="text-[11px] text-muted-foreground">{reason.trim().length}/10</p>
+            <FieldError message={reasonErrText} />
           </div>
         </div>
 
@@ -173,7 +201,14 @@ export function ReassignAgentDialog({ open, onOpenChange, target, onComplete }: 
           ) : (
             <>
               <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button>
-              <Button onClick={() => setConfirming(true)} disabled={!canSubmit}>
+              <Button
+                onClick={() => {
+                  setSubmitAttempted(true);
+                  setReasonTouched(true);
+                  if (canSubmit) setConfirming(true);
+                }}
+                disabled={busy}
+              >
                 Review reassignment
               </Button>
             </>

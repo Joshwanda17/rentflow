@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, UserX, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { FieldError, FormErrorBanner, reasonError, parseRpcError } from '@/components/shared/FormFeedback';
 
 interface RemoveTenantDialogProps {
   open: boolean;
@@ -22,12 +23,24 @@ export function RemoveTenantDialog({ open, onOpenChange, houseId, houseTitle, on
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [reasonTouched, setReasonTouched] = useState(false);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
-  useEffect(() => { if (open) { setReason(''); setConfirming(false); } }, [open]);
+  useEffect(() => {
+    if (open) {
+      setReason(''); setConfirming(false);
+      setReasonTouched(false); setSubmitAttempted(false); setFormError(null);
+    }
+  }, [open]);
 
-  const canSubmit = reason.trim().length >= 10 && !busy;
+  const reasonErr = reasonError(reason);
+  const reasonErrText = (reasonTouched || submitAttempted) ? reasonErr : null;
+  const canSubmit = !reasonErr && !busy;
 
   const handleSubmit = async () => {
+    setSubmitAttempted(true);
+    setFormError(null);
     if (!canSubmit) return;
     setBusy(true);
     try {
@@ -40,7 +53,9 @@ export function RemoveTenantDialog({ open, onOpenChange, houseId, houseTitle, on
       onComplete?.();
       onOpenChange(false);
     } catch (e: any) {
-      toast({ title: 'Failed', description: e.message ?? String(e), variant: 'destructive' });
+      const msg = parseRpcError(e);
+      setFormError(msg);
+      toast({ title: 'Failed', description: msg, variant: 'destructive' });
     } finally {
       setBusy(false);
     }
@@ -60,16 +75,23 @@ export function RemoveTenantDialog({ open, onOpenChange, houseId, houseTitle, on
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-1.5">
-          <Label>Reason (min 10 characters)</Label>
-          <Textarea
-            value={reason}
-            onChange={e => setReason(e.target.value)}
-            placeholder="e.g. Tenant absconded after missing 14 days of rent"
-            rows={3}
-            disabled={busy}
-          />
-          <p className="text-[11px] text-muted-foreground">{reason.trim().length}/10</p>
+        <div className="space-y-3">
+          <FormErrorBanner message={formError} />
+          <div className="space-y-1.5">
+            <Label>Reason (min 10 characters)</Label>
+            <Textarea
+              value={reason}
+              onChange={e => setReason(e.target.value)}
+              onBlur={() => setReasonTouched(true)}
+              maxLength={500}
+              aria-invalid={!!reasonErrText}
+              placeholder="e.g. Tenant absconded after missing 14 days of rent"
+              rows={3}
+              disabled={busy}
+            />
+            <p className="text-[11px] text-muted-foreground">{reason.trim().length}/10</p>
+            <FieldError message={reasonErrText} />
+          </div>
         </div>
 
         {confirming && (
@@ -96,7 +118,15 @@ export function RemoveTenantDialog({ open, onOpenChange, houseId, houseTitle, on
           ) : (
             <>
               <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button>
-              <Button variant="destructive" onClick={() => setConfirming(true)} disabled={!canSubmit}>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  setSubmitAttempted(true);
+                  setReasonTouched(true);
+                  if (canSubmit) setConfirming(true);
+                }}
+                disabled={busy}
+              >
                 Review removal
               </Button>
             </>
