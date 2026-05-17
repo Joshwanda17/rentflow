@@ -107,9 +107,16 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
     setGpsLoading(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setGps({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy });
+        const acc = pos.coords.accuracy;
+        setGps({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: acc });
         setGpsLoading(false);
-        toast.success('Business location captured');
+        if (acc > GPS_MAX_ACCURACY_M) {
+          toast.error(`Business GPS too weak (±${Math.round(acc)}m). Move outside and retry.`);
+        } else if (acc > GPS_GOOD_ACCURACY_M) {
+          toast.warning(`Business location captured at ±${Math.round(acc)}m — consider retrying.`);
+        } else {
+          toast.success(`Business location captured (±${Math.round(acc)}m)`);
+        }
       },
       () => { setGpsLoading(false); toast.error('Could not get GPS'); },
       { enableHighAccuracy: true, timeout: 20000 }
@@ -240,6 +247,7 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
     if (!businessType) return 'Business type required';
     if (!businessAddress.trim()) return 'Business address required';
     if (!gps) return 'Capture business GPS location';
+    if (gps.accuracy > GPS_MAX_ACCURACY_M) return `Business GPS too weak (±${Math.round(gps.accuracy)}m). Retry outside for a stronger signal.`;
     return null;
   };
 
