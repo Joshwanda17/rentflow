@@ -293,6 +293,11 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
           // Focus the primary control (search input) when the sheet opens.
           requestAnimationFrame(() => searchInputRef.current?.focus());
         }}
+        onCloseAutoFocus={(e) => {
+          // Defer focus restoration to the parent (which remembers the exact
+          // triggering card) so Escape/overlay/close-button all behave the same.
+          e.preventDefault();
+        }}
       >
         <SheetHeader className="px-5 pt-5 pb-3 border-b border-border space-y-3">
           <SheetTitle className="flex items-center gap-2">
