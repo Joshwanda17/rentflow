@@ -1,4 +1,4 @@
-import { CheckCircle2, Clock, AlertTriangle, Circle, Briefcase, Banknote, XCircle, ArrowRight, PartyPopper } from 'lucide-react';
+import { CheckCircle2, Clock, AlertTriangle, Circle, Briefcase, Banknote, XCircle, ArrowRight, PartyPopper, ListChecks, Phone } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { formatUGX } from '@/lib/businessAdvanceCalculations';
 import { format, formatDistanceToNowStrict } from 'date-fns';
@@ -33,6 +33,10 @@ type Stage = {
   description: string;
   /** Typical SLA estimate shown to the applicant. */
   eta: string;
+  /** Concrete next-step instructions for the applicant while this stage is active. */
+  applicantActions: string[];
+  /** One-line headline summarising what to do right now. */
+  actionHeadline: string;
 };
 
 const STAGES: Stage[] = [
@@ -43,6 +47,12 @@ const STAGES: Stage[] = [
     category: 'submitted',
     description: 'Your agent has filed the request and uploaded supporting details.',
     eta: 'Within minutes',
+    actionHeadline: 'Keep your phone nearby',
+    applicantActions: [
+      'Keep your phone reachable — Agent Ops may call to confirm details.',
+      'Have your National ID and a recent rent receipt ready.',
+      'No action needed in the app yet — we will move this forward shortly.',
+    ],
   },
   {
     key: 'agent_ops',
@@ -51,6 +61,12 @@ const STAGES: Stage[] = [
     category: 'reviewed',
     description: 'Agent Ops checks the request, your agent and supporting documents.',
     eta: 'Same day',
+    actionHeadline: 'Document & agent check in progress',
+    applicantActions: [
+      'Agent Ops will verify the documents your agent uploaded.',
+      'If anything is missing, your agent will contact you to re-capture it.',
+      'No action needed yet — this is an internal check.',
+    ],
   },
   {
     key: 'tenant_ops',
@@ -59,6 +75,12 @@ const STAGES: Stage[] = [
     category: 'reviewed',
     description: 'Tenant Ops verifies your identity, ID, rent history and contacts.',
     eta: 'Same day',
+    actionHeadline: 'Identity & rent history check',
+    applicantActions: [
+      'Answer any call from a Welile (+256) number — we may verify your details.',
+      'Make sure your National ID number on file matches your physical ID.',
+      'If your phone changed recently, ask your agent to update it.',
+    ],
   },
   {
     key: 'landlord_ops',
@@ -67,6 +89,12 @@ const STAGES: Stage[] = [
     category: 'reviewed',
     description: 'We verify your rent payment history with your landlord(s).',
     eta: '1–2 days',
+    actionHeadline: 'Landlord verification',
+    applicantActions: [
+      'Let your landlord know Welile may call to confirm your tenancy.',
+      'Share your landlord\'s correct phone number with your agent if it has changed.',
+      'No app action needed — we will reach out to them directly.',
+    ],
   },
   {
     key: 'coo',
@@ -75,6 +103,12 @@ const STAGES: Stage[] = [
     category: 'approved',
     description: 'Final operational approval before disbursement.',
     eta: '1 day',
+    actionHeadline: 'Final sign-off in progress',
+    applicantActions: [
+      'All checks passed — awaiting final COO approval.',
+      'No action required from you.',
+      'You will get an SMS and email the moment funds are released.',
+    ],
   },
   {
     key: 'disbursed',
@@ -83,6 +117,12 @@ const STAGES: Stage[] = [
     category: 'completed',
     description: 'Funds land in your Welile wallet, ready to use.',
     eta: 'Within hours of COO approval',
+    actionHeadline: 'Funds being released',
+    applicantActions: [
+      'CFO is releasing your funds into your Welile wallet now.',
+      'Open your wallet to confirm the balance once you receive the SMS.',
+      'Repayments start as agreed with your agent — track them here any time.',
+    ],
   },
   {
     key: 'completed',
@@ -91,6 +131,11 @@ const STAGES: Stage[] = [
     category: 'completed',
     description: 'The advance has been paid off in full — your trust score grows.',
     eta: 'Based on your repayment pace',
+    actionHeadline: 'You are paid in full',
+    applicantActions: [
+      'Your trust score just grew — you qualify for a higher next limit.',
+      'Ask your agent about your new ceiling whenever you are ready.',
+    ],
   },
 ];
 
@@ -174,6 +219,25 @@ export function BusinessAdvanceStatusTracker({ row, compact = false }: { row: Ad
           <p className="font-semibold">{currentStage.label}</p>
           <p className="text-[11px] mt-0.5 text-amber-800/90">{currentStage.description}</p>
           <p className="text-[10px] mt-1 text-amber-700/80">Typical wait: {currentStage.eta}</p>
+
+          {/* Concrete next-step instructions for the applicant */}
+          <div className="mt-2 pt-2 border-t border-amber-500/30">
+            <div className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-[10px] text-amber-700 mb-1">
+              <ListChecks className="h-3 w-3" /> What you should do now
+            </div>
+            <p className="text-[11px] font-semibold text-amber-900">{currentStage.actionHeadline}</p>
+            <ul className="mt-1 space-y-1">
+              {currentStage.applicantActions.map((a, idx) => (
+                <li key={idx} className="text-[11px] text-amber-900/90 flex gap-1.5 items-start leading-snug">
+                  <span className="text-amber-700 mt-[2px]">•</span>
+                  <span>{a}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="text-[10px] mt-2 text-amber-700/80 flex items-center gap-1">
+              <Phone className="h-3 w-3" /> Calls from any +256 number starting with Welile are genuine.
+            </p>
+          </div>
         </div>
       )}
 
