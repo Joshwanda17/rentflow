@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth, type AppRole } from '@/hooks/useAuth';
 import { roleToSlug, slugToRole } from '@/lib/roleRoutes';
-import { getPreferredDefaultRole } from '@/hooks/useAppPreferences';
+import { getPreferredDefaultRole, isAgentAutoDefaultDisabled } from '@/hooks/useAppPreferences';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
 
@@ -93,7 +93,7 @@ export default function DashboardRedirect() {
       navigate(roleToSlug(honored), { replace: true });
     };
 
-    if (roles.includes('agent')) {
+    if (roles.includes('agent') && !isAgentAutoDefaultDisabled()) {
       let cached: string | null = null;
       try { cached = localStorage.getItem(cacheKey); } catch {}
       if (cached === '1') { goAgent(); return; }
