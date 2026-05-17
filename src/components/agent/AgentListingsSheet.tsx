@@ -226,6 +226,7 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
   useFilterKeyboardShortcuts({ inputRef: searchRef, onClear: clearAll, hasActiveFilter, enabled: open });
 
   return (
+    <>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[90vh] rounded-t-3xl p-0 flex flex-col">
         <SheetHeader className="px-5 pt-5 pb-3 border-b border-border">
