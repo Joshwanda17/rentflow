@@ -13,6 +13,7 @@ import { BusinessAdvanceAuditLog } from '@/components/business-advance/BusinessA
 import { BusinessAdvanceDocumentUploadPanel } from '@/components/business-advance/DocumentUploadPanel';
 import { LiveUpdatingBadge } from '@/components/business-advance/LiveUpdatingBadge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { BusinessAdvanceNotificationPreferences } from '@/components/business-advance/NotificationPreferences';
 
 export default function BusinessAdvanceTrack() {
@@ -156,6 +157,57 @@ export default function BusinessAdvanceTrack() {
                 <p className="text-[10px] font-semibold leading-tight">Trust-scored</p>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-primary/15 shadow-sm">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <p className="text-sm font-bold">How it works — quick FAQ</p>
+            </div>
+            <Accordion type="single" collapsible className="w-full">
+              <AccordionItem value="q1" className="border-b">
+                <AccordionTrigger className="text-xs font-semibold text-left py-3">
+                  How can I access up to UGX 30,000,000?
+                </AccordionTrigger>
+                <AccordionContent className="text-xs text-muted-foreground leading-relaxed">
+                  Your access grows with your verified rent history on Welile. Starter limits begin around UGX 50,000 and climb as you build a clean record of on-time payments, longer tenancy, and trusted landlord relationships — up to UGX 30,000,000 for established business owners. No bank queues, no paperwork marathons.
+                </AccordionContent>
+              </AccordionItem>
+              <AccordionItem value="q2" className="border-b">
+                <AccordionTrigger className="text-xs font-semibold text-left py-3">
+                  What does "rent history is your collateral" mean?
+                </AccordionTrigger>
+                <AccordionContent className="text-xs text-muted-foreground leading-relaxed">
+                  Every rent payment you make through Welile is recorded, verified, and scored. Instead of demanding land titles or vehicles, we use that proven track record as proof you can repay. Pay rent on time → unlock more working capital. Your receipts literally become your credit line.
+                </AccordionContent>
+              </AccordionItem>
+              <AccordionItem value="q3" className="border-b">
+                <AccordionTrigger className="text-xs font-semibold text-left py-3">
+                  How fast will I get the money?
+                </AccordionTrigger>
+                <AccordionContent className="text-xs text-muted-foreground leading-relaxed">
+                  Most approved advances move from application to disbursement within 24–72 hours. You can track every stage live on this page and get SMS or email updates the moment something changes.
+                </AccordionContent>
+              </AccordionItem>
+              <AccordionItem value="q4" className="border-b">
+                <AccordionTrigger className="text-xs font-semibold text-left py-3">
+                  How do I repay?
+                </AccordionTrigger>
+                <AccordionContent className="text-xs text-muted-foreground leading-relaxed">
+                  Repayments flow automatically through your Welile wallet alongside your normal rent. No new app, no extra trip to the bank — and on-time repayment further increases your future limit.
+                </AccordionContent>
+              </AccordionItem>
+              <AccordionItem value="q5">
+                <AccordionTrigger className="text-xs font-semibold text-left py-3">
+                  Is my business information safe?
+                </AccordionTrigger>
+                <AccordionContent className="text-xs text-muted-foreground leading-relaxed">
+                  Yes. Welile is built on a fully audited, double-entry ledger with bank-grade security. Only you, your assigned agent, and authorized operations staff can view your file.
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           </CardContent>
         </Card>
 
