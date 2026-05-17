@@ -16,6 +16,11 @@ import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import RentHistoryCaptureGrid, { RentHistoryEntry } from './RentHistoryCaptureGrid';
 import AdvanceLimitMarketingCard from './AdvanceLimitMarketingCard';
 import { isContactPickerSupported, pickContact } from '@/lib/contactPicker';
+import LocationMapPreview from '@/components/shared/LocationMapPreview';
+
+// GPS accuracy thresholds (metres)
+const GPS_GOOD_ACCURACY_M = 50;   // good enough — green
+const GPS_MAX_ACCURACY_M = 200;   // hard reject — must retry or use manual
 
 interface Props {
   open: boolean;
@@ -116,9 +121,16 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
     setApplicantGpsLoading(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setApplicantGps({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy });
+        const acc = pos.coords.accuracy;
+        setApplicantGps({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: acc });
         setApplicantGpsLoading(false);
-        toast.success('Applicant location captured');
+        if (acc > GPS_MAX_ACCURACY_M) {
+          toast.error(`GPS too weak (±${Math.round(acc)}m). Move outside or retry.`);
+        } else if (acc > GPS_GOOD_ACCURACY_M) {
+          toast.warning(`Captured at ±${Math.round(acc)}m — consider retrying for better accuracy.`);
+        } else {
+          toast.success(`Applicant location captured (±${Math.round(acc)}m)`);
+        }
       },
       (err) => {
         setApplicantGpsLoading(false);
