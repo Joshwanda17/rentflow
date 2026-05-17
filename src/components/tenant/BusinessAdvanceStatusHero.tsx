@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Sparkles, ChevronDown } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import BusinessAdvanceStatusTracker, { AdvanceStatusRow, getActiveAdvanceStage } from '@/components/business-advance/BusinessAdvanceStatusTracker';
 import { useBusinessAdvanceRealtime } from '@/hooks/useBusinessAdvanceRealtime';
@@ -21,7 +21,22 @@ const ACTIVE_STATUSES = ['pending','agent_ops_approved','tenant_ops_approved','l
  */
 export function BusinessAdvanceStatusHero() {
   const { user } = useAuth();
+  const storageKey = user?.id ? `tenant-ba-hero-open:${user.id}` : null;
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!storageKey) return;
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved !== null) setOpen(saved === '1');
+    } catch {}
+  }, [storageKey]);
+
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (!storageKey) return;
+    try { localStorage.setItem(storageKey, next ? '1' : '0'); } catch {}
+  };
 
   const { data, refetch } = useQuery({
     queryKey: ['tenant-active-business-advance', user?.id],
@@ -58,7 +73,7 @@ export function BusinessAdvanceStatusHero() {
 
   return (
     <Card className="border-primary/30 bg-gradient-to-br from-primary/5 via-background to-primary/5 shadow-md">
-      <Collapsible open={open} onOpenChange={setOpen}>
+      <Collapsible open={open} onOpenChange={handleOpenChange}>
         <CollapsibleTrigger asChild>
           <button
             type="button"
