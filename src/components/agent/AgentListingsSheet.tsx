@@ -18,6 +18,7 @@ import { ReassignAgentDialog } from '@/components/shared/ReassignAgentDialog';
 import { HouseActivityTimeline } from '@/components/shared/HouseActivityTimeline';
 import { HighlightText } from '@/components/shared/HighlightText';
 import { useFilterKeyboardShortcuts } from '@/hooks/useFilterKeyboardShortcuts';
+import { HouseDetailSheet } from './HouseDetailSheet';
 
 interface AgentListingsSheetProps {
   open: boolean;
@@ -37,6 +38,7 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [timelineOpen, setTimelineOpen] = useState<Record<string, boolean>>({});
   const [viewingTenantId, setViewingTenantId] = useState<string | null>(null);
+  const [detailListingId, setDetailListingId] = useState<string | null>(null);
   const [reassignTarget, setReassignTarget] = useState<{
     rentRequestId: string; tenantName: string; currentAgentId: string;
   } | null>(null);
