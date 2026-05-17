@@ -3403,6 +3403,42 @@ export type Database = {
           },
         ]
       }
+      business_advance_share_events: {
+        Row: {
+          advance_id: string | null
+          created_at: string
+          event_type: string
+          id: string
+          metadata: Json
+          phone: string | null
+          referrer: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          advance_id?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          metadata?: Json
+          phone?: string | null
+          referrer?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          advance_id?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          metadata?: Json
+          phone?: string | null
+          referrer?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       business_advances: {
         Row: {
           agent_id: string
