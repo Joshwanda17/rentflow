@@ -17,6 +17,7 @@ import RentHistoryCaptureGrid, { RentHistoryEntry } from './RentHistoryCaptureGr
 import AdvanceLimitMarketingCard from './AdvanceLimitMarketingCard';
 import { isContactPickerSupported, pickContact } from '@/lib/contactPicker';
 import LocationMapPreview from '@/components/shared/LocationMapPreview';
+import { reverseGeocode } from '@/lib/reverseGeocode';
 
 // GPS accuracy thresholds (metres)
 const GPS_GOOD_ACCURACY_M = 50;   // good enough — green
@@ -82,6 +83,8 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
   const [applicantGps, setApplicantGps] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
   const [applicantGpsLoading, setApplicantGpsLoading] = useState(false);
   const [applicantManualLocation, setApplicantManualLocation] = useState('');
+  const [applicantGeocoded, setApplicantGeocoded] = useState<string | null>(null);
+  const [applicantGeocoding, setApplicantGeocoding] = useState(false);
 
   const contactPickerOk = useMemo(() => isContactPickerSupported(), []);
 
@@ -93,6 +96,8 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
   const [monthlyRevenue, setMonthlyRevenue] = useState('');
   const [yearsInBusiness, setYearsInBusiness] = useState('');
   const [gps, setGps] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
+  const [businessGeocoded, setBusinessGeocoded] = useState<string | null>(null);
+  const [businessGeocoding, setBusinessGeocoding] = useState(false);
   const [gpsLoading, setGpsLoading] = useState(false);
 
   const reset = () => {
