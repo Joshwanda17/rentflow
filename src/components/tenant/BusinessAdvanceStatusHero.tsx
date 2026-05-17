@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
-import { Sparkles, ChevronDown } from 'lucide-react';
+import { Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import BusinessAdvanceStatusTracker, { AdvanceStatusRow, getActiveAdvanceStage } from '@/components/business-advance/BusinessAdvanceStatusTracker';
@@ -85,30 +85,49 @@ export function BusinessAdvanceStatusHero() {
   return (
     <Card className="border-primary/30 bg-gradient-to-br from-primary/5 via-background to-primary/5 shadow-md">
       <Collapsible open={open} onOpenChange={handleOpenChange}>
-        <CollapsibleTrigger asChild>
-          <button
-            type="button"
-            className="w-full flex items-center justify-between gap-2 p-4 text-left hover:bg-muted/30 transition-colors rounded-lg"
-          >
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider font-bold text-primary">
-                <Sparkles className="h-3 w-3" />
-                {isLoading || !data
-                  ? 'Loading your Business Advance…'
-                  : data.status === 'active'
-                    ? 'Your Business Advance is active'
-                    : 'Your Business Advance is being reviewed'}
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Tap to {open ? 'hide' : 'expand'} progress, documents and notification settings.
-              </p>
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => handleOpenChange(!open)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleOpenChange(!open);
+            }
+          }}
+          className="w-full flex items-center justify-between gap-2 p-4 text-left hover:bg-muted/30 transition-colors rounded-lg cursor-pointer"
+        >
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider font-bold text-primary">
+              <Sparkles className="h-3 w-3" />
+              {isLoading || !data
+                ? 'Loading your Business Advance…'
+                : data.status === 'active'
+                  ? 'Your Business Advance is active'
+                  : 'Your Business Advance is being reviewed'}
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <LiveUpdatingBadge status={rtStatus} />
-              <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`} />
-            </div>
-          </button>
-        </CollapsibleTrigger>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Tap to {open ? 'hide' : 'expand'} progress, documents and notification settings.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <LiveUpdatingBadge status={rtStatus} />
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                onClick={(e) => e.stopPropagation()}
+                aria-label={open ? 'Collapse Business Advance details' : 'Expand Business Advance details'}
+                className="inline-flex items-center justify-center h-7 w-7 rounded-md border border-border bg-background hover:bg-muted transition-colors"
+              >
+                {open ? (
+                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                )}
+              </button>
+            </CollapsibleTrigger>
+          </div>
+        </div>
         <CollapsibleContent>
           <CardContent className="p-4 pt-0 space-y-3">
             {!data ? (
