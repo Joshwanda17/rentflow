@@ -10,6 +10,7 @@ export interface AppPreferences {
   skipSplash: boolean;
   defaultRole: DefaultRolePreference;
   unlockAllRoles: boolean;
+  disableAgentAutoDefault: boolean;
 }
 
 const DEFAULT_PREFERENCES: AppPreferences = {
@@ -20,6 +21,7 @@ const DEFAULT_PREFERENCES: AppPreferences = {
   skipSplash: false,
   defaultRole: 'auto',
   unlockAllRoles: false,
+  disableAgentAutoDefault: false,
 };
 
 const STORAGE_KEY = 'welile_app_preferences';
@@ -142,6 +144,19 @@ export function areAllRolesUnlocked(): boolean {
     if (stored) {
       const prefs = JSON.parse(stored);
       return prefs.unlockAllRoles === true;
+    }
+  } catch (e) {}
+  return false;
+}
+
+// Standalone: whether the user opted out of the "agent if you ever posted
+// a rent request" auto-default rule in DashboardRedirect.
+export function isAgentAutoDefaultDisabled(): boolean {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const prefs = JSON.parse(stored);
+      return prefs.disableAgentAutoDefault === true;
     }
   } catch (e) {}
   return false;
