@@ -880,7 +880,10 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               <FindAHouseCTA onClick={() => { hapticTap(); setMenuOpen(false); setHousesOpen(true); }} />
             </div>
             <SuggestedHousesCard userId={user.id} onViewAll={() => { setMenuOpen(false); setHousesOpen(true); }} />
-            <NearbyHousesPreview onViewAll={() => { setMenuOpen(false); setHousesOpen(true); }} />
+            <NearbyHousesPreview
+              onViewAll={() => { setMenuOpen(false); setHousesOpen(true); }}
+              onSelectHouse={() => { hapticTap(); setMenuOpen(false); setHousesOpen(true); }}
+            />
             {rentRequests.length > 0 && (
               <RentProcessTracker
                 requestStatus={rentRequests[0].status}
