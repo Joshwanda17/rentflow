@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Briefcase, ArrowRight, Shield, Lock, UserPlus, CheckCircle2 } from 'lucide-react';
+import { Loader2, Briefcase, ArrowRight, Shield, Lock, UserPlus, CheckCircle2, ChevronDown, TrendingUp, Sparkles, BadgeCheck } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
@@ -11,6 +11,7 @@ import BusinessAdvanceStatusTracker, { AdvanceStatusRow } from '@/components/bus
 import { useBusinessAdvanceRealtime } from '@/hooks/useBusinessAdvanceRealtime';
 import { BusinessAdvanceAuditLog } from '@/components/business-advance/BusinessAdvanceAuditLog';
 import { LiveUpdatingBadge } from '@/components/business-advance/LiveUpdatingBadge';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 export default function BusinessAdvanceTrack() {
   const [params] = useSearchParams();
@@ -29,6 +30,7 @@ export default function BusinessAdvanceTrack() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [accountReady, setAccountReady] = useState(false);
+  const [trackerOpen, setTrackerOpen] = useState(true);
 
   const aliveRef = useRef(true);
   const load = useCallback(async () => {
@@ -92,18 +94,41 @@ export default function BusinessAdvanceTrack() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary/10 to-background p-4">
       <div className="max-w-md mx-auto space-y-4 pt-6">
-        <div className="text-center space-y-1">
-          <div className="inline-flex items-center justify-center gap-2 text-primary">
-            <Briefcase className="h-5 w-5" />
-            <h1 className="text-xl font-bold">Your Business Advance</h1>
+        {/* Marketing hero — modern, professional, business-owner focused */}
+        <Card className="relative overflow-hidden border-primary/20 shadow-xl bg-gradient-to-br from-primary via-primary to-primary/80 text-primary-foreground">
+          <div className="absolute inset-0 opacity-10 pointer-events-none" aria-hidden>
+            <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-white blur-3xl" />
+            <div className="absolute bottom-0 left-0 h-32 w-32 rounded-full bg-white blur-2xl" />
           </div>
-          <p className="text-xs text-muted-foreground">Live approval progress — updates automatically</p>
-          {row && (
-            <div className="flex justify-center pt-1">
-              <LiveUpdatingBadge status={rtStatus} />
+          <CardContent className="relative p-5 space-y-3">
+            <div className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider bg-white/15 backdrop-blur px-2.5 py-1 rounded-full">
+              <Sparkles className="h-3 w-3" /> Rent Business Advance
             </div>
-          )}
-        </div>
+            <div>
+              <p className="text-[11px] font-medium opacity-90">Access working capital up to</p>
+              <p className="text-3xl font-extrabold tracking-tight leading-none mt-0.5">
+                UGX 30,000,000
+              </p>
+              <p className="text-xs opacity-90 mt-1.5 leading-relaxed">
+                Your rent history is your collateral. Turn every receipt into fuel for your business — fast, fair, and built for hardworking owners like you.
+              </p>
+            </div>
+            <div className="grid grid-cols-3 gap-2 pt-1">
+              <div className="bg-white/10 backdrop-blur rounded-lg p-2 text-center">
+                <TrendingUp className="h-4 w-4 mx-auto mb-0.5" />
+                <p className="text-[10px] font-semibold leading-tight">Grow faster</p>
+              </div>
+              <div className="bg-white/10 backdrop-blur rounded-lg p-2 text-center">
+                <BadgeCheck className="h-4 w-4 mx-auto mb-0.5" />
+                <p className="text-[10px] font-semibold leading-tight">No bank queues</p>
+              </div>
+              <div className="bg-white/10 backdrop-blur rounded-lg p-2 text-center">
+                <Shield className="h-4 w-4 mx-auto mb-0.5" />
+                <p className="text-[10px] font-semibold leading-tight">Trust-scored</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {loading ? (
           <Card><CardContent className="py-10 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></CardContent></Card>
@@ -118,12 +143,38 @@ export default function BusinessAdvanceTrack() {
         ) : row ? (
           <>
             <Card className="border-primary/20 shadow-lg">
-              <CardContent className="p-5">
-                <BusinessAdvanceStatusTracker row={row} />
-                <div className="mt-3">
-                  <BusinessAdvanceAuditLog advanceId={row.id} phone={phone} />
-                </div>
-              </CardContent>
+              <Collapsible open={trackerOpen} onOpenChange={setTrackerOpen}>
+                <CollapsibleTrigger asChild>
+                  <button
+                    type="button"
+                    className="w-full flex items-center justify-between gap-2 p-4 text-left hover:bg-muted/40 transition-colors rounded-t-lg"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Briefcase className="h-5 w-5 text-primary shrink-0" />
+                      <div className="min-w-0">
+                        <h2 className="text-sm font-bold leading-tight">Rent Business Advance</h2>
+                        <p className="text-[11px] text-muted-foreground leading-tight">
+                          Live approval progress — tap to {trackerOpen ? 'hide' : 'view'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <LiveUpdatingBadge status={rtStatus} />
+                      <ChevronDown
+                        className={`h-4 w-4 text-muted-foreground transition-transform ${trackerOpen ? 'rotate-180' : ''}`}
+                      />
+                    </div>
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="px-5 pb-5 pt-1 border-t">
+                    <BusinessAdvanceStatusTracker row={row} />
+                    <div className="mt-3">
+                      <BusinessAdvanceAuditLog advanceId={row.id} phone={phone} />
+                    </div>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             </Card>
 
             {isAuthed || accountReady ? (
