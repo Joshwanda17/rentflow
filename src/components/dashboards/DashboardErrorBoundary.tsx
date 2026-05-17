@@ -1,5 +1,5 @@
 import { Component, ReactNode } from 'react';
-import { AlertTriangle, RefreshCw, Send, Check } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Send, Check, Copy } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
@@ -29,6 +29,7 @@ interface State {
   message?: string;
   componentStack?: string;
   reportState?: 'idle' | 'sending' | 'sent' | 'failed';
+  copyState?: 'idle' | 'copied' | 'failed';
 }
 
 /**
@@ -88,6 +89,67 @@ export class DashboardErrorBoundaryInner extends Component<Props, State> {
       extra: { manual: true },
     });
     this.setState({ reportState: ok ? 'sent' : 'failed' });
+  };
+
+  handleCopyDetails = async () => {
+    const ctx = this.props.reportContext ?? {};
+    const route =
+      ctx.route ?? (typeof window !== 'undefined' ? window.location.pathname : 'unknown');
+    const href = typeof window !== 'undefined' ? window.location.href : 'unknown';
+    const ua = typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown';
+    const details = [
+      `Welile error report — ${new Date().toISOString()}`,
+      `Label:       ${this.props.label ?? 'dashboard'}`,
+      `Route:       ${route}`,
+      `URL:         ${href}`,
+      `User ID:     ${ctx.userId ?? 'anonymous'}`,
+      `Role:        ${ctx.role ?? 'none'}`,
+      `User-Agent:  ${ua}`,
+      '',
+      `Message:`,
+      this.state.message ?? '(no message)',
+      '',
+      `Component stack:`,
+      this.state.componentStack?.trim() || '(unavailable)',
+    ].join('\n');
+
+    const writeViaClipboardAPI = async () => {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(details);
+        return true;
+      }
+      return false;
+    };
+
+    const writeViaTextarea = () => {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = details;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        return ok;
+      } catch {
+        return false;
+      }
+    };
+
+    let ok = false;
+    try {
+      ok = await writeViaClipboardAPI();
+    } catch {
+      ok = false;
+    }
+    if (!ok) ok = writeViaTextarea();
+
+    this.setState({ copyState: ok ? 'copied' : 'failed' });
+    setTimeout(() => {
+      this.setState((s) => (s.copyState ? { ...s, copyState: 'idle' } : s));
+    }, 2500);
   };
 
   handleReload = () => {
@@ -180,6 +242,28 @@ export class DashboardErrorBoundaryInner extends Component<Props, State> {
                     <>
                       <Send className="h-4 w-4" />
                       Report this error
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={this.handleCopyDetails}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium hover:bg-muted transition-colors"
+                >
+                  {this.state.copyState === 'copied' ? (
+                    <>
+                      <Check className="h-4 w-4" />
+                      Copied
+                    </>
+                  ) : this.state.copyState === 'failed' ? (
+                    <>
+                      <Copy className="h-4 w-4" />
+                      Copy failed
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-4 w-4" />
+                      Copy error details
                     </>
                   )}
                 </button>
