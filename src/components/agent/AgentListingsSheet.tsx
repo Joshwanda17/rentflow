@@ -7,6 +7,7 @@ import { Home, MapPin, DoorOpen, CheckCircle, Clock, AlertTriangle, RotateCcw, B
 import { Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useHouseListings, HouseListing } from '@/hooks/useHouseListings';
 import { formatUGX } from '@/lib/rentCalculations';
 import { motion } from 'framer-motion';
@@ -236,6 +237,24 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
           </SheetTitle>
           {!loading && listings.length > 0 && (
             <div className="space-y-2 pt-2">
+              {(() => {
+                const counts = {
+                  all: listings.length,
+                  vacant: listings.filter(l => !l.tenant_id && l.status === 'available').length,
+                  occupied: listings.filter(l => !!l.tenant_id).length,
+                  rejected: listings.filter(l => l.status === 'rejected').length,
+                };
+                return (
+                  <Tabs value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
+                    <TabsList className="w-full h-9 grid grid-cols-4">
+                      <TabsTrigger value="all" className="text-xs">All <span className="ml-1 text-muted-foreground">{counts.all}</span></TabsTrigger>
+                      <TabsTrigger value="vacant" className="text-xs">Available <span className="ml-1 text-muted-foreground">{counts.vacant}</span></TabsTrigger>
+                      <TabsTrigger value="occupied" className="text-xs">Occupied <span className="ml-1 text-muted-foreground">{counts.occupied}</span></TabsTrigger>
+                      <TabsTrigger value="rejected" className="text-xs">Rejected <span className="ml-1 text-muted-foreground">{counts.rejected}</span></TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                );
+              })()}
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -256,15 +275,6 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
                 )}
               </div>
               <div className="flex flex-wrap gap-2">
-                <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
-                  <SelectTrigger className="h-8 w-auto min-w-[130px] text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All statuses</SelectItem>
-                    <SelectItem value="occupied">Occupied</SelectItem>
-                    <SelectItem value="vacant">Vacant</SelectItem>
-                    <SelectItem value="rejected">Rejected</SelectItem>
-                  </SelectContent>
-                </Select>
                 <Select value={regionFilter} onValueChange={setRegionFilter}>
                   <SelectTrigger className="h-8 w-auto min-w-[130px] text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
