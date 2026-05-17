@@ -195,6 +195,13 @@ function showErrorUI() {
 
 loadApp();
 
+// Install centralized client-side error reporting (window.onerror +
+// unhandledrejection). Lazy-loaded to avoid pulling supabase into the
+// critical startup path.
+import('./lib/errorReporting')
+  .then((m) => m.installGlobalErrorReporting())
+  .catch(() => {});
+
 // Show retry UI after 6s on slow networks
 setTimeout(() => {
   if (root.innerHTML.includes('animation:')) {

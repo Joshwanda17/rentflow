@@ -3,7 +3,7 @@ import { AlertTriangle, RefreshCw, Send, Check } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { reportClientError } from '@/lib/errorReporting';
 
 interface Props {
   children: ReactNode;
@@ -50,6 +50,16 @@ export class DashboardErrorBoundaryInner extends Component<Props, State> {
       info.componentStack,
     );
     this.setState({ componentStack: info.componentStack, reportState: 'idle' });
+    // Auto-capture into the central pipeline so route + role tags are recorded
+    // even if the user never clicks "Report this error".
+    void reportClientError({
+      source: 'dashboard-error-boundary',
+      label: this.props.label ?? null,
+      message: error?.message ?? null,
+      stack: error?.stack ?? null,
+      componentStack: info.componentStack,
+      extra: { auto: true },
+    });
   }
 
   componentDidUpdate(prevProps: Props) {
@@ -70,27 +80,14 @@ export class DashboardErrorBoundaryInner extends Component<Props, State> {
   handleReportError = async () => {
     if (this.state.reportState === 'sending' || this.state.reportState === 'sent') return;
     this.setState({ reportState: 'sending' });
-    try {
-      const ctx = this.props.reportContext ?? {};
-      const { error } = await supabase.from('client_error_reports').insert({
-        user_id: ctx.userId ?? null,
-        role: ctx.role ?? null,
-        label: this.props.label ?? null,
-        route: ctx.route ?? (typeof window !== 'undefined' ? window.location.pathname : null),
-        message: this.state.message ?? null,
-        component_stack: this.state.componentStack ?? null,
-        user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
-        context: {
-          href: typeof window !== 'undefined' ? window.location.href : null,
-          reported_at: new Date().toISOString(),
-        },
-      });
-      if (error) throw error;
-      this.setState({ reportState: 'sent' });
-    } catch (err) {
-      console.error('[DashboardErrorBoundary] failed to send error report:', err);
-      this.setState({ reportState: 'failed' });
-    }
+    const ok = await reportClientError({
+      source: 'manual',
+      label: this.props.label ?? null,
+      message: this.state.message ?? null,
+      componentStack: this.state.componentStack ?? null,
+      extra: { manual: true },
+    });
+    this.setState({ reportState: ok ? 'sent' : 'failed' });
   };
 
   handleReload = () => {
