@@ -6,7 +6,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, UserX } from 'lucide-react';
+import { Loader2, UserX, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface RemoveTenantDialogProps {
@@ -21,8 +21,9 @@ export function RemoveTenantDialog({ open, onOpenChange, houseId, houseTitle, on
   const { toast } = useToast();
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
-  useEffect(() => { if (open) { setReason(''); } }, [open]);
+  useEffect(() => { if (open) { setReason(''); setConfirming(false); } }, [open]);
 
   const canSubmit = reason.trim().length >= 10 && !busy;
 
@@ -71,12 +72,35 @@ export function RemoveTenantDialog({ open, onOpenChange, houseId, houseTitle, on
           <p className="text-[11px] text-muted-foreground">{reason.trim().length}/10</p>
         </div>
 
+        {confirming && (
+          <div className="rounded-md border-2 border-destructive/50 bg-destructive/10 p-3 text-sm space-y-1">
+            <p className="font-semibold flex items-center gap-1.5 text-destructive">
+              <AlertTriangle className="h-4 w-4" /> Confirm removal?
+            </p>
+            <p className="text-xs">
+              <span className="font-medium">{houseTitle}</span> will be marked vacant immediately.
+              This action is logged with your reason.
+            </p>
+          </div>
+        )}
+
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button>
-          <Button variant="destructive" onClick={handleSubmit} disabled={!canSubmit}>
-            {busy && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
-            Confirm remove
-          </Button>
+          {confirming ? (
+            <>
+              <Button variant="outline" onClick={() => setConfirming(false)} disabled={busy}>Go back</Button>
+              <Button variant="destructive" onClick={handleSubmit} disabled={!canSubmit}>
+                {busy && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+                Yes, remove tenant
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button>
+              <Button variant="destructive" onClick={() => setConfirming(true)} disabled={!canSubmit}>
+                Review removal
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

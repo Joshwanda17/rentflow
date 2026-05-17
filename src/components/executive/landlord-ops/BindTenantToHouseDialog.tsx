@@ -36,12 +36,14 @@ export function BindTenantToHouseDialog({
   const [requestId, setRequestId] = useState<string>('');
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   useEffect(() => {
     if (open) {
       setHouseId(preselectedHouseId || '');
       setRequestId('');
       setReason('');
+      setConfirming(false);
     }
   }, [open, preselectedHouseId]);
 
@@ -91,6 +93,10 @@ export function BindTenantToHouseDialog({
     [housesQuery.data, houseId],
   );
   const isSwap = !!(selectedHouse?.tenant_id || currentTenantIdOnHouse);
+  const selectedRequest = useMemo(
+    () => (requestsQuery.data ?? []).find((r: any) => r.id === requestId),
+    [requestsQuery.data, requestId],
+  );
 
   const canSubmit = !!houseId && !!requestId && reason.trim().length >= 10 && !busy;
 
@@ -207,12 +213,37 @@ export function BindTenantToHouseDialog({
           </div>
         </div>
 
+        {confirming && (
+          <div className="rounded-md border-2 border-amber-500/50 bg-amber-500/10 p-3 text-sm space-y-1">
+            <p className="font-semibold flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
+              <AlertTriangle className="h-4 w-4" /> Confirm {isSwap ? 'swap' : 'bind'}?
+            </p>
+            <p className="text-xs">
+              You are about to {isSwap ? 'swap the tenant on' : 'bind'}{' '}
+              <span className="font-medium">{selectedHouse?.title}</span> to{' '}
+              <span className="font-medium">{(selectedRequest as any)?.tenant?.name ?? 'the selected tenant'}</span>.
+              This is logged with your reason and cannot be undone silently.
+            </p>
+          </div>
+        )}
+
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={!canSubmit}>
-            {busy && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
-            {isSwap ? 'Confirm swap' : 'Confirm bind'}
-          </Button>
+          {confirming ? (
+            <>
+              <Button variant="outline" onClick={() => setConfirming(false)} disabled={busy}>Go back</Button>
+              <Button onClick={handleSubmit} disabled={!canSubmit}>
+                {busy && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+                Yes, {isSwap ? 'swap tenant' : 'bind tenant'}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button>
+              <Button onClick={() => setConfirming(true)} disabled={!canSubmit}>
+                {isSwap ? 'Review swap' : 'Review bind'}
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
