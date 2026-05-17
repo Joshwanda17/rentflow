@@ -3,8 +3,11 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Home, MapPin, DoorOpen, CheckCircle, Clock, AlertTriangle, RotateCcw, Building2, ChevronDown, ChevronRight, User, UserCog, Pencil, Search, X } from 'lucide-react';
+import { Home, MapPin, DoorOpen, CheckCircle, Clock, AlertTriangle, RotateCcw, Building2, ChevronDown, ChevronRight, User, UserCog, Pencil, Search, X, MoreVertical, Eye, Trash2, Loader2 } from 'lucide-react';
 import { Plus } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { EditHouseListingDialog } from './EditHouseListingDialog';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -40,6 +43,9 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
   const [timelineOpen, setTimelineOpen] = useState<Record<string, boolean>>({});
   const [viewingTenantId, setViewingTenantId] = useState<string | null>(null);
   const [detailListingId, setDetailListingId] = useState<string | null>(null);
+  const [editingListing, setEditingListing] = useState<HouseListing | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<HouseListing | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [reassignTarget, setReassignTarget] = useState<{
     rentRequestId: string; tenantName: string; currentAgentId: string;
   } | null>(null);
@@ -140,6 +146,26 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
       toast({ title: 'Failed', description: err.message, variant: 'destructive' });
     } finally {
       setRelisting(null);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    if (deleteTarget.tenant_id) {
+      toast({ title: 'Cannot remove', description: 'This house is occupied. Move the tenant out first.', variant: 'destructive' });
+      return;
+    }
+    setDeleting(true);
+    try {
+      const { error } = await supabase.from('house_listings').delete().eq('id', deleteTarget.id);
+      if (error) throw error;
+      toast({ title: 'Listing removed', description: `${deleteTarget.title} was removed from your account.` });
+      setDeleteTarget(null);
+      refresh();
+    } catch (err: any) {
+      toast({ title: 'Remove failed', description: err.message, variant: 'destructive' });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -441,15 +467,46 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
                                     <span className="truncate"><HighlightText text={l.address} query={search} />, <HighlightText text={l.region} query={search} /></span>
                                   </div>
                                 </div>
-                                <Badge variant={l.status === 'available' ? 'default' : 'secondary'} className="text-[10px] shrink-0">
-                                  {l.status === 'available' ? (
-                                    <><CheckCircle className="h-3 w-3 mr-1" /> Available</>
-                                  ) : l.status === 'occupied' ? (
-                                    <><DoorOpen className="h-3 w-3 mr-1" /> Occupied</>
-                                  ) : (
-                                    <><Clock className="h-3 w-3 mr-1" /> {l.status}</>
-                                  )}
-                                </Badge>
+                                <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                                  <Badge variant={l.status === 'available' ? 'default' : 'secondary'} className="text-[10px]">
+                                    {l.status === 'available' ? (
+                                      <><CheckCircle className="h-3 w-3 mr-1" /> Available</>
+                                    ) : l.status === 'occupied' ? (
+                                      <><DoorOpen className="h-3 w-3 mr-1" /> Occupied</>
+                                    ) : (
+                                      <><Clock className="h-3 w-3 mr-1" /> {l.status}</>
+                                    )}
+                                  </Badge>
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-7 w-7"
+                                        aria-label={`Actions for ${l.title}`}
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <MoreVertical className="h-4 w-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-44">
+                                      <DropdownMenuItem onClick={() => setDetailListingId(l.id)}>
+                                        <Eye className="h-4 w-4 mr-2" /> View details
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => setEditingListing(l)}>
+                                        <Pencil className="h-4 w-4 mr-2" /> Edit listing
+                                      </DropdownMenuItem>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem
+                                        className="text-destructive focus:text-destructive"
+                                        disabled={!!l.tenant_id}
+                                        onClick={() => setDeleteTarget(l)}
+                                      >
+                                        <Trash2 className="h-4 w-4 mr-2" /> Remove listing
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </div>
                               </div>
 
                               <div className="flex items-center justify-between text-xs">
@@ -557,6 +614,38 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
         />
       );
     })()}
+    <EditHouseListingDialog
+      open={!!editingListing}
+      onOpenChange={(o) => !o && setEditingListing(null)}
+      listing={editingListing}
+      onSaved={refresh}
+    />
+    <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && !deleting && setDeleteTarget(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Remove this listing?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {deleteTarget ? (
+              <>
+                <span className="font-medium text-foreground">{deleteTarget.title}</span> will be removed from your account.
+                This action cannot be undone.
+              </>
+            ) : null}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={(e) => { e.preventDefault(); handleDelete(); }}
+            disabled={deleting}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
+          >
+            {deleting && <Loader2 className="h-4 w-4 animate-spin" />}
+            Remove
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     </>
   );
 }
