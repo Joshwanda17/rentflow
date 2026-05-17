@@ -252,14 +252,14 @@ export function LandlordHousesPanel() {
               <SelectItem value="vacant_first">Vacant first</SelectItem>
             </SelectContent>
           </Select>
-          {hasActiveFilter && (
-            <Button
-              variant="ghost" size="sm" className="h-9 text-xs gap-1"
-              onClick={clearAll}
-            >
-              <X className="h-3 w-3" /> Clear
-            </Button>
-          )}
+          <Button
+            variant="outline" size="sm" className="h-9 text-xs gap-1"
+            onClick={clearAll}
+            disabled={!hasActiveFilter}
+            title="Reset search, status, region, and sort back to defaults"
+          >
+            <X className="h-3 w-3" /> Reset filters
+          </Button>
           <div className="ml-auto text-[11px] text-muted-foreground self-center">
             {filtered.length} landlord{filtered.length === 1 ? '' : 's'} · {totalHouses} house{totalHouses === 1 ? '' : 's'}
           </div>
