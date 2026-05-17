@@ -376,15 +376,46 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
             </div>
           ) : (
             <>
-              {filteredRejected.length === 0 && filteredGrouped.length === 0 && hasActiveFilter && (
-                <div className="text-center py-12 space-y-2">
-                  <Search className="h-8 w-8 text-muted-foreground/40 mx-auto" />
-                  <p className="text-sm text-muted-foreground">No houses match your filters</p>
-                  <Button variant="outline" size="sm" onClick={clearAll}>
-                    Clear filters
-                  </Button>
-                </div>
-              )}
+              {filteredRejected.length === 0 && filteredGrouped.length === 0 && hasActiveFilter && (() => {
+                const isSearching = q.length > 0 || regionFilter !== 'all';
+                const tab = isSearching ? 'search' : statusFilter;
+                const copy: Record<string, { icon: any; title: string; body: string; iconColor: string; bg: string }> = {
+                  search:   { icon: Search,         iconColor: 'text-muted-foreground/60', bg: 'bg-muted',          title: 'No houses match your filters', body: 'Try a different search term or region, or reset your filters.' },
+                  vacant:   { icon: CheckCircle,    iconColor: 'text-emerald-600',         bg: 'bg-emerald-500/10', title: 'No available houses right now', body: 'Every house in your portfolio is occupied or pending. Add a new empty house to keep earning placement bonuses.' },
+                  occupied: { icon: DoorOpen,       iconColor: 'text-sky-600',             bg: 'bg-sky-500/10',     title: 'No occupied houses yet',        body: 'Once a tenant moves into one of your listed houses, you’ll see them here.' },
+                  rejected: { icon: CheckCircle,    iconColor: 'text-emerald-600',         bg: 'bg-emerald-500/10', title: 'No rejected listings',          body: 'Great work — none of your listings need revisions right now.' },
+                  all:      { icon: Home,           iconColor: 'text-primary',             bg: 'bg-primary/10',     title: 'No houses to show',             body: 'Try a different filter or list a new house.' },
+                };
+                const c = copy[tab] ?? copy.all;
+                const Icon = c.icon;
+                return (
+                  <div className="text-center py-12 px-6 space-y-4 max-w-sm mx-auto">
+                    <div className={`mx-auto h-14 w-14 rounded-2xl ${c.bg} flex items-center justify-center`}>
+                      <Icon className={`h-7 w-7 ${c.iconColor}`} />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="font-semibold text-base">{c.title}</p>
+                      <p className="text-sm text-muted-foreground">{c.body}</p>
+                    </div>
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-2 pt-1">
+                      {hasActiveFilter && (
+                        <Button variant="outline" size="sm" onClick={clearAll} className="gap-1">
+                          <X className="h-3.5 w-3.5" /> Clear filters
+                        </Button>
+                      )}
+                      {onListHouse && (
+                        <Button
+                          size="sm"
+                          onClick={() => { onOpenChange(false); onListHouse(); }}
+                          className="gap-1"
+                        >
+                          <Plus className="h-4 w-4" /> List a house
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
               {/* Rejected listings - shown prominently at top */}
               {filteredRejected.length > 0 && (
                 <div className="space-y-2">
