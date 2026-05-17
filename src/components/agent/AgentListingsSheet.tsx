@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { TenantProfileView } from './TenantProfileView';
 import { ReassignAgentDialog } from '@/components/shared/ReassignAgentDialog';
+import { HouseActivityTimeline } from '@/components/shared/HouseActivityTimeline';
 
 interface AgentListingsSheetProps {
   open: boolean;
