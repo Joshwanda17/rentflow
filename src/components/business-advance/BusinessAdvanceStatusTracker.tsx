@@ -1,7 +1,10 @@
 import { CheckCircle2, Clock, AlertTriangle, Circle, Briefcase, Banknote, XCircle, ArrowRight, PartyPopper, ListChecks, Phone } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { formatUGX } from '@/lib/businessAdvanceCalculations';
 import { format, formatDistanceToNowStrict } from 'date-fns';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 export type AdvanceStatusRow = {
   id: string;
@@ -177,6 +180,22 @@ export function BusinessAdvanceStatusTracker({ row, compact = false }: { row: Ad
 
   const createdAgo = formatDistanceToNowStrict(new Date(row.created_at), { addSuffix: true });
 
+  const ackKey = currentStage ? `ba-ack:${row.id}:${currentStage.key}` : null;
+  const [acknowledged, setAcknowledged] = useState(false);
+  useEffect(() => {
+    if (!ackKey) { setAcknowledged(false); return; }
+    try { setAcknowledged(localStorage.getItem(ackKey) != null); } catch { setAcknowledged(false); }
+  }, [ackKey]);
+
+  const handleAcknowledge = () => {
+    if (!ackKey || !currentStage) return;
+    try { localStorage.setItem(ackKey, new Date().toISOString()); } catch {}
+    setAcknowledged(true);
+    toast.success('Thanks for confirming', {
+      description: `We've noted that you've reviewed the next steps for "${currentStage.label}".`,
+    });
+  };
+
   return (
     <div className="space-y-3">
       {/* Header */}
@@ -237,6 +256,24 @@ export function BusinessAdvanceStatusTracker({ row, compact = false }: { row: Ad
             <p className="text-[10px] mt-2 text-amber-700/80 flex items-center gap-1">
               <Phone className="h-3 w-3" /> Calls from any +256 number starting with Welile are genuine.
             </p>
+
+            <div className="mt-2.5 pt-2 border-t border-amber-500/30">
+              {acknowledged ? (
+                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  You've confirmed these next steps. We'll notify you as soon as this stage moves.
+                </div>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={handleAcknowledge}
+                  className="h-8 w-full bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+                  Confirm I've done this
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       )}
