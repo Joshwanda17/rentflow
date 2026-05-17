@@ -36,10 +36,31 @@ export function AgentListingsSheet({ open, onOpenChange }: AgentListingsSheetPro
   const [reassignTarget, setReassignTarget] = useState<{
     rentRequestId: string; tenantName: string; currentAgentId: string;
   } | null>(null);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'occupied' | 'vacant' | 'rejected'>('all');
-  const [regionFilter, setRegionFilter] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'title' | 'region' | 'occupied_first' | 'vacant_first'>('newest');
+  const FILTERS_STORAGE_KEY = 'agent-listings-sheet:filters:v1';
+  type SheetFilters = {
+    search: string;
+    statusFilter: 'all' | 'occupied' | 'vacant' | 'rejected';
+    regionFilter: string;
+    sortBy: 'newest' | 'oldest' | 'title' | 'region' | 'occupied_first' | 'vacant_first';
+  };
+  const DEFAULT_FILTERS: SheetFilters = { search: '', statusFilter: 'all', regionFilter: 'all', sortBy: 'newest' };
+  const initial: SheetFilters = (() => {
+    if (typeof window === 'undefined') return DEFAULT_FILTERS;
+    try {
+      const raw = localStorage.getItem(FILTERS_STORAGE_KEY);
+      return raw ? { ...DEFAULT_FILTERS, ...JSON.parse(raw) } : DEFAULT_FILTERS;
+    } catch { return DEFAULT_FILTERS; }
+  })();
+  const [search, setSearch] = useState(initial.search);
+  const [statusFilter, setStatusFilter] = useState<SheetFilters['statusFilter']>(initial.statusFilter);
+  const [regionFilter, setRegionFilter] = useState<string>(initial.regionFilter);
+  const [sortBy, setSortBy] = useState<SheetFilters['sortBy']>(initial.sortBy);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify({ search, statusFilter, regionFilter, sortBy }));
+    } catch { /* ignore */ }
+  }, [search, statusFilter, regionFilter, sortBy]);
 
   // Enrich with landlord profile + tenant profile + active rent_request id for each occupied house.
   const [enrichment, setEnrichment] = useState<{
