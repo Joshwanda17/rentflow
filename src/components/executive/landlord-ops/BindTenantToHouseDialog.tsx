@@ -14,8 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Home, User, AlertTriangle } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
-import { FieldError, FormErrorBanner, PermissionBanner, reasonError, parseRpcError } from '@/components/shared/FormFeedback';
+import { FieldError, FormErrorBanner, reasonError, parseRpcError } from '@/components/shared/FormFeedback';
 
 interface BindTenantToHouseDialogProps {
   open: boolean;
@@ -34,8 +33,6 @@ export function BindTenantToHouseDialog({
   open, onOpenChange, landlordId, landlordName, preselectedHouseId, currentTenantIdOnHouse, onComplete,
 }: BindTenantToHouseDialogProps) {
   const { toast } = useToast();
-  const { roles } = useAuth();
-  const isAllowed = (roles ?? []).some(r => r === 'landlord_ops' || r === 'manager');
   const [houseId, setHouseId] = useState<string>(preselectedHouseId || '');
   const [requestId, setRequestId] = useState<string>('');
   const [reason, setReason] = useState('');
@@ -114,12 +111,11 @@ export function BindTenantToHouseDialog({
     reason: reasonError(reason),
   };
   const reasonErrText = (reasonTouched || submitAttempted) ? errors.reason : null;
-  const canSubmit = isAllowed && !errors.house && !errors.request && !errors.reason && !busy;
+  const canSubmit = !errors.house && !errors.request && !errors.reason && !busy;
 
   const handleSubmit = async () => {
     setSubmitAttempted(true);
     setFormError(null);
-    if (!isAllowed) { setFormError('Your current role does not have permission for this action.'); return; }
     if (!canSubmit) return;
     setBusy(true);
     try {
@@ -167,11 +163,6 @@ export function BindTenantToHouseDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          {!isAllowed && (
-            <PermissionBanner>
-              Only Landlord Ops or Manager roles can bind tenants. Switch role or request access.
-            </PermissionBanner>
-          )}
           <FormErrorBanner message={formError} />
           <div className="space-y-1.5">
             <Label>House</Label>
