@@ -3,7 +3,10 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Briefcase, ArrowRight, Shield } from 'lucide-react';
+import { Loader2, Briefcase, ArrowRight, Shield, Lock, UserPlus, CheckCircle2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
 import BusinessAdvanceStatusTracker, { AdvanceStatusRow } from '@/components/business-advance/BusinessAdvanceStatusTracker';
 
 export default function BusinessAdvanceTrack() {
@@ -15,6 +18,14 @@ export default function BusinessAdvanceTrack() {
   const [row, setRow] = useState<AdvanceStatusRow | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isAuthed, setIsAuthed] = useState(false);
+
+  // Inline onboarding form state — applicant sets a password to claim the
+  // account the agent provisioned for them and is auto-signed-in.
+  const [claiming, setClaiming] = useState(false);
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [accountReady, setAccountReady] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -48,6 +59,30 @@ export default function BusinessAdvanceTrack() {
     return () => { alive = false; supabase.removeChannel(ch); };
   }, [phone]);
 
+  const handleClaim = async () => {
+    if (password.length < 8) return toast.error('Password must be at least 8 characters');
+    if (password !== confirmPassword) return toast.error('Passwords do not match');
+    setClaiming(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('claim-business-advance-account', {
+        body: { phone, password, full_name: fullName.trim() || undefined },
+      });
+      if (error) throw error;
+      const email = (data as any)?.email;
+      if (!email) throw new Error('Could not provision account');
+      const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
+      if (signInErr) throw signInErr;
+      setIsAuthed(true);
+      setAccountReady(true);
+      toast.success('Account ready — welcome aboard!');
+      setTimeout(() => navigate('/dashboard/tenant'), 900);
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not set up account');
+    } finally {
+      setClaiming(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary/10 to-background p-4">
       <div className="max-w-md mx-auto space-y-4 pt-6">
@@ -77,17 +112,58 @@ export default function BusinessAdvanceTrack() {
               </CardContent>
             </Card>
 
-            <Card className="bg-primary/5 border-primary/20">
-              <CardContent className="p-4 space-y-2 text-center">
-                <p className="text-sm font-semibold">Manage everything from your dashboard</p>
-                <p className="text-xs text-muted-foreground">
-                  Sign in to view payments, make repayments, and unlock more credit.
-                </p>
-                <Button className="w-full gap-2" onClick={() => navigate(isAuthed ? '/dashboard/tenant' : `/auth?phone=${encodeURIComponent(phone)}`)}>
-                  {isAuthed ? 'Open my dashboard' : 'Sign in / Create account'} <ArrowRight className="h-4 w-4" />
-                </Button>
-              </CardContent>
-            </Card>
+            {isAuthed || accountReady ? (
+              <Card className="bg-primary/5 border-primary/20">
+                <CardContent className="p-4 space-y-2 text-center">
+                  {accountReady && <CheckCircle2 className="h-8 w-8 text-emerald-600 mx-auto" />}
+                  <p className="text-sm font-semibold">Manage everything from your dashboard</p>
+                  <p className="text-xs text-muted-foreground">
+                    View payments, make repayments, and unlock more credit.
+                  </p>
+                  <Button className="w-full gap-2" onClick={() => navigate('/dashboard/tenant')}>
+                    Open my dashboard <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="border-primary/30 shadow-md">
+                <CardContent className="p-5 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <UserPlus className="h-5 w-5 text-primary" />
+                    <h3 className="font-bold text-sm">Set up your account</h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Your agent has already pre-registered you using <strong>{phone}</strong>. Just choose a password to access your dashboard, track approval, and manage repayments.
+                  </p>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Your full name (optional)</Label>
+                    <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="e.g. Sarah Nakato" autoComplete="name" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs flex items-center gap-1"><Lock className="h-3 w-3" />Choose a password</Label>
+                    <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 8 characters" autoComplete="new-password" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Confirm password</Label>
+                    <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Re-enter password" autoComplete="new-password" />
+                  </div>
+
+                  <Button className="w-full h-11 gap-2" onClick={handleClaim} disabled={claiming}>
+                    {claiming ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                    Activate my account
+                  </Button>
+
+                  <button
+                    type="button"
+                    className="w-full text-[11px] text-muted-foreground underline-offset-2 hover:underline"
+                    onClick={() => navigate(`/auth?phone=${encodeURIComponent(phone)}`)}
+                  >
+                    I already have an account — sign in instead
+                  </button>
+                </CardContent>
+              </Card>
+            )}
           </>
         ) : null}
       </div>
