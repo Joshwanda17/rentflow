@@ -891,6 +891,31 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
             <div className="space-y-2">
               <Label>Business address *</Label>
               <Input value={businessAddress} onChange={(e) => setBusinessAddress(e.target.value)} placeholder="Plot 12, Kampala Road" />
+              {businessGeocoding && (
+                <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Looking up address from GPS…
+                </p>
+              )}
+              {businessGeocoded && (
+                <div className="flex items-start gap-2 rounded-md border border-border bg-muted/30 p-2">
+                  <MapPin className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] text-muted-foreground">Detected address</p>
+                    <p className="text-xs break-words">{businessGeocoded}</p>
+                  </div>
+                  {businessAddress.trim() !== businessGeocoded && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-[11px] shrink-0"
+                      onClick={() => setBusinessAddress(businessGeocoded)}
+                    >
+                      Use this
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
