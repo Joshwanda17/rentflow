@@ -3306,6 +3306,11 @@ export type Database = {
           agent_ops_notes: string | null
           agent_ops_reviewed_at: string | null
           agent_ops_reviewed_by: string | null
+          applicant_latitude: number | null
+          applicant_location_accuracy: number | null
+          applicant_location_captured_at: string | null
+          applicant_location_manual: string | null
+          applicant_longitude: number | null
           business_address: string
           business_city: string | null
           business_latitude: number | null
@@ -3323,18 +3328,24 @@ export type Database = {
           created_at: string
           daily_rate: number
           disbursed_at: string | null
+          guarantor_name: string | null
+          guarantor_phone: string | null
           id: string
           landlord_ops_notes: string | null
           landlord_ops_reviewed_at: string | null
           landlord_ops_reviewed_by: string | null
           last_compounded_date: string | null
           monthly_revenue: number | null
+          next_of_kin_name: string | null
+          next_of_kin_phone: string | null
+          next_of_kin_relationship: string | null
           notes: string | null
           outstanding_balance: number
           principal: number
           reason: string | null
           rejection_reason: string | null
           status: Database["public"]["Enums"]["business_advance_status"]
+          tenant_alternate_phone: string | null
           tenant_has_smartphone: boolean
           tenant_id: string
           tenant_onboarding_method: string
@@ -3352,6 +3363,11 @@ export type Database = {
           agent_ops_notes?: string | null
           agent_ops_reviewed_at?: string | null
           agent_ops_reviewed_by?: string | null
+          applicant_latitude?: number | null
+          applicant_location_accuracy?: number | null
+          applicant_location_captured_at?: string | null
+          applicant_location_manual?: string | null
+          applicant_longitude?: number | null
           business_address: string
           business_city?: string | null
           business_latitude?: number | null
@@ -3369,18 +3385,24 @@ export type Database = {
           created_at?: string
           daily_rate?: number
           disbursed_at?: string | null
+          guarantor_name?: string | null
+          guarantor_phone?: string | null
           id?: string
           landlord_ops_notes?: string | null
           landlord_ops_reviewed_at?: string | null
           landlord_ops_reviewed_by?: string | null
           last_compounded_date?: string | null
           monthly_revenue?: number | null
+          next_of_kin_name?: string | null
+          next_of_kin_phone?: string | null
+          next_of_kin_relationship?: string | null
           notes?: string | null
           outstanding_balance?: number
           principal: number
           reason?: string | null
           rejection_reason?: string | null
           status?: Database["public"]["Enums"]["business_advance_status"]
+          tenant_alternate_phone?: string | null
           tenant_has_smartphone?: boolean
           tenant_id: string
           tenant_onboarding_method?: string
@@ -3398,6 +3420,11 @@ export type Database = {
           agent_ops_notes?: string | null
           agent_ops_reviewed_at?: string | null
           agent_ops_reviewed_by?: string | null
+          applicant_latitude?: number | null
+          applicant_location_accuracy?: number | null
+          applicant_location_captured_at?: string | null
+          applicant_location_manual?: string | null
+          applicant_longitude?: number | null
           business_address?: string
           business_city?: string | null
           business_latitude?: number | null
@@ -3415,18 +3442,24 @@ export type Database = {
           created_at?: string
           daily_rate?: number
           disbursed_at?: string | null
+          guarantor_name?: string | null
+          guarantor_phone?: string | null
           id?: string
           landlord_ops_notes?: string | null
           landlord_ops_reviewed_at?: string | null
           landlord_ops_reviewed_by?: string | null
           last_compounded_date?: string | null
           monthly_revenue?: number | null
+          next_of_kin_name?: string | null
+          next_of_kin_phone?: string | null
+          next_of_kin_relationship?: string | null
           notes?: string | null
           outstanding_balance?: number
           principal?: number
           reason?: string | null
           rejection_reason?: string | null
           status?: Database["public"]["Enums"]["business_advance_status"]
+          tenant_alternate_phone?: string | null
           tenant_has_smartphone?: boolean
           tenant_id?: string
           tenant_onboarding_method?: string

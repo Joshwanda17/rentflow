@@ -9,12 +9,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
-import { Briefcase, Loader2, Navigation, AlertTriangle, CheckCircle2, Copy, Smartphone, MessageCircle, Sparkles } from 'lucide-react';
+import { Briefcase, Loader2, Navigation, AlertTriangle, CheckCircle2, Copy, Smartphone, MessageCircle, Sparkles, BookUser, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import { BUSINESS_TYPES, projectOutstanding, formatUGX } from '@/lib/businessAdvanceCalculations';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import RentHistoryCaptureGrid, { RentHistoryEntry } from './RentHistoryCaptureGrid';
 import AdvanceLimitMarketingCard from './AdvanceLimitMarketingCard';
+import { isContactPickerSupported, pickContact } from '@/lib/contactPicker';
 
 interface Props {
   open: boolean;
@@ -56,6 +57,21 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
   const [hasSmartphone, setHasSmartphone] = useState(true);
   const [onboardingMethod, setOnboardingMethod] = useState<'signup_link' | 'credentials'>('signup_link');
 
+  // Extra contacts
+  const [tenantAltPhone, setTenantAltPhone] = useState('');
+  const [nokName, setNokName] = useState('');
+  const [nokPhone, setNokPhone] = useState('');
+  const [nokRelationship, setNokRelationship] = useState('');
+  const [guarantorName, setGuarantorName] = useState('');
+  const [guarantorPhone, setGuarantorPhone] = useState('');
+
+  // Applicant (tenant) live location
+  const [applicantGps, setApplicantGps] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
+  const [applicantGpsLoading, setApplicantGpsLoading] = useState(false);
+  const [applicantManualLocation, setApplicantManualLocation] = useState('');
+
+  const contactPickerOk = useMemo(() => isContactPickerSupported(), []);
+
   // Business
   const [businessName, setBusinessName] = useState('');
   const [businessType, setBusinessType] = useState('');
@@ -71,6 +87,9 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
     setPrincipal(''); setReason(''); setRentHistory([]);
     setTenantName(''); setTenantPhone(''); setTenantNationalId(''); setTenantEmail('');
     setHasSmartphone(true); setOnboardingMethod('signup_link');
+    setTenantAltPhone(''); setNokName(''); setNokPhone(''); setNokRelationship('');
+    setGuarantorName(''); setGuarantorPhone('');
+    setApplicantGps(null); setApplicantManualLocation('');
     setBusinessName(''); setBusinessType(''); setBusinessAddress(''); setBusinessCity('Kampala');
     setMonthlyRevenue(''); setYearsInBusiness(''); setGps(null);
     setActivationLink(null);
@@ -91,6 +110,37 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
       { enableHighAccuracy: true, timeout: 20000 }
     );
   }, []);
+
+  const captureApplicantGPS = useCallback(() => {
+    if (!navigator.geolocation) return toast.error('GPS not supported on this device');
+    setApplicantGpsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setApplicantGps({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy });
+        setApplicantGpsLoading(false);
+        toast.success('Applicant location captured');
+      },
+      (err) => {
+        setApplicantGpsLoading(false);
+        toast.error(err.message || 'Could not get GPS — use the manual field below');
+      },
+      { enableHighAccuracy: true, timeout: 20000 }
+    );
+  }, []);
+
+  const pickInto = useCallback(
+    async (setName: ((v: string) => void) | null, setPhone: (v: string) => void) => {
+      try {
+        const c = await pickContact();
+        if (!c) return;
+        if (setName && c.name) setName(c.name);
+        if (c.phone) setPhone(formatPhone(c.phone));
+      } catch (e: any) {
+        toast.error(e?.message || 'Could not open phonebook');
+      }
+    },
+    []
+  );
 
   const principalNum = parseInt(principal.replace(/,/g, '')) || 0;
 
@@ -251,6 +301,17 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
           tenant_has_smartphone: hasSmartphone,
           tenant_onboarding_method: onboardingMethod,
           tenant_signup_link: activation,
+          applicant_latitude: applicantGps?.lat ?? null,
+          applicant_longitude: applicantGps?.lng ?? null,
+          applicant_location_accuracy: applicantGps?.accuracy ?? null,
+          applicant_location_captured_at: applicantGps ? new Date().toISOString() : null,
+          applicant_location_manual: applicantManualLocation.trim() || null,
+          tenant_alternate_phone: tenantAltPhone ? tenantAltPhone.replace(/\s/g, '') : null,
+          next_of_kin_name: nokName.trim() || null,
+          next_of_kin_phone: nokPhone ? nokPhone.replace(/\s/g, '') : null,
+          next_of_kin_relationship: nokRelationship.trim() || null,
+          guarantor_name: guarantorName.trim() || null,
+          guarantor_phone: guarantorPhone ? guarantorPhone.replace(/\s/g, '') : null,
           principal: principalNum,
           outstanding_balance: principalNum,
           reason: reason.trim(),
@@ -448,12 +509,31 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
 
             <div className="space-y-2">
               <Label>Tenant phone *</Label>
-              <Input
-                inputMode="tel"
-                value={tenantPhone}
-                onChange={(e) => setTenantPhone(formatPhone(e.target.value))}
-                placeholder="0783 123 456"
-              />
+              <div className="flex gap-2">
+                <Input
+                  inputMode="tel"
+                  value={tenantPhone}
+                  onChange={(e) => setTenantPhone(formatPhone(e.target.value))}
+                  placeholder="0783 123 456"
+                  className="flex-1"
+                />
+                {contactPickerOk && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    title="Pick from phonebook"
+                    onClick={() => pickInto(setTenantName, setTenantPhone)}
+                  >
+                    <BookUser className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              {!contactPickerOk && (
+                <p className="text-[10px] text-muted-foreground">
+                  Phonebook picker not supported on this device — type the number manually.
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -474,6 +554,134 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
                 onChange={(e) => setTenantEmail(e.target.value)}
                 placeholder="sarah@example.com"
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Alternate phone (optional)</Label>
+              <div className="flex gap-2">
+                <Input
+                  inputMode="tel"
+                  value={tenantAltPhone}
+                  onChange={(e) => setTenantAltPhone(formatPhone(e.target.value))}
+                  placeholder="Second number we can reach"
+                  className="flex-1"
+                />
+                {contactPickerOk && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    title="Pick from phonebook"
+                    onClick={() => pickInto(null, setTenantAltPhone)}
+                  >
+                    <BookUser className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Applicant live location */}
+            <div className="space-y-2 rounded-lg border border-border p-3">
+              <Label className="text-xs uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+                <MapPin className="h-3.5 w-3.5" /> Applicant location
+              </Label>
+              <p className="text-[11px] text-muted-foreground">
+                Capture where the applicant is right now. If GPS fails, describe the location manually.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={captureApplicantGPS}
+                disabled={applicantGpsLoading}
+              >
+                {applicantGpsLoading ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Navigation className="h-4 w-4 mr-2" />
+                )}
+                {applicantGps
+                  ? `📍 Applicant GPS captured (±${Math.round(applicantGps.accuracy)}m)`
+                  : 'Capture applicant GPS'}
+              </Button>
+              <Input
+                value={applicantManualLocation}
+                onChange={(e) => setApplicantManualLocation(e.target.value)}
+                placeholder="Manual location (e.g. Bukoto, Plot 4, near St. Jude clinic)"
+              />
+            </div>
+
+            <Separator />
+
+            {/* Next of kin */}
+            <div className="space-y-2 rounded-lg border border-border p-3">
+              <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                Next of kin (optional)
+              </Label>
+              <Input
+                value={nokName}
+                onChange={(e) => setNokName(e.target.value)}
+                placeholder="Full name"
+              />
+              <div className="flex gap-2">
+                <Input
+                  inputMode="tel"
+                  value={nokPhone}
+                  onChange={(e) => setNokPhone(formatPhone(e.target.value))}
+                  placeholder="Phone number"
+                  className="flex-1"
+                />
+                {contactPickerOk && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    title="Pick from phonebook"
+                    onClick={() => pickInto(setNokName, setNokPhone)}
+                  >
+                    <BookUser className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              <Input
+                value={nokRelationship}
+                onChange={(e) => setNokRelationship(e.target.value)}
+                placeholder="Relationship (e.g. spouse, brother)"
+              />
+            </div>
+
+            {/* Guarantor */}
+            <div className="space-y-2 rounded-lg border border-border p-3">
+              <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                Guarantor (optional)
+              </Label>
+              <Input
+                value={guarantorName}
+                onChange={(e) => setGuarantorName(e.target.value)}
+                placeholder="Full name"
+              />
+              <div className="flex gap-2">
+                <Input
+                  inputMode="tel"
+                  value={guarantorPhone}
+                  onChange={(e) => setGuarantorPhone(formatPhone(e.target.value))}
+                  placeholder="Phone number"
+                  className="flex-1"
+                />
+                {contactPickerOk && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    title="Pick from phonebook"
+                    onClick={() => pickInto(setGuarantorName, setGuarantorPhone)}
+                  >
+                    <BookUser className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
             </div>
 
             <div className="flex items-start gap-2 rounded-lg border border-border p-3">
