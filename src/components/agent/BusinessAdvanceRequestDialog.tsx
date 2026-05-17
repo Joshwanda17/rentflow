@@ -715,6 +715,31 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
                 onChange={(e) => setApplicantManualLocation(e.target.value)}
                 placeholder="Manual location (e.g. Bukoto, Plot 4, near St. Jude clinic)"
               />
+              {applicantGeocoding && (
+                <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Looking up address from GPS…
+                </p>
+              )}
+              {applicantGeocoded && (
+                <div className="flex items-start gap-2 rounded-md border border-border bg-muted/30 p-2">
+                  <MapPin className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] text-muted-foreground">Detected address</p>
+                    <p className="text-xs break-words">{applicantGeocoded}</p>
+                  </div>
+                  {applicantManualLocation.trim() !== applicantGeocoded && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-[11px] shrink-0"
+                      onClick={() => setApplicantManualLocation(applicantGeocoded)}
+                    >
+                      Use this
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
 
             <Separator />
