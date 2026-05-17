@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Loader2, UserCog, Search } from 'lucide-react';
+import { Loader2, UserCog, Search, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 type Target =
@@ -31,8 +31,9 @@ export function ReassignAgentDialog({ open, onOpenChange, target, onComplete }: 
   const [reason, setReason] = useState('');
   const [search, setSearch] = useState('');
   const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
-  useEffect(() => { if (open) { setAgentId(''); setReason(''); setSearch(''); } }, [open]);
+  useEffect(() => { if (open) { setAgentId(''); setReason(''); setSearch(''); setConfirming(false); } }, [open]);
 
   const agentsQuery = useQuery({
     queryKey: ['reassign-agent-pool'],
@@ -66,6 +67,10 @@ export function ReassignAgentDialog({ open, onOpenChange, target, onComplete }: 
   }, [agentsQuery.data, search]);
 
   const canSubmit = !!agentId && agentId !== target.currentAgentId && reason.trim().length >= 10 && !busy;
+  const selectedAgent = useMemo(
+    () => (agentsQuery.data ?? []).find(a => a.id === agentId),
+    [agentsQuery.data, agentId],
+  );
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -143,12 +148,36 @@ export function ReassignAgentDialog({ open, onOpenChange, target, onComplete }: 
           </div>
         </div>
 
+        {confirming && (
+          <div className="rounded-md border-2 border-amber-500/50 bg-amber-500/10 p-3 text-sm space-y-1">
+            <p className="font-semibold flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
+              <AlertTriangle className="h-4 w-4" /> Confirm reassignment?
+            </p>
+            <p className="text-xs">
+              Management of {subject} will move to{' '}
+              <span className="font-medium">{selectedAgent?.name ?? 'the selected agent'}</span>.
+              This is logged with your reason.
+            </p>
+          </div>
+        )}
+
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={!canSubmit}>
-            {busy && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
-            Reassign
-          </Button>
+          {confirming ? (
+            <>
+              <Button variant="outline" onClick={() => setConfirming(false)} disabled={busy}>Go back</Button>
+              <Button onClick={handleSubmit} disabled={!canSubmit}>
+                {busy && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+                Yes, reassign
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button>
+              <Button onClick={() => setConfirming(true)} disabled={!canSubmit}>
+                Review reassignment
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
