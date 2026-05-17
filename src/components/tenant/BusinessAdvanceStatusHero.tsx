@@ -11,6 +11,7 @@ import { BusinessAdvanceAuditLog } from '@/components/business-advance/BusinessA
 import { LiveUpdatingBadge } from '@/components/business-advance/LiveUpdatingBadge';
 import { BusinessAdvanceNotificationPreferences } from '@/components/business-advance/NotificationPreferences';
 import { BusinessAdvanceDocumentUploadPanel } from '@/components/business-advance/DocumentUploadPanel';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const ACTIVE_STATUSES = ['pending','agent_ops_approved','tenant_ops_approved','landlord_ops_approved','coo_approved','active'] as const;
 
@@ -32,7 +33,7 @@ export function BusinessAdvanceStatusHero() {
     try { localStorage.setItem(storageKey, next ? '1' : '0'); } catch {}
   };
 
-  const { data, refetch } = useQuery({
+  const { data, refetch, isLoading } = useQuery({
     queryKey: ['tenant-active-business-advance', user?.id],
     enabled: !!user?.id,
     queryFn: async () => {
@@ -77,9 +78,9 @@ export function BusinessAdvanceStatusHero() {
     }
   }, [currentStatus, storageKey, userToggled]);
 
-  if (!data) return null;
+  if (!data && !isLoading) return null;
 
-  const activeStage = getActiveAdvanceStage(data);
+  const activeStage = data ? getActiveAdvanceStage(data) : null;
 
   return (
     <Card className="border-primary/30 bg-gradient-to-br from-primary/5 via-background to-primary/5 shadow-md">
@@ -92,7 +93,11 @@ export function BusinessAdvanceStatusHero() {
             <div className="min-w-0">
               <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider font-bold text-primary">
                 <Sparkles className="h-3 w-3" />
-                {data.status === 'active' ? 'Your Business Advance is active' : 'Your Business Advance is being reviewed'}
+                {isLoading || !data
+                  ? 'Loading your Business Advance…'
+                  : data.status === 'active'
+                    ? 'Your Business Advance is active'
+                    : 'Your Business Advance is being reviewed'}
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
                 Tap to {open ? 'hide' : 'expand'} progress, documents and notification settings.
@@ -106,17 +111,28 @@ export function BusinessAdvanceStatusHero() {
         </CollapsibleTrigger>
         <CollapsibleContent>
           <CardContent className="p-4 pt-0 space-y-3">
-            <BusinessAdvanceStatusTracker row={data} compact />
-            {activeStage && user?.id && (
-              <BusinessAdvanceDocumentUploadPanel
-                advanceId={data.id}
-                tenantId={user.id}
-                stageKey={activeStage.key}
-                stageLabel={activeStage.label}
-              />
+            {!data ? (
+              <div className="space-y-3" aria-busy="true" aria-live="polite">
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-24 w-full" />
+                <Skeleton className="h-10 w-1/2" />
+              </div>
+            ) : (
+              <>
+                <BusinessAdvanceStatusTracker row={data} compact />
+                {activeStage && user?.id && (
+                  <BusinessAdvanceDocumentUploadPanel
+                    advanceId={data.id}
+                    tenantId={user.id}
+                    stageKey={activeStage.key}
+                    stageLabel={activeStage.label}
+                  />
+                )}
+                <BusinessAdvanceAuditLog advanceId={data.id} />
+                {user?.id && <BusinessAdvanceNotificationPreferences userId={user.id} />}
+              </>
             )}
-            <BusinessAdvanceAuditLog advanceId={data.id} />
-            {user?.id && <BusinessAdvanceNotificationPreferences userId={user.id} />}
           </CardContent>
         </CollapsibleContent>
       </Collapsible>
