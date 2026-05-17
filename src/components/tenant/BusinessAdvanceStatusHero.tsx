@@ -2,7 +2,9 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, ChevronDown } from 'lucide-react';
+import { useState } from 'react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import BusinessAdvanceStatusTracker, { AdvanceStatusRow, getActiveAdvanceStage } from '@/components/business-advance/BusinessAdvanceStatusTracker';
 import { useBusinessAdvanceRealtime } from '@/hooks/useBusinessAdvanceRealtime';
 import { BusinessAdvanceAuditLog } from '@/components/business-advance/BusinessAdvanceAuditLog';
@@ -19,6 +21,7 @@ const ACTIVE_STATUSES = ['pending','agent_ops_approved','tenant_ops_approved','l
  */
 export function BusinessAdvanceStatusHero() {
   const { user } = useAuth();
+  const [open, setOpen] = useState(false);
 
   const { data, refetch } = useQuery({
     queryKey: ['tenant-active-business-advance', user?.id],
@@ -55,26 +58,38 @@ export function BusinessAdvanceStatusHero() {
 
   return (
     <Card className="border-primary/30 bg-gradient-to-br from-primary/5 via-background to-primary/5 shadow-md">
-      <CardContent className="p-4 space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider font-bold text-primary">
-            <Sparkles className="h-3 w-3" />
-            {data.status === 'active' ? 'Your Business Advance is active' : 'Your Business Advance is being reviewed'}
-          </div>
-          <LiveUpdatingBadge status={rtStatus} />
-        </div>
-        <BusinessAdvanceStatusTracker row={data} compact />
-        {activeStage && user?.id && (
-          <BusinessAdvanceDocumentUploadPanel
-            advanceId={data.id}
-            tenantId={user.id}
-            stageKey={activeStage.key}
-            stageLabel={activeStage.label}
-          />
-        )}
-        <BusinessAdvanceAuditLog advanceId={data.id} />
-        {user?.id && <BusinessAdvanceNotificationPreferences userId={user.id} />}
-      </CardContent>
+      <Collapsible open={open} onOpenChange={setOpen}>
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="w-full flex items-center justify-between gap-2 p-4 text-left hover:bg-muted/30 transition-colors rounded-lg"
+          >
+            <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider font-bold text-primary">
+              <Sparkles className="h-3 w-3" />
+              {data.status === 'active' ? 'Your Business Advance is active' : 'Your Business Advance is being reviewed'}
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <LiveUpdatingBadge status={rtStatus} />
+              <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`} />
+            </div>
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <CardContent className="p-4 pt-0 space-y-3">
+            <BusinessAdvanceStatusTracker row={data} compact />
+            {activeStage && user?.id && (
+              <BusinessAdvanceDocumentUploadPanel
+                advanceId={data.id}
+                tenantId={user.id}
+                stageKey={activeStage.key}
+                stageLabel={activeStage.label}
+              />
+            )}
+            <BusinessAdvanceAuditLog advanceId={data.id} />
+            {user?.id && <BusinessAdvanceNotificationPreferences userId={user.id} />}
+          </CardContent>
+        </CollapsibleContent>
+      </Collapsible>
     </Card>
   );
 }
