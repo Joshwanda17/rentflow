@@ -9,12 +9,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
-import { Briefcase, Loader2, Navigation, AlertTriangle, CheckCircle2, Copy, Smartphone, MessageCircle, Sparkles } from 'lucide-react';
+import { Briefcase, Loader2, Navigation, AlertTriangle, CheckCircle2, Copy, Smartphone, MessageCircle, Sparkles, BookUser, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import { BUSINESS_TYPES, projectOutstanding, formatUGX } from '@/lib/businessAdvanceCalculations';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import RentHistoryCaptureGrid, { RentHistoryEntry } from './RentHistoryCaptureGrid';
 import AdvanceLimitMarketingCard from './AdvanceLimitMarketingCard';
+import { isContactPickerSupported, pickContact, normaliseUgPhone } from '@/lib/contactPicker';
 
 interface Props {
   open: boolean;
@@ -56,6 +57,21 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
   const [hasSmartphone, setHasSmartphone] = useState(true);
   const [onboardingMethod, setOnboardingMethod] = useState<'signup_link' | 'credentials'>('signup_link');
 
+  // Extra contacts
+  const [tenantAltPhone, setTenantAltPhone] = useState('');
+  const [nokName, setNokName] = useState('');
+  const [nokPhone, setNokPhone] = useState('');
+  const [nokRelationship, setNokRelationship] = useState('');
+  const [guarantorName, setGuarantorName] = useState('');
+  const [guarantorPhone, setGuarantorPhone] = useState('');
+
+  // Applicant (tenant) live location
+  const [applicantGps, setApplicantGps] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
+  const [applicantGpsLoading, setApplicantGpsLoading] = useState(false);
+  const [applicantManualLocation, setApplicantManualLocation] = useState('');
+
+  const contactPickerOk = useMemo(() => isContactPickerSupported(), []);
+
   // Business
   const [businessName, setBusinessName] = useState('');
   const [businessType, setBusinessType] = useState('');
@@ -71,6 +87,9 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
     setPrincipal(''); setReason(''); setRentHistory([]);
     setTenantName(''); setTenantPhone(''); setTenantNationalId(''); setTenantEmail('');
     setHasSmartphone(true); setOnboardingMethod('signup_link');
+    setTenantAltPhone(''); setNokName(''); setNokPhone(''); setNokRelationship('');
+    setGuarantorName(''); setGuarantorPhone('');
+    setApplicantGps(null); setApplicantManualLocation('');
     setBusinessName(''); setBusinessType(''); setBusinessAddress(''); setBusinessCity('Kampala');
     setMonthlyRevenue(''); setYearsInBusiness(''); setGps(null);
     setActivationLink(null);
@@ -91,6 +110,37 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
       { enableHighAccuracy: true, timeout: 20000 }
     );
   }, []);
+
+  const captureApplicantGPS = useCallback(() => {
+    if (!navigator.geolocation) return toast.error('GPS not supported on this device');
+    setApplicantGpsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setApplicantGps({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy });
+        setApplicantGpsLoading(false);
+        toast.success('Applicant location captured');
+      },
+      (err) => {
+        setApplicantGpsLoading(false);
+        toast.error(err.message || 'Could not get GPS — use the manual field below');
+      },
+      { enableHighAccuracy: true, timeout: 20000 }
+    );
+  }, []);
+
+  const pickInto = useCallback(
+    async (setName: ((v: string) => void) | null, setPhone: (v: string) => void) => {
+      try {
+        const c = await pickContact();
+        if (!c) return;
+        if (setName && c.name) setName(c.name);
+        if (c.phone) setPhone(formatPhone(c.phone));
+      } catch (e: any) {
+        toast.error(e?.message || 'Could not open phonebook');
+      }
+    },
+    []
+  );
 
   const principalNum = parseInt(principal.replace(/,/g, '')) || 0;
 
@@ -251,6 +301,17 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
           tenant_has_smartphone: hasSmartphone,
           tenant_onboarding_method: onboardingMethod,
           tenant_signup_link: activation,
+          applicant_latitude: applicantGps?.lat ?? null,
+          applicant_longitude: applicantGps?.lng ?? null,
+          applicant_location_accuracy: applicantGps?.accuracy ?? null,
+          applicant_location_captured_at: applicantGps ? new Date().toISOString() : null,
+          applicant_location_manual: applicantManualLocation.trim() || null,
+          tenant_alternate_phone: tenantAltPhone ? tenantAltPhone.replace(/\s/g, '') : null,
+          next_of_kin_name: nokName.trim() || null,
+          next_of_kin_phone: nokPhone ? nokPhone.replace(/\s/g, '') : null,
+          next_of_kin_relationship: nokRelationship.trim() || null,
+          guarantor_name: guarantorName.trim() || null,
+          guarantor_phone: guarantorPhone ? guarantorPhone.replace(/\s/g, '') : null,
           principal: principalNum,
           outstanding_balance: principalNum,
           reason: reason.trim(),
