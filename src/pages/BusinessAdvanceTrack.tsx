@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import BusinessAdvanceStatusTracker, { AdvanceStatusRow } from '@/components/business-advance/BusinessAdvanceStatusTracker';
 import { useBusinessAdvanceRealtime } from '@/hooks/useBusinessAdvanceRealtime';
 import { BusinessAdvanceAuditLog } from '@/components/business-advance/BusinessAdvanceAuditLog';
+import { LiveUpdatingBadge } from '@/components/business-advance/LiveUpdatingBadge';
 
 export default function BusinessAdvanceTrack() {
   const [params] = useSearchParams();
@@ -59,7 +60,7 @@ export default function BusinessAdvanceTrack() {
 
   // Shared realtime — covers INSERT (request just created) and UPDATE
   // (stage advanced) so the public tracker mirrors the tenant dashboard hero.
-  useBusinessAdvanceRealtime(
+  const rtStatus = useBusinessAdvanceRealtime(
     phone ? `public-track-${phone}` : null,
     () => { load(); }
   );
@@ -97,6 +98,11 @@ export default function BusinessAdvanceTrack() {
             <h1 className="text-xl font-bold">Your Business Advance</h1>
           </div>
           <p className="text-xs text-muted-foreground">Live approval progress — updates automatically</p>
+          {row && (
+            <div className="flex justify-center pt-1">
+              <LiveUpdatingBadge status={rtStatus} />
+            </div>
+          )}
         </div>
 
         {loading ? (
