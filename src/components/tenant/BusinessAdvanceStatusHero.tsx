@@ -79,9 +79,14 @@ export function BusinessAdvanceStatusHero() {
             type="button"
             className="w-full flex items-center justify-between gap-2 p-4 text-left hover:bg-muted/30 transition-colors rounded-lg"
           >
-            <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider font-bold text-primary">
-              <Sparkles className="h-3 w-3" />
-              {data.status === 'active' ? 'Your Business Advance is active' : 'Your Business Advance is being reviewed'}
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider font-bold text-primary">
+                <Sparkles className="h-3 w-3" />
+                {data.status === 'active' ? 'Your Business Advance is active' : 'Your Business Advance is being reviewed'}
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Tap to {open ? 'hide' : 'expand'} progress, documents and notification settings.
+              </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <LiveUpdatingBadge status={rtStatus} />
