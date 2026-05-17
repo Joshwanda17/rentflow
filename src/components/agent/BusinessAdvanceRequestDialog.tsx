@@ -108,6 +108,8 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
     setTenantAltPhone(''); setNokName(''); setNokPhone(''); setNokRelationship('');
     setGuarantorName(''); setGuarantorPhone('');
     setApplicantGps(null); setApplicantManualLocation('');
+    setApplicantGeocoded(null); setApplicantGeocoding(false);
+    setBusinessGeocoded(null); setBusinessGeocoding(false);
     setBusinessName(''); setBusinessType(''); setBusinessAddress(''); setBusinessCity('Kampala');
     setMonthlyRevenue(''); setYearsInBusiness(''); setGps(null);
     setActivationLink(null);
@@ -118,8 +120,9 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
   const captureGPS = useCallback(() => {
     if (!navigator.geolocation) return toast.error('GPS not supported');
     setGpsLoading(true);
+    setBusinessGeocoded(null);
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
+      async (pos) => {
         const acc = pos.coords.accuracy;
         setGps({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: acc });
         setGpsLoading(false);
@@ -130,6 +133,13 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
         } else {
           toast.success(`Business location captured (±${Math.round(acc)}m)`);
         }
+        setBusinessGeocoding(true);
+        const geo = await reverseGeocode(pos.coords.latitude, pos.coords.longitude);
+        setBusinessGeocoding(false);
+        if (geo?.address) {
+          setBusinessGeocoded(geo.address);
+          setBusinessAddress((prev) => (prev.trim() ? prev : geo.address));
+        }
       },
       () => { setGpsLoading(false); toast.error('Could not get GPS'); },
       { enableHighAccuracy: true, timeout: 20000 }
@@ -139,8 +149,9 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
   const captureApplicantGPS = useCallback(() => {
     if (!navigator.geolocation) return toast.error('GPS not supported on this device');
     setApplicantGpsLoading(true);
+    setApplicantGeocoded(null);
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
+      async (pos) => {
         const acc = pos.coords.accuracy;
         setApplicantGps({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: acc });
         setApplicantGpsLoading(false);
@@ -150,6 +161,13 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
           toast.warning(`Captured at ±${Math.round(acc)}m — consider retrying for better accuracy.`);
         } else {
           toast.success(`Applicant location captured (±${Math.round(acc)}m)`);
+        }
+        setApplicantGeocoding(true);
+        const geo = await reverseGeocode(pos.coords.latitude, pos.coords.longitude);
+        setApplicantGeocoding(false);
+        if (geo?.address) {
+          setApplicantGeocoded(geo.address);
+          setApplicantManualLocation((prev) => (prev.trim() ? prev : geo.address));
         }
       },
       (err) => {
