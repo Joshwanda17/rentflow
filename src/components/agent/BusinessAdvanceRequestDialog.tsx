@@ -509,12 +509,31 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
 
             <div className="space-y-2">
               <Label>Tenant phone *</Label>
-              <Input
-                inputMode="tel"
-                value={tenantPhone}
-                onChange={(e) => setTenantPhone(formatPhone(e.target.value))}
-                placeholder="0783 123 456"
-              />
+              <div className="flex gap-2">
+                <Input
+                  inputMode="tel"
+                  value={tenantPhone}
+                  onChange={(e) => setTenantPhone(formatPhone(e.target.value))}
+                  placeholder="0783 123 456"
+                  className="flex-1"
+                />
+                {contactPickerOk && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    title="Pick from phonebook"
+                    onClick={() => pickInto(setTenantName, setTenantPhone)}
+                  >
+                    <BookUser className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              {!contactPickerOk && (
+                <p className="text-[10px] text-muted-foreground">
+                  Phonebook picker not supported on this device — type the number manually.
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -535,6 +554,134 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
                 onChange={(e) => setTenantEmail(e.target.value)}
                 placeholder="sarah@example.com"
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Alternate phone (optional)</Label>
+              <div className="flex gap-2">
+                <Input
+                  inputMode="tel"
+                  value={tenantAltPhone}
+                  onChange={(e) => setTenantAltPhone(formatPhone(e.target.value))}
+                  placeholder="Second number we can reach"
+                  className="flex-1"
+                />
+                {contactPickerOk && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    title="Pick from phonebook"
+                    onClick={() => pickInto(null, setTenantAltPhone)}
+                  >
+                    <BookUser className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Applicant live location */}
+            <div className="space-y-2 rounded-lg border border-border p-3">
+              <Label className="text-xs uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+                <MapPin className="h-3.5 w-3.5" /> Applicant location
+              </Label>
+              <p className="text-[11px] text-muted-foreground">
+                Capture where the applicant is right now. If GPS fails, describe the location manually.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={captureApplicantGPS}
+                disabled={applicantGpsLoading}
+              >
+                {applicantGpsLoading ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Navigation className="h-4 w-4 mr-2" />
+                )}
+                {applicantGps
+                  ? `📍 Applicant GPS captured (±${Math.round(applicantGps.accuracy)}m)`
+                  : 'Capture applicant GPS'}
+              </Button>
+              <Input
+                value={applicantManualLocation}
+                onChange={(e) => setApplicantManualLocation(e.target.value)}
+                placeholder="Manual location (e.g. Bukoto, Plot 4, near St. Jude clinic)"
+              />
+            </div>
+
+            <Separator />
+
+            {/* Next of kin */}
+            <div className="space-y-2 rounded-lg border border-border p-3">
+              <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                Next of kin (optional)
+              </Label>
+              <Input
+                value={nokName}
+                onChange={(e) => setNokName(e.target.value)}
+                placeholder="Full name"
+              />
+              <div className="flex gap-2">
+                <Input
+                  inputMode="tel"
+                  value={nokPhone}
+                  onChange={(e) => setNokPhone(formatPhone(e.target.value))}
+                  placeholder="Phone number"
+                  className="flex-1"
+                />
+                {contactPickerOk && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    title="Pick from phonebook"
+                    onClick={() => pickInto(setNokName, setNokPhone)}
+                  >
+                    <BookUser className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              <Input
+                value={nokRelationship}
+                onChange={(e) => setNokRelationship(e.target.value)}
+                placeholder="Relationship (e.g. spouse, brother)"
+              />
+            </div>
+
+            {/* Guarantor */}
+            <div className="space-y-2 rounded-lg border border-border p-3">
+              <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                Guarantor (optional)
+              </Label>
+              <Input
+                value={guarantorName}
+                onChange={(e) => setGuarantorName(e.target.value)}
+                placeholder="Full name"
+              />
+              <div className="flex gap-2">
+                <Input
+                  inputMode="tel"
+                  value={guarantorPhone}
+                  onChange={(e) => setGuarantorPhone(formatPhone(e.target.value))}
+                  placeholder="Phone number"
+                  className="flex-1"
+                />
+                {contactPickerOk && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    title="Pick from phonebook"
+                    onClick={() => pickInto(setGuarantorName, setGuarantorPhone)}
+                  >
+                    <BookUser className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
             </div>
 
             <div className="flex items-start gap-2 rounded-lg border border-border p-3">
