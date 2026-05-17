@@ -1,6 +1,7 @@
 import { Component, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Props {
   children: ReactNode;
@@ -125,7 +126,9 @@ export class DashboardErrorBoundaryInner extends Component<Props, State> {
  */
 export function DashboardErrorBoundary(props: Props) {
   const location = useLocation();
-  return <DashboardErrorBoundaryInner {...props} resetKey={props.resetKey ?? location.pathname} />;
+  const { user, role } = useAuth();
+  const autoKey = `${location.pathname}|${user?.id ?? 'anon'}|${role ?? 'none'}`;
+  return <DashboardErrorBoundaryInner {...props} resetKey={props.resetKey ?? autoKey} />;
 }
 
 export default DashboardErrorBoundary;
