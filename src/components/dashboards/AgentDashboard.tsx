@@ -481,6 +481,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               agentId={user.id}
               onOpenFieldCollect={() => setFieldCollectOpen(true)}
               onOpenNewTenant={() => setRentRequestOpen(true)}
+              onOpenListHouse={() => setListHouseOpen(true)}
             />
 
             {/* Today's collected total — single most useful at-a-glance number */}
