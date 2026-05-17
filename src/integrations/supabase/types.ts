@@ -3335,6 +3335,7 @@ export type Database = {
           landlord_ops_reviewed_at: string | null
           landlord_ops_reviewed_by: string | null
           last_compounded_date: string | null
+          location_history: Json
           monthly_revenue: number | null
           next_of_kin_name: string | null
           next_of_kin_phone: string | null
@@ -3392,6 +3393,7 @@ export type Database = {
           landlord_ops_reviewed_at?: string | null
           landlord_ops_reviewed_by?: string | null
           last_compounded_date?: string | null
+          location_history?: Json
           monthly_revenue?: number | null
           next_of_kin_name?: string | null
           next_of_kin_phone?: string | null
@@ -3449,6 +3451,7 @@ export type Database = {
           landlord_ops_reviewed_at?: string | null
           landlord_ops_reviewed_by?: string | null
           last_compounded_date?: string | null
+          location_history?: Json
           monthly_revenue?: number | null
           next_of_kin_name?: string | null
           next_of_kin_phone?: string | null
