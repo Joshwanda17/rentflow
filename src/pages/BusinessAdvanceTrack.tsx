@@ -12,6 +12,7 @@ import { useBusinessAdvanceRealtime } from '@/hooks/useBusinessAdvanceRealtime';
 import { BusinessAdvanceAuditLog } from '@/components/business-advance/BusinessAdvanceAuditLog';
 import { LiveUpdatingBadge } from '@/components/business-advance/LiveUpdatingBadge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { BusinessAdvanceNotificationPreferences } from '@/components/business-advance/NotificationPreferences';
 
 export default function BusinessAdvanceTrack() {
   const [params] = useSearchParams();
@@ -31,11 +32,15 @@ export default function BusinessAdvanceTrack() {
   const [fullName, setFullName] = useState('');
   const [accountReady, setAccountReady] = useState(false);
   const [trackerOpen, setTrackerOpen] = useState(true);
+  const [authedUserId, setAuthedUserId] = useState<string | null>(null);
 
   const aliveRef = useRef(true);
   const load = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (aliveRef.current) setIsAuthed(!!user);
+    if (aliveRef.current) {
+      setIsAuthed(!!user);
+      setAuthedUserId(user?.id ?? null);
+    }
     if (!phone) {
       if (aliveRef.current) { setError('Missing phone number in the link'); setLoading(false); }
       return;
