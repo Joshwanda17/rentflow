@@ -1,13 +1,12 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, CloudUpload, WifiOff, UserPlus, ShieldCheck, User as UserIcon, Wallet } from 'lucide-react';
+import { ArrowRight, CloudUpload, WifiOff, UserPlus, ShieldCheck, Wallet, Home as HomeIcon } from 'lucide-react';
 import { useTrustProfile } from '@/hooks/useTrustProfile';
 import { useProfile } from '@/hooks/useProfile';
 import { generateWelileAiId } from '@/lib/welileAiId';
 import { formatUGX } from '@/lib/rentCalculations';
 import { hapticTap } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
-import { UserAvatar } from '@/components/UserAvatar';
 import { getEntries, getQueuedEntries } from '@/lib/fieldCollectStore';
 
 /**
@@ -28,11 +27,12 @@ interface Props {
   agentId: string;
   onOpenFieldCollect: () => void;
   onOpenNewTenant: () => void;
+  onOpenListHouse: () => void;
 }
 
-export function AgentPriorityGrid({ agentId, onOpenFieldCollect, onOpenNewTenant }: Props) {
+export function AgentPriorityGrid({ agentId, onOpenFieldCollect, onOpenNewTenant, onOpenListHouse }: Props) {
   const navigate = useNavigate();
-  const { profile } = useProfile();
+  useProfile(); // keep hook to preserve profile prefetch behaviour
   const aiId = agentId ? generateWelileAiId(agentId) : undefined;
   const { profile: trust } = useTrustProfile(aiId);
 
@@ -126,24 +126,14 @@ export function AgentPriorityGrid({ agentId, onOpenFieldCollect, onOpenNewTenant
         sub={vouch > 0 ? `Score ${score}` : 'Collect to unlock credit'}
       />
 
-      {/* 4. Profile — avatar shortcut */}
+      {/* 4. List House — open empty house listing flow */}
       <PriorityTile
-        onClick={() => { hapticTap(); navigate('/settings'); }}
-        icon={
-          profile?.avatar_url
-            ? <UserAvatar avatarUrl={profile.avatar_url} fullName={profile.full_name} size="md" />
-            : <UserIcon className="h-6 w-6" strokeWidth={2.2} />
-        }
-        iconBg={profile?.avatar_url ? 'bg-transparent' : 'bg-muted text-foreground'}
-        label="Profile"
-        valueLabel={profile?.full_name ? 'My account' : 'Finish setup'}
-        sub={
-          profile?.verified
-            ? 'Verified ✓'
-            : profile?.avatar_url
-              ? 'Get verified'
-              : 'Add photo & details'
-        }
+        onClick={() => { hapticTap(); onOpenListHouse(); }}
+        icon={<HomeIcon className="h-6 w-6" strokeWidth={2.2} />}
+        iconBg="bg-[hsl(var(--chart-2))] text-white"
+        label="List House"
+        valueLabel="Add listing"
+        sub="Earn placement bonus"
       />
     </div>
   );
