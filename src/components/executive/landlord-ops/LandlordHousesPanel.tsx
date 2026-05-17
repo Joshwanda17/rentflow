@@ -14,6 +14,7 @@ import { BindTenantToHouseDialog } from './BindTenantToHouseDialog';
 import { RemoveTenantDialog } from './RemoveTenantDialog';
 import { ReassignAgentDialog } from '@/components/shared/ReassignAgentDialog';
 import { HouseActivityTimeline } from '@/components/shared/HouseActivityTimeline';
+import { HighlightText } from '@/components/shared/HighlightText';
 
 interface HouseRow {
   id: string;
@@ -274,10 +275,10 @@ export function LandlordHousesPanel() {
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-sm flex items-center gap-1.5">
                         <Building2 className="h-4 w-4 text-sky-600 shrink-0" />
-                        {g.landlord_name}
+                        <HighlightText text={g.landlord_name} query={search} />
                       </p>
                       <div className="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground">
-                        {g.landlord_phone && <span>{g.landlord_phone}</span>}
+                        {g.landlord_phone && <span><HighlightText text={g.landlord_phone} query={search} /></span>}
                         <span>· {g.houses.length} house{g.houses.length === 1 ? '' : 's'}</span>
                         <span className="text-success">· {g.occupied} occupied</span>
                         <span className="text-amber-600">· {g.vacant} vacant</span>
@@ -298,9 +299,9 @@ export function LandlordHousesPanel() {
                             <div className="min-w-0 flex-1">
                               <p className="font-semibold text-sm flex items-center gap-1.5">
                                 <Home className="h-4 w-4 text-primary shrink-0" />
-                                <span className="truncate">{h.title}</span>
+                                <span className="truncate"><HighlightText text={h.title} query={search} /></span>
                               </p>
-                              <p className="text-[11px] text-muted-foreground truncate">{h.address}, {h.region}</p>
+                              <p className="text-[11px] text-muted-foreground truncate"><HighlightText text={h.address} query={search} />, <HighlightText text={h.region} query={search} /></p>
                               <p className="text-[11px] text-muted-foreground">
                                 {formatUGX(h.monthly_rent)}/mo · {formatUGX(h.daily_rate)}/day
                               </p>
@@ -314,12 +315,22 @@ export function LandlordHousesPanel() {
                             <p className="flex items-center gap-1">
                               <User className="h-3 w-3" />
                               <span className="font-medium">Tenant:</span>
-                              <span className="truncate">{tenant ? `${tenant.name}${tenant.phone ? ` · ${tenant.phone}` : ''}` : '—'}</span>
+                              <span className="truncate">{tenant ? (
+                                <>
+                                  <HighlightText text={tenant.name} query={search} />
+                                  {tenant.phone ? <> · <HighlightText text={tenant.phone} query={search} /></> : null}
+                                </>
+                              ) : '—'}</span>
                             </p>
                             <p className="flex items-center gap-1">
                               <UserCog className="h-3 w-3" />
                               <span className="font-medium">Agent:</span>
-                              <span className="truncate">{agent ? `${agent.name}${agent.phone ? ` · ${agent.phone}` : ''}` : '—'}</span>
+                              <span className="truncate">{agent ? (
+                                <>
+                                  <HighlightText text={agent.name} query={search} />
+                                  {agent.phone ? <> · <HighlightText text={agent.phone} query={search} /></> : null}
+                                </>
+                              ) : '—'}</span>
                             </p>
                           </div>
 
