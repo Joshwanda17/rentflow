@@ -152,7 +152,7 @@ function VerificationBadge({ verified, status }: { verified?: boolean; status: s
   );
 }
 
-function HouseCard({ listing }: { listing: HouseListing }) {
+function HouseCard({ listing, highlighted = false }: { listing: HouseListing; highlighted?: boolean }) {
   const categoryLabel = CATEGORIES.find(c => c.value === listing.house_category)?.label || listing.house_category;
   const dist = listing.distance_km;
 
@@ -161,7 +161,13 @@ function HouseCard({ listing }: { listing: HouseListing }) {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       data-house-card=""
-      className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm"
+      aria-current={highlighted ? 'true' : undefined}
+      className={
+        'rounded-2xl border bg-card overflow-hidden transition-shadow ' +
+        (highlighted
+          ? 'border-primary shadow-lg ring-2 ring-primary/40 ring-offset-2 ring-offset-background'
+          : 'border-border shadow-sm')
+      }
     >
       <div className="relative">
         <HouseImageCarousel images={listing.image_urls} title={listing.title} houseId={listing.id} />
@@ -388,8 +394,12 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                 {filtered.length} house{filtered.length !== 1 ? 's' : ''} available
                 {hasGPS ? ' · sorted by distance' : ''}
               </p>
-              {filtered.map(listing => (
-                <HouseCard key={listing.id} listing={listing} />
+              {filtered.map((listing, idx) => (
+                <HouseCard
+                  key={listing.id}
+                  listing={listing}
+                  highlighted={idx === 0 && searchText.trim().length > 0}
+                />
               ))}
             </>
           )}
