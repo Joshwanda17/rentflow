@@ -134,6 +134,8 @@ export function AgentPriorityGrid({ agentId, onOpenFieldCollect, onOpenNewTenant
         label="List House"
         valueLabel="Add listing"
         sub="Earn placement bonus"
+        ariaLabel="List an empty house — earn a placement bonus when a tenant moves in"
+        title="List an empty house"
       />
     </div>
   );
@@ -149,6 +151,8 @@ function PriorityTile({
   valueLabel,
   sub,
   statusIcon,
+  ariaLabel,
+  title,
 }: {
   onClick: () => void;
   icon: React.ReactNode;
@@ -157,10 +161,14 @@ function PriorityTile({
   valueLabel: string;
   sub?: string;
   statusIcon?: React.ReactNode;
+  ariaLabel?: string;
+  title?: string;
 }) {
   return (
     <button
       onClick={onClick}
+      aria-label={ariaLabel ?? `${label}: ${valueLabel}${sub ? ` — ${sub}` : ''}`}
+      title={title ?? label}
       className="flex flex-col items-start gap-2 p-4 rounded-2xl bg-card border border-border/60 active:scale-[0.97] active:bg-accent/40 transition-all min-h-[112px] text-left hover:border-border touch-manipulation"
       style={{ WebkitTapHighlightColor: 'transparent' }}
     >
