@@ -149,6 +149,26 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
     }
   };
 
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    if (deleteTarget.tenant_id) {
+      toast({ title: 'Cannot remove', description: 'This house is occupied. Move the tenant out first.', variant: 'destructive' });
+      return;
+    }
+    setDeleting(true);
+    try {
+      const { error } = await supabase.from('house_listings').delete().eq('id', deleteTarget.id);
+      if (error) throw error;
+      toast({ title: 'Listing removed', description: `${deleteTarget.title} was removed from your account.` });
+      setDeleteTarget(null);
+      refresh();
+    } catch (err: any) {
+      toast({ title: 'Remove failed', description: err.message, variant: 'destructive' });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const rejected = listings.filter(l => l.status === 'rejected');
   const others = listings.filter(l => l.status !== 'rejected');
 
