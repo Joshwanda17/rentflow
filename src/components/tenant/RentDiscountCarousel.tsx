@@ -24,11 +24,13 @@ const RENTALS: RentalCard[] = [
 interface RentDiscountCarouselProps {
   /** Same percentage discount the tenant earned on bread (e.g. 0.05 for 5%). */
   discountPct: number;
+  /** Optional: invoked when the user taps a house card (image/title area). */
+  onSelectHouse?: () => void;
 }
 
 const STORAGE_KEY = 'welile.tenant.rentDiscount.appliedId';
 
-export function RentDiscountCarousel({ discountPct }: RentDiscountCarouselProps) {
+export function RentDiscountCarousel({ discountPct, onSelectHouse }: RentDiscountCarouselProps) {
   const { toast } = useToast();
   const [appliedId, setAppliedId] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
@@ -84,6 +86,12 @@ export function RentDiscountCarousel({ discountPct }: RentDiscountCarouselProps)
                 key={r.id}
                 className="snap-start shrink-0 w-[78%] sm:w-[280px] rounded-2xl overflow-hidden border border-border bg-card shadow-sm"
               >
+                <button
+                  type="button"
+                  onClick={() => { hapticTap(); onSelectHouse?.(); }}
+                  aria-label={`View available houses like ${r.title}`}
+                  className="block w-full text-left focus:outline-none focus:ring-2 focus:ring-primary/40"
+                >
                 <div className="relative h-32 w-full bg-muted">
                   <img
                     src={r.image}
@@ -97,13 +105,16 @@ export function RentDiscountCarousel({ discountPct }: RentDiscountCarouselProps)
                     <BadgePercent className="h-3 w-3" /> {pctLabel} OFF
                   </span>
                 </div>
-                <div className="p-3 space-y-2">
+                <div className="px-3 pt-3">
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-foreground truncate flex items-center gap-1">
                       <Home className="h-3.5 w-3.5 text-muted-foreground" /> {r.title}
                     </p>
                     <p className="text-[11px] text-muted-foreground truncate">{r.area}</p>
                   </div>
+                </div>
+                </button>
+                <div className="p-3 pt-2 space-y-2">
                   <div className="flex items-end justify-between gap-2">
                     <div>
                       <p className="text-[10px] text-muted-foreground">Monthly rent</p>
