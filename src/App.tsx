@@ -302,6 +302,17 @@ function AppRoutes() {
           <Route path="/dashboard/funder" element={<Dashboard />} />
           <Route path="/dashboard/manager" element={<Dashboard />} />
           <Route path="/dashboard/*" element={<DashboardRedirect />} />
+          {/* Dev-only Playwright harnesses — stripped from production builds. */}
+          {import.meta.env.DEV && (
+            <Route
+              path="/__e2e/business-advance"
+              element={
+                <Suspense fallback={null}>
+                  <BusinessAdvanceHarness />
+                </Suspense>
+              }
+            />
+          )}
           <Route path="/select-role" element={<SelectRole />} />
           <Route path="/transactions" element={<TransactionHistory />} />
           <Route path="/financial-statement" element={<FinancialStatement />} />
