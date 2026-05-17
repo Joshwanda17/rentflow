@@ -426,7 +426,7 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
             if (sortBy !== 'newest') chips.push({ key: 'sort', label: `Sort: ${SORT_LABELS[sortBy]}`, onRemove: () => setSortBy('newest') });
             if (chips.length === 0) return null;
             return (
-              <div className="flex flex-wrap items-center gap-1.5 -mt-1">
+              <div className="sticky top-0 z-10 -mx-4 -mt-4 px-4 pt-3 pb-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border flex flex-wrap items-center gap-1.5">
                 {chips.map(c => (
                   <button
                     key={c.key}
