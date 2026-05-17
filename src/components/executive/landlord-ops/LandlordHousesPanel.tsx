@@ -26,6 +26,7 @@ interface HouseRow {
   agent_id: string;
   landlord_id: string | null;
   tenant_id: string | null;
+  created_at: string;
 }
 
 interface LandlordGroup {
@@ -41,6 +42,7 @@ export function LandlordHousesPanel() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'occupied' | 'vacant'>('all');
   const [regionFilter, setRegionFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'title' | 'region' | 'occupied_first' | 'vacant_first'>('newest');
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   const housesQuery = useQuery({
@@ -48,7 +50,7 @@ export function LandlordHousesPanel() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('house_listings')
-        .select('id,title,address,region,status,monthly_rent,daily_rate,agent_id,landlord_id,tenant_id')
+        .select('id,title,address,region,status,monthly_rent,daily_rate,agent_id,landlord_id,tenant_id,created_at')
         .not('landlord_id', 'is', null)
         .order('created_at', { ascending: false })
         .limit(1000);
@@ -132,13 +134,24 @@ export function LandlordHousesPanel() {
         const houses = g.houses.filter(houseMatches);
         if (houses.length === 0 && !landlordTextMatch(g)) return null;
         if (houses.length === 0) return null;
-        const occupied = houses.filter(h => h.tenant_id).length;
-        return { ...g, houses, occupied, vacant: houses.length - occupied };
+        const sorted = [...houses].sort((a, b) => {
+          switch (sortBy) {
+            case 'oldest': return a.created_at.localeCompare(b.created_at);
+            case 'title': return a.title.localeCompare(b.title);
+            case 'region': return (a.region || '').localeCompare(b.region || '') || a.title.localeCompare(b.title);
+            case 'occupied_first': return (a.tenant_id ? 0 : 1) - (b.tenant_id ? 0 : 1);
+            case 'vacant_first': return (a.tenant_id ? 1 : 0) - (b.tenant_id ? 1 : 0);
+            case 'newest':
+            default: return b.created_at.localeCompare(a.created_at);
+          }
+        });
+        const occupied = sorted.filter(h => h.tenant_id).length;
+        return { ...g, houses: sorted, occupied, vacant: sorted.length - occupied };
       })
       .filter(Boolean) as LandlordGroup[];
-  }, [groups, search, statusFilter, regionFilter, profs]);
+  }, [groups, search, statusFilter, regionFilter, profs, sortBy]);
 
-  const hasActiveFilter = search.trim().length > 0 || statusFilter !== 'all' || regionFilter !== 'all';
+  const hasActiveFilter = search.trim().length > 0 || statusFilter !== 'all' || regionFilter !== 'all' || sortBy !== 'newest';
   const totalHouses = filtered.reduce((s, g) => s + g.houses.length, 0);
 
   // ── Action dialog state ──
@@ -197,10 +210,21 @@ export function LandlordHousesPanel() {
               {regions.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
             </SelectContent>
           </Select>
+          <Select value={sortBy} onValueChange={(v: any) => setSortBy(v)}>
+            <SelectTrigger className="h-9 w-auto min-w-[150px] text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="newest">Newest first</SelectItem>
+              <SelectItem value="oldest">Oldest first</SelectItem>
+              <SelectItem value="title">Title (A–Z)</SelectItem>
+              <SelectItem value="region">Region (A–Z)</SelectItem>
+              <SelectItem value="occupied_first">Occupied first</SelectItem>
+              <SelectItem value="vacant_first">Vacant first</SelectItem>
+            </SelectContent>
+          </Select>
           {hasActiveFilter && (
             <Button
               variant="ghost" size="sm" className="h-9 text-xs gap-1"
-              onClick={() => { setSearch(''); setStatusFilter('all'); setRegionFilter('all'); }}
+              onClick={() => { setSearch(''); setStatusFilter('all'); setRegionFilter('all'); setSortBy('newest'); }}
             >
               <X className="h-3 w-3" /> Clear
             </Button>
