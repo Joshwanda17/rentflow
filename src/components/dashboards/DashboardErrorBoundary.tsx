@@ -20,7 +20,7 @@ interface State {
  * error inside the dashboard subtree from blanking out the whole app — instead
  * the user sees a readable message with Reload / Sign out actions.
  */
-export class DashboardErrorBoundary extends Component<Props, State> {
+export class DashboardErrorBoundaryInner extends Component<Props, State> {
   state: State = { hasError: false };
 
   static getDerivedStateFromError(error: Error): State {
@@ -123,9 +123,9 @@ export class DashboardErrorBoundary extends Component<Props, State> {
  * Route-aware wrapper: forwards the current pathname as `resetKey`, so the
  * boundary clears its error state automatically when the user navigates away.
  */
-export function RouteAwareDashboardErrorBoundary(props: Props) {
+export function DashboardErrorBoundary(props: Props) {
   const location = useLocation();
-  return <DashboardErrorBoundary {...props} resetKey={props.resetKey ?? location.pathname} />;
+  return <DashboardErrorBoundaryInner {...props} resetKey={props.resetKey ?? location.pathname} />;
 }
 
-export default RouteAwareDashboardErrorBoundary;
+export default DashboardErrorBoundary;
