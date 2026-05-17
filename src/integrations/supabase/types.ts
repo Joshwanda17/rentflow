@@ -15005,6 +15005,18 @@ export type Database = {
         | { Args: never; Returns: boolean }
         | { Args: { p_user_id: string }; Returns: boolean }
       is_tenant_locked: { Args: { _user_id: string }; Returns: boolean }
+      landlord_ops_bind_tenant_to_house: {
+        Args: {
+          p_house_id: string
+          p_reason: string
+          p_rent_request_id: string
+        }
+        Returns: Json
+      }
+      landlord_ops_remove_tenant_from_house: {
+        Args: { p_house_id: string; p_reason: string }
+        Returns: Json
+      }
       ledger_category_allowlist: { Args: never; Returns: string[] }
       lift_withdrawable_to_ledger: {
         Args: { p_user_id: string }
@@ -15173,6 +15185,18 @@ export type Database = {
           msg_id: number
           read_ct: number
         }[]
+      }
+      reassign_house_agent: {
+        Args: { p_house_id: string; p_new_agent_id: string; p_reason: string }
+        Returns: Json
+      }
+      reassign_rent_request_agent: {
+        Args: {
+          p_new_agent_id: string
+          p_reason: string
+          p_rent_request_id: string
+        }
+        Returns: Json
       }
       recalculate_credit_limit: { Args: { p_user_id: string }; Returns: number }
       recompute_agent_earned_vouch:
