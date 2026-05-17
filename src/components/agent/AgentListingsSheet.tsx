@@ -70,6 +70,10 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
   const [minPrice, setMinPrice] = useState<string>(DEFAULT_FILTERS.minPrice);
   const [maxPrice, setMaxPrice] = useState<string>(DEFAULT_FILTERS.maxPrice);
   const hydratedKeyRef = useRef<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [statusFilter, regionFilter, sortBy, minPrice, maxPrice, search]);
 
   // Re-hydrate filters whenever the active user (storage key) changes.
   useEffect(() => {
@@ -399,7 +403,7 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
           )}
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 space-y-3">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 space-y-3">
           {!loading && listings.length > 0 && hasActiveFilter && (() => {
             const SORT_LABELS: Record<SheetFilters['sortBy'], string> = {
               newest: 'Newest first',
