@@ -61,14 +61,11 @@ export function BusinessAdvanceStatusHero() {
     user?.id ? { filter: `tenant_id=eq.${user.id}` } : undefined
   );
 
-  if (!data) return null;
-
-  const activeStage = getActiveAdvanceStage(data);
-
   // Auto: expand when status is active, collapse otherwise. Honour the user's
   // manual toggle (persisted in localStorage) once they've interacted.
+  const currentStatus = data?.status;
   useEffect(() => {
-    if (userToggled) return;
+    if (userToggled || !currentStatus) return;
     let saved: string | null = null;
     if (storageKey) {
       try { saved = localStorage.getItem(storageKey); } catch {}
@@ -76,9 +73,13 @@ export function BusinessAdvanceStatusHero() {
     if (saved !== null) {
       setOpen(saved === '1');
     } else {
-      setOpen(data.status === 'active');
+      setOpen(currentStatus === 'active');
     }
-  }, [data.status, storageKey, userToggled]);
+  }, [currentStatus, storageKey, userToggled]);
+
+  if (!data) return null;
+
+  const activeStage = getActiveAdvanceStage(data);
 
   return (
     <Card className="border-primary/30 bg-gradient-to-br from-primary/5 via-background to-primary/5 shadow-md">
