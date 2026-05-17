@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast as sonnerToast } from 'sonner';
 import { User } from '@supabase/supabase-js';
@@ -183,6 +183,24 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   }, []);
   const [depositOpen, setDepositOpen] = useState(false);
   const [housesOpen, setHousesOpen] = useState(false);
+  const housesTriggerRef = useRef<HTMLElement | null>(null);
+  const openHousesSheet = useCallback(() => {
+    const active = (typeof document !== 'undefined' ? document.activeElement : null) as HTMLElement | null;
+    if (active && typeof active.focus === 'function') housesTriggerRef.current = active;
+    setMenuOpen(false);
+    setHousesOpen(true);
+  }, []);
+  const handleHousesOpenChange = useCallback((next: boolean) => {
+    setHousesOpen(next);
+    if (!next) {
+      const el = housesTriggerRef.current;
+      housesTriggerRef.current = null;
+      if (el && typeof el.focus === 'function') {
+        // Wait for Radix to release its focus trap before restoring.
+        requestAnimationFrame(() => { try { el.focus(); } catch { /* ignore */ } });
+      }
+    }
+  }, []);
   const [shareBreadOpen, setShareBreadOpen] = useState(false);
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
   const [claimBreadOpen, setClaimBreadOpen] = useState(false);
@@ -730,7 +748,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                   ? Math.max(0, (breadPrice.basePrice - breadPrice.reducedPrice) / breadPrice.basePrice)
                   : 0
               }
-              onSelectHouse={() => { hapticTap(); setMenuOpen(false); setHousesOpen(true); }}
+              onSelectHouse={() => { hapticTap(); openHousesSheet(); }}
             />
           </div>
 
@@ -864,7 +882,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         onPayWelile={() => hasAcceptedTerms ? setShowPaymentPartners(true) : setShowAgreementModal(true)}
         onRepaymentSchedule={() => setShowRepaymentSchedule(prev => !prev)}
         onRentCalculator={() => setShowCalculator(true)}
-        onBrowseHouses={() => { setMenuOpen(false); setHousesOpen(true); }}
+        onBrowseHouses={() => { openHousesSheet(); }}
         extraContent={
           <div className="space-y-4">
             <TrustBoostBanner />
@@ -877,12 +895,12 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               <LockedActionTooltip isLocked={!hasAcceptedTerms && !agreementLoading}>
                 <RentRequestButton userId={user.id} onSuccess={fetchData} />
               </LockedActionTooltip>
-              <FindAHouseCTA onClick={() => { hapticTap(); setMenuOpen(false); setHousesOpen(true); }} />
+              <FindAHouseCTA onClick={() => { hapticTap(); openHousesSheet(); }} />
             </div>
-            <SuggestedHousesCard userId={user.id} onViewAll={() => { setMenuOpen(false); setHousesOpen(true); }} />
+            <SuggestedHousesCard userId={user.id} onViewAll={() => { openHousesSheet(); }} />
             <NearbyHousesPreview
-              onViewAll={() => { setMenuOpen(false); setHousesOpen(true); }}
-              onSelectHouse={() => { hapticTap(); setMenuOpen(false); setHousesOpen(true); }}
+              onViewAll={() => { openHousesSheet(); }}
+              onSelectHouse={() => { hapticTap(); openHousesSheet(); }}
             />
             {rentRequests.length > 0 && (
               <RentProcessTracker
@@ -961,7 +979,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         isAccepting={isAcceptingAgreement}
       />
       <AgentDepositDialog open={depositOpen} onOpenChange={setDepositOpen} />
-      <AvailableHousesSheet open={housesOpen} onOpenChange={setHousesOpen} />
+      <AvailableHousesSheet open={housesOpen} onOpenChange={handleHousesOpenChange} />
 
       {/* Fixed footer navigation */}
       
