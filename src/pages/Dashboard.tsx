@@ -319,15 +319,31 @@ function DashboardContent() {
     return (
       <>
         <Suspense fallback={<DashboardLoadingFallback />}>
-          {cachedDisplayRole === 'tenant' && <TenantDashboard {...dashboardProps} />}
+          {cachedDisplayRole === 'tenant' && (
+            <DashboardErrorBoundary label="tenant dashboard">
+              <TenantDashboard {...dashboardProps} />
+            </DashboardErrorBoundary>
+          )}
           {cachedDisplayRole === 'agent' && (
             <DashboardErrorBoundary label="agent dashboard">
               <AgentDashboard {...dashboardProps} />
             </DashboardErrorBoundary>
           )}
-          {cachedDisplayRole === 'supporter' && <SupporterDashboard {...dashboardProps} />}
-          {cachedDisplayRole === 'landlord' && <LandlordDashboard {...dashboardProps} />}
-          {cachedDisplayRole === 'manager' && <ManagerDashboard {...dashboardProps} />}
+          {cachedDisplayRole === 'supporter' && (
+            <DashboardErrorBoundary label="supporter dashboard">
+              <SupporterDashboard {...dashboardProps} />
+            </DashboardErrorBoundary>
+          )}
+          {cachedDisplayRole === 'landlord' && (
+            <DashboardErrorBoundary label="landlord dashboard">
+              <LandlordDashboard {...dashboardProps} />
+            </DashboardErrorBoundary>
+          )}
+          {cachedDisplayRole === 'manager' && (
+            <DashboardErrorBoundary label="manager dashboard">
+              <ManagerDashboard {...dashboardProps} />
+            </DashboardErrorBoundary>
+          )}
         </Suspense>
       </>
     );
@@ -365,7 +381,11 @@ function DashboardContent() {
   const renderDashboard = () => {
     switch (displayRole) {
       case 'tenant':
-        return <TenantDashboard {...dashboardProps} />;
+        return (
+          <DashboardErrorBoundary label="tenant dashboard">
+            <TenantDashboard {...dashboardProps} />
+          </DashboardErrorBoundary>
+        );
       case 'agent':
         return (
           <DashboardErrorBoundary label="agent dashboard">
@@ -373,11 +393,23 @@ function DashboardContent() {
           </DashboardErrorBoundary>
         );
       case 'supporter':
-        return <SupporterDashboard {...dashboardProps} />;
+        return (
+          <DashboardErrorBoundary label="supporter dashboard">
+            <SupporterDashboard {...dashboardProps} />
+          </DashboardErrorBoundary>
+        );
       case 'landlord':
-        return <LandlordDashboard {...dashboardProps} />;
+        return (
+          <DashboardErrorBoundary label="landlord dashboard">
+            <LandlordDashboard {...dashboardProps} />
+          </DashboardErrorBoundary>
+        );
       case 'manager':
-        return <ManagerDashboard {...dashboardProps} />;
+        return (
+          <DashboardErrorBoundary label="manager dashboard">
+            <ManagerDashboard {...dashboardProps} />
+          </DashboardErrorBoundary>
+        );
       default:
         return (
           <div className="min-h-screen bg-background flex items-center justify-center">
