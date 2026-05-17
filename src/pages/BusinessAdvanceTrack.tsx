@@ -36,6 +36,7 @@ export default function BusinessAdvanceTrack() {
   const [trackerOpen, setTrackerOpen] = useState(true);
   const [authedUserId, setAuthedUserId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const trackerViewLoggedRef = useRef(false);
 
   const trackingUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/business-advance/track?phone=${encodeURIComponent(phone)}`
@@ -43,12 +44,31 @@ export default function BusinessAdvanceTrack() {
 
   const shareMessage = `Get a Rent Business Advance up to UGX 30,000,000 with Welile — your rent history is your collateral. Fast, fair working capital for business owners. Track or apply here: ${trackingUrl}`;
 
+  const logShareEvent = useCallback(
+    async (eventType: 'whatsapp_share_click' | 'copy_link_click' | 'tracker_view') => {
+      try {
+        await supabase.from('business_advance_share_events').insert({
+          event_type: eventType,
+          phone: phone || null,
+          advance_id: row?.id ?? null,
+          user_id: authedUserId,
+          user_agent: typeof navigator !== 'undefined' ? navigator.userAgent.slice(0, 500) : null,
+          referrer: typeof document !== 'undefined' ? (document.referrer || null) : null,
+        });
+      } catch {
+        // analytics is best-effort — never break the page
+      }
+    },
+    [phone, row?.id, authedUserId]
+  );
+
   const handleCopyLink = async () => {
     try {
       await navigator.clipboard.writeText(trackingUrl);
       setCopied(true);
       toast.success('Tracking link copied');
       setTimeout(() => setCopied(false), 2000);
+      void logShareEvent('copy_link_click');
     } catch {
       toast.error('Could not copy link');
     }
@@ -57,6 +77,7 @@ export default function BusinessAdvanceTrack() {
   const handleShareWhatsApp = () => {
     const url = `https://wa.me/?text=${encodeURIComponent(shareMessage)}`;
     window.open(url, '_blank', 'noopener,noreferrer');
+    void logShareEvent('whatsapp_share_click');
   };
 
   const aliveRef = useRef(true);
@@ -89,6 +110,14 @@ export default function BusinessAdvanceTrack() {
     load();
     return () => { aliveRef.current = false; };
   }, [load]);
+
+  // Fire a one-shot 'tracker_view' analytics event once the live approval
+  // tracker has data to display for this phone.
+  useEffect(() => {
+    if (!row || trackerViewLoggedRef.current) return;
+    trackerViewLoggedRef.current = true;
+    void logShareEvent('tracker_view');
+  }, [row, logShareEvent]);
 
   // Shared realtime — covers INSERT (request just created) and UPDATE
   // (stage advanced) so the public tracker mirrors the tenant dashboard hero.
