@@ -23,17 +23,11 @@ export function BusinessAdvanceStatusHero() {
   const { user } = useAuth();
   const storageKey = user?.id ? `tenant-ba-hero-open:${user.id}` : null;
   const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    if (!storageKey) return;
-    try {
-      const saved = localStorage.getItem(storageKey);
-      if (saved !== null) setOpen(saved === '1');
-    } catch {}
-  }, [storageKey]);
+  const [userToggled, setUserToggled] = useState(false);
 
   const handleOpenChange = (next: boolean) => {
     setOpen(next);
+    setUserToggled(true);
     if (!storageKey) return;
     try { localStorage.setItem(storageKey, next ? '1' : '0'); } catch {}
   };
@@ -66,6 +60,22 @@ export function BusinessAdvanceStatusHero() {
     () => { refetch(); },
     user?.id ? { filter: `tenant_id=eq.${user.id}` } : undefined
   );
+
+  // Auto: expand when status is active, collapse otherwise. Honour the user's
+  // manual toggle (persisted in localStorage) once they've interacted.
+  const currentStatus = data?.status;
+  useEffect(() => {
+    if (userToggled || !currentStatus) return;
+    let saved: string | null = null;
+    if (storageKey) {
+      try { saved = localStorage.getItem(storageKey); } catch {}
+    }
+    if (saved !== null) {
+      setOpen(saved === '1');
+    } else {
+      setOpen(currentStatus === 'active');
+    }
+  }, [currentStatus, storageKey, userToggled]);
 
   if (!data) return null;
 
