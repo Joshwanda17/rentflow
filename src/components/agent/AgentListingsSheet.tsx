@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +16,7 @@ import { TenantProfileView } from './TenantProfileView';
 import { ReassignAgentDialog } from '@/components/shared/ReassignAgentDialog';
 import { HouseActivityTimeline } from '@/components/shared/HouseActivityTimeline';
 import { HighlightText } from '@/components/shared/HighlightText';
+import { useFilterKeyboardShortcuts } from '@/hooks/useFilterKeyboardShortcuts';
 
 interface AgentListingsSheetProps {
   open: boolean;
@@ -198,6 +199,10 @@ export function AgentListingsSheet({ open, onOpenChange }: AgentListingsSheetPro
 
   const hasActiveFilter = q.length > 0 || statusFilter !== 'all' || regionFilter !== 'all' || sortBy !== 'newest';
 
+  const searchRef = useRef<HTMLInputElement>(null);
+  const clearAll = () => { setSearch(''); setStatusFilter('all'); setRegionFilter('all'); setSortBy('newest'); };
+  useFilterKeyboardShortcuts({ inputRef: searchRef, onClear: clearAll, hasActiveFilter, enabled: open });
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[90vh] rounded-t-3xl p-0 flex flex-col">
@@ -211,7 +216,8 @@ export function AgentListingsSheet({ open, onOpenChange }: AgentListingsSheetPro
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search landlord, house, tenant, phone…"
+                  ref={searchRef}
+                  placeholder="Search landlord, house, tenant, phone…  ( / focus · Esc clear )"
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   className="pl-9 pr-9 h-9"
@@ -257,7 +263,7 @@ export function AgentListingsSheet({ open, onOpenChange }: AgentListingsSheetPro
                 {hasActiveFilter && (
                   <Button
                     variant="ghost" size="sm" className="h-8 text-xs gap-1"
-                    onClick={() => { setSearch(''); setStatusFilter('all'); setRegionFilter('all'); setSortBy('newest'); }}
+                    onClick={clearAll}
                   >
                     <X className="h-3 w-3" /> Clear
                   </Button>
@@ -283,7 +289,7 @@ export function AgentListingsSheet({ open, onOpenChange }: AgentListingsSheetPro
                 <div className="text-center py-12 space-y-2">
                   <Search className="h-8 w-8 text-muted-foreground/40 mx-auto" />
                   <p className="text-sm text-muted-foreground">No houses match your filters</p>
-                  <Button variant="outline" size="sm" onClick={() => { setSearch(''); setStatusFilter('all'); setRegionFilter('all'); }}>
+                  <Button variant="outline" size="sm" onClick={clearAll}>
                     Clear filters
                   </Button>
                 </div>
