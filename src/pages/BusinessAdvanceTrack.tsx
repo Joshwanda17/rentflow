@@ -177,6 +177,11 @@ export default function BusinessAdvanceTrack() {
                     <div className="mt-3">
                       <BusinessAdvanceAuditLog advanceId={row.id} phone={phone} />
                     </div>
+                    {authedUserId && (
+                      <div className="mt-3">
+                        <BusinessAdvanceNotificationPreferences userId={authedUserId} />
+                      </div>
+                    )}
                   </div>
                 </CollapsibleContent>
               </Collapsible>
