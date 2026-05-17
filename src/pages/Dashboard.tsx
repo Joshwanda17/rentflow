@@ -26,6 +26,7 @@ const AgentDashboard = lazy(() => import('@/components/dashboards/AgentDashboard
 const SupporterDashboard = lazy(() => import('@/components/dashboards/SupporterDashboard'));
 const LandlordDashboard = lazy(() => import('@/components/dashboards/LandlordDashboard'));
 const ManagerDashboard = lazy(() => import('@/components/dashboards/ManagerDashboard'));
+import { DashboardErrorBoundary } from '@/components/dashboards/DashboardErrorBoundary';
 
 // Minimal loading skeleton - memoized for performance
 const DashboardLoadingFallback = memo(() => (
@@ -319,7 +320,11 @@ function DashboardContent() {
       <>
         <Suspense fallback={<DashboardLoadingFallback />}>
           {cachedDisplayRole === 'tenant' && <TenantDashboard {...dashboardProps} />}
-          {cachedDisplayRole === 'agent' && <AgentDashboard {...dashboardProps} />}
+          {cachedDisplayRole === 'agent' && (
+            <DashboardErrorBoundary label="agent dashboard">
+              <AgentDashboard {...dashboardProps} />
+            </DashboardErrorBoundary>
+          )}
           {cachedDisplayRole === 'supporter' && <SupporterDashboard {...dashboardProps} />}
           {cachedDisplayRole === 'landlord' && <LandlordDashboard {...dashboardProps} />}
           {cachedDisplayRole === 'manager' && <ManagerDashboard {...dashboardProps} />}
@@ -362,7 +367,11 @@ function DashboardContent() {
       case 'tenant':
         return <TenantDashboard {...dashboardProps} />;
       case 'agent':
-        return <AgentDashboard {...dashboardProps} />;
+        return (
+          <DashboardErrorBoundary label="agent dashboard">
+            <AgentDashboard {...dashboardProps} />
+          </DashboardErrorBoundary>
+        );
       case 'supporter':
         return <SupporterDashboard {...dashboardProps} />;
       case 'landlord':
