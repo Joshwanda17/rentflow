@@ -197,6 +197,14 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
   // Poll local IndexedDB for duplicate entries needing reconciliation
   useEffect(() => {
+    // ── DEV/QA: post-mount crash to verify ErrorBoundary catches effect errors.
+    if (typeof window !== 'undefined') {
+      const crashMode = new URLSearchParams(window.location.search).get('crash');
+      if (crashMode === 'effect') {
+        // Throw on next tick so React surfaces it to the nearest boundary.
+        setTimeout(() => { throw new Error('[AgentDashboard] Deliberate post-mount crash for ErrorBoundary QA (mode=effect)'); }, 0);
+      }
+    }
     if (!user?.id) return;
     let alive = true;
     const tick = async () => {
