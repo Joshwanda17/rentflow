@@ -3247,6 +3247,56 @@ export type Database = {
           },
         ]
       }
+      business_advance_documents: {
+        Row: {
+          advance_id: string
+          content_type: string | null
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          id: string
+          note: string | null
+          stage_key: string
+          tenant_id: string
+          uploaded_by: string
+        }
+        Insert: {
+          advance_id: string
+          content_type?: string | null
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          id?: string
+          note?: string | null
+          stage_key: string
+          tenant_id: string
+          uploaded_by: string
+        }
+        Update: {
+          advance_id?: string
+          content_type?: string | null
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          note?: string | null
+          stage_key?: string
+          tenant_id?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_advance_documents_advance_id_fkey"
+            columns: ["advance_id"]
+            isOneToOne: false
+            referencedRelation: "business_advances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_advance_notification_log: {
         Row: {
           advance_id: string
