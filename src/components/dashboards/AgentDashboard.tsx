@@ -492,6 +492,22 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               onOpenListHouse={() => setListHouseOpen(true)}
             />
 
+            {/* Quick access: agent's own listed houses */}
+            <button
+              type="button"
+              onClick={() => { hapticTap(); setMyListingsOpen(true); }}
+              aria-label="View my listed houses"
+              title="View my listed houses"
+              className="w-full flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl border border-border/60 bg-card hover:bg-accent/40 active:scale-[0.99] transition-all text-left touch-manipulation min-h-[44px] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <Home className="h-4 w-4 text-muted-foreground" />
+                My listed houses
+              </span>
+              <span className="text-xs font-medium text-primary">View →</span>
+            </button>
+
             {/* Today's collected total — single most useful at-a-glance number */}
             <FieldCollectDailyTotals live />
 
