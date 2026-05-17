@@ -699,19 +699,19 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
             {/* Next of kin */}
             <div className="space-y-2 rounded-lg border border-border p-3">
               <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-                Next of kin (optional)
+                Next of kin *
               </Label>
               <Input
                 value={nokName}
                 onChange={(e) => setNokName(e.target.value)}
-                placeholder="Full name"
+                placeholder="Full name *"
               />
               <div className="flex gap-2">
                 <Input
                   inputMode="tel"
                   value={nokPhone}
                   onChange={(e) => setNokPhone(formatPhone(e.target.value))}
-                  placeholder="Phone number"
+                  placeholder="Phone number *"
                   className="flex-1"
                 />
                 {contactPickerOk && (
@@ -726,29 +726,32 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
                   </Button>
                 )}
               </div>
+              {nokPhone && !isValidUgPhone(nokPhone) && (
+                <p className="text-[11px] text-destructive">Enter a valid Ugandan number (e.g. 0783 123 456)</p>
+              )}
               <Input
                 value={nokRelationship}
                 onChange={(e) => setNokRelationship(e.target.value)}
-                placeholder="Relationship (e.g. spouse, brother)"
+                placeholder="Relationship (e.g. spouse, brother) *"
               />
             </div>
 
             {/* Guarantor */}
             <div className="space-y-2 rounded-lg border border-border p-3">
               <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-                Guarantor (optional)
+                Guarantor *
               </Label>
               <Input
                 value={guarantorName}
                 onChange={(e) => setGuarantorName(e.target.value)}
-                placeholder="Full name"
+                placeholder="Full name *"
               />
               <div className="flex gap-2">
                 <Input
                   inputMode="tel"
                   value={guarantorPhone}
                   onChange={(e) => setGuarantorPhone(formatPhone(e.target.value))}
-                  placeholder="Phone number"
+                  placeholder="Phone number *"
                   className="flex-1"
                 />
                 {contactPickerOk && (
@@ -763,6 +766,9 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
                   </Button>
                 )}
               </div>
+              {guarantorPhone && !isValidUgPhone(guarantorPhone) && (
+                <p className="text-[11px] text-destructive">Enter a valid Ugandan number (e.g. 0783 123 456)</p>
+              )}
             </div>
 
             <div className="flex items-start gap-2 rounded-lg border border-border p-3">
@@ -803,6 +809,7 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
             <div className="grid grid-cols-2 gap-2">
               <Button variant="outline" onClick={() => setStep('amount')}>Back</Button>
               <Button
+                disabled={validateTenant() !== null}
                 onClick={() => {
                   const err = validateTenant();
                   if (err) return toast.error(err);
