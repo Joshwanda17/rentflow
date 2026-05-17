@@ -467,15 +467,46 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
                                     <span className="truncate"><HighlightText text={l.address} query={search} />, <HighlightText text={l.region} query={search} /></span>
                                   </div>
                                 </div>
-                                <Badge variant={l.status === 'available' ? 'default' : 'secondary'} className="text-[10px] shrink-0">
-                                  {l.status === 'available' ? (
-                                    <><CheckCircle className="h-3 w-3 mr-1" /> Available</>
-                                  ) : l.status === 'occupied' ? (
-                                    <><DoorOpen className="h-3 w-3 mr-1" /> Occupied</>
-                                  ) : (
-                                    <><Clock className="h-3 w-3 mr-1" /> {l.status}</>
-                                  )}
-                                </Badge>
+                                <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                                  <Badge variant={l.status === 'available' ? 'default' : 'secondary'} className="text-[10px]">
+                                    {l.status === 'available' ? (
+                                      <><CheckCircle className="h-3 w-3 mr-1" /> Available</>
+                                    ) : l.status === 'occupied' ? (
+                                      <><DoorOpen className="h-3 w-3 mr-1" /> Occupied</>
+                                    ) : (
+                                      <><Clock className="h-3 w-3 mr-1" /> {l.status}</>
+                                    )}
+                                  </Badge>
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-7 w-7"
+                                        aria-label={`Actions for ${l.title}`}
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <MoreVertical className="h-4 w-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-44">
+                                      <DropdownMenuItem onClick={() => setDetailListingId(l.id)}>
+                                        <Eye className="h-4 w-4 mr-2" /> View details
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => setEditingListing(l)}>
+                                        <Pencil className="h-4 w-4 mr-2" /> Edit listing
+                                      </DropdownMenuItem>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem
+                                        className="text-destructive focus:text-destructive"
+                                        disabled={!!l.tenant_id}
+                                        onClick={() => setDeleteTarget(l)}
+                                      >
+                                        <Trash2 className="h-4 w-4 mr-2" /> Remove listing
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </div>
                               </div>
 
                               <div className="flex items-center justify-between text-xs">
