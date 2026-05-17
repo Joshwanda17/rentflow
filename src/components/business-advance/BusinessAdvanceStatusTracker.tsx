@@ -1,6 +1,7 @@
-import { CheckCircle2, Clock, AlertTriangle, Circle, Briefcase, Banknote } from 'lucide-react';
+import { CheckCircle2, Clock, AlertTriangle, Circle, Briefcase, Banknote, XCircle, ArrowRight, PartyPopper } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { formatUGX } from '@/lib/businessAdvanceCalculations';
-import { format } from 'date-fns';
+import { format, formatDistanceToNowStrict } from 'date-fns';
 
 export type AdvanceStatusRow = {
   id: string;
@@ -21,28 +22,119 @@ export type AdvanceStatusRow = {
   rejection_reason?: string | null;
 };
 
-const STAGES: { key: string; label: string; tsField: keyof AdvanceStatusRow }[] = [
-  { key: 'submitted', label: 'Request submitted by your agent', tsField: 'created_at' },
-  { key: 'agent_ops', label: 'Agent Ops review', tsField: 'agent_ops_reviewed_at' },
-  { key: 'tenant_ops', label: 'Tenant Ops verification', tsField: 'tenant_ops_reviewed_at' },
-  { key: 'landlord_ops', label: 'Landlord verification', tsField: 'landlord_ops_reviewed_at' },
-  { key: 'coo', label: 'COO approval', tsField: 'coo_approved_at' },
-  { key: 'disbursed', label: 'Funds disbursed to wallet', tsField: 'disbursed_at' },
+type StageStatus = 'submitted' | 'reviewed' | 'approved' | 'rejected' | 'completed' | 'in_progress' | 'pending';
+
+type Stage = {
+  key: string;
+  label: string;
+  tsField: keyof AdvanceStatusRow;
+  category: 'submitted' | 'reviewed' | 'approved' | 'completed';
+  /** Description of what happens at this stage — surfaced on the "current" item. */
+  description: string;
+  /** Typical SLA estimate shown to the applicant. */
+  eta: string;
+};
+
+const STAGES: Stage[] = [
+  {
+    key: 'submitted',
+    label: 'Submitted',
+    tsField: 'created_at',
+    category: 'submitted',
+    description: 'Your agent has filed the request and uploaded supporting details.',
+    eta: 'Within minutes',
+  },
+  {
+    key: 'agent_ops',
+    label: 'Reviewed by Agent Ops',
+    tsField: 'agent_ops_reviewed_at',
+    category: 'reviewed',
+    description: 'Agent Ops checks the request, your agent and supporting documents.',
+    eta: 'Same day',
+  },
+  {
+    key: 'tenant_ops',
+    label: 'Reviewed by Tenant Ops',
+    tsField: 'tenant_ops_reviewed_at',
+    category: 'reviewed',
+    description: 'Tenant Ops verifies your identity, ID, rent history and contacts.',
+    eta: 'Same day',
+  },
+  {
+    key: 'landlord_ops',
+    label: 'Reviewed by Landlord Ops',
+    tsField: 'landlord_ops_reviewed_at',
+    category: 'reviewed',
+    description: 'We verify your rent payment history with your landlord(s).',
+    eta: '1–2 days',
+  },
+  {
+    key: 'coo',
+    label: 'Approved by COO',
+    tsField: 'coo_approved_at',
+    category: 'approved',
+    description: 'Final operational approval before disbursement.',
+    eta: '1 day',
+  },
+  {
+    key: 'disbursed',
+    label: 'Disbursed to your wallet',
+    tsField: 'disbursed_at',
+    category: 'completed',
+    description: 'Funds land in your Welile wallet, ready to use.',
+    eta: 'Within hours of COO approval',
+  },
+  {
+    key: 'completed',
+    label: 'Fully repaid',
+    tsField: 'completed_at',
+    category: 'completed',
+    description: 'The advance has been paid off in full — your trust score grows.',
+    eta: 'Based on your repayment pace',
+  },
 ];
+
+const STAGE_BADGE: Record<StageStatus, { label: string; cls: string }> = {
+  submitted:  { label: 'Submitted',   cls: 'bg-sky-500/10 text-sky-700 border-sky-500/30' },
+  reviewed:   { label: 'Reviewed',    cls: 'bg-blue-500/10 text-blue-700 border-blue-500/30' },
+  approved:   { label: 'Approved',    cls: 'bg-violet-500/10 text-violet-700 border-violet-500/30' },
+  completed:  { label: 'Completed',   cls: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30' },
+  rejected:   { label: 'Rejected',    cls: 'bg-red-500/10 text-red-700 border-red-500/30' },
+  in_progress:{ label: 'In progress', cls: 'bg-amber-500/10 text-amber-700 border-amber-500/30' },
+  pending:    { label: 'Pending',     cls: 'bg-muted text-muted-foreground border-muted' },
+};
+
+function deriveOverall(row: AdvanceStatusRow): StageStatus {
+  if (row.status === 'rejected' || row.status === 'defaulted') return 'rejected';
+  if (row.status === 'completed') return 'completed';
+  if (row.disbursed_at || row.status === 'active') return 'approved';
+  if (row.coo_approved_at) return 'approved';
+  if (row.agent_ops_reviewed_at || row.tenant_ops_reviewed_at || row.landlord_ops_reviewed_at) return 'reviewed';
+  return 'submitted';
+}
 
 export function BusinessAdvanceStatusTracker({ row, compact = false }: { row: AdvanceStatusRow; compact?: boolean }) {
   const rejected = row.status === 'rejected' || row.status === 'defaulted';
 
+  // Per-stage state — done / current / pending / blocked
   let firstPendingMarked = false;
   const states = STAGES.map((s) => {
-    if (rejected) return s.tsField === 'created_at' ? 'done' : 'blocked';
+    if (rejected) return s.tsField === 'created_at' ? 'done' as const : 'blocked' as const;
     if (row[s.tsField]) return 'done' as const;
     if (!firstPendingMarked) { firstPendingMarked = true; return 'current' as const; }
     return 'pending' as const;
   });
 
+  const overall = deriveOverall(row);
+  const overallBadge = rejected ? STAGE_BADGE.rejected : STAGE_BADGE[overall];
+  const currentStageIdx = states.indexOf('current');
+  const currentStage = currentStageIdx >= 0 ? STAGES[currentStageIdx] : null;
+
+  const createdAgo = formatDistanceToNowStrict(new Date(row.created_at), { addSuffix: true });
+
   return (
     <div className="space-y-3">
+      {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
@@ -52,51 +144,98 @@ export function BusinessAdvanceStatusTracker({ row, compact = false }: { row: Ad
           {row.agent_name && (
             <p className="text-[11px] text-muted-foreground mt-0.5">Requested by agent: {row.agent_name}</p>
           )}
+          <p className="text-[10px] text-muted-foreground mt-0.5">Submitted {createdAgo}</p>
         </div>
-        <div className="text-right shrink-0">
-          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Amount</p>
+        <div className="text-right shrink-0 space-y-1">
+          <Badge variant="outline" className={`${overallBadge.cls} text-[10px] uppercase tracking-wider font-bold`}>
+            {overallBadge.label}
+          </Badge>
           <p className="font-bold text-sm">{formatUGX(Number(row.principal) || 0)}</p>
         </div>
       </div>
 
-      {rejected && row.rejection_reason && (
+      {/* Rejection callout */}
+      {rejected && (
         <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-2.5 flex gap-2 text-xs text-destructive">
-          <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-          <span>{row.rejection_reason}</span>
+          <XCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-bold uppercase tracking-wide text-[10px] mb-0.5">Rejected</p>
+            <p>{row.rejection_reason || 'This request did not pass review. Please speak with your agent for next steps.'}</p>
+          </div>
         </div>
       )}
 
+      {/* "What's happening next" hint — only while in-flight */}
+      {!rejected && currentStage && row.status !== 'completed' && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-900">
+          <div className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-[10px] text-amber-700 mb-1">
+            <ArrowRight className="h-3 w-3" /> What's next
+          </div>
+          <p className="font-semibold">{currentStage.label}</p>
+          <p className="text-[11px] mt-0.5 text-amber-800/90">{currentStage.description}</p>
+          <p className="text-[10px] mt-1 text-amber-700/80">Typical wait: {currentStage.eta}</p>
+        </div>
+      )}
+
+      {/* Completed celebration */}
+      {!rejected && row.status === 'completed' && (
+        <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-2.5 flex gap-2 text-xs text-emerald-800">
+          <PartyPopper className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+          <span>Your Business Advance is fully repaid — well done!</span>
+        </div>
+      )}
+
+      {/* Timeline */}
       <ol className="space-y-2">
         {STAGES.map((stage, i) => {
           const st = states[i];
+          // Skip the trailing "completed" milestone unless we've actually started repaying
+          if (stage.key === 'completed' && !row.completed_at && row.status !== 'active') return null;
+
           const Icon =
             st === 'done' ? CheckCircle2 :
             st === 'current' ? Clock :
-            st === 'blocked' ? AlertTriangle : Circle;
+            st === 'blocked' ? XCircle : Circle;
           const color =
             st === 'done' ? 'text-emerald-600' :
             st === 'current' ? 'text-amber-600 animate-pulse' :
             st === 'blocked' ? 'text-destructive' : 'text-muted-foreground/50';
           const lineColor = st === 'done' ? 'bg-emerald-500/60' : 'bg-muted';
+
+          const stageBadge: StageStatus =
+            st === 'blocked' ? 'rejected' :
+            st === 'done' ? stage.category :
+            st === 'current' ? 'in_progress' : 'pending';
+          const badge = STAGE_BADGE[stageBadge];
+
           const ts = row[stage.tsField];
+
           return (
             <li key={stage.key} className="flex gap-3 items-start">
               <div className="flex flex-col items-center pt-0.5">
                 <Icon className={`h-4 w-4 ${color}`} />
                 {i < STAGES.length - 1 && <div className={`w-px flex-1 min-h-[14px] mt-1 ${lineColor}`} />}
               </div>
-              <div className="flex-1 -mt-0.5 pb-1">
-                <p className={`text-xs font-semibold ${
-                  st === 'done' || st === 'current' ? 'text-foreground' : 'text-muted-foreground'
-                }`}>
-                  {stage.label}
-                  {st === 'current' && <span className="ml-1.5 text-[10px] font-bold uppercase text-amber-600">In progress</span>}
-                </p>
-                {ts && (
+              <div className="flex-1 -mt-0.5 pb-1 min-w-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <p className={`text-xs font-semibold ${
+                    st === 'done' || st === 'current' ? 'text-foreground' : 'text-muted-foreground'
+                  }`}>
+                    {stage.label}
+                  </p>
+                  <Badge variant="outline" className={`${badge.cls} text-[9px] uppercase tracking-wider font-bold h-4 px-1.5`}>
+                    {badge.label}
+                  </Badge>
+                </div>
+                {ts ? (
                   <p className="text-[10px] text-muted-foreground mt-0.5">
                     {format(new Date(ts as string), 'MMM d, yyyy • HH:mm')}
                   </p>
-                )}
+                ) : st === 'current' ? (
+                  <p className="text-[10px] text-amber-700 mt-0.5">ETA: {stage.eta}</p>
+                ) : st === 'pending' ? (
+                  <p className="text-[10px] text-muted-foreground/70 mt-0.5">Waiting for previous step</p>
+                ) : null}
               </div>
             </li>
           );
