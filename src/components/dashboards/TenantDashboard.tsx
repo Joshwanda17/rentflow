@@ -45,6 +45,7 @@ import { useTenantAgreement } from '@/hooks/useTenantAgreement';
 import RepaymentSection from '@/components/tenant/RepaymentSection';
 import RentProcessTracker from '@/components/rent/RentProcessTracker';
 import { TenantBusinessAdvancesPanel } from '@/components/tenant/TenantBusinessAdvancesPanel';
+import { BusinessAdvanceStatusHero } from '@/components/tenant/BusinessAdvanceStatusHero';
 import PaymentPartnersDialog from '@/components/payments/PaymentPartnersDialog';
 import { TenantMenuDrawer } from '@/components/tenant/TenantMenuDrawer';
 import { MerchantCodePills } from '@/components/supporter/MerchantCodePills';
@@ -363,6 +364,9 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             </div>
             <AiIdButton variant="compact" />
           </motion.div>
+
+          {/* Prominent live tracker for any in-flight / active Business Advance */}
+          <BusinessAdvanceStatusHero />
 
           {/* Wallet hero card — replaces the previous bread hero on tenant dashboard */}
           <div id="tenant-wallet-hero">

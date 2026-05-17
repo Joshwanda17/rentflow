@@ -14523,6 +14523,27 @@ export type Database = {
       get_approximate_user_count: { Args: never; Returns: number }
       get_buffer_metrics: { Args: never; Returns: Json }
       get_buffer_trend_data: { Args: never; Returns: Json }
+      get_business_advance_public_status: {
+        Args: { p_phone: string }
+        Returns: {
+          agent_name: string
+          agent_ops_reviewed_at: string
+          business_name: string
+          cfo_disbursed_at: string
+          completed_at: string
+          coo_approved_at: string
+          created_at: string
+          disbursed_at: string
+          id: string
+          landlord_ops_reviewed_at: string
+          outstanding_balance: number
+          principal: number
+          reason: string
+          rejection_reason: string
+          status: string
+          tenant_ops_reviewed_at: string
+        }[]
+      }
       get_chain_health_summary: {
         Args: never
         Returns: {

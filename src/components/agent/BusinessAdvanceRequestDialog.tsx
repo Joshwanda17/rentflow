@@ -400,7 +400,9 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
 
       if (!tenantId) throw new Error('Could not resolve tenant');
 
-      const activation = `${getPublicOrigin()}/activate?phone=${encodeURIComponent(tenantPhoneClean)}&type=business`;
+      // Public landing page — applicant can open without logging in and see
+      // the live approval progress of their Business Advance request.
+      const activation = `${getPublicOrigin()}/business-advance/track?phone=${encodeURIComponent(tenantPhoneClean)}`;
 
       // Persist rent history records (status pending — back-office will verify)
       const validHistory = rentHistory.filter(
@@ -486,7 +488,7 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
   const shareWhatsApp = () => {
     if (!activationLink) return;
     const msg = encodeURIComponent(
-      `Hi ${tenantName}, your Business Advance request is being processed. Use this link to activate your dashboard and track everything: ${activationLink}`
+      `Hi ${tenantName}, your Business Advance request has been submitted. Open this link to see live approval progress and manage everything from your dashboard: ${activationLink}`
     );
     const phone = tenantPhone.replace(/\D/g, '');
     const intl = phone.startsWith('0') ? `256${phone.slice(1)}` : phone;
