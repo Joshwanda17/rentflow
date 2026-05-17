@@ -38,7 +38,10 @@ export function AgentListingsSheet({ open, onOpenChange }: AgentListingsSheetPro
   const [reassignTarget, setReassignTarget] = useState<{
     rentRequestId: string; tenantName: string; currentAgentId: string;
   } | null>(null);
-  const FILTERS_STORAGE_KEY = 'agent-listings-sheet:filters:v1';
+  const FILTERS_STORAGE_PREFIX = 'agent-listings-sheet:filters:v2';
+  const storageKey = user?.id
+    ? `${FILTERS_STORAGE_PREFIX}:${user.id}`
+    : `${FILTERS_STORAGE_PREFIX}:anon`;
   type SheetFilters = {
     search: string;
     statusFilter: 'all' | 'occupied' | 'vacant' | 'rejected';
@@ -46,23 +49,38 @@ export function AgentListingsSheet({ open, onOpenChange }: AgentListingsSheetPro
     sortBy: 'newest' | 'oldest' | 'title' | 'region' | 'occupied_first' | 'vacant_first';
   };
   const DEFAULT_FILTERS: SheetFilters = { search: '', statusFilter: 'all', regionFilter: 'all', sortBy: 'newest' };
-  const initial: SheetFilters = (() => {
-    if (typeof window === 'undefined') return DEFAULT_FILTERS;
+  const [search, setSearch] = useState(DEFAULT_FILTERS.search);
+  const [statusFilter, setStatusFilter] = useState<SheetFilters['statusFilter']>(DEFAULT_FILTERS.statusFilter);
+  const [regionFilter, setRegionFilter] = useState<string>(DEFAULT_FILTERS.regionFilter);
+  const [sortBy, setSortBy] = useState<SheetFilters['sortBy']>(DEFAULT_FILTERS.sortBy);
+  const hydratedKeyRef = useRef<string | null>(null);
+
+  // Re-hydrate filters whenever the active user (storage key) changes.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
     try {
-      const raw = localStorage.getItem(FILTERS_STORAGE_KEY);
-      return raw ? { ...DEFAULT_FILTERS, ...JSON.parse(raw) } : DEFAULT_FILTERS;
-    } catch { return DEFAULT_FILTERS; }
-  })();
-  const [search, setSearch] = useState(initial.search);
-  const [statusFilter, setStatusFilter] = useState<SheetFilters['statusFilter']>(initial.statusFilter);
-  const [regionFilter, setRegionFilter] = useState<string>(initial.regionFilter);
-  const [sortBy, setSortBy] = useState<SheetFilters['sortBy']>(initial.sortBy);
+      const raw = localStorage.getItem(storageKey);
+      const next: SheetFilters = raw ? { ...DEFAULT_FILTERS, ...JSON.parse(raw) } : DEFAULT_FILTERS;
+      setSearch(next.search);
+      setStatusFilter(next.statusFilter);
+      setRegionFilter(next.regionFilter);
+      setSortBy(next.sortBy);
+    } catch {
+      setSearch(DEFAULT_FILTERS.search);
+      setStatusFilter(DEFAULT_FILTERS.statusFilter);
+      setRegionFilter(DEFAULT_FILTERS.regionFilter);
+      setSortBy(DEFAULT_FILTERS.sortBy);
+    }
+    hydratedKeyRef.current = storageKey;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storageKey]);
 
   useEffect(() => {
+    if (hydratedKeyRef.current !== storageKey) return;
     try {
-      localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify({ search, statusFilter, regionFilter, sortBy }));
+      localStorage.setItem(storageKey, JSON.stringify({ search, statusFilter, regionFilter, sortBy }));
     } catch { /* ignore */ }
-  }, [search, statusFilter, regionFilter, sortBy]);
+  }, [search, statusFilter, regionFilter, sortBy, storageKey]);
 
   // Enrich with landlord profile + tenant profile + active rent_request id for each occupied house.
   const [enrichment, setEnrichment] = useState<{
