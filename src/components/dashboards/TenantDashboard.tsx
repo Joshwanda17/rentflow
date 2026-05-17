@@ -730,6 +730,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                   ? Math.max(0, (breadPrice.basePrice - breadPrice.reducedPrice) / breadPrice.basePrice)
                   : 0
               }
+              onSelectHouse={() => { hapticTap(); setMenuOpen(false); setHousesOpen(true); }}
             />
           </div>
 
