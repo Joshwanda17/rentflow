@@ -18,12 +18,12 @@ export function HighlightText({
   const q = query.trim();
   if (!q || !value) return value;
   const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const re = new RegExp(`(${escaped})`, 'ig');
-  const parts = value.split(re);
+  const parts = value.split(new RegExp(`(${escaped})`, 'ig'));
+  const lowerQ = q.toLowerCase();
   return (
     <>
       {parts.map((part, i) =>
-        re.test(part) && part.toLowerCase() === q.toLowerCase() ? (
+        part && part.toLowerCase() === lowerQ ? (
           <mark
             key={i}
             className={
