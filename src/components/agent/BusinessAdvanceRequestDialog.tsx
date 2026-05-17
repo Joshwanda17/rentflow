@@ -100,6 +100,29 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
   const [businessGeocoding, setBusinessGeocoding] = useState(false);
   const [gpsLoading, setGpsLoading] = useState(false);
 
+  // Append-only audit trail of every GPS capture, reverse-geocode, and manual
+  // address edit during this session. Persisted to business_advances.location_history.
+  type LocationHistoryEntry = {
+    ts: string;
+    event:
+      | 'gps_captured'
+      | 'reverse_geocoded'
+      | 'manual_edit'
+      | 'autofill_from_geocode';
+    source: 'applicant' | 'business';
+    field?: 'manual_location' | 'business_address';
+    lat?: number;
+    lng?: number;
+    accuracy?: number;
+    address?: string;
+    previous?: string;
+    value?: string;
+  };
+  const [locationHistory, setLocationHistory] = useState<LocationHistoryEntry[]>([]);
+  const appendHistory = useCallback((entry: Omit<LocationHistoryEntry, 'ts'>) => {
+    setLocationHistory((prev) => [...prev, { ts: new Date().toISOString(), ...entry }]);
+  }, []);
+
   const reset = () => {
     setStep('amount');
     setPrincipal(''); setReason(''); setRentHistory([]);
@@ -110,6 +133,7 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
     setApplicantGps(null); setApplicantManualLocation('');
     setApplicantGeocoded(null); setApplicantGeocoding(false);
     setBusinessGeocoded(null); setBusinessGeocoding(false);
+    setLocationHistory([]);
     setBusinessName(''); setBusinessType(''); setBusinessAddress(''); setBusinessCity('Kampala');
     setMonthlyRevenue(''); setYearsInBusiness(''); setGps(null);
     setActivationLink(null);
