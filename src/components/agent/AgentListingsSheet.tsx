@@ -3,7 +3,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Home, MapPin, DoorOpen, CheckCircle, Clock, AlertTriangle, RotateCcw, Building2, ChevronDown, ChevronRight, User, UserCog, Pencil } from 'lucide-react';
+import { Home, MapPin, DoorOpen, CheckCircle, Clock, AlertTriangle, RotateCcw, Building2, ChevronDown, ChevronRight, User, UserCog, Pencil, Search, X } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useHouseListings, HouseListing } from '@/hooks/useHouseListings';
 import { formatUGX } from '@/lib/rentCalculations';
 import { motion } from 'framer-motion';
@@ -34,6 +36,9 @@ export function AgentListingsSheet({ open, onOpenChange }: AgentListingsSheetPro
   const [reassignTarget, setReassignTarget] = useState<{
     rentRequestId: string; tenantName: string; currentAgentId: string;
   } | null>(null);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'occupied' | 'vacant' | 'rejected'>('all');
+  const [regionFilter, setRegionFilter] = useState<string>('all');
 
   // Enrich with landlord profile + tenant profile + active rent_request id for each occupied house.
   const [enrichment, setEnrichment] = useState<{
@@ -113,6 +118,47 @@ export function AgentListingsSheet({ open, onOpenChange }: AgentListingsSheetPro
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [others, enrichment.landlords]);
 
+  const regions = useMemo(() => {
+    const set = new Set<string>();
+    for (const l of listings) if (l.region) set.add(l.region);
+    return Array.from(set).sort();
+  }, [listings]);
+
+  const q = search.trim().toLowerCase();
+  const matchHouse = (l: HouseListing) => {
+    if (regionFilter !== 'all' && l.region !== regionFilter) return false;
+    if (statusFilter === 'occupied' && !l.tenant_id) return false;
+    if (statusFilter === 'vacant' && (l.tenant_id || l.status !== 'available')) return false;
+    if (!q) return true;
+    const tenant = l.tenant_id ? enrichment.tenants[l.tenant_id] : null;
+    const landlord = l.landlord_id ? enrichment.landlords[l.landlord_id] : null;
+    return (
+      l.title.toLowerCase().includes(q) ||
+      l.address.toLowerCase().includes(q) ||
+      (l.region ?? '').toLowerCase().includes(q) ||
+      (tenant?.name.toLowerCase().includes(q) ?? false) ||
+      (tenant?.phone ?? '').includes(q) ||
+      (landlord?.name.toLowerCase().includes(q) ?? false) ||
+      (landlord?.phone ?? '').includes(q)
+    );
+  };
+
+  const filteredGrouped = useMemo(() => {
+    if (statusFilter === 'rejected') return [];
+    return grouped
+      .map(g => ({ ...g, houses: g.houses.filter(matchHouse) }))
+      .filter(g => g.houses.length > 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [grouped, search, statusFilter, regionFilter, enrichment]);
+
+  const filteredRejected = useMemo(() => {
+    if (statusFilter !== 'all' && statusFilter !== 'rejected') return [];
+    return rejected.filter(matchHouse);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rejected, search, statusFilter, regionFilter, enrichment]);
+
+  const hasActiveFilter = q.length > 0 || statusFilter !== 'all' || regionFilter !== 'all';
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[90vh] rounded-t-3xl p-0 flex flex-col">
@@ -121,6 +167,54 @@ export function AgentListingsSheet({ open, onOpenChange }: AgentListingsSheetPro
             <Home className="h-5 w-5 text-primary" />
             My Listed Houses
           </SheetTitle>
+          {!loading && listings.length > 0 && (
+            <div className="space-y-2 pt-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search landlord, house, tenant, phone…"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  className="pl-9 pr-9 h-9"
+                />
+                {search && (
+                  <button
+                    onClick={() => setSearch('')}
+                    aria-label="Clear search"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
+                  <SelectTrigger className="h-8 w-auto min-w-[130px] text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All statuses</SelectItem>
+                    <SelectItem value="occupied">Occupied</SelectItem>
+                    <SelectItem value="vacant">Vacant</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={regionFilter} onValueChange={setRegionFilter}>
+                  <SelectTrigger className="h-8 w-auto min-w-[130px] text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All regions</SelectItem>
+                    {regions.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                {hasActiveFilter && (
+                  <Button
+                    variant="ghost" size="sm" className="h-8 text-xs gap-1"
+                    onClick={() => { setSearch(''); setStatusFilter('all'); setRegionFilter('all'); }}
+                  >
+                    <X className="h-3 w-3" /> Clear
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 space-y-3">
@@ -135,16 +229,25 @@ export function AgentListingsSheet({ open, onOpenChange }: AgentListingsSheetPro
             </div>
           ) : (
             <>
+              {filteredRejected.length === 0 && filteredGrouped.length === 0 && hasActiveFilter && (
+                <div className="text-center py-12 space-y-2">
+                  <Search className="h-8 w-8 text-muted-foreground/40 mx-auto" />
+                  <p className="text-sm text-muted-foreground">No houses match your filters</p>
+                  <Button variant="outline" size="sm" onClick={() => { setSearch(''); setStatusFilter('all'); setRegionFilter('all'); }}>
+                    Clear filters
+                  </Button>
+                </div>
+              )}
               {/* Rejected listings - shown prominently at top */}
-              {rejected.length > 0 && (
+              {filteredRejected.length > 0 && (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 px-1">
                     <AlertTriangle className="h-4 w-4 text-destructive" />
                     <p className="text-xs font-bold text-destructive">
-                      {rejected.length} Rejected — needs revision
+                      {filteredRejected.length} Rejected — needs revision
                     </p>
                   </div>
-                  {rejected.map(l => (
+                  {filteredRejected.map(l => (
                     <motion.div
                       key={l.id}
                       initial={{ opacity: 0 }}
@@ -182,7 +285,7 @@ export function AgentListingsSheet({ open, onOpenChange }: AgentListingsSheetPro
               )}
 
               {/* Houses grouped by landlord */}
-              {grouped.map(g => {
+              {filteredGrouped.map(g => {
                 const key = g.landlord_id ?? '__none__';
                 const isOpen = expanded[key] !== false; // default open
                 return (
