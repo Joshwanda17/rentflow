@@ -76,10 +76,10 @@ export function BindTenantToHouseDialog({
       if (tenantIds.length) {
         const { data: profs } = await supabase
           .from('profiles')
-          .select('id,full_name,phone_number')
+          .select('id,full_name,phone')
           .in('id', tenantIds);
-        for (const p of profs ?? []) {
-          tenants[p.id] = { name: p.full_name || 'Unnamed', phone: p.phone_number ?? null };
+        for (const p of (profs ?? []) as Array<{ id: string; full_name: string | null; phone: string | null }>) {
+          tenants[p.id] = { name: p.full_name || 'Unnamed', phone: p.phone ?? null };
         }
       }
       return (data ?? []).map(r => ({ ...r, tenant: tenants[r.tenant_id] }));
