@@ -67,6 +67,10 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
   const [statusFilter, setStatusFilter] = useState<SheetFilters['statusFilter']>(DEFAULT_FILTERS.statusFilter);
   const [regionFilter, setRegionFilter] = useState<string>(DEFAULT_FILTERS.regionFilter);
   const [sortBy, setSortBy] = useState<SheetFilters['sortBy']>(DEFAULT_FILTERS.sortBy);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [statusFilter, regionFilter, sortBy, minPrice, maxPrice, search]);
   const [minPrice, setMinPrice] = useState<string>(DEFAULT_FILTERS.minPrice);
   const [maxPrice, setMaxPrice] = useState<string>(DEFAULT_FILTERS.maxPrice);
   const hydratedKeyRef = useRef<string | null>(null);
