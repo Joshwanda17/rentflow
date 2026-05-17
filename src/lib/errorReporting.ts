@@ -61,7 +61,9 @@ function shouldDedupe(signature: string) {
 export async function reportClientError(input: ErrorReportInput): Promise<boolean> {
   const route = typeof window !== 'undefined' ? window.location.pathname : null;
   const signature = `${input.source}|${input.message ?? ''}|${route ?? ''}`;
-  if (shouldDedupe(signature)) return true;
+  // Manual user-triggered reports always go through, even if the same error
+  // was just auto-captured by the boundary.
+  if (input.source !== 'manual' && shouldDedupe(signature)) return true;
 
   try {
     const { error } = await supabase.from('client_error_reports').insert({
