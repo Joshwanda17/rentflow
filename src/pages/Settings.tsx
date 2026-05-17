@@ -347,6 +347,19 @@ export default function Settings() {
                       <div className="flex items-center space-x-2 p-2.5 rounded-lg border border-border/50"><RadioGroupItem value="auto" id="role-auto" /><Label htmlFor="role-auto" className="text-sm cursor-pointer flex items-center gap-1.5"><RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />Auto</Label></div>
                       {roles.map((r) => { const rc = roleConfig[r]; if (!rc) return null; return (<div key={r} className="flex items-center space-x-2 p-2.5 rounded-lg border border-border/50"><RadioGroupItem value={r} id={`role-${r}`} /><Label htmlFor={`role-${r}`} className="text-sm cursor-pointer flex items-center gap-1.5">{rc.icon}{rc.label}</Label></div>); })}
                     </RadioGroup>
+                    {roles.includes('agent') && (
+                      <div className="mt-3 flex items-start justify-between gap-3 p-2.5 rounded-lg border border-border/50">
+                        <div className="min-w-0">
+                          <p className="font-medium text-xs">Skip auto-agent default</p>
+                          <p className="text-[11px] text-muted-foreground">Don't auto-open the Agent dashboard just because you've posted a rent request — use the choice above instead.</p>
+                        </div>
+                        <Switch
+                          checked={preferences.disableAgentAutoDefault}
+                          onCheckedChange={(c) => { updatePreference('disableAgentAutoDefault', c); toast.success(c ? 'Auto-agent default off' : 'Auto-agent default on'); }}
+                          className="shrink-0"
+                        />
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
                 {roles.includes('tenant') && <LazySection name="RentDiscount"><RentDiscountToggle /></LazySection>}
