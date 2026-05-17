@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Sparkles } from 'lucide-react';
 import BusinessAdvanceStatusTracker, { AdvanceStatusRow } from '@/components/business-advance/BusinessAdvanceStatusTracker';
 
-const ACTIVE_STATUSES = ['pending','agent_ops_approved','tenant_ops_approved','landlord_ops_approved','coo_approved','active'];
+const ACTIVE_STATUSES = ['pending','agent_ops_approved','tenant_ops_approved','landlord_ops_approved','coo_approved','active'] as const;
 
 /**
  * Prominent banner on the tenant dashboard surfacing any in-flight or active
