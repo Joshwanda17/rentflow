@@ -353,7 +353,7 @@ export function EmailTransactionsPanel() {
     if (toTs && t > toTs) return false;
     return true;
   };
-  const filteredRows = rows.filter(inRange);
+  const dateRows = rows.filter(inRange);
   // Apply the free-text search on top of the date range. Empty query → pass.
   const searchTokens = searchQuery
     .toLowerCase()
@@ -372,7 +372,10 @@ export function EmailTransactionsPanel() {
     ].join(' ').toLowerCase();
     return searchTokens.every((t) => hay.includes(t));
   };
-  const searchedRows = filteredRows.filter(matchesSearch);
+  // `filteredRows` reflects BOTH the date range and the search box, so every
+  // downstream consumer (stats, breakdown, chart, exports, list) stays in sync.
+  const filteredRows = dateRows.filter(matchesSearch);
+  const searchActive = searchTokens.length > 0;
   // Resolve & memoize the channel for every row once per render. Calling
   // deriveChannel with the cache may write back new entries; we flush to
   // localStorage at the end if anything changed.
@@ -484,7 +487,9 @@ export function EmailTransactionsPanel() {
           <h3 className="font-semibold text-sm">Date range</h3>
           <p className="text-[11px] text-muted-foreground mt-0.5">
             {rangeActive
-              ? `Showing ${filteredRows.length} of ${rows.length} emails — totals recomputed for ${fromDate || '…'} → ${toDate || '…'} (${tz})`
+              ? `Showing ${filteredRows.length} of ${rows.length} emails — totals recomputed for ${fromDate || '…'} → ${toDate || '…'} (${tz})${searchActive ? ` · search "${searchQuery}"` : ''}`
+              : searchActive
+              ? `Showing ${filteredRows.length} of ${rows.length} emails — search "${searchQuery}" · timezone ${tz}`
               : `No range selected — showing all ${rows.length} emails · timezone ${tz}`}
           </p>
         </div>
