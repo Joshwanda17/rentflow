@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Mail, Loader2, ShieldCheck, CheckCircle2, AlertCircle, RefreshCw, Sparkles, ChevronDown, ChevronRight } from 'lucide-react';
+import { Bot } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFinOpsAutoRefresh } from '@/hooks/useFinOpsAutoRefresh';
 import { format } from 'date-fns';
@@ -29,6 +30,13 @@ interface Match {
   depositor_name?: string;
   depositor_phone?: string;
   deposit_tid?: string | null;
+  /**
+   * True when this pending deposit_request was created by the Gmail
+   * auto-creation trigger (i.e. the email landed before the depositor
+   * submitted anything in-app). Surfaced as a badge so the operator
+   * knows the row will be auto-approved on the next matcher scan.
+   */
+  auto_created_from_email?: boolean;
 }
 
 const fmtUgx = (n: number) => `UGX ${Math.round(n).toLocaleString()}`;
@@ -89,12 +97,16 @@ export function EmailAutoMatchPanel() {
     const depositIds = raw.map((m) => m.deposit_request_id);
     const [{ data: profiles }, { data: deposits }] = await Promise.all([
       supabase.from('profiles').select('id, full_name, phone').in('id', userIds),
-      supabase.from('deposit_requests').select('id, transaction_id, status').in('id', depositIds),
+      supabase.from('deposit_requests').select('id, transaction_id, status, notes').in('id', depositIds),
     ]);
     const pmap = new Map<string, { name: string; phone: string }>();
     (profiles ?? []).forEach((p: any) => pmap.set(p.id, { name: p.full_name ?? 'Unknown', phone: p.phone ?? '' }));
-    const dmap = new Map<string, { tid: string | null; status: string }>();
-    (deposits ?? []).forEach((d: any) => dmap.set(d.id, { tid: d.transaction_id ?? null, status: d.status }));
+    const dmap = new Map<string, { tid: string | null; status: string; notes: string | null }>();
+    (deposits ?? []).forEach((d: any) => dmap.set(d.id, {
+      tid: d.transaction_id ?? null,
+      status: d.status,
+      notes: (d.notes as string | null) ?? null,
+    }));
     // Drop matches whose deposit is no longer pending (race with another operator).
     return raw
       .filter((m) => dmap.get(m.deposit_request_id)?.status === 'pending')
@@ -103,6 +115,9 @@ export function EmailAutoMatchPanel() {
         depositor_name: m.depositor_full_name ?? pmap.get(m.user_id)?.name,
         depositor_phone: pmap.get(m.user_id)?.phone,
         deposit_tid: dmap.get(m.deposit_request_id)?.tid ?? null,
+        auto_created_from_email: /Auto-created from mobile-money confirmation email/i.test(
+          dmap.get(m.deposit_request_id)?.notes ?? '',
+        ),
       }));
   }, []);
 
@@ -439,6 +454,14 @@ export function EmailAutoMatchPanel() {
                         ✓ {signalLabels[s] ?? s}
                       </Badge>
                     ))}
+                    {m.auto_created_from_email && (
+                      <Badge
+                        className="bg-violet-500/15 text-violet-700 hover:bg-violet-500/15 border-violet-500/30 text-[10px] py-0 px-1.5 font-medium"
+                        title="This pending deposit was created automatically from the Gmail confirmation because the depositor had not submitted a request in-app. It will be auto-approved on the next matcher scan (every 30s)."
+                      >
+                        <Bot className="h-3 w-3 mr-1" /> Auto-created from email
+                      </Badge>
+                    )}
                   </div>
                   <div className="text-xs text-muted-foreground truncate">
                     <span className="font-medium text-foreground">{m.depositor_name ?? 'Unknown'}</span>
