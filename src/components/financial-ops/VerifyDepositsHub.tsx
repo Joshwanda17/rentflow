@@ -20,6 +20,7 @@ import { TidVerification } from './TidVerification';
 import { FieldDepositVerificationQueue } from './FieldDepositVerificationQueue';
 import { RecentlyVerifiedList } from './RecentlyVerifiedList';
 import { RejectedFieldDepositsList } from './RejectedFieldDepositsList';
+import { EmailAutoMatchPanel } from './EmailAutoMatchPanel';
 import { supabase } from '@/integrations/supabase/client';
 import type { DepositChannel } from '@/lib/fieldDepositBatches';
 import { cn } from '@/lib/utils';
@@ -342,6 +343,7 @@ export function VerifyDepositsHub() {
           <p className="text-xs sm:text-sm text-muted-foreground">
             CFO credits from <span className="font-semibold text-foreground">Welile Technologies Finance</span> are auto-approved and skip this queue.
           </p>
+          <EmailAutoMatchPanel />
           {filtersActive && (
             <p className="text-xs sm:text-sm text-muted-foreground italic">
               User deposits are looked up by Transaction ID — channel and amount
