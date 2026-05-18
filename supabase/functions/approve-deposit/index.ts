@@ -985,8 +985,10 @@ Deno.serve(async (req) => {
 
           await supabaseAdmin.from("notifications").insert({
             user_id: depositRequest.user_id,
-            title: notifTitle,
-            message: isFloatDeposit
+            title: auto_approved ? "Deposit Auto-Verified ⚡" : notifTitle,
+            message: auto_approved
+              ? `Your deposit of UGX ${depositRequest.amount.toLocaleString()} was automatically verified against the bank email${depositRequest.transaction_id ? ` (TID ${depositRequest.transaction_id})` : ''} and credited to your wallet.${repaymentNote}${debtNote}${prepaidNote}`
+              : isFloatDeposit
               ? `Your operational float deposit of UGX ${depositRequest.amount.toLocaleString()} was approved by ${processorName} and credited to your Float bucket.`
               : `Your deposit of UGX ${depositRequest.amount.toLocaleString()} approved by ${processorName}.${repaymentNote}${debtNote}${prepaidNote}`,
             type: "success",
@@ -1000,8 +1002,77 @@ Deno.serve(async (req) => {
               debt_cleared: debtCleared,
               days_prepaid: daysPrepaid,
               prepaid_amount: prepaidAmount,
+              auto_approved: !!auto_approved,
+              auto_match_method: auto_match_method ?? null,
             },
           });
+
+          // ── Auto-approved: stamp flag + send branded receipt email ──
+          // Triggered when the email auto-matcher (EmailAutoMatchPanel)
+          // approves the deposit without operator review. The depositor
+          // gets an instant in-app notification (above) AND a transactional
+          // email with the credited amount and transaction reference.
+          if (auto_approved) {
+            try {
+              await supabaseAdmin
+                .from('deposit_requests')
+                .update({ auto_approved: true })
+                .eq('id', depositRequest.id);
+            } catch (flagErr) {
+              console.warn('[approve-deposit] auto_approved flag update failed:', flagErr);
+            }
+
+            try {
+              const { data: depProfile } = await supabaseAdmin
+                .from('profiles')
+                .select('email, full_name')
+                .eq('id', depositRequest.user_id)
+                .maybeSingle();
+              const recipientEmail = depProfile?.email;
+              if (recipientEmail) {
+                const txRef =
+                  depositRequest.transaction_id ||
+                  `DEP-${String(depositRequest.id).slice(0, 8).toUpperCase()}`;
+                const sourceLabel = (depositRequest.provider || 'email_match')
+                  .toString()
+                  .toUpperCase();
+                const { error: emailErr } = await supabaseAdmin.functions.invoke(
+                  'send-transactional-email',
+                  {
+                    body: {
+                      templateName: 'partner-wallet-deposit',
+                      recipientEmail,
+                      idempotencyKey: `auto-deposit-${depositRequest.id}`,
+                      templateData: {
+                        partner_name: depProfile?.full_name || 'Customer',
+                        transaction_id: txRef,
+                        amount: Number(depositRequest.amount) || 0,
+                        currency: 'UGX',
+                        date: new Date().toLocaleDateString('en-GB', {
+                          day: '2-digit',
+                          month: 'long',
+                          year: 'numeric',
+                        }),
+                        source: `Auto-verified · ${sourceLabel}`,
+                      },
+                    },
+                  },
+                );
+                if (emailErr) {
+                  console.warn(
+                    '[approve-deposit] auto-approval email send failed:',
+                    emailErr,
+                  );
+                }
+              } else {
+                console.warn(
+                  `[approve-deposit] no profile email for user ${depositRequest.user_id}; skipping auto-approval email`,
+                );
+              }
+            } catch (mailErr) {
+              console.warn('[approve-deposit] auto-approval email block threw:', mailErr);
+            }
+          }
 
           // Audit
           await supabaseAdmin.from("audit_logs").insert({
