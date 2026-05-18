@@ -446,7 +446,7 @@ export function EmailTransactionsPanel() {
                   tickFormatter={(v) => (v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M` : v >= 1_000 ? `${Math.round(v / 1_000)}k` : `${v}`)}
                   width={50}
                 />
-                <Tooltip
+                <RTooltip
                   contentStyle={{
                     background: 'hsl(var(--popover))',
                     border: '1px solid hsl(var(--border))',
