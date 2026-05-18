@@ -396,6 +396,23 @@ export function EmailTransactionsPanel() {
   const channelCacheRef = useRef<Record<string, ChannelCacheEntry>>(readChannelCache());
   const flushChannelCache = () => writeChannelCache(channelCacheRef.current);
 
+  // Manual channel correction UI. `editingRow` controls the dialog; bumping
+  // `rulesVersion` re-renders the list so newly-saved rules / cache overrides
+  // take effect immediately on every visible row.
+  const [editingRow, setEditingRow] = useState<GmailTx | null>(null);
+  const [rulesVersion, setRulesVersion] = useState(0);
+  const [storedUserRules, setStoredUserRules] = useState<StoredUserRule[]>(() => readStoredUserRules());
+  const persistUserRules = (next: StoredUserRule[]) => {
+    writeStoredUserRules(next);
+    refreshUserRules();
+    setStoredUserRules(next);
+    setRulesVersion((v) => v + 1);
+  };
+  const deleteUserRule = (id: string) => {
+    persistUserRules(storedUserRules.filter((r) => r.id !== id));
+    toast({ title: 'Rule removed', description: 'Future emails will no longer use this override.' });
+  };
+
   const load = async () => {
     const [{ data: txs }, { data: ps }] = await Promise.all([
       (supabase.from('gmail_transactions') as any)
