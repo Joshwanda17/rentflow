@@ -275,7 +275,7 @@ export function EmailTransactionsPanel() {
     >();
     for (const r of filteredRows) {
       if (!isCountable(r)) continue;
-      const key = (r.channel && r.channel !== 'other' ? r.channel : 'other').replace('_', ' ');
+      const key = deriveChannel(r).replace(/_/g, ' ');
       const cur = map.get(key) ?? { inCount: 0, inTotal: 0, outCount: 0, outTotal: 0 };
       const amt = r.amount ?? 0;
       if (r.direction === 'in') {
@@ -673,9 +673,20 @@ export function EmailTransactionsPanel() {
                           <AlertTriangle className="h-3 w-3" /> flagged · review
                         </Badge>
                       )}
-                      {r.channel && r.channel !== 'other' && (
-                        <Badge variant="outline" className="text-[10px] capitalize">{r.channel.replace('_',' ')}</Badge>
-                      )}
+                      {(() => {
+                        const ch = deriveChannel(r);
+                        if (ch === 'other') return null;
+                        const inferred = !r.channel || r.channel === 'other';
+                        return (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] capitalize"
+                            title={inferred ? `Inferred from ${r.transaction_id ? 'transaction id' : 'email reference'}` : undefined}
+                          >
+                            {ch.replace(/_/g, ' ')}{inferred ? ' •' : ''}
+                          </Badge>
+                        );
+                      })()}
                       {r.direction && (
                         <Badge variant="outline" className={`text-[10px] capitalize ${
                           r.direction === 'in' ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20'
