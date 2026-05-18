@@ -323,7 +323,14 @@ export function EmailTransactionsPanel() {
         ) : (
           <div className="divide-y max-h-[600px] overflow-y-auto">
             {rows.map((r) => (
-              <div key={r.id} className="p-4 hover:bg-muted/30 transition-colors">
+              <div
+                key={r.id}
+                className={`p-4 transition-colors ${
+                  r.parsed && !validity.get(r.id)!.valid
+                    ? 'bg-amber-500/5 hover:bg-amber-500/10 border-l-2 border-l-amber-500'
+                    : 'hover:bg-muted/30'
+                }`}
+              >
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -332,6 +339,15 @@ export function EmailTransactionsPanel() {
                         <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-700 border-emerald-500/20">parsed</Badge>
                       ) : (
                         <Badge variant="outline" className="text-[10px]">unparsed</Badge>
+                      )}
+                      {r.parsed && !validity.get(r.id)!.valid && (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/30 gap-1"
+                          title={validity.get(r.id)!.reason}
+                        >
+                          <AlertTriangle className="h-3 w-3" /> flagged · excluded
+                        </Badge>
                       )}
                       {r.channel && r.channel !== 'other' && (
                         <Badge variant="outline" className="text-[10px] capitalize">{r.channel.replace('_',' ')}</Badge>
