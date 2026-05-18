@@ -3556,6 +3556,8 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                 roi_return: `${p.roiPercentage}%`,
                 return_amount: roiAmount,
                 new_total_partnership_value: newAmount,
+                roi_percentage: p.roiPercentage,
+                payment_number: paymentNumber,
                 currency: 'UGX',
                 company_name: 'Welile',
                 logo_url: 'https://welilereceipts.com/welile-logo.png',
