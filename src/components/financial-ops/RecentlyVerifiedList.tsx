@@ -35,6 +35,8 @@ import {
   Search,
   X,
   CalendarIcon,
+  Sparkles,
+  Bot,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Calendar } from '@/components/ui/calendar';
@@ -65,6 +67,8 @@ interface Row {
   depositor_id: string | null;
   depositor_name: string | null;
   rejection_reason: string | null;
+  auto_approved: boolean;
+  auto_match_method: string | null;
 }
 
 interface Props {
@@ -88,6 +92,8 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
   const [search, setSearch] = useState('');
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  // 'all' = both system + operator, 'auto' = system only, 'manual' = operator only.
+  const [verifierFilter, setVerifierFilter] = useState<'all' | 'auto' | 'manual'>('all');
 
   // Single source of truth for table columns. Drives both render and CSV
   // export so the file always matches what the operator sees.
@@ -136,7 +142,7 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
       let q = supabase
         .from('deposit_requests')
         .select(
-          'id, amount, status, approved_at, rejected_at, processed_by, user_id, rejection_reason',
+          'id, amount, status, approved_at, rejected_at, processed_by, user_id, rejection_reason, metadata',
         )
         .in('status', ['approved', 'rejected'])
         .order('updated_at', { ascending: false })
@@ -180,6 +186,8 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
           depositor_id: r.user_id ?? null,
           depositor_name: r.user_id ? nameMap.get(r.user_id) ?? null : null,
           rejection_reason: r.rejection_reason ?? null,
+          auto_approved: Boolean(r?.metadata?.auto_approved),
+          auto_match_method: (r?.metadata?.auto_match_method as string | undefined) ?? null,
         })),
       );
     } catch {
@@ -355,13 +363,21 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
   };
 
   const searchNorm = search.trim().toLowerCase();
-  const filteredRows = searchNorm
-    ? rows.filter(
-        (r) =>
-          (r.depositor_name?.toLowerCase() ?? '').includes(searchNorm) ||
-          (r.depositor_id?.toLowerCase() ?? '').includes(searchNorm),
-      )
-    : rows;
+  const filteredRows = rows
+    .filter((r) =>
+      verifierFilter === 'auto'
+        ? r.auto_approved
+        : verifierFilter === 'manual'
+          ? !r.auto_approved
+          : true,
+    )
+    .filter((r) =>
+      searchNorm
+        ? (r.depositor_name?.toLowerCase() ?? '').includes(searchNorm) ||
+          (r.depositor_id?.toLowerCase() ?? '').includes(searchNorm)
+        : true,
+    );
+  const autoCount = rows.filter((r) => r.auto_approved).length;
 
   return (
     <Card>
@@ -540,6 +556,35 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
         <p className="text-[11px] text-muted-foreground mt-2">
           Audit trail — who approved or rejected each user deposit.
         </p>
+        <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+          <span className="text-[10px] text-muted-foreground uppercase tracking-wide mr-1">
+            Source
+          </span>
+          {(['all', 'auto', 'manual'] as const).map((opt) => {
+            const active = verifierFilter === opt;
+            const label =
+              opt === 'all'
+                ? `All (${rows.length})`
+                : opt === 'auto'
+                  ? `Auto-verified ⚡ (${autoCount})`
+                  : `By operator (${rows.length - autoCount})`;
+            return (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => setVerifierFilter(opt)}
+                className={cn(
+                  'text-[10px] px-2 py-0.5 rounded-full border transition-colors',
+                  active
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-background text-muted-foreground border-border hover:bg-muted/40',
+                )}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
       </CardHeader>
       <CardContent className="pt-0">
         {loading ? (
@@ -616,7 +661,32 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
                       )}
                       {isVisible('verified_by') && (
                       <td className="px-2 py-2 align-top">
-                        {r.processed_by_name ? (
+                        {r.auto_approved ? (
+                          <TooltipProvider delayDuration={150}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge className="text-[9px] h-4 px-1 gap-0.5 bg-primary/10 text-primary border border-primary/30 hover:bg-primary/10 cursor-help">
+                                  <Bot className="h-2.5 w-2.5" />
+                                  Auto-verified
+                                  <Sparkles className="h-2.5 w-2.5" />
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent variant="dark" className="text-xs">
+                                <div className="font-semibold flex items-center gap-1.5">
+                                  <Bot className="h-3 w-3" /> System auto-verified
+                                </div>
+                                <div className="mt-0.5 opacity-90">
+                                  Matched by{' '}
+                                  {r.auto_match_method === 'tid'
+                                    ? 'exact Transaction ID'
+                                    : r.auto_match_method === 'amount_strong'
+                                      ? 'amount + corroborating signals'
+                                      : r.auto_match_method ?? 'email matcher'}
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        ) : r.processed_by_name ? (
                           <div className="flex items-center gap-1">
                             <UserIcon className="h-3 w-3 text-muted-foreground shrink-0" />
                             <span className="font-medium truncate max-w-[120px]">
