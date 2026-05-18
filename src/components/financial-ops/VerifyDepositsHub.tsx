@@ -27,6 +27,40 @@ import { supabase } from '@/integrations/supabase/client';
 import type { DepositChannel } from '@/lib/fieldDepositBatches';
 import { cn } from '@/lib/utils';
 import { useFinOpsAutoRefresh } from '@/hooks/useFinOpsAutoRefresh';
+import type { LucideIcon } from 'lucide-react';
+
+/**
+ * Compact, mobile-friendly section heading used inside the User Deposits tab.
+ * Gives every panel a clear icon + title + one-line explanation so operators
+ * who skim never have to guess what they're looking at.
+ */
+function SectionHeader({
+  icon: Icon,
+  title,
+  subtitle,
+}: {
+  icon: LucideIcon;
+  title: string;
+  subtitle?: string;
+}) {
+  return (
+    <div className="flex items-start gap-2.5 px-1 pb-2 pt-1">
+      <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+        <Icon className="h-4.5 w-4.5" />
+      </div>
+      <div className="min-w-0">
+        <h3 className="text-sm sm:text-base font-bold tracking-tight leading-tight">
+          {title}
+        </h3>
+        {subtitle && (
+          <p className="text-[11px] sm:text-xs text-muted-foreground leading-snug mt-0.5">
+            {subtitle}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
 
 /**
  * One place to verify every deposit that reaches the platform — whether it
