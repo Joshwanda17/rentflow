@@ -80,12 +80,14 @@ Deno.serve(async (req) => {
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
     const body = await req.json().catch(() => ({}));
-    const { deposit_request_id, action, rejection_reason, bulk_ids, access_token } = body as {
+    const { deposit_request_id, action, rejection_reason, bulk_ids, access_token, auto_approved, auto_match_method } = body as {
       deposit_request_id?: string;
       action?: string;
       rejection_reason?: string;
       bulk_ids?: string[];
       access_token?: string;
+      auto_approved?: boolean;
+      auto_match_method?: string;
     };
 
     const authHeader = req.headers.get("Authorization")
