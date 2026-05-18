@@ -760,13 +760,30 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
               <SelectItem value="30">Missed in last 30 days</SelectItem>
             </SelectContent>
           </Select>
+          {missedWindow > 0 && (
+            <Select
+              value={String(Math.min(missedMin, missedWindow))}
+              onValueChange={(v) => setMissedMin(Number(v))}
+            >
+              <SelectTrigger className="h-8 w-[170px] text-xs">
+                <SelectValue placeholder="Min missed days" />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: missedWindow }, (_, i) => i + 1).map((n) => (
+                  <SelectItem key={n} value={String(n)}>
+                    At least {n} missed day{n > 1 ? 's' : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           {(agentFilter !== 'all' || propertyFilter !== 'all' || missedWindow > 0) && (
-            <Button size="sm" variant="ghost" className="h-8" onClick={() => { setAgentFilter('all'); setPropertyFilter('all'); setMissedWindow(0); }}>
+            <Button size="sm" variant="ghost" className="h-8" onClick={() => { setAgentFilter('all'); setPropertyFilter('all'); setMissedWindow(0); setMissedMin(1); }}>
               <X className="h-3.5 w-3.5 mr-1" /> Clear
             </Button>
           )}
           <div className="ml-auto text-[11px] text-muted-foreground">
-            {filteredRows.length} {missedWindow > 0 ? `tenants missed ≥1 day in last ${missedWindow}` : 'active rent plans'}
+            {filteredRows.length} {missedWindow > 0 ? `tenants missed ≥${Math.min(missedMin, missedWindow)} day${Math.min(missedMin, missedWindow) > 1 ? 's' : ''} in last ${missedWindow}` : 'active rent plans'}
           </div>
         </CardContent>
       </Card>
