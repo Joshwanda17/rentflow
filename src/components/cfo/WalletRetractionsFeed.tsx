@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useWalletRealtime } from '@/hooks/useWalletRealtime';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { RecipientRoutingWarningBanner } from './RecipientRoutingWarningBanner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Loader2, MinusCircle, Filter } from 'lucide-react';
