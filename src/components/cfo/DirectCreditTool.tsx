@@ -640,6 +640,13 @@ export function DirectCreditTool() {
           </div>
         )}
 
+        {operation === 'debit' && (
+          <RecipientRoutingWarningBanner />
+        )}
+        {operation === 'credit' && (
+          <RecipientRoutingWarningBanner variant="compact" />
+        )}
+
         <div>
           <Label htmlFor="payout-category" className="flex items-center gap-1.5 mb-1.5">
             Payout Category
