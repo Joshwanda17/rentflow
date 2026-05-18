@@ -661,7 +661,32 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
                       )}
                       {isVisible('verified_by') && (
                       <td className="px-2 py-2 align-top">
-                        {r.processed_by_name ? (
+                        {r.auto_approved ? (
+                          <TooltipProvider delayDuration={150}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge className="text-[9px] h-4 px-1 gap-0.5 bg-primary/10 text-primary border border-primary/30 hover:bg-primary/10 cursor-help">
+                                  <Bot className="h-2.5 w-2.5" />
+                                  Auto-verified
+                                  <Sparkles className="h-2.5 w-2.5" />
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent variant="dark" className="text-xs">
+                                <div className="font-semibold flex items-center gap-1.5">
+                                  <Bot className="h-3 w-3" /> System auto-verified
+                                </div>
+                                <div className="mt-0.5 opacity-90">
+                                  Matched by{' '}
+                                  {r.auto_match_method === 'tid'
+                                    ? 'exact Transaction ID'
+                                    : r.auto_match_method === 'amount_strong'
+                                      ? 'amount + corroborating signals'
+                                      : r.auto_match_method ?? 'email matcher'}
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        ) : r.processed_by_name ? (
                           <div className="flex items-center gap-1">
                             <UserIcon className="h-3 w-3 text-muted-foreground shrink-0" />
                             <span className="font-medium truncate max-w-[120px]">
