@@ -111,6 +111,8 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
   const [propertyFilter, setPropertyFilter] = useState<string>('all');
   // Missed-payments interval filter (0 = off, otherwise lookback days)
   const [missedWindow, setMissedWindow] = useState<number>(0);
+  // Minimum missed-days threshold within the window (1 = at least one missed day)
+  const [missedMin, setMissedMin] = useState<number>(1);
   const [recordOpen, setRecordOpen] = useState(false);
   const [recordRow, setRecordRow] = useState<TenantTrackerRow | null>(null);
   const [recordAmount, setRecordAmount] = useState('');
@@ -407,10 +409,13 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
     return trackerRows.filter(r => {
       if (agentFilter !== 'all' && r.agentId !== agentFilter) return false;
       if (propertyFilter !== 'all' && r.property !== propertyFilter) return false;
-      if (missedWindow > 0 && !missedDaysByTenant.has(r.tenantId)) return false;
+      if (missedWindow > 0) {
+        const m = missedDaysByTenant.get(r.tenantId) || 0;
+        if (m < Math.min(missedMin, missedWindow)) return false;
+      }
       return true;
     });
-  }, [trackerRows, agentFilter, propertyFilter, missedWindow, missedDaysByTenant]);
+  }, [trackerRows, agentFilter, propertyFilter, missedWindow, missedMin, missedDaysByTenant]);
 
   // Daily totals
   const totals = useMemo(() => {
@@ -428,7 +433,7 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
     [filteredRows, trackerCurrentPage]
   );
   // Reset to first page whenever filters/date/range change
-  useEffect(() => { setTrackerPage(1); }, [agentFilter, propertyFilter, day, range, missedWindow]);
+  useEffect(() => { setTrackerPage(1); }, [agentFilter, propertyFilter, day, range, missedWindow, missedMin]);
 
   // KPIs
   const collectionToday = (collections || []).reduce((s, c) => s + Number(c.amount || 0), 0);
