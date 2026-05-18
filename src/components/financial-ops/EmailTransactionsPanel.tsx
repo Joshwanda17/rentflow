@@ -118,7 +118,33 @@ function validateGmailTx(r: GmailTx): { valid: boolean; reason?: string } {
  * future poll inserts — reuse the same classification without re-running
  * the heuristic, and lets a manual fix (if we ever expose one) stick.
  */
-const CHANNEL_CACHE_KEY = 'gmail_channel_cache_v1';
+const CHANNEL_CACHE_KEY = 'gmail_channel_cache_v2';
+
+/**
+ * Confidence levels for an inferred channel:
+ *   - 'authoritative' — the DB already classified this row; no heuristic ran.
+ *   - 'high'   — a brand keyword matched (e.g. "MTN", "Stanbic", "RCT-...").
+ *               These are very unlikely to be wrong.
+ *   - 'medium' — a known id prefix matched (e.g. "MP" / "AP" mobile money
+ *               refs, "FT"/"TRF"/"RTGS" bank wire refs). The id shape is
+ *               distinctive but not as unambiguous as a brand name.
+ *   - 'low'    — only a generic reference-number phrase ("Reference No.",
+ *               "Bank Ref", "SWIFT") was found anywhere in the email. Worth
+ *               showing, but flag for review.
+ */
+export type ChannelConfidence = 'authoritative' | 'high' | 'medium' | 'low';
+
+export interface ChannelResult {
+  channel: string;
+  confidence: ChannelConfidence;
+  /** Short human-readable description of what matched. */
+  signal: string;
+}
+
+/** Numeric score (0–100) for compact display alongside the badge. */
+function confidenceScore(c: ChannelConfidence): number {
+  return c === 'authoritative' ? 100 : c === 'high' ? 90 : c === 'medium' ? 70 : 45;
+}
 
 function channelCacheKey(r: GmailTx): string | null {
   const id = (r.transaction_id ?? '').trim();
@@ -127,50 +153,62 @@ function channelCacheKey(r: GmailTx): string | null {
   return null;
 }
 
-function readChannelCache(): Record<string, string> {
+type ChannelCacheEntry = { channel: string; confidence: ChannelConfidence; signal: string };
+
+function readChannelCache(): Record<string, ChannelCacheEntry> {
   if (typeof window === 'undefined') return {};
   try {
     const raw = localStorage.getItem(CHANNEL_CACHE_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? (parsed as Record<string, string>) : {};
+    return parsed && typeof parsed === 'object' ? (parsed as Record<string, ChannelCacheEntry>) : {};
   } catch {
     return {};
   }
 }
 
-function writeChannelCache(cache: Record<string, string>): void {
+function writeChannelCache(cache: Record<string, ChannelCacheEntry>): void {
   if (typeof window === 'undefined') return;
   try { localStorage.setItem(CHANNEL_CACHE_KEY, JSON.stringify(cache)); } catch {}
 }
 
-/** Pure heuristic — no cache lookup. Used as the resolver of last resort. */
-function computeChannel(r: GmailTx): string {
-  if (r.channel && r.channel !== 'other') return r.channel;
+/**
+ * Pure heuristic — no cache lookup. Returns the inferred channel plus a
+ * confidence label and a short note about what matched. Used as the resolver
+ * of last resort.
+ */
+function computeChannel(r: GmailTx): ChannelResult {
+  if (r.channel && r.channel !== 'other') {
+    return { channel: r.channel, confidence: 'authoritative', signal: 'parser-assigned' };
+  }
   const id = (r.transaction_id ?? '').trim();
   const hay = `${r.from_email ?? ''} ${r.from_name ?? ''} ${r.subject ?? ''} ${r.snippet ?? ''} ${id}`.toLowerCase();
 
-  // 1. Receipt numbers — Welile cash receipts use the RCT prefix.
-  if (/^rct[-_]?\d/i.test(id) || /\brct[-_]?\d{3,}\b/i.test(hay)) return 'cash_receipt';
+  // 1. Receipt numbers — Welile cash receipts use the RCT prefix. The prefix
+  //    on the id itself is the strongest signal; a body-only hit is medium.
+  if (/^rct[-_]?\d/i.test(id)) return { channel: 'cash_receipt', confidence: 'high', signal: 'receipt id prefix RCT-' };
+  if (/\brct[-_]?\d{3,}\b/i.test(hay)) return { channel: 'cash_receipt', confidence: 'medium', signal: 'receipt number in body' };
 
-  // 2. Mobile money — match by brand keywords or known id prefixes.
-  //    MTN MoMo refs commonly start with MP / FTI / CI / 10-digit numeric.
-  if (/\b(mtn|momo|mobile money)\b/i.test(hay) || /^(mp|fti|ci)\d/i.test(id)) return 'mtn_momo';
-  if (/\bairtel\b/i.test(hay) || /^(ap|am)\d/i.test(id)) return 'airtel_money';
+  // 2. Mobile money — brand keywords (high) vs id prefix only (medium).
+  if (/\b(mtn|momo|mobile money)\b/i.test(hay)) return { channel: 'mtn_momo', confidence: 'high', signal: 'MTN/MoMo brand match' };
+  if (/^(mp|fti|ci)\d/i.test(id)) return { channel: 'mtn_momo', confidence: 'medium', signal: 'MTN-style id prefix' };
+  if (/\bairtel\b/i.test(hay)) return { channel: 'airtel_money', confidence: 'high', signal: 'Airtel brand match' };
+  if (/^(ap|am)\d/i.test(id)) return { channel: 'airtel_money', confidence: 'medium', signal: 'Airtel-style id prefix' };
 
-  // 3. Banks — match by brand keywords first, then by reference-style prefixes.
-  if (/\bstanbic\b/i.test(hay)) return 'stanbic';
-  if (/\b(centenary|cente)\b/i.test(hay)) return 'centenary';
-  if (/\b(dfcu)\b/i.test(hay)) return 'dfcu';
-  if (/\b(equity)\b/i.test(hay)) return 'equity_bank';
-  if (/\b(absa|barclays)\b/i.test(hay)) return 'absa';
-  if (/\b(stanchart|standard chartered)\b/i.test(hay)) return 'stanchart';
+  // 3. Banks — brand keywords are always high confidence.
+  if (/\bstanbic\b/i.test(hay)) return { channel: 'stanbic', confidence: 'high', signal: 'Stanbic brand match' };
+  if (/\b(centenary|cente)\b/i.test(hay)) return { channel: 'centenary', confidence: 'high', signal: 'Centenary brand match' };
+  if (/\b(dfcu)\b/i.test(hay)) return { channel: 'dfcu', confidence: 'high', signal: 'DFCU brand match' };
+  if (/\b(equity)\b/i.test(hay)) return { channel: 'equity_bank', confidence: 'high', signal: 'Equity brand match' };
+  if (/\b(absa|barclays)\b/i.test(hay)) return { channel: 'absa', confidence: 'high', signal: 'Absa/Barclays brand match' };
+  if (/\b(stanchart|standard chartered)\b/i.test(hay)) return { channel: 'stanchart', confidence: 'high', signal: 'Standard Chartered brand match' };
 
-  // 4. Generic bank reference patterns (wire / transfer / FT refs).
-  if (/^(ft|trf|txn|ref|wire|rtgs|eft)[-_/]?[a-z0-9]/i.test(id)) return 'bank_transfer';
-  if (/\b(bank\s*ref(erence)?|reference\s*(no|number|#)|rtgs|swift)\b/i.test(hay)) return 'bank_transfer';
+  // 4. Generic bank reference patterns — id-shape match is medium, body-only
+  //    phrase match is low (could be any institution).
+  if (/^(ft|trf|txn|ref|wire|rtgs|eft)[-_/]?[a-z0-9]/i.test(id)) return { channel: 'bank_transfer', confidence: 'medium', signal: 'bank reference id prefix' };
+  if (/\b(bank\s*ref(erence)?|reference\s*(no|number|#)|rtgs|swift)\b/i.test(hay)) return { channel: 'bank_transfer', confidence: 'low', signal: 'generic reference phrase' };
 
-  return 'other';
+  return { channel: 'other', confidence: 'low', signal: 'no signal' };
 }
 
 /**
@@ -182,13 +220,18 @@ function computeChannel(r: GmailTx): string {
  *   3. Heuristic over transaction id + subject + snippet (`computeChannel`),
  *      with the result written back to the cache when it's not 'other'.
  */
-function deriveChannel(r: GmailTx, cache?: Record<string, string>): string {
-  if (r.channel && r.channel !== 'other') return r.channel;
+function deriveChannel(r: GmailTx, cache?: Record<string, ChannelCacheEntry>): ChannelResult {
+  if (r.channel && r.channel !== 'other') {
+    return { channel: r.channel, confidence: 'authoritative', signal: 'parser-assigned' };
+  }
   const key = channelCacheKey(r);
   if (cache && key && cache[key]) return cache[key];
   const computed = computeChannel(r);
-  if (cache && key && computed !== 'other' && cache[key] !== computed) {
-    cache[key] = computed;
+  if (cache && key && computed.channel !== 'other') {
+    const prev = cache[key];
+    if (!prev || prev.channel !== computed.channel || prev.confidence !== computed.confidence) {
+      cache[key] = computed;
+    }
   }
   return computed;
 }
@@ -240,7 +283,7 @@ export function EmailTransactionsPanel() {
   // and flushed back to localStorage whenever the heuristic learns a new key,
   // so the same id always resolves to the same channel across reloads and
   // future poll inserts.
-  const channelCacheRef = useRef<Record<string, string>>(readChannelCache());
+  const channelCacheRef = useRef<Record<string, ChannelCacheEntry>>(readChannelCache());
   const flushChannelCache = () => writeChannelCache(channelCacheRef.current);
 
   const load = async () => {
@@ -306,11 +349,11 @@ export function EmailTransactionsPanel() {
   // deriveChannel with the cache may write back new entries; we flush to
   // localStorage at the end if anything changed.
   const channelCache = channelCacheRef.current;
-  const beforeSize = Object.keys(channelCache).length;
-  const rowChannel = new Map<string, string>();
+  const cacheSnapshot = JSON.stringify(channelCache);
+  const rowChannel = new Map<string, ChannelResult>();
   for (const r of rows) rowChannel.set(r.id, deriveChannel(r, channelCache));
-  if (Object.keys(channelCache).length !== beforeSize) flushChannelCache();
-  const ch = (r: GmailTx) => rowChannel.get(r.id) ?? deriveChannel(r, channelCache);
+  if (JSON.stringify(channelCache) !== cacheSnapshot) flushChannelCache();
+  const ch = (r: GmailTx): ChannelResult => rowChannel.get(r.id) ?? deriveChannel(r, channelCache);
   const rangeActive = Boolean(fromTs || toTs);
   const parsedCount = filteredRows.filter((r) => r.parsed).length;
   // Compute validity once per row so totals, breakdowns and the list agree.
@@ -338,7 +381,7 @@ export function EmailTransactionsPanel() {
     >();
     for (const r of filteredRows) {
       if (!isCountable(r)) continue;
-      const key = ch(r).replace(/_/g, ' ');
+      const key = ch(r).channel.replace(/_/g, ' ');
       const cur = map.get(key) ?? { inCount: 0, inTotal: 0, outCount: 0, outTotal: 0 };
       const amt = r.amount ?? 0;
       if (r.direction === 'in') {
@@ -738,15 +781,27 @@ export function EmailTransactionsPanel() {
                       )}
                       {(() => {
                         const resolved = ch(r);
-                        if (resolved === 'other') return null;
+                        if (resolved.channel === 'other') return null;
                         const inferred = !r.channel || r.channel === 'other';
+                        const score = confidenceScore(resolved.confidence);
+                        const tone =
+                          resolved.confidence === 'authoritative' || resolved.confidence === 'high'
+                            ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20'
+                            : resolved.confidence === 'medium'
+                            ? 'bg-sky-500/10 text-sky-700 border-sky-500/20'
+                            : 'bg-amber-500/10 text-amber-700 border-amber-500/30';
+                        const tip = inferred
+                          ? `Inferred from ${resolved.signal} · confidence ${resolved.confidence} (${score}%)`
+                          : `Channel from parser · confidence ${resolved.confidence} (${score}%)`;
                         return (
                           <Badge
                             variant="outline"
-                            className="text-[10px] capitalize"
-                            title={inferred ? `Inferred from ${r.transaction_id ? 'transaction id' : 'email reference'}` : undefined}
+                            className={`text-[10px] capitalize gap-1 ${tone}`}
+                            title={tip}
                           >
-                            {resolved.replace(/_/g, ' ')}{inferred ? ' •' : ''}
+                            {resolved.channel.replace(/_/g, ' ')}
+                            {inferred && <span className="opacity-70">•</span>}
+                            <span className="font-mono tabular-nums opacity-80">{score}%</span>
                           </Badge>
                         );
                       })()}
