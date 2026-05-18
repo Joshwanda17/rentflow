@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert, Copy, Check, Wifi, WifiOff, ShieldCheck, History, LinkIcon, ChevronDown, ChevronUp, FileDown, FileText, AlertTriangle } from 'lucide-react';
+import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert, Copy, Check, Wifi, WifiOff, ShieldCheck, History, LinkIcon, ChevronDown, ChevronUp, FileDown, FileText, AlertTriangle, Search, X } from 'lucide-react';
 import { Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
@@ -278,6 +278,15 @@ export function EmailTransactionsPanel() {
     try { localStorage.setItem('gmail_net_threshold', String(netThreshold)); } catch {}
   }, [netThreshold]);
 
+  // Free-text search across transaction id, bank reference number, receipt
+  // number, subject, snippet and counterparty. Persisted in localStorage so
+  // the filter survives a page refresh. Whitespace-separated tokens are
+  // AND-matched; each token is matched case-insensitively as a substring.
+  const [searchQuery, setSearchQuery] = useState<string>(() =>
+    typeof window === 'undefined' ? '' : (localStorage.getItem('gmail_filter_search') || '')
+  );
+  useEffect(() => { try { localStorage.setItem('gmail_filter_search', searchQuery); } catch {} }, [searchQuery]);
+
   // Persisted cache of derived channel classifications keyed by transaction id
   // / receipt number (with gmail_message_id as fallback). Loaded once on mount
   // and flushed back to localStorage whenever the heuristic learns a new key,
@@ -344,7 +353,29 @@ export function EmailTransactionsPanel() {
     if (toTs && t > toTs) return false;
     return true;
   };
-  const filteredRows = rows.filter(inRange);
+  const dateRows = rows.filter(inRange);
+  // Apply the free-text search on top of the date range. Empty query → pass.
+  const searchTokens = searchQuery
+    .toLowerCase()
+    .split(/\s+/)
+    .map((t) => t.trim())
+    .filter(Boolean);
+  const matchesSearch = (r: GmailTx): boolean => {
+    if (searchTokens.length === 0) return true;
+    const hay = [
+      r.transaction_id ?? '',
+      r.subject ?? '',
+      r.snippet ?? '',
+      r.counterparty ?? '',
+      r.from_email ?? '',
+      r.from_name ?? '',
+    ].join(' ').toLowerCase();
+    return searchTokens.every((t) => hay.includes(t));
+  };
+  // `filteredRows` reflects BOTH the date range and the search box, so every
+  // downstream consumer (stats, breakdown, chart, exports, list) stays in sync.
+  const filteredRows = dateRows.filter(matchesSearch);
+  const searchActive = searchTokens.length > 0;
   // Resolve & memoize the channel for every row once per render. Calling
   // deriveChannel with the cache may write back new entries; we flush to
   // localStorage at the end if anything changed.
@@ -456,7 +487,9 @@ export function EmailTransactionsPanel() {
           <h3 className="font-semibold text-sm">Date range</h3>
           <p className="text-[11px] text-muted-foreground mt-0.5">
             {rangeActive
-              ? `Showing ${filteredRows.length} of ${rows.length} emails — totals recomputed for ${fromDate || '…'} → ${toDate || '…'} (${tz})`
+              ? `Showing ${filteredRows.length} of ${rows.length} emails — totals recomputed for ${fromDate || '…'} → ${toDate || '…'} (${tz})${searchActive ? ` · search "${searchQuery}"` : ''}`
+              : searchActive
+              ? `Showing ${filteredRows.length} of ${rows.length} emails — search "${searchQuery}" · timezone ${tz}`
               : `No range selected — showing all ${rows.length} emails · timezone ${tz}`}
           </p>
         </div>
@@ -500,6 +533,34 @@ export function EmailTransactionsPanel() {
             onChange={(e) => setToDate(e.target.value)}
             className="h-9 rounded-md border border-input bg-background px-3 text-sm"
           />
+        </div>
+        <div className="flex flex-col flex-1 min-w-[200px]">
+          <label
+            className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1"
+            title="Match against transaction id, bank reference number, receipt number (RCT-…), subject, snippet and counterparty. Whitespace-separated tokens are AND-matched."
+          >
+            Search id / reference / receipt
+          </label>
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="e.g. RCT-1234 or FT2025…"
+              className="h-9 w-full rounded-md border border-input bg-background pl-7 pr-8 text-sm"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label="Clear search"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
         </div>
         <div className="flex flex-col">
           <label
