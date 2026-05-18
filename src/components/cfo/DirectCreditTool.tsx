@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Send, ArrowUpRight, ArrowDownLeft, TrendingUp, TrendingDown, Minus, Info, ChevronDown, Banknote, Phone, Building2, AlertTriangle } from 'lucide-react';
 import { UserSearchPicker } from './UserSearchPicker';
 import { TreasuryImpactBanner } from './TreasuryImpactBanner';
+import { RecipientRoutingWarningBanner } from './RecipientRoutingWarningBanner';
 import { RentDisbursementQueue } from './RentDisbursementQueue';
 import { BusinessAdvanceDisbursementQueue } from './BusinessAdvanceDisbursementQueue';
 import { ROIPayoutQueue } from './ROIPayoutQueue';
@@ -637,6 +638,13 @@ export function DirectCreditTool() {
               </div>
             </div>
           </div>
+        )}
+
+        {operation === 'debit' && (
+          <RecipientRoutingWarningBanner />
+        )}
+        {operation === 'credit' && (
+          <RecipientRoutingWarningBanner variant="compact" />
         )}
 
         <div>
