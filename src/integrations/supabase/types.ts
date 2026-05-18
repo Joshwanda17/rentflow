@@ -4955,6 +4955,51 @@ export type Database = {
         }
         Relationships: []
       }
+      email_match_audit_log: {
+        Row: {
+          action: string
+          actor_email: string | null
+          actor_id: string | null
+          amount: number | null
+          created_at: string
+          deposit_request_id: string | null
+          gmail_transaction_id: string | null
+          id: string
+          match_score: number | null
+          matcher_type: string | null
+          notes: string | null
+          signals: Json | null
+        }
+        Insert: {
+          action: string
+          actor_email?: string | null
+          actor_id?: string | null
+          amount?: number | null
+          created_at?: string
+          deposit_request_id?: string | null
+          gmail_transaction_id?: string | null
+          id?: string
+          match_score?: number | null
+          matcher_type?: string | null
+          notes?: string | null
+          signals?: Json | null
+        }
+        Update: {
+          action?: string
+          actor_email?: string | null
+          actor_id?: string | null
+          amount?: number | null
+          created_at?: string
+          deposit_request_id?: string | null
+          gmail_transaction_id?: string | null
+          id?: string
+          match_score?: number | null
+          matcher_type?: string | null
+          notes?: string | null
+          signals?: Json | null
+        }
+        Relationships: []
+      }
       email_send_log: {
         Row: {
           created_at: string

@@ -33,6 +33,36 @@ interface Match {
 
 const fmtUgx = (n: number) => `UGX ${Math.round(n).toLocaleString()}`;
 
+async function writeAudit(entry: {
+  gmail_transaction_id?: string | null;
+  deposit_request_id?: string | null;
+  action: 'approve' | 'bulk_approve' | 'skip';
+  matcher_type?: string | null;
+  match_score?: number | null;
+  signals?: string[] | null;
+  amount?: number | null;
+  notes?: string | null;
+}) {
+  try {
+    const { data: sess } = await supabase.auth.getSession();
+    const u = sess?.session?.user;
+    await (supabase.from('email_match_audit_log') as any).insert({
+      gmail_transaction_id: entry.gmail_transaction_id ?? null,
+      deposit_request_id: entry.deposit_request_id ?? null,
+      action: entry.action,
+      matcher_type: entry.matcher_type ?? null,
+      match_score: entry.match_score ?? null,
+      signals: entry.signals ?? null,
+      amount: entry.amount ?? null,
+      actor_id: u?.id ?? null,
+      actor_email: u?.email ?? null,
+      notes: entry.notes ?? null,
+    });
+  } catch (e) {
+    console.warn('[audit] write failed', e);
+  }
+}
+
 /**
  * Reads parsed transaction-confirmation emails from the connected inbox and
  * auto-pairs each one with a pending deposit_request whose Transaction ID or
@@ -128,6 +158,16 @@ export function EmailAutoMatchPanel() {
       });
       if (invErr) throw invErr;
       toast({ title: 'Deposit approved', description: `${fmtUgx(m.amount)} credited to ${m.depositor_name ?? 'depositor'}.` });
+      await writeAudit({
+        gmail_transaction_id: m.gmail_transaction_id,
+        deposit_request_id: m.deposit_request_id,
+        action: 'approve',
+        matcher_type: m.method,
+        match_score: m.match_score ?? null,
+        signals: m.signals ?? null,
+        amount: m.amount,
+        notes: `Operator approved ${m.method} match (${fmtUgx(m.amount)})`,
+      });
       setMatches((prev) => prev.filter((x) => x.deposit_request_id !== m.deposit_request_id));
     } catch (e: any) {
       toast({ title: 'Approve failed', description: e?.message ?? 'Unknown error', variant: 'destructive' });
@@ -162,6 +202,16 @@ export function EmailAutoMatchPanel() {
         title: `Approved ${tidMatches.length} deposit${tidMatches.length === 1 ? '' : 's'}`,
         description: 'All exact-TID email matches credited.',
       });
+      await Promise.all(tidMatches.map((m) => writeAudit({
+        gmail_transaction_id: m.gmail_transaction_id,
+        deposit_request_id: m.deposit_request_id,
+        action: 'bulk_approve',
+        matcher_type: m.method,
+        match_score: m.match_score ?? null,
+        signals: m.signals ?? null,
+        amount: m.amount,
+        notes: `Bulk approved as part of ${tidMatches.length}-row TID batch`,
+      })));
       const approvedIds = new Set(tidMatches.map((m) => m.deposit_request_id));
       setMatches((prev) => prev.filter((m) => !approvedIds.has(m.deposit_request_id)));
     } catch (e: any) {
@@ -176,6 +226,16 @@ export function EmailAutoMatchPanel() {
     await (supabase.from('gmail_transactions') as any)
       .update({ linked_deposit_request_id: null, auto_matched_at: null, auto_match_method: null })
       .eq('id', m.gmail_transaction_id);
+    await writeAudit({
+      gmail_transaction_id: m.gmail_transaction_id,
+      deposit_request_id: m.deposit_request_id,
+      action: 'skip',
+      matcher_type: m.method,
+      match_score: m.match_score ?? null,
+      signals: m.signals ?? null,
+      amount: m.amount,
+      notes: 'Operator skipped match — email returned to unmatched pool',
+    });
     setMatches((prev) => prev.filter((x) => x.gmail_transaction_id !== m.gmail_transaction_id));
     toast({ title: 'Match skipped', description: 'The email is back in the unmatched pool.' });
   }, [toast]);
