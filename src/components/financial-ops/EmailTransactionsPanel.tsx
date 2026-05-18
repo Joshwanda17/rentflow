@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert, Copy, Check, Wifi, WifiOff, ShieldCheck, History, LinkIcon, ChevronDown, ChevronUp } from 'lucide-react';
+import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert, Copy, Check, Wifi, WifiOff, ShieldCheck, History, LinkIcon, ChevronDown, ChevronUp, FileDown, FileText } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription,
 } from '@/components/ui/dialog';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { downloadCsv } from '@/lib/csvExport';
 
 interface GmailTx {
   id: string;
@@ -145,6 +146,22 @@ export function EmailTransactionsPanel() {
         <Button onClick={pollNow} disabled={polling} className="gap-2">
           {polling ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           Poll now
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => exportTotalsCsv({ rows, totalIn, totalOut, netAmount, channelBreakdown })}
+          disabled={rows.length === 0}
+          className="gap-2"
+        >
+          <FileDown className="h-4 w-4" /> Export CSV
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => exportTotalsPdf({ rows, totalIn, totalOut, netAmount, channelBreakdown })}
+          disabled={rows.length === 0}
+          className="gap-2"
+        >
+          <FileText className="h-4 w-4" /> Export PDF
         </Button>
         <ReconnectGmailDialog />
         <DebugPollDialog />
