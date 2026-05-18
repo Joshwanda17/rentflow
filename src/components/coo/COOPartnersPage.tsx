@@ -474,6 +474,30 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             day: '2-digit', month: 'long', year: 'numeric',
           });
 
+          // Build a forward 12-month compounding history anchored at the
+          // NEW principal so the partner sees the full one-year breakdown
+          // (e.g. April → next March) at their portfolio's actual rate.
+          const rate = (Number(portfolio.roi_percentage) || 0) / 100;
+          const startDate = new Date();
+          const compound_history: Array<{
+            cycle: number; date: string; balance_before: number; return_amount: number; balance_after: number;
+          }> = [];
+          let runningBefore = Number(newAmount);
+          for (let i = 0; i < 12; i++) {
+            const earned = Math.round(runningBefore * rate);
+            const after = runningBefore + earned;
+            const monthDate = new Date(startDate.getFullYear(), startDate.getMonth() + i, 1);
+            compound_history.push({
+              cycle: i + 1,
+              date: monthDate.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }),
+              balance_before: runningBefore,
+              return_amount: earned,
+              balance_after: after,
+            });
+            runningBefore = after;
+          }
+          const finalTotal = compound_history[compound_history.length - 1].balance_after;
+
           await supabase.functions.invoke('send-transactional-email', {
             body: {
               templateName: 'partner-compound',
@@ -486,9 +510,10 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                 initial_partnership_amount: portfolio.investment_amount,
                 roi_return: `${portfolio.roi_percentage}%`,
                 return_amount: roiAmount,
-                new_total_partnership_value: newAmount,
+                new_total_partnership_value: finalTotal,
                 roi_percentage: portfolio.roi_percentage,
                 payment_number: paymentNumber,
+                compound_history,
                 currency: 'UGX',
                 company_name: 'Welile',
                 logo_url: 'https://welilereceipts.com/welile-logo.png',
