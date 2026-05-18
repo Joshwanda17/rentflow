@@ -78,6 +78,7 @@ export function EmailAutoMatchPanel() {
   const [bulkApproving, setBulkApproving] = useState(false);
   const [lastRunAt, setLastRunAt] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [retrying24h, setRetrying24h] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const runningRef = useRef(false);
   const autoApprovedRef = useRef<Set<string>>(new Set());
