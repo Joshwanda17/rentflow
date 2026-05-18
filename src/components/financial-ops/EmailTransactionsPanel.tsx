@@ -139,6 +139,12 @@ export interface ChannelResult {
   confidence: ChannelConfidence;
   /** Short human-readable description of what matched. */
   signal: string;
+  /** Stable id of the rule that fired (e.g. 'rct_id_prefix'). */
+  rule?: string;
+  /** Which field on the row the match was found in. */
+  source?: 'transaction_id' | 'subject' | 'snippet' | 'from' | 'body' | 'parser';
+  /** The exact substring that matched, for display in the tooltip. */
+  match?: string;
 }
 
 /** Numeric score (0–100) for compact display alongside the badge. */
@@ -153,7 +159,7 @@ function channelCacheKey(r: GmailTx): string | null {
   return null;
 }
 
-type ChannelCacheEntry = { channel: string; confidence: ChannelConfidence; signal: string };
+type ChannelCacheEntry = ChannelResult;
 
 function readChannelCache(): Record<string, ChannelCacheEntry> {
   if (typeof window === 'undefined') return {};
@@ -173,42 +179,70 @@ function writeChannelCache(cache: Record<string, ChannelCacheEntry>): void {
 }
 
 /**
- * Pure heuristic — no cache lookup. Returns the inferred channel plus a
- * confidence label and a short note about what matched. Used as the resolver
- * of last resort.
+ * Ordered list of channel-inference rules. The first matching rule wins.
+ * Each rule declares which field to probe so the tooltip can show *why* the
+ * channel was inferred (e.g. "Matched MP/FTI MoMo prefix on the transaction
+ * id: MP240518…").
+ */
+type RuleSource = 'transaction_id' | 'subject' | 'snippet' | 'from' | 'body';
+interface ChannelRule {
+  id: string;
+  channel: string;
+  confidence: ChannelConfidence;
+  signal: string;
+  source: RuleSource;
+  pattern: RegExp;
+}
+
+const CHANNEL_RULES: ChannelRule[] = [
+  // Receipt numbers — Welile cash receipts use the RCT prefix.
+  { id: 'rct_id_prefix',     channel: 'cash_receipt',  confidence: 'high',   signal: 'RCT receipt id prefix',        source: 'transaction_id', pattern: /^rct[-_]?\d+/i },
+  { id: 'rct_body',          channel: 'cash_receipt',  confidence: 'medium', signal: 'RCT receipt number in body',   source: 'body',           pattern: /\brct[-_]?\d{3,}\b/i },
+  // Mobile money — brand keywords (high) vs id prefix only (medium).
+  { id: 'mtn_brand',         channel: 'mtn_momo',      confidence: 'high',   signal: 'MTN/MoMo brand keyword',       source: 'body',           pattern: /\b(mtn|momo|mobile money)\b/i },
+  { id: 'mtn_id_prefix',     channel: 'mtn_momo',      confidence: 'medium', signal: 'MP/FTI/CI MoMo id prefix',      source: 'transaction_id', pattern: /^(mp|fti|ci)\d+/i },
+  { id: 'airtel_brand',      channel: 'airtel_money',  confidence: 'high',   signal: 'Airtel brand keyword',         source: 'body',           pattern: /\bairtel\b/i },
+  { id: 'airtel_id_prefix',  channel: 'airtel_money',  confidence: 'medium', signal: 'AP/AM Airtel id prefix',       source: 'transaction_id', pattern: /^(ap|am)\d+/i },
+  // Banks — brand keywords are always high confidence.
+  { id: 'stanbic_brand',     channel: 'stanbic',       confidence: 'high',   signal: 'Stanbic brand keyword',        source: 'body',           pattern: /\bstanbic\b/i },
+  { id: 'centenary_brand',   channel: 'centenary',     confidence: 'high',   signal: 'Centenary brand keyword',      source: 'body',           pattern: /\b(centenary|cente)\b/i },
+  { id: 'dfcu_brand',        channel: 'dfcu',          confidence: 'high',   signal: 'DFCU brand keyword',           source: 'body',           pattern: /\bdfcu\b/i },
+  { id: 'equity_brand',      channel: 'equity_bank',   confidence: 'high',   signal: 'Equity Bank brand keyword',    source: 'body',           pattern: /\bequity\b/i },
+  { id: 'absa_brand',        channel: 'absa',          confidence: 'high',   signal: 'Absa/Barclays brand keyword',  source: 'body',           pattern: /\b(absa|barclays)\b/i },
+  { id: 'stanchart_brand',   channel: 'stanchart',     confidence: 'high',   signal: 'Standard Chartered keyword',   source: 'body',           pattern: /\b(stanchart|standard chartered)\b/i },
+  // Generic bank reference patterns.
+  { id: 'bank_ref_id_prefix',channel: 'bank_transfer', confidence: 'medium', signal: 'FT/TRF/RTGS bank ref prefix',  source: 'transaction_id', pattern: /^(ft|trf|txn|ref|wire|rtgs|eft)[-_/]?[a-z0-9]+/i },
+  { id: 'bank_ref_phrase',   channel: 'bank_transfer', confidence: 'low',    signal: 'Generic bank reference phrase',source: 'body',           pattern: /\b(bank\s*ref(erence)?|reference\s*(no|number|#)|rtgs|swift)\b/i },
+];
+
+/**
+ * Pure heuristic — no cache lookup. Walks `CHANNEL_RULES` in order and
+ * returns the first match, capturing the rule id, source field, and the
+ * exact matched substring so the UI can explain *why* the channel was
+ * inferred. Used as the resolver of last resort.
  */
 function computeChannel(r: GmailTx): ChannelResult {
   if (r.channel && r.channel !== 'other') {
-    return { channel: r.channel, confidence: 'authoritative', signal: 'parser-assigned' };
+    return { channel: r.channel, confidence: 'authoritative', signal: 'Parser-assigned by the email importer', source: 'parser' };
   }
   const id = (r.transaction_id ?? '').trim();
-  const hay = `${r.from_email ?? ''} ${r.from_name ?? ''} ${r.subject ?? ''} ${r.snippet ?? ''} ${id}`.toLowerCase();
-
-  // 1. Receipt numbers — Welile cash receipts use the RCT prefix. The prefix
-  //    on the id itself is the strongest signal; a body-only hit is medium.
-  if (/^rct[-_]?\d/i.test(id)) return { channel: 'cash_receipt', confidence: 'high', signal: 'receipt id prefix RCT-' };
-  if (/\brct[-_]?\d{3,}\b/i.test(hay)) return { channel: 'cash_receipt', confidence: 'medium', signal: 'receipt number in body' };
-
-  // 2. Mobile money — brand keywords (high) vs id prefix only (medium).
-  if (/\b(mtn|momo|mobile money)\b/i.test(hay)) return { channel: 'mtn_momo', confidence: 'high', signal: 'MTN/MoMo brand match' };
-  if (/^(mp|fti|ci)\d/i.test(id)) return { channel: 'mtn_momo', confidence: 'medium', signal: 'MTN-style id prefix' };
-  if (/\bairtel\b/i.test(hay)) return { channel: 'airtel_money', confidence: 'high', signal: 'Airtel brand match' };
-  if (/^(ap|am)\d/i.test(id)) return { channel: 'airtel_money', confidence: 'medium', signal: 'Airtel-style id prefix' };
-
-  // 3. Banks — brand keywords are always high confidence.
-  if (/\bstanbic\b/i.test(hay)) return { channel: 'stanbic', confidence: 'high', signal: 'Stanbic brand match' };
-  if (/\b(centenary|cente)\b/i.test(hay)) return { channel: 'centenary', confidence: 'high', signal: 'Centenary brand match' };
-  if (/\b(dfcu)\b/i.test(hay)) return { channel: 'dfcu', confidence: 'high', signal: 'DFCU brand match' };
-  if (/\b(equity)\b/i.test(hay)) return { channel: 'equity_bank', confidence: 'high', signal: 'Equity brand match' };
-  if (/\b(absa|barclays)\b/i.test(hay)) return { channel: 'absa', confidence: 'high', signal: 'Absa/Barclays brand match' };
-  if (/\b(stanchart|standard chartered)\b/i.test(hay)) return { channel: 'stanchart', confidence: 'high', signal: 'Standard Chartered brand match' };
-
-  // 4. Generic bank reference patterns — id-shape match is medium, body-only
-  //    phrase match is low (could be any institution).
-  if (/^(ft|trf|txn|ref|wire|rtgs|eft)[-_/]?[a-z0-9]/i.test(id)) return { channel: 'bank_transfer', confidence: 'medium', signal: 'bank reference id prefix' };
-  if (/\b(bank\s*ref(erence)?|reference\s*(no|number|#)|rtgs|swift)\b/i.test(hay)) return { channel: 'bank_transfer', confidence: 'low', signal: 'generic reference phrase' };
-
-  return { channel: 'other', confidence: 'low', signal: 'no signal' };
+  const body = `${r.from_email ?? ''} ${r.from_name ?? ''} ${r.subject ?? ''} ${r.snippet ?? ''} ${id}`;
+  for (const rule of CHANNEL_RULES) {
+    const haystack = rule.source === 'transaction_id' ? id : body;
+    if (!haystack) continue;
+    const m = haystack.match(rule.pattern);
+    if (m) {
+      return {
+        channel: rule.channel,
+        confidence: rule.confidence,
+        signal: rule.signal,
+        rule: rule.id,
+        source: rule.source,
+        match: m[0],
+      };
+    }
+  }
+  return { channel: 'other', confidence: 'low', signal: 'No matching rule', source: 'body' };
 }
 
 /**
@@ -851,9 +885,31 @@ export function EmailTransactionsPanel() {
                             : resolved.confidence === 'medium'
                             ? 'bg-sky-500/10 text-sky-700 border-sky-500/20'
                             : 'bg-amber-500/10 text-amber-700 border-amber-500/30';
-                        const tip = inferred
-                          ? `Inferred from ${resolved.signal} · confidence ${resolved.confidence} (${score}%)`
-                          : `Channel from parser · confidence ${resolved.confidence} (${score}%)`;
+                        // Multi-line tooltip explaining exactly which rule fired,
+                        // which field on the row it inspected, and the matched
+                        // fragment so reviewers can audit the inference.
+                        const sourceLabel: Record<string, string> = {
+                          transaction_id: 'transaction id',
+                          subject: 'email subject',
+                          snippet: 'email snippet',
+                          from: 'sender',
+                          body: 'email body',
+                          parser: 'parser',
+                        };
+                        const lines = inferred
+                          ? [
+                              `Channel: ${resolved.channel.replace(/_/g, ' ')}`,
+                              `Rule: ${resolved.signal}${resolved.rule ? ` (${resolved.rule})` : ''}`,
+                              resolved.source ? `Matched in: ${sourceLabel[resolved.source] ?? resolved.source}` : null,
+                              resolved.match ? `Match: "${resolved.match}"` : null,
+                              `Confidence: ${resolved.confidence} (${score}%)`,
+                            ]
+                          : [
+                              `Channel: ${resolved.channel.replace(/_/g, ' ')}`,
+                              'Source: parser-assigned by the email importer',
+                              `Confidence: ${resolved.confidence} (${score}%)`,
+                            ];
+                        const tip = lines.filter(Boolean).join('\n');
                         return (
                           <Badge
                             variant="outline"
