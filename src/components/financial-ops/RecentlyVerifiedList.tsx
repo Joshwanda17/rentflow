@@ -142,7 +142,7 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
       let q = supabase
         .from('deposit_requests')
         .select(
-          'id, amount, status, approved_at, rejected_at, processed_by, user_id, rejection_reason, metadata',
+          'id, amount, status, approved_at, rejected_at, processed_by, user_id, rejection_reason, auto_approved',
         )
         .in('status', ['approved', 'rejected'])
         .order('updated_at', { ascending: false })
@@ -175,6 +175,20 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
         for (const p of (profs ?? []) as any[]) nameMap.set(p.id, p.full_name);
       }
 
+      // Look up the matcher method for any auto-approved deposit so we can
+      // surface "TID" vs "amount+signals" on the badge tooltip.
+      const autoIds = list.filter((r) => r.auto_approved).map((r) => r.id);
+      const methodMap = new Map<string, string | null>();
+      if (autoIds.length > 0) {
+        const { data: gxs } = await supabase
+          .from('gmail_transactions')
+          .select('linked_deposit_request_id, auto_match_method')
+          .in('linked_deposit_request_id', autoIds);
+        for (const g of (gxs ?? []) as any[]) {
+          methodMap.set(g.linked_deposit_request_id, g.auto_match_method ?? null);
+        }
+      }
+
       setRows(
         list.map((r) => ({
           id: r.id,
@@ -186,12 +200,13 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
           depositor_id: r.user_id ?? null,
           depositor_name: r.user_id ? nameMap.get(r.user_id) ?? null : null,
           rejection_reason: r.rejection_reason ?? null,
-          auto_approved: Boolean(r?.metadata?.auto_approved),
-          auto_match_method: (r?.metadata?.auto_match_method as string | undefined) ?? null,
+          auto_approved: Boolean(r.auto_approved),
+          auto_match_method: methodMap.get(r.id) ?? null,
         })),
       );
-    } catch {
+    } catch (e) {
       // Silent — this list is auxiliary; don't disrupt the verify flow.
+      console.warn('[recently-verified] load failed', e);
     } finally {
       setLoading(false);
       setRefreshing(false);
