@@ -184,6 +184,22 @@ export function EmailTransactionsPanel() {
       .sort((a, b) => b.inTotal + b.outTotal - (a.inTotal + a.outTotal));
   })();
 
+  // Daily in vs out series for the selected timeframe.
+  const dailySeries = (() => {
+    const map = new Map<string, { date: string; in: number; out: number; net: number }>();
+    for (const r of filteredRows) {
+      if (!isCountable(r) || !r.internal_date) continue;
+      const key = format(new Date(r.internal_date), 'yyyy-MM-dd');
+      const cur = map.get(key) ?? { date: key, in: 0, out: 0, net: 0 };
+      const amt = r.amount ?? 0;
+      if (r.direction === 'in') cur.in += amt;
+      else if (r.direction === 'out' || r.direction === 'charge') cur.out += amt;
+      cur.net = cur.in - cur.out;
+      map.set(key, cur);
+    }
+    return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
+  })();
+
   return (
     <div className="space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
