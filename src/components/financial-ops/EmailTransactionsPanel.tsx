@@ -1143,6 +1143,23 @@ export function EmailTransactionsPanel() {
                       </p>
                     )}
                     <p className="text-xs text-muted-foreground/80 line-clamp-2 mt-1">{r.snippet}</p>
+                    {userMatches[r.id]?.length ? (
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
+                          Possible user{userMatches[r.id].length > 1 ? 's' : ''}:
+                        </span>
+                        {userMatches[r.id].map((u) => (
+                          <Badge
+                            key={u.id}
+                            variant="outline"
+                            className="text-[10px] gap-1 bg-primary/10 text-primary border-primary/30 cursor-help"
+                            title={`${u.full_name}\n${u.matched_on}\n${u.phone ?? ''}${u.mobile_money_number && u.mobile_money_number !== u.phone ? ` · MoMo ${u.mobile_money_number}` : ''}`}
+                          >
+                            <span className="font-medium">{u.full_name}</span>
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                   <div className="text-right shrink-0">
                     <p className={`font-mono font-semibold text-sm ${r.amount ? 'text-emerald-600' : 'text-muted-foreground'}`}>{fmtUgx(r.amount)}</p>
