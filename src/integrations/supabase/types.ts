@@ -15645,6 +15645,10 @@ export type Database = {
       }
       test_wallet_drift_fix: { Args: never; Returns: Json }
       topup_dedup_bucket: { Args: { ts: string }; Returns: string }
+      try_link_gmail_for_deposit: {
+        Args: { p_deposit_id: string }
+        Returns: boolean
+      }
       update_agent_collection_streak: {
         Args: { p_agent_id: string }
         Returns: undefined

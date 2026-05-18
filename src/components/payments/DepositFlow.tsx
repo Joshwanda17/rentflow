@@ -1054,7 +1054,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
           toast.success('Deposit updated — Financial Ops will see your changes');
         }
       } else {
-        const { error: depositError } = await supabase
+        const { data: inserted, error: depositError } = await supabase
           .from('deposit_requests')
           .insert({
             user_id: user.id,
@@ -1075,11 +1075,54 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
               agent_personal_confirmed_at:
                 effectivePersonalConfirmedAt,
             },
-          } as any);
+          } as any)
+          .select('id')
+          .single();
 
         if (depositError) throw depositError;
 
-        toast.success('Deposit submitted for verification');
+        // ── Instant auto-verify ────────────────────────────────────────────
+        // If the matching mobile-money confirmation email already arrived
+        // (TID + amount match), link it and approve right now so the
+        // depositor sees the balance update without waiting for the
+        // 30-second matcher cycle.
+        let autoVerified = false;
+        try {
+          const newId = (inserted as any)?.id as string | undefined;
+          if (newId) {
+            const { data: linked } = await (supabase.rpc as any)(
+              'try_link_gmail_for_deposit',
+              { p_deposit_id: newId },
+            );
+            if (linked === true) {
+              const { data: session } = await supabase.auth.getSession();
+              const token = session?.session?.access_token;
+              const { error: invErr } = await supabase.functions.invoke(
+                'approve-deposit',
+                {
+                  body: {
+                    deposit_request_id: newId,
+                    action: 'approve',
+                    access_token: token,
+                    auto_approved: true,
+                    auto_match_method: 'tid',
+                  },
+                },
+              );
+              if (!invErr) autoVerified = true;
+            }
+          }
+        } catch (autoErr) {
+          console.warn('[deposit] instant auto-verify failed', autoErr);
+        }
+
+        if (autoVerified) {
+          toast.success('Deposit auto-verified ⚡', {
+            description: 'We matched your mobile-money confirmation instantly.',
+          });
+        } else {
+          toast.success('Deposit submitted for verification');
+        }
       }
       setStep('success');
     } catch (error: any) {
