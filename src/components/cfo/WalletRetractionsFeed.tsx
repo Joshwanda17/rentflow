@@ -110,6 +110,7 @@ export function WalletRetractionsFeed({ compact = false }: WalletRetractionsFeed
 
   return (
     <div className="space-y-4">
+      <RecipientRoutingWarningBanner />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold flex items-center gap-2">
