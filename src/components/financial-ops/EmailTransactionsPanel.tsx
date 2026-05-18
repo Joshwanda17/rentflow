@@ -634,7 +634,7 @@ export function EmailTransactionsPanel() {
                           className="text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/30 gap-1"
                           title={validity.get(r.id)!.reason}
                         >
-                          <AlertTriangle className="h-3 w-3" /> flagged · excluded
+                          <AlertTriangle className="h-3 w-3" /> flagged · review
                         </Badge>
                       )}
                       {r.channel && r.channel !== 'other' && (
