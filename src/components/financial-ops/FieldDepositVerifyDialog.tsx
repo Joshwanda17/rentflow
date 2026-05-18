@@ -273,19 +273,35 @@ export function FieldDepositVerifyDialog({ batch, open, onClose, onResolved }: P
         </div>
 
         <DialogFooter className="flex-col sm:flex-row gap-2 px-6 pb-6 pt-4 border-t bg-background">
+          <p className="text-[11px] text-muted-foreground leading-snug sm:hidden">
+            <span className="font-semibold text-foreground">Verify</span> credits the agent's float and pays commission.{' '}
+            <span className="font-semibold text-foreground">Reject</span> sends it back with your reason.
+          </p>
           <Button
             variant="destructive"
             onClick={handleReject}
             disabled={busy !== null || reason.trim().length < 4}
             className="sm:mr-auto"
+            title="Send the batch back to the agent with the reason above. No money moves."
           >
             {busy === 'reject' ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <XCircle className="h-4 w-4 mr-2" />}
             Reject
           </Button>
-          <Button variant="outline" onClick={onClose} disabled={busy !== null}>
+          <Button
+            variant="outline"
+            onClick={onClose}
+            disabled={busy !== null}
+            title="Close without changing anything. The batch stays pending."
+          >
             Close
           </Button>
-          <Button onClick={handleVerify} disabled={busy !== null || !proofMatches}>
+          <Button
+            onClick={handleVerify}
+            disabled={busy !== null || !proofMatches}
+            title={proofMatches
+              ? "Credit the agent's float wallet, post commission, and mark this batch verified. This cannot be undone."
+              : 'Enter the agent\u2019s proof reference above and make sure it matches before you can verify.'}
+          >
             {busy === 'verify' ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
             Verify & credit float
           </Button>
