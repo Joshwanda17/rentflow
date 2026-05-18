@@ -339,70 +339,30 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
     return rows;
   }, [rentReqs, collections, profiles, day]);
 
-  // ---- Missed payments lookback window (independent of selected day)
-  const missedFrom = useMemo(
-    () => (missedWindow > 0 ? startOfDay(subDays(day, missedWindow - 1)) : null),
-    [missedWindow, day]
-  );
-  const missedTo = useMemo(() => endOfDay(day), [day]);
-
-  const { data: missedWindowCollections } = useQuery({
-    queryKey: ['daily-collection-missed-window', missedWindow, missedFrom?.toISOString()],
-    enabled: !!missedFrom,
-    queryFn: async () => {
-      const PAGE = 1000;
-      const all: { tenant_id: string; amount: number; created_at: string }[] = [];
-      for (let from = 0; ; from += PAGE) {
-        const { data, error } = await supabase
-          .from('agent_collections')
-          .select('tenant_id, amount, created_at')
-          .gte('created_at', missedFrom!.toISOString())
-          .lte('created_at', missedTo.toISOString())
-          .range(from, from + PAGE - 1);
-        if (error) throw error;
-        const rows = (data || []) as any[];
-        all.push(...rows);
-        if (rows.length < PAGE) break;
-      }
-      return all;
-    },
+  // ---- Missed payments lookback window — computed server-side in one RPC call
+  const asOfKey = format(day, 'yyyy-MM-dd');
+  const { data: missedDaysRpc } = useQuery({
+    queryKey: ['daily-collection-missed-days-rpc', missedWindow, asOfKey],
+    enabled: missedWindow > 0,
     staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_tenant_missed_days', {
+        p_window_days: missedWindow,
+        p_as_of: asOfKey,
+      });
+      if (error) throw error;
+      return (data || []) as { tenant_id: string; missed_days: number }[];
+    },
   });
 
   const missedDaysByTenant = useMemo(() => {
     const map = new Map<string, number>();
-    if (!missedWindow || !missedFrom || !rentReqs) return map;
-    const paidDaysByTenant = new Map<string, Set<string>>();
-    (missedWindowCollections || []).forEach(c => {
-      if (Number(c.amount || 0) <= 0) return;
-      const key = format(startOfDay(new Date(c.created_at)), 'yyyy-MM-dd');
-      const set = paidDaysByTenant.get(c.tenant_id) || new Set<string>();
-      set.add(key);
-      paidDaysByTenant.set(c.tenant_id, set);
-    });
-    const reqsByTenant = new Map<string, RentRequestRow[]>();
-    (rentReqs as any[]).forEach(r => {
-      const arr = reqsByTenant.get(r.tenant_id) || [];
-      arr.push(r);
-      reqsByTenant.set(r.tenant_id, arr);
-    });
-    reqsByTenant.forEach((reqs, tenantId) => {
-      const earliest = reqs.reduce((min: Date | null, r: any) => {
-        if (!r.created_at) return min;
-        const d = new Date(r.created_at);
-        return !min || d < min ? d : min;
-      }, null as Date | null);
-      let missed = 0;
-      for (let i = 0; i < missedWindow; i++) {
-        const d = subDays(day, i);
-        if (earliest && d < startOfDay(earliest)) continue;
-        const key = format(startOfDay(d), 'yyyy-MM-dd');
-        if (!paidDaysByTenant.get(tenantId)?.has(key)) missed += 1;
-      }
-      if (missed > 0) map.set(tenantId, missed);
+    if (!missedWindow) return map;
+    (missedDaysRpc || []).forEach(r => {
+      if (r.missed_days > 0) map.set(r.tenant_id, r.missed_days);
     });
     return map;
-  }, [missedWindow, missedFrom, missedWindowCollections, rentReqs, day]);
+  }, [missedWindow, missedDaysRpc]);
 
   // Apply filters
   const filteredRows = useMemo(() => {
