@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Mail, Loader2, ShieldCheck, CheckCircle2, AlertCircle, RefreshCw, Sparkles } from 'lucide-react';
+import { Mail, Loader2, ShieldCheck, CheckCircle2, AlertCircle, RefreshCw, Sparkles, ChevronDown, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFinOpsAutoRefresh } from '@/hooks/useFinOpsAutoRefresh';
 import { format } from 'date-fns';
@@ -244,8 +244,16 @@ export function EmailAutoMatchPanel() {
               reference: 'Reference',
             };
             const extraSignals = (m.signals ?? []).filter((s) => s !== 'amount');
+            const isOpen = expanded.has(m.gmail_transaction_id);
+            const reasonText =
+              m.method === 'tid'
+                ? 'Email Transaction ID exactly matches the deposit Transaction ID.'
+                : m.method === 'amount_strong'
+                  ? `Amount matches plus ${extraSignals.length} verified signal${extraSignals.length === 1 ? '' : 's'}: ${extraSignals.join(', ')}.`
+                  : 'Amount matches uniquely in the time window. No other signals could be confirmed — review carefully.';
             return (
-              <li key={m.gmail_transaction_id} className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+              <li key={m.gmail_transaction_id} className="p-3 sm:p-4 space-y-2">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <Badge className={badgeClass}>
@@ -296,11 +304,66 @@ export function EmailAutoMatchPanel() {
                     Approve
                   </Button>
                 </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setExpanded((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(m.gmail_transaction_id)) next.delete(m.gmail_transaction_id);
+                    else next.add(m.gmail_transaction_id);
+                    return next;
+                  })}
+                  className="text-[11px] text-primary hover:underline inline-flex items-center gap-1"
+                >
+                  {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                  Why this matched
+                </button>
+
+                {isOpen && (
+                  <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-2">
+                    <div className="text-foreground">{reasonText}</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">Extracted from email</div>
+                        <Field label="Sender" value={m.from_email} highlight={extraSignals.includes('sender')} />
+                        <Field label="Sender name" value={m.from_name} />
+                        <Field label="Counterparty" value={m.counterparty} highlight={extraSignals.includes('name') || extraSignals.includes('phone')} />
+                        <Field label="Amount" value={fmtUgx(m.amount)} highlight />
+                        <Field label="Email TID" value={m.matched_transaction_id} highlight={m.method === 'tid'} mono />
+                        <Field label="Received" value={m.internal_date ? format(new Date(m.internal_date), 'dd MMM yyyy HH:mm') : null} />
+                        <Field label="Subject" value={m.subject} />
+                        {m.snippet && (
+                          <div className="text-muted-foreground italic line-clamp-2">"{m.snippet}"</div>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">Depositor on file</div>
+                        <Field label="Name" value={m.depositor_name} highlight={extraSignals.includes('name')} />
+                        <Field label="Phone" value={m.depositor_phone} highlight={extraSignals.includes('phone')} />
+                        <Field label="Email" value={m.depositor_email} highlight={extraSignals.includes('sender')} />
+                        <Field label="Deposit TID" value={m.deposit_tid} highlight={m.method === 'tid' || extraSignals.includes('reference')} mono />
+                        <Field label="Amount requested" value={fmtUgx(m.amount)} highlight />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </li>
             );
           })}
         </ul>
       )}
+    </div>
+  );
+}
+
+function Field({ label, value, highlight, mono }: { label: string; value?: string | null; highlight?: boolean; mono?: boolean }) {
+  return (
+    <div className="flex items-start gap-2">
+      <span className="text-muted-foreground min-w-[90px] shrink-0">{label}</span>
+      <span className={`${mono ? 'font-mono' : ''} ${highlight ? 'text-emerald-700 font-semibold' : 'text-foreground'} break-all`}>
+        {value && value.length > 0 ? value : '—'}
+      </span>
     </div>
   );
 }
