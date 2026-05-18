@@ -104,6 +104,7 @@ export function EmailTransactionsPanel() {
   const totalOut = rows
     .filter((r) => r.parsed && (r.direction === 'out' || r.direction === 'charge'))
     .reduce((s, r) => s + (r.amount ?? 0), 0);
+  const netAmount = totalIn - totalOut;
 
   return (
     <div className="space-y-5">
@@ -134,7 +135,7 @@ export function EmailTransactionsPanel() {
 
       <GmailReconnectAuditPanel />
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
         <StatCard label="Emails captured" value={rows.length.toString()} />
         <StatCard label="Parsed transactions" value={parsedCount.toString()} />
         <StatCard label="Total amount (parsed)" value={fmtUgx(totalAmount)} />
@@ -147,6 +148,15 @@ export function EmailTransactionsPanel() {
           label="Total out (sent + charges)"
           value={fmtUgx(totalOut)}
           sub={<span className="text-[10px] text-rose-600">↑ money sent</span>}
+        />
+        <StatCard
+          label="Net (in − out)"
+          value={`${netAmount < 0 ? '-' : ''}${fmtUgx(Math.abs(netAmount))}`}
+          sub={
+            <span className={`text-[10px] ${netAmount >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+              {netAmount >= 0 ? 'net inflow' : 'net outflow'}
+            </span>
+          }
         />
         <StatCard
           label="Last poll"
