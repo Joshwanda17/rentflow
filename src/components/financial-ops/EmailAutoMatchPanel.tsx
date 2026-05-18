@@ -454,6 +454,14 @@ export function EmailAutoMatchPanel() {
                         ✓ {signalLabels[s] ?? s}
                       </Badge>
                     ))}
+                    {m.auto_created_from_email && (
+                      <Badge
+                        className="bg-violet-500/15 text-violet-700 hover:bg-violet-500/15 border-violet-500/30 text-[10px] py-0 px-1.5 font-medium"
+                        title="This pending deposit was created automatically from the Gmail confirmation because the depositor had not submitted a request in-app. It will be auto-approved on the next matcher scan (every 30s)."
+                      >
+                        <Bot className="h-3 w-3 mr-1" /> Auto-created from email
+                      </Badge>
+                    )}
                   </div>
                   <div className="text-xs text-muted-foreground truncate">
                     <span className="font-medium text-foreground">{m.depositor_name ?? 'Unknown'}</span>
