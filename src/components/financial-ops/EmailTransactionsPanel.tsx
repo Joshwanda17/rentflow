@@ -212,7 +212,7 @@ export function EmailTransactionsPanel() {
 
       <GmailReconnectAuditPanel />
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-8 gap-3">
         <StatCard label="Emails captured" value={rows.length.toString()} />
         <StatCard label="Parsed transactions" value={parsedCount.toString()} />
         <StatCard label="Total amount (parsed)" value={fmtUgx(totalAmount)} />
