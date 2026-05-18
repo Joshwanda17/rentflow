@@ -22,7 +22,7 @@ import {
 import {
   Users, CheckCircle2, Banknote, CalendarDays, Building, Trophy, AlertTriangle,
   TrendingUp, TrendingDown, Loader2, Wallet, Filter, CalendarIcon, X,
-  ChevronLeft, ChevronRight, Printer, FileDown,
+  ChevronLeft, ChevronRight, ChevronDown, Printer, FileDown,
 } from 'lucide-react';
 import {
   startOfDay, endOfDay, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
