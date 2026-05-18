@@ -41,6 +41,47 @@ const fmtUgx = (n: number | null) =>
   n === null || n === undefined ? '—' : `UGX ${Math.round(n).toLocaleString()}`;
 
 /**
+ * Convert a wall-clock date+time string (e.g. "2026-05-18", "00:00:00") interpreted
+ * in the given IANA timezone into a UTC epoch ms. Uses Intl.DateTimeFormat to
+ * discover the zone's offset at that instant — no dependency on date-fns-tz.
+ */
+function zonedWallClockToUtcMs(dateStr: string, timeStr: string, tz: string): number {
+  const naiveUtc = new Date(`${dateStr}T${timeStr}Z`).getTime();
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz, hourCycle: 'h23',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  });
+  const parts = fmt.formatToParts(new Date(naiveUtc));
+  const get = (t: string) => Number(parts.find((p) => p.type === t)!.value);
+  const asUtc = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'), get('second'));
+  const offsetMs = asUtc - naiveUtc;
+  return naiveUtc - offsetMs;
+}
+
+/** Format an instant as "yyyy-MM-dd" in the given timezone. */
+function dateKeyInTz(d: Date, tz: string): string {
+  const fmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
+  });
+  return fmt.format(d); // en-CA gives YYYY-MM-DD
+}
+
+const TIMEZONE_OPTIONS = [
+  'Africa/Kampala',
+  'Africa/Nairobi',
+  'Africa/Lagos',
+  'Africa/Johannesburg',
+  'Europe/London',
+  'Europe/Berlin',
+  'America/New_York',
+  'America/Los_Angeles',
+  'Asia/Dubai',
+  'Asia/Singapore',
+  'UTC',
+];
+
+/**
  * Validate a parsed Gmail transaction row against its own raw email text.
  * A row is considered "flagged" (excluded from totals) when any of:
  *   - parsed=true but amount is null / non-finite / ≤ 0
@@ -87,6 +128,13 @@ export function EmailTransactionsPanel() {
   // Date-range filter (inclusive). Empty string = unbounded on that side.
   const [fromDate, setFromDate] = useState<string>('');
   const [toDate, setToDate] = useState<string>('');
+  // Timezone in which `fromDate`/`toDate` are interpreted and daily buckets are grouped.
+  const browserTz = typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC';
+  const [tz, setTz] = useState<string>(() => {
+    if (typeof window === 'undefined') return browserTz || 'Africa/Kampala';
+    return localStorage.getItem('gmail_filter_tz') || browserTz || 'Africa/Kampala';
+  });
+  useEffect(() => { try { localStorage.setItem('gmail_filter_tz', tz); } catch {} }, [tz]);
   // Configurable warning threshold for |net|. Persisted in localStorage. Default 1,000,000 UGX.
   const [netThreshold, setNetThreshold] = useState<number>(() => {
     if (typeof window === 'undefined') return 1_000_000;
@@ -144,8 +192,10 @@ export function EmailTransactionsPanel() {
   };
 
   // Apply date-range filter to everything that drives totals / breakdown / exports.
-  const fromTs = fromDate ? new Date(`${fromDate}T00:00:00`).getTime() : null;
-  const toTs = toDate ? new Date(`${toDate}T23:59:59.999`).getTime() : null;
+  // Dates are interpreted in the chosen timezone so the user sees stable bucketing
+  // regardless of where the browser is running.
+  const fromTs = fromDate ? zonedWallClockToUtcMs(fromDate, '00:00:00', tz) : null;
+  const toTs = toDate ? zonedWallClockToUtcMs(toDate, '23:59:59', tz) : null;
   const inRange = (r: GmailTx) => {
     if (!fromTs && !toTs) return true;
     if (!r.internal_date) return false;
@@ -201,7 +251,7 @@ export function EmailTransactionsPanel() {
     const map = new Map<string, { date: string; in: number; out: number; net: number }>();
     for (const r of filteredRows) {
       if (!isCountable(r) || !r.internal_date) continue;
-      const key = format(new Date(r.internal_date), 'yyyy-MM-dd');
+      const key = dateKeyInTz(new Date(r.internal_date), tz);
       const cur = map.get(key) ?? { date: key, in: 0, out: 0, net: 0 };
       const amt = r.amount ?? 0;
       if (r.direction === 'in') cur.in += amt;
@@ -254,9 +304,30 @@ export function EmailTransactionsPanel() {
           <h3 className="font-semibold text-sm">Date range</h3>
           <p className="text-[11px] text-muted-foreground mt-0.5">
             {rangeActive
-              ? `Showing ${filteredRows.length} of ${rows.length} emails — totals recomputed for ${fromDate || '…'} → ${toDate || '…'}`
-              : `No range selected — showing all ${rows.length} emails`}
+              ? `Showing ${filteredRows.length} of ${rows.length} emails — totals recomputed for ${fromDate || '…'} → ${toDate || '…'} (${tz})`
+              : `No range selected — showing all ${rows.length} emails · timezone ${tz}`}
           </p>
+        </div>
+        <div className="flex flex-col">
+          <label
+            className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1"
+            title="Date boundaries and daily buckets are interpreted in this timezone."
+          >
+            Timezone
+          </label>
+          <select
+            value={tz}
+            onChange={(e) => setTz(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+          >
+            {TIMEZONE_OPTIONS.includes(tz) ? null : <option value={tz}>{tz}</option>}
+            {TIMEZONE_OPTIONS.map((z) => (
+              <option key={z} value={z}>{z}</option>
+            ))}
+            {browserTz && !TIMEZONE_OPTIONS.includes(browserTz) && (
+              <option value={browserTz}>{browserTz} (browser)</option>
+            )}
+          </select>
         </div>
         <div className="flex flex-col">
           <label className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">From</label>
@@ -311,11 +382,17 @@ export function EmailTransactionsPanel() {
               variant="outline"
               size="sm"
               onClick={() => {
-                const to = new Date();
-                const from = new Date();
-                from.setDate(to.getDate() - (p.days - 1));
-                setFromDate(format(from, 'yyyy-MM-dd'));
-                setToDate(format(to, 'yyyy-MM-dd'));
+                // Anchor presets to "today" as seen in the selected timezone.
+                const todayKey = dateKeyInTz(new Date(), tz);
+                const [y, m, d] = todayKey.split('-').map(Number);
+                const toUtc = Date.UTC(y, m - 1, d);
+                const fromUtc = toUtc - (p.days - 1) * 86_400_000;
+                const fmtKey = (ms: number) => {
+                  const dt = new Date(ms);
+                  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`;
+                };
+                setFromDate(fmtKey(fromUtc));
+                setToDate(fmtKey(toUtc));
               }}
             >
               {p.label}
