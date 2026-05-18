@@ -399,6 +399,15 @@ export function EmailAutoMatchPanel() {
         </div>
       </div>
 
+      {/* Plain-language guide rail — sits right under the bulk actions so a
+          new operator can read it once and understand the whole panel. */}
+      <div className="px-3 sm:px-4 py-2 border-b bg-muted/30 text-[11px] text-muted-foreground leading-snug">
+        <span className="font-semibold text-foreground">Tip:</span>{' '}
+        <span className="inline-flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-emerald-600" /> Exact TID</span> is safe to approve.{' '}
+        <span className="inline-flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-sky-600" /> Verified match</span> is usually safe.{' '}
+        <span className="inline-flex items-center gap-1"><AlertCircle className="h-3 w-3 text-amber-600" /> Amount only</span> — open the details and double-check before approving.
+      </div>
+
       {error && (
         <div className="p-3 text-xs text-destructive bg-destructive/5 border-b border-destructive/20 flex items-center gap-2">
           <AlertCircle className="h-3.5 w-3.5" /> {error}
@@ -483,6 +492,7 @@ export function EmailAutoMatchPanel() {
                     variant="ghost"
                     onClick={() => skipMatch(m)}
                     disabled={isApproving || bulkApproving}
+                    title="Don't credit this deposit yet. The email returns to the unmatched pool for another scan."
                   >
                     Skip
                   </Button>
@@ -491,12 +501,25 @@ export function EmailAutoMatchPanel() {
                     onClick={() => approveOne(m)}
                     disabled={isApproving || bulkApproving}
                     className="gap-1.5"
+                    title="Credit the matched wallet and mark this deposit as approved. This cannot be undone."
                   >
                     {isApproving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />}
                     Approve
                   </Button>
                 </div>
                 </div>
+
+                {/* One-line action prompt — visible on every row so operators
+                    never have to guess what the buttons do. */}
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  {m.method === 'tid' ? (
+                    <>Tap <span className="font-semibold text-foreground">Approve</span> to credit {fmtUgx(m.amount)} to {m.depositor_name ?? 'this user'}. The TIDs match exactly.</>
+                  ) : m.method === 'amount_strong' ? (
+                    <>Tap <span className="font-semibold text-foreground">Approve</span> if the depositor and amount look right. Tap <span className="font-semibold text-foreground">Skip</span> if you're not sure.</>
+                  ) : (
+                    <><span className="text-amber-700 font-semibold">Read carefully.</span> Only the amount matches — confirm the depositor before tapping <span className="font-semibold text-foreground">Approve</span>, otherwise tap <span className="font-semibold text-foreground">Skip</span>.</>
+                  )}
+                </p>
 
                 <button
                   type="button"
