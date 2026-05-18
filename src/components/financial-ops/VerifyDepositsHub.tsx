@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ShieldCheck, Wallet, User, Filter, X, Loader2, XCircle } from 'lucide-react';
+import { ShieldCheck, Wallet, User, Filter, X, Loader2, XCircle, Mail, AlertTriangle, History, ScrollText, KeyRound } from 'lucide-react';
 import { CalendarIcon } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -282,7 +282,7 @@ export function VerifyDepositsHub() {
 
   return (
     <div className="space-y-5">
-      <div>
+      <div className="px-1">
         <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2.5 tracking-tight">
           <ShieldCheck className="h-6 w-6 text-primary" />
           Verify Deposits
@@ -296,38 +296,40 @@ export function VerifyDepositsHub() {
       {/* Tabs first — operators told us the queue switcher is the most-used
           control, so it now sits at the top instead of below the filters. */}
       <Tabs value={tab} onValueChange={(v) => setTab(v as 'user' | 'field' | 'rejected')}>
-        <TabsList className="grid grid-cols-3 w-full h-auto p-1.5 gap-1.5">
-          <TabsTrigger value="user" className="flex flex-col items-center gap-1 py-3 sm:py-3.5">
-            <div className="flex items-center gap-2">
-              <User className="h-4 w-4 sm:h-5 sm:w-5" />
-              <span className="font-semibold text-sm sm:text-base">User Deposits</span>
+        {/* Sticky on mobile so the queue switcher (and live counts) is always
+            reachable while scrolling through long panels. */}
+        <TabsList className="sticky top-0 z-20 grid grid-cols-3 w-full h-auto p-1.5 gap-1.5 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 shadow-sm rounded-xl">
+          <TabsTrigger value="user" className="flex flex-col items-center gap-1 py-3.5 sm:py-3.5 min-h-[64px]">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <User className="h-5 w-5" />
+              <span className="font-semibold text-sm sm:text-base">Users</span>
               {counts.user > 0 && (
                 <Badge className="h-5 min-w-5 px-1.5 text-[11px] bg-primary text-primary-foreground hover:bg-primary">
                   {counts.user}
                 </Badge>
               )}
             </div>
-            <span className="text-[11px] sm:text-xs text-muted-foreground font-normal">
-              Tenant &amp; funder top-ups
+            <span className="text-[10px] sm:text-xs text-muted-foreground font-normal">
+              Top-ups &amp; TID
             </span>
           </TabsTrigger>
-          <TabsTrigger value="field" className="flex flex-col items-center gap-1 py-3 sm:py-3.5">
-            <div className="flex items-center gap-2">
-              <Wallet className="h-4 w-4 sm:h-5 sm:w-5" />
-              <span className="font-semibold text-sm sm:text-base">Field Deposits</span>
+          <TabsTrigger value="field" className="flex flex-col items-center gap-1 py-3.5 sm:py-3.5 min-h-[64px]">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <Wallet className="h-5 w-5" />
+              <span className="font-semibold text-sm sm:text-base">Field</span>
               {counts.field > 0 && (
                 <Badge className="h-5 min-w-5 px-1.5 text-[11px] bg-primary text-primary-foreground hover:bg-primary">
                   {counts.field}
                 </Badge>
               )}
             </div>
-            <span className="text-[11px] sm:text-xs text-muted-foreground font-normal">
-              Agent cash → float
+            <span className="text-[10px] sm:text-xs text-muted-foreground font-normal">
+              Agent cash
             </span>
           </TabsTrigger>
-          <TabsTrigger value="rejected" className="flex flex-col items-center gap-1 py-3 sm:py-3.5">
-            <div className="flex items-center gap-2">
-              <XCircle className="h-4 w-4 sm:h-5 sm:w-5" />
+          <TabsTrigger value="rejected" className="flex flex-col items-center gap-1 py-3.5 sm:py-3.5 min-h-[64px]">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <XCircle className="h-5 w-5" />
               <span className="font-semibold text-sm sm:text-base">Rejected</span>
               {counts.rejected > 0 && (
                 <Badge variant="destructive" className="h-5 min-w-5 px-1.5 text-[11px]">
@@ -335,8 +337,8 @@ export function VerifyDepositsHub() {
                 </Badge>
               )}
             </div>
-            <span className="text-[11px] sm:text-xs text-muted-foreground font-normal">
-              Re-review &amp; approve
+            <span className="text-[10px] sm:text-xs text-muted-foreground font-normal">
+              Re-review
             </span>
           </TabsTrigger>
         </TabsList>
@@ -345,22 +347,118 @@ export function VerifyDepositsHub() {
           <p className="text-xs sm:text-sm text-muted-foreground">
             CFO credits from <span className="font-semibold text-foreground">Welile Technologies Finance</span> are auto-approved and skip this queue.
           </p>
-          <EmailAutoMatchPanel />
-          <EmailNeedsReviewPanel />
-          <EmailMatchAuditLogPanel />
+
+          {/* Mobile-first jump bar — long page of panels otherwise forces
+              a lot of scrolling. Horizontally scrollable pill row keeps
+              every section one tap away without dominating the screen.
+              Hidden on md+ where the page fits comfortably. */}
+          <nav
+            aria-label="Jump to section"
+            className="md:hidden -mx-1 px-1 overflow-x-auto scrollbar-none"
+          >
+            <ul className="flex items-center gap-2 py-1 w-max">
+              {[
+                { id: 'sec-auto-match', label: 'Auto-match', Icon: Mail },
+                { id: 'sec-needs-review', label: 'Needs review', Icon: AlertTriangle },
+                { id: 'sec-verify-tid', label: 'Verify TID', Icon: KeyRound },
+                { id: 'sec-recently', label: 'Recent', Icon: History },
+                { id: 'sec-audit', label: 'Audit log', Icon: ScrollText },
+              ].map(({ id, label, Icon }) => (
+                <li key={id}>
+                  <a
+                    href={`#${id}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      document
+                        .getElementById(id)
+                        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }}
+                    className="inline-flex items-center gap-1.5 h-10 px-3 rounded-full border border-border/60 bg-card text-xs font-semibold text-foreground shadow-sm active:scale-[0.97] transition"
+                  >
+                    <Icon className="h-3.5 w-3.5 text-primary" />
+                    {label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+
+          <section
+            id="sec-verify-tid"
+            aria-label="Verify by Transaction ID"
+            className="scroll-mt-24"
+          >
+            <SectionHeader
+              icon={KeyRound}
+              title="Verify by Transaction ID"
+              subtitle="Paste a TID to credit the matching wallet."
+            />
+            <TidVerification />
+          </section>
+
+          <section
+            id="sec-auto-match"
+            aria-label="Auto-matched Gmail receipts"
+            className="scroll-mt-24"
+          >
+            <SectionHeader
+              icon={Mail}
+              title="Auto-matched receipts"
+              subtitle="Gmail receipts already linked to a deposit request."
+            />
+            <EmailAutoMatchPanel />
+          </section>
+
+          <section
+            id="sec-needs-review"
+            aria-label="Gmail receipts that need review"
+            className="scroll-mt-24"
+          >
+            <SectionHeader
+              icon={AlertTriangle}
+              title="Needs review"
+              subtitle="Receipts the system couldn't link automatically."
+            />
+            <EmailNeedsReviewPanel />
+          </section>
+
           {filtersActive && (
             <p className="text-xs sm:text-sm text-muted-foreground italic">
               User deposits are looked up by Transaction ID — channel and amount
               filters only narrow the Field Deposits tab.
             </p>
           )}
-          <TidVerification />
-          <RecentlyVerifiedList
-            source="user"
-            verifierId={verifierFilter}
-            exportFromIso={exportFromIso}
-            exportToIso={exportToIso}
-          />
+
+          <section
+            id="sec-recently"
+            aria-label="Recently verified deposits"
+            className="scroll-mt-24"
+          >
+            <SectionHeader
+              icon={History}
+              title="Recently verified"
+              subtitle="Last approvals and rejections from this queue."
+            />
+            <RecentlyVerifiedList
+              source="user"
+              verifierId={verifierFilter}
+              exportFromIso={exportFromIso}
+              exportToIso={exportToIso}
+            />
+          </section>
+
+          <section
+            id="sec-audit"
+            aria-label="Email match audit log"
+            className="scroll-mt-24"
+          >
+            <SectionHeader
+              icon={ScrollText}
+              title="Audit log"
+              subtitle="Every match, cancellation and skip is recorded here."
+            />
+            <EmailMatchAuditLogPanel />
+          </section>
         </TabsContent>
 
         <TabsContent value="field" className="mt-5 space-y-3">
