@@ -112,6 +112,42 @@ function validateGmailTx(r: GmailTx): { valid: boolean; reason?: string } {
 }
 
 /**
+ * Best-effort channel resolver. The DB `channel` column is authoritative when
+ * present and not `other`, but for rows the parser couldn't classify we fall
+ * back to inspecting the transaction id, bank reference, or receipt number
+ * embedded in the subject / snippet / id itself. This lets the breakdown group
+ * obviously-related rows together (e.g. an MTN MoMo ref starting "MP" or a
+ * bank wire reference starting "FT") instead of dumping them all into "other".
+ */
+function deriveChannel(r: GmailTx): string {
+  if (r.channel && r.channel !== 'other') return r.channel;
+  const id = (r.transaction_id ?? '').trim();
+  const hay = `${r.from_email ?? ''} ${r.from_name ?? ''} ${r.subject ?? ''} ${r.snippet ?? ''} ${id}`.toLowerCase();
+
+  // 1. Receipt numbers — Welile cash receipts use the RCT prefix.
+  if (/^rct[-_]?\d/i.test(id) || /\brct[-_]?\d{3,}\b/i.test(hay)) return 'cash_receipt';
+
+  // 2. Mobile money — match by brand keywords or known id prefixes.
+  //    MTN MoMo refs commonly start with MP / FTI / CI / 10-digit numeric.
+  if (/\b(mtn|momo|mobile money)\b/i.test(hay) || /^(mp|fti|ci)\d/i.test(id)) return 'mtn_momo';
+  if (/\bairtel\b/i.test(hay) || /^(ap|am)\d/i.test(id)) return 'airtel_money';
+
+  // 3. Banks — match by brand keywords first, then by reference-style prefixes.
+  if (/\bstanbic\b/i.test(hay)) return 'stanbic';
+  if (/\b(centenary|cente)\b/i.test(hay)) return 'centenary';
+  if (/\b(dfcu)\b/i.test(hay)) return 'dfcu';
+  if (/\b(equity)\b/i.test(hay)) return 'equity_bank';
+  if (/\b(absa|barclays)\b/i.test(hay)) return 'absa';
+  if (/\b(stanchart|standard chartered)\b/i.test(hay)) return 'stanchart';
+
+  // 4. Generic bank reference patterns (wire / transfer / FT refs).
+  if (/^(ft|trf|txn|ref|wire|rtgs|eft)[-_/]?[a-z0-9]/i.test(id)) return 'bank_transfer';
+  if (/\b(bank\s*ref(erence)?|reference\s*(no|number|#)|rtgs|swift)\b/i.test(hay)) return 'bank_transfer';
+
+  return 'other';
+}
+
+/**
  * Live feed of transaction confirmation emails extracted from the
  * connected Gmail inbox. A background cron polls every minute; this
  * panel mirrors the table in real time and exposes a manual "Poll now".
