@@ -14304,6 +14304,14 @@ export type Database = {
           user_id: string
         }[]
       }
+      auto_reject_unmatched_deposits: {
+        Args: { p_age_hours?: number; p_email_lookback_hours?: number }
+        Returns: {
+          amount: number
+          deposit_request_id: string
+          user_id: string
+        }[]
+      }
       backfill_missing_profile_by_email: {
         Args: { _email: string }
         Returns: Json
