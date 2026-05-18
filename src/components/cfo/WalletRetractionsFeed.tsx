@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useWalletRealtime } from '@/hooks/useWalletRealtime';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RecipientRoutingWarningBanner } from './RecipientRoutingWarningBanner';
+import { MisroutedRetractionRetryPanel } from './MisroutedRetractionRetryPanel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Loader2, MinusCircle, Filter } from 'lucide-react';
@@ -111,6 +112,7 @@ export function WalletRetractionsFeed({ compact = false }: WalletRetractionsFeed
   return (
     <div className="space-y-4">
       <RecipientRoutingWarningBanner />
+      <MisroutedRetractionRetryPanel />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold flex items-center gap-2">
