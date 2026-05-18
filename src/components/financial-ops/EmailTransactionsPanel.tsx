@@ -456,7 +456,7 @@ export function EmailTransactionsPanel() {
                 <li><span className="text-rose-300">Total out</span> = sum of <code>amount</code> for rows where <code>direction = 'out'</code> or <code>'charge'</code> (sent + fees).</li>
               </ul>
               <p className="pt-1 border-t border-border/40">
-                Only counts rows that are <strong>parsed</strong> and <strong>not flagged</strong> (amount present, direction known, amount found in email body), and that fall inside the selected date range.
+                Counts every <strong>parsed</strong> row with a usable amount that falls inside the selected date range. Flagged rows are still included — they are highlighted in amber for manual review but no longer excluded from totals.
               </p>
               <p className="text-muted-foreground">
                 Currently: {fmtUgx(totalIn)} − {fmtUgx(totalOut)} = {netAmount < 0 ? '-' : ''}{fmtUgx(Math.abs(netAmount))}
