@@ -1,0 +1,285 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Mail, Loader2, ShieldCheck, CheckCircle2, AlertCircle, RefreshCw, Sparkles } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { useFinOpsAutoRefresh } from '@/hooks/useFinOpsAutoRefresh';
+import { format } from 'date-fns';
+
+interface Match {
+  deposit_request_id: string;
+  gmail_transaction_id: string;
+  method: 'tid' | 'amount';
+  amount: number;
+  matched_transaction_id: string | null;
+  user_id: string;
+  provider: string | null;
+  counterparty: string | null;
+  internal_date: string | null;
+  // hydrated:
+  depositor_name?: string;
+  depositor_phone?: string;
+  deposit_tid?: string | null;
+}
+
+const fmtUgx = (n: number) => `UGX ${Math.round(n).toLocaleString()}`;
+
+/**
+ * Reads parsed transaction-confirmation emails from the connected inbox and
+ * auto-pairs each one with a pending deposit_request whose Transaction ID or
+ * amount matches. Exact TID matches can be bulk-approved with one click;
+ * amount-only matches are surfaced as suggestions for the operator to confirm.
+ */
+export function EmailAutoMatchPanel() {
+  const { toast } = useToast();
+  const autoRefresh = useFinOpsAutoRefresh();
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [running, setRunning] = useState(false);
+  const [approving, setApproving] = useState<Set<string>>(new Set());
+  const [bulkApproving, setBulkApproving] = useState(false);
+  const [lastRunAt, setLastRunAt] = useState<Date | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const runningRef = useRef(false);
+
+  const hydrate = useCallback(async (raw: Match[]): Promise<Match[]> => {
+    if (raw.length === 0) return [];
+    const userIds = Array.from(new Set(raw.map((m) => m.user_id)));
+    const depositIds = raw.map((m) => m.deposit_request_id);
+    const [{ data: profiles }, { data: deposits }] = await Promise.all([
+      supabase.from('profiles').select('id, full_name, phone').in('id', userIds),
+      supabase.from('deposit_requests').select('id, transaction_id, status').in('id', depositIds),
+    ]);
+    const pmap = new Map<string, { name: string; phone: string }>();
+    (profiles ?? []).forEach((p: any) => pmap.set(p.id, { name: p.full_name ?? 'Unknown', phone: p.phone ?? '' }));
+    const dmap = new Map<string, { tid: string | null; status: string }>();
+    (deposits ?? []).forEach((d: any) => dmap.set(d.id, { tid: d.transaction_id ?? null, status: d.status }));
+    // Drop matches whose deposit is no longer pending (race with another operator).
+    return raw
+      .filter((m) => dmap.get(m.deposit_request_id)?.status === 'pending')
+      .map((m) => ({
+        ...m,
+        depositor_name: pmap.get(m.user_id)?.name,
+        depositor_phone: pmap.get(m.user_id)?.phone,
+        deposit_tid: dmap.get(m.deposit_request_id)?.tid ?? null,
+      }));
+  }, []);
+
+  const runMatch = useCallback(async (silent = false) => {
+    if (runningRef.current) return;
+    runningRef.current = true;
+    setRunning(true);
+    setError(null);
+    try {
+      const { data, error: rpcErr } = await (supabase.rpc as any)('auto_match_email_deposits', {
+        p_amount_tolerance: 0,
+        p_window_hours: 168,
+      });
+      if (rpcErr) throw rpcErr;
+      const hydrated = await hydrate((data as Match[]) ?? []);
+      setMatches(hydrated);
+      setLastRunAt(new Date());
+      if (!silent && hydrated.length > 0) {
+        toast({
+          title: `Auto-matched ${hydrated.length} deposit${hydrated.length === 1 ? '' : 's'}`,
+          description: 'Review and approve the matches below.',
+        });
+      } else if (!silent) {
+        toast({ title: 'No new matches', description: 'No pending deposits could be paired with email transactions.' });
+      }
+    } catch (e: any) {
+      console.warn('[auto-match] failed', e);
+      setError(e?.message ?? 'Auto-match failed');
+      if (!silent) toast({ title: 'Auto-match failed', description: e?.message ?? 'Unknown error', variant: 'destructive' });
+    } finally {
+      setRunning(false);
+      runningRef.current = false;
+    }
+  }, [hydrate, toast]);
+
+  // Initial run + periodic re-poll.
+  useEffect(() => {
+    runMatch(true);
+    if (!autoRefresh) return;
+    const id = setInterval(() => runMatch(true), 30_000);
+    return () => clearInterval(id);
+  }, [autoRefresh, runMatch]);
+
+  const approveOne = useCallback(async (m: Match) => {
+    setApproving((prev) => new Set(prev).add(m.deposit_request_id));
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const token = session?.session?.access_token;
+      const { error: invErr } = await supabase.functions.invoke('approve-deposit', {
+        body: {
+          deposit_request_id: m.deposit_request_id,
+          action: 'approve',
+          access_token: token,
+        },
+      });
+      if (invErr) throw invErr;
+      toast({ title: 'Deposit approved', description: `${fmtUgx(m.amount)} credited to ${m.depositor_name ?? 'depositor'}.` });
+      setMatches((prev) => prev.filter((x) => x.deposit_request_id !== m.deposit_request_id));
+    } catch (e: any) {
+      toast({ title: 'Approve failed', description: e?.message ?? 'Unknown error', variant: 'destructive' });
+    } finally {
+      setApproving((prev) => {
+        const next = new Set(prev);
+        next.delete(m.deposit_request_id);
+        return next;
+      });
+    }
+  }, [toast]);
+
+  const tidMatches = useMemo(() => matches.filter((m) => m.method === 'tid'), [matches]);
+  const amountMatches = useMemo(() => matches.filter((m) => m.method === 'amount'), [matches]);
+
+  const approveAllTid = useCallback(async () => {
+    if (tidMatches.length === 0) return;
+    setBulkApproving(true);
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const token = session?.session?.access_token;
+      const { error: invErr } = await supabase.functions.invoke('approve-deposit', {
+        body: {
+          bulk_ids: tidMatches.map((m) => m.deposit_request_id),
+          action: 'approve',
+          access_token: token,
+        },
+      });
+      if (invErr) throw invErr;
+      toast({
+        title: `Approved ${tidMatches.length} deposit${tidMatches.length === 1 ? '' : 's'}`,
+        description: 'All exact-TID email matches credited.',
+      });
+      const approvedIds = new Set(tidMatches.map((m) => m.deposit_request_id));
+      setMatches((prev) => prev.filter((m) => !approvedIds.has(m.deposit_request_id)));
+    } catch (e: any) {
+      toast({ title: 'Bulk approve failed', description: e?.message ?? 'Unknown error', variant: 'destructive' });
+    } finally {
+      setBulkApproving(false);
+    }
+  }, [tidMatches, toast]);
+
+  const skipMatch = useCallback(async (m: Match) => {
+    // Unlink the gmail row so the operator can revisit. Does NOT affect the deposit_request.
+    await (supabase.from('gmail_transactions') as any)
+      .update({ linked_deposit_request_id: null, auto_matched_at: null, auto_match_method: null })
+      .eq('id', m.gmail_transaction_id);
+    setMatches((prev) => prev.filter((x) => x.gmail_transaction_id !== m.gmail_transaction_id));
+    toast({ title: 'Match skipped', description: 'The email is back in the unmatched pool.' });
+  }, [toast]);
+
+  return (
+    <div className="rounded-xl border bg-card overflow-hidden">
+      <div className="p-4 border-b bg-gradient-to-r from-primary/5 to-transparent flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h3 className="font-semibold text-sm sm:text-base flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            Auto-detect from email transactions
+          </h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Pairs pending deposits with parsed Gmail confirmations by Transaction ID (exact) or amount (fuzzy, 7-day window).
+          </p>
+          {lastRunAt && (
+            <p className="text-[10px] text-muted-foreground mt-1">
+              Last scan: {format(lastRunAt, 'HH:mm:ss')} · auto-rescans every 30s
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {tidMatches.length > 0 && (
+            <Button
+              onClick={approveAllTid}
+              disabled={bulkApproving || running}
+              className="gap-2"
+            >
+              {bulkApproving ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+              Approve {tidMatches.length} TID match{tidMatches.length === 1 ? '' : 'es'}
+            </Button>
+          )}
+          <Button variant="outline" onClick={() => runMatch(false)} disabled={running} className="gap-2">
+            {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            Rescan
+          </Button>
+        </div>
+      </div>
+
+      {error && (
+        <div className="p-3 text-xs text-destructive bg-destructive/5 border-b border-destructive/20 flex items-center gap-2">
+          <AlertCircle className="h-3.5 w-3.5" /> {error}
+        </div>
+      )}
+
+      {matches.length === 0 ? (
+        <div className="p-6 text-center text-sm text-muted-foreground">
+          <Mail className="h-8 w-8 mx-auto mb-2 text-muted-foreground/40" />
+          {running ? 'Scanning emails…' : 'No matches right now. New emails are rescanned automatically every 30 seconds.'}
+        </div>
+      ) : (
+        <ul className="divide-y">
+          {[...tidMatches, ...amountMatches].map((m) => {
+            const isApproving = approving.has(m.deposit_request_id);
+            return (
+              <li key={m.gmail_transaction_id} className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="flex-1 min-w-0 space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge
+                      className={
+                        m.method === 'tid'
+                          ? 'bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15 border-emerald-500/30'
+                          : 'bg-amber-500/15 text-amber-700 hover:bg-amber-500/15 border-amber-500/30'
+                      }
+                    >
+                      {m.method === 'tid' ? (
+                        <><CheckCircle2 className="h-3 w-3 mr-1" /> Exact TID</>
+                      ) : (
+                        <><AlertCircle className="h-3 w-3 mr-1" /> Amount match</>
+                      )}
+                    </Badge>
+                    <span className="font-semibold text-sm">{fmtUgx(m.amount)}</span>
+                    {m.provider && (
+                      <span className="text-[11px] text-muted-foreground uppercase">{m.provider}</span>
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    <span className="font-medium text-foreground">{m.depositor_name ?? 'Unknown'}</span>
+                    {m.depositor_phone && <> · {m.depositor_phone}</>}
+                    {m.counterparty && <> ← {m.counterparty}</>}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground font-mono truncate">
+                    Deposit TID: {m.deposit_tid ?? '—'}
+                    {m.matched_transaction_id && m.method === 'tid' && ' ✓ '}
+                    {m.method === 'amount' && m.matched_transaction_id && (
+                      <> · Email TID: {m.matched_transaction_id}</>
+                    )}
+                    {m.internal_date && <> · {format(new Date(m.internal_date), 'dd MMM HH:mm')}</>}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => skipMatch(m)}
+                    disabled={isApproving || bulkApproving}
+                  >
+                    Skip
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => approveOne(m)}
+                    disabled={isApproving || bulkApproving}
+                    className="gap-1.5"
+                  >
+                    {isApproving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />}
+                    Approve
+                  </Button>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}

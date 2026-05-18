@@ -5853,6 +5853,8 @@ export type Database = {
       gmail_transactions: {
         Row: {
           amount: number | null
+          auto_match_method: string | null
+          auto_matched_at: string | null
           balance: number | null
           channel: string | null
           counterparty: string | null
@@ -5866,6 +5868,7 @@ export type Database = {
           gmail_thread_id: string | null
           id: string
           internal_date: string | null
+          linked_deposit_request_id: string | null
           parsed: boolean
           raw_body: string | null
           snippet: string | null
@@ -5876,6 +5879,8 @@ export type Database = {
         }
         Insert: {
           amount?: number | null
+          auto_match_method?: string | null
+          auto_matched_at?: string | null
           balance?: number | null
           channel?: string | null
           counterparty?: string | null
@@ -5889,6 +5894,7 @@ export type Database = {
           gmail_thread_id?: string | null
           id?: string
           internal_date?: string | null
+          linked_deposit_request_id?: string | null
           parsed?: boolean
           raw_body?: string | null
           snippet?: string | null
@@ -5899,6 +5905,8 @@ export type Database = {
         }
         Update: {
           amount?: number | null
+          auto_match_method?: string | null
+          auto_matched_at?: string | null
           balance?: number | null
           channel?: string | null
           counterparty?: string | null
@@ -5912,6 +5920,7 @@ export type Database = {
           gmail_thread_id?: string | null
           id?: string
           internal_date?: string | null
+          linked_deposit_request_id?: string | null
           parsed?: boolean
           raw_body?: string | null
           snippet?: string | null
@@ -5920,7 +5929,22 @@ export type Database = {
           tx_date?: string | null
           tx_time?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "gmail_transactions_linked_deposit_request_id_fkey"
+            columns: ["linked_deposit_request_id"]
+            isOneToOne: false
+            referencedRelation: "agent_misrouted_deposits_preview"
+            referencedColumns: ["deposit_id"]
+          },
+          {
+            foreignKeyName: "gmail_transactions_linked_deposit_request_id_fkey"
+            columns: ["linked_deposit_request_id"]
+            isOneToOne: false
+            referencedRelation: "deposit_requests"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       house_listings: {
         Row: {
@@ -14211,6 +14235,20 @@ export type Database = {
       auto_dispatch_withdrawals: {
         Args: { p_batch_size?: number }
         Returns: Json
+      }
+      auto_match_email_deposits: {
+        Args: { p_amount_tolerance?: number; p_window_hours?: number }
+        Returns: {
+          amount: number
+          counterparty: string
+          deposit_request_id: string
+          gmail_transaction_id: string
+          internal_date: string
+          matched_transaction_id: string
+          method: string
+          provider: string
+          user_id: string
+        }[]
       }
       backfill_missing_profile_by_email: {
         Args: { _email: string }
