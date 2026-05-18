@@ -106,6 +106,31 @@ export function EmailTransactionsPanel() {
     .reduce((s, r) => s + (r.amount ?? 0), 0);
   const netAmount = totalIn - totalOut;
 
+  // Per-channel breakdown with counts and totals per direction.
+  const channelBreakdown = (() => {
+    const map = new Map<
+      string,
+      { inCount: number; inTotal: number; outCount: number; outTotal: number }
+    >();
+    for (const r of rows) {
+      if (!r.parsed) continue;
+      const key = (r.channel && r.channel !== 'other' ? r.channel : 'other').replace('_', ' ');
+      const cur = map.get(key) ?? { inCount: 0, inTotal: 0, outCount: 0, outTotal: 0 };
+      const amt = r.amount ?? 0;
+      if (r.direction === 'in') {
+        cur.inCount += 1;
+        cur.inTotal += amt;
+      } else if (r.direction === 'out' || r.direction === 'charge') {
+        cur.outCount += 1;
+        cur.outTotal += amt;
+      }
+      map.set(key, cur);
+    }
+    return Array.from(map.entries())
+      .map(([channel, v]) => ({ channel, ...v, net: v.inTotal - v.outTotal }))
+      .sort((a, b) => b.inTotal + b.outTotal - (a.inTotal + a.outTotal));
+  })();
+
   return (
     <div className="space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -168,6 +193,55 @@ export function EmailTransactionsPanel() {
           ) : null}
         />
       </div>
+
+      {channelBreakdown.length > 0 && (
+        <div className="rounded-xl border bg-card overflow-hidden">
+          <div className="p-4 border-b flex items-center justify-between">
+            <h3 className="font-semibold text-sm">Breakdown by channel</h3>
+            <span className="text-[11px] text-muted-foreground">parsed transactions only</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
+                <tr>
+                  <th className="text-left px-4 py-2 font-semibold">Channel</th>
+                  <th className="text-right px-4 py-2 font-semibold">In (count)</th>
+                  <th className="text-right px-4 py-2 font-semibold text-emerald-700">Total in</th>
+                  <th className="text-right px-4 py-2 font-semibold">Out (count)</th>
+                  <th className="text-right px-4 py-2 font-semibold text-rose-700">Total out</th>
+                  <th className="text-right px-4 py-2 font-semibold">Net</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {channelBreakdown.map((b) => (
+                  <tr key={b.channel} className="hover:bg-muted/30">
+                    <td className="px-4 py-2 capitalize font-medium">{b.channel}</td>
+                    <td className="px-4 py-2 text-right tabular-nums text-muted-foreground">{b.inCount}</td>
+                    <td className="px-4 py-2 text-right tabular-nums font-mono text-emerald-700">{fmtUgx(b.inTotal)}</td>
+                    <td className="px-4 py-2 text-right tabular-nums text-muted-foreground">{b.outCount}</td>
+                    <td className="px-4 py-2 text-right tabular-nums font-mono text-rose-700">{fmtUgx(b.outTotal)}</td>
+                    <td className={`px-4 py-2 text-right tabular-nums font-mono font-semibold ${b.net >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                      {b.net < 0 ? '-' : ''}{fmtUgx(Math.abs(b.net))}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="bg-muted/30 font-semibold">
+                <tr>
+                  <td className="px-4 py-2">Total</td>
+                  <td className="px-4 py-2 text-right tabular-nums">{channelBreakdown.reduce((s, b) => s + b.inCount, 0)}</td>
+                  <td className="px-4 py-2 text-right tabular-nums font-mono text-emerald-700">{fmtUgx(totalIn)}</td>
+                  <td className="px-4 py-2 text-right tabular-nums">{channelBreakdown.reduce((s, b) => s + b.outCount, 0)}</td>
+                  <td className="px-4 py-2 text-right tabular-nums font-mono text-rose-700">{fmtUgx(totalOut)}</td>
+                  <td className={`px-4 py-2 text-right tabular-nums font-mono ${netAmount >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                    {netAmount < 0 ? '-' : ''}{fmtUgx(Math.abs(netAmount))}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      )}
 
       <div className="rounded-xl border bg-card overflow-hidden">
         <div className="p-4 border-b">
