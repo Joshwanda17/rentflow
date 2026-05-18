@@ -183,7 +183,11 @@ export function generateDailyCollectionReportPdf(input: DailyCollectionReportInp
   doc.text('All amounts in UGX', pageWidth - margin - 3, y + 4.8, { align: 'right' });
   y += 7;
 
-  // Column widths (sum = contentWidth = 277)
+  // Column widths (sum = contentWidth = 277). A "Missed (Nd)" column is
+  // inserted before Method when input.missedWindow > 0.
+  const showMissed = (input.missedWindow || 0) > 0;
+  const missedW = 20;
+  const fixedW = 8 + 22 + 28 + 32 + 40 + 22 + 22 + 22 + 18 + 22 + (showMissed ? missedW : 0);
   const colsT = [
     { label: '#',         w: 8,  align: 'left'  as const },
     { label: 'Date',      w: 22, align: 'left'  as const },
@@ -194,9 +198,15 @@ export function generateDailyCollectionReportPdf(input: DailyCollectionReportInp
     { label: 'Collected', w: 22, align: 'right' as const },
     { label: 'Balance',   w: 22, align: 'right' as const },
     { label: 'Status',    w: 18, align: 'left'  as const },
+    ...(showMissed ? [{ label: `Missed (${input.missedWindow}d)`, w: missedW, align: 'right' as const }] : []),
     { label: 'Method',    w: 22, align: 'left'  as const },
-    { label: 'Remarks',   w: contentWidth - (8 + 22 + 28 + 32 + 40 + 22 + 22 + 22 + 18 + 22), align: 'left' as const },
+    { label: 'Remarks',   w: contentWidth - fixedW, align: 'left' as const },
   ];
+  // Dynamic indexes (account for the optional Missed column)
+  const IDX_STATUS = 8;
+  const IDX_MISSED = showMissed ? 9 : -1;
+  const IDX_METHOD = showMissed ? 10 : 9;
+  const IDX_REMARKS = showMissed ? 11 : 10;
 
   const colX = (idx: number) => margin + colsT.slice(0, idx).reduce((s, c) => s + c.w, 0);
 
