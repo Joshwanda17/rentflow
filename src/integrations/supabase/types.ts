@@ -4625,6 +4625,69 @@ export type Database = {
           },
         ]
       }
+      deposit_relink_attempts: {
+        Row: {
+          age_minutes: number | null
+          amount: number | null
+          attempted_at: string
+          deposit_request_id: string
+          duplicate_of_deposit_id: string | null
+          gmail_transaction_id: string | null
+          id: string
+          normalized_tid: string | null
+          notes: string | null
+          outcome: string
+          raw_tid: string | null
+          run_id: string
+          threshold_minutes: number | null
+        }
+        Insert: {
+          age_minutes?: number | null
+          amount?: number | null
+          attempted_at?: string
+          deposit_request_id: string
+          duplicate_of_deposit_id?: string | null
+          gmail_transaction_id?: string | null
+          id?: string
+          normalized_tid?: string | null
+          notes?: string | null
+          outcome: string
+          raw_tid?: string | null
+          run_id: string
+          threshold_minutes?: number | null
+        }
+        Update: {
+          age_minutes?: number | null
+          amount?: number | null
+          attempted_at?: string
+          deposit_request_id?: string
+          duplicate_of_deposit_id?: string | null
+          gmail_transaction_id?: string | null
+          id?: string
+          normalized_tid?: string | null
+          notes?: string | null
+          outcome?: string
+          raw_tid?: string | null
+          run_id?: string
+          threshold_minutes?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deposit_relink_attempts_deposit_request_id_fkey"
+            columns: ["deposit_request_id"]
+            isOneToOne: false
+            referencedRelation: "agent_misrouted_deposits_preview"
+            referencedColumns: ["deposit_id"]
+          },
+          {
+            foreignKeyName: "deposit_relink_attempts_deposit_request_id_fkey"
+            columns: ["deposit_request_id"]
+            isOneToOne: false
+            referencedRelation: "deposit_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deposit_requests: {
         Row: {
           agent_id: string | null
@@ -15476,6 +15539,10 @@ export type Database = {
         Returns: {
           released_count: number
         }[]
+      }
+      relink_stuck_pending_deposits: {
+        Args: { p_max_age_days?: number; p_min_age_minutes?: number }
+        Returns: Json
       }
       reopen_rent_request: {
         Args: { p_reason: string; p_request_id: string }
