@@ -342,9 +342,10 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
     return trackerRows.filter(r => {
       if (agentFilter !== 'all' && r.agentId !== agentFilter) return false;
       if (propertyFilter !== 'all' && r.property !== propertyFilter) return false;
+      if (missedWindow > 0 && !missedDaysByTenant.has(r.tenantId)) return false;
       return true;
     });
-  }, [trackerRows, agentFilter, propertyFilter]);
+  }, [trackerRows, agentFilter, propertyFilter, missedWindow, missedDaysByTenant]);
 
   // Daily totals
   const totals = useMemo(() => {
@@ -362,7 +363,7 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
     [filteredRows, trackerCurrentPage]
   );
   // Reset to first page whenever filters/date/range change
-  useEffect(() => { setTrackerPage(1); }, [agentFilter, propertyFilter, day, range]);
+  useEffect(() => { setTrackerPage(1); }, [agentFilter, propertyFilter, day, range, missedWindow]);
 
   // KPIs
   const collectionToday = (collections || []).reduce((s, c) => s + Number(c.amount || 0), 0);
