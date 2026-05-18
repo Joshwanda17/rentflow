@@ -4632,6 +4632,7 @@ export type Database = {
           approved_at: string | null
           audit_flagged: boolean | null
           auto_approved: boolean | null
+          auto_match_audit: Json | null
           batch_run_id: string | null
           created_at: string
           deposit_purpose: Database["public"]["Enums"]["deposit_purpose"]
@@ -4654,6 +4655,7 @@ export type Database = {
           approved_at?: string | null
           audit_flagged?: boolean | null
           auto_approved?: boolean | null
+          auto_match_audit?: Json | null
           batch_run_id?: string | null
           created_at?: string
           deposit_purpose?: Database["public"]["Enums"]["deposit_purpose"]
@@ -4676,6 +4678,7 @@ export type Database = {
           approved_at?: string | null
           audit_flagged?: boolean | null
           auto_approved?: boolean | null
+          auto_match_audit?: Json | null
           batch_run_id?: string | null
           created_at?: string
           deposit_purpose?: Database["public"]["Enums"]["deposit_purpose"]

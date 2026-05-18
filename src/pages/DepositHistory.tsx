@@ -13,6 +13,10 @@ import { shareViaWhatsApp } from '@/lib/shareReceipt';
 import { useAuth } from '@/hooks/useAuth';
 import { canViewDepositPurpose } from '@/lib/depositPurposeVisibility';
 import { isAutoCancelledDuplicate } from '@/lib/depositDuplicateDetection';
+import {
+  DepositAutoMatchAudit,
+  type DepositAutoMatchAuditPayload,
+} from '@/components/wallet/DepositAutoMatchAudit';
 
 interface DepositRequest {
   id: string;
@@ -24,6 +28,7 @@ interface DepositRequest {
   created_at: string;
   notes: string | null;
   rejection_reason: string | null;
+  auto_match_audit?: DepositAutoMatchAuditPayload | null;
   approved_at: string | null;
   rejected_at: string | null;
   deposit_purpose?: string | null;
@@ -299,6 +304,8 @@ export default function DepositHistory() {
                     </p>
                   </div>
                 )}
+
+                <DepositAutoMatchAudit audit={deposit.auto_match_audit} />
 
                 {/* ─── Purpose Audit Trail (role-scoped) ─── */}
                 {(() => {
