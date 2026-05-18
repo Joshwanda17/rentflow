@@ -5901,6 +5901,59 @@ export type Database = {
         }
         Relationships: []
       }
+      gmail_deposit_exclusions: {
+        Row: {
+          amount: number | null
+          created_at: string
+          direction: string | null
+          from_email: string | null
+          gmail_message_id: string | null
+          gmail_transaction_id: string | null
+          id: string
+          internal_date: string | null
+          reason: string
+          snippet: string | null
+          subject: string | null
+          transaction_id: string | null
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string
+          direction?: string | null
+          from_email?: string | null
+          gmail_message_id?: string | null
+          gmail_transaction_id?: string | null
+          id?: string
+          internal_date?: string | null
+          reason: string
+          snippet?: string | null
+          subject?: string | null
+          transaction_id?: string | null
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string
+          direction?: string | null
+          from_email?: string | null
+          gmail_message_id?: string | null
+          gmail_transaction_id?: string | null
+          id?: string
+          internal_date?: string | null
+          reason?: string
+          snippet?: string | null
+          subject?: string | null
+          transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gmail_deposit_exclusions_gmail_transaction_id_fkey"
+            columns: ["gmail_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "gmail_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gmail_poll_state: {
         Row: {
           id: number
