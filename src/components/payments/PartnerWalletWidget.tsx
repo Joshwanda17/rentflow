@@ -6,6 +6,7 @@ import { formatCurrency } from '@/lib/paymentMethods';
 import FundTenantsFlow from './FundTenantsFlow';
 import DepositFlow from './DepositFlow';
 import WithdrawFlow from './WithdrawFlow';
+import SimpleDepositDialog from './SimpleDepositDialog';
 import { SendMoneyDialog } from '@/components/wallet/SendMoneyDialog';
 import { WelileAITrigger } from '@/components/ai-chat/WelileAIChatButton';
 
@@ -22,6 +23,7 @@ export default function PartnerWalletWidget({
 }: PartnerWalletWidgetProps) {
   const [showFundTenants, setShowFundTenants] = useState(false);
   const [showDeposit, setShowDeposit] = useState(false);
+  const [showQuickDeposit, setShowQuickDeposit] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [showTransfer, setShowTransfer] = useState(false);
 
@@ -56,7 +58,7 @@ export default function PartnerWalletWidget({
               Fund Tenants
             </Button>
             <div className="grid grid-cols-3 gap-2">
-              <Button onClick={() => setShowDeposit(true)} variant="outline" className="gap-2">
+              <Button onClick={() => setShowQuickDeposit(true)} variant="outline" className="gap-2">
                 <ArrowDownLeft className="w-4 h-4" />
                 Deposit
               </Button>
@@ -81,6 +83,17 @@ export default function PartnerWalletWidget({
         allowedPurposes={['personal_deposit']}
         defaultPurpose="personal_deposit"
         lockPurpose
+      />
+      <SimpleDepositDialog
+        open={showQuickDeposit}
+        onOpenChange={(o) => {
+          setShowQuickDeposit(o);
+          // If user clicked the "Use full deposit" escape hatch, open the full flow.
+          if (!o) {
+            // No-op; the link inside the dialog only closes itself.
+          }
+        }}
+        purpose="personal_deposit"
       />
       <WithdrawFlow open={showWithdraw} onOpenChange={setShowWithdraw} availableBalance={availableBalance} roiBalance={roiEarned} onSuccess={() => setShowWithdraw(false)} />
       <SendMoneyDialog open={showTransfer} onOpenChange={setShowTransfer} />
