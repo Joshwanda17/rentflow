@@ -1241,6 +1241,68 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
       toast.success(`Portfolio ${editPortfolio.portfolio_code} updated`);
 
+      // If the partner just switched this portfolio INTO compounding mode,
+      // fire the same "Partner Portfolio Compounding Confirmation" email
+      // that the in-detail "Compound ROI" action sends. This gives partners
+      // the full 12-cycle breakdown the moment compounding is enabled.
+      try {
+        const switchedIntoCompounding =
+          editPortfolioRoiMode === 'monthly_compounding' &&
+          editPortfolio.roi_mode !== 'monthly_compounding';
+
+        if (switchedIntoCompounding) {
+          const { data: profileRow } = await supabase
+            .from('profiles')
+            .select('email')
+            .eq('id', detailPartner.profile.id)
+            .maybeSingle();
+          const recipientEmail = profileRow?.email;
+          const isRealEmail =
+            recipientEmail &&
+            !recipientEmail.endsWith('@welile.user') &&
+            !recipientEmail.endsWith('@noapp.welile.user');
+
+          if (isRealEmail) {
+            const returnAmount = Math.round(amount * (roi / 100));
+            const newTotal = amount + returnAmount;
+            const compoundIso = new Date().toISOString();
+            const compoundDate = new Date(compoundIso).toLocaleDateString('en-GB', {
+              day: '2-digit', month: 'long', year: 'numeric',
+            });
+
+            await supabase.functions.invoke('send-transactional-email', {
+              body: {
+                templateName: 'partner-compound',
+                recipientEmail,
+                // Scope idempotency to the edit event so re-enabling later
+                // doesn't get silently suppressed.
+                idempotencyKey: `partner-compound-enable-${detailPartner.profile.id}-${editPortfolio.id}-${Date.now()}`,
+                templateData: {
+                  partner_name: detailPartner.profile.full_name || 'Partner',
+                  portfolio_id: editPortfolio.portfolio_code || editPortfolio.id,
+                  compound_date: compoundDate,
+                  initial_partnership_amount: amount,
+                  roi_return: `${roi}%`,
+                  return_amount: returnAmount,
+                  new_total_partnership_value: newTotal,
+                  roi_percentage: roi,
+                  // Cycle 1 — template renders the full forward 12-cycle
+                  // compounding breakdown from this anchor.
+                  payment_number: 1,
+                  currency: 'UGX',
+                  company_name: 'Welile',
+                  logo_url: 'https://welilereceipts.com/welile-logo.png',
+                  unsubscribe_url: 'https://welile.com/unsubscribe',
+                  dashboard_url: 'https://welilereceipts.com/auth',
+                },
+              },
+            });
+          }
+        }
+      } catch (emailErr) {
+        console.warn('[partner-compound] edit-trigger email dispatch failed (non-blocking):', emailErr);
+      }
+
       // Update local state
       const updated = detailPartner.portfolios.map(p =>
         p.id === editPortfolio.id
