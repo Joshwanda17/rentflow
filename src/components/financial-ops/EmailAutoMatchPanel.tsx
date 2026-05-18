@@ -19,6 +19,12 @@ interface Match {
   internal_date: string | null;
   signals?: string[] | null;
   match_score?: number | null;
+  from_email?: string | null;
+  from_name?: string | null;
+  subject?: string | null;
+  snippet?: string | null;
+  depositor_email?: string | null;
+  depositor_full_name?: string | null;
   // hydrated:
   depositor_name?: string;
   depositor_phone?: string;
@@ -42,6 +48,7 @@ export function EmailAutoMatchPanel() {
   const [bulkApproving, setBulkApproving] = useState(false);
   const [lastRunAt, setLastRunAt] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const runningRef = useRef(false);
 
   const hydrate = useCallback(async (raw: Match[]): Promise<Match[]> => {
@@ -61,7 +68,7 @@ export function EmailAutoMatchPanel() {
       .filter((m) => dmap.get(m.deposit_request_id)?.status === 'pending')
       .map((m) => ({
         ...m,
-        depositor_name: pmap.get(m.user_id)?.name,
+        depositor_name: m.depositor_full_name ?? pmap.get(m.user_id)?.name,
         depositor_phone: pmap.get(m.user_id)?.phone,
         deposit_tid: dmap.get(m.deposit_request_id)?.tid ?? null,
       }));
