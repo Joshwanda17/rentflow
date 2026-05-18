@@ -128,6 +128,13 @@ export function EmailTransactionsPanel() {
   // Date-range filter (inclusive). Empty string = unbounded on that side.
   const [fromDate, setFromDate] = useState<string>('');
   const [toDate, setToDate] = useState<string>('');
+  // Timezone in which `fromDate`/`toDate` are interpreted and daily buckets are grouped.
+  const browserTz = typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC';
+  const [tz, setTz] = useState<string>(() => {
+    if (typeof window === 'undefined') return browserTz || 'Africa/Kampala';
+    return localStorage.getItem('gmail_filter_tz') || browserTz || 'Africa/Kampala';
+  });
+  useEffect(() => { try { localStorage.setItem('gmail_filter_tz', tz); } catch {} }, [tz]);
   // Configurable warning threshold for |net|. Persisted in localStorage. Default 1,000,000 UGX.
   const [netThreshold, setNetThreshold] = useState<number>(() => {
     if (typeof window === 'undefined') return 1_000_000;
@@ -185,8 +192,10 @@ export function EmailTransactionsPanel() {
   };
 
   // Apply date-range filter to everything that drives totals / breakdown / exports.
-  const fromTs = fromDate ? new Date(`${fromDate}T00:00:00`).getTime() : null;
-  const toTs = toDate ? new Date(`${toDate}T23:59:59.999`).getTime() : null;
+  // Dates are interpreted in the chosen timezone so the user sees stable bucketing
+  // regardless of where the browser is running.
+  const fromTs = fromDate ? zonedWallClockToUtcMs(fromDate, '00:00:00', tz) : null;
+  const toTs = toDate ? zonedWallClockToUtcMs(toDate, '23:59:59', tz) : null;
   const inRange = (r: GmailTx) => {
     if (!fromTs && !toTs) return true;
     if (!r.internal_date) return false;
