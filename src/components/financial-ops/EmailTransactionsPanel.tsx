@@ -126,8 +126,15 @@ export function EmailTransactionsPanel() {
   const [loading, setLoading] = useState(true);
   const [polling, setPolling] = useState(false);
   // Date-range filter (inclusive). Empty string = unbounded on that side.
-  const [fromDate, setFromDate] = useState<string>('');
-  const [toDate, setToDate] = useState<string>('');
+  // Persisted in localStorage so the selection survives a page refresh.
+  const [fromDate, setFromDate] = useState<string>(() =>
+    typeof window === 'undefined' ? '' : (localStorage.getItem('gmail_filter_from') || '')
+  );
+  const [toDate, setToDate] = useState<string>(() =>
+    typeof window === 'undefined' ? '' : (localStorage.getItem('gmail_filter_to') || '')
+  );
+  useEffect(() => { try { localStorage.setItem('gmail_filter_from', fromDate); } catch {} }, [fromDate]);
+  useEffect(() => { try { localStorage.setItem('gmail_filter_to', toDate); } catch {} }, [toDate]);
   // Timezone in which `fromDate`/`toDate` are interpreted and daily buckets are grouped.
   const browserTz = typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC';
   const [tz, setTz] = useState<string>(() => {
