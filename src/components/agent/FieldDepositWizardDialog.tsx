@@ -217,25 +217,31 @@ export function FieldDepositWizardDialog({ open, onOpenChange, attachProofTo }: 
               type="button"
               onClick={() => setTargetBucket('operational_float')}
               className={cn(
-                'w-full relative overflow-hidden rounded-3xl p-6 text-left transition-all',
+                'w-full relative overflow-hidden rounded-3xl p-6 text-left transition-all duration-200',
                 targetBucket === 'operational_float'
-                  ? 'bg-primary text-primary-foreground shadow-xl shadow-primary/25 scale-[1.01]'
-                  : 'bg-primary/90 text-primary-foreground shadow-lg hover:bg-primary hover:shadow-xl',
+                  ? 'bg-primary text-primary-foreground shadow-xl shadow-primary/30 ring-4 ring-primary/30 ring-offset-2 ring-offset-background scale-[1.02]'
+                  : 'bg-primary/60 text-primary-foreground shadow-md opacity-70 hover:bg-primary hover:opacity-100 hover:shadow-xl',
               )}
             >
               <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-primary-foreground/10 pointer-events-none" />
+              {targetBucket === 'operational_float' && (
+                <div className="absolute top-3 right-3 h-8 w-8 rounded-full bg-primary-foreground text-primary flex items-center justify-center shadow-md ring-2 ring-primary-foreground/30 z-10">
+                  <Check className="h-5 w-5" strokeWidth={3} />
+                </div>
+              )}
               <div className="relative flex items-start gap-4">
                 <div className="h-16 w-16 rounded-2xl bg-primary-foreground/15 backdrop-blur-sm flex items-center justify-center shrink-0">
                   <Briefcase className="h-9 w-9" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary-foreground/70">
-                      Recommended
-                    </span>
-                    {targetBucket === 'operational_float' && (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-primary-foreground/90">
-                        <Check className="h-3 w-3" /> Selected
+                    {targetBucket === 'operational_float' ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-[0.14em] px-2 py-0.5 rounded-full bg-primary-foreground/25 text-primary-foreground">
+                        ✓ Selected · Recommended
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary-foreground/80">
+                        Tap to select · Recommended
                       </span>
                     )}
                   </div>
@@ -259,20 +265,30 @@ export function FieldDepositWizardDialog({ open, onOpenChange, attachProofTo }: 
               </p>
             )}
 
+            {/* "or" divider — reinforces secondary status */}
+            <div className="flex items-center gap-2 -my-1">
+              <div className="flex-1 h-px bg-border" />
+              <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">or</span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+
             {/* SECONDARY: Withdrawable — minimal compact link-style */}
             <button
               type="button"
               onClick={() => setTargetBucket('withdrawable')}
               className={cn(
-                'w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-xs font-medium transition-colors',
+                'w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-xs font-medium transition-all',
                 targetBucket === 'withdrawable'
-                  ? 'bg-muted text-foreground ring-1 ring-border'
+                  ? 'bg-foreground/5 text-foreground ring-2 ring-foreground/40'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
               )}
             >
-              <Wallet className="h-3.5 w-3.5" />
+              {targetBucket === 'withdrawable' ? (
+                <Check className="h-3.5 w-3.5" strokeWidth={3} />
+              ) : (
+                <Wallet className="h-3.5 w-3.5" />
+              )}
               <span>This is my own money — send to personal wallet</span>
-              {targetBucket === 'withdrawable' && <Check className="h-3.5 w-3.5" />}
             </button>
 
             <div>
