@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Clock, CheckCircle2, XCircle, Loader2, Phone, Calendar, Hash, Download, MessageCircle, ShieldCheck, Target } from 'lucide-react';
+import { ArrowLeft, Clock, CheckCircle2, XCircle, Loader2, Phone, Calendar, Hash, Download, MessageCircle, ShieldCheck, Target, Info } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { downloadDepositReceipt, buildDepositReceiptWhatsApp, type DepositReceiptData } from '@/lib/receiptPdf';
@@ -250,6 +250,18 @@ export default function DepositHistory() {
                     <CheckCircle2 className="h-4 w-4" />
                     <span>Verified on {format(new Date(deposit.approved_at), 'MMM d, yyyy h:mm a')}</span>
                   </div>
+                )}
+
+                {deposit.status === 'approved' && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="w-full justify-start gap-2 text-xs text-primary hover:text-primary"
+                    onClick={() => navigate(`/deposit-history/${deposit.id}`)}
+                  >
+                    <Info className="h-3.5 w-3.5" />
+                    Why was this approved? View verification details
+                  </Button>
                 )}
 
                 {deposit.status === 'rejected' && deposit.rejection_reason && (
