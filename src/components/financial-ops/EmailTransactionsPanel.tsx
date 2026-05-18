@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert, Copy, Check, Wifi, WifiOff, ShieldCheck, History, LinkIcon, ChevronDown, ChevronUp } from 'lucide-react';
+import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert, Copy, Check, Wifi, WifiOff, ShieldCheck, History, LinkIcon, ChevronDown, ChevronUp, FileDown, FileText } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription,
 } from '@/components/ui/dialog';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { downloadCsv } from '@/lib/csvExport';
 
 interface GmailTx {
   id: string;
@@ -145,6 +146,22 @@ export function EmailTransactionsPanel() {
         <Button onClick={pollNow} disabled={polling} className="gap-2">
           {polling ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           Poll now
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => exportTotalsCsv({ rows, totalIn, totalOut, netAmount, channelBreakdown })}
+          disabled={rows.length === 0}
+          className="gap-2"
+        >
+          <FileDown className="h-4 w-4" /> Export CSV
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => exportTotalsPdf({ rows, totalIn, totalOut, netAmount, channelBreakdown })}
+          disabled={rows.length === 0}
+          className="gap-2"
+        >
+          <FileText className="h-4 w-4" /> Export PDF
         </Button>
         <ReconnectGmailDialog />
         <DebugPollDialog />
@@ -993,6 +1010,125 @@ function DedupAuditPanel() {
       )}
     </div>
   );
+}
+
+type ChannelBreakdownRow = {
+  channel: string;
+  inCount: number;
+  inTotal: number;
+  outCount: number;
+  outTotal: number;
+  net: number;
+};
+
+type ExportPayload = {
+  rows: GmailTx[];
+  totalIn: number;
+  totalOut: number;
+  netAmount: number;
+  channelBreakdown: ChannelBreakdownRow[];
+};
+
+function buildPerDayBreakdown(rows: GmailTx[]) {
+  const map = new Map<string, { inCount: number; inTotal: number; outCount: number; outTotal: number }>();
+  for (const r of rows) {
+    if (!r.parsed) continue;
+    const day = r.internal_date ? format(new Date(r.internal_date), 'yyyy-MM-dd') : 'unknown';
+    const cur = map.get(day) ?? { inCount: 0, inTotal: 0, outCount: 0, outTotal: 0 };
+    const amt = r.amount ?? 0;
+    if (r.direction === 'in') { cur.inCount += 1; cur.inTotal += amt; }
+    else if (r.direction === 'out' || r.direction === 'charge') { cur.outCount += 1; cur.outTotal += amt; }
+    map.set(day, cur);
+  }
+  return Array.from(map.entries())
+    .map(([day, v]) => ({ day, ...v, net: v.inTotal - v.outTotal }))
+    .sort((a, b) => (a.day < b.day ? 1 : -1));
+}
+
+function exportTotalsCsv({ rows, totalIn, totalOut, netAmount, channelBreakdown }: ExportPayload) {
+  const perDay = buildPerDayBreakdown(rows);
+  const stamp = format(new Date(), 'yyyy-MM-dd_HHmm');
+
+  const allRows: (string | number)[][] = [];
+  allRows.push(['Section', 'Key', 'In count', 'Total in (UGX)', 'Out count', 'Total out (UGX)', 'Net (UGX)']);
+  allRows.push(['Summary', 'All parsed', rows.filter(r => r.parsed && r.direction === 'in').length, Math.round(totalIn),
+    rows.filter(r => r.parsed && (r.direction === 'out' || r.direction === 'charge')).length, Math.round(totalOut), Math.round(netAmount)]);
+  allRows.push(['', '', '', '', '', '', '']);
+  for (const c of channelBreakdown) {
+    allRows.push(['Channel', c.channel, c.inCount, Math.round(c.inTotal), c.outCount, Math.round(c.outTotal), Math.round(c.net)]);
+  }
+  allRows.push(['', '', '', '', '', '', '']);
+  for (const d of perDay) {
+    allRows.push(['Day', d.day, d.inCount, Math.round(d.inTotal), d.outCount, Math.round(d.outTotal), Math.round(d.net)]);
+  }
+  downloadCsv(`email-transactions-totals_${stamp}.csv`, allRows[0] as string[], allRows.slice(1));
+}
+
+async function exportTotalsPdf({ rows, totalIn, totalOut, netAmount, channelBreakdown }: ExportPayload) {
+  const [{ default: jsPDF }, autoTableModule] = await Promise.all([
+    import('jspdf'),
+    import('jspdf-autotable'),
+  ]);
+  const autoTable = (autoTableModule as any).default ?? (autoTableModule as any);
+
+  const perDay = buildPerDayBreakdown(rows);
+  const stamp = format(new Date(), 'yyyy-MM-dd HH:mm');
+  const doc = new jsPDF();
+
+  doc.setFontSize(16);
+  doc.text('Email Transactions — Totals Report', 14, 18);
+  doc.setFontSize(10);
+  doc.setTextColor(120);
+  doc.text(`Generated ${stamp}`, 14, 25);
+  doc.setTextColor(0);
+
+  autoTable(doc, {
+    startY: 32,
+    head: [['Metric', 'Value']],
+    body: [
+      ['Total in (received)', `UGX ${Math.round(totalIn).toLocaleString()}`],
+      ['Total out (sent + charges)', `UGX ${Math.round(totalOut).toLocaleString()}`],
+      ['Net (in − out)', `UGX ${Math.round(netAmount).toLocaleString()}`],
+      ['Parsed transactions', String(rows.filter(r => r.parsed).length)],
+      ['Emails captured', String(rows.length)],
+    ],
+    styles: { fontSize: 10 },
+    headStyles: { fillColor: [30, 41, 59] },
+  });
+
+  if (channelBreakdown.length > 0) {
+    autoTable(doc, {
+      head: [['Channel', 'In #', 'Total in', 'Out #', 'Total out', 'Net']],
+      body: channelBreakdown.map(c => [
+        c.channel,
+        c.inCount,
+        `UGX ${Math.round(c.inTotal).toLocaleString()}`,
+        c.outCount,
+        `UGX ${Math.round(c.outTotal).toLocaleString()}`,
+        `UGX ${Math.round(c.net).toLocaleString()}`,
+      ]),
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [30, 41, 59] },
+    });
+  }
+
+  if (perDay.length > 0) {
+    autoTable(doc, {
+      head: [['Day', 'In #', 'Total in', 'Out #', 'Total out', 'Net']],
+      body: perDay.map(d => [
+        d.day,
+        d.inCount,
+        `UGX ${Math.round(d.inTotal).toLocaleString()}`,
+        d.outCount,
+        `UGX ${Math.round(d.outTotal).toLocaleString()}`,
+        `UGX ${Math.round(d.net).toLocaleString()}`,
+      ]),
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [30, 41, 59] },
+    });
+  }
+
+  doc.save(`email-transactions-totals_${format(new Date(), 'yyyy-MM-dd_HHmm')}.pdf`);
 }
 
 function ReconnectGmailDialog() {
