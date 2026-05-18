@@ -8,6 +8,10 @@ import { Clock, CheckCircle2, XCircle, Wallet, ChevronDown, ChevronUp, Target, P
 import { motion, AnimatePresence } from 'framer-motion';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { isAutoCancelledDuplicate } from '@/lib/depositDuplicateDetection';
+import {
+  DepositAutoMatchAudit,
+  type DepositAutoMatchAuditPayload,
+} from '@/components/wallet/DepositAutoMatchAudit';
 
 // Lazy — DepositFlow pulls a heavy form tree we don't want on first paint
 // of every wallet view; the edit button only opens it on demand.
@@ -24,6 +28,7 @@ interface DepositRequest {
   notes?: string;
   deposit_purpose?: string | null;
   purpose_audit?: { chosen_purpose?: string } | null;
+  auto_match_audit?: DepositAutoMatchAuditPayload | null;
 }
 
 const PURPOSE_LABELS: Record<string, string> = {
