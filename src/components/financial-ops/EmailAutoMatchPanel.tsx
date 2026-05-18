@@ -134,14 +134,27 @@ export function EmailAutoMatchPanel() {
         try {
           const { data: session } = await supabase.auth.getSession();
           const token = session?.session?.access_token;
-          const { error: invErr } = await supabase.functions.invoke('approve-deposit', {
-            body: {
-              bulk_ids: autoEligible.map((m) => m.deposit_request_id),
-              action: 'approve',
-              access_token: token,
-            },
-          });
-          if (invErr) throw invErr;
+          // Group by matcher method so each auto-approval batch carries
+          // the correct method into approve-deposit (drives the depositor's
+          // notification + transactional email metadata).
+          const byMethod = new Map<string, string[]>();
+          for (const m of autoEligible) {
+            const k = m.method;
+            if (!byMethod.has(k)) byMethod.set(k, []);
+            byMethod.get(k)!.push(m.deposit_request_id);
+          }
+          for (const [method, ids] of byMethod) {
+            const { error: invErr } = await supabase.functions.invoke('approve-deposit', {
+              body: {
+                bulk_ids: ids,
+                action: 'approve',
+                access_token: token,
+                auto_approved: true,
+                auto_match_method: method,
+              },
+            });
+            if (invErr) throw invErr;
+          }
           autoApprovedCount = autoEligible.length;
           autoEligible.forEach((m) => autoApprovedRef.current.add(m.deposit_request_id));
           await Promise.all(
