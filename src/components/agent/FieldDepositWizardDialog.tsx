@@ -9,7 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  Banknote, Smartphone, Building2, HandCoins, ArrowLeft, ArrowRight, CheckCircle2,
+  Banknote, Smartphone, Building2, HandCoins, ArrowLeft, ArrowRight, CheckCircle2, Wallet, Briefcase,
   Loader2, Receipt, AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -17,7 +17,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { formatUGX } from '@/lib/rentCalculations';
 import {
-  type DepositChannel, type FieldDepositBatch, type UnbatchedFieldCollection,
+  type DepositChannel, type FieldDepositBatch, type TargetBucket, type UnbatchedFieldCollection,
   channelLabel, listUnbatchedFieldCollections, createBatchWithItems, submitProofForBatch,
 } from '@/lib/fieldDepositBatches';
 import { GlossaryTip } from '@/components/shared/GlossaryTip';
@@ -53,6 +53,7 @@ export function FieldDepositWizardDialog({ open, onOpenChange, attachProofTo }: 
   const [channel, setChannel] = useState<DepositChannel>('mtn');
   const [declared, setDeclared] = useState<string>('');
   const [notes, setNotes] = useState('');
+  const [targetBucket, setTargetBucket] = useState<TargetBucket>('operational_float');
 
   /* Step 2 */
   const [available, setAvailable] = useState<UnbatchedFieldCollection[]>([]);
@@ -75,6 +76,7 @@ export function FieldDepositWizardDialog({ open, onOpenChange, attachProofTo }: 
       setCreatedBatch(attachProofTo);
       setProofRef('');
       setProofDeferred(false);
+      setTargetBucket(attachProofTo.target_bucket ?? 'operational_float');
     } else {
       setStep(1);
       setChannel('mtn');
@@ -84,6 +86,7 @@ export function FieldDepositWizardDialog({ open, onOpenChange, attachProofTo }: 
       setProofRef('');
       setCreatedBatch(null);
       setProofDeferred(false);
+      setTargetBucket('operational_float');
     }
   }, [open, attachProofTo]);
 
@@ -134,14 +137,18 @@ export function FieldDepositWizardDialog({ open, onOpenChange, attachProofTo }: 
     setSubmitting(true);
     try {
       const itemAmounts: Record<string, number> = {};
-      for (const r of available) if (picked.has(r.id)) itemAmounts[r.id] = Number(r.amount);
+      const isWithdrawable = targetBucket === 'withdrawable';
+      if (!isWithdrawable) {
+        for (const r of available) if (picked.has(r.id)) itemAmounts[r.id] = Number(r.amount);
+      }
       const batch = await createBatchWithItems({
         agentId: user.id,
         channel,
         declaredTotal: declaredNum,
-        collectionIds: Array.from(picked),
-        itemAmounts,
+        collectionIds: isWithdrawable ? [] : Array.from(picked),
+        itemAmounts: isWithdrawable ? {} : itemAmounts,
         notes: notes.trim() || null,
+        targetBucket,
       });
       setCreatedBatch(batch);
       if (submitProofNow) {
@@ -211,6 +218,51 @@ export function FieldDepositWizardDialog({ open, onOpenChange, attachProofTo }: 
               intro="Banking your collected cash refills your float. Finance verifies before it posts."
             />
             <div>
+              <Label className="text-sm font-semibold">Where should this money go?</Label>
+              <div className="grid grid-cols-1 gap-2 mt-2">
+                {([
+                  {
+                    value: 'operational_float' as TargetBucket,
+                    label: 'Operational float',
+                    hint: "Rent I collected from tenants. I'll tag tenants next.",
+                    icon: Briefcase,
+                  },
+                  {
+                    value: 'withdrawable' as TargetBucket,
+                    label: 'My withdrawable wallet',
+                    hint: "My own money. Skip tenant tagging \u2014 no commission paid.",
+                    icon: Wallet,
+                  },
+                ]).map(opt => {
+                  const Icon = opt.icon;
+                  const active = targetBucket === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setTargetBucket(opt.value)}
+                      className={cn(
+                        'flex items-center gap-3 p-3 rounded-xl border text-left transition-all',
+                        active ? 'border-primary bg-primary/5 ring-2 ring-primary/20' : 'hover:bg-muted/40',
+                      )}
+                    >
+                      <div className={cn(
+                        'h-9 w-9 rounded-lg flex items-center justify-center shrink-0',
+                        active ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground',
+                      )}>
+                        <Icon className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-sm">{opt.label}</p>
+                        <p className="text-[11px] text-muted-foreground">{opt.hint}</p>
+                      </div>
+                      {active && <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div>
               <Label className="text-sm font-semibold">How did you deposit?</Label>
               <div className="grid grid-cols-1 gap-2 mt-2">
                 {CHANNELS.map(c => {
@@ -274,9 +326,16 @@ export function FieldDepositWizardDialog({ open, onOpenChange, attachProofTo }: 
               className="w-full gap-2"
               size="lg"
               disabled={declaredNum <= 0}
-              onClick={() => setStep(2)}
+              onClick={() => {
+                if (targetBucket === 'withdrawable') {
+                  // Skip tenant tagging — create batch immediately, jump to proof.
+                  handleCreateBatch(true);
+                } else {
+                  setStep(2);
+                }
+              }}
             >
-              Next: tag collections
+              {targetBucket === 'withdrawable' ? 'Next: add proof' : 'Next: tag collections'}
               <ArrowRight className="h-4 w-4" />
             </Button>
           </div>

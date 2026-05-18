@@ -1,91 +1,55 @@
 ## Goal
 
-Let **Landlord Ops** bind a specific tenant (from an existing rent request) to a specific house, and swap that tenant if they abscond. Let **Agents** see, per landlord they manage, every house plus the tenant attached, and reassign the tenant or the managing agent.
+Today every verified field deposit batch credits the agent's **float** (and the tagged-item loop allocates rent + pays 10% commission). You want the agent to declare, at submission time, that the batch is either:
 
-## Data model (already in place — no migration needed)
+- **Operational float** — current behavior, money belongs to the company / will be used to settle tenants
+- **Personal withdrawable** — the agent is depositing their *own* money into their personal wallet (no tenant allocation, no commission)
 
-- `house_listings.tenant_id` (nullable uuid) — the current occupant. This is the binding.
-- `house_listings.agent_id` (uuid, NOT NULL) — the managing agent.
-- `house_listings.landlord_id` (uuid) — owning landlord.
-- `rent_requests.tenant_id` / `agent_id` / `landlord_id` — the request side.
+The Fin Ops verify dialog will surface that choice and, on approve, the RPC routes the entire `declared_total` into the chosen bucket.
 
-Binding rules:
-- **Assign tenant → house** = set `house_listings.tenant_id = <rent_request.tenant_id>` for a chosen `house_listings.id` owned by the same landlord.
-- **Remove tenant (absconded)** = `tenant_id = NULL`, status → `available`.
-- **Swap tenant** = atomic: clear old, set new.
-- **Reassign managing agent** = update `house_listings.agent_id`.
-- **Reassign tenant's agent on rent request** = update `rent_requests.agent_id` for that tenant's active request.
+## Changes
 
-A "tenant placement" trigger already pays the listing agent a UGX 5,000 bounty the first time `tenant_id` flips from NULL → set, so the existing memory rule keeps working.
+### 1. Database (migration)
 
-## Migration
+- `field_deposit_batches.target_bucket text` — values `operational_float` | `withdrawable`, default `operational_float` (preserves all legacy rows + behavior).
+- CHECK constraint on the two allowed values.
+- Update `process_verified_field_deposit(p_batch_id, p_finops_user, p_finops_proof_entered)`:
+  - Branch on `v_batch.target_bucket`.
+  - **`operational_float`** → unchanged (current loop: float credit + per-tenant allocation + 10 % commission + surplus to float).
+  - **`withdrawable`** → skip the items loop entirely; require `tagged_total = 0` (refuse if the agent tagged tenants — wrong mode); post a single ledger transaction crediting the agent's **withdrawable** bucket for `declared_total` using `recipient_type='user'` and category `agent_personal_deposit` (added to the routing config so it maps to withdrawable). Audit row `event='allocation_completed'` with `details.mode='withdrawable_topup'`.
+- Ensure `agent_personal_deposit` is whitelisted in the ledger category allowlist + routes to `withdrawable` in `wallet_route_for_category`.
 
-One small migration to add three SECURITY DEFINER RPCs with strict authorization checks and audit logging — UI never writes `house_listings`/`rent_requests` directly for these ops:
+### 2. Agent submission UI — `FieldDepositWizardDialog.tsx`
 
-1. `landlord_ops_bind_tenant_to_house(p_house_id, p_rent_request_id, p_reason)`
-   - Asserts caller has `landlord_ops` department (via existing dept check) OR is `manager`.
-   - Asserts rent_request.landlord_id matches house.landlord_id.
-   - Sets `house_listings.tenant_id = rr.tenant_id`, `status = 'occupied'`.
-   - Inserts `audit_logs` row (`action_type='tenant_bound_to_house'`, 10-char reason).
-   - Emits `system_event` `house.tenant_bound`.
+- New Step 1 control: **"Where should this money go?"** with two cards:
+  - **Operational float** (default) — "Rent I collected from tenants. Tag tenants on the next step."
+  - **My withdrawable wallet** — "My own money. Skip tenant tagging."
+- When `withdrawable` is selected: skip Step 2 entirely (jump to Step 3 proof), and don't pass any `collectionIds`.
+- Pass `targetBucket` through `createBatchWithItems` → insert column.
 
-2. `landlord_ops_remove_tenant_from_house(p_house_id, p_reason)` (absconded / vacated)
-   - Same auth.
-   - Clears `tenant_id`, sets `status='available'`.
-   - Audit + `house.tenant_removed` event.
+### 3. `src/lib/fieldDepositBatches.ts`
 
-3. `reassign_house_agent(p_house_id, p_new_agent_id, p_reason)` and
-   `reassign_rent_request_agent(p_rent_request_id, p_new_agent_id, p_reason)`
-   - Landlord Ops or manager only.
-   - Asserts new agent has `agent` role.
-   - Audit + `house.agent_reassigned` / `rent_request.agent_reassigned` events.
+- Add `target_bucket: 'operational_float' | 'withdrawable'` to `FieldDepositBatch` + `PendingBatch`.
+- Add `targetBucket` to `CreateBatchInput`; include in the insert payload.
 
-All RPCs `SET search_path = public` and use the standard `audit_logs` schema (`action_type`, `table_name`, `record_id`, mandatory reason ≥10 chars) per Audit Governance memory.
+### 4. Fin Ops verify dialog — `FieldDepositVerifyDialog.tsx`
 
-## UI changes
+- Surface the target as a prominent badge in the summary card: "Credits → Operational float" or "Credits → Personal withdrawable".
+- When `withdrawable`: hide the tenant-items + commission breakdown sections (they don't apply); rename the verify button to **"Verify & credit withdrawable"**; update the explainer copy.
+- No selector here — the agent's choice is binding. (You picked "Agent picks it when submitting".)
 
-### Landlord Ops — `src/components/executive/LandlordOpsDashboard.tsx`
+### 5. Edge function `verify-field-deposit`
 
-New row of actions inside each landlord card (or a new tab "Houses & Tenants"):
-- **Bind Tenant to House** dialog: pick a house (filtered to that landlord, vacant or occupied), pick a pending/approved rent request for that landlord, type a ≥10-char reason. Confirm → calls RPC #1.
-- **Remove Tenant (Absconded)**: on an occupied house card, "Remove Tenant" button → reason dialog → RPC #2.
-- **Swap Tenant**: shortcut that calls #2 then #1 in sequence inside the same dialog.
+- No code change needed — it just forwards to the RPC which now branches internally.
 
-Reuse `EmptyHouseActionDialog` patterns and `AssignPersonDialog` UX. No new top-level component beyond:
-- `src/components/executive/landlord-ops/BindTenantToHouseDialog.tsx`
-- `src/components/executive/landlord-ops/RemoveTenantDialog.tsx`
+## Out of scope
 
-### Agent — `src/components/agent/AgentListingsSheet.tsx` (already lists houses they manage)
+- Existing rows keep working (default `operational_float`).
+- No change to rejection / reopen flow.
+- No change to commission rate config.
 
-Per house card, add an "Attached tenant" line and two actions:
-- **Change tenant profile** → opens existing `TenantProfileView` for the attached tenant in edit mode (no schema change; uses existing tenant profile editing path). For agents we only let them edit fields the agent role already controls.
-- **Reassign tenant's agent**: select another agent from their downline (`SubAgentsList` data) → RPC #4.
+## Verification
 
-Group the houses by landlord (the user's exact ask: "houses they manage attached to each house to each landlord"). Add a collapsible landlord header listing landlord name + count of houses.
-
-### Read-only data hooks
-
-Extend `useNearbyHouses` is not needed; add:
-- `src/hooks/useLandlordOpsHouses.ts` — fetches a landlord's houses with current tenant profile join.
-- `src/hooks/useAgentManagedHouses.ts` — fetches agent's houses grouped by landlord with attached tenant profile.
-
-## Out of scope (call out)
-
-- Wallet / ledger movements when swapping tenants — none. The existing rent billing engine continues to bill against `rent_requests`; this change only retargets which house a tenant physically occupies.
-- Listing bounty: unaffected — already paid on the first NULL→set transition; subsequent swaps will not re-trigger it (the existing trigger checks `placement_bonus_paid_at IS NULL`).
-- Trust signals: the new RPCs will emit `system_events` so the Trust Coverage Engine can attribute behavior; no new score factors.
-
-## Files touched
-
-- New migration (RPCs only, no table changes).
-- `src/components/executive/LandlordOpsDashboard.tsx` (wire new dialogs).
-- `src/components/executive/landlord-ops/BindTenantToHouseDialog.tsx` (new).
-- `src/components/executive/landlord-ops/RemoveTenantDialog.tsx` (new).
-- `src/components/agent/AgentListingsSheet.tsx` (group by landlord, add actions).
-- `src/components/agent/ReassignTenantAgentDialog.tsx` (new).
-- `src/hooks/useLandlordOpsHouses.ts` (new).
-- `src/hooks/useAgentManagedHouses.ts` (new).
-
-## Approval
-
-Reply "go" to proceed. The migration will be submitted first; UI changes ship in the same response after you approve it.
+- Migration applies cleanly; existing pending batches stay in `operational_float` mode.
+- Submit a new batch with **withdrawable**: agent sees 2-step flow, no tenant tagging; Fin Ops sees "Credits → Personal withdrawable"; on approve, only one wallet credit lands in `withdrawable_balance`, no `agent_landlord_float_allocations` / `agent_collections` / `agent_earnings` rows are inserted.
+- Submit with **operational float**: identical to today's behavior.

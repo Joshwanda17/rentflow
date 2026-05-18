@@ -5469,6 +5469,7 @@ export type Database = {
           status: string
           surplus_total: number
           tagged_total: number
+          target_bucket: string
           updated_at: string
         }
         Insert: {
@@ -5488,6 +5489,7 @@ export type Database = {
           status?: string
           surplus_total?: number
           tagged_total?: number
+          target_bucket?: string
           updated_at?: string
         }
         Update: {
@@ -5507,6 +5509,7 @@ export type Database = {
           status?: string
           surplus_total?: number
           tagged_total?: number
+          target_bucket?: string
           updated_at?: string
         }
         Relationships: []

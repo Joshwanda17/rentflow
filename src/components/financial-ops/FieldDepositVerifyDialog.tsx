@@ -15,7 +15,7 @@ import {
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { Loader2, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, AlertTriangle, Wallet, Briefcase } from 'lucide-react';
 import {
   PendingBatch,
   channelLabel,
@@ -38,6 +38,9 @@ export function FieldDepositVerifyDialog({ batch, open, onClose, onResolved }: P
   const [proof, setProof] = useState('');
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState<'verify' | 'reject' | null>(null);
+
+  const targetBucket = batch?.target_bucket ?? 'operational_float';
+  const isWithdrawable = targetBucket === 'withdrawable';
 
   const taggedTotal = useMemo(
     () => batch?.items.reduce((s, i) => s + Number(i.amount || 0), 0) ?? 0,
@@ -68,9 +71,15 @@ export function FieldDepositVerifyDialog({ batch, open, onClose, onResolved }: P
     try {
       const res = await verifyBatchAsFinOps(batch.id, proof.trim());
       const r = res?.result ?? {};
-      toast.success(
-        `Verified. Allocated ${formatUGX(Number(r.total_allocated ?? 0))} · commission ${formatUGX(Number(r.total_commission ?? 0))}`,
-      );
+      if (r?.mode === 'withdrawable_topup') {
+        toast.success(
+          `Verified. Credited ${formatUGX(Number(r.total_allocated ?? 0))} to agent's withdrawable wallet`,
+        );
+      } else {
+        toast.success(
+          `Verified. Allocated ${formatUGX(Number(r.total_allocated ?? 0))} · commission ${formatUGX(Number(r.total_commission ?? 0))}`,
+        );
+      }
       setProof('');
       onResolved();
       onClose();
@@ -109,7 +118,9 @@ export function FieldDepositVerifyDialog({ batch, open, onClose, onResolved }: P
         <DialogHeader className="px-6 pt-6 pb-3 border-b">
           <DialogTitle>Verify Field Deposit</DialogTitle>
           <DialogDescription>
-            Confirm the proof matches what the agent submitted. Verification credits float, allocates rent, and pays commission.
+            {isWithdrawable
+              ? "Confirm the proof matches what the agent submitted. The full amount will credit the agent's personal withdrawable wallet."
+              : 'Confirm the proof matches what the agent submitted. Verification credits float, allocates rent, and pays commission.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -117,6 +128,13 @@ export function FieldDepositVerifyDialog({ batch, open, onClose, onResolved }: P
           <div className="space-y-4">
             {/* Summary */}
             <div className="rounded-lg border bg-muted/30 p-3 space-y-2 text-sm">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Credits to</span>
+                <Badge variant={isWithdrawable ? 'default' : 'secondary'} className="gap-1">
+                  {isWithdrawable ? <Wallet className="h-3 w-3" /> : <Briefcase className="h-3 w-3" />}
+                  {isWithdrawable ? 'Personal withdrawable' : 'Operational float'}
+                </Badge>
+              </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Agent</span>
                 <span className="font-medium">
@@ -132,11 +150,13 @@ export function FieldDepositVerifyDialog({ batch, open, onClose, onResolved }: P
                 <span className="text-muted-foreground">Declared total</span>
                 <span className="font-mono font-semibold">{formatUGX(Number(batch.declared_total))}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Tagged to tenants</span>
-                <span className="font-mono">{formatUGX(taggedTotal)}</span>
-              </div>
-              {surplus > 0 && (
+              {!isWithdrawable && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Tagged to tenants</span>
+                  <span className="font-mono">{formatUGX(taggedTotal)}</span>
+                </div>
+              )}
+              {!isWithdrawable && surplus > 0 && (
                 <div className="flex justify-between text-warning">
                   <span className="flex items-center gap-1">
                     <AlertTriangle className="h-3.5 w-3.5" /> Surplus → unallocated float
@@ -152,7 +172,8 @@ export function FieldDepositVerifyDialog({ batch, open, onClose, onResolved }: P
               )}
             </div>
 
-            {/* Items */}
+            {/* Items — only relevant in operational_float mode */}
+            {!isWithdrawable && (
             <div>
               <div className="text-xs font-semibold text-muted-foreground mb-2">
                 {batch.items.length} tagged collection{batch.items.length === 1 ? '' : 's'}
@@ -176,9 +197,10 @@ export function FieldDepositVerifyDialog({ batch, open, onClose, onResolved }: P
                 )}
               </div>
             </div>
+            )}
 
             {/* Commission breakdown — recorded as platform expense on verify */}
-            {batch.items.length > 0 && (
+            {!isWithdrawable && batch.items.length > 0 && (
               <div>
                 <div className="text-xs font-semibold text-muted-foreground mb-2 flex items-center justify-between">
                   <span>Commission breakdown ({Math.round(COMMISSION_RATE * 100)}% per repayment)</span>
@@ -274,7 +296,10 @@ export function FieldDepositVerifyDialog({ batch, open, onClose, onResolved }: P
 
         <DialogFooter className="flex-col sm:flex-row gap-2 px-6 pb-6 pt-4 border-t bg-background">
           <p className="text-[11px] text-muted-foreground leading-snug sm:hidden">
-            <span className="font-semibold text-foreground">Verify</span> credits the agent's float and pays commission.{' '}
+            <span className="font-semibold text-foreground">Verify</span>{' '}
+            {isWithdrawable
+              ? "credits the agent's personal withdrawable wallet."
+              : "credits the agent's float and pays commission."}{' '}
             <span className="font-semibold text-foreground">Reject</span> sends it back with your reason.
           </p>
           <Button
@@ -299,11 +324,13 @@ export function FieldDepositVerifyDialog({ batch, open, onClose, onResolved }: P
             onClick={handleVerify}
             disabled={busy !== null || !proofMatches}
             title={proofMatches
-              ? "Credit the agent's float wallet, post commission, and mark this batch verified. This cannot be undone."
+              ? (isWithdrawable
+                  ? "Credit the agent's withdrawable wallet for the full declared amount. This cannot be undone."
+                  : "Credit the agent's float wallet, post commission, and mark this batch verified. This cannot be undone.")
               : 'Enter the agent\u2019s proof reference above and make sure it matches before you can verify.'}
           >
             {busy === 'verify' ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
-            Verify & credit float
+            {isWithdrawable ? 'Verify & credit withdrawable' : 'Verify & credit float'}
           </Button>
         </DialogFooter>
       </DialogContent>
