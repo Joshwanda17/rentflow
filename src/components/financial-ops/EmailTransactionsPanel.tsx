@@ -283,7 +283,7 @@ export function EmailTransactionsPanel() {
   // and flushed back to localStorage whenever the heuristic learns a new key,
   // so the same id always resolves to the same channel across reloads and
   // future poll inserts.
-  const channelCacheRef = useRef<Record<string, string>>(readChannelCache());
+  const channelCacheRef = useRef<Record<string, ChannelCacheEntry>>(readChannelCache());
   const flushChannelCache = () => writeChannelCache(channelCacheRef.current);
 
   const load = async () => {
@@ -349,11 +349,11 @@ export function EmailTransactionsPanel() {
   // deriveChannel with the cache may write back new entries; we flush to
   // localStorage at the end if anything changed.
   const channelCache = channelCacheRef.current;
-  const beforeSize = Object.keys(channelCache).length;
-  const rowChannel = new Map<string, string>();
+  const cacheSnapshot = JSON.stringify(channelCache);
+  const rowChannel = new Map<string, ChannelResult>();
   for (const r of rows) rowChannel.set(r.id, deriveChannel(r, channelCache));
-  if (Object.keys(channelCache).length !== beforeSize) flushChannelCache();
-  const ch = (r: GmailTx) => rowChannel.get(r.id) ?? deriveChannel(r, channelCache);
+  if (JSON.stringify(channelCache) !== cacheSnapshot) flushChannelCache();
+  const ch = (r: GmailTx): ChannelResult => rowChannel.get(r.id) ?? deriveChannel(r, channelCache);
   const rangeActive = Boolean(fromTs || toTs);
   const parsedCount = filteredRows.filter((r) => r.parsed).length;
   // Compute validity once per row so totals, breakdowns and the list agree.
@@ -381,7 +381,7 @@ export function EmailTransactionsPanel() {
     >();
     for (const r of filteredRows) {
       if (!isCountable(r)) continue;
-      const key = ch(r).replace(/_/g, ' ');
+      const key = ch(r).channel.replace(/_/g, ' ');
       const cur = map.get(key) ?? { inCount: 0, inTotal: 0, outCount: 0, outTotal: 0 };
       const amt = r.amount ?? 0;
       if (r.direction === 'in') {
