@@ -1047,6 +1047,46 @@ export function EmailTransactionsPanel() {
       </div>
 
       <DedupAuditPanel />
+
+      <FixChannelDialog
+        row={editingRow}
+        onClose={() => setEditingRow(null)}
+        userRules={storedUserRules}
+        onSave={(channel, ruleSpec) => {
+          // 1. Override the cache for this row so it sticks immediately.
+          if (editingRow) {
+            const key = channelCacheKey(editingRow);
+            if (key) {
+              channelCacheRef.current[key] = {
+                channel,
+                confidence: 'authoritative',
+                signal: 'Manual correction',
+                rule: 'user_override',
+                source: 'parser',
+              };
+              flushChannelCache();
+            }
+          }
+          // 2. Persist a new permanent rule (if the user opted to).
+          if (ruleSpec) {
+            const next: StoredUserRule[] = [
+              ...storedUserRules,
+              { ...ruleSpec, channel, createdAt: new Date().toISOString() },
+            ];
+            persistUserRules(next);
+          } else {
+            setRulesVersion((v) => v + 1);
+          }
+          toast({
+            title: 'Channel updated',
+            description: ruleSpec
+              ? `Saved as "${channel}" and added a rule for future emails.`
+              : `Saved as "${channel}" for this transaction.`,
+          });
+          setEditingRow(null);
+        }}
+        onDeleteRule={deleteUserRule}
+      />
     </div>
   );
 }
