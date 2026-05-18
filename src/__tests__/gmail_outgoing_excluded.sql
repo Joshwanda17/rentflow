@@ -162,6 +162,6 @@ BEGIN
   RAISE NOTICE 'PASS: incoming email not logged as excluded';
 END $$;
 
-RAISE NOTICE 'PASS: gmail outgoing exclusion invariants all green';
+DO $$ BEGIN RAISE NOTICE 'PASS: gmail outgoing exclusion invariants all green'; END $$;
 
 ROLLBACK;
