@@ -235,6 +235,14 @@ export function EmailTransactionsPanel() {
     try { localStorage.setItem('gmail_net_threshold', String(netThreshold)); } catch {}
   }, [netThreshold]);
 
+  // Persisted cache of derived channel classifications keyed by transaction id
+  // / receipt number (with gmail_message_id as fallback). Loaded once on mount
+  // and flushed back to localStorage whenever the heuristic learns a new key,
+  // so the same id always resolves to the same channel across reloads and
+  // future poll inserts.
+  const channelCacheRef = useRef<Record<string, string>>(readChannelCache());
+  const flushChannelCache = () => writeChannelCache(channelCacheRef.current);
+
   const load = async () => {
     const [{ data: txs }, { data: ps }] = await Promise.all([
       (supabase.from('gmail_transactions') as any)
@@ -294,6 +302,15 @@ export function EmailTransactionsPanel() {
     return true;
   };
   const filteredRows = rows.filter(inRange);
+  // Resolve & memoize the channel for every row once per render. Calling
+  // deriveChannel with the cache may write back new entries; we flush to
+  // localStorage at the end if anything changed.
+  const channelCache = channelCacheRef.current;
+  const beforeSize = Object.keys(channelCache).length;
+  const rowChannel = new Map<string, string>();
+  for (const r of rows) rowChannel.set(r.id, deriveChannel(r, channelCache));
+  if (Object.keys(channelCache).length !== beforeSize) flushChannelCache();
+  const ch = (r: GmailTx) => rowChannel.get(r.id) ?? deriveChannel(r, channelCache);
   const rangeActive = Boolean(fromTs || toTs);
   const parsedCount = filteredRows.filter((r) => r.parsed).length;
   // Compute validity once per row so totals, breakdowns and the list agree.
@@ -321,7 +338,7 @@ export function EmailTransactionsPanel() {
     >();
     for (const r of filteredRows) {
       if (!isCountable(r)) continue;
-      const key = deriveChannel(r).replace(/_/g, ' ');
+      const key = ch(r).replace(/_/g, ' ');
       const cur = map.get(key) ?? { inCount: 0, inTotal: 0, outCount: 0, outTotal: 0 };
       const amt = r.amount ?? 0;
       if (r.direction === 'in') {
