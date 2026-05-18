@@ -87,6 +87,16 @@ export function EmailTransactionsPanel() {
   // Date-range filter (inclusive). Empty string = unbounded on that side.
   const [fromDate, setFromDate] = useState<string>('');
   const [toDate, setToDate] = useState<string>('');
+  // Configurable warning threshold for |net|. Persisted in localStorage. Default 1,000,000 UGX.
+  const [netThreshold, setNetThreshold] = useState<number>(() => {
+    if (typeof window === 'undefined') return 1_000_000;
+    const raw = localStorage.getItem('gmail_net_threshold');
+    const parsed = raw ? Number(raw) : NaN;
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 1_000_000;
+  });
+  useEffect(() => {
+    try { localStorage.setItem('gmail_net_threshold', String(netThreshold)); } catch {}
+  }, [netThreshold]);
 
   const load = async () => {
     const [{ data: txs }, { data: ps }] = await Promise.all([
@@ -268,6 +278,28 @@ export function EmailTransactionsPanel() {
             className="h-9 rounded-md border border-input bg-background px-3 text-sm"
           />
         </div>
+        <div className="flex flex-col">
+          <label
+            className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1"
+            title="Warn when the absolute Net (in − out) exceeds this amount — flags potentially unusual parsing."
+          >
+            Net warning ≥
+          </label>
+          <div className="relative">
+            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground pointer-events-none">UGX</span>
+            <input
+              type="number"
+              min={0}
+              step={10000}
+              value={netThreshold}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                setNetThreshold(Number.isFinite(v) && v >= 0 ? v : 0);
+              }}
+              className="h-9 w-36 rounded-md border border-input bg-background pl-10 pr-2 text-sm tabular-nums"
+            />
+          </div>
+        </div>
         <div className="flex gap-2">
           {[
             { label: '7d', days: 7 },
@@ -345,9 +377,20 @@ export function EmailTransactionsPanel() {
             </div>
           }
           sub={
-            <span className={`text-[10px] ${netAmount >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-              {netAmount >= 0 ? 'net inflow' : 'net outflow'}
-            </span>
+            <div className="flex flex-col gap-1">
+              <span className={`text-[10px] ${netAmount >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                {netAmount >= 0 ? 'net inflow' : 'net outflow'}
+              </span>
+              {netThreshold > 0 && Math.abs(netAmount) >= netThreshold && (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/30 gap-1 w-fit"
+                  title={`|Net| ${fmtUgx(Math.abs(netAmount))} ≥ threshold ${fmtUgx(netThreshold)}. Review parsed emails for duplicates, misclassified direction, or unusually large amounts.`}
+                >
+                  <AlertTriangle className="h-3 w-3" /> unusual · review
+                </Badge>
+              )}
+            </div>
           }
         />
         <StatCard
