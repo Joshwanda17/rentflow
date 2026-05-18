@@ -35,6 +35,8 @@ import {
   Search,
   X,
   CalendarIcon,
+  Sparkles,
+  Bot,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Calendar } from '@/components/ui/calendar';
@@ -65,6 +67,8 @@ interface Row {
   depositor_id: string | null;
   depositor_name: string | null;
   rejection_reason: string | null;
+  auto_approved: boolean;
+  auto_match_method: string | null;
 }
 
 interface Props {
@@ -88,6 +92,8 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
   const [search, setSearch] = useState('');
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  // 'all' = both system + operator, 'auto' = system only, 'manual' = operator only.
+  const [verifierFilter, setVerifierFilter] = useState<'all' | 'auto' | 'manual'>('all');
 
   // Single source of truth for table columns. Drives both render and CSV
   // export so the file always matches what the operator sees.
@@ -136,7 +142,7 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
       let q = supabase
         .from('deposit_requests')
         .select(
-          'id, amount, status, approved_at, rejected_at, processed_by, user_id, rejection_reason',
+          'id, amount, status, approved_at, rejected_at, processed_by, user_id, rejection_reason, metadata',
         )
         .in('status', ['approved', 'rejected'])
         .order('updated_at', { ascending: false })
@@ -180,6 +186,8 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
           depositor_id: r.user_id ?? null,
           depositor_name: r.user_id ? nameMap.get(r.user_id) ?? null : null,
           rejection_reason: r.rejection_reason ?? null,
+          auto_approved: Boolean(r?.metadata?.auto_approved),
+          auto_match_method: (r?.metadata?.auto_match_method as string | undefined) ?? null,
         })),
       );
     } catch {
@@ -355,13 +363,21 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
   };
 
   const searchNorm = search.trim().toLowerCase();
-  const filteredRows = searchNorm
-    ? rows.filter(
-        (r) =>
-          (r.depositor_name?.toLowerCase() ?? '').includes(searchNorm) ||
-          (r.depositor_id?.toLowerCase() ?? '').includes(searchNorm),
-      )
-    : rows;
+  const filteredRows = rows
+    .filter((r) =>
+      verifierFilter === 'auto'
+        ? r.auto_approved
+        : verifierFilter === 'manual'
+          ? !r.auto_approved
+          : true,
+    )
+    .filter((r) =>
+      searchNorm
+        ? (r.depositor_name?.toLowerCase() ?? '').includes(searchNorm) ||
+          (r.depositor_id?.toLowerCase() ?? '').includes(searchNorm)
+        : true,
+    );
+  const autoCount = rows.filter((r) => r.auto_approved).length;
 
   return (
     <Card>
