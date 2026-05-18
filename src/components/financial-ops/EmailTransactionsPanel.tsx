@@ -1995,3 +1995,194 @@ function ReconnectGmailDialog() {
     </Dialog>
   );
 }
+
+/**
+ * Dialog for manually correcting an inferred channel and (optionally)
+ * persisting a permanent rule so future emails matching the same pattern
+ * automatically classify the same way.
+ *
+ * The form is intentionally simple: pick the right channel, optionally
+ * enter a short matching phrase (e.g. "RCT-", "FT2025"), choose which
+ * field to match against, and save. The phrase is escaped and stored as
+ * a case-insensitive regex.
+ */
+function FixChannelDialog({
+  row,
+  onClose,
+  userRules,
+  onSave,
+  onDeleteRule,
+}: {
+  row: GmailTx | null;
+  onClose: () => void;
+  userRules: StoredUserRule[];
+  onSave: (channel: string, ruleSpec: Omit<StoredUserRule, 'createdAt'> | null) => void;
+  onDeleteRule: (id: string) => void;
+}) {
+  const open = !!row;
+  const current = row ? deriveChannel(row) : null;
+  const [channel, setChannel] = useState<string>('cash_receipt');
+  const [matchText, setMatchText] = useState<string>('');
+  const [source, setSource] = useState<RuleSource>('transaction_id');
+  const [saveRule, setSaveRule] = useState<boolean>(true);
+  const [note, setNote] = useState<string>('');
+
+  // Re-seed the form whenever a new row opens the dialog.
+  useEffect(() => {
+    if (!row) return;
+    setChannel(current?.channel && current.channel !== 'other' ? current.channel : 'cash_receipt');
+    // Pre-fill the match text with the most distinctive thing we can find.
+    const id = (row.transaction_id ?? '').trim();
+    const preset = current?.match ?? (id ? id.slice(0, Math.min(id.length, 6)) : '');
+    setMatchText(preset);
+    setSource(id ? 'transaction_id' : 'subject');
+    setSaveRule(true);
+    setNote('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [row?.id]);
+
+  const handleSave = () => {
+    if (!row) return;
+    const phrase = matchText.trim();
+    let ruleSpec: Omit<StoredUserRule, 'createdAt'> | null = null;
+    if (saveRule && phrase.length >= 2) {
+      ruleSpec = {
+        id: `user_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+        channel,
+        confidence: 'high',
+        signal: `User rule: matches "${phrase}"${note ? ` — ${note}` : ''}`,
+        source,
+        patternSource: escapeRegex(phrase),
+        patternFlags: 'i',
+        note: note || undefined,
+      };
+    }
+    onSave(channel, ruleSpec);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Fix inferred channel</DialogTitle>
+          <DialogDescription>
+            Reclassify this transaction and optionally save a rule so future emails
+            matching the same phrase always use this channel.
+          </DialogDescription>
+        </DialogHeader>
+
+        {row && (
+          <div className="space-y-4">
+            <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="outline" className="text-[10px] capitalize">
+                  current: {current?.channel.replace(/_/g, ' ') ?? 'other'}
+                </Badge>
+                {current?.rule && (
+                  <span className="text-muted-foreground">rule: {current.rule}</span>
+                )}
+              </div>
+              <div className="truncate"><strong>Subject:</strong> {row.subject || '(none)'}</div>
+              {row.transaction_id && (
+                <div className="font-mono"><strong className="font-sans">Txn id:</strong> {row.transaction_id}</div>
+              )}
+              {row.snippet && (
+                <div className="line-clamp-2 text-muted-foreground">{row.snippet}</div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Correct channel</Label>
+                <Select value={channel} onValueChange={setChannel}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CHANNEL_OPTIONS.map((c) => (
+                      <SelectItem key={c} value={c} className="capitalize">{c.replace(/_/g, ' ')}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Match in field</Label>
+                <Select value={source} onValueChange={(v) => setSource(v as RuleSource)}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="transaction_id">Transaction id / receipt</SelectItem>
+                    <SelectItem value="subject">Email subject</SelectItem>
+                    <SelectItem value="snippet">Email snippet</SelectItem>
+                    <SelectItem value="from">Sender</SelectItem>
+                    <SelectItem value="body">Anywhere (subject + body)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Match phrase (case-insensitive)</Label>
+              <Input
+                value={matchText}
+                onChange={(e) => setMatchText(e.target.value)}
+                placeholder='e.g. "RCT-" or "FT2025"'
+                className="h-9 font-mono text-xs"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Any future email whose chosen field contains this phrase will be
+                classified as <strong className="capitalize">{channel.replace(/_/g, ' ')}</strong>.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Optional note</Label>
+              <Input
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Why this rule exists"
+                className="h-9 text-xs"
+              />
+            </div>
+
+            <label className="flex items-center gap-2 text-xs select-none">
+              <input
+                type="checkbox"
+                checked={saveRule}
+                onChange={(e) => setSaveRule(e.target.checked)}
+                className="h-3.5 w-3.5"
+              />
+              Save as a permanent rule for future emails
+            </label>
+
+            {userRules.length > 0 && (
+              <div className="space-y-2 pt-2 border-t">
+                <Label className="text-xs">Existing user rules ({userRules.length})</Label>
+                <div className="max-h-40 overflow-y-auto space-y-1 pr-1">
+                  {userRules.map((u) => (
+                    <div key={u.id} className="flex items-center gap-2 text-[11px] rounded border bg-muted/20 px-2 py-1">
+                      <Badge variant="outline" className="text-[10px] capitalize shrink-0">{u.channel.replace(/_/g, ' ')}</Badge>
+                      <span className="font-mono truncate flex-1" title={`/${u.patternSource}/${u.patternFlags} in ${u.source}`}>
+                        /{u.patternSource}/ <span className="text-muted-foreground">in {u.source}</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => onDeleteRule(u.id)}
+                        className="text-muted-foreground hover:text-destructive"
+                        title="Delete rule"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={onClose}>Cancel</Button>
+              <Button onClick={handleSave}>Save</Button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
