@@ -12,6 +12,7 @@ export interface DailyTrackerRow {
   status: 'paid' | 'partial' | 'missed';
   paymentMethod: string;
   remarks: string;
+  missedDays?: number;
 }
 
 export interface DailyAgentSummaryRow {
@@ -45,6 +46,8 @@ export interface DailyCollectionReportInput {
   monthly: { date: string; value: number }[];
   top?: { name: string; rate: number };
   bottom?: { name: string; rate: number };
+  /** When > 0, renders a "Missed (Nd)" column in the tracker table */
+  missedWindow?: number;
 }
 
 const COLORS = {
