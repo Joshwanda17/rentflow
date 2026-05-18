@@ -9,6 +9,7 @@ import {
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { downloadCsv } from '@/lib/csvExport';
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
 
 interface GmailTx {
   id: string;
@@ -181,6 +182,22 @@ export function EmailTransactionsPanel() {
     return Array.from(map.entries())
       .map(([channel, v]) => ({ channel, ...v, net: v.inTotal - v.outTotal }))
       .sort((a, b) => b.inTotal + b.outTotal - (a.inTotal + a.outTotal));
+  })();
+
+  // Daily in vs out series for the selected timeframe.
+  const dailySeries = (() => {
+    const map = new Map<string, { date: string; in: number; out: number; net: number }>();
+    for (const r of filteredRows) {
+      if (!isCountable(r) || !r.internal_date) continue;
+      const key = format(new Date(r.internal_date), 'yyyy-MM-dd');
+      const cur = map.get(key) ?? { date: key, in: 0, out: 0, net: 0 };
+      const amt = r.amount ?? 0;
+      if (r.direction === 'in') cur.in += amt;
+      else if (r.direction === 'out' || r.direction === 'charge') cur.out += amt;
+      cur.net = cur.in - cur.out;
+      map.set(key, cur);
+    }
+    return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
   })();
 
   return (
@@ -382,6 +399,49 @@ export function EmailTransactionsPanel() {
                 </tr>
               </tfoot>
             </table>
+          </div>
+        </div>
+      )}
+
+      {dailySeries.length > 0 && (
+        <div className="rounded-xl border bg-card overflow-hidden">
+          <div className="p-4 border-b flex items-center justify-between">
+            <h3 className="font-semibold text-sm">In vs Out — daily</h3>
+            <span className="text-[11px] text-muted-foreground">
+              {dailySeries.length} day{dailySeries.length === 1 ? '' : 's'}
+              {rangeActive ? ' in selected range' : ''}
+            </span>
+          </div>
+          <div className="p-4 h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={dailySeries} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  tickFormatter={(v) => format(new Date(v), 'MMM d')}
+                />
+                <YAxis
+                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  tickFormatter={(v) => (v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M` : v >= 1_000 ? `${Math.round(v / 1_000)}k` : `${v}`)}
+                  width={50}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: 'hsl(var(--popover))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                  labelFormatter={(v) => format(new Date(v as string), 'PPP')}
+                  formatter={(v: number, name) => [fmtUgx(v), name]}
+                />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Line type="monotone" dataKey="in" name="In" stroke="hsl(142 71% 45%)" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="out" name="Out" stroke="hsl(0 72% 51%)" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="net" name="Net" stroke="hsl(var(--primary))" strokeWidth={1.5} strokeDasharray="4 4" dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </div>
       )}
