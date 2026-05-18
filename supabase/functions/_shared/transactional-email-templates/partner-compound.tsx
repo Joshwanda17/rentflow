@@ -125,7 +125,7 @@ export function PartnerCompound({
       const earned = Number(String(h.return_amount ?? '').replace(/,/g, '')) || 0
       const after = Number(String(h.balance_after ?? '').replace(/,/g, '')) || (before + earned)
       return {
-        cycleLabel: `Cycle ${h.cycle ?? idx + 1}`,
+        cycleLabel: `Month ${h.cycle ?? idx + 1}`,
         dateLabel: h.date,
         before, earned, after,
         isCurrent: idx === compound_history.length - 1,
@@ -143,7 +143,7 @@ export function PartnerCompound({
     timeline = endings.map((after, idx) => {
       const before = idx === 0 ? bal : endings[idx - 1]
       return {
-        cycleLabel: `Cycle ${idx + 1}`,
+        cycleLabel: `Month ${idx + 1}`,
         dateLabel: idx === endings.length - 1 ? compound_date : undefined,
         before,
         earned: after - before,
@@ -154,7 +154,7 @@ export function PartnerCompound({
   } else {
     // Single-cycle fallback
     timeline = [{
-      cycleLabel: cyclesDone > 0 ? `Cycle ${cyclesDone}` : 'This cycle',
+      cycleLabel: cyclesDone > 0 ? `Month ${cyclesDone}` : 'This month',
       dateLabel: compound_date,
       before: initNum,
       earned: retNum,
@@ -238,7 +238,7 @@ export function PartnerCompound({
                   <td className="padding-mobile" style={{ padding: '0 40px 30px 40px' }}>
                     <Text style={timelineTitle}>How your New Total was built</Text>
                     <Text style={timelineSubtitle}>
-                      A cycle-by-cycle breakdown of the compounding that produced {formattedNewTotal}.
+                      A month-by-month breakdown of the compounding that produced {formattedNewTotal}.
                     </Text>
                     <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={timelineCard}>
                       <tbody>
@@ -256,13 +256,13 @@ export function PartnerCompound({
                               }}>
                                 <Text style={timelineCycleLabel}>
                                   {row.cycleLabel}
-                                  {row.isCurrent && <span style={timelineCurrentTag}>&nbsp;· This cycle</span>}
+                                  {row.isCurrent && <span style={timelineCurrentTag}>&nbsp;· This month</span>}
                                   {row.dateLabel && <span style={timelineDateLabel}>&nbsp;· {row.dateLabel}</span>}
                                 </Text>
                                 <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={{ marginTop: 6 }}>
                                   <tbody>
                                     <tr>
-                                      <td style={timelineKvLabel}>Start of cycle</td>
+                                      <td style={timelineKvLabel}>Start of month</td>
                                       <td align="right" style={timelineKvValue}>{formatAmount(row.before, currency)}</td>
                                     </tr>
                                     <tr>
@@ -283,7 +283,7 @@ export function PartnerCompound({
                     </table>
                     {cyclesDone >= 2 && !(Array.isArray(compound_history) && compound_history.length > 0) && (
                       <Text style={timelineFootnote}>
-                        Cycle balances are reconstructed from your portfolio's compounding rate ({roiLabel} per cycle).
+                        Monthly balances are reconstructed from your portfolio's compounding rate ({roiLabel} per month).
                       </Text>
                     )}
                   </td>
