@@ -219,47 +219,69 @@ export function FieldDepositWizardDialog({ open, onOpenChange, attachProofTo }: 
             />
             <div>
               <Label className="text-sm font-semibold">Where should this money go?</Label>
-              <div className="grid grid-cols-1 gap-2 mt-2">
-                {([
-                  {
-                    value: 'operational_float' as TargetBucket,
-                    label: 'Operational float',
-                    hint: "Rent I collected from tenants. I'll tag tenants next.",
-                    icon: Briefcase,
-                  },
-                  {
-                    value: 'withdrawable' as TargetBucket,
-                    label: 'My withdrawable wallet',
-                    hint: "My own money. Skip tenant tagging \u2014 no commission paid.",
-                    icon: Wallet,
-                  },
-                ]).map(opt => {
-                  const Icon = opt.icon;
-                  const active = targetBucket === opt.value;
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setTargetBucket(opt.value)}
-                      className={cn(
-                        'flex items-center gap-3 p-3 rounded-xl border text-left transition-all',
-                        active ? 'border-primary bg-primary/5 ring-2 ring-primary/20' : 'hover:bg-muted/40',
-                      )}
-                    >
-                      <div className={cn(
-                        'h-9 w-9 rounded-lg flex items-center justify-center shrink-0',
-                        active ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground',
-                      )}>
-                        <Icon className="h-4 w-4" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-sm">{opt.label}</p>
-                        <p className="text-[11px] text-muted-foreground">{opt.hint}</p>
-                      </div>
-                      {active && <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />}
-                    </button>
-                  );
-                })}
+              <div className="mt-2 space-y-2">
+                {/* PRIMARY: Operational float — visually dominant (~3x the secondary card) */}
+                <button
+                  type="button"
+                  onClick={() => setTargetBucket('operational_float')}
+                  className={cn(
+                    'w-full flex items-center gap-4 p-6 rounded-2xl border-2 text-left transition-all shadow-md',
+                    targetBucket === 'operational_float'
+                      ? 'border-primary bg-primary/10 ring-4 ring-primary/30 shadow-lg scale-[1.01]'
+                      : 'border-primary/40 bg-primary/5 hover:bg-primary/10',
+                  )}
+                >
+                  <div className={cn(
+                    'h-16 w-16 rounded-2xl flex items-center justify-center shrink-0',
+                    targetBucket === 'operational_float'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-primary/20 text-primary',
+                  )}>
+                    <Briefcase className="h-8 w-8" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-bold text-lg leading-tight">Operational float</p>
+                      <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-primary/15 text-primary">
+                        Recommended
+                      </span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Rent I collected from tenants. I'll tag tenants next and earn commission.
+                    </p>
+                  </div>
+                  {targetBucket === 'operational_float' && (
+                    <CheckCircle2 className="h-6 w-6 text-primary shrink-0" />
+                  )}
+                </button>
+
+                {/* SECONDARY: Withdrawable — small, subdued */}
+                <button
+                  type="button"
+                  onClick={() => setTargetBucket('withdrawable')}
+                  className={cn(
+                    'w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-left transition-all',
+                    targetBucket === 'withdrawable'
+                      ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
+                      : 'border-border/60 hover:bg-muted/40',
+                  )}
+                >
+                  <div className={cn(
+                    'h-7 w-7 rounded-md flex items-center justify-center shrink-0',
+                    targetBucket === 'withdrawable'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground',
+                  )}>
+                    <Wallet className="h-3.5 w-3.5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-xs">My personal withdrawable wallet</p>
+                    <p className="text-[10px] text-muted-foreground">My own money — no tenant tagging, no commission.</p>
+                  </div>
+                  {targetBucket === 'withdrawable' && (
+                    <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0" />
+                  )}
+                </button>
               </div>
             </div>
             <div>
