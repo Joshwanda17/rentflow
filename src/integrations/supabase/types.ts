@@ -14242,6 +14242,11 @@ export type Database = {
           amount: number
           counterparty: string
           deposit_request_id: string
+          depositor_email: string
+          depositor_full_name: string
+          depositor_phone: string
+          from_email: string
+          from_name: string
           gmail_transaction_id: string
           internal_date: string
           match_score: number
@@ -14249,6 +14254,8 @@ export type Database = {
           method: string
           provider: string
           signals: string[]
+          snippet: string
+          subject: string
           user_id: string
         }[]
       }
