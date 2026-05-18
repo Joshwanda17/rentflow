@@ -5,13 +5,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Clock, CheckCircle2, XCircle, Loader2, Phone, Calendar, Hash, Download, MessageCircle, ShieldCheck, Target, Info } from 'lucide-react';
+import { ArrowLeft, Clock, CheckCircle2, XCircle, Loader2, Phone, Calendar, Hash, Download, MessageCircle, ShieldCheck, Target, Info, BadgeCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { downloadDepositReceipt, buildDepositReceiptWhatsApp, type DepositReceiptData } from '@/lib/receiptPdf';
 import { shareViaWhatsApp } from '@/lib/shareReceipt';
 import { useAuth } from '@/hooks/useAuth';
 import { canViewDepositPurpose } from '@/lib/depositPurposeVisibility';
+import { isAutoCancelledDuplicate } from '@/lib/depositDuplicateDetection';
 
 interface DepositRequest {
   id: string;
@@ -111,8 +112,19 @@ export default function DepositHistory() {
     }).format(amount);
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
+  const getStatusBadge = (deposit: DepositRequest) => {
+    if (isAutoCancelledDuplicate(deposit)) {
+      return (
+        <Badge
+          variant="outline"
+          className="bg-emerald-500/10 text-emerald-700 border-emerald-500/30"
+        >
+          <BadgeCheck className="h-3 w-3 mr-1" />
+          Already credited
+        </Badge>
+      );
+    }
+    switch (deposit.status) {
       case 'approved':
         return (
           <Badge className="bg-success/20 text-success border-success/30">
@@ -198,7 +210,7 @@ export default function DepositHistory() {
                       {formatCurrency(deposit.amount)}
                     </CardTitle>
                     <div className="flex items-center gap-2 flex-wrap">
-                      {getStatusBadge(deposit.status)}
+                      {getStatusBadge(deposit)}
                       {getProviderBadge(deposit.provider)}
                       {purposeLabel(deposit) && (
                         <Badge
@@ -264,7 +276,23 @@ export default function DepositHistory() {
                   </Button>
                 )}
 
-                {deposit.status === 'rejected' && deposit.rejection_reason && (
+                {isAutoCancelledDuplicate(deposit) ? (
+                  <div className="p-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10">
+                    <p className="text-sm text-emerald-800 font-medium flex items-center gap-1.5">
+                      <BadgeCheck className="h-4 w-4" />
+                      Already credited — no duplicate created
+                    </p>
+                    <p className="text-xs text-emerald-700/90 mt-1">
+                      {deposit.rejection_reason}
+                    </p>
+                    <p className="text-[11px] text-emerald-700/80 mt-1">
+                      We matched this transaction reference to a mobile-money
+                      receipt that had already been auto-verified earlier, so
+                      this in-app submission was cancelled to avoid double
+                      crediting your wallet.
+                    </p>
+                  </div>
+                ) : deposit.status === 'rejected' && deposit.rejection_reason && (
                   <div className="p-3 bg-destructive/10 rounded-lg border border-destructive/20">
                     <p className="text-sm text-destructive">
                       <strong>Rejection reason:</strong> {deposit.rejection_reason}
