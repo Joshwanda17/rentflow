@@ -9,7 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  Banknote, Smartphone, Building2, HandCoins, ArrowLeft, ArrowRight, CheckCircle2,
+  Banknote, Smartphone, Building2, HandCoins, ArrowLeft, ArrowRight, CheckCircle2, Wallet, Briefcase,
   Loader2, Receipt, AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -17,7 +17,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { formatUGX } from '@/lib/rentCalculations';
 import {
-  type DepositChannel, type FieldDepositBatch, type UnbatchedFieldCollection,
+  type DepositChannel, type FieldDepositBatch, type TargetBucket, type UnbatchedFieldCollection,
   channelLabel, listUnbatchedFieldCollections, createBatchWithItems, submitProofForBatch,
 } from '@/lib/fieldDepositBatches';
 import { GlossaryTip } from '@/components/shared/GlossaryTip';
@@ -53,6 +53,7 @@ export function FieldDepositWizardDialog({ open, onOpenChange, attachProofTo }: 
   const [channel, setChannel] = useState<DepositChannel>('mtn');
   const [declared, setDeclared] = useState<string>('');
   const [notes, setNotes] = useState('');
+  const [targetBucket, setTargetBucket] = useState<TargetBucket>('operational_float');
 
   /* Step 2 */
   const [available, setAvailable] = useState<UnbatchedFieldCollection[]>([]);
@@ -75,6 +76,7 @@ export function FieldDepositWizardDialog({ open, onOpenChange, attachProofTo }: 
       setCreatedBatch(attachProofTo);
       setProofRef('');
       setProofDeferred(false);
+      setTargetBucket(attachProofTo.target_bucket ?? 'operational_float');
     } else {
       setStep(1);
       setChannel('mtn');
@@ -84,6 +86,7 @@ export function FieldDepositWizardDialog({ open, onOpenChange, attachProofTo }: 
       setProofRef('');
       setCreatedBatch(null);
       setProofDeferred(false);
+      setTargetBucket('operational_float');
     }
   }, [open, attachProofTo]);
 
@@ -134,14 +137,18 @@ export function FieldDepositWizardDialog({ open, onOpenChange, attachProofTo }: 
     setSubmitting(true);
     try {
       const itemAmounts: Record<string, number> = {};
-      for (const r of available) if (picked.has(r.id)) itemAmounts[r.id] = Number(r.amount);
+      const isWithdrawable = targetBucket === 'withdrawable';
+      if (!isWithdrawable) {
+        for (const r of available) if (picked.has(r.id)) itemAmounts[r.id] = Number(r.amount);
+      }
       const batch = await createBatchWithItems({
         agentId: user.id,
         channel,
         declaredTotal: declaredNum,
-        collectionIds: Array.from(picked),
-        itemAmounts,
+        collectionIds: isWithdrawable ? [] : Array.from(picked),
+        itemAmounts: isWithdrawable ? {} : itemAmounts,
         notes: notes.trim() || null,
+        targetBucket,
       });
       setCreatedBatch(batch);
       if (submitProofNow) {
