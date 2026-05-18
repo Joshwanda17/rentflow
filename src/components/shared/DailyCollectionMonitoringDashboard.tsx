@@ -111,6 +111,8 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
   const [propertyFilter, setPropertyFilter] = useState<string>('all');
   // Missed-payments interval filter (0 = off, otherwise lookback days)
   const [missedWindow, setMissedWindow] = useState<number>(0);
+  // Minimum missed-days threshold within the window (1 = at least one missed day)
+  const [missedMin, setMissedMin] = useState<number>(1);
   const [recordOpen, setRecordOpen] = useState(false);
   const [recordRow, setRecordRow] = useState<TenantTrackerRow | null>(null);
   const [recordAmount, setRecordAmount] = useState('');
@@ -407,10 +409,13 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
     return trackerRows.filter(r => {
       if (agentFilter !== 'all' && r.agentId !== agentFilter) return false;
       if (propertyFilter !== 'all' && r.property !== propertyFilter) return false;
-      if (missedWindow > 0 && !missedDaysByTenant.has(r.tenantId)) return false;
+      if (missedWindow > 0) {
+        const m = missedDaysByTenant.get(r.tenantId) || 0;
+        if (m < Math.min(missedMin, missedWindow)) return false;
+      }
       return true;
     });
-  }, [trackerRows, agentFilter, propertyFilter, missedWindow, missedDaysByTenant]);
+  }, [trackerRows, agentFilter, propertyFilter, missedWindow, missedMin, missedDaysByTenant]);
 
   // Daily totals
   const totals = useMemo(() => {
@@ -428,7 +433,7 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
     [filteredRows, trackerCurrentPage]
   );
   // Reset to first page whenever filters/date/range change
-  useEffect(() => { setTrackerPage(1); }, [agentFilter, propertyFilter, day, range, missedWindow]);
+  useEffect(() => { setTrackerPage(1); }, [agentFilter, propertyFilter, day, range, missedWindow, missedMin]);
 
   // KPIs
   const collectionToday = (collections || []).reduce((s, c) => s + Number(c.amount || 0), 0);
@@ -755,13 +760,30 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
               <SelectItem value="30">Missed in last 30 days</SelectItem>
             </SelectContent>
           </Select>
+          {missedWindow > 0 && (
+            <Select
+              value={String(Math.min(missedMin, missedWindow))}
+              onValueChange={(v) => setMissedMin(Number(v))}
+            >
+              <SelectTrigger className="h-8 w-[170px] text-xs">
+                <SelectValue placeholder="Min missed days" />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: missedWindow }, (_, i) => i + 1).map((n) => (
+                  <SelectItem key={n} value={String(n)}>
+                    At least {n} missed day{n > 1 ? 's' : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           {(agentFilter !== 'all' || propertyFilter !== 'all' || missedWindow > 0) && (
-            <Button size="sm" variant="ghost" className="h-8" onClick={() => { setAgentFilter('all'); setPropertyFilter('all'); setMissedWindow(0); }}>
+            <Button size="sm" variant="ghost" className="h-8" onClick={() => { setAgentFilter('all'); setPropertyFilter('all'); setMissedWindow(0); setMissedMin(1); }}>
               <X className="h-3.5 w-3.5 mr-1" /> Clear
             </Button>
           )}
           <div className="ml-auto text-[11px] text-muted-foreground">
-            {filteredRows.length} {missedWindow > 0 ? `tenants missed ≥1 day in last ${missedWindow}` : 'active rent plans'}
+            {filteredRows.length} {missedWindow > 0 ? `tenants missed ≥${Math.min(missedMin, missedWindow)} day${Math.min(missedMin, missedWindow) > 1 ? 's' : ''} in last ${missedWindow}` : 'active rent plans'}
           </div>
         </CardContent>
       </Card>
