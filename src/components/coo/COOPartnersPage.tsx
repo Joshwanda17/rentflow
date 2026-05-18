@@ -487,6 +487,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                 roi_return: `${portfolio.roi_percentage}%`,
                 return_amount: roiAmount,
                 new_total_partnership_value: newAmount,
+                roi_percentage: portfolio.roi_percentage,
+                payment_number: paymentNumber,
                 currency: 'UGX',
                 company_name: 'Welile',
                 logo_url: 'https://welilereceipts.com/welile-logo.png',
