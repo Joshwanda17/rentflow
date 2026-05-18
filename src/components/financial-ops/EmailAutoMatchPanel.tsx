@@ -78,6 +78,7 @@ export function EmailAutoMatchPanel() {
   const [bulkApproving, setBulkApproving] = useState(false);
   const [lastRunAt, setLastRunAt] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [retrying24h, setRetrying24h] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const runningRef = useRef(false);
   const autoApprovedRef = useRef<Set<string>>(new Set());
@@ -310,6 +311,34 @@ export function EmailAutoMatchPanel() {
     toast({ title: 'Match skipped', description: 'The email is back in the unmatched pool.' });
   }, [toast]);
 
+  // Manual "force retry last 24h" — re-runs the server-side rematch job over
+  // the last 24h of unapproved Gmail rows and then immediately re-evaluates
+  // matches so any high-confidence ones (TID / amount_strong) get auto-approved.
+  const retryLast24h = useCallback(async () => {
+    setRetrying24h(true);
+    try {
+      const { data: count, error: rpcErr } = await (supabase.rpc as any)(
+        'run_email_auto_match_retry',
+        { p_window_hours: 24 },
+      );
+      if (rpcErr) throw rpcErr;
+      toast({
+        title: 'Retry triggered',
+        description: `Re-matched ${count ?? 0} email${count === 1 ? '' : 's'} from the last 24h. Auto-approving eligible matches…`,
+      });
+      await runMatch(false);
+    } catch (e: any) {
+      console.warn('[retry-24h] failed', e);
+      toast({
+        title: 'Retry failed',
+        description: e?.message ?? 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setRetrying24h(false);
+    }
+  }, [runMatch, toast]);
+
   return (
     <div className="rounded-xl border bg-card overflow-hidden">
       <div className="p-4 border-b bg-gradient-to-r from-primary/5 to-transparent flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -338,6 +367,16 @@ export function EmailAutoMatchPanel() {
               Approve {tidMatches.length} TID match{tidMatches.length === 1 ? '' : 'es'}
             </Button>
           )}
+          <Button
+            variant="secondary"
+            onClick={retryLast24h}
+            disabled={retrying24h || running}
+            className="gap-2"
+            title="Re-run the auto-matcher over the last 24h of unapproved emails and auto-approve high-confidence matches"
+          >
+            {retrying24h ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            Retry last 24h
+          </Button>
           <Button variant="outline" onClick={() => runMatch(false)} disabled={running} className="gap-2">
             {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             Rescan
