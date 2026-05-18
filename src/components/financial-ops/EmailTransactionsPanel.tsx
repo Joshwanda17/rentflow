@@ -377,9 +377,20 @@ export function EmailTransactionsPanel() {
             </div>
           }
           sub={
-            <span className={`text-[10px] ${netAmount >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-              {netAmount >= 0 ? 'net inflow' : 'net outflow'}
-            </span>
+            <div className="flex flex-col gap-1">
+              <span className={`text-[10px] ${netAmount >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                {netAmount >= 0 ? 'net inflow' : 'net outflow'}
+              </span>
+              {netThreshold > 0 && Math.abs(netAmount) >= netThreshold && (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/30 gap-1 w-fit"
+                  title={`|Net| ${fmtUgx(Math.abs(netAmount))} ≥ threshold ${fmtUgx(netThreshold)}. Review parsed emails for duplicates, misclassified direction, or unusually large amounts.`}
+                >
+                  <AlertTriangle className="h-3 w-3" /> unusual · review
+                </Badge>
+              )}
+            </div>
           }
         />
         <StatCard
