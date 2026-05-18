@@ -278,6 +278,28 @@ export function EmailTransactionsPanel() {
             className="h-9 rounded-md border border-input bg-background px-3 text-sm"
           />
         </div>
+        <div className="flex flex-col">
+          <label
+            className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1"
+            title="Warn when the absolute Net (in − out) exceeds this amount — flags potentially unusual parsing."
+          >
+            Net warning ≥
+          </label>
+          <div className="relative">
+            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground pointer-events-none">UGX</span>
+            <input
+              type="number"
+              min={0}
+              step={10000}
+              value={netThreshold}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                setNetThreshold(Number.isFinite(v) && v >= 0 ? v : 0);
+              }}
+              className="h-9 w-36 rounded-md border border-input bg-background pl-10 pr-2 text-sm tabular-nums"
+            />
+          </div>
+        </div>
         <div className="flex gap-2">
           {[
             { label: '7d', days: 7 },
