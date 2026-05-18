@@ -247,6 +247,18 @@ export function FieldDepositWizardDialog({ open, onOpenChange, attachProofTo }: 
               </div>
             </button>
 
+            {/* One-line confirmation: what happens after submission */}
+            {targetBucket === 'operational_float' && (
+              <p className="text-[11px] text-muted-foreground -mt-3 px-1 leading-snug">
+                <span className="font-semibold text-foreground">Next:</span> tag tenants → submit proof (TID/receipt). Finance verifies → credits your <span className="font-semibold text-primary">float</span> & pays 10% commission.
+              </p>
+            )}
+            {targetBucket === 'withdrawable' && (
+              <p className="text-[11px] text-muted-foreground -mt-3 px-1 leading-snug">
+                <span className="font-semibold text-foreground">Next:</span> submit proof (TID/receipt). Finance verifies → credits your <span className="font-semibold text-primary">personal wallet</span> (withdrawable, no commission).
+              </p>
+            )}
+
             {/* SECONDARY: Withdrawable — minimal compact link-style */}
             <button
               type="button"
