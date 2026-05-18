@@ -490,12 +490,12 @@ export function EmailTransactionsPanel() {
           ) : null}
         />
         <StatCard
-          label="Flagged (excluded)"
+          label="Flagged (review)"
           value={flaggedCount.toString()}
           sub={
             flaggedCount > 0 ? (
               <span className="inline-flex items-center gap-1 text-amber-600 text-[10px]">
-                <AlertTriangle className="h-3 w-3" /> not counted in totals
+                <AlertTriangle className="h-3 w-3" /> counted, but verify
               </span>
             ) : (
               <span className="text-[10px] text-emerald-600">all parsed rows valid</span>
