@@ -792,6 +792,9 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
                     <TableHead className="text-xs text-right">Collected</TableHead>
                     <TableHead className="text-xs text-right">Balance</TableHead>
                     <TableHead className="text-xs">Status</TableHead>
+                    {missedWindow > 0 && (
+                      <TableHead className="text-xs text-right">Missed (last {missedWindow}d)</TableHead>
+                    )}
                     <TableHead className="text-xs">Method</TableHead>
                     <TableHead className="text-xs">Remarks</TableHead>
                     {mode === 'editable' && <TableHead className="text-xs">Action</TableHead>}
@@ -831,6 +834,13 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
                       <TableCell className="text-xs text-right tabular-nums">{formatUGX(r.collected)}</TableCell>
                       <TableCell className={cn('text-xs text-right tabular-nums', r.balance > 0 && 'text-destructive font-semibold')}>{formatUGX(r.balance)}</TableCell>
                       <TableCell>{statusBadge(r.status)}</TableCell>
+                      {missedWindow > 0 && (
+                        <TableCell className="text-xs text-right">
+                          <Badge variant="destructive" className="tabular-nums">
+                            {missedDaysByTenant.get(r.tenantId) || 0} / {missedWindow}
+                          </Badge>
+                        </TableCell>
+                      )}
                       <TableCell className="text-xs">{r.paymentMethod}</TableCell>
                       <TableCell className="text-xs text-muted-foreground max-w-[160px] truncate" title={r.remarks}>{r.remarks}</TableCell>
                       {mode === 'editable' && (
@@ -848,7 +858,7 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
                     <TableCell className="text-xs text-right tabular-nums">{formatUGX(totals.expected)}</TableCell>
                     <TableCell className="text-xs text-right tabular-nums">{formatUGX(totals.collected)}</TableCell>
                     <TableCell className="text-xs text-right tabular-nums text-destructive">{formatUGX(totals.outstanding)}</TableCell>
-                    <TableCell colSpan={mode === 'editable' ? 4 : 3}></TableCell>
+                    <TableCell colSpan={(mode === 'editable' ? 4 : 3) + (missedWindow > 0 ? 1 : 0)}></TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
