@@ -900,9 +900,50 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
                       <TableCell>{statusBadge(r.status)}</TableCell>
                       {missedWindow > 0 && (
                         <TableCell className="text-xs text-right">
-                          <Badge variant="destructive" className="tabular-nums">
-                            {missedDaysByTenant.get(r.tenantId) || 0} / {missedWindow}
-                          </Badge>
+                          {(() => {
+                            const count = missedDaysByTenant.get(r.tenantId) || 0;
+                            const dates = missedDatesByTenant.get(r.tenantId) || [];
+                            if (count === 0) {
+                              return (
+                                <Badge variant="outline" className="tabular-nums">
+                                  0 / {missedWindow}
+                                </Badge>
+                              );
+                            }
+                            return (
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <button type="button" title="Click to see exact missed dates">
+                                    <Badge variant="destructive" className="tabular-nums cursor-pointer hover:opacity-90">
+                                      {count} / {missedWindow}
+                                    </Badge>
+                                  </button>
+                                </PopoverTrigger>
+                                <PopoverContent align="end" className="w-64 p-0">
+                                  <div className="px-3 py-2 border-b">
+                                    <p className="text-xs font-semibold">Missed dates</p>
+                                    <p className="text-[11px] text-muted-foreground">
+                                      {r.tenantName} • last {missedWindow} day{missedWindow > 1 ? 's' : ''}
+                                    </p>
+                                  </div>
+                                  <div className="max-h-56 overflow-y-auto py-1">
+                                    {dates.map((d) => {
+                                      const dt = new Date(d);
+                                      return (
+                                        <div
+                                          key={d}
+                                          className="px-3 py-1 text-xs flex items-center justify-between hover:bg-muted/40"
+                                        >
+                                          <span className="tabular-nums">{format(dt, 'EEE, dd MMM yyyy')}</span>
+                                          <span className="text-[10px] text-destructive uppercase">missed</span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
+                            );
+                          })()}
                         </TableCell>
                       )}
                       <TableCell className="text-xs">{r.paymentMethod}</TableCell>
