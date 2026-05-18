@@ -22,7 +22,7 @@ import {
 import {
   Users, CheckCircle2, Banknote, CalendarDays, Building, Trophy, AlertTriangle,
   TrendingUp, TrendingDown, Loader2, Wallet, Filter, CalendarIcon, X,
-  ChevronLeft, ChevronRight, Printer,
+  ChevronLeft, ChevronRight, Printer, FileDown,
 } from 'lucide-react';
 import {
   startOfDay, endOfDay, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
@@ -595,6 +595,7 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
                   status: r.status,
                   paymentMethod: r.paymentMethod,
                   remarks: r.remarks,
+                  missedDays: missedDaysByTenant.get(r.tenantId) || 0,
                 })),
                 totals,
                 agentSummary: agentSummary.map(a => ({
@@ -615,6 +616,7 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
                 monthly: monthTrend,
                 top: topAgent ? { name: topAgent.name, rate: topAgent.rate } : undefined,
                 bottom: bottomAgent ? { name: bottomAgent.name, rate: bottomAgent.rate } : undefined,
+                missedWindow,
               });
               downloadPdfBlob(blob, `daily-collection-${format(day, 'yyyy-MM-dd')}.pdf`);
               toast.success('Report downloaded');
@@ -624,6 +626,60 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
           }}
         >
           <Printer className="h-3.5 w-3.5" /> Print Report
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1.5"
+          onClick={() => {
+            try {
+              const esc = (v: string | number) => {
+                const s = String(v ?? '');
+                return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+              };
+              const header = [
+                '#', 'Date', 'Agent', 'Tenant', 'Property', 'Expected (UGX)',
+                'Collected (UGX)', 'Balance (UGX)', 'Status',
+                ...(missedWindow > 0 ? [`Missed (last ${missedWindow}d)`, `Window (days)`] : []),
+                'Method', 'Remarks',
+              ];
+              const lines = [header.map(esc).join(',')];
+              filteredRows.forEach((r, i) => {
+                const cols: (string | number)[] = [
+                  i + 1, r.date, r.agentName, r.tenantName, r.property,
+                  Math.round(r.expected), Math.round(r.collected), Math.round(r.balance),
+                  r.status,
+                ];
+                if (missedWindow > 0) {
+                  cols.push(missedDaysByTenant.get(r.tenantId) || 0, missedWindow);
+                }
+                cols.push(r.paymentMethod, r.remarks);
+                lines.push(cols.map(esc).join(','));
+              });
+              // Totals row
+              const totalsCols: (string | number)[] = [
+                '', 'TOTALS', '', '', '',
+                Math.round(totals.expected), Math.round(totals.collected), Math.round(totals.outstanding), '',
+              ];
+              if (missedWindow > 0) totalsCols.push('', '');
+              totalsCols.push('', '');
+              lines.push(totalsCols.map(esc).join(','));
+
+              const csv = '\uFEFF' + lines.join('\n');
+              const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `daily-collection-${format(day, 'yyyy-MM-dd')}${missedWindow > 0 ? `-missed-${missedWindow}d` : ''}.csv`;
+              a.click();
+              URL.revokeObjectURL(url);
+              toast.success('CSV downloaded');
+            } catch (e: any) {
+              toast.error(e?.message || 'Failed to export CSV');
+            }
+          }}
+        >
+          <FileDown className="h-3.5 w-3.5" /> Export CSV
         </Button>
       </div>
 
