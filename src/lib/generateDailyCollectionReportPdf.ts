@@ -262,17 +262,25 @@ export function generateDailyCollectionReportPdf(input: DailyCollectionReportInp
     const sColor = r.status === 'paid' ? COLORS.green : r.status === 'partial' ? COLORS.amber : COLORS.red;
     const sLabel = r.status === 'paid' ? 'Paid' : r.status === 'partial' ? 'Partial' : 'Missed';
     doc.setFillColor(...sColor);
-    (doc as any).roundedRect(colX(8) + 1, y + 1.3, colsT[8].w - 2, rowH - 2.6, 0.8, 0.8, 'F');
+    (doc as any).roundedRect(colX(IDX_STATUS) + 1, y + 1.3, colsT[IDX_STATUS].w - 2, rowH - 2.6, 0.8, 0.8, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(6.5);
-    doc.text(sLabel, colX(8) + colsT[8].w / 2, baseline - 0.2, { align: 'center' });
+    doc.text(sLabel, colX(IDX_STATUS) + colsT[IDX_STATUS].w / 2, baseline - 0.2, { align: 'center' });
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(...COLORS.slate);
-    doc.text(trunc(r.paymentMethod, 14), colX(9) + 1.5, baseline);
+    if (showMissed) {
+      const m = r.missedDays || 0;
+      doc.setTextColor(...(m > 0 ? COLORS.red : COLORS.muted));
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${m} / ${input.missedWindow}`, colX(IDX_MISSED) + colsT[IDX_MISSED].w - 1.5, baseline, { align: 'right' });
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...COLORS.slate);
+    }
+    doc.text(trunc(r.paymentMethod, 14), colX(IDX_METHOD) + 1.5, baseline);
     doc.setTextColor(...COLORS.muted);
-    doc.text(trunc(r.remarks, 22), colX(10) + 1.5, baseline);
+    doc.text(trunc(r.remarks, 22), colX(IDX_REMARKS) + 1.5, baseline);
     y += rowH;
   });
 
