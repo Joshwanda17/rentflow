@@ -119,6 +119,7 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
   const [recordMethod, setRecordMethod] = useState<string>('cash');
   const [recordRemarks, setRecordRemarks] = useState('');
   const [trackerPage, setTrackerPage] = useState(1);
+  const [expandedTenants, setExpandedTenants] = useState<Set<string>>(new Set());
   const TRACKER_PAGE_SIZE = 10;
   const [submitting, setSubmitting] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
