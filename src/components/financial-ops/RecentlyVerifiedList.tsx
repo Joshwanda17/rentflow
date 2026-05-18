@@ -556,6 +556,35 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
         <p className="text-[11px] text-muted-foreground mt-2">
           Audit trail — who approved or rejected each user deposit.
         </p>
+        <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+          <span className="text-[10px] text-muted-foreground uppercase tracking-wide mr-1">
+            Source
+          </span>
+          {(['all', 'auto', 'manual'] as const).map((opt) => {
+            const active = verifierFilter === opt;
+            const label =
+              opt === 'all'
+                ? `All (${rows.length})`
+                : opt === 'auto'
+                  ? `Auto-verified ⚡ (${autoCount})`
+                  : `By operator (${rows.length - autoCount})`;
+            return (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => setVerifierFilter(opt)}
+                className={cn(
+                  'text-[10px] px-2 py-0.5 rounded-full border transition-colors',
+                  active
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-background text-muted-foreground border-border hover:bg-muted/40',
+                )}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
       </CardHeader>
       <CardContent className="pt-0">
         {loading ? (
