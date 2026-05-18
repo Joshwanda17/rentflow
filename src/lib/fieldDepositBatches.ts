@@ -8,6 +8,8 @@ export type BatchStatus =
   | 'rejected'
   | 'cancelled';
 
+export type TargetBucket = 'operational_float' | 'withdrawable';
+
 export interface FieldDepositBatch {
   id: string;
   agent_id: string;
@@ -23,6 +25,7 @@ export interface FieldDepositBatch {
   finops_verified_at: string | null;
   rejection_reason: string | null;
   notes: string | null;
+  target_bucket: TargetBucket;
   created_at: string;
   updated_at: string;
 }
@@ -98,6 +101,7 @@ export interface CreateBatchInput {
   notes?: string | null;
   proofReference?: string | null;
   proofImageUrl?: string | null;
+  targetBucket?: TargetBucket;
 }
 
 /**
@@ -113,6 +117,7 @@ export async function createBatchWithItems(input: CreateBatchInput): Promise<Fie
       channel: input.channel,
       declared_total: input.declaredTotal,
       notes: input.notes ?? null,
+      target_bucket: input.targetBucket ?? 'operational_float',
     })
     .select('*')
     .single();
