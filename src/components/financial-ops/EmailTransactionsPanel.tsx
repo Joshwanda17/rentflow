@@ -403,6 +403,49 @@ export function EmailTransactionsPanel() {
         </div>
       )}
 
+      {dailySeries.length > 0 && (
+        <div className="rounded-xl border bg-card overflow-hidden">
+          <div className="p-4 border-b flex items-center justify-between">
+            <h3 className="font-semibold text-sm">In vs Out — daily</h3>
+            <span className="text-[11px] text-muted-foreground">
+              {dailySeries.length} day{dailySeries.length === 1 ? '' : 's'}
+              {rangeActive ? ' in selected range' : ''}
+            </span>
+          </div>
+          <div className="p-4 h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={dailySeries} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  tickFormatter={(v) => format(new Date(v), 'MMM d')}
+                />
+                <YAxis
+                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  tickFormatter={(v) => (v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M` : v >= 1_000 ? `${Math.round(v / 1_000)}k` : `${v}`)}
+                  width={50}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: 'hsl(var(--popover))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                  labelFormatter={(v) => format(new Date(v as string), 'PPP')}
+                  formatter={(v: number, name) => [fmtUgx(v), name]}
+                />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Line type="monotone" dataKey="in" name="In" stroke="hsl(142 71% 45%)" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="out" name="Out" stroke="hsl(0 72% 51%)" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="net" name="Net" stroke="hsl(var(--primary))" strokeWidth={1.5} strokeDasharray="4 4" dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
       <div className="rounded-xl border bg-card overflow-hidden">
         <div className="p-4 border-b">
           <h3 className="font-semibold text-sm">Recent emails</h3>
