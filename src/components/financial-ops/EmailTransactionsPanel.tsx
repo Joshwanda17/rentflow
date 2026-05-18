@@ -439,6 +439,11 @@ export function EmailTransactionsPanel() {
   const channelCacheRef = useRef<Record<string, ChannelCacheEntry>>(readChannelCache());
   const flushChannelCache = () => writeChannelCache(channelCacheRef.current);
 
+  // Map of row.id → matched user(s) inferred from phone numbers / refs in
+  // the email. Resolved in a background effect against the `profiles` table
+  // so the operator can see which app user likely made each deposit.
+  const [userMatches, setUserMatches] = useState<Record<string, MatchedUser[]>>({});
+
   // Manual channel correction UI. `editingRow` controls the dialog; bumping
   // `rulesVersion` re-renders the list so newly-saved rules / cache overrides
   // take effect immediately on every visible row.
