@@ -275,6 +275,49 @@ function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+/**
+ * Possible-user matching. We scan each transaction email for Uganda mobile
+ * numbers and the transaction id, then look those up against `profiles` so
+ * the operator can see at a glance which app user the deposit was likely
+ * made by.
+ */
+export interface MatchedUser {
+  id: string;
+  full_name: string;
+  phone: string | null;
+  mobile_money_number: string | null;
+  matched_on: string; // human-readable signal e.g. "phone 256772…"
+}
+
+/**
+ * Normalize Ugandan-style phone numbers to the canonical `256XXXXXXXXX`
+ * (12-digit) form so the lookup hits regardless of whether the email
+ * printed "+256…", "0772…", or "256772…".
+ */
+function normalizeUgPhone(raw: string): string | null {
+  const digits = raw.replace(/\D/g, '');
+  if (!digits) return null;
+  if (digits.length === 9 && digits.startsWith('7')) return `256${digits}`;
+  if (digits.length === 10 && digits.startsWith('07')) return `256${digits.slice(1)}`;
+  if (digits.length === 12 && digits.startsWith('256')) return digits;
+  if (digits.length === 13 && digits.startsWith('2560')) return `256${digits.slice(4)}`;
+  return null;
+}
+
+/** Pull every plausible Uganda mobile number out of the email row. */
+function extractPhones(r: GmailTx): string[] {
+  const hay = `${r.from_email ?? ''} ${r.from_name ?? ''} ${r.subject ?? ''} ${r.snippet ?? ''} ${r.counterparty ?? ''} ${r.transaction_id ?? ''}`;
+  const out = new Set<string>();
+  // Match +256…, 256…, 0… style mobile numbers.
+  const re = /(?:\+?256|0)\s*7\d{2}[\s-]?\d{3}[\s-]?\d{3}/g;
+  const matches = hay.match(re) ?? [];
+  for (const m of matches) {
+    const norm = normalizeUgPhone(m);
+    if (norm) out.add(norm);
+  }
+  return Array.from(out);
+}
+
 /** Canonical channel options shown in the correction dialog. */
 const CHANNEL_OPTIONS: string[] = [
   'cash_receipt', 'mtn_momo', 'airtel_money',
