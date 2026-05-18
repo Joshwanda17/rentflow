@@ -80,6 +80,7 @@ export function EmailAutoMatchPanel() {
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const runningRef = useRef(false);
+  const autoApprovedRef = useRef<Set<string>>(new Set());
 
   const hydrate = useCallback(async (raw: Match[]): Promise<Match[]> => {
     if (raw.length === 0) return [];
@@ -116,14 +117,70 @@ export function EmailAutoMatchPanel() {
       });
       if (rpcErr) throw rpcErr;
       const hydrated = await hydrate((data as Match[]) ?? []);
-      setMatches(hydrated);
+
+      // ── Auto-approve high-confidence matches ───────────────────────────
+      // A pending deposit whose Gmail transaction matched by exact TID or
+      // by amount + ≥2 corroborating signals (amount_strong) is approved
+      // immediately so the depositor sees their balance update without
+      // waiting for an operator. Weak amount-only matches still require
+      // manual confirmation below.
+      const autoEligible = hydrated.filter(
+        (m) =>
+          (m.method === 'tid' || m.method === 'amount_strong') &&
+          !autoApprovedRef.current.has(m.deposit_request_id),
+      );
+      let autoApprovedCount = 0;
+      if (autoEligible.length > 0) {
+        try {
+          const { data: session } = await supabase.auth.getSession();
+          const token = session?.session?.access_token;
+          const { error: invErr } = await supabase.functions.invoke('approve-deposit', {
+            body: {
+              bulk_ids: autoEligible.map((m) => m.deposit_request_id),
+              action: 'approve',
+              access_token: token,
+            },
+          });
+          if (invErr) throw invErr;
+          autoApprovedCount = autoEligible.length;
+          autoEligible.forEach((m) => autoApprovedRef.current.add(m.deposit_request_id));
+          await Promise.all(
+            autoEligible.map((m) =>
+              writeAudit({
+                gmail_transaction_id: m.gmail_transaction_id,
+                deposit_request_id: m.deposit_request_id,
+                action: 'bulk_approve',
+                matcher_type: `auto_${m.method}`,
+                match_score: m.match_score ?? null,
+                signals: m.signals ?? null,
+                amount: m.amount,
+                notes: `Auto-approved by email matcher (${m.method}) — ${fmtUgx(m.amount)}`,
+              }),
+            ),
+          );
+        } catch (autoErr: any) {
+          console.warn('[auto-match] auto-approve batch failed', autoErr);
+        }
+      }
+
+      const remaining = hydrated.filter(
+        (m) => !autoApprovedRef.current.has(m.deposit_request_id),
+      );
+      setMatches(remaining);
       setLastRunAt(new Date());
-      if (!silent && hydrated.length > 0) {
+
+      if (!silent && autoApprovedCount > 0) {
         toast({
-          title: `Auto-matched ${hydrated.length} deposit${hydrated.length === 1 ? '' : 's'}`,
+          title: `Auto-approved ${autoApprovedCount} deposit${autoApprovedCount === 1 ? '' : 's'}`,
+          description: 'High-confidence email matches were credited instantly.',
+        });
+      }
+      if (!silent && remaining.length > 0) {
+        toast({
+          title: `Auto-matched ${remaining.length} deposit${remaining.length === 1 ? '' : 's'}`,
           description: 'Review and approve the matches below.',
         });
-      } else if (!silent) {
+      } else if (!silent && autoApprovedCount === 0 && remaining.length === 0) {
         toast({ title: 'No new matches', description: 'No pending deposits could be paired with email transactions.' });
       }
     } catch (e: any) {
