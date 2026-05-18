@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import {
   startOfDay, endOfDay, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
-  subDays, format, eachDayOfInterval, isSameDay,
+  subDays, format, eachDayOfInterval, isSameDay, differenceInCalendarDays,
 } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -109,6 +109,8 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
   const [day, setDay] = useState<Date>(new Date());
   const [agentFilter, setAgentFilter] = useState<string>('all');
   const [propertyFilter, setPropertyFilter] = useState<string>('all');
+  // Missed-payments interval filter (0 = off, otherwise lookback days)
+  const [missedWindow, setMissedWindow] = useState<number>(0);
   const [recordOpen, setRecordOpen] = useState(false);
   const [recordRow, setRecordRow] = useState<TenantTrackerRow | null>(null);
   const [recordAmount, setRecordAmount] = useState('');
@@ -437,6 +439,75 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
     trackerRows.forEach(r => { if (r.property && r.property !== '—') set.add(r.property); });
     return Array.from(set);
   }, [trackerRows]);
+
+  // ---- Missed payments lookback window (independent of selected day)
+  const missedFrom = useMemo(
+    () => (missedWindow > 0 ? startOfDay(subDays(day, missedWindow - 1)) : null),
+    [missedWindow, day]
+  );
+  const missedTo = useMemo(() => endOfDay(day), [day]);
+
+  const { data: missedWindowCollections } = useQuery({
+    queryKey: ['daily-collection-missed-window', missedWindow, missedFrom?.toISOString()],
+    enabled: !!missedFrom,
+    queryFn: async () => {
+      const PAGE = 1000;
+      const all: { tenant_id: string; amount: number; created_at: string }[] = [];
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await supabase
+          .from('agent_collections')
+          .select('tenant_id, amount, created_at')
+          .gte('created_at', missedFrom!.toISOString())
+          .lte('created_at', missedTo.toISOString())
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        const rows = (data || []) as any[];
+        all.push(...rows);
+        if (rows.length < PAGE) break;
+      }
+      return all;
+    },
+    staleTime: 60_000,
+  });
+
+  // tenant_id -> number of days in window with NO payment (capped by rent plan age)
+  const missedDaysByTenant = useMemo(() => {
+    const map = new Map<string, number>();
+    if (!missedWindow || !missedFrom || !rentReqs) return map;
+    const paidDaysByTenant = new Map<string, Set<string>>();
+    (missedWindowCollections || []).forEach(c => {
+      if (Number(c.amount || 0) <= 0) return;
+      const key = format(startOfDay(new Date(c.created_at)), 'yyyy-MM-dd');
+      const set = paidDaysByTenant.get(c.tenant_id) || new Set<string>();
+      set.add(key);
+      paidDaysByTenant.set(c.tenant_id, set);
+    });
+    // For each tenant with an active rent plan, count days in window where they had an active
+    // rent_request but did not pay.
+    const reqsByTenant = new Map<string, RentRequestRow[]>();
+    (rentReqs as any[]).forEach(r => {
+      const arr = reqsByTenant.get(r.tenant_id) || [];
+      arr.push(r);
+      reqsByTenant.set(r.tenant_id, arr);
+    });
+    reqsByTenant.forEach((reqs, tenantId) => {
+      // earliest active rent_request creation date for this tenant
+      const earliest = reqs.reduce((min: Date | null, r: any) => {
+        if (!r.created_at) return min;
+        const d = new Date(r.created_at);
+        return !min || d < min ? d : min;
+      }, null as Date | null);
+      let missed = 0;
+      for (let i = 0; i < missedWindow; i++) {
+        const d = subDays(day, i);
+        if (earliest && d < startOfDay(earliest)) continue;
+        const key = format(startOfDay(d), 'yyyy-MM-dd');
+        if (!paidDaysByTenant.get(tenantId)?.has(key)) missed += 1;
+      }
+      if (missed > 0) map.set(tenantId, missed);
+    });
+    return map;
+  }, [missedWindow, missedFrom, missedWindowCollections, rentReqs, day]);
 
   const isLoading = loadingReqs || loadingCollections;
 
