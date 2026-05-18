@@ -119,7 +119,28 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
   const [recordMethod, setRecordMethod] = useState<string>('cash');
   const [recordRemarks, setRecordRemarks] = useState('');
   const [trackerPage, setTrackerPage] = useState(1);
-  const [expandedTenants, setExpandedTenants] = useState<Set<string>>(new Set());
+  const expandedStorageKey = `dailyCollection:${mode}:expandedTenants`;
+  const [expandedTenants, setExpandedTenants] = useState<Set<string>>(() => {
+    if (typeof window === 'undefined') return new Set();
+    try {
+      const raw = window.sessionStorage.getItem(expandedStorageKey);
+      if (!raw) return new Set();
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? new Set(parsed as string[]) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+  useEffect(() => {
+    try {
+      window.sessionStorage.setItem(
+        expandedStorageKey,
+        JSON.stringify(Array.from(expandedTenants)),
+      );
+    } catch {
+      /* storage unavailable */
+    }
+  }, [expandedTenants, expandedStorageKey]);
   const TRACKER_PAGE_SIZE = 10;
   const [submitting, setSubmitting] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
