@@ -365,6 +365,7 @@ function AppRoutes() {
           <Route path="/opportunities" element={<Opportunities />} />
           <Route path="/audit-log" element={<AuditLog />} />
           <Route path="/deposit-history" element={<DepositHistory />} />
+          <Route path="/deposit-history/:id" element={<DepositVerificationDetail />} />
           <Route path="/welile-homes" element={<WelileHomes />} />
           <Route path="/welile-homes-dashboard" element={<WelileHomesDashboard />} />
           <Route path="/landlord-welile-homes" element={<LandlordWelileHomesPage />} />
