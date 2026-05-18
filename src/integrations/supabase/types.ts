@@ -14977,6 +14977,13 @@ export type Database = {
           warning_count: number
         }[]
       }
+      get_tenant_missed_days: {
+        Args: { p_as_of?: string; p_window_days: number }
+        Returns: {
+          missed_days: number
+          tenant_id: string
+        }[]
+      }
       get_trust_coverage_stats: { Args: never; Returns: Json }
       get_user_available_balance: {
         Args: { p_user_id: string }
