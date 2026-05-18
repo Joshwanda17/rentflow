@@ -403,6 +403,21 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
             Recently verified
           </CardTitle>
           <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => load(false)}
+              disabled={refreshing || loading}
+              className="h-7 gap-1 text-[11px]"
+              title="Reload the list to pick up newly auto-verified deposits"
+            >
+              {refreshing ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <RefreshCw className="h-3 w-3" />
+              )}
+              <span className="hidden sm:inline">Refresh</span>
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
