@@ -10,7 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { validateDepositReference } from '@/lib/depositReferenceValidator';
 import { invokeEdgeFunction } from '@/lib/invokeEdgeFunction';
 import { formatUGX } from '@/lib/rentCalculations';
-import type { DepositPurpose } from '@/lib/depositPurposeGuard';
+import { safeDepositPurpose, type DepositPurpose } from '@/lib/depositPurposeGuard';
 
 /**
  * Bare-minimum deposit flow for non-technical users.
@@ -103,9 +103,9 @@ export default function SimpleDepositDialog({
           transaction_id: normalizedTid,
           transaction_date: now.toISOString(),
           notes: 'Submitted via simplified deposit',
-          deposit_purpose: purpose,
+          deposit_purpose: safeDepositPurpose(purpose),
           purpose_audit: {
-            chosen_purpose: purpose,
+            chosen_purpose: safeDepositPurpose(purpose),
             chosen_at: now.toISOString(),
             chosen_by: user.id,
             entry_point: 'simple_dialog',
