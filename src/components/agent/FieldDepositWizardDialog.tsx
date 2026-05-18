@@ -20,7 +20,6 @@ import {
   type DepositChannel, type FieldDepositBatch, type TargetBucket, type UnbatchedFieldCollection,
   channelLabel, listUnbatchedFieldCollections, createBatchWithItems, submitProofForBatch,
 } from '@/lib/fieldDepositBatches';
-import { GlossaryTip } from '@/components/shared/GlossaryTip';
 
 interface FieldDepositWizardDialogProps {
   open: boolean;
@@ -298,22 +297,19 @@ export function FieldDepositWizardDialog({ open, onOpenChange, attachProofTo }: 
             </div>
 
             <div>
-              <Label className="text-sm font-semibold">How much did you deposit? (UGX)</Label>
+              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Amount deposited (UGX)</Label>
               <Input
                 value={declared}
                 onChange={e => setDeclared(e.target.value.replace(/[^\d]/g, ''))}
                 inputMode="numeric"
                 placeholder="e.g. 850000"
-                className="text-lg font-semibold mt-2"
+                className="text-2xl font-bold mt-2 h-14"
                 autoFocus
               />
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Enter the exact amount you handed over or sent.
-              </p>
             </div>
 
             <div>
-              <Label className="text-sm font-semibold">Notes (optional)</Label>
+              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Notes (optional)</Label>
               <Textarea
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
@@ -325,7 +321,7 @@ export function FieldDepositWizardDialog({ open, onOpenChange, attachProofTo }: 
             </div>
 
             <Button
-              className="w-full gap-2"
+              className="w-full gap-2 h-14 text-base"
               size="lg"
               disabled={declaredNum <= 0}
               onClick={() => {
