@@ -109,6 +109,8 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
   const [day, setDay] = useState<Date>(new Date());
   const [agentFilter, setAgentFilter] = useState<string>('all');
   const [propertyFilter, setPropertyFilter] = useState<string>('all');
+  // Missed-payments interval filter (0 = off, otherwise lookback days)
+  const [missedWindow, setMissedWindow] = useState<number>(0);
   const [recordOpen, setRecordOpen] = useState(false);
   const [recordRow, setRecordRow] = useState<TenantTrackerRow | null>(null);
   const [recordAmount, setRecordAmount] = useState('');
@@ -335,14 +337,80 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
     return rows;
   }, [rentReqs, collections, profiles, day]);
 
+  // ---- Missed payments lookback window (independent of selected day)
+  const missedFrom = useMemo(
+    () => (missedWindow > 0 ? startOfDay(subDays(day, missedWindow - 1)) : null),
+    [missedWindow, day]
+  );
+  const missedTo = useMemo(() => endOfDay(day), [day]);
+
+  const { data: missedWindowCollections } = useQuery({
+    queryKey: ['daily-collection-missed-window', missedWindow, missedFrom?.toISOString()],
+    enabled: !!missedFrom,
+    queryFn: async () => {
+      const PAGE = 1000;
+      const all: { tenant_id: string; amount: number; created_at: string }[] = [];
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await supabase
+          .from('agent_collections')
+          .select('tenant_id, amount, created_at')
+          .gte('created_at', missedFrom!.toISOString())
+          .lte('created_at', missedTo.toISOString())
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        const rows = (data || []) as any[];
+        all.push(...rows);
+        if (rows.length < PAGE) break;
+      }
+      return all;
+    },
+    staleTime: 60_000,
+  });
+
+  const missedDaysByTenant = useMemo(() => {
+    const map = new Map<string, number>();
+    if (!missedWindow || !missedFrom || !rentReqs) return map;
+    const paidDaysByTenant = new Map<string, Set<string>>();
+    (missedWindowCollections || []).forEach(c => {
+      if (Number(c.amount || 0) <= 0) return;
+      const key = format(startOfDay(new Date(c.created_at)), 'yyyy-MM-dd');
+      const set = paidDaysByTenant.get(c.tenant_id) || new Set<string>();
+      set.add(key);
+      paidDaysByTenant.set(c.tenant_id, set);
+    });
+    const reqsByTenant = new Map<string, RentRequestRow[]>();
+    (rentReqs as any[]).forEach(r => {
+      const arr = reqsByTenant.get(r.tenant_id) || [];
+      arr.push(r);
+      reqsByTenant.set(r.tenant_id, arr);
+    });
+    reqsByTenant.forEach((reqs, tenantId) => {
+      const earliest = reqs.reduce((min: Date | null, r: any) => {
+        if (!r.created_at) return min;
+        const d = new Date(r.created_at);
+        return !min || d < min ? d : min;
+      }, null as Date | null);
+      let missed = 0;
+      for (let i = 0; i < missedWindow; i++) {
+        const d = subDays(day, i);
+        if (earliest && d < startOfDay(earliest)) continue;
+        const key = format(startOfDay(d), 'yyyy-MM-dd');
+        if (!paidDaysByTenant.get(tenantId)?.has(key)) missed += 1;
+      }
+      if (missed > 0) map.set(tenantId, missed);
+    });
+    return map;
+  }, [missedWindow, missedFrom, missedWindowCollections, rentReqs, day]);
+
   // Apply filters
   const filteredRows = useMemo(() => {
     return trackerRows.filter(r => {
       if (agentFilter !== 'all' && r.agentId !== agentFilter) return false;
       if (propertyFilter !== 'all' && r.property !== propertyFilter) return false;
+      if (missedWindow > 0 && !missedDaysByTenant.has(r.tenantId)) return false;
       return true;
     });
-  }, [trackerRows, agentFilter, propertyFilter]);
+  }, [trackerRows, agentFilter, propertyFilter, missedWindow, missedDaysByTenant]);
 
   // Daily totals
   const totals = useMemo(() => {
@@ -360,7 +428,7 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
     [filteredRows, trackerCurrentPage]
   );
   // Reset to first page whenever filters/date/range change
-  useEffect(() => { setTrackerPage(1); }, [agentFilter, propertyFilter, day, range]);
+  useEffect(() => { setTrackerPage(1); }, [agentFilter, propertyFilter, day, range, missedWindow]);
 
   // KPIs
   const collectionToday = (collections || []).reduce((s, c) => s + Number(c.amount || 0), 0);
@@ -671,13 +739,29 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
               ))}
             </SelectContent>
           </Select>
-          {(agentFilter !== 'all' || propertyFilter !== 'all') && (
-            <Button size="sm" variant="ghost" className="h-8" onClick={() => { setAgentFilter('all'); setPropertyFilter('all'); }}>
+          <Select
+            value={String(missedWindow)}
+            onValueChange={(v) => setMissedWindow(Number(v))}
+          >
+            <SelectTrigger className="h-8 w-[200px] text-xs">
+              <SelectValue placeholder="Missed payments" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="0">All tenants (no missed filter)</SelectItem>
+              <SelectItem value="3">Missed in last 3 days</SelectItem>
+              <SelectItem value="5">Missed in last 5 days</SelectItem>
+              <SelectItem value="7">Missed in last 7 days</SelectItem>
+              <SelectItem value="14">Missed in last 14 days</SelectItem>
+              <SelectItem value="30">Missed in last 30 days</SelectItem>
+            </SelectContent>
+          </Select>
+          {(agentFilter !== 'all' || propertyFilter !== 'all' || missedWindow > 0) && (
+            <Button size="sm" variant="ghost" className="h-8" onClick={() => { setAgentFilter('all'); setPropertyFilter('all'); setMissedWindow(0); }}>
               <X className="h-3.5 w-3.5 mr-1" /> Clear
             </Button>
           )}
           <div className="ml-auto text-[11px] text-muted-foreground">
-            {filteredRows.length} active rent plans
+            {filteredRows.length} {missedWindow > 0 ? `tenants missed ≥1 day in last ${missedWindow}` : 'active rent plans'}
           </div>
         </CardContent>
       </Card>
@@ -708,6 +792,9 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
                     <TableHead className="text-xs text-right">Collected</TableHead>
                     <TableHead className="text-xs text-right">Balance</TableHead>
                     <TableHead className="text-xs">Status</TableHead>
+                    {missedWindow > 0 && (
+                      <TableHead className="text-xs text-right">Missed (last {missedWindow}d)</TableHead>
+                    )}
                     <TableHead className="text-xs">Method</TableHead>
                     <TableHead className="text-xs">Remarks</TableHead>
                     {mode === 'editable' && <TableHead className="text-xs">Action</TableHead>}
@@ -747,6 +834,13 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
                       <TableCell className="text-xs text-right tabular-nums">{formatUGX(r.collected)}</TableCell>
                       <TableCell className={cn('text-xs text-right tabular-nums', r.balance > 0 && 'text-destructive font-semibold')}>{formatUGX(r.balance)}</TableCell>
                       <TableCell>{statusBadge(r.status)}</TableCell>
+                      {missedWindow > 0 && (
+                        <TableCell className="text-xs text-right">
+                          <Badge variant="destructive" className="tabular-nums">
+                            {missedDaysByTenant.get(r.tenantId) || 0} / {missedWindow}
+                          </Badge>
+                        </TableCell>
+                      )}
                       <TableCell className="text-xs">{r.paymentMethod}</TableCell>
                       <TableCell className="text-xs text-muted-foreground max-w-[160px] truncate" title={r.remarks}>{r.remarks}</TableCell>
                       {mode === 'editable' && (
@@ -764,7 +858,7 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
                     <TableCell className="text-xs text-right tabular-nums">{formatUGX(totals.expected)}</TableCell>
                     <TableCell className="text-xs text-right tabular-nums">{formatUGX(totals.collected)}</TableCell>
                     <TableCell className="text-xs text-right tabular-nums text-destructive">{formatUGX(totals.outstanding)}</TableCell>
-                    <TableCell colSpan={mode === 'editable' ? 4 : 3}></TableCell>
+                    <TableCell colSpan={(mode === 'editable' ? 4 : 3) + (missedWindow > 0 ? 1 : 0)}></TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
