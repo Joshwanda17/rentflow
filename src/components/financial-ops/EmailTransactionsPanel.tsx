@@ -304,9 +304,30 @@ export function EmailTransactionsPanel() {
           <h3 className="font-semibold text-sm">Date range</h3>
           <p className="text-[11px] text-muted-foreground mt-0.5">
             {rangeActive
-              ? `Showing ${filteredRows.length} of ${rows.length} emails — totals recomputed for ${fromDate || '…'} → ${toDate || '…'}`
-              : `No range selected — showing all ${rows.length} emails`}
+              ? `Showing ${filteredRows.length} of ${rows.length} emails — totals recomputed for ${fromDate || '…'} → ${toDate || '…'} (${tz})`
+              : `No range selected — showing all ${rows.length} emails · timezone ${tz}`}
           </p>
+        </div>
+        <div className="flex flex-col">
+          <label
+            className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1"
+            title="Date boundaries and daily buckets are interpreted in this timezone."
+          >
+            Timezone
+          </label>
+          <select
+            value={tz}
+            onChange={(e) => setTz(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+          >
+            {TIMEZONE_OPTIONS.includes(tz) ? null : <option value={tz}>{tz}</option>}
+            {TIMEZONE_OPTIONS.map((z) => (
+              <option key={z} value={z}>{z}</option>
+            ))}
+            {browserTz && !TIMEZONE_OPTIONS.includes(browserTz) && (
+              <option value={browserTz}>{browserTz} (browser)</option>
+            )}
+          </select>
         </div>
         <div className="flex flex-col">
           <label className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">From</label>
@@ -361,11 +382,17 @@ export function EmailTransactionsPanel() {
               variant="outline"
               size="sm"
               onClick={() => {
-                const to = new Date();
-                const from = new Date();
-                from.setDate(to.getDate() - (p.days - 1));
-                setFromDate(format(from, 'yyyy-MM-dd'));
-                setToDate(format(to, 'yyyy-MM-dd'));
+                // Anchor presets to "today" as seen in the selected timezone.
+                const todayKey = dateKeyInTz(new Date(), tz);
+                const [y, m, d] = todayKey.split('-').map(Number);
+                const toUtc = Date.UTC(y, m - 1, d);
+                const fromUtc = toUtc - (p.days - 1) * 86_400_000;
+                const fmtKey = (ms: number) => {
+                  const dt = new Date(ms);
+                  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`;
+                };
+                setFromDate(fmtKey(fromUtc));
+                setToDate(fmtKey(toUtc));
               }}
             >
               {p.label}
