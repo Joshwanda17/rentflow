@@ -310,6 +310,7 @@ export function UserDepositRequests() {
                             Edit allocations
                           </Button>
                         )}
+                  <DepositAutoMatchAudit audit={request.auto_match_audit} />
                 </motion.div>
               ))}
             </AnimatePresence>
