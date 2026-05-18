@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import {
   startOfDay, endOfDay, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
-  subDays, format, eachDayOfInterval, isSameDay, differenceInCalendarDays,
+  subDays, format, eachDayOfInterval, isSameDay,
 } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
