@@ -490,6 +490,69 @@ export function EmailTransactionsPanel() {
     return () => { supabase.removeChannel(ch); };
   }, []);
 
+  // Resolve phone numbers (and transaction ids) found in each email row to
+  // app users in `profiles`. Runs whenever the visible row set changes;
+  // matches are highlighted inline so the operator can confirm at a glance
+  // who likely sent the deposit.
+  useEffect(() => {
+    let cancelled = false;
+    const rowPhones = new Map<string, string[]>();
+    const allPhones = new Set<string>();
+    for (const r of rows) {
+      const phones = extractPhones(r);
+      if (phones.length) {
+        rowPhones.set(r.id, phones);
+        phones.forEach((p) => allPhones.add(p));
+      }
+    }
+    if (allPhones.size === 0) {
+      setUserMatches({});
+      return;
+    }
+    const phoneList = Array.from(allPhones);
+    (async () => {
+      // Build the in-list once and query both phone columns.
+      const { data, error } = await (supabase
+        .from('profiles') as any)
+        .select('id, full_name, phone, mobile_money_number, verified')
+        .or(`phone.in.(${phoneList.join(',')}),mobile_money_number.in.(${phoneList.join(',')})`)
+        .limit(500);
+      if (cancelled || error || !data) return;
+      type P = { id: string; full_name: string; phone: string | null; mobile_money_number: string | null };
+      const byPhone = new Map<string, P[]>();
+      for (const p of data as P[]) {
+        for (const candidate of [p.phone, p.mobile_money_number]) {
+          const n = candidate ? normalizeUgPhone(candidate) : null;
+          if (!n) continue;
+          const list = byPhone.get(n) ?? [];
+          if (!list.find((x) => x.id === p.id)) list.push(p);
+          byPhone.set(n, list);
+        }
+      }
+      const next: Record<string, MatchedUser[]> = {};
+      for (const [rowId, phones] of rowPhones) {
+        const seen = new Set<string>();
+        const list: MatchedUser[] = [];
+        for (const ph of phones) {
+          for (const p of byPhone.get(ph) ?? []) {
+            if (seen.has(p.id)) continue;
+            seen.add(p.id);
+            list.push({
+              id: p.id,
+              full_name: p.full_name,
+              phone: p.phone,
+              mobile_money_number: p.mobile_money_number,
+              matched_on: `phone ${ph}`,
+            });
+          }
+        }
+        if (list.length) next[rowId] = list;
+      }
+      setUserMatches(next);
+    })();
+    return () => { cancelled = true; };
+  }, [rows]);
+
   const pollNow = async () => {
     setPolling(true);
     const { data, error } = await supabase.functions.invoke('gmail-poll-transactions', { body: {} });
