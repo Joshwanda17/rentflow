@@ -885,9 +885,31 @@ export function EmailTransactionsPanel() {
                             : resolved.confidence === 'medium'
                             ? 'bg-sky-500/10 text-sky-700 border-sky-500/20'
                             : 'bg-amber-500/10 text-amber-700 border-amber-500/30';
-                        const tip = inferred
-                          ? `Inferred from ${resolved.signal} · confidence ${resolved.confidence} (${score}%)`
-                          : `Channel from parser · confidence ${resolved.confidence} (${score}%)`;
+                        // Multi-line tooltip explaining exactly which rule fired,
+                        // which field on the row it inspected, and the matched
+                        // fragment so reviewers can audit the inference.
+                        const sourceLabel: Record<string, string> = {
+                          transaction_id: 'transaction id',
+                          subject: 'email subject',
+                          snippet: 'email snippet',
+                          from: 'sender',
+                          body: 'email body',
+                          parser: 'parser',
+                        };
+                        const lines = inferred
+                          ? [
+                              `Channel: ${resolved.channel.replace(/_/g, ' ')}`,
+                              `Rule: ${resolved.signal}${resolved.rule ? ` (${resolved.rule})` : ''}`,
+                              resolved.source ? `Matched in: ${sourceLabel[resolved.source] ?? resolved.source}` : null,
+                              resolved.match ? `Match: "${resolved.match}"` : null,
+                              `Confidence: ${resolved.confidence} (${score}%)`,
+                            ]
+                          : [
+                              `Channel: ${resolved.channel.replace(/_/g, ' ')}`,
+                              'Source: parser-assigned by the email importer',
+                              `Confidence: ${resolved.confidence} (${score}%)`,
+                            ];
+                        const tip = lines.filter(Boolean).join('\n');
                         return (
                           <Badge
                             variant="outline"
