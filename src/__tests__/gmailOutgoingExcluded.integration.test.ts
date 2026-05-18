@@ -50,6 +50,10 @@ describe.runIf(canRun)('gmail outgoing exclusion (integration)', () => {
     expect(output).toContain('PASS: unknown-direction email blocked and logged');
     expect(output).toContain('PASS: auto_create_deposits_from_gmail skipped all excluded directions');
     expect(output).toContain('PASS: incoming email not logged as excluded');
+    expect(output).toContain('PASS: missing-amount email blocked and logged');
+    expect(output).toContain('PASS: missing-TID email blocked and logged');
+    expect(output).toContain('PASS: all malformed direction values blocked and logged with correct reasons');
+    expect(output).toContain('PASS: edge-case payloads survive auto_create_deposits_from_gmail untouched');
     expect(output).toContain('PASS: gmail outgoing exclusion invariants all green');
     expect(output).toContain('ROLLBACK');
   }, 30_000);
