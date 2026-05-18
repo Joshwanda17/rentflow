@@ -364,6 +364,32 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
     return map;
   }, [missedWindow, missedDaysRpc]);
 
+  // Exact missed dates per tenant (for the expandable list / tooltip)
+  const { data: missedDatesRpc } = useQuery({
+    queryKey: ['daily-collection-missed-dates-rpc', missedWindow, asOfKey],
+    enabled: missedWindow > 0,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_tenant_missed_dates', {
+        p_window_days: missedWindow,
+        p_as_of: asOfKey,
+      });
+      if (error) throw error;
+      return (data || []) as { tenant_id: string; missed_dates: string[] }[];
+    },
+  });
+
+  const missedDatesByTenant = useMemo(() => {
+    const map = new Map<string, string[]>();
+    if (!missedWindow) return map;
+    (missedDatesRpc || []).forEach(r => {
+      if (Array.isArray(r.missed_dates) && r.missed_dates.length > 0) {
+        map.set(r.tenant_id, r.missed_dates);
+      }
+    });
+    return map;
+  }, [missedWindow, missedDatesRpc]);
+
   // Apply filters
   const filteredRows = useMemo(() => {
     return trackerRows.filter(r => {
