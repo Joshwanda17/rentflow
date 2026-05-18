@@ -305,6 +305,8 @@ export default function DepositHistory() {
                   </div>
                 )}
 
+                <DepositAutoMatchAudit audit={deposit.auto_match_audit} />
+
                 {/* ─── Purpose Audit Trail (role-scoped) ─── */}
                 {(() => {
                   const purpose =
