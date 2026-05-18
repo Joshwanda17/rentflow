@@ -4,19 +4,10 @@
 \set ON_ERROR_STOP on
 BEGIN;
 
--- Fixtures ---------------------------------------------------------------
--- A profile with a known phone the auto-create function would resolve to.
--- We intentionally use a 256... phone the parser will pick up from the body.
-DO $$
-DECLARE
-  v_uid uuid := gen_random_uuid();
-BEGIN
-  INSERT INTO public.profiles (id, full_name, phone, email)
-  VALUES (v_uid, 'Outgoing Test User', '0700123456',
-          'outgoing-test-' || v_uid || '@example.test');
-
-  PERFORM set_config('test.user_id', v_uid::text, true);
-END $$;
+-- No fixtures: the on-insert exclusion trigger fires regardless of whether
+-- a profile resolves, and the auto-create path is the one that requires a
+-- profile. The point of these tests is that non-incoming directions never
+-- reach the deposit table — phone resolution is irrelevant on that path.
 
 -- 1) direction='out' must NOT create a deposit and MUST be logged ---------
 INSERT INTO public.gmail_transactions (
@@ -112,30 +103,26 @@ BEGIN
   RAISE NOTICE 'PASS: unknown-direction email blocked and logged';
 END $$;
 
--- 4) auto_create_deposits_from_gmail() must skip outgoing rows even when
--- called directly with a fresh, phone-resolvable outgoing email.
-INSERT INTO public.gmail_transactions (
-  gmail_message_id, from_email, subject, snippet, raw_body,
-  amount, transaction_id, parsed, internal_date, direction
-) VALUES (
-  'test-msg-out-explicit-' || gen_random_uuid()::text,
-  'mobilemoney@mtn.co.ug',
-  'Payment Sent',
-  'You sent UGX 25,000 to 256700123456 from 256700123456. TID: MP240518.1234.A99004',
-  'You sent UGX 25,000 to 256700123456 from 256700123456. TID: MP240518.1234.A99004',
-  25000, 'MP240518.1234.A99004', true, now(), 'out'
-);
-
+-- 4) Calling auto_create_deposits_from_gmail() directly must still skip
+-- every outgoing/charge/null-direction row, regardless of any other state.
 DO $$
-DECLARE c int;
+DECLARE
+  v_before int;
+  v_after  int;
 BEGIN
+  SELECT count(*) INTO v_before FROM public.deposit_requests
+    WHERE transaction_id IN (
+      'MP240518.1234.A99001','MP240518.1234.A99002','MP240518.1234.A99003'
+    );
   PERFORM public.auto_create_deposits_from_gmail(24);
-  SELECT count(*) INTO c FROM public.deposit_requests
-    WHERE transaction_id = 'MP240518.1234.A99004';
-  IF c <> 0 THEN
-    RAISE EXCEPTION 'FAIL: auto_create_deposits_from_gmail created % row(s) for outgoing', c;
+  SELECT count(*) INTO v_after FROM public.deposit_requests
+    WHERE transaction_id IN (
+      'MP240518.1234.A99001','MP240518.1234.A99002','MP240518.1234.A99003'
+    );
+  IF v_after <> v_before THEN
+    RAISE EXCEPTION 'FAIL: auto_create_deposits_from_gmail created rows for excluded directions (% -> %)', v_before, v_after;
   END IF;
-  RAISE NOTICE 'PASS: auto_create_deposits_from_gmail skipped outgoing email';
+  RAISE NOTICE 'PASS: auto_create_deposits_from_gmail skipped all excluded directions';
 END $$;
 
 -- 5) Negative control: an incoming row IS eligible and IS NOT logged as excluded.
