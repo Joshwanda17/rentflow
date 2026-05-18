@@ -3,13 +3,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert, Copy, Check, Wifi, WifiOff, ShieldCheck, History, LinkIcon, ChevronDown, ChevronUp, FileDown, FileText, AlertTriangle } from 'lucide-react';
+import { Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription,
 } from '@/components/ui/dialog';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { downloadCsv } from '@/lib/csvExport';
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip as RTooltip, CartesianGrid, Legend } from 'recharts';
 
 interface GmailTx {
   id: string;
@@ -324,6 +326,24 @@ export function EmailTransactionsPanel() {
         <StatCard
           label="Net (in − out)"
           value={`${netAmount < 0 ? '-' : ''}${fmtUgx(Math.abs(netAmount))}`}
+          info={
+            <div className="space-y-1.5 text-xs leading-relaxed">
+              <p className="font-semibold">How Net is calculated</p>
+              <p>
+                <span className="font-mono">Net = Total in − Total out</span>
+              </p>
+              <ul className="list-disc pl-4 space-y-0.5">
+                <li><span className="text-emerald-300">Total in</span> = sum of <code>amount</code> for rows where <code>direction = 'in'</code> (money received).</li>
+                <li><span className="text-rose-300">Total out</span> = sum of <code>amount</code> for rows where <code>direction = 'out'</code> or <code>'charge'</code> (sent + fees).</li>
+              </ul>
+              <p className="pt-1 border-t border-border/40">
+                Only counts rows that are <strong>parsed</strong> and <strong>not flagged</strong> (amount present, direction known, amount found in email body), and that fall inside the selected date range.
+              </p>
+              <p className="text-muted-foreground">
+                Currently: {fmtUgx(totalIn)} − {fmtUgx(totalOut)} = {netAmount < 0 ? '-' : ''}{fmtUgx(Math.abs(netAmount))}
+              </p>
+            </div>
+          }
           sub={
             <span className={`text-[10px] ${netAmount >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
               {netAmount >= 0 ? 'net inflow' : 'net outflow'}
@@ -426,7 +446,7 @@ export function EmailTransactionsPanel() {
                   tickFormatter={(v) => (v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M` : v >= 1_000 ? `${Math.round(v / 1_000)}k` : `${v}`)}
                   width={50}
                 />
-                <Tooltip
+                <RTooltip
                   contentStyle={{
                     background: 'hsl(var(--popover))',
                     border: '1px solid hsl(var(--border))',
@@ -527,10 +547,30 @@ export function EmailTransactionsPanel() {
   );
 }
 
-function StatCard({ label, value, sub }: { label: string; value: string; sub?: React.ReactNode }) {
+function StatCard({ label, value, sub, info }: { label: string; value: string; sub?: React.ReactNode; info?: React.ReactNode }) {
   return (
     <div className="rounded-xl border bg-card p-4">
-      <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">{label}</p>
+      <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1">
+        {label}
+        {info && (
+          <TooltipProvider delayDuration={150}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="How this is calculated"
+                  className="inline-flex items-center justify-center text-muted-foreground/70 hover:text-foreground transition-colors"
+                >
+                  <Info className="h-3 w-3" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" align="start" className="max-w-xs">
+                {info}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </p>
       <p className="font-black text-lg mt-1">{value}</p>
       {sub && <div className="mt-1">{sub}</div>}
     </div>
