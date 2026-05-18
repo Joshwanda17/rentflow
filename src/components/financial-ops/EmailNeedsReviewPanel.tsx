@@ -212,6 +212,11 @@ export function EmailNeedsReviewPanel() {
             <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">
               {conflict ? `${item.candidates.length} pending deposits share this amount` : 'Possible pending deposit'}
             </div>
+            <p className="text-[11px] text-muted-foreground leading-snug">
+              {conflict
+                ? 'Pick the depositor whose name or phone matches the email, then tap Link. The others stay pending.'
+                : 'If this is the right depositor, tap Link to credit their wallet. If not, leave it — the next scan will try again.'}
+            </p>
             <ul className="divide-y">
               {item.candidates.map((d) => (
                 <li key={d.id} className="py-1.5 flex items-center gap-2 justify-between text-xs">
@@ -221,7 +226,13 @@ export function EmailNeedsReviewPanel() {
                       {d.phone ?? '—'} · TID {d.transaction_id ?? '—'} · {format(new Date(d.created_at), 'dd MMM HH:mm')}
                     </div>
                   </div>
-                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => linkEmail(e.id, d.id)}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 px-3 text-xs"
+                    onClick={() => linkEmail(e.id, d.id)}
+                    title={`Credit this email's amount to ${d.full_name ?? 'this depositor'} and mark the deposit approved.`}
+                  >
                     Link
                   </Button>
                 </li>
@@ -230,7 +241,7 @@ export function EmailNeedsReviewPanel() {
           </div>
         ) : (
           <div className="text-[11px] text-muted-foreground italic">
-            No pending deposit matches this amount in the selected window. Likely a legacy email or an unrequested deposit.
+            No pending deposit matches this amount in the selected window. Likely a legacy email or an unrequested deposit — safe to leave alone.
           </div>
         )}
       </li>
