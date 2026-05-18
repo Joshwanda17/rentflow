@@ -10,13 +10,15 @@ import { format } from 'date-fns';
 interface Match {
   deposit_request_id: string;
   gmail_transaction_id: string;
-  method: 'tid' | 'amount';
+  method: 'tid' | 'amount' | 'amount_strong';
   amount: number;
   matched_transaction_id: string | null;
   user_id: string;
   provider: string | null;
   counterparty: string | null;
   internal_date: string | null;
+  signals?: string[] | null;
+  match_score?: number | null;
   // hydrated:
   depositor_name?: string;
   depositor_phone?: string;
@@ -132,6 +134,7 @@ export function EmailAutoMatchPanel() {
   }, [toast]);
 
   const tidMatches = useMemo(() => matches.filter((m) => m.method === 'tid'), [matches]);
+  const strongMatches = useMemo(() => matches.filter((m) => m.method === 'amount_strong'), [matches]);
   const amountMatches = useMemo(() => matches.filter((m) => m.method === 'amount'), [matches]);
 
   const approveAllTid = useCallback(async () => {
@@ -179,7 +182,7 @@ export function EmailAutoMatchPanel() {
             Auto-detect from email transactions
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Pairs pending deposits with parsed Gmail confirmations by Transaction ID (exact) or amount (fuzzy, 7-day window).
+            Pairs pending deposits with parsed Gmail confirmations using Transaction ID, amount, sender email, payer name, depositor phone, and reference text (7-day window).
           </p>
           {lastRunAt && (
             <p className="text-[10px] text-muted-foreground mt-1">
@@ -218,29 +221,40 @@ export function EmailAutoMatchPanel() {
         </div>
       ) : (
         <ul className="divide-y">
-          {[...tidMatches, ...amountMatches].map((m) => {
+          {[...tidMatches, ...strongMatches, ...amountMatches].map((m) => {
             const isApproving = approving.has(m.deposit_request_id);
+            const badgeClass =
+              m.method === 'tid'
+                ? 'bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15 border-emerald-500/30'
+                : m.method === 'amount_strong'
+                  ? 'bg-sky-500/15 text-sky-700 hover:bg-sky-500/15 border-sky-500/30'
+                  : 'bg-amber-500/15 text-amber-700 hover:bg-amber-500/15 border-amber-500/30';
+            const signalLabels: Record<string, string> = {
+              amount: 'Amount',
+              name: 'Payer name',
+              phone: 'Phone',
+              sender: 'Sender email',
+              reference: 'Reference',
+            };
+            const extraSignals = (m.signals ?? []).filter((s) => s !== 'amount');
             return (
               <li key={m.gmail_transaction_id} className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-3">
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <Badge
-                      className={
-                        m.method === 'tid'
-                          ? 'bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15 border-emerald-500/30'
-                          : 'bg-amber-500/15 text-amber-700 hover:bg-amber-500/15 border-amber-500/30'
-                      }
-                    >
-                      {m.method === 'tid' ? (
-                        <><CheckCircle2 className="h-3 w-3 mr-1" /> Exact TID</>
-                      ) : (
-                        <><AlertCircle className="h-3 w-3 mr-1" /> Amount match</>
-                      )}
+                    <Badge className={badgeClass}>
+                      {m.method === 'tid' && (<><CheckCircle2 className="h-3 w-3 mr-1" /> Exact TID</>)}
+                      {m.method === 'amount_strong' && (<><CheckCircle2 className="h-3 w-3 mr-1" /> Verified match</>)}
+                      {m.method === 'amount' && (<><AlertCircle className="h-3 w-3 mr-1" /> Amount only</>)}
                     </Badge>
                     <span className="font-semibold text-sm">{fmtUgx(m.amount)}</span>
                     {m.provider && (
                       <span className="text-[11px] text-muted-foreground uppercase">{m.provider}</span>
                     )}
+                    {extraSignals.map((s) => (
+                      <Badge key={s} variant="outline" className="text-[10px] py-0 px-1.5 font-normal">
+                        ✓ {signalLabels[s] ?? s}
+                      </Badge>
+                    ))}
                   </div>
                   <div className="text-xs text-muted-foreground truncate">
                     <span className="font-medium text-foreground">{m.depositor_name ?? 'Unknown'}</span>
@@ -250,7 +264,7 @@ export function EmailAutoMatchPanel() {
                   <div className="text-[11px] text-muted-foreground font-mono truncate">
                     Deposit TID: {m.deposit_tid ?? '—'}
                     {m.matched_transaction_id && m.method === 'tid' && ' ✓ '}
-                    {m.method === 'amount' && m.matched_transaction_id && (
+                    {m.method !== 'tid' && m.matched_transaction_id && (
                       <> · Email TID: {m.matched_transaction_id}</>
                     )}
                     {m.internal_date && <> · {format(new Date(m.internal_date), 'dd MMM HH:mm')}</>}
