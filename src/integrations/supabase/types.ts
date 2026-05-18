@@ -15517,6 +15517,10 @@ export type Database = {
         Args: { p_reason: string; p_request_id: string; p_stage: string }
         Returns: string
       }
+      run_email_auto_match_retry: {
+        Args: { p_window_hours?: number }
+        Returns: number
+      }
       run_layer_a_bulk: { Args: { p_dry_run?: boolean }; Returns: Json }
       run_phantom_clamp_pass: {
         Args: { p_dry_run?: boolean }
