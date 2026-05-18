@@ -87,6 +87,16 @@ export function EmailTransactionsPanel() {
   // Date-range filter (inclusive). Empty string = unbounded on that side.
   const [fromDate, setFromDate] = useState<string>('');
   const [toDate, setToDate] = useState<string>('');
+  // Configurable warning threshold for |net|. Persisted in localStorage. Default 1,000,000 UGX.
+  const [netThreshold, setNetThreshold] = useState<number>(() => {
+    if (typeof window === 'undefined') return 1_000_000;
+    const raw = localStorage.getItem('gmail_net_threshold');
+    const parsed = raw ? Number(raw) : NaN;
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 1_000_000;
+  });
+  useEffect(() => {
+    try { localStorage.setItem('gmail_net_threshold', String(netThreshold)); } catch {}
+  }, [netThreshold]);
 
   const load = async () => {
     const [{ data: txs }, { data: ps }] = await Promise.all([
