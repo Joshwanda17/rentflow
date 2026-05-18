@@ -275,6 +275,49 @@ function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+/**
+ * Possible-user matching. We scan each transaction email for Uganda mobile
+ * numbers and the transaction id, then look those up against `profiles` so
+ * the operator can see at a glance which app user the deposit was likely
+ * made by.
+ */
+export interface MatchedUser {
+  id: string;
+  full_name: string;
+  phone: string | null;
+  mobile_money_number: string | null;
+  matched_on: string; // human-readable signal e.g. "phone 256772…"
+}
+
+/**
+ * Normalize Ugandan-style phone numbers to the canonical `256XXXXXXXXX`
+ * (12-digit) form so the lookup hits regardless of whether the email
+ * printed "+256…", "0772…", or "256772…".
+ */
+function normalizeUgPhone(raw: string): string | null {
+  const digits = raw.replace(/\D/g, '');
+  if (!digits) return null;
+  if (digits.length === 9 && digits.startsWith('7')) return `256${digits}`;
+  if (digits.length === 10 && digits.startsWith('07')) return `256${digits.slice(1)}`;
+  if (digits.length === 12 && digits.startsWith('256')) return digits;
+  if (digits.length === 13 && digits.startsWith('2560')) return `256${digits.slice(4)}`;
+  return null;
+}
+
+/** Pull every plausible Uganda mobile number out of the email row. */
+function extractPhones(r: GmailTx): string[] {
+  const hay = `${r.from_email ?? ''} ${r.from_name ?? ''} ${r.subject ?? ''} ${r.snippet ?? ''} ${r.counterparty ?? ''} ${r.transaction_id ?? ''}`;
+  const out = new Set<string>();
+  // Match +256…, 256…, 0… style mobile numbers.
+  const re = /(?:\+?256|0)\s*7\d{2}[\s-]?\d{3}[\s-]?\d{3}/g;
+  const matches = hay.match(re) ?? [];
+  for (const m of matches) {
+    const norm = normalizeUgPhone(m);
+    if (norm) out.add(norm);
+  }
+  return Array.from(out);
+}
+
 /** Canonical channel options shown in the correction dialog. */
 const CHANNEL_OPTIONS: string[] = [
   'cash_receipt', 'mtn_momo', 'airtel_money',
@@ -396,6 +439,11 @@ export function EmailTransactionsPanel() {
   const channelCacheRef = useRef<Record<string, ChannelCacheEntry>>(readChannelCache());
   const flushChannelCache = () => writeChannelCache(channelCacheRef.current);
 
+  // Map of row.id → matched user(s) inferred from phone numbers / refs in
+  // the email. Resolved in a background effect against the `profiles` table
+  // so the operator can see which app user likely made each deposit.
+  const [userMatches, setUserMatches] = useState<Record<string, MatchedUser[]>>({});
+
   // Manual channel correction UI. `editingRow` controls the dialog; bumping
   // `rulesVersion` re-renders the list so newly-saved rules / cache overrides
   // take effect immediately on every visible row.
@@ -441,6 +489,69 @@ export function EmailTransactionsPanel() {
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, []);
+
+  // Resolve phone numbers (and transaction ids) found in each email row to
+  // app users in `profiles`. Runs whenever the visible row set changes;
+  // matches are highlighted inline so the operator can confirm at a glance
+  // who likely sent the deposit.
+  useEffect(() => {
+    let cancelled = false;
+    const rowPhones = new Map<string, string[]>();
+    const allPhones = new Set<string>();
+    for (const r of rows) {
+      const phones = extractPhones(r);
+      if (phones.length) {
+        rowPhones.set(r.id, phones);
+        phones.forEach((p) => allPhones.add(p));
+      }
+    }
+    if (allPhones.size === 0) {
+      setUserMatches({});
+      return;
+    }
+    const phoneList = Array.from(allPhones);
+    (async () => {
+      // Build the in-list once and query both phone columns.
+      const { data, error } = await (supabase
+        .from('profiles') as any)
+        .select('id, full_name, phone, mobile_money_number, verified')
+        .or(`phone.in.(${phoneList.join(',')}),mobile_money_number.in.(${phoneList.join(',')})`)
+        .limit(500);
+      if (cancelled || error || !data) return;
+      type P = { id: string; full_name: string; phone: string | null; mobile_money_number: string | null };
+      const byPhone = new Map<string, P[]>();
+      for (const p of data as P[]) {
+        for (const candidate of [p.phone, p.mobile_money_number]) {
+          const n = candidate ? normalizeUgPhone(candidate) : null;
+          if (!n) continue;
+          const list = byPhone.get(n) ?? [];
+          if (!list.find((x) => x.id === p.id)) list.push(p);
+          byPhone.set(n, list);
+        }
+      }
+      const next: Record<string, MatchedUser[]> = {};
+      for (const [rowId, phones] of rowPhones) {
+        const seen = new Set<string>();
+        const list: MatchedUser[] = [];
+        for (const ph of phones) {
+          for (const p of byPhone.get(ph) ?? []) {
+            if (seen.has(p.id)) continue;
+            seen.add(p.id);
+            list.push({
+              id: p.id,
+              full_name: p.full_name,
+              phone: p.phone,
+              mobile_money_number: p.mobile_money_number,
+              matched_on: `phone ${ph}`,
+            });
+          }
+        }
+        if (list.length) next[rowId] = list;
+      }
+      setUserMatches(next);
+    })();
+    return () => { cancelled = true; };
+  }, [rows]);
 
   const pollNow = async () => {
     setPolling(true);
@@ -1032,6 +1143,23 @@ export function EmailTransactionsPanel() {
                       </p>
                     )}
                     <p className="text-xs text-muted-foreground/80 line-clamp-2 mt-1">{r.snippet}</p>
+                    {userMatches[r.id]?.length ? (
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
+                          Possible user{userMatches[r.id].length > 1 ? 's' : ''}:
+                        </span>
+                        {userMatches[r.id].map((u) => (
+                          <Badge
+                            key={u.id}
+                            variant="outline"
+                            className="text-[10px] gap-1 bg-primary/10 text-primary border-primary/30 cursor-help"
+                            title={`${u.full_name}\n${u.matched_on}\n${u.phone ?? ''}${u.mobile_money_number && u.mobile_money_number !== u.phone ? ` · MoMo ${u.mobile_money_number}` : ''}`}
+                          >
+                            <span className="font-medium">{u.full_name}</span>
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                   <div className="text-right shrink-0">
                     <p className={`font-mono font-semibold text-sm ${r.amount ? 'text-emerald-600' : 'text-muted-foreground'}`}>{fmtUgx(r.amount)}</p>
