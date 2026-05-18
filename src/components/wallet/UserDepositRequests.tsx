@@ -4,9 +4,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Clock, CheckCircle2, XCircle, Wallet, ChevronDown, ChevronUp, Target, Pencil } from 'lucide-react';
+import { Clock, CheckCircle2, XCircle, Wallet, ChevronDown, ChevronUp, Target, Pencil, BadgeCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { isAutoCancelledDuplicate } from '@/lib/depositDuplicateDetection';
 
 // Lazy — DepositFlow pulls a heavy form tree we don't want on first paint
 // of every wallet view; the edit button only opens it on demand.
@@ -126,8 +127,21 @@ export function UserDepositRequests() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
+  const getStatusBadge = (req: DepositRequest) => {
+    if (isAutoCancelledDuplicate(req)) {
+      return (
+        <span>
+          <Badge
+            variant="outline"
+            className="bg-emerald-500/10 text-emerald-700 border-emerald-500/30"
+          >
+            <BadgeCheck className="h-3 w-3 mr-1" />
+            Already credited
+          </Badge>
+        </span>
+      );
+    }
+    switch (req.status) {
       case 'approved':
         return <span><Badge variant="default" className="bg-success/10 text-success border-success/20">Approved</Badge></span>;
       case 'rejected':
@@ -158,7 +172,12 @@ export function UserDepositRequests() {
   }
 
   const pendingCount = requests.filter(r => r.status === 'pending').length;
-  const rejectedCount = requests.filter(r => r.status === 'rejected').length;
+  // True rejections only — auto-cancelled duplicates are NOT failures; they
+  // mean the depositor was already credited from their mobile-money
+  // receipt, so they don't warrant the red "rejected" highlight.
+  const rejectedCount = requests.filter(
+    (r) => r.status === 'rejected' && !isAutoCancelledDuplicate(r),
+  ).length;
 
   return (
     <>
@@ -208,7 +227,11 @@ export function UserDepositRequests() {
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      {getStatusIcon(request.status)}
+                      {isAutoCancelledDuplicate(request) ? (
+                        <BadgeCheck className="h-4 w-4 text-emerald-600" />
+                      ) : (
+                        getStatusIcon(request.status)
+                      )}
                       <div>
                         <p className="font-medium text-sm">
                           {formatCurrency(request.amount)}
@@ -237,13 +260,23 @@ export function UserDepositRequests() {
                       </div>
                     </div>
                     <div className="text-right">
-                      {getStatusBadge(request.status)}
+                      {getStatusBadge(request)}
                       <p className="text-xs text-muted-foreground mt-1">
                         {new Date(request.created_at).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
-                  {request.status === 'rejected' && request.rejection_reason && (
+                  {isAutoCancelledDuplicate(request) ? (
+                    <div className="mt-2 p-2 rounded bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-800">
+                      <p className="font-medium flex items-center gap-1">
+                        <BadgeCheck className="h-3.5 w-3.5" />
+                        No duplicate created
+                      </p>
+                      <p className="mt-0.5 text-emerald-700/90">
+                        {request.rejection_reason}
+                      </p>
+                    </div>
+                  ) : request.status === 'rejected' && request.rejection_reason && (
                     <div className="mt-2 space-y-2">
                       <p className="text-xs text-destructive bg-destructive/10 p-2 rounded">
                         Reason: {request.rejection_reason}
