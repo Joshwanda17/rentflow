@@ -14244,9 +14244,11 @@ export type Database = {
           deposit_request_id: string
           gmail_transaction_id: string
           internal_date: string
+          match_score: number
           matched_transaction_id: string
           method: string
           provider: string
+          signals: string[]
           user_id: string
         }[]
       }
