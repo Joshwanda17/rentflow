@@ -98,6 +98,12 @@ export function EmailTransactionsPanel() {
 
   const parsedCount = rows.filter((r) => r.parsed).length;
   const totalAmount = rows.reduce((s, r) => s + (r.amount ?? 0), 0);
+  const totalIn = rows
+    .filter((r) => r.parsed && r.direction === 'in')
+    .reduce((s, r) => s + (r.amount ?? 0), 0);
+  const totalOut = rows
+    .filter((r) => r.parsed && (r.direction === 'out' || r.direction === 'charge'))
+    .reduce((s, r) => s + (r.amount ?? 0), 0);
 
   return (
     <div className="space-y-5">
@@ -128,10 +134,20 @@ export function EmailTransactionsPanel() {
 
       <GmailReconnectAuditPanel />
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <StatCard label="Emails captured" value={rows.length.toString()} />
         <StatCard label="Parsed transactions" value={parsedCount.toString()} />
         <StatCard label="Total amount (parsed)" value={fmtUgx(totalAmount)} />
+        <StatCard
+          label="Total in (received)"
+          value={fmtUgx(totalIn)}
+          sub={<span className="text-[10px] text-emerald-600">↓ money received</span>}
+        />
+        <StatCard
+          label="Total out (sent + charges)"
+          value={fmtUgx(totalOut)}
+          sub={<span className="text-[10px] text-rose-600">↑ money sent</span>}
+        />
         <StatCard
           label="Last poll"
           value={state?.last_polled_at ? format(new Date(state.last_polled_at), 'HH:mm:ss') : '—'}
