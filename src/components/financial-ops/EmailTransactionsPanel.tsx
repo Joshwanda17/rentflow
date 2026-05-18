@@ -112,14 +112,40 @@ function validateGmailTx(r: GmailTx): { valid: boolean; reason?: string } {
 }
 
 /**
- * Best-effort channel resolver. The DB `channel` column is authoritative when
- * present and not `other`, but for rows the parser couldn't classify we fall
- * back to inspecting the transaction id, bank reference, or receipt number
- * embedded in the subject / snippet / id itself. This lets the breakdown group
- * obviously-related rows together (e.g. an MTN MoMo ref starting "MP" or a
- * bank wire reference starting "FT") instead of dumping them all into "other".
+ * localStorage-backed cache of derived channel results, keyed by the most
+ * stable identifier available on the row (transaction id / receipt number,
+ * falling back to the gmail message id). The cache lets future loads — and
+ * future poll inserts — reuse the same classification without re-running
+ * the heuristic, and lets a manual fix (if we ever expose one) stick.
  */
-function deriveChannel(r: GmailTx): string {
+const CHANNEL_CACHE_KEY = 'gmail_channel_cache_v1';
+
+function channelCacheKey(r: GmailTx): string | null {
+  const id = (r.transaction_id ?? '').trim();
+  if (id) return `tx:${id.toLowerCase()}`;
+  if (r.gmail_message_id) return `msg:${r.gmail_message_id}`;
+  return null;
+}
+
+function readChannelCache(): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = localStorage.getItem(CHANNEL_CACHE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? (parsed as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeChannelCache(cache: Record<string, string>): void {
+  if (typeof window === 'undefined') return;
+  try { localStorage.setItem(CHANNEL_CACHE_KEY, JSON.stringify(cache)); } catch {}
+}
+
+/** Pure heuristic — no cache lookup. Used as the resolver of last resort. */
+function computeChannel(r: GmailTx): string {
   if (r.channel && r.channel !== 'other') return r.channel;
   const id = (r.transaction_id ?? '').trim();
   const hay = `${r.from_email ?? ''} ${r.from_name ?? ''} ${r.subject ?? ''} ${r.snippet ?? ''} ${id}`.toLowerCase();
@@ -145,6 +171,26 @@ function deriveChannel(r: GmailTx): string {
   if (/\b(bank\s*ref(erence)?|reference\s*(no|number|#)|rtgs|swift)\b/i.test(hay)) return 'bank_transfer';
 
   return 'other';
+}
+
+/**
+ * Best-effort channel resolver. Order of precedence:
+ *   1. DB `channel` column (when present and not 'other') — authoritative.
+ *   2. Persisted cache hit on the row's transaction id / receipt number
+ *      (`channelCacheKey(r)`) — keeps classification stable across reloads
+ *      and new poll inserts referencing the same id.
+ *   3. Heuristic over transaction id + subject + snippet (`computeChannel`),
+ *      with the result written back to the cache when it's not 'other'.
+ */
+function deriveChannel(r: GmailTx, cache?: Record<string, string>): string {
+  if (r.channel && r.channel !== 'other') return r.channel;
+  const key = channelCacheKey(r);
+  if (cache && key && cache[key]) return cache[key];
+  const computed = computeChannel(r);
+  if (cache && key && computed !== 'other' && cache[key] !== computed) {
+    cache[key] = computed;
+  }
+  return computed;
 }
 
 /**
