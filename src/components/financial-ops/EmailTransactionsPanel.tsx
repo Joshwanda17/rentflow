@@ -41,6 +41,47 @@ const fmtUgx = (n: number | null) =>
   n === null || n === undefined ? '—' : `UGX ${Math.round(n).toLocaleString()}`;
 
 /**
+ * Convert a wall-clock date+time string (e.g. "2026-05-18", "00:00:00") interpreted
+ * in the given IANA timezone into a UTC epoch ms. Uses Intl.DateTimeFormat to
+ * discover the zone's offset at that instant — no dependency on date-fns-tz.
+ */
+function zonedWallClockToUtcMs(dateStr: string, timeStr: string, tz: string): number {
+  const naiveUtc = new Date(`${dateStr}T${timeStr}Z`).getTime();
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz, hourCycle: 'h23',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  });
+  const parts = fmt.formatToParts(new Date(naiveUtc));
+  const get = (t: string) => Number(parts.find((p) => p.type === t)!.value);
+  const asUtc = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'), get('second'));
+  const offsetMs = asUtc - naiveUtc;
+  return naiveUtc - offsetMs;
+}
+
+/** Format an instant as "yyyy-MM-dd" in the given timezone. */
+function dateKeyInTz(d: Date, tz: string): string {
+  const fmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
+  });
+  return fmt.format(d); // en-CA gives YYYY-MM-DD
+}
+
+const TIMEZONE_OPTIONS = [
+  'Africa/Kampala',
+  'Africa/Nairobi',
+  'Africa/Lagos',
+  'Africa/Johannesburg',
+  'Europe/London',
+  'Europe/Berlin',
+  'America/New_York',
+  'America/Los_Angeles',
+  'Asia/Dubai',
+  'Asia/Singapore',
+  'UTC',
+];
+
+/**
  * Validate a parsed Gmail transaction row against its own raw email text.
  * A row is considered "flagged" (excluded from totals) when any of:
  *   - parsed=true but amount is null / non-finite / ≤ 0
