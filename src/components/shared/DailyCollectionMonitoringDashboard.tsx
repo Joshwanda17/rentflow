@@ -866,8 +866,14 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {pagedRows.map((r, i) => (
-                    <TableRow key={r.rentRequestId}>
+                 {pagedRows.map((r, i) => {
+                    const missedCount = missedWindow > 0 ? (missedDaysByTenant.get(r.tenantId) || 0) : 0;
+                    const missedDates = missedWindow > 0 ? (missedDatesByTenant.get(r.tenantId) || []) : [];
+                    const isExpanded = expandedTenants.has(r.tenantId);
+                    const totalCols = 11 + (missedWindow > 0 ? 1 : 0) + (mode === 'editable' ? 1 : 0);
+                    return (
+                    <React.Fragment key={r.rentRequestId}>
+                    <TableRow>
                       <TableCell className="text-xs">{(trackerCurrentPage - 1) * TRACKER_PAGE_SIZE + i + 1}</TableCell>
                       <TableCell className="text-xs whitespace-nowrap">{r.date}</TableCell>
                       <TableCell className="text-xs">
@@ -901,50 +907,31 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
                       <TableCell>{statusBadge(r.status)}</TableCell>
                       {missedWindow > 0 && (
                         <TableCell className="text-xs text-right">
-                          {(() => {
-                            const count = missedDaysByTenant.get(r.tenantId) || 0;
-                            const dates = missedDatesByTenant.get(r.tenantId) || [];
-                            if (count === 0) {
-                              return (
-                                <Badge variant="outline" className="tabular-nums">
-                                  0 / {missedWindow}
-                                </Badge>
-                              );
-                            }
-                            return (
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <button type="button" title="Click to see exact missed dates">
-                                    <Badge variant="destructive" className="tabular-nums cursor-pointer hover:opacity-90">
-                                      {count} / {missedWindow}
-                                    </Badge>
-                                  </button>
-                                </PopoverTrigger>
-                                <PopoverContent align="end" className="w-64 p-0">
-                                  <div className="px-3 py-2 border-b">
-                                    <p className="text-xs font-semibold">Missed dates</p>
-                                    <p className="text-[11px] text-muted-foreground">
-                                      {r.tenantName} • last {missedWindow} day{missedWindow > 1 ? 's' : ''}
-                                    </p>
-                                  </div>
-                                  <div className="max-h-56 overflow-y-auto py-1">
-                                    {dates.map((d) => {
-                                      const dt = new Date(d);
-                                      return (
-                                        <div
-                                          key={d}
-                                          className="px-3 py-1 text-xs flex items-center justify-between hover:bg-muted/40"
-                                        >
-                                          <span className="tabular-nums">{format(dt, 'EEE, dd MMM yyyy')}</span>
-                                          <span className="text-[10px] text-destructive uppercase">missed</span>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                </PopoverContent>
-                              </Popover>
-                            );
-                          })()}
+                          {missedCount === 0 ? (
+                            <Badge variant="outline" className="tabular-nums">
+                              0 / {missedWindow}
+                            </Badge>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setExpandedTenants(prev => {
+                                  const next = new Set(prev);
+                                  if (next.has(r.tenantId)) next.delete(r.tenantId); else next.add(r.tenantId);
+                                  return next;
+                                });
+                              }}
+                              title={isExpanded ? 'Hide missed dates' : 'Show missed dates'}
+                              className="inline-flex items-center gap-1"
+                            >
+                              {isExpanded
+                                ? <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                                : <ChevronRight className="h-3 w-3 text-muted-foreground" />}
+                              <Badge variant="destructive" className="tabular-nums cursor-pointer hover:opacity-90">
+                                {missedCount} / {missedWindow}
+                              </Badge>
+                            </button>
+                          )}
                         </TableCell>
                       )}
                       <TableCell className="text-xs">{r.paymentMethod}</TableCell>
@@ -957,7 +944,39 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
                         </TableCell>
                       )}
                     </TableRow>
-                  ))}
+                    {missedWindow > 0 && isExpanded && missedCount > 0 && (
+                      <TableRow className="bg-muted/30 hover:bg-muted/30">
+                        <TableCell colSpan={totalCols} className="py-3">
+                          <div className="px-2">
+                            <div className="flex items-center justify-between mb-2">
+                              <p className="text-xs font-semibold">
+                                Missed dates — {r.tenantName}
+                              </p>
+                              <p className="text-[11px] text-muted-foreground">
+                                {missedCount} of last {missedWindow} day{missedWindow > 1 ? 's' : ''}
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {missedDates.map((d) => {
+                                const dt = new Date(d);
+                                return (
+                                  <Badge
+                                    key={d}
+                                    variant="outline"
+                                    className="text-[11px] tabular-nums border-destructive/40 text-destructive"
+                                  >
+                                    {format(dt, 'EEE, dd MMM yyyy')}
+                                  </Badge>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    </React.Fragment>
+                    );
+                  })}
                   {/* Daily totals row */}
                   <TableRow className="bg-muted/40 font-bold">
                     <TableCell colSpan={5} className="text-xs uppercase text-primary">Daily Totals</TableCell>
