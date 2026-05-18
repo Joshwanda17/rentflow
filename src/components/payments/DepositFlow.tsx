@@ -1082,19 +1082,26 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
         if (depositError) throw depositError;
 
         // ── Instant auto-verify ────────────────────────────────────────────
-        // If the matching mobile-money confirmation email already arrived
-        // (TID + amount match), link it and approve right now so the
-        // depositor sees the balance update without waiting for the
-        // 30-second matcher cycle.
-        let autoVerified = false;
+        // Server-side `try_link_gmail_for_deposit` either:
+        //  • `linked`                       → email matched right now,
+        //    invoke approve-deposit immediately.
+        //  • `duplicate_already_credited`   → same TID was already credited
+        //    from a prior auto-matched email; the pending row was
+        //    auto-cancelled. Tell the user (no double charge, no dangling
+        //    pending row).
+        //  • `no_match` / anything else     → fall through to normal
+        //    pending-review flow (matcher cron will pick it up later).
+        let outcome: string = 'no_match';
         try {
           const newId = (inserted as any)?.id as string | undefined;
           if (newId) {
-            const { data: linked } = await (supabase.rpc as any)(
+            const { data: linkRes } = await (supabase.rpc as any)(
               'try_link_gmail_for_deposit',
               { p_deposit_id: newId },
             );
-            if (linked === true) {
+            outcome = (linkRes as any)?.outcome ?? 'no_match';
+
+            if (outcome === 'linked') {
               const { data: session } = await supabase.auth.getSession();
               const token = session?.session?.access_token;
               const { error: invErr } = await supabase.functions.invoke(
@@ -1109,16 +1116,21 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   },
                 },
               );
-              if (!invErr) autoVerified = true;
+              if (invErr) outcome = 'no_match';
             }
           }
         } catch (autoErr) {
           console.warn('[deposit] instant auto-verify failed', autoErr);
         }
 
-        if (autoVerified) {
+        if (outcome === 'linked') {
           toast.success('Deposit auto-verified ⚡', {
             description: 'We matched your mobile-money confirmation instantly.',
+          });
+        } else if (outcome === 'duplicate_already_credited') {
+          toast.success('Already credited ✓', {
+            description:
+              'This transaction was auto-verified from your mobile-money receipt earlier. No duplicate created.',
           });
         } else {
           toast.success('Deposit submitted for verification');
