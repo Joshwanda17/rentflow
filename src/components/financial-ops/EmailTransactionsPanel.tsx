@@ -251,7 +251,7 @@ export function EmailTransactionsPanel() {
     const map = new Map<string, { date: string; in: number; out: number; net: number }>();
     for (const r of filteredRows) {
       if (!isCountable(r) || !r.internal_date) continue;
-      const key = format(new Date(r.internal_date), 'yyyy-MM-dd');
+      const key = dateKeyInTz(new Date(r.internal_date), tz);
       const cur = map.get(key) ?? { date: key, in: 0, out: 0, net: 0 };
       const amt = r.amount ?? 0;
       if (r.direction === 'in') cur.in += amt;
