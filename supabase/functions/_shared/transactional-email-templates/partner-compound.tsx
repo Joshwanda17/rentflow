@@ -25,6 +25,23 @@ interface PartnerCompoundProps {
   logo_url?: string
   unsubscribe_url?: string
   dashboard_url?: string
+  /**
+   * Index of THIS compounding cycle (1-based). When >= 2 the template
+   * synthesises a per-cycle breakdown working backwards from
+   * new_total_partnership_value using roi_percentage.
+   */
+  payment_number?: number | string
+  /**
+   * Optional explicit history. When provided, takes precedence over the
+   * synthesised breakdown. Each entry represents one compounding cycle.
+   */
+  compound_history?: Array<{
+    cycle?: number | string
+    date?: string
+    balance_before?: number | string
+    return_amount?: number | string
+    balance_after?: number | string
+  }>
 }
 
 const formatAmount = (amount: string | number | undefined, currency: string) => {
@@ -48,6 +65,8 @@ export function PartnerCompound({
   logo_url = 'https://welilereceipts.com/welile-logo.png',
   unsubscribe_url = 'https://welile.com/unsubscribe',
   dashboard_url = 'https://welilereceipts.com/auth',
+  payment_number,
+  compound_history,
 }: PartnerCompoundProps) {
   const year = new Date().getFullYear()
   const formattedInitial = formatAmount(initial_partnership_amount, currency)
@@ -77,6 +96,72 @@ export function PartnerCompound({
     resolvedRoiLabel = '0%'
   }
   const roiLabel = resolvedRoiLabel
+
+  // Build a timeline of cycles that compose the New Total Partnership Value.
+  // Priority:
+  //   1. Explicit compound_history (truth from the caller).
+  //   2. Synthesised backwards from newTotal using payment_number + roi%.
+  //   3. Single-cycle fallback (initial → return → new total).
+  const newTotalNum = Number(String(new_total_partnership_value).replace(/,/g, '')) || 0
+  const cyclesDone = Math.max(0, Math.floor(Number(payment_number) || 0))
+  const ratePct = Number.isFinite(explicitPct) && explicitPct > 0
+    ? explicitPct
+    : (initNum > 0 ? (retNum / initNum) * 100 : 0)
+  const r = ratePct / 100
+
+  type TimelineRow = {
+    cycleLabel: string
+    dateLabel?: string
+    before: number
+    earned: number
+    after: number
+    isCurrent: boolean
+  }
+  let timeline: TimelineRow[] = []
+
+  if (Array.isArray(compound_history) && compound_history.length > 0) {
+    timeline = compound_history.map((h, idx) => {
+      const before = Number(String(h.balance_before ?? '').replace(/,/g, '')) || 0
+      const earned = Number(String(h.return_amount ?? '').replace(/,/g, '')) || 0
+      const after = Number(String(h.balance_after ?? '').replace(/,/g, '')) || (before + earned)
+      return {
+        cycleLabel: `Cycle ${h.cycle ?? idx + 1}`,
+        dateLabel: h.date,
+        before, earned, after,
+        isCurrent: idx === compound_history.length - 1,
+      }
+    })
+  } else if (cyclesDone >= 2 && r > 0 && newTotalNum > 0) {
+    // Walk backwards: this cycle ended at newTotalNum, prior cycle ended at newTotalNum/(1+r), etc.
+    const endings: number[] = []
+    let bal = newTotalNum
+    for (let i = 0; i < cyclesDone; i++) {
+      endings.unshift(bal)
+      bal = bal / (1 + r)
+    }
+    // bal now ≈ original principal before any compounding
+    timeline = endings.map((after, idx) => {
+      const before = idx === 0 ? bal : endings[idx - 1]
+      return {
+        cycleLabel: `Cycle ${idx + 1}`,
+        dateLabel: idx === endings.length - 1 ? compound_date : undefined,
+        before,
+        earned: after - before,
+        after,
+        isCurrent: idx === endings.length - 1,
+      }
+    })
+  } else {
+    // Single-cycle fallback
+    timeline = [{
+      cycleLabel: cyclesDone > 0 ? `Cycle ${cyclesDone}` : 'This cycle',
+      dateLabel: compound_date,
+      before: initNum,
+      earned: retNum,
+      after: newTotalNum || (initNum + retNum),
+      isCurrent: true,
+    }]
+  }
 
   return (
     <Html>
@@ -145,6 +230,62 @@ export function PartnerCompound({
                         </tr>
                       </tbody>
                     </table>
+                  </td>
+                </tr>
+
+                {/* Compounding timeline — breakdown of how we arrived at the New Total */}
+                <tr>
+                  <td className="padding-mobile" style={{ padding: '0 40px 30px 40px' }}>
+                    <Text style={timelineTitle}>How your New Total was built</Text>
+                    <Text style={timelineSubtitle}>
+                      A cycle-by-cycle breakdown of the compounding that produced {formattedNewTotal}.
+                    </Text>
+                    <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={timelineCard}>
+                      <tbody>
+                        {timeline.map((row, i) => {
+                          const isLast = i === timeline.length - 1
+                          return (
+                            <tr key={i}>
+                              <td width={28} valign="top" style={timelineRailCell}>
+                                <div style={{ ...timelineDot, ...(row.isCurrent ? timelineDotCurrent : {}) }} />
+                                {!isLast && <div style={timelineLine} />}
+                              </td>
+                              <td valign="top" style={{
+                                ...timelineRowCell,
+                                ...(isLast ? { paddingBottom: 4 } : {}),
+                              }}>
+                                <Text style={timelineCycleLabel}>
+                                  {row.cycleLabel}
+                                  {row.isCurrent && <span style={timelineCurrentTag}>&nbsp;· This cycle</span>}
+                                  {row.dateLabel && <span style={timelineDateLabel}>&nbsp;· {row.dateLabel}</span>}
+                                </Text>
+                                <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={{ marginTop: 6 }}>
+                                  <tbody>
+                                    <tr>
+                                      <td style={timelineKvLabel}>Start of cycle</td>
+                                      <td align="right" style={timelineKvValue}>{formatAmount(row.before, currency)}</td>
+                                    </tr>
+                                    <tr>
+                                      <td style={timelineKvLabel}>Return earned ({roiLabel})</td>
+                                      <td align="right" style={timelineKvEarned}>+{formatAmount(row.earned, currency)}</td>
+                                    </tr>
+                                    <tr>
+                                      <td style={timelineKvLabelStrong}>Balance after</td>
+                                      <td align="right" style={timelineKvAfter}>{formatAmount(row.after, currency)}</td>
+                                    </tr>
+                                  </tbody>
+                                </table>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                    {cyclesDone >= 2 && !(Array.isArray(compound_history) && compound_history.length > 0) && (
+                      <Text style={timelineFootnote}>
+                        Cycle balances are reconstructed from your portfolio's compounding rate ({roiLabel} per cycle).
+                      </Text>
+                    )}
                   </td>
                 </tr>
 
@@ -374,6 +515,26 @@ const ctaFineLink: React.CSSProperties = {
 }
 
 const socialIcon: React.CSSProperties = { display: 'block', opacity: 0.8 }
+
+// Compounding timeline styles
+const timelineTitle: React.CSSProperties = { margin: '0 0 4px 0', color: INK, fontSize: '15px', fontWeight: 700 }
+const timelineSubtitle: React.CSSProperties = { margin: '0 0 14px 0', color: SUB, fontSize: '12px', lineHeight: '18px' }
+const timelineCard: React.CSSProperties = { border: `1px solid ${BORDER}`, borderRadius: '12px', backgroundColor: '#ffffff', padding: '14px 14px 6px 14px' }
+const timelineRailCell: React.CSSProperties = { paddingTop: 6, paddingRight: 10, position: 'relative' as const }
+const timelineDot: React.CSSProperties = { width: 10, height: 10, borderRadius: 999, backgroundColor: BORDER, marginLeft: 4, marginTop: 4 }
+const timelineDotCurrent: React.CSSProperties = { backgroundColor: BRAND, boxShadow: `0 0 0 3px ${ACCENT_BG}` }
+const timelineLine: React.CSSProperties = { width: 2, minHeight: 28, backgroundColor: HAIRLINE, marginLeft: 8, marginTop: 4 }
+const timelineRowCell: React.CSSProperties = { paddingBottom: 14 }
+const timelineCycleLabel: React.CSSProperties = { margin: 0, color: INK, fontSize: '13px', fontWeight: 700 }
+const timelineCurrentTag: React.CSSProperties = { color: BRAND, fontWeight: 700, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }
+const timelineDateLabel: React.CSSProperties = { color: SUB, fontWeight: 500, fontSize: '12px' }
+const timelineKvLabel: React.CSSProperties = { color: BODY, fontSize: '12px', padding: '3px 0' }
+const timelineKvLabelStrong: React.CSSProperties = { color: INK, fontSize: '12px', fontWeight: 700, padding: '6px 0 0 0', borderTop: `1px dashed ${HAIRLINE}` }
+const timelineKvValue: React.CSSProperties = { color: INK, fontSize: '12px', fontWeight: 600, padding: '3px 0', fontVariantNumeric: 'tabular-nums' as any }
+const timelineKvEarned: React.CSSProperties = { color: SUCCESS, fontSize: '12px', fontWeight: 700, padding: '3px 0', fontVariantNumeric: 'tabular-nums' as any }
+const timelineKvAfter: React.CSSProperties = { color: BRAND, fontSize: '13px', fontWeight: 800, padding: '6px 0 0 0', borderTop: `1px dashed ${HAIRLINE}`, fontVariantNumeric: 'tabular-nums' as any }
+const timelineFootnote: React.CSSProperties = { margin: '10px 0 0 0', color: MUTED, fontSize: '11px', lineHeight: '16px', fontStyle: 'italic' as const }
+
 const footerCompanyName: React.CSSProperties = { margin: '0 0 12px 0', color: MUTED, fontSize: '14px', fontWeight: 700, textAlign: 'center' as const }
 const footerDisclaimer: React.CSSProperties = { margin: '0 0 20px 0', color: MUTED, fontSize: '12px', lineHeight: '18px', textAlign: 'center' as const }
 const footerLink: React.CSSProperties = { color: MUTED, fontSize: '12px', textDecoration: 'underline', margin: '0 10px' }
@@ -390,10 +551,11 @@ export const template = {
     partner_name: 'Sarah Nakato',
     portfolio_id: 'PF-1A2B3C4D',
     compound_date: '20th of April, 2026',
-    initial_partnership_amount: 5_000_000,
+    initial_partnership_amount: 6_272_000,
     roi_percentage: 12,
-    return_amount: 600_000,
-    new_total_partnership_value: 5_600_000,
+    return_amount: 752_640,
+    new_total_partnership_value: 7_024_640,
+    payment_number: 4,
     currency: 'UGX',
     company_name: 'Welile',
     logo_url: 'https://welilereceipts.com/welile-logo.png',

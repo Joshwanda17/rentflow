@@ -168,6 +168,10 @@ export function buildPartnerCompoundRequest(input: PartnerCompoundInput) {
       roi_percentage: pct,
       return_amount: input.returnAmount,
       new_total_partnership_value: input.newTotal,
+      // Cycle index for this compounding event (1-based). The template
+      // uses this to reconstruct a per-cycle breakdown that adds up to
+      // the new total partnership value.
+      payment_number: input.paymentNumber,
       currency: CURRENCY,
       company_name: COMPANY_NAME,
       logo_url: LOGO_URL,
