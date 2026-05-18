@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert, Copy, Check, Wifi, WifiOff, ShieldCheck, History, LinkIcon, ChevronDown, ChevronUp, FileDown, FileText } from 'lucide-react';
+import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert, Copy, Check, Wifi, WifiOff, ShieldCheck, History, LinkIcon, ChevronDown, ChevronUp, FileDown, FileText, AlertTriangle } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription,
 } from '@/components/ui/dialog';
@@ -36,6 +36,36 @@ interface PollState {
 
 const fmtUgx = (n: number | null) =>
   n === null || n === undefined ? '—' : `UGX ${Math.round(n).toLocaleString()}`;
+
+/**
+ * Validate a parsed Gmail transaction row against its own raw email text.
+ * A row is considered "flagged" (excluded from totals) when any of:
+ *   - parsed=true but amount is null / non-finite / ≤ 0
+ *   - parsed=true but no direction was extracted (can't classify in/out)
+ *   - the parsed amount cannot be located inside the subject/snippet
+ *     (means the parser & email disagree)
+ * Returns { valid: true } for unparsed rows (they never count toward totals).
+ */
+function validateGmailTx(r: GmailTx): { valid: boolean; reason?: string } {
+  if (!r.parsed) return { valid: true };
+  if (r.amount === null || r.amount === undefined || !Number.isFinite(r.amount) || r.amount <= 0) {
+    return { valid: false, reason: 'Parsed flag set but amount is missing or non-positive' };
+  }
+  if (!r.direction) {
+    return { valid: false, reason: 'Missing direction (in / out / charge) — cannot classify' };
+  }
+  // Cross-check: the parsed amount should appear (with or without commas/decimals)
+  // somewhere in the subject or snippet. Tolerate small rounding by matching
+  // the integer part only.
+  const haystack = `${r.subject ?? ''}\n${r.snippet ?? ''}`.replace(/[,\s]/g, '');
+  if (haystack.length > 0) {
+    const intPart = Math.round(r.amount).toString();
+    if (!haystack.includes(intPart)) {
+      return { valid: false, reason: `Parsed amount ${intPart} not found in email body` };
+    }
+  }
+  return { valid: true };
+}
 
 /**
  * Live feed of transaction confirmation emails extracted from the
@@ -98,12 +128,17 @@ export function EmailTransactionsPanel() {
   };
 
   const parsedCount = rows.filter((r) => r.parsed).length;
-  const totalAmount = rows.reduce((s, r) => s + (r.amount ?? 0), 0);
+  // Compute validity once per row so totals, breakdowns and the list agree.
+  const validity = new Map<string, { valid: boolean; reason?: string }>();
+  for (const r of rows) validity.set(r.id, validateGmailTx(r));
+  const flaggedCount = rows.filter((r) => r.parsed && !validity.get(r.id)!.valid).length;
+  const isCountable = (r: GmailTx) => r.parsed && validity.get(r.id)!.valid;
+  const totalAmount = rows.filter(isCountable).reduce((s, r) => s + (r.amount ?? 0), 0);
   const totalIn = rows
-    .filter((r) => r.parsed && r.direction === 'in')
+    .filter((r) => isCountable(r) && r.direction === 'in')
     .reduce((s, r) => s + (r.amount ?? 0), 0);
   const totalOut = rows
-    .filter((r) => r.parsed && (r.direction === 'out' || r.direction === 'charge'))
+    .filter((r) => isCountable(r) && (r.direction === 'out' || r.direction === 'charge'))
     .reduce((s, r) => s + (r.amount ?? 0), 0);
   const netAmount = totalIn - totalOut;
 
@@ -114,7 +149,7 @@ export function EmailTransactionsPanel() {
       { inCount: number; inTotal: number; outCount: number; outTotal: number }
     >();
     for (const r of rows) {
-      if (!r.parsed) continue;
+      if (!isCountable(r)) continue;
       const key = (r.channel && r.channel !== 'other' ? r.channel : 'other').replace('_', ' ');
       const cur = map.get(key) ?? { inCount: 0, inTotal: 0, outCount: 0, outTotal: 0 };
       const amt = r.amount ?? 0;
@@ -177,7 +212,7 @@ export function EmailTransactionsPanel() {
 
       <GmailReconnectAuditPanel />
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-8 gap-3">
         <StatCard label="Emails captured" value={rows.length.toString()} />
         <StatCard label="Parsed transactions" value={parsedCount.toString()} />
         <StatCard label="Total amount (parsed)" value={fmtUgx(totalAmount)} />
@@ -208,6 +243,19 @@ export function EmailTransactionsPanel() {
           ) : state?.last_status === 'ok' ? (
             <span className="inline-flex items-center gap-1 text-emerald-600 text-xs"><CheckCircle2 className="h-3 w-3" /> ok</span>
           ) : null}
+        />
+        <StatCard
+          label="Flagged (excluded)"
+          value={flaggedCount.toString()}
+          sub={
+            flaggedCount > 0 ? (
+              <span className="inline-flex items-center gap-1 text-amber-600 text-[10px]">
+                <AlertTriangle className="h-3 w-3" /> not counted in totals
+              </span>
+            ) : (
+              <span className="text-[10px] text-emerald-600">all parsed rows valid</span>
+            )
+          }
         />
       </div>
 
@@ -275,7 +323,14 @@ export function EmailTransactionsPanel() {
         ) : (
           <div className="divide-y max-h-[600px] overflow-y-auto">
             {rows.map((r) => (
-              <div key={r.id} className="p-4 hover:bg-muted/30 transition-colors">
+              <div
+                key={r.id}
+                className={`p-4 transition-colors ${
+                  r.parsed && !validity.get(r.id)!.valid
+                    ? 'bg-amber-500/5 hover:bg-amber-500/10 border-l-2 border-l-amber-500'
+                    : 'hover:bg-muted/30'
+                }`}
+              >
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -284,6 +339,15 @@ export function EmailTransactionsPanel() {
                         <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-700 border-emerald-500/20">parsed</Badge>
                       ) : (
                         <Badge variant="outline" className="text-[10px]">unparsed</Badge>
+                      )}
+                      {r.parsed && !validity.get(r.id)!.valid && (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/30 gap-1"
+                          title={validity.get(r.id)!.reason}
+                        >
+                          <AlertTriangle className="h-3 w-3" /> flagged · excluded
+                        </Badge>
                       )}
                       {r.channel && r.channel !== 'other' && (
                         <Badge variant="outline" className="text-[10px] capitalize">{r.channel.replace('_',' ')}</Badge>
