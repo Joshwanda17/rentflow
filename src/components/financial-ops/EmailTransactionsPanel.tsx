@@ -737,8 +737,8 @@ export function EmailTransactionsPanel() {
                         </Badge>
                       )}
                       {(() => {
-                        const ch = deriveChannel(r);
-                        if (ch === 'other') return null;
+                        const resolved = ch(r);
+                        if (resolved === 'other') return null;
                         const inferred = !r.channel || r.channel === 'other';
                         return (
                           <Badge
@@ -746,7 +746,7 @@ export function EmailTransactionsPanel() {
                             className="text-[10px] capitalize"
                             title={inferred ? `Inferred from ${r.transaction_id ? 'transaction id' : 'email reference'}` : undefined}
                           >
-                            {ch.replace(/_/g, ' ')}{inferred ? ' •' : ''}
+                            {resolved.replace(/_/g, ' ')}{inferred ? ' •' : ''}
                           </Badge>
                         );
                       })()}
