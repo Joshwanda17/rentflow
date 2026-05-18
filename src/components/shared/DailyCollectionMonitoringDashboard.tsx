@@ -364,6 +364,32 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
     return map;
   }, [missedWindow, missedDaysRpc]);
 
+  // Exact missed dates per tenant (for the expandable list / tooltip)
+  const { data: missedDatesRpc } = useQuery({
+    queryKey: ['daily-collection-missed-dates-rpc', missedWindow, asOfKey],
+    enabled: missedWindow > 0,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_tenant_missed_dates', {
+        p_window_days: missedWindow,
+        p_as_of: asOfKey,
+      });
+      if (error) throw error;
+      return (data || []) as { tenant_id: string; missed_dates: string[] }[];
+    },
+  });
+
+  const missedDatesByTenant = useMemo(() => {
+    const map = new Map<string, string[]>();
+    if (!missedWindow) return map;
+    (missedDatesRpc || []).forEach(r => {
+      if (Array.isArray(r.missed_dates) && r.missed_dates.length > 0) {
+        map.set(r.tenant_id, r.missed_dates);
+      }
+    });
+    return map;
+  }, [missedWindow, missedDatesRpc]);
+
   // Apply filters
   const filteredRows = useMemo(() => {
     return trackerRows.filter(r => {
@@ -874,9 +900,50 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
                       <TableCell>{statusBadge(r.status)}</TableCell>
                       {missedWindow > 0 && (
                         <TableCell className="text-xs text-right">
-                          <Badge variant="destructive" className="tabular-nums">
-                            {missedDaysByTenant.get(r.tenantId) || 0} / {missedWindow}
-                          </Badge>
+                          {(() => {
+                            const count = missedDaysByTenant.get(r.tenantId) || 0;
+                            const dates = missedDatesByTenant.get(r.tenantId) || [];
+                            if (count === 0) {
+                              return (
+                                <Badge variant="outline" className="tabular-nums">
+                                  0 / {missedWindow}
+                                </Badge>
+                              );
+                            }
+                            return (
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <button type="button" title="Click to see exact missed dates">
+                                    <Badge variant="destructive" className="tabular-nums cursor-pointer hover:opacity-90">
+                                      {count} / {missedWindow}
+                                    </Badge>
+                                  </button>
+                                </PopoverTrigger>
+                                <PopoverContent align="end" className="w-64 p-0">
+                                  <div className="px-3 py-2 border-b">
+                                    <p className="text-xs font-semibold">Missed dates</p>
+                                    <p className="text-[11px] text-muted-foreground">
+                                      {r.tenantName} • last {missedWindow} day{missedWindow > 1 ? 's' : ''}
+                                    </p>
+                                  </div>
+                                  <div className="max-h-56 overflow-y-auto py-1">
+                                    {dates.map((d) => {
+                                      const dt = new Date(d);
+                                      return (
+                                        <div
+                                          key={d}
+                                          className="px-3 py-1 text-xs flex items-center justify-between hover:bg-muted/40"
+                                        >
+                                          <span className="tabular-nums">{format(dt, 'EEE, dd MMM yyyy')}</span>
+                                          <span className="text-[10px] text-destructive uppercase">missed</span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
+                            );
+                          })()}
                         </TableCell>
                       )}
                       <TableCell className="text-xs">{r.paymentMethod}</TableCell>
