@@ -81,6 +81,9 @@ export function EmailTransactionsPanel() {
   );
   const [loading, setLoading] = useState(true);
   const [polling, setPolling] = useState(false);
+  // Date-range filter (inclusive). Empty string = unbounded on that side.
+  const [fromDate, setFromDate] = useState<string>('');
+  const [toDate, setToDate] = useState<string>('');
 
   const load = async () => {
     const [{ data: txs }, { data: ps }] = await Promise.all([
@@ -127,17 +130,30 @@ export function EmailTransactionsPanel() {
     }
   };
 
-  const parsedCount = rows.filter((r) => r.parsed).length;
+  // Apply date-range filter to everything that drives totals / breakdown / exports.
+  const fromTs = fromDate ? new Date(`${fromDate}T00:00:00`).getTime() : null;
+  const toTs = toDate ? new Date(`${toDate}T23:59:59.999`).getTime() : null;
+  const inRange = (r: GmailTx) => {
+    if (!fromTs && !toTs) return true;
+    if (!r.internal_date) return false;
+    const t = new Date(r.internal_date).getTime();
+    if (fromTs && t < fromTs) return false;
+    if (toTs && t > toTs) return false;
+    return true;
+  };
+  const filteredRows = rows.filter(inRange);
+  const rangeActive = Boolean(fromTs || toTs);
+  const parsedCount = filteredRows.filter((r) => r.parsed).length;
   // Compute validity once per row so totals, breakdowns and the list agree.
   const validity = new Map<string, { valid: boolean; reason?: string }>();
   for (const r of rows) validity.set(r.id, validateGmailTx(r));
-  const flaggedCount = rows.filter((r) => r.parsed && !validity.get(r.id)!.valid).length;
+  const flaggedCount = filteredRows.filter((r) => r.parsed && !validity.get(r.id)!.valid).length;
   const isCountable = (r: GmailTx) => r.parsed && validity.get(r.id)!.valid;
-  const totalAmount = rows.filter(isCountable).reduce((s, r) => s + (r.amount ?? 0), 0);
-  const totalIn = rows
+  const totalAmount = filteredRows.filter(isCountable).reduce((s, r) => s + (r.amount ?? 0), 0);
+  const totalIn = filteredRows
     .filter((r) => isCountable(r) && r.direction === 'in')
     .reduce((s, r) => s + (r.amount ?? 0), 0);
-  const totalOut = rows
+  const totalOut = filteredRows
     .filter((r) => isCountable(r) && (r.direction === 'out' || r.direction === 'charge'))
     .reduce((s, r) => s + (r.amount ?? 0), 0);
   const netAmount = totalIn - totalOut;
@@ -148,7 +164,7 @@ export function EmailTransactionsPanel() {
       string,
       { inCount: number; inTotal: number; outCount: number; outTotal: number }
     >();
-    for (const r of rows) {
+    for (const r of filteredRows) {
       if (!isCountable(r)) continue;
       const key = (r.channel && r.channel !== 'other' ? r.channel : 'other').replace('_', ' ');
       const cur = map.get(key) ?? { inCount: 0, inTotal: 0, outCount: 0, outTotal: 0 };
@@ -184,16 +200,16 @@ export function EmailTransactionsPanel() {
         </Button>
         <Button
           variant="outline"
-          onClick={() => exportTotalsCsv({ rows, totalIn, totalOut, netAmount, channelBreakdown })}
-          disabled={rows.length === 0}
+          onClick={() => exportTotalsCsv({ rows: filteredRows, totalIn, totalOut, netAmount, channelBreakdown })}
+          disabled={filteredRows.length === 0}
           className="gap-2"
         >
           <FileDown className="h-4 w-4" /> Export CSV
         </Button>
         <Button
           variant="outline"
-          onClick={() => exportTotalsPdf({ rows, totalIn, totalOut, netAmount, channelBreakdown })}
-          disabled={rows.length === 0}
+          onClick={() => exportTotalsPdf({ rows: filteredRows, totalIn, totalOut, netAmount, channelBreakdown })}
+          disabled={filteredRows.length === 0}
           className="gap-2"
         >
           <FileText className="h-4 w-4" /> Export PDF
@@ -201,6 +217,68 @@ export function EmailTransactionsPanel() {
         <ReconnectGmailDialog />
         <DebugPollDialog />
         <SmsSetupGuide />
+      </div>
+
+      {/* Date-range selector — recomputes totals/breakdown/exports for the chosen period. */}
+      <div className="rounded-xl border bg-card p-4 flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-4">
+        <div className="flex-1">
+          <h3 className="font-semibold text-sm">Date range</h3>
+          <p className="text-[11px] text-muted-foreground mt-0.5">
+            {rangeActive
+              ? `Showing ${filteredRows.length} of ${rows.length} emails — totals recomputed for ${fromDate || '…'} → ${toDate || '…'}`
+              : `No range selected — showing all ${rows.length} emails`}
+          </p>
+        </div>
+        <div className="flex flex-col">
+          <label className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">From</label>
+          <input
+            type="date"
+            value={fromDate}
+            max={toDate || undefined}
+            onChange={(e) => setFromDate(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+          />
+        </div>
+        <div className="flex flex-col">
+          <label className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">To</label>
+          <input
+            type="date"
+            value={toDate}
+            min={fromDate || undefined}
+            onChange={(e) => setToDate(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+          />
+        </div>
+        <div className="flex gap-2">
+          {[
+            { label: '7d', days: 7 },
+            { label: '30d', days: 30 },
+            { label: '90d', days: 90 },
+          ].map((p) => (
+            <Button
+              key={p.label}
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const to = new Date();
+                const from = new Date();
+                from.setDate(to.getDate() - (p.days - 1));
+                setFromDate(format(from, 'yyyy-MM-dd'));
+                setToDate(format(to, 'yyyy-MM-dd'));
+              }}
+            >
+              {p.label}
+            </Button>
+          ))}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => { setFromDate(''); setToDate(''); }}
+            disabled={!rangeActive}
+          >
+            Clear
+          </Button>
+        </div>
       </div>
 
       <GmailConnectionStatus
@@ -322,7 +400,7 @@ export function EmailTransactionsPanel() {
           </div>
         ) : (
           <div className="divide-y max-h-[600px] overflow-y-auto">
-            {rows.map((r) => (
+            {filteredRows.map((r) => (
               <div
                 key={r.id}
                 className={`p-4 transition-colors ${
