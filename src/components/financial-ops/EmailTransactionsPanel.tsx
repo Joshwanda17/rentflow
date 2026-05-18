@@ -221,6 +221,68 @@ const CHANNEL_RULES: ChannelRule[] = [
 ];
 
 /**
+ * User-defined channel rules. These are layered on top of CHANNEL_RULES (and
+ * evaluated first) so a manual fix from the UI permanently re-classifies any
+ * future row that matches the same pattern. Persisted in localStorage as
+ * plain strings; the pattern is stored as a regex source string + flags.
+ */
+const USER_RULES_KEY = 'gmail_channel_user_rules_v1';
+interface StoredUserRule {
+  id: string;
+  channel: string;
+  confidence: ChannelConfidence;
+  signal: string;
+  source: RuleSource;
+  patternSource: string;
+  patternFlags: string;
+  createdAt: string;
+  /** Optional human-readable note shown in the manage list. */
+  note?: string;
+}
+
+function readStoredUserRules(): StoredUserRule[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(USER_RULES_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as StoredUserRule[]) : [];
+  } catch { return []; }
+}
+function writeStoredUserRules(rules: StoredUserRule[]): void {
+  if (typeof window === 'undefined') return;
+  try { localStorage.setItem(USER_RULES_KEY, JSON.stringify(rules)); } catch {}
+}
+function compileUserRule(r: StoredUserRule): ChannelRule | null {
+  try {
+    return {
+      id: r.id, channel: r.channel, confidence: r.confidence,
+      signal: r.signal, source: r.source,
+      pattern: new RegExp(r.patternSource, r.patternFlags || 'i'),
+    };
+  } catch { return null; }
+}
+/** Module-level live cache of compiled user rules, refreshed on save/delete. */
+let USER_RULES: ChannelRule[] = readStoredUserRules()
+  .map(compileUserRule)
+  .filter((x): x is ChannelRule => !!x);
+function refreshUserRules(): void {
+  USER_RULES = readStoredUserRules()
+    .map(compileUserRule)
+    .filter((x): x is ChannelRule => !!x);
+}
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Canonical channel options shown in the correction dialog. */
+const CHANNEL_OPTIONS: string[] = [
+  'cash_receipt', 'mtn_momo', 'airtel_money',
+  'stanbic', 'centenary', 'dfcu', 'equity_bank', 'absa', 'stanchart',
+  'bank_transfer', 'card', 'other',
+];
+
+/**
  * Pure heuristic — no cache lookup. Walks `CHANNEL_RULES` in order and
  * returns the first match, capturing the rule id, source field, and the
  * exact matched substring so the UI can explain *why* the channel was
@@ -232,7 +294,7 @@ function computeChannel(r: GmailTx): ChannelResult {
   }
   const id = (r.transaction_id ?? '').trim();
   const body = `${r.from_email ?? ''} ${r.from_name ?? ''} ${r.subject ?? ''} ${r.snippet ?? ''} ${id}`;
-  for (const rule of CHANNEL_RULES) {
+  for (const rule of [...USER_RULES, ...CHANNEL_RULES]) {
     const haystack = rule.source === 'transaction_id' ? id : body;
     if (!haystack) continue;
     const m = haystack.match(rule.pattern);
