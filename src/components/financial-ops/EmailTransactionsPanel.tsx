@@ -2,12 +2,17 @@ import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert, Copy, Check, Wifi, WifiOff, ShieldCheck, History, LinkIcon, ChevronDown, ChevronUp, FileDown, FileText, AlertTriangle, Search, X } from 'lucide-react';
+import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert, Copy, Check, Wifi, WifiOff, ShieldCheck, History, LinkIcon, ChevronDown, ChevronUp, FileDown, FileText, AlertTriangle, Search, X, Pencil, Trash2 } from 'lucide-react';
 import { Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { downloadCsv } from '@/lib/csvExport';
@@ -216,6 +221,68 @@ const CHANNEL_RULES: ChannelRule[] = [
 ];
 
 /**
+ * User-defined channel rules. These are layered on top of CHANNEL_RULES (and
+ * evaluated first) so a manual fix from the UI permanently re-classifies any
+ * future row that matches the same pattern. Persisted in localStorage as
+ * plain strings; the pattern is stored as a regex source string + flags.
+ */
+const USER_RULES_KEY = 'gmail_channel_user_rules_v1';
+interface StoredUserRule {
+  id: string;
+  channel: string;
+  confidence: ChannelConfidence;
+  signal: string;
+  source: RuleSource;
+  patternSource: string;
+  patternFlags: string;
+  createdAt: string;
+  /** Optional human-readable note shown in the manage list. */
+  note?: string;
+}
+
+function readStoredUserRules(): StoredUserRule[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(USER_RULES_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as StoredUserRule[]) : [];
+  } catch { return []; }
+}
+function writeStoredUserRules(rules: StoredUserRule[]): void {
+  if (typeof window === 'undefined') return;
+  try { localStorage.setItem(USER_RULES_KEY, JSON.stringify(rules)); } catch {}
+}
+function compileUserRule(r: StoredUserRule): ChannelRule | null {
+  try {
+    return {
+      id: r.id, channel: r.channel, confidence: r.confidence,
+      signal: r.signal, source: r.source,
+      pattern: new RegExp(r.patternSource, r.patternFlags || 'i'),
+    };
+  } catch { return null; }
+}
+/** Module-level live cache of compiled user rules, refreshed on save/delete. */
+let USER_RULES: ChannelRule[] = readStoredUserRules()
+  .map(compileUserRule)
+  .filter((x): x is ChannelRule => !!x);
+function refreshUserRules(): void {
+  USER_RULES = readStoredUserRules()
+    .map(compileUserRule)
+    .filter((x): x is ChannelRule => !!x);
+}
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Canonical channel options shown in the correction dialog. */
+const CHANNEL_OPTIONS: string[] = [
+  'cash_receipt', 'mtn_momo', 'airtel_money',
+  'stanbic', 'centenary', 'dfcu', 'equity_bank', 'absa', 'stanchart',
+  'bank_transfer', 'card', 'other',
+];
+
+/**
  * Pure heuristic — no cache lookup. Walks `CHANNEL_RULES` in order and
  * returns the first match, capturing the rule id, source field, and the
  * exact matched substring so the UI can explain *why* the channel was
@@ -227,7 +294,7 @@ function computeChannel(r: GmailTx): ChannelResult {
   }
   const id = (r.transaction_id ?? '').trim();
   const body = `${r.from_email ?? ''} ${r.from_name ?? ''} ${r.subject ?? ''} ${r.snippet ?? ''} ${id}`;
-  for (const rule of CHANNEL_RULES) {
+  for (const rule of [...USER_RULES, ...CHANNEL_RULES]) {
     const haystack = rule.source === 'transaction_id' ? id : body;
     if (!haystack) continue;
     const m = haystack.match(rule.pattern);
@@ -328,6 +395,23 @@ export function EmailTransactionsPanel() {
   // future poll inserts.
   const channelCacheRef = useRef<Record<string, ChannelCacheEntry>>(readChannelCache());
   const flushChannelCache = () => writeChannelCache(channelCacheRef.current);
+
+  // Manual channel correction UI. `editingRow` controls the dialog; bumping
+  // `rulesVersion` re-renders the list so newly-saved rules / cache overrides
+  // take effect immediately on every visible row.
+  const [editingRow, setEditingRow] = useState<GmailTx | null>(null);
+  const [rulesVersion, setRulesVersion] = useState(0);
+  const [storedUserRules, setStoredUserRules] = useState<StoredUserRule[]>(() => readStoredUserRules());
+  const persistUserRules = (next: StoredUserRule[]) => {
+    writeStoredUserRules(next);
+    refreshUserRules();
+    setStoredUserRules(next);
+    setRulesVersion((v) => v + 1);
+  };
+  const deleteUserRule = (id: string) => {
+    persistUserRules(storedUserRules.filter((r) => r.id !== id));
+    toast({ title: 'Rule removed', description: 'Future emails will no longer use this override.' });
+  };
 
   const load = async () => {
     const [{ data: txs }, { data: ps }] = await Promise.all([
@@ -922,6 +1006,14 @@ export function EmailTransactionsPanel() {
                           </Badge>
                         );
                       })()}
+                      <button
+                        type="button"
+                        onClick={() => setEditingRow(r)}
+                        title="Fix channel & save a rule"
+                        className="inline-flex items-center justify-center h-5 w-5 rounded border border-border/60 text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </button>
                       {r.direction && (
                         <Badge variant="outline" className={`text-[10px] capitalize ${
                           r.direction === 'in' ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20'
@@ -955,6 +1047,46 @@ export function EmailTransactionsPanel() {
       </div>
 
       <DedupAuditPanel />
+
+      <FixChannelDialog
+        row={editingRow}
+        onClose={() => setEditingRow(null)}
+        userRules={storedUserRules}
+        onSave={(channel, ruleSpec) => {
+          // 1. Override the cache for this row so it sticks immediately.
+          if (editingRow) {
+            const key = channelCacheKey(editingRow);
+            if (key) {
+              channelCacheRef.current[key] = {
+                channel,
+                confidence: 'authoritative',
+                signal: 'Manual correction',
+                rule: 'user_override',
+                source: 'parser',
+              };
+              flushChannelCache();
+            }
+          }
+          // 2. Persist a new permanent rule (if the user opted to).
+          if (ruleSpec) {
+            const next: StoredUserRule[] = [
+              ...storedUserRules,
+              { ...ruleSpec, channel, createdAt: new Date().toISOString() },
+            ];
+            persistUserRules(next);
+          } else {
+            setRulesVersion((v) => v + 1);
+          }
+          toast({
+            title: 'Channel updated',
+            description: ruleSpec
+              ? `Saved as "${channel}" and added a rule for future emails.`
+              : `Saved as "${channel}" for this transaction.`,
+          });
+          setEditingRow(null);
+        }}
+        onDeleteRule={deleteUserRule}
+      />
     </div>
   );
 }
@@ -1859,6 +1991,197 @@ function ReconnectGmailDialog() {
             Log &amp; open chat
           </Button>
         </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * Dialog for manually correcting an inferred channel and (optionally)
+ * persisting a permanent rule so future emails matching the same pattern
+ * automatically classify the same way.
+ *
+ * The form is intentionally simple: pick the right channel, optionally
+ * enter a short matching phrase (e.g. "RCT-", "FT2025"), choose which
+ * field to match against, and save. The phrase is escaped and stored as
+ * a case-insensitive regex.
+ */
+function FixChannelDialog({
+  row,
+  onClose,
+  userRules,
+  onSave,
+  onDeleteRule,
+}: {
+  row: GmailTx | null;
+  onClose: () => void;
+  userRules: StoredUserRule[];
+  onSave: (channel: string, ruleSpec: Omit<StoredUserRule, 'createdAt'> | null) => void;
+  onDeleteRule: (id: string) => void;
+}) {
+  const open = !!row;
+  const current = row ? deriveChannel(row) : null;
+  const [channel, setChannel] = useState<string>('cash_receipt');
+  const [matchText, setMatchText] = useState<string>('');
+  const [source, setSource] = useState<RuleSource>('transaction_id');
+  const [saveRule, setSaveRule] = useState<boolean>(true);
+  const [note, setNote] = useState<string>('');
+
+  // Re-seed the form whenever a new row opens the dialog.
+  useEffect(() => {
+    if (!row) return;
+    setChannel(current?.channel && current.channel !== 'other' ? current.channel : 'cash_receipt');
+    // Pre-fill the match text with the most distinctive thing we can find.
+    const id = (row.transaction_id ?? '').trim();
+    const preset = current?.match ?? (id ? id.slice(0, Math.min(id.length, 6)) : '');
+    setMatchText(preset);
+    setSource(id ? 'transaction_id' : 'subject');
+    setSaveRule(true);
+    setNote('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [row?.id]);
+
+  const handleSave = () => {
+    if (!row) return;
+    const phrase = matchText.trim();
+    let ruleSpec: Omit<StoredUserRule, 'createdAt'> | null = null;
+    if (saveRule && phrase.length >= 2) {
+      ruleSpec = {
+        id: `user_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+        channel,
+        confidence: 'high',
+        signal: `User rule: matches "${phrase}"${note ? ` — ${note}` : ''}`,
+        source,
+        patternSource: escapeRegex(phrase),
+        patternFlags: 'i',
+        note: note || undefined,
+      };
+    }
+    onSave(channel, ruleSpec);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Fix inferred channel</DialogTitle>
+          <DialogDescription>
+            Reclassify this transaction and optionally save a rule so future emails
+            matching the same phrase always use this channel.
+          </DialogDescription>
+        </DialogHeader>
+
+        {row && (
+          <div className="space-y-4">
+            <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="outline" className="text-[10px] capitalize">
+                  current: {current?.channel.replace(/_/g, ' ') ?? 'other'}
+                </Badge>
+                {current?.rule && (
+                  <span className="text-muted-foreground">rule: {current.rule}</span>
+                )}
+              </div>
+              <div className="truncate"><strong>Subject:</strong> {row.subject || '(none)'}</div>
+              {row.transaction_id && (
+                <div className="font-mono"><strong className="font-sans">Txn id:</strong> {row.transaction_id}</div>
+              )}
+              {row.snippet && (
+                <div className="line-clamp-2 text-muted-foreground">{row.snippet}</div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Correct channel</Label>
+                <Select value={channel} onValueChange={setChannel}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CHANNEL_OPTIONS.map((c) => (
+                      <SelectItem key={c} value={c} className="capitalize">{c.replace(/_/g, ' ')}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Match in field</Label>
+                <Select value={source} onValueChange={(v) => setSource(v as RuleSource)}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="transaction_id">Transaction id / receipt</SelectItem>
+                    <SelectItem value="subject">Email subject</SelectItem>
+                    <SelectItem value="snippet">Email snippet</SelectItem>
+                    <SelectItem value="from">Sender</SelectItem>
+                    <SelectItem value="body">Anywhere (subject + body)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Match phrase (case-insensitive)</Label>
+              <Input
+                value={matchText}
+                onChange={(e) => setMatchText(e.target.value)}
+                placeholder='e.g. "RCT-" or "FT2025"'
+                className="h-9 font-mono text-xs"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Any future email whose chosen field contains this phrase will be
+                classified as <strong className="capitalize">{channel.replace(/_/g, ' ')}</strong>.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Optional note</Label>
+              <Input
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Why this rule exists"
+                className="h-9 text-xs"
+              />
+            </div>
+
+            <label className="flex items-center gap-2 text-xs select-none">
+              <input
+                type="checkbox"
+                checked={saveRule}
+                onChange={(e) => setSaveRule(e.target.checked)}
+                className="h-3.5 w-3.5"
+              />
+              Save as a permanent rule for future emails
+            </label>
+
+            {userRules.length > 0 && (
+              <div className="space-y-2 pt-2 border-t">
+                <Label className="text-xs">Existing user rules ({userRules.length})</Label>
+                <div className="max-h-40 overflow-y-auto space-y-1 pr-1">
+                  {userRules.map((u) => (
+                    <div key={u.id} className="flex items-center gap-2 text-[11px] rounded border bg-muted/20 px-2 py-1">
+                      <Badge variant="outline" className="text-[10px] capitalize shrink-0">{u.channel.replace(/_/g, ' ')}</Badge>
+                      <span className="font-mono truncate flex-1" title={`/${u.patternSource}/${u.patternFlags} in ${u.source}`}>
+                        /{u.patternSource}/ <span className="text-muted-foreground">in {u.source}</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => onDeleteRule(u.id)}
+                        className="text-muted-foreground hover:text-destructive"
+                        title="Delete rule"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={onClose}>Cancel</Button>
+              <Button onClick={handleSave}>Save</Button>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
