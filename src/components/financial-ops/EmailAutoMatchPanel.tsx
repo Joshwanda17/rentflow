@@ -33,6 +33,36 @@ interface Match {
 
 const fmtUgx = (n: number) => `UGX ${Math.round(n).toLocaleString()}`;
 
+async function writeAudit(entry: {
+  gmail_transaction_id?: string | null;
+  deposit_request_id?: string | null;
+  action: 'approve' | 'bulk_approve' | 'skip';
+  matcher_type?: string | null;
+  match_score?: number | null;
+  signals?: string[] | null;
+  amount?: number | null;
+  notes?: string | null;
+}) {
+  try {
+    const { data: sess } = await supabase.auth.getSession();
+    const u = sess?.session?.user;
+    await (supabase.from('email_match_audit_log') as any).insert({
+      gmail_transaction_id: entry.gmail_transaction_id ?? null,
+      deposit_request_id: entry.deposit_request_id ?? null,
+      action: entry.action,
+      matcher_type: entry.matcher_type ?? null,
+      match_score: entry.match_score ?? null,
+      signals: entry.signals ?? null,
+      amount: entry.amount ?? null,
+      actor_id: u?.id ?? null,
+      actor_email: u?.email ?? null,
+      notes: entry.notes ?? null,
+    });
+  } catch (e) {
+    console.warn('[audit] write failed', e);
+  }
+}
+
 /**
  * Reads parsed transaction-confirmation emails from the connected inbox and
  * auto-pairs each one with a pending deposit_request whose Transaction ID or
