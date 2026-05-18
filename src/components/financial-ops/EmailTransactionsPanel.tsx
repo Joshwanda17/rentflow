@@ -218,7 +218,10 @@ export function EmailTransactionsPanel() {
   const validity = new Map<string, { valid: boolean; reason?: string }>();
   for (const r of rows) validity.set(r.id, validateGmailTx(r));
   const flaggedCount = filteredRows.filter((r) => r.parsed && !validity.get(r.id)!.valid).length;
-  const isCountable = (r: GmailTx) => r.parsed && validity.get(r.id)!.valid;
+  // Flagged rows are kept in totals (only highlighted in the UI). A row counts
+  // toward totals as long as it's parsed and has a usable amount.
+  const isCountable = (r: GmailTx) =>
+    r.parsed && r.amount !== null && Number.isFinite(r.amount as number) && (r.amount as number) > 0;
   const totalAmount = filteredRows.filter(isCountable).reduce((s, r) => s + (r.amount ?? 0), 0);
   const totalIn = filteredRows
     .filter((r) => isCountable(r) && r.direction === 'in')
