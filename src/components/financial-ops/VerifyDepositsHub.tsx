@@ -27,6 +27,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { DepositChannel } from '@/lib/fieldDepositBatches';
 import { cn } from '@/lib/utils';
 import { useFinOpsAutoRefresh } from '@/hooks/useFinOpsAutoRefresh';
+import { VerifyDepositsChecklist } from './VerifyDepositsChecklist';
 import type { LucideIcon } from 'lucide-react';
 
 /**
@@ -326,6 +327,11 @@ export function VerifyDepositsHub() {
           wallet and posts to the ledger automatically.
         </p>
       </div>
+
+      {/* Plain-language playbook for the currently-selected tab. Keeps
+          newer operators oriented without slowing experienced ones down —
+          collapses to a single row once every step is ticked. */}
+      <VerifyDepositsChecklist tab={tab} />
 
       {/* Tabs first — operators told us the queue switcher is the most-used
           control, so it now sits at the top instead of below the filters. */}
