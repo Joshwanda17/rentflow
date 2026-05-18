@@ -781,15 +781,27 @@ export function EmailTransactionsPanel() {
                       )}
                       {(() => {
                         const resolved = ch(r);
-                        if (resolved === 'other') return null;
+                        if (resolved.channel === 'other') return null;
                         const inferred = !r.channel || r.channel === 'other';
+                        const score = confidenceScore(resolved.confidence);
+                        const tone =
+                          resolved.confidence === 'authoritative' || resolved.confidence === 'high'
+                            ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20'
+                            : resolved.confidence === 'medium'
+                            ? 'bg-sky-500/10 text-sky-700 border-sky-500/20'
+                            : 'bg-amber-500/10 text-amber-700 border-amber-500/30';
+                        const tip = inferred
+                          ? `Inferred from ${resolved.signal} · confidence ${resolved.confidence} (${score}%)`
+                          : `Channel from parser · confidence ${resolved.confidence} (${score}%)`;
                         return (
                           <Badge
                             variant="outline"
-                            className="text-[10px] capitalize"
-                            title={inferred ? `Inferred from ${r.transaction_id ? 'transaction id' : 'email reference'}` : undefined}
+                            className={`text-[10px] capitalize gap-1 ${tone}`}
+                            title={tip}
                           >
-                            {resolved.replace(/_/g, ' ')}{inferred ? ' •' : ''}
+                            {resolved.channel.replace(/_/g, ' ')}
+                            {inferred && <span className="opacity-70">•</span>}
+                            <span className="font-mono tabular-nums opacity-80">{score}%</span>
                           </Badge>
                         );
                       })()}
