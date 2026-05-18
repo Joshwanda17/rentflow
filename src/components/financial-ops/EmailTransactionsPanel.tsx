@@ -218,7 +218,10 @@ export function EmailTransactionsPanel() {
   const validity = new Map<string, { valid: boolean; reason?: string }>();
   for (const r of rows) validity.set(r.id, validateGmailTx(r));
   const flaggedCount = filteredRows.filter((r) => r.parsed && !validity.get(r.id)!.valid).length;
-  const isCountable = (r: GmailTx) => r.parsed && validity.get(r.id)!.valid;
+  // Flagged rows are kept in totals (only highlighted in the UI). A row counts
+  // toward totals as long as it's parsed and has a usable amount.
+  const isCountable = (r: GmailTx) =>
+    r.parsed && r.amount !== null && Number.isFinite(r.amount as number) && (r.amount as number) > 0;
   const totalAmount = filteredRows.filter(isCountable).reduce((s, r) => s + (r.amount ?? 0), 0);
   const totalIn = filteredRows
     .filter((r) => isCountable(r) && r.direction === 'in')
@@ -453,7 +456,7 @@ export function EmailTransactionsPanel() {
                 <li><span className="text-rose-300">Total out</span> = sum of <code>amount</code> for rows where <code>direction = 'out'</code> or <code>'charge'</code> (sent + fees).</li>
               </ul>
               <p className="pt-1 border-t border-border/40">
-                Only counts rows that are <strong>parsed</strong> and <strong>not flagged</strong> (amount present, direction known, amount found in email body), and that fall inside the selected date range.
+                Counts every <strong>parsed</strong> row with a usable amount that falls inside the selected date range. Flagged rows are still included — they are highlighted in amber for manual review but no longer excluded from totals.
               </p>
               <p className="text-muted-foreground">
                 Currently: {fmtUgx(totalIn)} − {fmtUgx(totalOut)} = {netAmount < 0 ? '-' : ''}{fmtUgx(Math.abs(netAmount))}
@@ -487,12 +490,12 @@ export function EmailTransactionsPanel() {
           ) : null}
         />
         <StatCard
-          label="Flagged (excluded)"
+          label="Flagged (review)"
           value={flaggedCount.toString()}
           sub={
             flaggedCount > 0 ? (
               <span className="inline-flex items-center gap-1 text-amber-600 text-[10px]">
-                <AlertTriangle className="h-3 w-3" /> not counted in totals
+                <AlertTriangle className="h-3 w-3" /> counted, but verify
               </span>
             ) : (
               <span className="text-[10px] text-emerald-600">all parsed rows valid</span>
@@ -631,7 +634,7 @@ export function EmailTransactionsPanel() {
                           className="text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/30 gap-1"
                           title={validity.get(r.id)!.reason}
                         >
-                          <AlertTriangle className="h-3 w-3" /> flagged · excluded
+                          <AlertTriangle className="h-3 w-3" /> flagged · review
                         </Badge>
                       )}
                       {r.channel && r.channel !== 'other' && (
