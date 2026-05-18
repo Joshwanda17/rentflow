@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert, Copy, Check, Wifi, WifiOff, ShieldCheck, History, LinkIcon, ChevronDown, ChevronUp, FileDown, FileText, AlertTriangle } from 'lucide-react';
+import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert, Copy, Check, Wifi, WifiOff, ShieldCheck, History, LinkIcon, ChevronDown, ChevronUp, FileDown, FileText, AlertTriangle, Search, X } from 'lucide-react';
 import { Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
@@ -278,6 +278,15 @@ export function EmailTransactionsPanel() {
     try { localStorage.setItem('gmail_net_threshold', String(netThreshold)); } catch {}
   }, [netThreshold]);
 
+  // Free-text search across transaction id, bank reference number, receipt
+  // number, subject, snippet and counterparty. Persisted in localStorage so
+  // the filter survives a page refresh. Whitespace-separated tokens are
+  // AND-matched; each token is matched case-insensitively as a substring.
+  const [searchQuery, setSearchQuery] = useState<string>(() =>
+    typeof window === 'undefined' ? '' : (localStorage.getItem('gmail_filter_search') || '')
+  );
+  useEffect(() => { try { localStorage.setItem('gmail_filter_search', searchQuery); } catch {} }, [searchQuery]);
+
   // Persisted cache of derived channel classifications keyed by transaction id
   // / receipt number (with gmail_message_id as fallback). Loaded once on mount
   // and flushed back to localStorage whenever the heuristic learns a new key,
@@ -345,6 +354,25 @@ export function EmailTransactionsPanel() {
     return true;
   };
   const filteredRows = rows.filter(inRange);
+  // Apply the free-text search on top of the date range. Empty query → pass.
+  const searchTokens = searchQuery
+    .toLowerCase()
+    .split(/\s+/)
+    .map((t) => t.trim())
+    .filter(Boolean);
+  const matchesSearch = (r: GmailTx): boolean => {
+    if (searchTokens.length === 0) return true;
+    const hay = [
+      r.transaction_id ?? '',
+      r.subject ?? '',
+      r.snippet ?? '',
+      r.counterparty ?? '',
+      r.from_email ?? '',
+      r.from_name ?? '',
+    ].join(' ').toLowerCase();
+    return searchTokens.every((t) => hay.includes(t));
+  };
+  const searchedRows = filteredRows.filter(matchesSearch);
   // Resolve & memoize the channel for every row once per render. Calling
   // deriveChannel with the cache may write back new entries; we flush to
   // localStorage at the end if anything changed.
