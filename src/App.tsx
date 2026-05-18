@@ -98,6 +98,7 @@ const MyWatchlist = lazy(() => import('./pages/MyWatchlist'));
 const Opportunities = lazy(() => import('./pages/Opportunities'));
 const AuditLog = lazy(() => import('./pages/AuditLog'));
 const DepositHistory = lazy(() => import('./pages/DepositHistory'));
+const DepositVerificationDetail = lazy(() => import('./pages/DepositVerificationDetail'));
 const WelileHomes = lazy(() => import('./pages/WelileHomes'));
 const WelileHomesDashboard = lazy(() => import('./pages/WelileHomesDashboard'));
 const LandlordWelileHomesPage = lazy(() => import('./pages/LandlordWelileHomesPage'));
