@@ -14977,6 +14977,13 @@ export type Database = {
           warning_count: number
         }[]
       }
+      get_tenant_missed_dates: {
+        Args: { p_as_of?: string; p_window_days: number }
+        Returns: {
+          missed_dates: string[]
+          tenant_id: string
+        }[]
+      }
       get_tenant_missed_days: {
         Args: { p_as_of?: string; p_window_days: number }
         Returns: {
