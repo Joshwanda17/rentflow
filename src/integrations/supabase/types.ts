@@ -14277,6 +14277,10 @@ export type Database = {
         Args: { p_category: string; p_recipient_type: string }
         Returns: undefined
       }
+      auto_create_deposits_from_gmail: {
+        Args: { p_window_hours?: number }
+        Returns: number
+      }
       auto_dispatch_withdrawals: {
         Args: { p_batch_size?: number }
         Returns: Json
