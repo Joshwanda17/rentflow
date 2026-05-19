@@ -2171,6 +2171,67 @@ export function TidVerification() {
                             <span>{m.provider || 'MoMo'}</span>
                             <span>{format(new Date(m.created_at), 'dd MMM HH:mm')}</span>
                           </div>
+                          {(() => {
+                            const purpose = m.deposit_purpose ?? null;
+                            const isOpFloat = purpose === 'operational_float';
+                            const hasAgent = !!m.agent_id;
+                            const allocCount = m.allocations?.length ?? 0;
+                            const purposeLabel =
+                              purpose === 'operational_float' ? 'Operational Float'
+                              : purpose === 'personal_deposit' ? 'Personal Deposit'
+                              : purpose === 'partnership_deposit' ? 'Partnership Deposit'
+                              : purpose === 'personal_rent_repayment' ? 'Personal Rent Repayment'
+                              : purpose === 'other' ? 'Other'
+                              : purpose ?? '— (not set)';
+                            // Build a short human-readable reason for why this
+                            // row is / isn't categorised as Operational Float.
+                            const reasons: string[] = [];
+                            if (isOpFloat) {
+                              reasons.push(`Purpose = "operational_float" → credits agent float bucket on approve.`);
+                              if (hasAgent) reasons.push(`Linked agent set ✓ — float will land on that agent's wallet.`);
+                              else reasons.push(`⚠️ No linked agent on the row — float will credit the depositor themselves.`);
+                              if (allocCount > 0) reasons.push(`${allocCount} tenant allocation(s) attached for the post-approve loop.`);
+                              else reasons.push(`No tenant breakdown — surplus will sit in float.`);
+                            } else {
+                              reasons.push(`Purpose = "${purpose ?? 'unset'}" — NOT operational_float, so nothing will hit any float bucket.`);
+                              if (purpose === 'personal_deposit') {
+                                reasons.push(`Goes straight to depositor's own withdrawable wallet.`);
+                              } else if (purpose === 'personal_rent_repayment') {
+                                reasons.push(`Goes against depositor's outstanding rent / advance.`);
+                              } else if (purpose === 'partnership_deposit') {
+                                reasons.push(`Routed to the linked partner — not the agent's float.`);
+                              } else if (purpose === 'other' || !purpose) {
+                                reasons.push(`Defaulted to depositor's withdrawable — agent (if any) gets no float credit.`);
+                              }
+                              if (hasAgent) reasons.push(`Has a linked agent_id, but agent linkage alone does NOT trigger float — purpose must be operational_float.`);
+                              else reasons.push(`No linked agent (self-deposit).`);
+                            }
+                            return (
+                              <div
+                                className={`mt-1.5 rounded-md border p-1.5 text-[10px] leading-snug ${
+                                  isOpFloat
+                                    ? 'border-primary/30 bg-primary/5 text-foreground'
+                                    : 'border-amber-300/60 bg-amber-50/40 dark:bg-amber-950/10 text-amber-900 dark:text-amber-200'
+                                }`}
+                                aria-label={`Categorisation explanation: ${isOpFloat ? 'is' : 'is not'} operational float`}
+                              >
+                                <p className="font-semibold flex items-center gap-1">
+                                  {isOpFloat ? (
+                                    <><Users className="h-2.5 w-2.5" /> Why this is Operational Float</>
+                                  ) : (
+                                    <><AlertTriangle className="h-2.5 w-2.5" /> Why this is NOT Operational Float</>
+                                  )}
+                                </p>
+                                <p className="mt-0.5 text-muted-foreground">
+                                  Purpose: <span className="font-mono text-foreground">{purposeLabel}</span>
+                                  {' · '}Agent link: <span className="font-mono text-foreground">{hasAgent ? 'set' : 'none'}</span>
+                                </p>
+                                <ul className="mt-0.5 list-disc pl-3.5 space-y-0.5">
+                                  {reasons.map((r, i) => <li key={i}>{r}</li>)}
+                                </ul>
+                              </div>
+                            );
+                          })()}
                           {m.deposit_purpose === 'operational_float' && m.allocations && m.allocations.length > 0 && (
                             <div className="mt-1.5 rounded-md border border-border bg-muted/40 p-1.5 space-y-0.5">
                               <p className="text-[9px] uppercase tracking-wide text-muted-foreground font-semibold flex items-center gap-1">
