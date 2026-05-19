@@ -12,7 +12,21 @@ export interface WithdrawalReceiptData {
   status?: string;
 }
 
-export async function downloadWithdrawalReceiptPdf(data: WithdrawalReceiptData): Promise<void> {
+function safeRefOf(data: WithdrawalReceiptData): string {
+  return (data.reference || 'receipt').replace(/[^A-Za-z0-9_-]/g, '_');
+}
+
+export function withdrawalReceiptFilename(data: WithdrawalReceiptData): string {
+  return `withdrawal_${safeRefOf(data)}.pdf`;
+}
+
+/** Build the PDF in-memory and return a Blob (used for sharing). */
+export async function buildWithdrawalReceiptPdfBlob(data: WithdrawalReceiptData): Promise<Blob> {
+  const doc = await renderWithdrawalReceiptPdf(data);
+  return doc.output('blob') as Blob;
+}
+
+async function renderWithdrawalReceiptPdf(data: WithdrawalReceiptData) {
   const { default: JsPDF } = await import('jspdf');
   const doc = new JsPDF({ unit: 'pt', format: 'a4' });
 
@@ -81,7 +95,42 @@ export async function downloadWithdrawalReceiptPdf(data: WithdrawalReceiptData):
     doc.internal.pageSize.getHeight() - 48,
     { maxWidth: pageWidth - marginX * 2 },
   );
+  return doc;
+}
 
-  const safeRef = (data.reference || 'receipt').replace(/[^A-Za-z0-9_-]/g, '_');
-  doc.save(`withdrawal_${safeRef}.pdf`);
+export async function downloadWithdrawalReceiptPdf(data: WithdrawalReceiptData): Promise<void> {
+  const doc = await renderWithdrawalReceiptPdf(data);
+  doc.save(withdrawalReceiptFilename(data));
+}
+
+/**
+ * Share the receipt PDF via the device share sheet (Web Share Level 2).
+ * Returns `true` when the share sheet was opened (or share completed) and
+ * `false` when the platform cannot share files — caller should fall back
+ * to `downloadWithdrawalReceiptPdf`.
+ */
+export async function shareWithdrawalReceiptPdf(data: WithdrawalReceiptData): Promise<boolean> {
+  const nav: any = typeof navigator !== 'undefined' ? navigator : null;
+  const blob = await buildWithdrawalReceiptPdfBlob(data);
+  const filename = withdrawalReceiptFilename(data);
+
+  if (nav && typeof nav.canShare === 'function' && typeof nav.share === 'function') {
+    try {
+      const file = new File([blob], filename, { type: 'application/pdf' });
+      const payload = {
+        files: [file],
+        title: 'Withdrawal Receipt',
+        text: `Withdrawal receipt ${data.reference} — ${data.currency} ${Math.round(data.amount).toLocaleString()}`,
+      };
+      if (nav.canShare(payload)) {
+        await nav.share(payload);
+        return true;
+      }
+    } catch (e: any) {
+      // AbortError = user dismissed; treat as handled (no fallback download).
+      if (e?.name === 'AbortError') return true;
+      console.warn('[withdrawalReceiptPdf] share failed', e);
+    }
+  }
+  return false;
 }
