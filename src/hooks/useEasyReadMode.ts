@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -8,6 +8,37 @@ const LS_MODE = 'welile_statement_a11y';
 const LS_SIZE = 'welile_statement_a11y_size';
 
 const scaleFor = (s: A11ySize) => (s === 2 ? 1.3 : s === 1 ? 1.15 : 1);
+const sizeLabel = (s: A11ySize) =>
+  s === 2 ? 'Extra-large' : s === 1 ? 'Large' : 'Medium';
+
+const LIVE_REGION_ID = 'welile-easy-read-live';
+
+/** Lazily create (and reuse) a singleton aria-live region on <body>. */
+function getLiveRegion(): HTMLElement | null {
+  if (typeof document === 'undefined') return null;
+  let el = document.getElementById(LIVE_REGION_ID);
+  if (!el) {
+    el = document.createElement('div');
+    el.id = LIVE_REGION_ID;
+    el.setAttribute('role', 'status');
+    el.setAttribute('aria-live', 'polite');
+    el.setAttribute('aria-atomic', 'true');
+    // Visually hidden, screen-reader only
+    el.style.cssText =
+      'position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;';
+    document.body.appendChild(el);
+  }
+  return el;
+}
+
+function announce(message: string) {
+  const el = getLiveRegion();
+  if (!el) return;
+  // Re-trigger announcement even if message text is identical
+  el.textContent = '';
+  // Microtask flush so SR notices the change
+  window.setTimeout(() => { el.textContent = message; }, 30);
+}
 
 /**
  * Shared easy-read accessibility mode for wallet + receipt surfaces.
@@ -30,6 +61,9 @@ export function useEasyReadMode() {
     } catch { return 0; }
   });
   const [hydrated, setHydrated] = useState(false);
+  // Track whether the current change came from the user (vs. initial hydrate)
+  // so we only announce in response to deliberate actions.
+  const userInitiatedRef = useRef(false);
 
   // Hydrate from server-side preference.
   useEffect(() => {
@@ -78,7 +112,47 @@ export function useEasyReadMode() {
     }
   }, [enabled, size, user, hydrated]);
 
-  const toggle = useCallback(() => setEnabled(v => !v), []);
+  // Announce size changes to screen readers (only on user-driven changes).
+  useEffect(() => {
+    if (!hydrated || !userInitiatedRef.current) return;
+    if (enabled) {
+      announce(`Easy-read text size set to ${sizeLabel(size)}.`);
+    }
+  }, [size, hydrated, enabled]);
 
-  return { enabled, setEnabled, toggle, size, setSize, hydrated };
+  // Announce on/off toggle.
+  useEffect(() => {
+    if (!hydrated || !userInitiatedRef.current) return;
+    announce(
+      enabled
+        ? `Easy-read mode on. Text size ${sizeLabel(size)}.`
+        : 'Easy-read mode off.'
+    );
+    // size intentionally omitted to avoid double-announce with size effect
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, hydrated]);
+
+  const toggle = useCallback(() => {
+    userInitiatedRef.current = true;
+    setEnabled(v => !v);
+  }, []);
+
+  const setSizeAnnounced = useCallback((s: A11ySize) => {
+    userInitiatedRef.current = true;
+    setSize(s);
+  }, []);
+
+  const setEnabledAnnounced = useCallback((v: boolean) => {
+    userInitiatedRef.current = true;
+    setEnabled(v);
+  }, []);
+
+  return {
+    enabled,
+    setEnabled: setEnabledAnnounced,
+    toggle,
+    size,
+    setSize: setSizeAnnounced,
+    hydrated,
+  };
 }
