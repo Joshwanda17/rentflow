@@ -2,6 +2,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import welileLogoUrl from '@/assets/welile-logo.png';
 import type { RentAccessLimitResult } from '@/lib/rentAccessLimit';
 import { getShareCardThemeSync } from '@/hooks/useShareCardTheme';
+import QRCode from 'qrcode';
 
 export interface RentAccessLimitPdfData {
   tenantName: string;
@@ -22,6 +23,44 @@ async function loadLogoBase64(): Promise<string | null> {
       reader.onerror = () => resolve(null);
       reader.readAsDataURL(blob);
     });
+  } catch {
+    return null;
+  }
+}
+
+/** Render a QR code (PNG data URL) for the given URL. Returns null on failure. */
+async function generateQrDataUrl(
+  url: string,
+  size: number,
+  opts?: { dark?: string; light?: string },
+): Promise<string | null> {
+  try {
+    return await QRCode.toDataURL(url, {
+      width: size,
+      margin: 1,
+      errorCorrectionLevel: 'M',
+      color: {
+        dark: opts?.dark ?? '#0f172a',
+        light: opts?.light ?? '#ffffff',
+      },
+    });
+  } catch {
+    return null;
+  }
+}
+
+/** Render a QR code as an HTMLImageElement for canvas drawing. */
+async function loadQrImage(url: string, size: number): Promise<HTMLImageElement | null> {
+  const dataUrl = await generateQrDataUrl(url, size);
+  if (!dataUrl) return null;
+  try {
+    const img = new Image();
+    img.src = dataUrl;
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('qr load failed'));
+    });
+    return img;
   } catch {
     return null;
   }
@@ -153,10 +192,20 @@ export async function generateRentAccessLimitPdf(data: RentAccessLimitPdfData): 
   y += 8;
 
   if (data.shareUrl) {
+    // QR code that links back to the live limit page
+    const qrSize = 32; // mm
+    const qrDataUrl = await generateQrDataUrl(data.shareUrl, 512);
+    const qrX = (pw - qrSize) / 2;
+    if (qrDataUrl) {
+      pdf.addImage(qrDataUrl, 'PNG', qrX, y + 2, qrSize, qrSize);
+    }
     pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(9);
+    pdf.setFontSize(8);
     pdf.setTextColor(100, 116, 139);
-    pdf.text(`Live limit: ${data.shareUrl}`, pw / 2, y, { align: 'center' });
+    pdf.text('Scan to view live limit', pw / 2, y + qrSize + 6, { align: 'center' });
+    pdf.setFontSize(7);
+    pdf.setTextColor(148, 163, 184);
+    pdf.text(data.shareUrl, pw / 2, y + qrSize + 11, { align: 'center' });
   }
 
   // Footer
@@ -323,9 +372,41 @@ export async function generateRentAccessLimitPng(data: RentAccessLimitPdfData): 
   ctx.fillText('Pay today. Get more rent money tomorrow.', W / 2, 920);
 
   if (data.shareUrl) {
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    ctx.font = '500 22px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
-    ctx.fillText(data.shareUrl, W / 2, 980);
+    // QR code card — bottom-right corner, white backdrop for max scannability
+    const qrSize = 180;
+    const pad = 18;
+    const cardW = qrSize + pad * 2;
+    const cardH = qrSize + pad * 2 + 28; // extra space for caption
+    const cardX = W - cardW - 48;
+    const cardY = H - cardH - 48;
+    const r = 22;
+
+    // Rounded white card
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(cardX + r, cardY);
+    ctx.arcTo(cardX + cardW, cardY, cardX + cardW, cardY + cardH, r);
+    ctx.arcTo(cardX + cardW, cardY + cardH, cardX, cardY + cardH, r);
+    ctx.arcTo(cardX, cardY + cardH, cardX, cardY, r);
+    ctx.arcTo(cardX, cardY, cardX + cardW, cardY, r);
+    ctx.closePath();
+    ctx.fill();
+
+    const qrImg = await loadQrImage(data.shareUrl, qrSize * 2);
+    if (qrImg) {
+      ctx.drawImage(qrImg, cardX + pad, cardY + pad, qrSize, qrSize);
+    }
+
+    ctx.fillStyle = '#0f172a';
+    ctx.font = '700 18px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Scan for live limit', cardX + cardW / 2, cardY + qrSize + pad + 4);
+
+    // URL on the left side so it doesn't collide with the QR card
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    ctx.font = '500 20px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(data.shareUrl, 64, H - 72);
   }
   ctx.textAlign = 'left';
 
