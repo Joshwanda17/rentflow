@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Loader2, CheckCircle2, Phone, Calendar, Clock, Hash, AlertCircle, History, Building2, Banknote, Upload, Receipt, Copy, ShieldAlert, ClipboardPaste, Camera, X, ImageIcon } from 'lucide-react';
+import { Loader2, CheckCircle2, Phone, Calendar, Clock, Hash, AlertCircle, History, Building2, Banknote, Upload, Receipt, Copy, ShieldAlert, ClipboardPaste, Camera, X, ImageIcon, ChevronLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
@@ -1267,9 +1267,9 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                 type="button"
                 onClick={() => setStep('channel')}
                 aria-label="Back"
-                className="-ml-1 h-9 w-9 rounded-full flex items-center justify-center hover:bg-muted active:scale-95 transition"
+                className="-ml-1 h-11 w-11 rounded-full flex items-center justify-center hover:bg-muted active:bg-muted active:scale-90 transition-transform duration-75 touch-manipulation"
               >
-                <span className="text-lg leading-none">‹</span>
+                <ChevronLeft className="h-6 w-6" />
               </button>
             )}
             {step === 'channel' && mustChoosePurpose && depositPurpose && (
@@ -1277,9 +1277,9 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                 type="button"
                 onClick={() => setStep('purpose')}
                 aria-label="Back"
-                className="-ml-1 h-9 w-9 rounded-full flex items-center justify-center hover:bg-muted active:scale-95 transition"
+                className="-ml-1 h-11 w-11 rounded-full flex items-center justify-center hover:bg-muted active:bg-muted active:scale-90 transition-transform duration-75 touch-manipulation"
               >
-                <span className="text-lg leading-none">‹</span>
+                <ChevronLeft className="h-6 w-6" />
               </button>
             )}
             <div className="min-w-0 flex-1">
@@ -1297,6 +1297,18 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                 </p>
               )}
             </div>
+            {/* Always-available close — users can bail out from any step
+                without hunting for the system back gesture. */}
+            {step !== 'submitting' && (
+              <button
+                type="button"
+                onClick={handleClose}
+                aria-label="Close"
+                className="-mr-1 h-11 w-11 rounded-full flex items-center justify-center hover:bg-muted active:bg-muted active:scale-90 transition-transform duration-75 touch-manipulation shrink-0"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            )}
           </div>
         </DialogHeader>
         {/* Scrollable body */}
