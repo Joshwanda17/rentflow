@@ -14558,6 +14558,14 @@ export type Database = {
         }
         Returns: Json
       }
+      check_archived_account_by_phone: {
+        Args: { phone_variants: string[] }
+        Returns: {
+          archived_at: string
+          full_name: string
+          is_archived: boolean
+        }[]
+      }
       check_landlord_payout_eligibility: {
         Args: { p_agent_id: string; p_amount: number; p_landlord_id: string }
         Returns: Json
