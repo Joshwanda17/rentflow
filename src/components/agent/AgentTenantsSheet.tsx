@@ -175,7 +175,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   // Lifecycle quick filter — narrows the visible tenants by the stage of
   // their rent requests (active = currently repaying, pending = awaiting
   // disbursement, settled = fully completed with no balance).
-  const [lifecycleFilter, setLifecycleFilter] = useState<LifecycleFilter>('any');
+  const [lifecycleFilter, setLifecycleFilter] = useState<LifecycleFilter>(() => loadPrefs().lifecycleFilter ?? 'any');
   const [riskFilter, setRiskFilter] = useState<RiskFilter>(() => loadPrefs().riskFilter ?? 'all');
   const [sortKey, setSortKey] = useState<SortKey>(() => loadPrefs().sortKey ?? 'balance');
   const [sortDir, setSortDir] = useState<SortDir>(() => loadPrefs().sortDir ?? 'desc');
@@ -319,12 +319,13 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           sortDir,
           recentCollectionFilter,
           groupByProperty,
+          lifecycleFilter,
         } satisfies SheetPrefs),
       );
     } catch {
       /* storage unavailable — ignore */
     }
-  }, [search, activeFilter, riskFilter, propertyFilter, sortKey, sortDir, recentCollectionFilter, groupByProperty]);
+  }, [search, activeFilter, riskFilter, propertyFilter, sortKey, sortDir, recentCollectionFilter, groupByProperty, lifecycleFilter]);
 
   const fetchTenants = async () => {
     if (!user) return;
