@@ -840,6 +840,50 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
 
           {view === 'tenants' && (
           <>
+          {/* ───── Today's Collection Status ───── */}
+          {/* Live strip showing the agent how their day is going. Driven by
+              `todayRepayments` (created_at >= startOfDay) and the same
+              owing/expected figures already powering the cards below. */}
+          <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 p-3 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <CalendarClock className="h-4 w-4 text-emerald-700" />
+                <span className="text-xs font-semibold uppercase tracking-wide text-emerald-800">
+                  Today's Collection
+                </span>
+              </div>
+              <Badge variant="outline" className="text-[10px] font-mono px-2 py-0.5 border-emerald-300 text-emerald-700 bg-white">
+                {todayStats.rate}% of expected
+              </Badge>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              <div>
+                <p className="text-[10px] text-emerald-700/80 leading-tight">Collected</p>
+                <p className="text-sm font-bold text-emerald-900 leading-tight truncate">
+                  {formatUGX(todayStats.collectedAmount)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] text-emerald-700/80 leading-tight">Tenants paid</p>
+                <p className="text-sm font-bold text-emerald-900 leading-tight">
+                  {todayStats.tenantsCollected}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] text-emerald-700/80 leading-tight">Still owing</p>
+                <p className="text-sm font-bold text-rose-700 leading-tight">
+                  {todayStats.tenantsOwing}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] text-emerald-700/80 leading-tight">Expected</p>
+                <p className="text-sm font-bold text-emerald-900 leading-tight truncate">
+                  {formatUGX(todayStats.expected)}
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Stat cards row — exec-dashboard style */}
           <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
             {[
