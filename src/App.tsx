@@ -238,7 +238,7 @@ const PageLoader = memo(() => {
   const [showRetry, setShowRetry] = useState(false);
   
   useEffect(() => {
-    const timer = setTimeout(() => setShowRetry(true), 3500);
+    const timer = setTimeout(() => setShowRetry(true), 10000);
     return () => clearTimeout(timer);
   }, []);
   
