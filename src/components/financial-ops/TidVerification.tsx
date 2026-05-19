@@ -1592,6 +1592,7 @@ export function TidVerification() {
                       setMatchField('any');
                       setAmountRange('any');
                       setVerification('any');
+                      setOpFloatFilter('any');
                     }}
                     className="text-[10px] text-muted-foreground hover:text-foreground underline"
                   >
