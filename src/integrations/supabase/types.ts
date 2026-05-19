@@ -14846,6 +14846,7 @@ export type Database = {
           entry_id: string
           linked_party: string
           occurred_at: string
+          reference_id: string
           running_balance: number
           signed_amount: number
           transaction_group_id: string

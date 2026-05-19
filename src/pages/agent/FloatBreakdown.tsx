@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowDownCircle, ArrowUpCircle, Wallet, Info, Calendar, X, ChevronRight, Copy, Check, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { ArrowLeft, ArrowDownCircle, ArrowUpCircle, Wallet, Info, Calendar, X, ChevronRight, Copy, Check, TrendingUp, TrendingDown, Minus, Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrency } from '@/hooks/useCurrency';
@@ -18,6 +18,7 @@ interface FloatRow {
   description: string | null;
   transaction_group_id: string | null;
   linked_party: string | null;
+  reference_id: string | null;
 }
 
 interface SiblingLeg {
@@ -94,6 +95,7 @@ export default function AgentFloatBreakdown() {
   const [preset, setPreset] = useState<Preset>('all');
   const [fromDate, setFromDate] = useState<string>('');
   const [toDate, setToDate] = useState<string>('');
+  const [search, setSearch] = useState<string>('');
   const [selected, setSelected] = useState<FloatRow | null>(null);
   const [detail, setDetail] = useState<EntryDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -150,14 +152,21 @@ export default function AgentFloatBreakdown() {
   const currentFloat = rows[0]?.running_balance ?? 0;
 
   const filteredRows = useMemo(() => {
-    if (!fromDate && !toDate) return rows;
     const fromMs = fromDate ? new Date(fromDate + 'T00:00:00').getTime() : -Infinity;
     const toMs = toDate ? new Date(toDate + 'T23:59:59.999').getTime() : Infinity;
+    const q = search.trim().toLowerCase();
     return rows.filter((r) => {
       const t = new Date(r.occurred_at).getTime();
-      return t >= fromMs && t <= toMs;
+      if (t < fromMs || t > toMs) return false;
+      if (!q) return true;
+      return (
+        (r.reference_id ?? '').toLowerCase().includes(q) ||
+        (r.transaction_group_id ?? '').toLowerCase().includes(q) ||
+        (r.entry_id ?? '').toLowerCase().includes(q) ||
+        (r.description ?? '').toLowerCase().includes(q)
+      );
     });
-  }, [rows, fromDate, toDate]);
+  }, [rows, fromDate, toDate, search]);
 
   const totalIn = filteredRows.filter(r => r.signed_amount > 0).reduce((s, r) => s + Number(r.signed_amount), 0);
   const totalOut = filteredRows.filter(r => r.signed_amount < 0).reduce((s, r) => s + Number(r.signed_amount), 0);
@@ -343,6 +352,33 @@ export default function AgentFloatBreakdown() {
           )}
         </div>
 
+        {/* Search */}
+        <div className="rounded-2xl border bg-card p-3">
+          <label className="flex items-center gap-2">
+            <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by reference ID (e.g. TID, RCT, PC...)"
+              className="flex-1 bg-transparent outline-none text-sm placeholder:text-muted-foreground/70"
+              aria-label="Search by reference ID"
+            />
+            {search && (
+              <button
+                onClick={() => { hapticTap(); setSearch(''); }}
+                className="p-1 -m-1 rounded hover:bg-muted active:scale-95"
+                aria-label="Clear search"
+              >
+                <X className="h-3.5 w-3.5 text-muted-foreground" />
+              </button>
+            )}
+          </label>
+          <p className="text-[10px] text-muted-foreground mt-1.5 leading-snug pl-6">
+            Matches the reference ID, transaction group, entry ID, or description — within the selected date range.
+          </p>
+        </div>
+
         {/* Timeline */}
         {loading ? (
           <div className="py-12 text-center text-sm text-muted-foreground">Loading...</div>
@@ -350,7 +386,11 @@ export default function AgentFloatBreakdown() {
           <div className="py-12 text-center text-sm text-rose-500">{err}</div>
         ) : filteredRows.length === 0 ? (
           <div className="py-12 text-center text-sm text-muted-foreground">
-            {rows.length === 0 ? 'No float activity yet.' : 'No activity in this date range.'}
+            {rows.length === 0
+              ? 'No float activity yet.'
+              : search
+                ? `No activity matching "${search}" in this date range.`
+                : 'No activity in this date range.'}
           </div>
         ) : (
           <div className="rounded-2xl border bg-card overflow-hidden">
@@ -387,6 +427,11 @@ export default function AgentFloatBreakdown() {
                       </div>
                       {r.description && (
                         <p className="text-xs text-muted-foreground truncate mt-0.5">{r.description}</p>
+                      )}
+                      {r.reference_id && (
+                        <p className="text-[10px] text-muted-foreground font-mono truncate mt-0.5">
+                          Ref: {r.reference_id}
+                        </p>
                       )}
                       <div className="flex items-center justify-between gap-2 mt-1">
                         <p className="text-[10px] text-muted-foreground">
