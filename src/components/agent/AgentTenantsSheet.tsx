@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, useDeferredValue } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -162,6 +162,11 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState(() => loadPrefs().search ?? '');
+  // Defer the search query so filtering / highlighting follow the input
+  // smoothly while the user is still typing — React keeps the input
+  // responsive and only re-runs the heavy filter on the latest value.
+  const deferredSearch = useDeferredValue(search);
+  const isSearchPending = deferredSearch !== search;
   const [expandedTenantId, setExpandedTenantId] = useState<string | null>(null);
   const [tenantRequests, setTenantRequests] = useState<Record<string, TenantRentRequest[]>>({});
   const [loadingRequests, setLoadingRequests] = useState<string | null>(null);
@@ -550,7 +555,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
 
   // Filtered & sorted tenants — always sorted by highest debt
   const processedTenants = useMemo(() => {
-    const raw = search.trim();
+    const raw = deferredSearch.trim();
     const q = raw.toLowerCase();
     // Strip everything except digits so "+256 772 123 456", "0772-123-456"
     // and "772123456" all match the same tenant. Empty when the query has
@@ -694,7 +699,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
       return cmp * dir;
     });
     return list;
-  }, [tenants, search, activeFilter, riskFilter, sortKey, sortDir, tenantBalances, tenantDaily, tenantStatuses, tenantContext, tenantMeta, tenantLastPaid, recentCollectionFilter, propertyFilter, lifecycleFilter]);
+  }, [tenants, deferredSearch, activeFilter, riskFilter, sortKey, sortDir, tenantBalances, tenantDaily, tenantStatuses, tenantContext, tenantMeta, tenantLastPaid, recentCollectionFilter, propertyFilter, lifecycleFilter]);
 
   const propertyOptions = useMemo(() => {
     const counts = new Map<string, number>();
@@ -920,7 +925,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                 inputMode="search"
                 autoComplete="off"
               />
-              {search && (
+              {search && !isSearchPending && (
                 <button
                   onClick={() => setSearch('')}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
@@ -929,9 +934,17 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                   <X className="h-4 w-4" />
                 </button>
               )}
+              {isSearchPending && (
+                <Loader2
+                  className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground animate-spin"
+                  aria-label="Searching"
+                />
+              )}
               {search && (
                 <p className="mt-1 text-[11px] text-muted-foreground px-1">
-                  {processedTenants.length} match{processedTenants.length === 1 ? '' : 'es'} for "{search}"
+                  {isSearchPending
+                    ? 'Searching…'
+                    : `${processedTenants.length} match${processedTenants.length === 1 ? '' : 'es'} for "${deferredSearch}"`}
                 </p>
               )}
             </div>
@@ -1458,14 +1471,14 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                           onClick={(e) => { e.stopPropagation(); setProfileTenantId(tenant.id); }}
                         >
                             {tenant.full_name && tenant.full_name.trim() ? (
-                              <Highlight text={tenant.full_name.trim()} query={search} />
+                              <Highlight text={tenant.full_name.trim()} query={deferredSearch} />
                             ) : (
                               <span className="text-muted-foreground italic">Unnamed tenant</span>
                             )}
                           </p>
                         <p className="text-[11px] text-muted-foreground flex items-center gap-1 truncate mt-0.5">
                             <Phone className="h-3 w-3" />
-                            <Highlight text={tenant.phone} query={search} />
+                            <Highlight text={tenant.phone} query={deferredSearch} />
                           {propertyAddress && (
                             <span className="truncate">· {propertyAddress}</span>
                           )}
@@ -1666,7 +1679,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                                         <div className="min-w-0">
                                           <p className="text-[9px] text-muted-foreground">Landlord</p>
                                           <p className="text-xs font-semibold truncate">
-                                            <Highlight text={req.landlord.name} query={search} />
+                                            <Highlight text={req.landlord.name} query={deferredSearch} />
                                           </p>
                                         </div>
                                       </div>
@@ -1682,7 +1695,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                                         <div className="min-w-0">
                                           <p className="text-[9px] text-muted-foreground">Location</p>
                                           <p className="text-xs font-semibold truncate">
-                                            <Highlight text={req.landlord.property_address || 'N/A'} query={search} />
+                                            <Highlight text={req.landlord.property_address || 'N/A'} query={deferredSearch} />
                                           </p>
                                         </div>
                                       </div>
