@@ -9632,6 +9632,7 @@ export type Database = {
           country_code: string | null
           created_at: string
           district: string | null
+          easy_read_size: number
           email: string
           evicted_at: string | null
           evicted_from_landlord_id: string | null
@@ -9693,6 +9694,7 @@ export type Database = {
           country_code?: string | null
           created_at?: string
           district?: string | null
+          easy_read_size?: number
           email: string
           evicted_at?: string | null
           evicted_from_landlord_id?: string | null
@@ -9754,6 +9756,7 @@ export type Database = {
           country_code?: string | null
           created_at?: string
           district?: string | null
+          easy_read_size?: number
           email?: string
           evicted_at?: string | null
           evicted_from_landlord_id?: string | null
