@@ -359,6 +359,40 @@ export default function WithdrawFlow({
     return 'Cash Collection';
   };
 
+  /**
+   * Build the canonical receipt payload used by both the Download and
+   * Share buttons on the success step. Centralised so the fee
+   * breakdown stays consistent between the two paths.
+   */
+  const buildReceiptPayload = () => {
+    const methodLabel =
+      payoutMode === 'mobile_money'
+        ? 'Mobile Money'
+        : payoutMode === 'bank_transfer'
+        ? 'Bank Transfer'
+        : 'Cash Pickup';
+
+    // Welile currently charges no platform withdrawal fee. We still
+    // surface zero-valued breakdown lines on the PDF (rendered by the
+    // receipt generator when `feeBreakdown` is empty) so users get an
+    // auditable record that nothing was deducted. If/when a platform
+    // service fee or operator charge is applied at approval time, push
+    // entries here with `{ label, amount }` and they will appear as
+    // itemised deductions on the PDF.
+    const feeBreakdown: Array<{ label: string; amount: number }> = [];
+
+    return {
+      reference: withdrawalRef || 'PENDING',
+      amount,
+      currency,
+      recipient: getPayoutSummary(),
+      method: methodLabel,
+      date: submittedAt ?? new Date(),
+      status: 'Pending disbursement',
+      feeBreakdown,
+    };
+  };
+
   const processWithdrawal = async (): Promise<boolean> => {
     if (!user) return false;
     if (isSubmittingRef.current) return false;
