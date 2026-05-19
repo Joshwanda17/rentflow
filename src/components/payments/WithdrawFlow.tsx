@@ -1169,15 +1169,7 @@ export default function WithdrawFlow({
               date={submittedAt ?? new Date()}
               onDownload={async () => {
                 try {
-                  await downloadWithdrawalReceiptPdf({
-                    reference: withdrawalRef || 'PENDING',
-                    amount,
-                    currency,
-                    recipient: getPayoutSummary(),
-                    method: payoutMode === 'mobile_money' ? 'Mobile Money' : payoutMode === 'bank_transfer' ? 'Bank Transfer' : 'Cash Pickup',
-                    date: submittedAt ?? new Date(),
-                    status: 'Pending disbursement',
-                  });
+                  await downloadWithdrawalReceiptPdf(buildReceiptPayload());
                   toast.success('Receipt downloaded');
                 } catch (e) {
                   console.error('[WithdrawFlow] receipt PDF failed', e);
@@ -1185,15 +1177,7 @@ export default function WithdrawFlow({
                 }
               }}
               onShare={async () => {
-                const payload = {
-                  reference: withdrawalRef || 'PENDING',
-                  amount,
-                  currency,
-                  recipient: getPayoutSummary(),
-                  method: payoutMode === 'mobile_money' ? 'Mobile Money' : payoutMode === 'bank_transfer' ? 'Bank Transfer' : 'Cash Pickup',
-                  date: submittedAt ?? new Date(),
-                  status: 'Pending disbursement',
-                };
+                const payload = buildReceiptPayload();
                 try {
                   const shared = await shareWithdrawalReceiptPdf(payload);
                   if (!shared) {
