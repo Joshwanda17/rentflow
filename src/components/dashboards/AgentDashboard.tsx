@@ -65,6 +65,7 @@ import { useAgentLandlordFloat } from '@/hooks/useAgentLandlordFloat';
 import { EarningsRankSystemSheet } from '@/components/agent/EarningsRankSystemSheet';
 import { AgentMenuDrawer } from '@/components/agent/AgentMenuDrawer';
 import { AgentHubTabs, type AgentHubTab } from '@/components/agent/AgentHubTabs';
+import { useHorizontalSwipe } from '@/hooks/useHorizontalSwipe';
 import { AgentActionInsights } from '@/components/agent/AgentActionInsights';
 import { AgentManagedPropertyDialog } from '@/components/agent/AgentManagedPropertyDialog';
 import { AgentManagedPropertiesSheet } from '@/components/agent/AgentManagedPropertiesSheet';
@@ -258,6 +259,19 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [shareLandlordOpen, setShareLandlordOpen] = useState(false);
   const [lendingAgentOpen, setLendingAgentOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<AgentHubTab>('home');
+
+  // Horizontal swipe → switch hub tabs (mobile gesture)
+  const TAB_ORDER: AgentHubTab[] = ['home', 'money', 'tenants', 'grow', 'subagents'];
+  const swipeHandlers = useHorizontalSwipe({
+    onSwipeLeft: () => {
+      const i = TAB_ORDER.indexOf(activeTab);
+      if (i < TAB_ORDER.length - 1) { hapticTap(); setActiveTab(TAB_ORDER[i + 1]); }
+    },
+    onSwipeRight: () => {
+      const i = TAB_ORDER.indexOf(activeTab);
+      if (i > 0) { hapticTap(); setActiveTab(TAB_ORDER[i - 1]); }
+    },
+  });
 
   const [showQuickDeposit, setShowQuickDeposit] = useState(false);
   const [showQuickWithdraw, setShowQuickWithdraw] = useState(false);
@@ -472,6 +486,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           <AgentHubTabs active={activeTab} onChange={setActiveTab} />
         </div>
 
+        {/* Swipe surface — left/right gestures navigate adjacent hub tabs */}
+        <div {...swipeHandlers} className="touch-pan-y">
         {/* === HOME TAB === Most-used actions, at-a-glance */}
         {activeTab === 'home' && (
           <div className="space-y-4 animate-in fade-in duration-200">
@@ -699,6 +715,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           </div>
         )}
 
+        </div>
         </main>
       </div>
 
