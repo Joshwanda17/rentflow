@@ -672,6 +672,7 @@ export function useAuthForm() {
     phone, setPhone,
     countryCode, setCountryCode,
     isLoading,
+    loginStage,
     loginError, setLoginError,
     failedAttempts,
     rememberMe, setRememberMe,
