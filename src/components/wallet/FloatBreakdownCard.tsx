@@ -309,6 +309,67 @@ export function FloatBreakdownCard({ floatBalance }: FloatBreakdownCardProps) {
                   </div>
                 )}
 
+                {/* Reconciliation row */}
+                <div
+                  className={`rounded-xl border px-3 py-2.5 space-y-1 ${
+                    isReconciled
+                      ? 'border-emerald-500/30 bg-emerald-500/5'
+                      : 'border-amber-500/30 bg-amber-500/5'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-semibold text-foreground">
+                      Reconciliation
+                    </p>
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] h-5 ${
+                        isReconciled
+                          ? 'border-emerald-500/40 text-emerald-700 dark:text-emerald-400'
+                          : 'border-amber-500/40 text-amber-700 dark:text-amber-400'
+                      }`}
+                    >
+                      {isReconciled ? 'Reconciled' : 'Mismatch'}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-muted-foreground">
+                      Cash in − Cash out
+                    </span>
+                    <span className="font-medium tabular-nums">
+                      {netCumulative >= 0 ? '+' : ''}
+                      {netCumulative.toLocaleString()} UGX
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-muted-foreground">Float balance</span>
+                    <span className="font-medium tabular-nums">
+                      {floatBalance >= 0 ? '+' : ''}
+                      {floatBalance.toLocaleString()} UGX
+                    </span>
+                  </div>
+                  {!isReconciled && (
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-muted-foreground">Difference</span>
+                      <span
+                        className={`font-semibold tabular-nums ${
+                          diff > 0
+                            ? 'text-emerald-700 dark:text-emerald-400'
+                            : 'text-rose-700 dark:text-rose-400'
+                        }`}
+                      >
+                        {diff > 0 ? '+' : ''}
+                        {diff.toLocaleString()} UGX
+                      </span>
+                    </div>
+                  )}
+                  <p className="text-[10px] text-muted-foreground/70 pt-0.5">
+                    Based on {seenIds.size.toLocaleString()} of{' '}
+                    {totalCount.toLocaleString()} entries
+                    {allReviewed ? ' (all reviewed)' : ''}
+                  </p>
+                </div>
+
                 <p className="text-[10px] text-muted-foreground/70 text-center">
                   Source: general ledger · wallet-side entries · {totalCount.toLocaleString()} total
                 </p>
