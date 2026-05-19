@@ -90,9 +90,14 @@ describe('backStack — stacked overlay Back handling', () => {
     popBackEntry(b);
     expect(closeB).not.toHaveBeenCalled();
 
-    // Hardware Back should now target the remaining overlay, not the
-    // already-dismissed one.
-    window.dispatchEvent(new PopStateEvent('popstate'));
+    // Hardware Back should now target the remaining overlay (A), never
+    // the already-dismissed one (B). We fire popstate events until the
+    // remaining handler runs — backStack swallows one popstate per
+    // sentinel `history.back()` it issued to unwind B, so the *next*
+    // real Back press is what reaches A.
+    for (let i = 0; i < 3 && closeA.mock.calls.length === 0; i++) {
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }
     expect(closeA).toHaveBeenCalledTimes(1);
     expect(closeB).not.toHaveBeenCalled();
 
