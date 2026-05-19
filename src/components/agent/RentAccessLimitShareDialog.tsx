@@ -261,6 +261,48 @@ export function RentAccessLimitShareDialog({
     }
   };
 
+  /** Send a short SMS to the tenant linking to their branded card. */
+  const sendSms = async () => {
+    if (!tenantPhone) {
+      toast({
+        title: 'No phone on file',
+        description: 'Add a phone number for this tenant first.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setSmsSending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        'send-rent-access-sms',
+        {
+          body: {
+            tenant_id: tenantId,
+            tenant_name: tenantName,
+            tenant_phone: tenantPhone,
+            share_url: shareUrl,
+            limit_amount: result.limit,
+            mode: 'manual',
+          },
+        },
+      );
+      if (error) throw error;
+      if (!data?.success) throw new Error('Carrier did not accept the SMS.');
+      toast({
+        title: 'SMS sent',
+        description: `${tenantName.split(' ')[0]} will get the branded card link by text.`,
+      });
+    } catch (err: any) {
+      toast({
+        title: 'SMS failed',
+        description: err?.message || 'Could not send SMS. Please retry.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSmsSending(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
