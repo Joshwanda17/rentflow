@@ -45,6 +45,7 @@ export default function Auth() {
     phone, setPhone,
     countryCode, setCountryCode,
     isLoading,
+    loginStage,
     loginError, setLoginError,
     failedAttempts,
     rememberMe, setRememberMe,
@@ -63,6 +64,19 @@ export default function Auth() {
   } = useAuthForm();
 
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // Friendly progress labels for the Sign In button so users know what's
+  // happening instead of staring at a blank spinner. Keep <22 chars to fit
+  // on small screens beside the spinner.
+  const loginStageLabel: Record<string, string> = {
+    'validating': 'Checking details…',
+    'checking-cache': 'Checking saved account…',
+    'looking-up': 'Looking up account…',
+    'trying-fast': 'Signing in…',
+    'trying-extended': 'Trying alternate emails…',
+    'finalizing': 'Finalizing…',
+  };
+  const stageText = loginStageLabel[loginStage] ?? 'Signing in…';
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, loading: authLoading, signIn: authSignIn, roles: authRoles } = useAuth();
