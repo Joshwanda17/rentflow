@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { useEasyReadMode } from '@/hooks/useEasyReadMode';
 import {
   Sheet,
   SheetContent,
@@ -133,56 +134,8 @@ export function WalletStatement() {
   // Progressive disclosure for a calmer default view
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [showCategoryFilters, setShowCategoryFilters] = useState(false);
-  // Accessibility: larger text + higher contrast (persisted)
-  const [a11yMode, setA11yMode] = useState<boolean>(() => {
-    try { return localStorage.getItem('welile_statement_a11y') === '1'; } catch { return false; }
-  });
-  // Easy-read font size step: 0 = M (default), 1 = L, 2 = XL
-  const [a11ySize, setA11ySize] = useState<0 | 1 | 2>(() => {
-    try {
-      const raw = localStorage.getItem('welile_statement_a11y_size');
-      const n = raw == null ? 0 : parseInt(raw, 10);
-      return (n === 1 || n === 2) ? (n as 1 | 2) : 0;
-    } catch { return 0; }
-  });
-  const [a11yHydrated, setA11yHydrated] = useState(false);
-
-  // Load server-side preference once per user (overrides local cache)
-  useEffect(() => {
-    if (!user) return;
-    let cancelled = false;
-    (async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('prefers_easy_read')
-        .eq('id', user.id)
-        .maybeSingle();
-      if (cancelled) return;
-      if (data && typeof data.prefers_easy_read === 'boolean') {
-        setA11yMode(data.prefers_easy_read);
-      }
-      setA11yHydrated(true);
-    })();
-    return () => { cancelled = true; };
-  }, [user]);
-
-  // Persist: localStorage immediately for snappy UX, profiles row for cross-device.
-  useEffect(() => {
-    try { localStorage.setItem('welile_statement_a11y', a11yMode ? '1' : '0'); } catch {}
-    if (!user || !a11yHydrated) return;
-    supabase
-      .from('profiles')
-      .update({ prefers_easy_read: a11yMode })
-      .eq('id', user.id)
-      .then(({ error }) => {
-        if (error) console.error('[WalletStatement] save easy-read pref', error);
-      });
-  }, [a11yMode, user, a11yHydrated]);
-
-  // Persist font-size step locally (lightweight; no schema change needed).
-  useEffect(() => {
-    try { localStorage.setItem('welile_statement_a11y_size', String(a11ySize)); } catch {}
-  }, [a11ySize]);
+  // Accessibility: shared easy-read mode (applies globally to wallet + receipt UI)
+  const { enabled: a11yMode, toggle: toggleA11y, size: a11ySize, setSize: setA11ySize } = useEasyReadMode();
 
   useEffect(() => {
     if (open && user) {
