@@ -2415,19 +2415,34 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   </button>
                 </div>
               )}
-              <Button
-                onClick={handleAttempt}
-                disabled={isSubmitting}
-                className="w-full h-12 text-base font-semibold"
-                size="lg"
-                aria-disabled={blocked}
-              >
-                {isSubmitting
-                  ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> {isEditMode ? 'Saving…' : 'Sending…'}</>
-                  : isEditMode
-                    ? 'Save changes'
-                    : (total > 0 ? `Deposit ${formatCurrency(total)}` : 'Deposit')}
-              </Button>
+              {/* Back + Continue pair — Back is always reachable so users
+                  never feel trapped on the form. Both buttons are thumb-sized
+                  with snappy press feedback (duration-75 + active:scale). */}
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setStep('channel')}
+                  disabled={isSubmitting}
+                  className="h-12 px-4 text-base font-semibold shrink-0 active:scale-95 transition-transform duration-75 touch-manipulation"
+                  aria-label="Back to payment method"
+                >
+                  <ChevronLeft className="h-5 w-5 mr-1" /> Back
+                </Button>
+                <Button
+                  onClick={handleAttempt}
+                  disabled={isSubmitting}
+                  className="flex-1 h-12 text-base font-semibold active:scale-[0.98] transition-transform duration-75 touch-manipulation"
+                  size="lg"
+                  aria-disabled={blocked}
+                >
+                  {isSubmitting
+                    ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> {isEditMode ? 'Saving…' : 'Sending…'}</>
+                    : isEditMode
+                      ? 'Save changes'
+                      : (total > 0 ? `Deposit ${formatCurrency(total)}` : 'Deposit')}
+                </Button>
+              </div>
               {total > 0 && !blocked && (
                 <p className="text-center text-xs text-muted-foreground mt-1.5">
                   Depositing <span className="font-semibold text-foreground">{formatCurrency(total)}</span>
