@@ -260,6 +260,19 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [lendingAgentOpen, setLendingAgentOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<AgentHubTab>('home');
 
+  // Horizontal swipe → switch hub tabs (mobile gesture)
+  const TAB_ORDER: AgentHubTab[] = ['home', 'money', 'tenants', 'grow', 'subagents'];
+  const swipeHandlers = useHorizontalSwipe({
+    onSwipeLeft: () => {
+      const i = TAB_ORDER.indexOf(activeTab);
+      if (i < TAB_ORDER.length - 1) { hapticTap(); setActiveTab(TAB_ORDER[i + 1]); }
+    },
+    onSwipeRight: () => {
+      const i = TAB_ORDER.indexOf(activeTab);
+      if (i > 0) { hapticTap(); setActiveTab(TAB_ORDER[i - 1]); }
+    },
+  });
+
   const [showQuickDeposit, setShowQuickDeposit] = useState(false);
   const [showQuickWithdraw, setShowQuickWithdraw] = useState(false);
   const [showQuickTransfer, setShowQuickTransfer] = useState(false);
