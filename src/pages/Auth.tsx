@@ -11,6 +11,7 @@ import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 import { AppleSignInButton } from '@/components/auth/AppleSignInButton';
 import { ReferralBanner } from '@/components/auth/ReferralBanner';
 import { OtpVerificationStep } from '@/components/auth/OtpVerificationStep';
+import { ArchivedAccountSupport } from '@/components/auth/ArchivedAccountSupport';
 import { useAuthForm } from '@/hooks/useAuthForm';
 import { SIGNUP_PAUSED } from '@/components/SignupPauseBanner';
 import { useState, useEffect, useCallback } from 'react';
@@ -382,6 +383,12 @@ export default function Auth() {
                   {loginError && (
                     <p className="text-xs text-destructive px-1">{loginError.message}</p>
                   )}
+                  {loginError && (
+                    <ArchivedAccountSupport
+                      identifier={phone ? `+${countryCode}${phone.replace(/\D/g, '')}` : undefined}
+                      errorMessage={loginError.message}
+                    />
+                  )}
 
                   <div className="flex items-center justify-between">
                     <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -550,6 +557,12 @@ export default function Auth() {
                   </div>
 
                   {loginError && <p className="text-xs text-destructive px-1">{loginError.message}</p>}
+                  {loginError && (
+                    <ArchivedAccountSupport
+                      identifier={emailLoginAddress || undefined}
+                      errorMessage={loginError.message}
+                    />
+                  )}
 
                   <Button
                     type="submit"
