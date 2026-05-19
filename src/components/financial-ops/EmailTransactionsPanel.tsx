@@ -1207,17 +1207,51 @@ export function EmailTransactionsPanel() {
                   (u) => u.matched_on.startsWith('reference ') || u.matched_on.startsWith('from ')
                 );
               })
-              .map((r) => (
+              .map((r) => {
+                const matches = userMatches[r.id] ?? [];
+                const hasRef = matches.some((u) => u.matched_on.startsWith('reference '));
+                const hasFrom = matches.some((u) => u.matched_on.startsWith('from '));
+                const isConfident = hasRef || hasFrom;
+                const isFlagged = r.parsed && !validity.get(r.id)!.valid;
+                // Build a screen-reader description of the row's match status so
+                // assistive tech announces *why* this row is highlighted, not
+                // just that it's styled differently.
+                const matchAriaLabel = isConfident
+                  ? (() => {
+                      const names = matches
+                        .filter((u) => u.matched_on.startsWith('reference ') || u.matched_on.startsWith('from '))
+                        .map((u) => u.full_name)
+                        .slice(0, 3)
+                        .join(', ');
+                      const types = [hasRef && 'reference ID', hasFrom && 'sender phone'].filter(Boolean).join(' and ');
+                      const extra = matches.length > 3 ? ` and ${matches.length - 3} more` : '';
+                      return `Confident match by ${types}: ${names}${extra}`;
+                    })()
+                  : isFlagged
+                    ? 'Flagged: parsed amount needs manual review'
+                    : matches.length
+                      ? `Possible user match (low confidence): ${matches.map((u) => u.full_name).slice(0, 3).join(', ')}`
+                      : 'No depositing user matched';
+                return (
               <div
                 key={r.id}
+                role="article"
+                aria-label={matchAriaLabel}
+                data-match-status={isConfident ? 'confident' : isFlagged ? 'flagged' : 'none'}
                 className={`p-4 transition-colors ${
-                  (userMatches[r.id] ?? []).some((u) => u.matched_on.startsWith('reference ') || u.matched_on.startsWith('from '))
-                    ? 'bg-primary/5 hover:bg-primary/10 border-l-2 border-l-primary'
-                    : r.parsed && !validity.get(r.id)!.valid
-                      ? 'bg-amber-500/5 hover:bg-amber-500/10 border-l-2 border-l-amber-500'
-                      : 'hover:bg-muted/30'
+                  isConfident
+                    // Stronger primary tint (10/20 vs 5/10) + 4px accent border for
+                    // clear contrast against the surrounding card surface. Adds a
+                    // visible focus-within ring so keyboard users see the row.
+                    ? 'bg-primary/10 hover:bg-primary/20 border-l-4 border-l-primary focus-within:ring-2 focus-within:ring-primary/40'
+                    : isFlagged
+                      ? 'bg-amber-500/10 hover:bg-amber-500/20 border-l-4 border-l-amber-500 focus-within:ring-2 focus-within:ring-amber-500/40'
+                      : 'hover:bg-muted/40 border-l-4 border-l-transparent'
                 }`}
               >
+                {/* Visually hidden status line — keeps the announcement consistent
+                    for SR users even if the visual chips reflow on narrow screens. */}
+                <span className="sr-only">{matchAriaLabel}.</span>
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -1421,7 +1455,8 @@ export function EmailTransactionsPanel() {
                   </div>
                 </div>
               </div>
-            ))}
+                );
+              })}
           </div>
         )}
       </div>
