@@ -137,6 +137,14 @@ export function WalletStatement() {
   const [a11yMode, setA11yMode] = useState<boolean>(() => {
     try { return localStorage.getItem('welile_statement_a11y') === '1'; } catch { return false; }
   });
+  // Easy-read font size step: 0 = M (default), 1 = L, 2 = XL
+  const [a11ySize, setA11ySize] = useState<0 | 1 | 2>(() => {
+    try {
+      const raw = localStorage.getItem('welile_statement_a11y_size');
+      const n = raw == null ? 0 : parseInt(raw, 10);
+      return (n === 1 || n === 2) ? (n as 1 | 2) : 0;
+    } catch { return 0; }
+  });
   const [a11yHydrated, setA11yHydrated] = useState(false);
 
   // Load server-side preference once per user (overrides local cache)
@@ -170,6 +178,11 @@ export function WalletStatement() {
         if (error) console.error('[WalletStatement] save easy-read pref', error);
       });
   }, [a11yMode, user, a11yHydrated]);
+
+  // Persist font-size step locally (lightweight; no schema change needed).
+  useEffect(() => {
+    try { localStorage.setItem('welile_statement_a11y_size', String(a11ySize)); } catch {}
+  }, [a11ySize]);
 
   useEffect(() => {
     if (open && user) {
