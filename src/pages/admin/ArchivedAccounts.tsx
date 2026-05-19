@@ -184,8 +184,8 @@ export default function ArchivedAccountsPage() {
                       <p className="text-[10px] text-muted-foreground font-mono mt-0.5">{row.id}</p>
                     </div>
                     <Button size="sm" onClick={() => openRestore(row)}>
-                      <ArchiveRestore className="h-4 w-4 mr-1.5" />
-                      Restore
+                      <LifeBuoy className="h-4 w-4 mr-1.5" />
+                      Resolve
                     </Button>
                   </div>
                 ))}
