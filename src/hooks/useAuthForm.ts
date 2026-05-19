@@ -157,25 +157,34 @@ export function useAuthForm() {
       if (error.message.includes('Invalid login credentials')) {
         // Try to detect a deleted/archived account by email so we can show a precise message.
         try {
-          const { data: archivedRow } = await supabase
-            .from('profiles')
-            .select('full_name, id')
-            .eq('email', email.trim().toLowerCase())
-            .ilike('full_name', '[ARCHIVED]%')
-            .maybeSingle();
-          if (archivedRow) {
-            const cleanName = (archivedRow.full_name || '').replace(/^\[ARCHIVED\]\s*/i, '').trim();
-            errorMessage = `This account${cleanName ? ` for ${cleanName}` : ''} was deleted. Contact Welile support to restore access — this email cannot sign in until then.`;
+          const { data: lookup } = await supabase.rpc('check_archived_account_by_email', {
+            p_email: email.trim().toLowerCase(),
+          });
+          const archivedRow = Array.isArray(lookup) ? lookup[0] : null;
+          if (archivedRow?.is_archived) {
+            const cleanName = (archivedRow.full_name || '').trim();
+            const when = archivedRow.archived_at ? ` on ${new Date(archivedRow.archived_at).toLocaleDateString()}` : '';
+            if (archivedRow.status === 'freed') {
+              errorMessage = `The previous account${cleanName ? ` for ${cleanName}` : ''} using this email was permanently closed${when}. ` +
+                `That account can't be restored — please tap "Sign up" to create a brand-new account with this email.`;
+            } else {
+              errorMessage = `This account${cleanName ? ` for ${cleanName}` : ''} was archived${when}. ` +
+                `It can still be restored — contact Welile support to recover access. This email cannot sign in until then.`;
+            }
             try {
               await supabase.rpc('log_archived_login_attempt', {
                 p_identifier: email.trim().toLowerCase(),
                 p_identifier_type: 'email',
-                p_archived_user_id: archivedRow.id,
+                p_archived_user_id: archivedRow.user_id ?? null,
                 p_full_name: cleanName || null,
-                p_archived_at: null,
+                p_archived_at: archivedRow.archived_at ?? null,
               });
             } catch (e) { console.warn('[Auth] audit log failed', e); }
-            toast({ title: 'Account Deleted', description: errorMessage, variant: 'destructive' });
+            toast({
+              title: archivedRow.status === 'freed' ? 'Account Permanently Closed' : 'Account Archived',
+              description: errorMessage,
+              variant: 'destructive',
+            });
             return;
           }
         } catch { /* fall through to generic message */ }
@@ -681,7 +690,13 @@ export function useAuthForm() {
         if (row?.is_archived) {
           const who = row.full_name ? ` for ${row.full_name}` : '';
           const when = row.archived_at ? ` on ${new Date(row.archived_at).toLocaleDateString()}` : '';
-          errorMessage = `This account${who} was deleted${when}. Contact Welile support to restore access — your phone number cannot sign in until then.`;
+          if (row.status === 'freed') {
+            errorMessage = `The previous account${who} using this phone was permanently closed${when}. ` +
+              `It can't be restored — please tap "Sign up" below to create a brand-new account with this phone number.`;
+          } else {
+            errorMessage = `This account${who} was archived${when}. ` +
+              `It can still be restored — contact Welile support to recover access. Your phone number cannot sign in until then.`;
+          }
           try {
             await supabase.rpc('log_archived_login_attempt', {
               p_identifier: `+${countryCode}${last9}`,
@@ -692,7 +707,11 @@ export function useAuthForm() {
             });
           } catch (e) { console.warn('[Auth] audit log failed', e); }
           setLoginError({ message: errorMessage, triedFormats });
-          toast({ title: 'Account Deleted', description: errorMessage, variant: 'destructive' });
+          toast({
+            title: row.status === 'freed' ? 'Account Permanently Closed' : 'Account Archived',
+            description: errorMessage,
+            variant: 'destructive',
+          });
           return;
         }
       } catch { /* non-critical — fall back to the generic message */ }
