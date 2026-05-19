@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -123,12 +124,13 @@ export function PhantomCorrectionDriftPanel() {
                 <th className="p-2 text-right">Strict W</th>
                 <th className="p-2 text-right">Last admin</th>
                 <th className="p-2 text-right"># entries</th>
+                <th className="p-2 text-right">Drill-down</th>
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 && !isFetching && (
                 <tr>
-                  <td colSpan={8} className="p-4 text-center text-muted-foreground">
+                  <td colSpan={9} className="p-4 text-center text-muted-foreground">
                     No wallets exceed the current thresholds.
                   </td>
                 </tr>
@@ -161,6 +163,14 @@ export function PhantomCorrectionDriftPanel() {
                       {r.last_admin_at ? format(new Date(r.last_admin_at), 'MMM d HH:mm') : '—'}
                     </td>
                     <td className="p-2 text-right tabular-nums">{r.admin_entry_count}</td>
+                    <td className="p-2 text-right">
+                      <Link
+                        to={`/cfo/phantom-drift/${r.user_id}?window=${windowDays}`}
+                        className="text-primary underline-offset-2 hover:underline"
+                      >
+                        View
+                      </Link>
+                    </td>
                   </tr>
                 );
               })}
