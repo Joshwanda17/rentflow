@@ -91,7 +91,10 @@ const BottomRoleSwitcher = memo(function BottomRoleSwitcher({ currentRole, onRol
 
   const navContent = (
     <>
-      <nav className="fixed bottom-0 left-0 right-0 z-[100] bg-background/95 backdrop-blur-sm border-t border-border/40 pb-[env(safe-area-inset-bottom,0px)]">
+      <nav
+        aria-label="Switch dashboard role"
+        className="fixed bottom-0 left-0 right-0 z-[100] bg-background/95 backdrop-blur-md border-t border-border/40 pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-2px_12px_hsl(var(--foreground)/0.06)]"
+      >
         <div className={cn("grid max-w-lg mx-auto", cols === 5 ? "grid-cols-5" : "grid-cols-4")}>
           {PUBLIC_ROLES.map(({ role, label, icon: Icon }) => {
             const isActive = role === currentRole;
@@ -101,8 +104,10 @@ const BottomRoleSwitcher = memo(function BottomRoleSwitcher({ currentRole, onRol
               <button
                 key={role}
                 onClick={() => handleSwitch(role)}
+                aria-label={`${label}${isActive ? ' (current)' : ''}${gated ? ' (locked)' : ''}`}
+                aria-current={isActive ? 'page' : undefined}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-0.5 py-1.5 min-h-[44px] transition-colors touch-manipulation active:scale-95 relative",
+                  "flex flex-col items-center justify-center gap-1 py-2 min-h-[56px] transition-colors touch-manipulation active:scale-95 relative",
                   isActive
                     ? "text-primary"
                     : gated
@@ -112,11 +117,11 @@ const BottomRoleSwitcher = memo(function BottomRoleSwitcher({ currentRole, onRol
               >
                 <div
                   className={cn(
-                    "flex items-center justify-center w-7 h-7 rounded-xl transition-colors relative",
+                    "flex items-center justify-center w-8 h-8 rounded-xl transition-colors relative",
                     isActive && "bg-primary/10",
                   )}
                 >
-                  <Icon className={cn("h-4.5 w-4.5", isActive && "text-primary")} />
+                  <Icon className={cn("h-5 w-5", isActive && "text-primary")} strokeWidth={isActive ? 2.5 : 2} />
                   {gated && (
                     <div className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-warning/20 flex items-center justify-center">
                       <Lock className="h-2 w-2 text-warning" />
@@ -125,7 +130,7 @@ const BottomRoleSwitcher = memo(function BottomRoleSwitcher({ currentRole, onRol
                 </div>
                 <span
                   className={cn(
-                    "text-[10px] font-semibold tracking-wide",
+                    "text-[11px] font-semibold tracking-wide leading-none",
                     isActive && "text-primary",
                     pending && "text-warning",
                   )}
@@ -138,12 +143,13 @@ const BottomRoleSwitcher = memo(function BottomRoleSwitcher({ currentRole, onRol
           {hasStaffRole && !["tenant", "agent", "landlord", "supporter"].includes(currentRole) && (
             <button
               onClick={handleStaffNav}
-              className="flex flex-col items-center justify-center gap-0.5 py-1.5 min-h-[44px] transition-colors touch-manipulation active:scale-95 text-muted-foreground hover:text-foreground"
+              aria-label="Staff hub"
+              className="flex flex-col items-center justify-center gap-1 py-2 min-h-[56px] transition-colors touch-manipulation active:scale-95 text-muted-foreground hover:text-foreground"
             >
-              <div className="flex items-center justify-center w-7 h-7 rounded-xl transition-colors">
-                <ShieldCheck className="h-4.5 w-4.5" />
+              <div className="flex items-center justify-center w-8 h-8 rounded-xl transition-colors">
+                <ShieldCheck className="h-5 w-5" />
               </div>
-              <span className="text-[10px] font-semibold tracking-wide">Staff</span>
+              <span className="text-[11px] font-semibold tracking-wide leading-none">Staff</span>
             </button>
           )}
         </div>
