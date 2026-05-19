@@ -37,6 +37,8 @@ export interface RentAccessLimitResult {
   todayChange: number;
   /** Repayment was logged today */
   paidToday: boolean;
+  /** Number of repayments logged today (all count as ONE on-time day) */
+  paymentsToday: number;
   /** Days remaining until next bump (always 1 if not paid today, 0 if paid today) */
   nextChangeDays: number;
   /** Tier label based on progress toward the max cap */
@@ -77,10 +79,13 @@ export function calculateRentAccessLimit(
   const valid = (repayments || []).filter(r => Number(r.amount) > 0 && r.created_at);
 
   const paidDaySet = new Set<number>();
+  let paymentsToday = 0;
   for (const r of valid) {
     const d = new Date(r.created_at);
     if (Number.isNaN(d.getTime())) continue;
-    paidDaySet.add(startOfDayUtc(d));
+    const key = startOfDayUtc(d);
+    paidDaySet.add(key);
+    if (key === startOfDayUtc(now)) paymentsToday += 1;
   }
 
   const todayKey = startOfDayUtc(now);
@@ -116,6 +121,7 @@ export function calculateRentAccessLimit(
     trackedDays,
     todayChange,
     paidToday,
+    paymentsToday,
     nextChangeDays: paidToday ? 0 : 1,
     tier,
     atMax,
