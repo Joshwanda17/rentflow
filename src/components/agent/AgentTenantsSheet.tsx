@@ -66,7 +66,7 @@ interface AgentTenantsSheetProps {
 type FilterTab = 'owing' | 'paid-up' | 'all';
 type LifecycleFilter = 'any' | 'active' | 'pending' | 'settled';
 type RiskFilter = 'all' | 'good' | 'standard' | 'caution' | 'new';
-type SortKey = 'risk' | 'aiId' | 'property' | 'balance' | 'daily' | 'property-daily' | 'property-balance' | 'lastCollected';
+type SortKey = 'risk' | 'aiId' | 'property' | 'balance' | 'daily' | 'property-daily' | 'property-balance' | 'lastCollected' | 'recent' | 'name';
 type SortDir = 'asc' | 'desc';
 
 const PREFS_KEY = 'agent-tenants-sheet:prefs:v2';
@@ -690,6 +690,16 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           cmp = ta - tb;
           break;
         }
+        case 'recent': {
+          const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
+          cmp = ta - tb;
+          break;
+        }
+        case 'name': {
+          cmp = (a.full_name || '').localeCompare(b.full_name || '');
+          break;
+        }
       }
       if (cmp === 0) {
         // Stable tiebreaker: name asc
@@ -767,6 +777,17 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     { key: 'active', label: 'Active', count: lifecycleCounts.active },
     { key: 'pending', label: 'Pending', count: lifecycleCounts.pending },
     { key: 'settled', label: 'Settled', count: lifecycleCounts.settled },
+  ];
+
+  // Quick-sort options surfaced directly under the search so the agent can
+  // re-rank the visible results without opening "More filters". Each chip
+  // bundles a sort key + direction.
+  const quickSorts: { key: SortKey; dir: SortDir; label: string }[] = [
+    { key: 'balance', dir: 'desc', label: 'Highest balance' },
+    { key: 'recent', dir: 'desc', label: 'Most recent' },
+    { key: 'lastCollected', dir: 'desc', label: 'Last collected' },
+    { key: 'daily', dir: 'desc', label: 'Daily expected' },
+    { key: 'name', dir: 'asc', label: 'Name (A–Z)' },
   ];
 
   // ───── Handlers ─────
@@ -971,6 +992,33 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                         active ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-background text-foreground/70'
                       }`}>{tab.count}</span>
                     )}
+                  </button>
+                );
+              })}
+            </div>
+            {/* Quick-sort chips — change ordering without opening "More
+                filters". The active chip mirrors the (sortKey, sortDir)
+                pair so the dropdown below stays in sync. */}
+            <div className="mt-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+              <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground pr-1">
+                Sort
+              </span>
+              {quickSorts.map((s) => {
+                const active = sortKey === s.key && sortDir === s.dir;
+                return (
+                  <button
+                    key={`${s.key}-${s.dir}`}
+                    onClick={() => { setSortKey(s.key); setSortDir(s.dir); }}
+                    className={`shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                      active
+                        ? 'bg-foreground text-background border-foreground shadow-sm'
+                        : 'bg-muted/40 text-muted-foreground border-border hover:bg-muted'
+                    }`}
+                    style={{ touchAction: 'manipulation', minHeight: '32px' }}
+                    aria-pressed={active}
+                  >
+                    {active && (s.dir === 'desc' ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />)}
+                    <span>{s.label}</span>
                   </button>
                 );
               })}
@@ -1272,6 +1320,10 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                 </div>
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="recent-desc">Most recent (Newest → Oldest)</SelectItem>
+                <SelectItem value="recent-asc">Most recent (Oldest → Newest)</SelectItem>
+                <SelectItem value="name-asc">Name (A → Z)</SelectItem>
+                <SelectItem value="name-desc">Name (Z → A)</SelectItem>
                 <SelectItem value="balance-desc">Balance (High → Low)</SelectItem>
                 <SelectItem value="balance-asc">Balance (Low → High)</SelectItem>
                 <SelectItem value="daily-desc">Daily Expected (High → Low)</SelectItem>
