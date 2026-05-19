@@ -318,6 +318,32 @@ function extractPhones(r: GmailTx): string[] {
   return Array.from(out);
 }
 
+/**
+ * Pull the phone number(s) that appear immediately after the word "from"
+ * in the email body — e.g. "Received UGX 50,000 from 256772123456 JOHN DOE".
+ * Mobile-money receipts almost always print the depositor right after
+ * "from", so this is the highest-signal phone we can use to identify the
+ * app user who made the deposit.
+ */
+function extractFromPhones(r: GmailTx): string[] {
+  const hay = `${r.subject ?? ''} ${r.snippet ?? ''} ${r.counterparty ?? ''}`;
+  const out = new Set<string>();
+  const re = /\bfrom\s+(?:\+?256|0)\s*7\d{2}[\s-]?\d{3}[\s-]?\d{3}/gi;
+  const matches = hay.match(re) ?? [];
+  for (const m of matches) {
+    const norm = normalizeUgPhone(m);
+    if (norm) out.add(norm);
+  }
+  return Array.from(out);
+}
+
+/** Transaction id / reference normalised for an in-list query. */
+function extractReferences(r: GmailTx): string[] {
+  const out = new Set<string>();
+  if (r.transaction_id) out.add(r.transaction_id.trim().toUpperCase());
+  return Array.from(out);
+}
+
 /** Canonical channel options shown in the correction dialog. */
 const CHANNEL_OPTIONS: string[] = [
   'cash_receipt', 'mtn_momo', 'airtel_money',
@@ -497,30 +523,54 @@ export function EmailTransactionsPanel() {
   useEffect(() => {
     let cancelled = false;
     const rowPhones = new Map<string, string[]>();
+    const rowFromPhones = new Map<string, string[]>();
+    const rowRefs = new Map<string, string[]>();
     const allPhones = new Set<string>();
+    const allRefs = new Set<string>();
     for (const r of rows) {
       const phones = extractPhones(r);
       if (phones.length) {
         rowPhones.set(r.id, phones);
         phones.forEach((p) => allPhones.add(p));
       }
+      const fromPhones = extractFromPhones(r);
+      if (fromPhones.length) {
+        rowFromPhones.set(r.id, fromPhones);
+        fromPhones.forEach((p) => allPhones.add(p));
+      }
+      const refs = extractReferences(r);
+      if (refs.length) {
+        rowRefs.set(r.id, refs);
+        refs.forEach((x) => allRefs.add(x));
+      }
     }
-    if (allPhones.size === 0) {
+    if (allPhones.size === 0 && allRefs.size === 0) {
       setUserMatches({});
       return;
     }
     const phoneList = Array.from(allPhones);
+    const refList = Array.from(allRefs);
     (async () => {
       // Build the in-list once and query both phone columns.
-      const { data, error } = await (supabase
-        .from('profiles') as any)
-        .select('id, full_name, phone, mobile_money_number, verified')
-        .or(`phone.in.(${phoneList.join(',')}),mobile_money_number.in.(${phoneList.join(',')})`)
-        .limit(500);
-      if (cancelled || error || !data) return;
+      const profileQ = phoneList.length
+        ? (supabase.from('profiles') as any)
+            .select('id, full_name, phone, mobile_money_number, verified')
+            .or(`phone.in.(${phoneList.join(',')}),mobile_money_number.in.(${phoneList.join(',')})`)
+            .limit(500)
+        : Promise.resolve({ data: [], error: null });
+      // Authoritative lookup: a Welile deposit_request that already carries
+      // this exact transaction id maps the email straight to its user.
+      const depQ = refList.length
+        ? (supabase.from('deposit_requests') as any)
+            .select('transaction_id, user_id')
+            .in('transaction_id', refList)
+            .limit(500)
+        : Promise.resolve({ data: [], error: null });
+      const [{ data, error }, { data: deps }] = await Promise.all([profileQ, depQ]);
+      if (cancelled || error) return;
       type P = { id: string; full_name: string; phone: string | null; mobile_money_number: string | null };
       const byPhone = new Map<string, P[]>();
-      for (const p of data as P[]) {
+      for (const p of (data ?? []) as P[]) {
         for (const candidate of [p.phone, p.mobile_money_number]) {
           const n = candidate ? normalizeUgPhone(candidate) : null;
           if (!n) continue;
@@ -529,10 +579,40 @@ export function EmailTransactionsPanel() {
           byPhone.set(n, list);
         }
       }
+      // Resolve deposit_requests.user_id → profile in a second roundtrip so
+      // we don't depend on a specific FK alias being declared on the table.
+      const depRows = (deps ?? []) as Array<{ transaction_id: string; user_id: string }>;
+      const userIds = Array.from(new Set(depRows.map((d) => d.user_id).filter(Boolean)));
+      let refProfiles: Record<string, P> = {};
+      if (userIds.length) {
+        const { data: pps } = await (supabase.from('profiles') as any)
+          .select('id, full_name, phone, mobile_money_number')
+          .in('id', userIds);
+        for (const p of (pps ?? []) as P[]) refProfiles[p.id] = p;
+      }
+      const byRef = new Map<string, P>();
+      for (const d of depRows) {
+        const p = refProfiles[d.user_id];
+        if (d.transaction_id && p) byRef.set(d.transaction_id.toUpperCase(), p);
+      }
       const next: Record<string, MatchedUser[]> = {};
       for (const [rowId, phones] of rowPhones) {
         const seen = new Set<string>();
         const list: MatchedUser[] = [];
+        // 1. Reference / TID hit — authoritative, push first.
+        for (const ref of rowRefs.get(rowId) ?? []) {
+          const p = byRef.get(ref);
+          if (p && !seen.has(p.id)) {
+            seen.add(p.id);
+            list.push({
+              id: p.id, full_name: p.full_name,
+              phone: p.phone, mobile_money_number: p.mobile_money_number,
+              matched_on: `reference ${ref}`,
+            });
+          }
+        }
+        // 2. Phone right after the word "from" — strongest heuristic match.
+        const fromSet = new Set(rowFromPhones.get(rowId) ?? []);
         for (const ph of phones) {
           for (const p of byPhone.get(ph) ?? []) {
             if (seen.has(p.id)) continue;
@@ -542,7 +622,25 @@ export function EmailTransactionsPanel() {
               full_name: p.full_name,
               phone: p.phone,
               mobile_money_number: p.mobile_money_number,
-              matched_on: `phone ${ph}`,
+              matched_on: fromSet.has(ph) ? `from ${ph}` : `phone ${ph}`,
+            });
+          }
+        }
+        if (list.length) next[rowId] = list;
+      }
+      // Rows that had no extracted phone but did match by reference id.
+      for (const [rowId, refs] of rowRefs) {
+        if (next[rowId]) continue;
+        const list: MatchedUser[] = [];
+        const seen = new Set<string>();
+        for (const ref of refs) {
+          const p = byRef.get(ref);
+          if (p && !seen.has(p.id)) {
+            seen.add(p.id);
+            list.push({
+              id: p.id, full_name: p.full_name,
+              phone: p.phone, mobile_money_number: p.mobile_money_number,
+              matched_on: `reference ${ref}`,
             });
           }
         }
@@ -1046,9 +1144,11 @@ export function EmailTransactionsPanel() {
               <div
                 key={r.id}
                 className={`p-4 transition-colors ${
-                  r.parsed && !validity.get(r.id)!.valid
-                    ? 'bg-amber-500/5 hover:bg-amber-500/10 border-l-2 border-l-amber-500'
-                    : 'hover:bg-muted/30'
+                  (userMatches[r.id] ?? []).some((u) => u.matched_on.startsWith('reference ') || u.matched_on.startsWith('from '))
+                    ? 'bg-primary/5 hover:bg-primary/10 border-l-2 border-l-primary'
+                    : r.parsed && !validity.get(r.id)!.valid
+                      ? 'bg-amber-500/5 hover:bg-amber-500/10 border-l-2 border-l-amber-500'
+                      : 'hover:bg-muted/30'
                 }`}
               >
                 <div className="flex items-start justify-between gap-4">
@@ -1148,16 +1248,25 @@ export function EmailTransactionsPanel() {
                         <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
                           Possible user{userMatches[r.id].length > 1 ? 's' : ''}:
                         </span>
-                        {userMatches[r.id].map((u) => (
-                          <Badge
-                            key={u.id}
-                            variant="outline"
-                            className="text-[10px] gap-1 bg-primary/10 text-primary border-primary/30 cursor-help"
-                            title={`${u.full_name}\n${u.matched_on}\n${u.phone ?? ''}${u.mobile_money_number && u.mobile_money_number !== u.phone ? ` · MoMo ${u.mobile_money_number}` : ''}`}
-                          >
-                            <span className="font-medium">{u.full_name}</span>
-                          </Badge>
-                        ))}
+                        {userMatches[r.id].map((u) => {
+                          const strong = u.matched_on.startsWith('reference ') || u.matched_on.startsWith('from ');
+                          return (
+                            <Badge
+                              key={u.id}
+                              variant="outline"
+                              className={`text-[10px] gap-1 cursor-help ${
+                                strong
+                                  ? 'bg-primary text-primary-foreground border-primary ring-1 ring-primary/40'
+                                  : 'bg-primary/10 text-primary border-primary/30'
+                              }`}
+                              title={`${u.full_name}\nmatched on ${u.matched_on}\n${u.phone ?? ''}${u.mobile_money_number && u.mobile_money_number !== u.phone ? ` · MoMo ${u.mobile_money_number}` : ''}`}
+                            >
+                              {strong && <CheckCircle2 className="h-3 w-3" />}
+                              <span className="font-medium">{u.full_name}</span>
+                              <span className="opacity-70">· {u.matched_on.startsWith('reference ') ? 'ref' : 'from'}</span>
+                            </Badge>
+                          );
+                        })}
                       </div>
                     ) : null}
                   </div>
