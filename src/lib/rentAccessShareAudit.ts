@@ -32,7 +32,7 @@ export interface RecordRentAccessShareInput {
  */
 export async function recordRentAccessShare(input: RecordRentAccessShareInput): Promise<void> {
   try {
-    await supabase.from('rent_access_share_audit').insert({
+    await supabase.from('rent_access_share_audit').insert([{
       agent_id: input.agentId,
       tenant_id: input.tenantId,
       tenant_name: input.tenantName ?? null,
@@ -45,7 +45,7 @@ export async function recordRentAccessShare(input: RecordRentAccessShareInput): 
       success: input.success ?? true,
       error_message: input.errorMessage ?? null,
       metadata: input.metadata ?? {},
-    });
+    }]);
   } catch (err) {
     // Audit must never block the share flow.
     // eslint-disable-next-line no-console
