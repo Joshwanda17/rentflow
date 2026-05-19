@@ -650,6 +650,37 @@ export function WalletStatement() {
                 <Eye className="h-3.5 w-3.5" aria-hidden="true" />
                 {a11yMode ? 'A−' : 'A+'}
               </Button>
+              {a11yMode && (
+                <div
+                  role="radiogroup"
+                  aria-label="Easy-read text size"
+                  className="hidden sm:inline-flex items-center rounded-md border border-primary/30 overflow-hidden"
+                >
+                  {([
+                    { v: 0 as const, label: 'M', title: 'Medium text' },
+                    { v: 1 as const, label: 'L', title: 'Large text' },
+                    { v: 2 as const, label: 'XL', title: 'Extra-large text' },
+                  ]).map((opt) => {
+                    const active = a11ySize === opt.v;
+                    return (
+                      <button
+                        key={opt.v}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        aria-label={`${opt.title}`}
+                        title={opt.title}
+                        onClick={() => setA11ySize(opt.v)}
+                        className={`px-2.5 py-1 text-xs font-semibold transition ${
+                          active ? 'bg-primary text-primary-foreground' : 'bg-background text-primary hover:bg-primary/10'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
               <Button
                 size="sm"
                 variant="outline"
