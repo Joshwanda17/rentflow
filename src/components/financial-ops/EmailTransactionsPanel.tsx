@@ -1248,25 +1248,70 @@ export function EmailTransactionsPanel() {
                         <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
                           Possible user{userMatches[r.id].length > 1 ? 's' : ''}:
                         </span>
-                        {userMatches[r.id].map((u) => {
-                          const strong = u.matched_on.startsWith('reference ') || u.matched_on.startsWith('from ');
-                          return (
-                            <Badge
-                              key={u.id}
-                              variant="outline"
-                              className={`text-[10px] gap-1 cursor-help ${
-                                strong
-                                  ? 'bg-primary text-primary-foreground border-primary ring-1 ring-primary/40'
-                                  : 'bg-primary/10 text-primary border-primary/30'
-                              }`}
-                              title={`${u.full_name}\nmatched on ${u.matched_on}\n${u.phone ?? ''}${u.mobile_money_number && u.mobile_money_number !== u.phone ? ` · MoMo ${u.mobile_money_number}` : ''}`}
-                            >
-                              {strong && <CheckCircle2 className="h-3 w-3" />}
-                              <span className="font-medium">{u.full_name}</span>
-                              <span className="opacity-70">· {u.matched_on.startsWith('reference ') ? 'ref' : 'from'}</span>
-                            </Badge>
-                          );
-                        })}
+                        <TooltipProvider delayDuration={150}>
+                          {userMatches[r.id].map((u) => {
+                            const isRef = u.matched_on.startsWith('reference ');
+                            const isFrom = u.matched_on.startsWith('from ');
+                            const strong = isRef || isFrom;
+                            const matchType = isRef
+                              ? 'Reference (TID)'
+                              : isFrom
+                                ? 'Phone after "from"'
+                                : 'Phone in email body';
+                            const score = isRef ? 100 : isFrom ? 90 : 60;
+                            const confidenceLabel = isRef ? 'authoritative' : isFrom ? 'high' : 'medium';
+                            const matchedValue = u.matched_on.replace(/^(reference|from|phone)\s+/, '');
+                            const shortLabel = isRef ? 'ref' : isFrom ? 'from' : 'phone';
+                            return (
+                              <Tooltip key={u.id}>
+                                <TooltipTrigger asChild>
+                                  <Badge
+                                    variant="outline"
+                                    className={`text-[10px] gap-1 cursor-help ${
+                                      strong
+                                        ? 'bg-primary text-primary-foreground border-primary ring-1 ring-primary/40'
+                                        : 'bg-primary/10 text-primary border-primary/30'
+                                    }`}
+                                  >
+                                    {strong && <CheckCircle2 className="h-3 w-3" />}
+                                    <span className="font-medium">{u.full_name}</span>
+                                    <span className="opacity-70">· {shortLabel}</span>
+                                    <span className="font-mono tabular-nums opacity-80">{score}%</span>
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-xs text-xs">
+                                  <div className="space-y-0.5">
+                                    <p className="font-semibold">{u.full_name}</p>
+                                    <p>
+                                      <span className="text-muted-foreground">Match type: </span>
+                                      {matchType}
+                                    </p>
+                                    <p className="font-mono">
+                                      <span className="text-muted-foreground font-sans">Matched value: </span>
+                                      {matchedValue}
+                                    </p>
+                                    <p>
+                                      <span className="text-muted-foreground">Confidence: </span>
+                                      {confidenceLabel} ({score}%)
+                                    </p>
+                                    {u.phone && (
+                                      <p className="font-mono">
+                                        <span className="text-muted-foreground font-sans">Phone: </span>
+                                        {u.phone}
+                                      </p>
+                                    )}
+                                    {u.mobile_money_number && u.mobile_money_number !== u.phone && (
+                                      <p className="font-mono">
+                                        <span className="text-muted-foreground font-sans">MoMo: </span>
+                                        {u.mobile_money_number}
+                                      </p>
+                                    )}
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
+                            );
+                          })}
+                        </TooltipProvider>
                       </div>
                     ) : null}
                   </div>
