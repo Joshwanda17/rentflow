@@ -9661,6 +9661,7 @@ export type Database = {
           national_id: string | null
           parish: string | null
           phone: string
+          prefers_easy_read: boolean
           referrer_id: string | null
           region: string | null
           rent_discount_active: boolean
@@ -9721,6 +9722,7 @@ export type Database = {
           national_id?: string | null
           parish?: string | null
           phone: string
+          prefers_easy_read?: boolean
           referrer_id?: string | null
           region?: string | null
           rent_discount_active?: boolean
@@ -9781,6 +9783,7 @@ export type Database = {
           national_id?: string | null
           parish?: string | null
           phone?: string
+          prefers_easy_read?: boolean
           referrer_id?: string | null
           region?: string | null
           rent_discount_active?: boolean

@@ -137,9 +137,39 @@ export function WalletStatement() {
   const [a11yMode, setA11yMode] = useState<boolean>(() => {
     try { return localStorage.getItem('welile_statement_a11y') === '1'; } catch { return false; }
   });
+  const [a11yHydrated, setA11yHydrated] = useState(false);
+
+  // Load server-side preference once per user (overrides local cache)
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('prefers_easy_read')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      if (data && typeof data.prefers_easy_read === 'boolean') {
+        setA11yMode(data.prefers_easy_read);
+      }
+      setA11yHydrated(true);
+    })();
+    return () => { cancelled = true; };
+  }, [user]);
+
+  // Persist: localStorage immediately for snappy UX, profiles row for cross-device.
   useEffect(() => {
     try { localStorage.setItem('welile_statement_a11y', a11yMode ? '1' : '0'); } catch {}
-  }, [a11yMode]);
+    if (!user || !a11yHydrated) return;
+    supabase
+      .from('profiles')
+      .update({ prefers_easy_read: a11yMode })
+      .eq('id', user.id)
+      .then(({ error }) => {
+        if (error) console.error('[WalletStatement] save easy-read pref', error);
+      });
+  }, [a11yMode, user, a11yHydrated]);
 
   useEffect(() => {
     if (open && user) {
