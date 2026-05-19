@@ -2,15 +2,16 @@
  * Rent Access Limit
  *
  * Formula (per business decision):
- *   base       = monthly_rent × 12
- *   adjustment = +5% × on-time-payment days  −  5% × missed days
- *   limit      = max(0, base + adjustment × base)
+ *   limit = clamp(0,  +UGX 10,000 × on-time-payment days
+ *                     −UGX  7,000 × missed days,
+ *                  UGX 30,000,000)
  *
+ * - Every tenant qualifies from day 0 — no minimum-payments threshold.
  * - "Day" is a calendar day in the tenant's tracked window
  *   (first repayment date → today, inclusive). If there's no
  *   repayment yet, no daily adjustments apply.
  * - Multiple payments on the same day count as ONE on-time day.
- * - No upper or lower cap (per user choice). We only floor at 0.
+ * - Hard cap: UGX 30,000,000. Floor: 0.
  * - Pure function — no DB writes, recomputed on the fly.
  */
 
@@ -22,9 +23,9 @@ export interface RepaymentLike {
 export interface RentAccessLimitResult {
   /** Final limit in UGX */
   limit: number;
-  /** Base = monthly_rent × 12 */
+  /** Reference base (monthly_rent × 12) — kept for legacy share artefacts; not used in limit math */
   base: number;
-  /** Net % adjustment applied to the base (e.g. 0.15 = +15%) */
+  /** Progress toward the max cap, 0..1 (limit / MAX_LIMIT) */
   netAdjustmentPct: number;
   /** How many days had at least one on-time payment */
   paidDays: number;
@@ -32,18 +33,22 @@ export interface RentAccessLimitResult {
   missedDays: number;
   /** Total tracked days */
   trackedDays: number;
-  /** Today's net change in UGX (for the "today" pill) */
+  /** Today's net change in UGX (for the "today" pill): +10,000 if paid today, otherwise −7,000 */
   todayChange: number;
   /** Repayment was logged today */
   paidToday: boolean;
-  /** Days remaining until next +5% (always 1 if not paid today, 0 if paid today) */
+  /** Days remaining until next bump (always 1 if not paid today, 0 if paid today) */
   nextChangeDays: number;
-  /** Tier label based on net adjustment */
+  /** Tier label based on progress toward the max cap */
   tier: 'starter' | 'rising' | 'trusted' | 'elite';
+  /** Hit the max cap */
+  atMax: boolean;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const PER_DAY = 0.05;
+export const RENT_ACCESS_PAID_INCREMENT_UGX = 10_000;
+export const RENT_ACCESS_MISSED_DECREMENT_UGX = 7_000;
+export const RENT_ACCESS_MAX_LIMIT_UGX = 30_000_000;
 
 function startOfDayUtc(d: Date): number {
   return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
@@ -76,11 +81,18 @@ export function calculateRentAccessLimit(
   const paidDays = paidDaySet.size;
   const missedDays = Math.max(0, trackedDays - paidDays);
 
-  const netAdjustmentPct = (paidDays - missedDays) * PER_DAY;
-  const limit = Math.max(0, base * (1 + netAdjustmentPct));
+  const rawLimit =
+    paidDays * RENT_ACCESS_PAID_INCREMENT_UGX -
+    missedDays * RENT_ACCESS_MISSED_DECREMENT_UGX;
+  const limit = Math.max(0, Math.min(RENT_ACCESS_MAX_LIMIT_UGX, rawLimit));
+  const atMax = limit >= RENT_ACCESS_MAX_LIMIT_UGX;
+
+  const netAdjustmentPct = limit / RENT_ACCESS_MAX_LIMIT_UGX;
 
   const paidToday = paidDaySet.has(todayKey);
-  const todayChange = paidToday ? base * PER_DAY : -base * PER_DAY;
+  const todayChange = paidToday
+    ? RENT_ACCESS_PAID_INCREMENT_UGX
+    : -RENT_ACCESS_MISSED_DECREMENT_UGX;
 
   let tier: RentAccessLimitResult['tier'] = 'starter';
   if (netAdjustmentPct >= 0.5) tier = 'elite';
@@ -98,6 +110,7 @@ export function calculateRentAccessLimit(
     paidToday,
     nextChangeDays: paidToday ? 0 : 1,
     tier,
+    atMax,
   };
 }
 
