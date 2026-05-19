@@ -429,128 +429,146 @@ export function WalletStatement() {
         ) : (
           <ScrollArea className="flex-1 px-4 py-4">
 
-            {/* ── Summary Cards ── */}
-            <div className="grid grid-cols-2 gap-3 mb-5">
-              <div className="p-4 rounded-2xl bg-success/10 border border-success/20">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <TrendingUp className="h-3.5 w-3.5 text-success" />
-                  <span className="text-[11px] font-semibold text-success uppercase tracking-wide">Total In</span>
-                </div>
-                <p className="text-lg font-bold text-success">+{formatUGX(totals.totalIn)}</p>
-              </div>
-              <div className="p-4 rounded-2xl bg-destructive/10 border border-destructive/20">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <TrendingDown className="h-3.5 w-3.5 text-destructive" />
-                  <span className="text-[11px] font-semibold text-destructive uppercase tracking-wide">Total Out</span>
-                </div>
-                <p className="text-lg font-bold text-destructive">-{formatUGX(totals.totalOut)}</p>
-              </div>
-            </div>
-
-            {/* Net balance */}
-            <div className="flex justify-between items-center px-4 py-3 rounded-xl bg-card border mb-5">
-              <span className="text-sm font-semibold text-muted-foreground">Net Balance</span>
-              <span className={`text-base font-extrabold font-mono ${totals.totalIn - totals.totalOut >= 0 ? 'text-success' : 'text-destructive'}`}>
+            {/* ── Hero: Net Balance ── */}
+            <div className="mb-4 rounded-2xl border bg-card p-5">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Net Balance</p>
+              <p className={`mt-1 text-3xl font-extrabold tracking-tight tabular-nums ${
+                totals.totalIn - totals.totalOut >= 0 ? 'text-foreground' : 'text-destructive'
+              }`}>
                 {formatUGX(Math.max(0, totals.totalIn - totals.totalOut))}
-              </span>
+              </p>
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <div className="rounded-xl bg-success/10 px-3 py-2.5">
+                  <div className="flex items-center gap-1.5 text-success">
+                    <TrendingUp className="h-3.5 w-3.5" />
+                    <span className="text-[10px] font-semibold uppercase tracking-wide">Money In</span>
+                  </div>
+                  <p className="mt-0.5 text-sm font-bold text-success tabular-nums">+{formatUGX(totals.totalIn)}</p>
+                </div>
+                <div className="rounded-xl bg-destructive/10 px-3 py-2.5">
+                  <div className="flex items-center gap-1.5 text-destructive">
+                    <TrendingDown className="h-3.5 w-3.5" />
+                    <span className="text-[10px] font-semibold uppercase tracking-wide">Money Out</span>
+                  </div>
+                  <p className="mt-0.5 text-sm font-bold text-destructive tabular-nums">-{formatUGX(totals.totalOut)}</p>
+                </div>
+              </div>
             </div>
 
-            {/* ── Income Breakdown (income statement style) ── */}
+            {/* ── Income Breakdown (collapsed by default) ── */}
             {breakdownItems.length > 0 && (
-              <div className="rounded-xl border border-border overflow-hidden mb-6">
-                <div className="px-4 py-2.5 bg-muted/50 border-b">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Income Breakdown</p>
-                </div>
-                <div className="divide-y divide-border/50">
-                  {breakdownItems.map(([category, amount]) => {
-                    const { label, Icon, colorClass } = getCategoryMeta(category, 'cash_in');
-                    return (
-                      <div key={category} className="flex items-center justify-between px-4 py-2.5">
-                        <div className="flex items-center gap-2.5">
-                          <div className={`h-7 w-7 rounded-full flex items-center justify-center ${colorClass}`}>
-                            <Icon className="h-3.5 w-3.5" />
+              <div className="mb-4 overflow-hidden rounded-xl border">
+                <button
+                  type="button"
+                  onClick={() => setShowBreakdown(v => !v)}
+                  className="flex w-full items-center justify-between px-4 py-3 hover:bg-muted/40"
+                >
+                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Income Breakdown</span>
+                  {showBreakdown
+                    ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                    : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                </button>
+                {showBreakdown && (
+                  <div className="divide-y divide-border/50 border-t">
+                    {breakdownItems.map(([category, amount]) => {
+                      const { label, Icon, colorClass } = getCategoryMeta(category, 'cash_in');
+                      return (
+                        <div key={category} className="flex items-center justify-between px-4 py-2.5">
+                          <div className="flex items-center gap-2.5">
+                            <div className={`h-7 w-7 rounded-full flex items-center justify-center ${colorClass}`}>
+                              <Icon className="h-3.5 w-3.5" />
+                            </div>
+                            <span className="text-sm text-muted-foreground">{label}</span>
                           </div>
-                          <span className="text-sm text-muted-foreground">{label}</span>
+                          <span className="font-mono text-sm font-semibold text-success tabular-nums">+{formatUGX(amount)}</span>
                         </div>
-                        <span className="font-mono text-sm font-semibold text-success">+{formatUGX(amount)}</span>
-                      </div>
-                    );
-                  })}
-                  {/* Subtotal */}
-                  <div className="flex justify-between px-4 py-2.5 bg-success/5 font-bold">
-                    <span className="text-sm">Total Earned</span>
-                    <span className="font-mono text-sm text-success">+{formatUGX(totals.totalIn)}</span>
+                      );
+                    })}
+                    <div className="flex justify-between bg-success/5 px-4 py-2.5 font-bold">
+                      <span className="text-sm">Total Earned</span>
+                      <span className="font-mono text-sm text-success tabular-nums">+{formatUGX(totals.totalIn)}</span>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             )}
 
-            {/* ── Filter Bar ── */}
-            <div className="mb-5 space-y-3">
-              <div className="flex items-center gap-2">
-                <Filter className="h-3.5 w-3.5 text-muted-foreground" />
-                <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Filter Transactions</p>
-                {hasActiveFilters && (
-                  <button
-                    onClick={() => { setDirectionFilter('all'); setCategoryFilter('all'); }}
-                    className="ml-auto flex items-center gap-1 text-[10px] text-destructive font-medium"
-                  >
-                    <X className="h-3 w-3" /> Clear
-                  </button>
-                )}
-              </div>
-
-              {/* Direction filter */}
-              <div className="flex gap-1.5 p-1 bg-muted rounded-lg">
+            {/* ── Filters (calm default, advanced behind toggle) ── */}
+            <div className="mb-5 space-y-2.5">
+              {/* Direction segmented control */}
+              <div className="flex gap-1 rounded-lg bg-muted p-1">
                 {[
                   { value: 'all' as const, label: 'All', count: entries.length },
-                  { value: 'credit' as const, label: '💰 Money In', count: entries.filter(e => e.type === 'credit').length },
-                  { value: 'debit' as const, label: '📤 Money Out', count: entries.filter(e => e.type === 'debit').length },
+                  { value: 'credit' as const, label: 'In', count: entries.filter(e => e.type === 'credit').length },
+                  { value: 'debit' as const, label: 'Out', count: entries.filter(e => e.type === 'debit').length },
                 ].map((opt) => (
                   <button
                     key={opt.value}
                     onClick={() => setDirectionFilter(opt.value)}
-                    className={`flex-1 py-2 px-2 rounded-md text-[11px] font-semibold transition-all ${
+                    className={`flex-1 rounded-md px-2 py-1.5 text-xs font-semibold transition-all ${
                       directionFilter === opt.value
-                        ? 'bg-background shadow-sm text-foreground'
+                        ? 'bg-background text-foreground shadow-sm'
                         : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
-                    {opt.label} ({opt.count})
+                    {opt.label} <span className="text-muted-foreground/70">· {opt.count}</span>
                   </button>
                 ))}
               </div>
 
-              {/* Category filter chips */}
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex items-center justify-between">
                 <button
-                  onClick={() => setCategoryFilter('all')}
-                  className={`px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all ${
-                    categoryFilter === 'all'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                  }`}
+                  type="button"
+                  onClick={() => setShowCategoryFilters(v => !v)}
+                  className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground hover:text-foreground"
                 >
-                  All Types
+                  <Filter className="h-3 w-3" />
+                  {showCategoryFilters ? 'Hide types' : 'Filter by type'}
+                  {showCategoryFilters
+                    ? <ChevronUp className="h-3 w-3" />
+                    : <ChevronDown className="h-3 w-3" />}
                 </button>
-                {uniqueCategories.map(cat => {
-                  const { label } = getCategoryMeta(cat, 'cash_in');
-                  const count = entries.filter(e => e.category === cat).length;
-                  return (
-                    <button
-                      key={cat}
-                      onClick={() => setCategoryFilter(cat === categoryFilter ? 'all' : cat)}
-                      className={`px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all ${
-                        categoryFilter === cat
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                      }`}
-                    >
-                      {label} ({count})
-                    </button>
-                  );
-                })}
+                {hasActiveFilters && (
+                  <button
+                    onClick={() => { setDirectionFilter('all'); setCategoryFilter('all'); }}
+                    className="flex items-center gap-1 text-[11px] font-medium text-destructive"
+                  >
+                    <X className="h-3 w-3" /> Clear filters
+                  </button>
+                )}
               </div>
+
+              {showCategoryFilters && (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  <button
+                    onClick={() => setCategoryFilter('all')}
+                    className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-all ${
+                      categoryFilter === 'all'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                    }`}
+                  >
+                    All types
+                  </button>
+                  {uniqueCategories.map(cat => {
+                    const { label } = getCategoryMeta(cat, 'cash_in');
+                    const count = entries.filter(e => e.category === cat).length;
+                    return (
+                      <button
+                        key={cat}
+                        onClick={() => setCategoryFilter(cat === categoryFilter ? 'all' : cat)}
+                        className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-all ${
+                          categoryFilter === cat
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                        }`}
+                      >
+                        {label} · {count}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
               {hasActiveFilters && (
                 <p className="text-[10px] text-muted-foreground">
@@ -561,114 +579,78 @@ export function WalletStatement() {
 
             {/* ── Transaction Timeline ── */}
             {Object.keys(groupedEntries).length > 0 ? (
-              <div className="space-y-6">
+              <div className="space-y-5">
                 <div className="flex items-center justify-between">
                   <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Transaction History</p>
                   <span className="text-[10px] text-muted-foreground">{filteredEntries.length} entries</span>
                 </div>
                 {Object.entries(groupedEntries).map(([dateKey, dayEntries]) => (
                   <div key={dateKey}>
-                    {/* Date header */}
-                    <div className="flex items-center gap-2 mb-3">
-                      <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="text-xs font-bold text-muted-foreground">
-                        {format(new Date(dateKey), 'EEEE, MMM d, yyyy')}
-                      </span>
+                    {/* Sticky day header */}
+                    <div className="sticky top-0 z-10 -mx-4 mb-2 flex items-center justify-between bg-background/95 px-4 py-2 backdrop-blur">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="text-xs font-semibold text-muted-foreground">
+                          {format(new Date(dateKey), 'EEE, MMM d, yyyy')}
+                        </span>
+                      </div>
+                      <div className="flex gap-2 text-[10px] font-medium tabular-nums">
+                        {dayEntries.some(e => e.type === 'credit') && (
+                          <span className="text-success">+{formatUGX(dayEntries.filter(e => e.type === 'credit').reduce((s, e) => s + e.amount, 0))}</span>
+                        )}
+                        {dayEntries.some(e => e.type === 'debit') && (
+                          <span className="text-destructive">-{formatUGX(dayEntries.filter(e => e.type === 'debit').reduce((s, e) => s + e.amount, 0))}</span>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Day summary */}
-                    <div className="flex gap-2 mb-2">
-                      {dayEntries.some(e => e.type === 'credit') && (
-                        <span className="text-[10px] text-success font-medium">
-                          +{formatUGX(dayEntries.filter(e => e.type === 'credit').reduce((s, e) => s + e.amount, 0))}
-                        </span>
-                      )}
-                      {dayEntries.some(e => e.type === 'debit') && (
-                        <span className="text-[10px] text-destructive font-medium">
-                          -{formatUGX(dayEntries.filter(e => e.type === 'debit').reduce((s, e) => s + e.amount, 0))}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Entries */}
-                    <div className="space-y-2 pl-2 border-l-2 border-muted ml-2">
+                    {/* Entries — clean rows */}
+                    <div className="overflow-hidden rounded-xl border bg-card divide-y divide-border/60">
                       {dayEntries.map((entry) => {
                         const meta = getCategoryMeta(entry.category, entry.type === 'credit' ? 'cash_in' : 'cash_out');
                         const { label, Icon, colorClass, plainExplanation } = meta;
                         const isCredit = entry.type === 'credit';
+                        const showDescription = entry.description && entry.description !== label;
+                        const partyNote =
+                          entry.linked_party && entry.category === 'tenant_default_charge' ? `Tenant: ${entry.linked_party}` :
+                          entry.linked_party && entry.linked_party !== 'platform' && entry.category === 'agent_commission' ? `From: ${entry.linked_party}` :
+                          entry.linked_party && entry.linked_party !== 'platform' ? `→ ${entry.linked_party}` :
+                          null;
 
                         return (
-                          <div key={entry.id} className="relative pl-4">
-                            {/* Timeline dot */}
-                            <div className={`absolute -left-[9px] top-4 h-4 w-4 rounded-full border-2 border-background ${
-                              isCredit ? 'bg-success' : 'bg-destructive'
-                            }`} />
-
-                            <div className="p-3 rounded-xl bg-card border shadow-sm">
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="flex items-start gap-3 flex-1 min-w-0">
-                                  <div className={`h-9 w-9 rounded-full flex items-center justify-center shrink-0 ${colorClass}`}>
-                                    <Icon className="h-4 w-4" />
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <p className="font-semibold text-sm">{label}</p>
-                                      <Badge
-                                        variant="outline"
-                                        className={`text-[10px] px-1.5 py-0 shrink-0 ${
-                                          isCredit
-                                            ? 'border-success/30 text-success'
-                                            : 'border-destructive/30 text-destructive'
-                                        }`}
-                                      >
-                                        {isCredit ? 'MONEY IN' : 'MONEY OUT'}
-                                      </Badge>
-                                    </div>
-
-                                    {/* Plain-English explanation */}
-                                    <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
-                                      {plainExplanation}
-                                    </p>
-
-                                    {/* Show description if different from label */}
-                                    {entry.description && entry.description !== label && (
-                                      <p className="text-[10px] font-medium text-foreground/70 mt-0.5 italic">
-                                        "{entry.description}"
-                                      </p>
-                                    )}
-
-                                    {entry.linked_party && entry.category === 'tenant_default_charge' && (
-                                      <p className="text-[10px] font-semibold text-warning mt-0.5">
-                                        🏠 Tenant: {entry.linked_party}
-                                      </p>
-                                    )}
-                                    {entry.linked_party && entry.linked_party !== 'platform' && entry.category === 'agent_commission' && (
-                                      <p className="text-[10px] font-semibold text-success mt-0.5">
-                                        👤 Tenant who paid: {entry.linked_party}
-                                      </p>
-                                    )}
-                                    {entry.linked_party && entry.linked_party !== 'platform' && !['tenant_default_charge', 'agent_commission'].includes(entry.category) && (
-                                      <p className="text-[10px] text-muted-foreground/80 mt-0.5">
-                                        → {entry.linked_party}
-                                      </p>
-                                    )}
-                                    <p className="text-[10px] text-muted-foreground mt-0.5">
-                                      {format(new Date(entry.date), 'h:mm a')}
-                                      {entry.reference_id ? ` · Ref: ${entry.reference_id.slice(0, 10)}` : ''}
-                                    </p>
-                                  </div>
-                                </div>
-                                <div className="text-right shrink-0">
-                                  <p className={`font-bold text-sm ${isCredit ? 'text-success' : 'text-destructive'}`}>
-                                    {isCredit ? '+' : '-'}{formatUGX(entry.amount)}
-                                  </p>
-                                  <p className="text-[10px] text-muted-foreground">
-                                    Bal: {formatUGX(entry.balance_after || 0)}
-                                  </p>
-                                </div>
+                          <details key={entry.id} className="group">
+                            <summary className="flex cursor-pointer list-none items-center gap-3 px-3 py-3 hover:bg-muted/30">
+                              <div className={`h-9 w-9 rounded-full flex items-center justify-center shrink-0 ${colorClass}`}>
+                                <Icon className="h-4 w-4" />
                               </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-semibold text-foreground">{label}</p>
+                                <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                                  {format(new Date(entry.date), 'h:mm a')}
+                                  {partyNote ? ` · ${partyNote}` : ''}
+                                </p>
+                              </div>
+                              <div className="shrink-0 text-right">
+                                <p className={`text-sm font-bold tabular-nums ${isCredit ? 'text-success' : 'text-destructive'}`}>
+                                  {isCredit ? '+' : '-'}{formatUGX(entry.amount)}
+                                </p>
+                                <p className="text-[10px] text-muted-foreground tabular-nums">
+                                  Bal {formatUGX(entry.balance_after || 0)}
+                                </p>
+                              </div>
+                            </summary>
+                            <div className="border-t bg-muted/20 px-3 py-3 text-[11px] leading-relaxed text-muted-foreground">
+                              <p>{plainExplanation}</p>
+                              {showDescription && (
+                                <p className="mt-1.5 italic text-foreground/70">"{entry.description}"</p>
+                              )}
+                              {entry.reference_id && (
+                                <p className="mt-1.5 font-mono text-[10px] text-muted-foreground/80">
+                                  Ref: {entry.reference_id}
+                                </p>
+                              )}
                             </div>
-                          </div>
+                          </details>
                         );
                       })}
                     </div>
