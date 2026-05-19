@@ -486,6 +486,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           <AgentHubTabs active={activeTab} onChange={setActiveTab} />
         </div>
 
+        {/* Swipe surface — left/right gestures navigate adjacent hub tabs */}
+        <div {...swipeHandlers} className="touch-pan-y">
         {/* === HOME TAB === Most-used actions, at-a-glance */}
         {activeTab === 'home' && (
           <div className="space-y-4 animate-in fade-in duration-200">
