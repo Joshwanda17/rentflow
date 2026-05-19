@@ -22,6 +22,7 @@ import { useSavedPayoutMethods, type SavedPayoutMethod } from '@/hooks/useSavedP
 import { Checkbox } from '@/components/ui/checkbox';
 import { Trash2, Star } from 'lucide-react';
 import { downloadWithdrawalReceiptPdf, shareWithdrawalReceiptPdf } from '@/lib/withdrawalReceiptPdf';
+import { useLanguage } from '@/hooks/useLanguage';
 
 /**
  * Maps a Ugandan mobile-money number to its provider based on the operator
@@ -68,6 +69,7 @@ export default function WithdrawFlow({
   onSuccess,
 }: WithdrawFlowProps) {
   const { user } = useAuth();
+  const { language } = useLanguage();
   const [currentStep, setCurrentStep] = useState(0);
   const [source, setSource] = useState<'available' | 'roi'>('available');
   const [amount, setAmount] = useState(100000);
@@ -390,6 +392,7 @@ export default function WithdrawFlow({
       date: submittedAt ?? new Date(),
       status: 'Pending disbursement',
       feeBreakdown,
+      language,
     };
   };
 
