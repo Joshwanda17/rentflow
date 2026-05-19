@@ -259,6 +259,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [shareLandlordOpen, setShareLandlordOpen] = useState(false);
   const [lendingAgentOpen, setLendingAgentOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<AgentHubTab>('home');
+  const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
 
   // Horizontal swipe → switch hub tabs (mobile gesture)
   const TAB_ORDER: AgentHubTab[] = ['home', 'money', 'tenants', 'grow', 'subagents'];
