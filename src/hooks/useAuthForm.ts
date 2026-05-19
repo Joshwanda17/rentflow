@@ -213,7 +213,22 @@ export function useAuthForm() {
         toast({ title: 'Error', description: 'Please enter the 6-digit code', variant: 'destructive' });
         return;
       }
-      setResetStep('new-password');
+      const cleanedPhone = resetPhone.replace(/\D/g, '');
+      try {
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/password-reset-sms`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
+          body: JSON.stringify({ action: 'verify', phone: cleanedPhone, otp: resetOtp }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          toast({ title: 'Invalid Code', description: data.error || 'That code is not valid.', variant: 'destructive' });
+          return;
+        }
+        setResetStep('new-password');
+      } catch {
+        toast({ title: 'Error', description: 'Network error. Please try again.', variant: 'destructive' });
+      }
       return;
     }
 
