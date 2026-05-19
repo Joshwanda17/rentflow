@@ -144,6 +144,12 @@ export default function RentAccessLimitActivity({
             New limit: <span className="font-mono font-semibold">{formatUGX(result.limit)}</span>
             {result.atMax && ' · at ceiling'}
           </p>
+          {result.paymentsToday > 1 && (
+            <p className="text-[11px] text-muted-foreground mt-1">
+              <span className="font-semibold">{result.paymentsToday} payments</span> logged today —
+              counted as <span className="font-semibold">1 on-time day</span> (same-day payments don't stack).
+            </p>
+          )}
         </div>
       </div>
 
@@ -179,6 +185,10 @@ export default function RentAccessLimitActivity({
           {result.atMax && (
             <span className="text-warning"> (capped at {formatUGX(params.max_limit_ugx)})</span>
           )}
+        </p>
+        <p className="text-[11px] text-muted-foreground italic pt-1">
+          Each calendar day counts once — paying twice in the same day still earns a single
+          +{formatUGX(params.paid_increment_ugx)} bump.
         </p>
       </div>
 
