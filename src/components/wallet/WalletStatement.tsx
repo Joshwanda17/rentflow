@@ -137,6 +137,14 @@ export function WalletStatement() {
   const [a11yMode, setA11yMode] = useState<boolean>(() => {
     try { return localStorage.getItem('welile_statement_a11y') === '1'; } catch { return false; }
   });
+  // Easy-read font size step: 0 = M (default), 1 = L, 2 = XL
+  const [a11ySize, setA11ySize] = useState<0 | 1 | 2>(() => {
+    try {
+      const raw = localStorage.getItem('welile_statement_a11y_size');
+      const n = raw == null ? 0 : parseInt(raw, 10);
+      return (n === 1 || n === 2) ? (n as 1 | 2) : 0;
+    } catch { return 0; }
+  });
   const [a11yHydrated, setA11yHydrated] = useState(false);
 
   // Load server-side preference once per user (overrides local cache)
@@ -170,6 +178,11 @@ export function WalletStatement() {
         if (error) console.error('[WalletStatement] save easy-read pref', error);
       });
   }, [a11yMode, user, a11yHydrated]);
+
+  // Persist font-size step locally (lightweight; no schema change needed).
+  useEffect(() => {
+    try { localStorage.setItem('welile_statement_a11y_size', String(a11ySize)); } catch {}
+  }, [a11ySize]);
 
   useEffect(() => {
     if (open && user) {
@@ -560,14 +573,18 @@ export function WalletStatement() {
         </Button>
       </SheetTrigger>
 
-      <SheetContent side="bottom" className={`h-[92vh] rounded-t-3xl p-0 flex flex-col ${a11yMode ? 'a11y-large' : ''}`}>
+      <SheetContent
+        side="bottom"
+        className={`h-[92vh] rounded-t-3xl p-0 flex flex-col ${a11yMode ? 'a11y-large' : ''}`}
+        style={a11yMode ? ({ ['--a11y-scale' as any]: a11ySize === 2 ? 1.3 : a11ySize === 1 ? 1.15 : 1 } as React.CSSProperties) : undefined}
+      >
         {/* Scoped accessibility overrides: larger text + stronger contrast */}
         <style>{`
-          .a11y-large { font-size: 17px; }
-          .a11y-large .text-\\[10px\\] { font-size: 13px !important; line-height: 1.3 !important; }
-          .a11y-large .text-\\[11px\\] { font-size: 14px !important; line-height: 1.4 !important; }
-          .a11y-large .text-xs { font-size: 15px !important; line-height: 1.45 !important; }
-          .a11y-large .text-sm { font-size: 16px !important; line-height: 1.5 !important; }
+          .a11y-large { font-size: calc(17px * var(--a11y-scale, 1)); }
+          .a11y-large .text-\\[10px\\] { font-size: calc(13px * var(--a11y-scale, 1)) !important; line-height: 1.3 !important; }
+          .a11y-large .text-\\[11px\\] { font-size: calc(14px * var(--a11y-scale, 1)) !important; line-height: 1.4 !important; }
+          .a11y-large .text-xs { font-size: calc(15px * var(--a11y-scale, 1)) !important; line-height: 1.45 !important; }
+          .a11y-large .text-sm { font-size: calc(16px * var(--a11y-scale, 1)) !important; line-height: 1.5 !important; }
           .a11y-large .text-muted-foreground { color: hsl(var(--foreground) / 0.92) !important; }
           .a11y-large .text-muted-foreground\\/80,
           .a11y-large .text-muted-foreground\\/70 { color: hsl(var(--foreground) / 0.85) !important; }
@@ -633,6 +650,37 @@ export function WalletStatement() {
                 <Eye className="h-3.5 w-3.5" aria-hidden="true" />
                 {a11yMode ? 'A−' : 'A+'}
               </Button>
+              {a11yMode && (
+                <div
+                  role="radiogroup"
+                  aria-label="Easy-read text size"
+                  className="inline-flex items-center rounded-md border border-primary/30 overflow-hidden"
+                >
+                  {([
+                    { v: 0 as const, label: 'M', title: 'Medium text' },
+                    { v: 1 as const, label: 'L', title: 'Large text' },
+                    { v: 2 as const, label: 'XL', title: 'Extra-large text' },
+                  ]).map((opt) => {
+                    const active = a11ySize === opt.v;
+                    return (
+                      <button
+                        key={opt.v}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        aria-label={`${opt.title}`}
+                        title={opt.title}
+                        onClick={() => setA11ySize(opt.v)}
+                        className={`px-2.5 py-1 text-xs font-semibold transition ${
+                          active ? 'bg-primary text-primary-foreground' : 'bg-background text-primary hover:bg-primary/10'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
               <Button
                 size="sm"
                 variant="outline"
