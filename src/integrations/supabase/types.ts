@@ -15466,6 +15466,16 @@ export type Database = {
         }
         Returns: Json
       }
+      log_archived_login_attempt: {
+        Args: {
+          p_archived_at?: string
+          p_archived_user_id: string
+          p_full_name?: string
+          p_identifier: string
+          p_identifier_type: string
+        }
+        Returns: string
+      }
       log_finops_provider_mismatch: {
         Args: {
           _attempted_amount?: number
