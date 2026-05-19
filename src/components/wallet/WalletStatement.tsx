@@ -30,10 +30,11 @@ import {
   Filter,
   X,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  FileSpreadsheet
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
-import { format } from 'date-fns';
+import { format, subDays } from 'date-fns';
 // jsPDF loaded dynamically when needed
 import { toast } from 'sonner';
 
@@ -90,6 +91,7 @@ export function WalletStatement() {
   // Filters
   const [directionFilter, setDirectionFilter] = useState<'all' | 'credit' | 'debit'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [rangePreset, setRangePreset] = useState<'all' | '7d' | '30d' | '90d'>('all');
   // Progressive disclosure for a calmer default view
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [showCategoryFilters, setShowCategoryFilters] = useState(false);
@@ -182,8 +184,86 @@ export function WalletStatement() {
     }
   };
 
+  // ── Derived: date range + filtered entries (shared by UI + exports) ──
+  const rangeFrom = (() => {
+    if (rangePreset === 'all') return null;
+    const days = rangePreset === '7d' ? 7 : rangePreset === '30d' ? 30 : 90;
+    return subDays(new Date(), days);
+  })();
+
+  const filteredEntries = entries.filter(entry => {
+    if (directionFilter !== 'all' && entry.type !== directionFilter) return false;
+    if (categoryFilter !== 'all' && entry.category !== categoryFilter) return false;
+    if (rangeFrom && new Date(entry.date) < rangeFrom) return false;
+    return true;
+  });
+
+  const filteredTotals = filteredEntries.reduce(
+    (acc, e) => {
+      if (e.type === 'credit') acc.totalIn += e.amount;
+      else acc.totalOut += e.amount;
+      return acc;
+    },
+    { totalIn: 0, totalOut: 0 }
+  );
+
+  const rangeLabel =
+    rangePreset === 'all' ? 'All time' :
+    rangePreset === '7d' ? 'Last 7 days' :
+    rangePreset === '30d' ? 'Last 30 days' : 'Last 90 days';
+
+  const filterSummary = [
+    rangeLabel,
+    directionFilter !== 'all' ? (directionFilter === 'credit' ? 'Money In only' : 'Money Out only') : null,
+    categoryFilter !== 'all' ? `Type: ${categoryFilter.replace(/_/g, ' ')}` : null,
+  ].filter(Boolean).join(' · ');
+
+  const exportToCSV = useCallback(() => {
+    if (filteredEntries.length === 0) {
+      toast.error('No transactions to export');
+      return;
+    }
+    const escape = (val: string | number | null | undefined) => {
+      const s = val == null ? '' : String(val);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const header = ['Date', 'Time', 'Description', 'Category', 'Type', 'Amount (UGX)', 'Balance After (UGX)', 'Reference', 'Linked Party'];
+    const rows = filteredEntries.map(e => [
+      format(new Date(e.date), 'yyyy-MM-dd'),
+      format(new Date(e.date), 'HH:mm:ss'),
+      e.description,
+      e.category,
+      e.type === 'credit' ? 'IN' : 'OUT',
+      (e.type === 'credit' ? '+' : '-') + e.amount,
+      e.balance_after ?? '',
+      e.reference_id ?? '',
+      e.linked_party ?? '',
+    ]);
+    const meta = [
+      ['Welile Wallet Statement'],
+      ['Account', userName],
+      ['Generated', format(new Date(), 'yyyy-MM-dd HH:mm')],
+      ['Filters', filterSummary],
+      ['Total In', `+${filteredTotals.totalIn}`],
+      ['Total Out', `-${filteredTotals.totalOut}`],
+      ['Net', `${filteredTotals.totalIn - filteredTotals.totalOut}`],
+      [],
+    ];
+    const csv = [...meta, header, ...rows].map(r => r.map(escape).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Welile_Wallet_Statement_${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success('CSV downloaded');
+  }, [filteredEntries, filteredTotals.totalIn, filteredTotals.totalOut, userName, filterSummary]);
+
   const exportToPDF = useCallback(async () => {
-    if (entries.length === 0) {
+    if (filteredEntries.length === 0) {
       toast.error('No transactions to export');
       return;
     }
@@ -210,7 +290,7 @@ export function WalletStatement() {
 
       // ── Header ──
       doc.setFillColor(88, 28, 135); // purple
-      doc.rect(0, 0, pageWidth, 38, 'F');
+      doc.rect(0, 0, pageWidth, 44, 'F');
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(18);
       doc.setFont('helvetica', 'bold');
@@ -219,7 +299,9 @@ export function WalletStatement() {
       doc.setFont('helvetica', 'normal');
       doc.text(userName, margin, 24);
       doc.text(`Generated: ${format(new Date(), 'PPP p')}`, margin, 30);
-      y = 46;
+      doc.setFontSize(8);
+      doc.text(`Filters: ${filterSummary}`, margin, 37);
+      y = 52;
 
       // ── Summary ──
       doc.setTextColor(0, 0, 0);
@@ -237,7 +319,7 @@ export function WalletStatement() {
       doc.setTextColor(22, 163, 74);
       doc.text('Total In', margin + 4, y + 6);
       doc.setFont('helvetica', 'bold');
-      doc.text(`+${formatAmount(totals.totalIn)}`, margin + 4, y + 12);
+      doc.text(`+${formatAmount(filteredTotals.totalIn)}`, margin + 4, y + 12);
 
       // Total Out
       doc.setFillColor(254, 226, 226);
@@ -245,12 +327,12 @@ export function WalletStatement() {
       doc.setTextColor(220, 38, 38);
       doc.text('Total Out', margin + contentWidth / 2 + 7, y + 6);
       doc.setFont('helvetica', 'bold');
-      doc.text(`-${formatAmount(totals.totalOut)}`, margin + contentWidth / 2 + 7, y + 12);
+      doc.text(`-${formatAmount(filteredTotals.totalOut)}`, margin + contentWidth / 2 + 7, y + 12);
 
       y += 22;
 
       // Net Balance
-      const netBalance = Math.max(0, totals.totalIn - totals.totalOut);
+      const netBalance = Math.max(0, filteredTotals.totalIn - filteredTotals.totalOut);
       doc.setFillColor(240, 240, 240);
       doc.roundedRect(margin, y, contentWidth, 12, 2, 2, 'F');
       doc.setTextColor(0, 0, 0);
@@ -287,7 +369,7 @@ export function WalletStatement() {
 
       // Table rows
       doc.setFontSize(7.5);
-      const sortedEntries = [...entries]; // already newest-first
+      const sortedEntries = [...filteredEntries]; // already newest-first
 
       for (let i = 0; i < sortedEntries.length; i++) {
         const entry = sortedEntries[i];
@@ -351,7 +433,7 @@ export function WalletStatement() {
       doc.setTextColor(150, 150, 150);
       doc.setFont('helvetica', 'normal');
       doc.text('This is an auto-generated statement from Welile Technologies Limited.', margin, y);
-      doc.text(`Total entries: ${entries.length}  ·  ${format(new Date(), 'PPPp')}`, margin, y + 4);
+      doc.text(`Total entries: ${filteredEntries.length}  ·  ${format(new Date(), 'PPPp')}`, margin, y + 4);
 
       // Save
       const filename = `Welile_Wallet_Statement_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
@@ -363,19 +445,12 @@ export function WalletStatement() {
     } finally {
       setExporting(false);
     }
-  }, [entries, totals, userName]);
-
-  // Apply filters
-  const filteredEntries = entries.filter(entry => {
-    if (directionFilter !== 'all' && entry.type !== directionFilter) return false;
-    if (categoryFilter !== 'all' && entry.category !== categoryFilter) return false;
-    return true;
-  });
+  }, [filteredEntries, filteredTotals.totalIn, filteredTotals.totalOut, userName, filterSummary]);
 
   // Get unique categories for filter chips
   const uniqueCategories = [...new Set(entries.map(e => e.category))];
 
-  const hasActiveFilters = directionFilter !== 'all' || categoryFilter !== 'all';
+  const hasActiveFilters = directionFilter !== 'all' || categoryFilter !== 'all' || rangePreset !== 'all';
 
   // Group by date
   const groupedEntries = filteredEntries.reduce((groups, entry) => {
@@ -406,16 +481,30 @@ export function WalletStatement() {
               </SheetTitle>
               <p className="text-xs text-muted-foreground">All money in & out of your wallet</p>
             </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={exportToPDF}
-              disabled={exporting || loading || entries.length === 0}
-              className="gap-1.5 text-xs font-semibold border-primary/30 text-primary hover:bg-primary/10"
-            >
-              {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-              Export PDF
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={exportToCSV}
+                disabled={loading || filteredEntries.length === 0}
+                className="gap-1.5 text-xs font-semibold border-primary/30 text-primary hover:bg-primary/10"
+                title={`Download CSV · ${filterSummary}`}
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5" />
+                CSV
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={exportToPDF}
+                disabled={exporting || loading || filteredEntries.length === 0}
+                className="gap-1.5 text-xs font-semibold border-primary/30 text-primary hover:bg-primary/10"
+                title={`Download PDF · ${filterSummary}`}
+              >
+                {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                PDF
+              </Button>
+            </div>
           </div>
         </SheetHeader>
 
@@ -495,6 +584,28 @@ export function WalletStatement() {
 
             {/* ── Filters (calm default, advanced behind toggle) ── */}
             <div className="mb-5 space-y-2.5">
+              {/* Date range presets */}
+              <div className="flex gap-1 rounded-lg bg-muted p-1">
+                {[
+                  { value: 'all' as const, label: 'All time' },
+                  { value: '7d' as const, label: '7d' },
+                  { value: '30d' as const, label: '30d' },
+                  { value: '90d' as const, label: '90d' },
+                ].map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setRangePreset(opt.value)}
+                    className={`flex-1 rounded-md px-2 py-1.5 text-xs font-semibold transition-all ${
+                      rangePreset === opt.value
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
               {/* Direction segmented control */}
               <div className="flex gap-1 rounded-lg bg-muted p-1">
                 {[
@@ -530,7 +641,7 @@ export function WalletStatement() {
                 </button>
                 {hasActiveFilters && (
                   <button
-                    onClick={() => { setDirectionFilter('all'); setCategoryFilter('all'); }}
+                    onClick={() => { setDirectionFilter('all'); setCategoryFilter('all'); setRangePreset('all'); }}
                     className="flex items-center gap-1 text-[11px] font-medium text-destructive"
                   >
                     <X className="h-3 w-3" /> Clear filters
