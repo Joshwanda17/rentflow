@@ -2817,6 +2817,48 @@ export type Database = {
           },
         ]
       }
+      agent_tenant_float_reversals: {
+        Row: {
+          agent_id: string
+          amount: number
+          commission_clawback: number
+          created_at: string
+          id: string
+          landlord_id: string | null
+          landlord_name: string | null
+          original_transaction_group: string
+          reason: string
+          rent_request_id: string
+          reversal_transaction_group: string
+        }
+        Insert: {
+          agent_id: string
+          amount: number
+          commission_clawback?: number
+          created_at?: string
+          id?: string
+          landlord_id?: string | null
+          landlord_name?: string | null
+          original_transaction_group: string
+          reason: string
+          rent_request_id: string
+          reversal_transaction_group: string
+        }
+        Update: {
+          agent_id?: string
+          amount?: number
+          commission_clawback?: number
+          created_at?: string
+          id?: string
+          landlord_id?: string | null
+          landlord_name?: string | null
+          original_transaction_group?: string
+          reason?: string
+          rent_request_id?: string
+          reversal_transaction_group?: string
+        }
+        Relationships: []
+      }
       agent_tier_capabilities: {
         Row: {
           capability: string
@@ -14355,6 +14397,15 @@ export type Database = {
         Args: { p_collection_id: string; p_reason: string }
         Returns: Json
       }
+      agent_unallocate_tenant_payment: {
+        Args: {
+          p_agent_id: string
+          p_original_transaction_group: string
+          p_reason: string
+          p_rent_request_id: string
+        }
+        Returns: Json
+      }
       apply_layer_a_writedown: {
         Args: { p_dry_run?: boolean; p_user_id: string }
         Returns: Json
@@ -14892,6 +14943,17 @@ export type Database = {
           with_advance: number
           with_float: number
           with_withdrawable: number
+        }[]
+      }
+      get_agent_reversible_allocations: {
+        Args: { p_agent_id: string; p_rent_request_id: string }
+        Returns: {
+          amount: number
+          created_at: string
+          description: string
+          landlord_id: string
+          landlord_name: string
+          transaction_group: string
         }[]
       }
       get_agent_split_balances: {
