@@ -658,7 +658,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
         {/* === TENANTS TAB === People & properties */}
         {activeTab === 'tenants' && (
-          <div className="space-y-5 animate-in fade-in duration-200">
+          <div className={cn("space-y-5", tabAnimClass)}>
             <div className="grid grid-cols-2 gap-2.5">
               {[
                 { icon: FileText, label: 'New Tenant', onClick: () => setRentRequestOpen(true) },
