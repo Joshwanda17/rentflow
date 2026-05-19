@@ -166,6 +166,15 @@ export function useAuthForm() {
           if (archivedRow) {
             const cleanName = (archivedRow.full_name || '').replace(/^\[ARCHIVED\]\s*/i, '').trim();
             errorMessage = `This account${cleanName ? ` for ${cleanName}` : ''} was deleted. Contact Welile support to restore access — this email cannot sign in until then.`;
+            try {
+              await supabase.rpc('log_archived_login_attempt', {
+                p_identifier: email.trim().toLowerCase(),
+                p_identifier_type: 'email',
+                p_archived_user_id: archivedRow.id,
+                p_full_name: cleanName || null,
+                p_archived_at: null,
+              });
+            } catch (e) { console.warn('[Auth] audit log failed', e); }
             toast({ title: 'Account Deleted', description: errorMessage, variant: 'destructive' });
             return;
           }
@@ -673,6 +682,15 @@ export function useAuthForm() {
           const who = row.full_name ? ` for ${row.full_name}` : '';
           const when = row.archived_at ? ` on ${new Date(row.archived_at).toLocaleDateString()}` : '';
           errorMessage = `This account${who} was deleted${when}. Contact Welile support to restore access — your phone number cannot sign in until then.`;
+          try {
+            await supabase.rpc('log_archived_login_attempt', {
+              p_identifier: `+${countryCode}${last9}`,
+              p_identifier_type: 'phone',
+              p_archived_user_id: row.user_id ?? null,
+              p_full_name: row.full_name ?? null,
+              p_archived_at: row.archived_at ?? null,
+            });
+          } catch (e) { console.warn('[Auth] audit log failed', e); }
           setLoginError({ message: errorMessage, triedFormats });
           toast({ title: 'Account Deleted', description: errorMessage, variant: 'destructive' });
           return;
