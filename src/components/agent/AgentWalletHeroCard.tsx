@@ -73,9 +73,15 @@ export function AgentWalletHeroCard({
               <span className="text-emerald-300 font-semibold">
                 Commission: {formatAmountCompact(commissionBalance)}
               </span>
-              <span className="text-blue-300 font-semibold">
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); hapticTap(); navigate('/agent/float-breakdown'); }}
+                className="text-blue-300 font-semibold underline-offset-2 hover:underline active:scale-95 inline-flex items-center gap-1"
+                title="See every float deposit and tenant allocation"
+              >
                 Float: {formatAmountCompact(floatBalance)}
-              </span>
+                <ChevronRight className="h-3 w-3" />
+              </button>
               {otherBalance > 0 && (
                 <span
                   className="text-amber-300 font-semibold"
