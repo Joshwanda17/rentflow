@@ -245,9 +245,11 @@ export function TidVerification() {
   type MatchField = 'any' | 'name' | 'phone' | 'amount';
   type AmountRange = 'any' | 'low' | 'mid' | 'high';
   type Verification = 'any' | 'verified' | 'unverified';
+  type OpFloatFilter = 'any' | 'non_op_float';
   const [matchField, setMatchField] = useState<MatchField>('any');
   const [amountRange, setAmountRange] = useState<AmountRange>('any');
   const [verification, setVerification] = useState<Verification>('any');
+  const [opFloatFilter, setOpFloatFilter] = useState<OpFloatFilter>('any');
   // Sort controls for the pick-list. Default is the natural newest-first
   // order returned by the server query. Each click on a column header
   // cycles asc → desc → none.
