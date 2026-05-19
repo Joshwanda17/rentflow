@@ -578,7 +578,7 @@ export function WalletStatement() {
           <div className="flex items-center justify-between">
             <div>
               <SheetTitle className="text-xl font-bold flex items-center gap-2">
-                <ArrowUpDown className="h-5 w-5 text-primary" />
+                <ArrowUpDown className="h-5 w-5 text-primary" aria-hidden="true" />
                 Wallet Statement
               </SheetTitle>
               <p className="text-xs text-muted-foreground">All money in & out of your wallet</p>
@@ -593,7 +593,7 @@ export function WalletStatement() {
                 className="gap-1.5 text-xs font-semibold"
                 title={a11yMode ? 'Easy-read mode: ON' : 'Easy-read mode: OFF'}
               >
-                <Eye className="h-3.5 w-3.5" />
+                <Eye className="h-3.5 w-3.5" aria-hidden="true" />
                 {a11yMode ? 'A−' : 'A+'}
               </Button>
               <Button
