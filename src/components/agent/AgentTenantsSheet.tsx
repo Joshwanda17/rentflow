@@ -448,6 +448,17 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           }
         });
         setTenantLastPaid(lastPaid);
+
+        // Today-only slice for the live collection-status header.
+        const todayStart = startOfDay(new Date()).getTime();
+        const todays = (recentRepayments || [])
+          .filter((r: any) => new Date(r.created_at).getTime() >= todayStart)
+          .map((r: any) => ({
+            tenant_id: r.tenant_id as string,
+            amount: Number(r.amount || 0),
+            created_at: r.created_at as string,
+          }));
+        setTodayRepayments(todays);
       }
     } catch (err) {
       console.error('Failed to fetch tenants:', err);
