@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { useEasyReadMode } from '@/hooks/useEasyReadMode';
 import {
   Sheet,
   SheetContent,
@@ -133,56 +134,8 @@ export function WalletStatement() {
   // Progressive disclosure for a calmer default view
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [showCategoryFilters, setShowCategoryFilters] = useState(false);
-  // Accessibility: larger text + higher contrast (persisted)
-  const [a11yMode, setA11yMode] = useState<boolean>(() => {
-    try { return localStorage.getItem('welile_statement_a11y') === '1'; } catch { return false; }
-  });
-  // Easy-read font size step: 0 = M (default), 1 = L, 2 = XL
-  const [a11ySize, setA11ySize] = useState<0 | 1 | 2>(() => {
-    try {
-      const raw = localStorage.getItem('welile_statement_a11y_size');
-      const n = raw == null ? 0 : parseInt(raw, 10);
-      return (n === 1 || n === 2) ? (n as 1 | 2) : 0;
-    } catch { return 0; }
-  });
-  const [a11yHydrated, setA11yHydrated] = useState(false);
-
-  // Load server-side preference once per user (overrides local cache)
-  useEffect(() => {
-    if (!user) return;
-    let cancelled = false;
-    (async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('prefers_easy_read')
-        .eq('id', user.id)
-        .maybeSingle();
-      if (cancelled) return;
-      if (data && typeof data.prefers_easy_read === 'boolean') {
-        setA11yMode(data.prefers_easy_read);
-      }
-      setA11yHydrated(true);
-    })();
-    return () => { cancelled = true; };
-  }, [user]);
-
-  // Persist: localStorage immediately for snappy UX, profiles row for cross-device.
-  useEffect(() => {
-    try { localStorage.setItem('welile_statement_a11y', a11yMode ? '1' : '0'); } catch {}
-    if (!user || !a11yHydrated) return;
-    supabase
-      .from('profiles')
-      .update({ prefers_easy_read: a11yMode })
-      .eq('id', user.id)
-      .then(({ error }) => {
-        if (error) console.error('[WalletStatement] save easy-read pref', error);
-      });
-  }, [a11yMode, user, a11yHydrated]);
-
-  // Persist font-size step locally (lightweight; no schema change needed).
-  useEffect(() => {
-    try { localStorage.setItem('welile_statement_a11y_size', String(a11ySize)); } catch {}
-  }, [a11ySize]);
+  // Accessibility: shared easy-read mode (applies globally to wallet + receipt UI)
+  const { enabled: a11yMode, toggle: toggleA11y, size: a11ySize, setSize: setA11ySize } = useEasyReadMode();
 
   useEffect(() => {
     if (open && user) {
@@ -575,59 +528,8 @@ export function WalletStatement() {
 
       <SheetContent
         side="bottom"
-        className={`h-[92vh] rounded-t-3xl p-0 flex flex-col ${a11yMode ? 'a11y-large' : ''}`}
-        style={a11yMode ? ({ ['--a11y-scale' as any]: a11ySize === 2 ? 1.3 : a11ySize === 1 ? 1.15 : 1 } as React.CSSProperties) : undefined}
+        className="h-[92vh] rounded-t-3xl p-0 flex flex-col"
       >
-        {/* Scoped accessibility overrides: larger text + stronger contrast */}
-        <style>{`
-          .a11y-large { font-size: calc(17px * var(--a11y-scale, 1)); }
-          .a11y-large .text-\\[10px\\] { font-size: calc(13px * var(--a11y-scale, 1)) !important; line-height: 1.3 !important; }
-          .a11y-large .text-\\[11px\\] { font-size: calc(14px * var(--a11y-scale, 1)) !important; line-height: 1.4 !important; }
-          .a11y-large .text-xs { font-size: calc(15px * var(--a11y-scale, 1)) !important; line-height: 1.45 !important; }
-          .a11y-large .text-sm { font-size: calc(16px * var(--a11y-scale, 1)) !important; line-height: 1.5 !important; }
-          .a11y-large .text-muted-foreground { color: hsl(var(--foreground) / 0.92) !important; }
-          .a11y-large .text-muted-foreground\\/80,
-          .a11y-large .text-muted-foreground\\/70 { color: hsl(var(--foreground) / 0.85) !important; }
-          .a11y-large .border { border-color: hsl(var(--foreground) / 0.35) !important; }
-          /* Tap targets: WCAG 2.5.5 (44x44) for every interactive element */
-          .a11y-large button,
-          .a11y-large [role="button"],
-          .a11y-large [role="radio"],
-          .a11y-large summary,
-          .a11y-large a {
-            min-height: 48px;
-            min-width: 44px;
-          }
-          /* Segmented controls (date range + direction) — taller pills */
-          .a11y-large [role="radiogroup"] { padding: 4px; gap: 4px; }
-          .a11y-large [role="radiogroup"] > button {
-            padding-top: 12px !important;
-            padding-bottom: 12px !important;
-            padding-left: 14px !important;
-            padding-right: 14px !important;
-          }
-          /* Category chips */
-          .a11y-large [aria-label="Filter by transaction type"] > button {
-            padding: 10px 14px !important;
-            border-radius: 9999px;
-          }
-          /* Transaction row summary — bigger spacing + dedicated chevron affordance */
-          .a11y-large summary { padding-top: 14px !important; padding-bottom: 14px !important; }
-          /* Disclosure header (Income Breakdown / Filter by type toggle) */
-          .a11y-large details > summary,
-          .a11y-large [aria-expanded] { padding-top: 12px; padding-bottom: 12px; }
-          /* Clear filters + show/hide types — keep them comfortably tappable */
-          .a11y-large [aria-label="Clear all filters"] { padding: 10px 12px !important; }
-          /* Highlight cards (role-based) */
-          .a11y-large [aria-label="Category quick filters"] > button {
-            padding-top: 14px !important;
-            padding-bottom: 14px !important;
-            min-height: 64px;
-          }
-          /* Export buttons in header — keep spacing breathable */
-          .a11y-large header button,
-          .a11y-large [class*="SheetHeader"] button { padding: 10px 14px !important; }
-        `}</style>
         <SheetHeader className="px-5 pt-5 pb-4 border-b shrink-0">
           <div className="flex items-center justify-between">
             <div>
@@ -641,7 +543,7 @@ export function WalletStatement() {
               <Button
                 size="sm"
                 variant={a11yMode ? 'default' : 'outline'}
-                onClick={() => setA11yMode(v => !v)}
+                onClick={toggleA11y}
                 aria-pressed={a11yMode}
                 aria-label={a11yMode ? 'Turn off larger text and higher contrast' : 'Turn on larger text and higher contrast'}
                 className="gap-1.5 text-xs font-semibold"

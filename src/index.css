@@ -922,3 +922,45 @@ input[type="checkbox"], input[type="radio"] {
 /* Hide scrollbars on horizontally-scrollable chip strips (e.g. AgentNavFAB) */
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* =========================================================================
+   Easy-read mode (accessibility)
+   Toggled by adding `.a11y-large` to <body> + setting `--a11y-scale`
+   (1 = M, 1.15 = L, 1.3 = XL) via the `useEasyReadMode` hook.
+   Applies globally so wallet + receipt + dialog components stay uniform.
+   ========================================================================= */
+body.a11y-large { font-size: calc(17px * var(--a11y-scale, 1)); }
+
+body.a11y-large .text-\[10px\] { font-size: calc(13px * var(--a11y-scale, 1)) !important; line-height: 1.3 !important; }
+body.a11y-large .text-\[11px\] { font-size: calc(14px * var(--a11y-scale, 1)) !important; line-height: 1.4 !important; }
+body.a11y-large .text-xs       { font-size: calc(15px * var(--a11y-scale, 1)) !important; line-height: 1.45 !important; }
+body.a11y-large .text-sm       { font-size: calc(16px * var(--a11y-scale, 1)) !important; line-height: 1.5 !important; }
+body.a11y-large .text-base     { font-size: calc(17px * var(--a11y-scale, 1)) !important; line-height: 1.55 !important; }
+
+/* Stronger contrast on muted text inside any wallet/receipt surface */
+body.a11y-large .text-muted-foreground       { color: hsl(var(--foreground) / 0.92) !important; }
+body.a11y-large .text-muted-foreground\/80,
+body.a11y-large .text-muted-foreground\/70   { color: hsl(var(--foreground) / 0.85) !important; }
+body.a11y-large .border                      { border-color: hsl(var(--foreground) / 0.35) !important; }
+
+/* Tap targets: WCAG 2.5.5 — applied broadly but opt-out via .a11y-exempt */
+body.a11y-large button:not(.a11y-exempt),
+body.a11y-large [role="button"]:not(.a11y-exempt),
+body.a11y-large [role="radio"]:not(.a11y-exempt),
+body.a11y-large summary:not(.a11y-exempt),
+body.a11y-large a:not(.a11y-exempt) {
+  min-height: 48px;
+  min-width: 44px;
+}
+
+body.a11y-large [role="radiogroup"] { padding: 4px; gap: 4px; }
+body.a11y-large [role="radiogroup"] > button {
+  padding-top: 12px !important;
+  padding-bottom: 12px !important;
+  padding-left: 14px !important;
+  padding-right: 14px !important;
+}
+
+body.a11y-large summary { padding-top: 14px !important; padding-bottom: 14px !important; }
+body.a11y-large details > summary,
+body.a11y-large [aria-expanded] { padding-top: 12px; padding-bottom: 12px; }
