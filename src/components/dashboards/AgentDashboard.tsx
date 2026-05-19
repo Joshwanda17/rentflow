@@ -65,6 +65,7 @@ import { useAgentLandlordFloat } from '@/hooks/useAgentLandlordFloat';
 import { EarningsRankSystemSheet } from '@/components/agent/EarningsRankSystemSheet';
 import { AgentMenuDrawer } from '@/components/agent/AgentMenuDrawer';
 import { AgentHubTabs, type AgentHubTab } from '@/components/agent/AgentHubTabs';
+import { useHorizontalSwipe } from '@/hooks/useHorizontalSwipe';
 import { AgentActionInsights } from '@/components/agent/AgentActionInsights';
 import { AgentManagedPropertyDialog } from '@/components/agent/AgentManagedPropertyDialog';
 import { AgentManagedPropertiesSheet } from '@/components/agent/AgentManagedPropertiesSheet';
