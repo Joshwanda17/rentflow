@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ArrowDownCircle, ArrowUpCircle, Wallet, Info, Calendar, X, ChevronRight, Copy, Check, TrendingUp, TrendingDown, Minus, Search } from 'lucide-react';
+import { ArrowLeft, ArrowDownCircle, ArrowUpCircle, Wallet, Info, Calendar, X, ChevronRight, Copy, Check, TrendingUp, TrendingDown, Minus, Search, Download, FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrency } from '@/hooks/useCurrency';
@@ -191,6 +191,104 @@ export default function AgentFloatBreakdown() {
 
   const totalIn = filteredRows.filter(r => r.signed_amount > 0).reduce((s, r) => s + Number(r.signed_amount), 0);
   const totalOut = filteredRows.filter(r => r.signed_amount < 0).reduce((s, r) => s + Number(r.signed_amount), 0);
+
+  function rangeSuffix(): string {
+    if (fromDate && toDate) return `${fromDate}_to_${toDate}`;
+    if (fromDate) return `from_${fromDate}`;
+    if (toDate) return `until_${toDate}`;
+    return 'all-time';
+  }
+
+  function rangeLabel(): string {
+    if (fromDate && toDate) return `${fromDate} to ${toDate}`;
+    if (fromDate) return `From ${fromDate}`;
+    if (toDate) return `Until ${toDate}`;
+    return 'All-time';
+  }
+
+  function exportCsv() {
+    hapticTap();
+    const headers = ['Date', 'Category', 'Direction', 'Amount (UGX)', 'Signed Amount (UGX)', 'Running Balance (UGX)', 'Reference ID', 'Transaction Group', 'Entry ID', 'Description'];
+    const esc = (v: unknown) => {
+      const s = v === null || v === undefined ? '' : String(v);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const lines = [headers.join(',')];
+    for (const r of filteredRows) {
+      lines.push([
+        new Date(r.occurred_at).toISOString(),
+        labelFor(r.category),
+        r.direction,
+        Number(r.amount),
+        Number(r.signed_amount),
+        Number(r.running_balance),
+        r.reference_id ?? '',
+        r.transaction_group_id ?? '',
+        r.entry_id,
+        r.description ?? '',
+      ].map(esc).join(','));
+    }
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `float-breakdown_${rangeSuffix()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  async function exportPdf() {
+    hapticTap();
+    const [{ default: jsPDF }, autoTableMod] = await Promise.all([
+      import('jspdf'),
+      import('jspdf-autotable'),
+    ]);
+    const autoTable = (autoTableMod as any).default ?? (autoTableMod as any).autoTable;
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Agent Float Breakdown', 40, 40);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Range: ${rangeLabel()}`, 40, 58);
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 40, 72);
+
+    doc.setFontSize(10);
+    doc.text(
+      `Current Float: ${formatAmount(Number(currentFloat))}    Deposits In: ${formatAmount(totalIn)}    Used / Out: ${formatAmount(Math.abs(totalOut))}    Net: ${formatAmount(totalIn + totalOut)}`,
+      40,
+      90,
+    );
+
+    autoTable(doc, {
+      startY: 105,
+      head: [['Date', 'Category', 'Dir', 'Amount', 'Signed', 'Running Bal.', 'Reference ID', 'Description']],
+      body: filteredRows.map((r) => [
+        new Date(r.occurred_at).toLocaleString(),
+        labelFor(r.category),
+        r.direction === 'cash_in' ? 'IN' : 'OUT',
+        formatAmount(Number(r.amount)),
+        formatAmount(Number(r.signed_amount)),
+        formatAmount(Number(r.running_balance)),
+        r.reference_id ?? '',
+        r.description ?? '',
+      ]),
+      styles: { fontSize: 8, cellPadding: 4 },
+      headStyles: { fillColor: [30, 41, 59], textColor: 255 },
+      margin: { left: 40, right: 40 },
+      didDrawPage: () => {
+        const pageNum = (doc as any).internal.getNumberOfPages();
+        doc.setFontSize(8);
+        doc.text(`Page ${pageNum}`, pageWidth - 60, doc.internal.pageSize.getHeight() - 20);
+      },
+    });
+
+    doc.save(`float-breakdown_${rangeSuffix()}.pdf`);
+  }
 
   function applyPreset(p: Preset) {
     setPreset(p);
