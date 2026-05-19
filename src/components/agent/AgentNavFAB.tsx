@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
+import { confirmDiscardIfDirty } from '@/hooks/useUnsavedChangesGuard';
 
 type HistoryEntry = { path: string; label: string };
 
@@ -121,7 +122,9 @@ export default function AgentNavFAB() {
       if (!t) return;
       const dx = t.clientX - startX;
       const dy = Math.abs(t.clientY - startY);
-      if (dx > 70 && dy < 60) navigate(-1);
+      if (dx > 70 && dy < 60) {
+        if (confirmDiscardIfDirty()) navigate(-1);
+      }
     };
     window.addEventListener('touchstart', onStart, { passive: true });
     window.addEventListener('touchend', onEnd, { passive: true });
@@ -178,8 +181,19 @@ export default function AgentNavFAB() {
         window.setTimeout(() => {
           exitArmedRef.current = false;
         }, 2000);
+        return;
       }
-      // Non-home, no modal: popstate already navigated back. Nothing to do.
+
+      // Non-home, no modal: popstate already moved us back. If a form was
+      // dirty, ask now — and if the user wants to stay, roll forward by
+      // re-pushing the screen they were just on.
+      if (!confirmDiscardIfDirty()) {
+        window.history.pushState(
+          { welileNavGuard: true },
+          '',
+          location.pathname + location.search,
+        );
+      }
     };
 
     window.addEventListener('popstate', onPop);
@@ -217,7 +231,9 @@ export default function AgentNavFAB() {
                 <li key={`${c.path}-${i}`} className="flex items-center gap-1">
                   <button
                     type="button"
-                    onClick={() => navigate(c.path)}
+                    onClick={() => {
+                      if (confirmDiscardIfDirty()) navigate(c.path);
+                    }}
                     className={cn(
                       'h-9 px-3 rounded-full text-xs font-medium',
                       'text-muted-foreground hover:text-foreground hover:bg-muted',
@@ -241,7 +257,9 @@ export default function AgentNavFAB() {
         {!onHome && (
           <button
             type="button"
-            onClick={() => navigate(-1)}
+            onClick={() => {
+              if (confirmDiscardIfDirty()) navigate(-1);
+            }}
             aria-label="Go back"
             aria-keyshortcuts="Alt+ArrowLeft"
             className={cn(
@@ -259,7 +277,9 @@ export default function AgentNavFAB() {
         )}
         <button
           type="button"
-          onClick={() => navigate('/dashboard')}
+          onClick={() => {
+            if (confirmDiscardIfDirty()) navigate('/dashboard');
+          }}
           aria-label="Go to agent home"
           className={cn(
             'h-14 w-14 rounded-full',

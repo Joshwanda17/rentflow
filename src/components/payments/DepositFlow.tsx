@@ -36,6 +36,7 @@ import { parseSMS } from '@/utils/smsParser';
 import { cn } from '@/lib/utils';
 import { validateDepositReference } from '@/lib/depositReferenceValidator';
 import { useHorizontalSwipe } from '@/hooks/useHorizontalSwipe';
+import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
 
 /**
  * Extract a Mobile Money / bank reference from arbitrary SMS text.
@@ -1363,6 +1364,9 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     );
   };
   const [confirmIntent, setConfirmIntent] = useState<'back' | 'close' | null>(null);
+  // Surface the deposit form's dirty state to the global agent Back pill /
+  // hardware Back so they also prompt before discarding pending edits.
+  useUnsavedChangesGuard(hasUnsavedChanges);
   const requestBack = () => {
     if (hasUnsavedChanges()) setConfirmIntent('back');
     else setStep('channel');
