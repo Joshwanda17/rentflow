@@ -180,6 +180,29 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const { tenantsCount, referralCount, subAgentCount } = stats;
   
   const [depositOpen, setDepositOpen] = useState(false);
+  // Global "open deposit" entry: triggered from the mobile bottom-nav Deposit
+  // FAB and from `?deposit=1` deep-links so the agent can reach the deposit
+  // flow in one tap from anywhere in the app.
+  useEffect(() => {
+    const handler = () => setDepositOpen(true);
+    window.addEventListener('open-deposit', handler);
+    return () => window.removeEventListener('open-deposit', handler);
+  }, []);
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('deposit') === '1') {
+        setDepositOpen(true);
+        params.delete('deposit');
+        const qs = params.toString();
+        window.history.replaceState(
+          {},
+          '',
+          window.location.pathname + (qs ? `?${qs}` : '') + window.location.hash,
+        );
+      }
+    } catch { /* ignore */ }
+  }, []);
   const [registerUserOpen, setRegisterUserOpen] = useState(false);
   const [inviteSubAgentOpen, setInviteSubAgentOpen] = useState(false);
   const [rentRequestOpen, setRentRequestOpen] = useState(false);
