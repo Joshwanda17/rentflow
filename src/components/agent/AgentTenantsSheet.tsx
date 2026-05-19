@@ -842,6 +842,38 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
 
           {view === 'tenants' && (
           <>
+          {/* Quick search — pinned at the top of the sheet so agents can
+              jump straight to a tenant without scrolling past stats. */}
+          <div className="sticky top-0 z-20 -mx-4 px-4 pt-1 pb-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search tenants by name or phone…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-10 h-11 rounded-xl bg-muted/40 border border-primary/40 focus-visible:ring-1 focus-visible:ring-primary/40 text-base"
+                style={{ fontSize: '16px' }}
+                aria-label="Search tenants"
+                inputMode="search"
+                autoComplete="off"
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
+                  aria-label="Clear search"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+              {search && (
+                <p className="mt-1 text-[11px] text-muted-foreground px-1">
+                  {filteredTenants.length} match{filteredTenants.length === 1 ? '' : 'es'} for "{search}"
+                </p>
+              )}
+            </div>
+          </div>
+
           {/* ───── Today's Collection Status ───── */}
           {/* Live strip showing the agent how their day is going. Driven by
               `todayRepayments` (created_at >= startOfDay) and the same
