@@ -372,9 +372,41 @@ export async function generateRentAccessLimitPng(data: RentAccessLimitPdfData): 
   ctx.fillText('Pay today. Get more rent money tomorrow.', W / 2, 920);
 
   if (data.shareUrl) {
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    ctx.font = '500 22px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
-    ctx.fillText(data.shareUrl, W / 2, 980);
+    // QR code card — bottom-right corner, white backdrop for max scannability
+    const qrSize = 180;
+    const pad = 18;
+    const cardW = qrSize + pad * 2;
+    const cardH = qrSize + pad * 2 + 28; // extra space for caption
+    const cardX = W - cardW - 48;
+    const cardY = H - cardH - 48;
+    const r = 22;
+
+    // Rounded white card
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(cardX + r, cardY);
+    ctx.arcTo(cardX + cardW, cardY, cardX + cardW, cardY + cardH, r);
+    ctx.arcTo(cardX + cardW, cardY + cardH, cardX, cardY + cardH, r);
+    ctx.arcTo(cardX, cardY + cardH, cardX, cardY, r);
+    ctx.arcTo(cardX, cardY, cardX + cardW, cardY, r);
+    ctx.closePath();
+    ctx.fill();
+
+    const qrImg = await loadQrImage(data.shareUrl, qrSize * 2);
+    if (qrImg) {
+      ctx.drawImage(qrImg, cardX + pad, cardY + pad, qrSize, qrSize);
+    }
+
+    ctx.fillStyle = '#0f172a';
+    ctx.font = '700 18px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Scan for live limit', cardX + cardW / 2, cardY + qrSize + pad + 4);
+
+    // URL on the left side so it doesn't collide with the QR card
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    ctx.font = '500 20px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(data.shareUrl, 64, H - 72);
   }
   ctx.textAlign = 'left';
 
