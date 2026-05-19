@@ -352,13 +352,16 @@ export function useAuthForm() {
   };
 
   const handleSignInSubmit = async () => {
+    setLoginStage('validating');
     if (!isValidPhoneNumber(phone)) {
       toast({ title: 'Invalid Phone Number', description: 'Please enter a valid phone number', variant: 'destructive' });
+      setLoginStage('idle');
       return;
     }
 
     if (!password) {
       toast({ title: 'Error', description: 'Password is required', variant: 'destructive' });
+      setLoginStage('idle');
       return;
     }
 
