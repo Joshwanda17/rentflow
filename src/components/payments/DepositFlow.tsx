@@ -25,6 +25,7 @@ import {
 import { parseSMS } from '@/utils/smsParser';
 import { cn } from '@/lib/utils';
 import { validateDepositReference } from '@/lib/depositReferenceValidator';
+import { useHorizontalSwipe } from '@/hooks/useHorizontalSwipe';
 
 /**
  * Extract a Mobile Money / bank reference from arbitrary SMS text.
@@ -1240,6 +1241,27 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       ? 'border-destructive ring-2 ring-destructive/40 focus-visible:ring-destructive'
       : '';
 
+  /* ─── Swipe navigation ───
+   * Swipe right → go to previous step (same as the header back chevron).
+   * Swipe left  → advance to the next step IF the user has already made the
+   *               required selection (purpose chosen, channel chosen).
+   * Never auto-submits from the form step — a swipe should never spend
+   * money. The form's Deposit button remains the only commit affordance.
+   * Disabled on submitting / success so users can't accidentally rewind a
+   * completed deposit. */
+  const swipeBack = () => {
+    if (step === 'form') setStep('channel');
+    else if (step === 'channel' && mustChoosePurpose && depositPurpose) setStep('purpose');
+  };
+  const swipeForward = () => {
+    if (step === 'purpose' && depositPurpose) setStep('channel');
+    else if (step === 'channel' && channel) setStep('form');
+  };
+  const swipeHandlers = useHorizontalSwipe({
+    onSwipeRight: step === 'submitting' || step === 'success' ? undefined : swipeBack,
+    onSwipeLeft: step === 'submitting' || step === 'success' ? undefined : swipeForward,
+  });
+
   return (
     <>
     <Dialog open={open} onOpenChange={handleClose}>
@@ -1312,7 +1334,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
           </div>
         </DialogHeader>
         {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto px-4 py-4">
+        <div className="flex-1 overflow-y-auto px-4 py-4" {...swipeHandlers}>
 
         {editLoading ? (
           <div className="py-12 text-center space-y-3">
