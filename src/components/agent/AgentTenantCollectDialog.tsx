@@ -181,6 +181,36 @@ export function AgentTenantCollectDialog({
       toast.success('Payment allocated!', {
         description: `${formatUGX(amount)} moved from float for ${tenant.full_name}`,
       });
+
+      // Fire-and-forget: send the tenant a branded SMS card linking
+      // to their live "Rent Money You Can Get" page. Never blocks the
+      // allocation flow — failures are logged client-side and surfaced
+      // as a non-blocking toast hint.
+      if (tenant.phone) {
+        try {
+          const origin = typeof window !== 'undefined' ? window.location.origin : '';
+          const shareUrl = origin ? `${origin}/limit/${tenant.id}` : null;
+          supabase.functions
+            .invoke('send-rent-access-sms', {
+              body: {
+                tenant_id: tenant.id,
+                tenant_name: tenant.full_name,
+                tenant_phone: tenant.phone,
+                share_url: shareUrl,
+                allocation_amount: amount,
+                mode: 'allocation',
+              },
+            })
+            .then(({ error, data }) => {
+              if (error || !data?.success) {
+                console.warn('[AgentTenantCollectDialog] auto SMS failed', error, data);
+              }
+            })
+            .catch((e) => console.warn('[AgentTenantCollectDialog] auto SMS threw', e));
+        } catch (e) {
+          console.warn('[AgentTenantCollectDialog] auto SMS dispatch failed', e);
+        }
+      }
     } catch (err: any) {
       const msg = err instanceof Error ? err.message : 'Allocation failed. Please try again.';
       // Keep the user IN the confirming view and show the reason inline so
