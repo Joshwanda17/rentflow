@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowDownCircle, ArrowUpCircle, Wallet, Info, Calendar, X, ChevronRight, Copy, Check, TrendingUp, TrendingDown, Minus, Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -89,18 +89,39 @@ export default function AgentFloatBreakdown() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { formatAmount } = useCurrency();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [rows, setRows] = useState<FloatRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
-  const [preset, setPreset] = useState<Preset>('all');
-  const [fromDate, setFromDate] = useState<string>('');
-  const [toDate, setToDate] = useState<string>('');
-  const [search, setSearch] = useState<string>('');
+  const [preset, setPreset] = useState<Preset>(() => {
+    const p = searchParams.get('preset');
+    return (['all','7d','30d','month','custom'] as Preset[]).includes(p as Preset) ? (p as Preset) : 'all';
+  });
+  const [fromDate, setFromDate] = useState<string>(() => searchParams.get('from') ?? '');
+  const [toDate, setToDate] = useState<string>(() => searchParams.get('to') ?? '');
+  const [search, setSearch] = useState<string>(() => searchParams.get('q') ?? '');
   const [selected, setSelected] = useState<FloatRow | null>(null);
   const [detail, setDetail] = useState<EntryDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailErr, setDetailErr] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+
+  // Sync filter state → URL (replace so back button isn't polluted)
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams);
+    const setOrDel = (k: string, v: string, defaultVal = '') => {
+      if (v && v !== defaultVal) next.set(k, v);
+      else next.delete(k);
+    };
+    setOrDel('preset', preset, 'all');
+    setOrDel('from', fromDate);
+    setOrDel('to', toDate);
+    setOrDel('q', search);
+    if (next.toString() !== searchParams.toString()) {
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preset, fromDate, toDate, search]);
 
   useEffect(() => {
     if (!user?.id) return;
