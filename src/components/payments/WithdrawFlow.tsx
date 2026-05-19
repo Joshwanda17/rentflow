@@ -204,11 +204,46 @@ export default function WithdrawFlow({
   // Keep the ledger snapshot fresh on the Verify (Confirm) step. Without this,
   // the `isStale` gate (STALE_MS = 30s) silently disables the Confirm button if
   // the user takes more than 30 seconds to type their PIN, leaving them with a
-  // button that "does nothing". We re-fetch every 20s while sitting on step 4.
+  // button that "does nothing". We re-fetch every 20s while sitting on step 4
+  // — but ONLY while the tab is visible. When the user switches tabs/apps the
+  // poll pauses (saves API quota + battery on mobile) and resumes immediately
+  // on focus with a fresh fetch so the snapshot is current the moment they
+  // return to the Confirm screen.
   useEffect(() => {
     if (!open || !user || currentStep !== 4) return;
-    const interval = setInterval(() => { refetchLedger(); }, 20_000);
-    return () => clearInterval(interval);
+
+    let interval: ReturnType<typeof setInterval> | null = null;
+    const start = () => {
+      if (interval !== null) return;
+      interval = setInterval(() => { refetchLedger(); }, 20_000);
+    };
+    const stop = () => {
+      if (interval !== null) {
+        clearInterval(interval);
+        interval = null;
+      }
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        // Catch up immediately on return, then resume polling.
+        refetchLedger();
+        start();
+      } else {
+        stop();
+      }
+    };
+
+    if (document.visibilityState === 'visible') start();
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('focus', onVisibility);
+    window.addEventListener('blur', onVisibility);
+
+    return () => {
+      stop();
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('focus', onVisibility);
+      window.removeEventListener('blur', onVisibility);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, user, currentStep]);
 
