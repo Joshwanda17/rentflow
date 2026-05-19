@@ -15048,6 +15048,10 @@ export type Database = {
           tenant_phone: string
         }[]
       }
+      get_float_entry_detail: {
+        Args: { p_entry_id: string; p_user_id: string }
+        Returns: Json
+      }
       get_funder_approval_status: {
         Args: { _user_id: string }
         Returns: {
