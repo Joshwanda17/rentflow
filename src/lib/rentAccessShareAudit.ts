@@ -44,7 +44,7 @@ export async function recordRentAccessShare(input: RecordRentAccessShareInput): 
       message_snapshot: input.messageSnapshot ?? null,
       success: input.success ?? true,
       error_message: input.errorMessage ?? null,
-      metadata: input.metadata ?? {},
+      metadata: (input.metadata ?? {}) as any,
     }]);
   } catch (err) {
     // Audit must never block the share flow.
