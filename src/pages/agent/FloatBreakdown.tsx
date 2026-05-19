@@ -352,6 +352,33 @@ export default function AgentFloatBreakdown() {
           )}
         </div>
 
+        {/* Search */}
+        <div className="rounded-2xl border bg-card p-3">
+          <label className="flex items-center gap-2">
+            <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by reference ID (e.g. TID, RCT, PC...)"
+              className="flex-1 bg-transparent outline-none text-sm placeholder:text-muted-foreground/70"
+              aria-label="Search by reference ID"
+            />
+            {search && (
+              <button
+                onClick={() => { hapticTap(); setSearch(''); }}
+                className="p-1 -m-1 rounded hover:bg-muted active:scale-95"
+                aria-label="Clear search"
+              >
+                <X className="h-3.5 w-3.5 text-muted-foreground" />
+              </button>
+            )}
+          </label>
+          <p className="text-[10px] text-muted-foreground mt-1.5 leading-snug pl-6">
+            Matches the reference ID, transaction group, entry ID, or description — within the selected date range.
+          </p>
+        </div>
+
         {/* Timeline */}
         {loading ? (
           <div className="py-12 text-center text-sm text-muted-foreground">Loading...</div>
@@ -359,7 +386,11 @@ export default function AgentFloatBreakdown() {
           <div className="py-12 text-center text-sm text-rose-500">{err}</div>
         ) : filteredRows.length === 0 ? (
           <div className="py-12 text-center text-sm text-muted-foreground">
-            {rows.length === 0 ? 'No float activity yet.' : 'No activity in this date range.'}
+            {rows.length === 0
+              ? 'No float activity yet.'
+              : search
+                ? `No activity matching "${search}" in this date range.`
+                : 'No activity in this date range.'}
           </div>
         ) : (
           <div className="rounded-2xl border bg-card overflow-hidden">
@@ -396,6 +427,11 @@ export default function AgentFloatBreakdown() {
                       </div>
                       {r.description && (
                         <p className="text-xs text-muted-foreground truncate mt-0.5">{r.description}</p>
+                      )}
+                      {r.reference_id && (
+                        <p className="text-[10px] text-muted-foreground font-mono truncate mt-0.5">
+                          Ref: {r.reference_id}
+                        </p>
                       )}
                       <div className="flex items-center justify-between gap-2 mt-1">
                         <p className="text-[10px] text-muted-foreground">
