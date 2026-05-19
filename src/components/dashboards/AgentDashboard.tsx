@@ -280,6 +280,22 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       ? 'animate-slide-in-left'
       : 'animate-in fade-in duration-200';
 
+  // Announce tab changes to screen readers when triggered by swipe gestures
+  const [tabAnnounce, setTabAnnounce] = useState('');
+  useEffect(() => {
+    if (slideDirection) {
+      const labelMap: Record<AgentHubTab, string> = {
+        home: 'Home',
+        money: 'Money',
+        tenants: 'Tenants',
+        grow: 'Grow',
+        subagents: 'Sub Agents',
+      };
+      setTabAnnounce(`Switched to ${labelMap[activeTab]} section`);
+      setSlideDirection(null);
+    }
+  }, [activeTab]);
+
   const [showQuickDeposit, setShowQuickDeposit] = useState(false);
   const [showQuickWithdraw, setShowQuickWithdraw] = useState(false);
   const [showQuickTransfer, setShowQuickTransfer] = useState(false);
