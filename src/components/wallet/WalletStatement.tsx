@@ -133,6 +133,13 @@ export function WalletStatement() {
   // Progressive disclosure for a calmer default view
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [showCategoryFilters, setShowCategoryFilters] = useState(false);
+  // Accessibility: larger text + higher contrast (persisted)
+  const [a11yMode, setA11yMode] = useState<boolean>(() => {
+    try { return localStorage.getItem('welile_statement_a11y') === '1'; } catch { return false; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('welile_statement_a11y', a11yMode ? '1' : '0'); } catch {}
+  }, [a11yMode]);
 
   useEffect(() => {
     if (open && user) {
