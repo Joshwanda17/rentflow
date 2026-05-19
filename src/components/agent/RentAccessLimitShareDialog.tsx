@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import {
   Loader2, MessageCircle, Image as ImageIcon, FileText, Copy, CheckCircle2, ExternalLink,
-  ArrowLeft, Eye, ShieldCheck, RotateCw, AlertTriangle, Phone, Check, CheckCheck,
+  ArrowLeft, Eye, ShieldCheck, RotateCw, AlertTriangle, Phone, Check, CheckCheck, Send,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -11,6 +11,7 @@ import { createShortLink } from '@/lib/createShortLink';
 import { formatUGX } from '@/lib/rentCalculations';
 import type { RentAccessLimitResult } from '@/lib/rentAccessLimit';
 import { generateRentAccessLimitPdf, generateRentAccessLimitPng } from '@/lib/rentAccessLimitPdf';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Props {
   open: boolean;
@@ -55,6 +56,7 @@ export function RentAccessLimitShareDialog({
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const [sendAttempts, setSendAttempts] = useState(0);
+  const [smsSending, setSmsSending] = useState(false);
 
   // Reset preview whenever the dialog closes / inputs change
   useEffect(() => {
