@@ -779,6 +779,17 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     { key: 'settled', label: 'Settled', count: lifecycleCounts.settled },
   ];
 
+  // Quick-sort options surfaced directly under the search so the agent can
+  // re-rank the visible results without opening "More filters". Each chip
+  // bundles a sort key + direction.
+  const quickSorts: { key: SortKey; dir: SortDir; label: string }[] = [
+    { key: 'balance', dir: 'desc', label: 'Highest balance' },
+    { key: 'recent', dir: 'desc', label: 'Most recent' },
+    { key: 'lastCollected', dir: 'desc', label: 'Last collected' },
+    { key: 'daily', dir: 'desc', label: 'Daily expected' },
+    { key: 'name', dir: 'asc', label: 'Name (A–Z)' },
+  ];
+
   // ───── Handlers ─────
   const handleDownloadPdf = async (tenant: Tenant, req: TenantRentRequest) => {
     try {
