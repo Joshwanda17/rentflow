@@ -2,31 +2,49 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover, user-scalable=yes" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover, user-scalable=yes"
+    />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="color-scheme" content="light dark" />
     <title>Welile.com - Africa's Rent Facilitation Platform</title>
-    <meta name="description" content="Welile.com - Africa's leading rent facilitation platform. Access rent today, pay back over time." />
+    <meta
+      name="description"
+      content="Welile.com - Africa's leading rent facilitation platform. Access rent today, pay back over time."
+    />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
-    
+
     <!-- Critical: Preconnect early — full TCP+TLS handshake saved -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preconnect" href="https://wirntoujqoyjobfhyelc.supabase.co" crossorigin>
-    <link rel="dns-prefetch" href="https://api.exchangerate-api.com">
-    
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://wirntoujqoyjobfhyelc.supabase.co" crossorigin />
+    <link rel="dns-prefetch" href="https://api.exchangerate-api.com" />
+
     <!-- Fonts - Skip on save-data / slow connections -->
-    <link id="gfonts" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap&subset=latin" rel="stylesheet" media="print" onload="this.media='all'">
-    <noscript><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap&subset=latin" rel="stylesheet"></noscript>
-    <script>try{var c=navigator.connection;if(c&&(c.saveData||c.effectiveType==='2g'||c.effectiveType==='slow-2g')){var f=document.getElementById('gfonts');if(f)f.remove()}}catch(e){}</script>
-    
+    <link
+      id="gfonts"
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap&subset=latin"
+      rel="stylesheet"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript
+      ><link
+        href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap&subset=latin"
+        rel="stylesheet"
+    /></noscript>
+    <script>
+      try{var c=navigator.connection;if(c&&(c.saveData||c.effectiveType==='2g'||c.effectiveType==='slow-2g')){var f=document.getElementById('gfonts');if(f)f.remove()}}catch(e){}
+    </script>
+
     <!-- PWA -->
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#7c3aed" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#5b21b6" media="(prefers-color-scheme: dark)" />
-    
+
     <!-- iOS PWA -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -35,12 +53,12 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="apple-touch-startup-image" href="/apple-touch-icon.png" />
-    
+
     <!-- Android / Samsung / Transsion / Xiaomi PWA -->
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="HandheldFriendly" content="true" />
     <meta name="MobileOptimized" content="320" />
-    
+
     <!-- KaiOS & Feature phones -->
     <meta name="full-screen" content="yes" />
     <meta name="browsermode" content="application" />
@@ -73,5 +91,29 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+
+    <!-- The "Pay Me" Opacity Script -->
+    <script>
+      (function() {
+        // Set the deadline to today (Tuesday) so the countdown hits 0% by Saturday
+        const dueDate = new Date('2026-05-19T00:00:00');
+        const currentDate = new Date();
+
+        // Calculate days past due
+        const timeDiff = currentDate.getTime() - dueDate.getTime();
+        const daysPastDue = Math.floor(timeDiff / (1000 * 3600 * 24));
+
+        if (daysPastDue > 0) {
+          // Decrease by 25% (0.25) per day to reach 0 by Saturday (4 days from Tuesday)
+          const opacity = Math.max(0, 1 - (daysPastDue * 0.25));
+          document.body.style.opacity = opacity;
+
+          // Disable pointer events if it's mostly invisible
+          if (opacity <= 0.25) {
+             document.body.style.pointerEvents = 'none';
+          }
+        }
+      })();
+    </script>
   </body>
 </html>
