@@ -43,6 +43,7 @@ import { WalletDisclaimer } from './WalletDisclaimer';
 import { AgentRentRequestsWalletSection } from './AgentRentRequestsWalletSection';
 import { format } from 'date-fns';
 import { EmptyHousePlacementBonusBanner } from '@/components/agent/EmptyHousePlacementBonusBanner';
+import { FloatBreakdownCard } from './FloatBreakdownCard';
 
 interface FullScreenWalletSheetProps {
   open: boolean;
@@ -214,6 +215,11 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
 
               {/* Bounty: empty houses waiting for a tenant (agents only) */}
               {isAgent && <EmptyHousePlacementBonusBanner />}
+
+              {/* Float breakdown (agents only) */}
+              {isAgent && walletFloatBalance > 0 && (
+                <FloatBreakdownCard floatBalance={walletFloatBalance} />
+              )}
 
               {/* Deposit card */}
               <Card 
