@@ -654,7 +654,7 @@ export function WalletStatement() {
                 <div
                   role="radiogroup"
                   aria-label="Easy-read text size"
-                  className="hidden sm:inline-flex items-center rounded-md border border-primary/30 overflow-hidden"
+                  className="inline-flex items-center rounded-md border border-primary/30 overflow-hidden"
                 >
                   {([
                     { v: 0 as const, label: 'M', title: 'Medium text' },
