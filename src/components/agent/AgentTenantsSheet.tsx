@@ -681,6 +681,18 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     return { totalOwing, owingCount, paidUpCount, total: tenants.length, dailyExpectation };
   }, [tenants, tenantBalances, tenantStatuses, tenantDaily]);
 
+  // ───── Today's collection status ─────
+  // Drives the live header strip on My Tenants. All figures are scoped to
+  // today (since 00:00 local time) and to this agent's tenant allowlist.
+  const todayStats = useMemo(() => {
+    const collectedAmount = todayRepayments.reduce((s, r) => s + (r.amount || 0), 0);
+    const tenantsCollected = new Set(todayRepayments.map((r) => r.tenant_id)).size;
+    const tenantsOwing = stats.owingCount;
+    const expected = stats.dailyExpectation;
+    const rate = expected > 0 ? Math.min(100, Math.round((collectedAmount / expected) * 100)) : 0;
+    return { collectedAmount, tenantsCollected, tenantsOwing, expected, rate };
+  }, [todayRepayments, stats.owingCount, stats.dailyExpectation]);
+
   const filterTabs: { key: FilterTab; label: string; count: number }[] = [
     { key: 'owing', label: 'Owing', count: stats.owingCount },
     { key: 'paid-up', label: 'Paid up', count: stats.paidUpCount },
