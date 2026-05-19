@@ -10525,6 +10525,57 @@ export type Database = {
           },
         ]
       }
+      rent_access_share_audit: {
+        Row: {
+          agent_id: string
+          channel: string
+          created_at: string
+          error_message: string | null
+          id: string
+          image_version: string | null
+          limit_amount: number | null
+          message_snapshot: string | null
+          metadata: Json
+          share_url: string | null
+          success: boolean
+          tenant_id: string
+          tenant_name: string | null
+          tenant_phone: string | null
+        }
+        Insert: {
+          agent_id: string
+          channel: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          image_version?: string | null
+          limit_amount?: number | null
+          message_snapshot?: string | null
+          metadata?: Json
+          share_url?: string | null
+          success?: boolean
+          tenant_id: string
+          tenant_name?: string | null
+          tenant_phone?: string | null
+        }
+        Update: {
+          agent_id?: string
+          channel?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          image_version?: string | null
+          limit_amount?: number | null
+          message_snapshot?: string | null
+          metadata?: Json
+          share_url?: string | null
+          success?: boolean
+          tenant_id?: string
+          tenant_name?: string | null
+          tenant_phone?: string | null
+        }
+        Relationships: []
+      }
       rent_history_records: {
         Row: {
           agent_ops_verified_at: string | null
