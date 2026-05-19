@@ -122,20 +122,106 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
     : null;
 
   const submit = async () => {
+    // Pre-flight client-side validation — every failure path gets its own toast.
+    if (note.trim().length === 0) {
+      toast.error('Add a resubmission note', {
+        description: 'Tell the reviewer what you changed and why (at least 10 characters).',
+      });
+      return;
+    }
     if (note.trim().length < 10) {
-      toast.error('Resubmission note must be at least 10 characters');
+      toast.error('Note too short', {
+        description: `Reviewer note must be at least 10 characters (you wrote ${note.trim().length}).`,
+      });
       return;
     }
     if (!landlord?.id) {
-      toast.error('Please select a landlord');
+      toast.error('Pick a landlord', {
+        description: 'Use the search box at the top to select the landlord for this rent request.',
+      });
       return;
     }
     if (!landlordName.trim()) {
-      toast.error('Landlord name is required');
+      toast.error('Landlord name is required', {
+        description: 'Enter the landlord\'s full name before resubmitting.',
+      });
       return;
     }
     if (!landlordPhone.trim()) {
-      toast.error('Landlord phone is required');
+      toast.error('Landlord phone is required', {
+        description: 'Enter a reachable phone number for the landlord.',
+      });
+      return;
+    }
+    if (!/^\+?\d[\d\s-]{6,}$/.test(landlordPhone.trim())) {
+      toast.error('Landlord phone looks invalid', {
+        description: 'Use digits only, e.g. 0772123456 or +256772123456.',
+      });
+      return;
+    }
+    if (!landlordAddress.trim()) {
+      toast.error('Property address is required', {
+        description: 'Enter the property address linked to this landlord.',
+      });
+      return;
+    }
+    if (!rentAmount.trim() || rentNum <= 0) {
+      toast.error('Enter a rent amount', {
+        description: 'Rent must be a positive UGX amount greater than 0.',
+      });
+      return;
+    }
+    if (!duration.trim() || durNum < 7 || durNum > 120) {
+      toast.error('Duration out of range', {
+        description: `Duration must be between 7 and 120 days (you set ${durNum || '—'}).`,
+      });
+      return;
+    }
+    const npNum = Number(numberOfPayments) || 0;
+    if (npNum < 1 || npNum > durNum) {
+      toast.error('Invalid number of payments', {
+        description: `Payments must be between 1 and ${durNum} (the duration). You set ${npNum || '—'}.`,
+      });
+      return;
+    }
+    if (!houseCategory) {
+      toast.error('Pick a house category', {
+        description: 'Select the property type so the reviewer can verify the rent band.',
+      });
+      return;
+    }
+    if (!preferredLanguage) {
+      toast.error('Pick a preferred language', {
+        description: 'Choose the tenant\'s preferred language for SMS and calls.',
+      });
+      return;
+    }
+    if (isOutstanding) {
+      const obNum = outstandingBalance ? Number(outstandingBalance) : 0;
+      if (!outstandingBalance.trim() || obNum <= 0) {
+        toast.error('Enter the outstanding balance', {
+          description: 'Outstanding-balance requests need a positive UGX amount the tenant already owes.',
+        });
+        return;
+      }
+      if (obNum > rentNum) {
+        toast.error('Outstanding exceeds rent', {
+          description: `Outstanding (${formatUGX(obNum)}) cannot be greater than the rent amount (${formatUGX(rentNum)}).`,
+        });
+        return;
+      }
+      const gdNum = graceDays ? parseInt(graceDays, 10) : -1;
+      if (gdNum < 0 || gdNum > durNum) {
+        toast.error('Days remaining out of range', {
+          description: `Days remaining must be between 0 and ${durNum} (the duration).`,
+        });
+        return;
+      }
+    }
+    if (submitting) {
+      toast.message('Already submitting', {
+        description: 'Hold on — the previous resubmit is still in flight.',
+      });
       return;
     }
     setSubmitting(true);
