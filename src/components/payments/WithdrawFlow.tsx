@@ -1107,7 +1107,10 @@ export default function WithdrawFlow({
 
       case 5:
         if (isProcessing) {
-          return <ProcessingScreen onComplete={handleProcessingComplete} />;
+          // No animated timer — we leave the spinner up until the actual
+          // server submission (kicked off in handleNext) resolves and
+          // flips `isProcessing` to false.
+          return <ProcessingScreen autoProgress={false} />;
         }
         // Submission failed before a row was created — fall back to the
         // legacy receipt so the user can see the failure + retry.
