@@ -1419,20 +1419,21 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
               <button
                 type="button"
                 onClick={requestBack}
-                aria-label="Back"
-                className="-ml-1 h-11 w-11 rounded-full flex items-center justify-center hover:bg-muted active:bg-muted active:scale-90 transition-transform duration-75 touch-manipulation"
+                aria-label="Back to payment method"
+                aria-keyshortcuts="Alt+ArrowLeft"
+                className="-ml-1 h-11 w-11 rounded-full flex items-center justify-center hover:bg-muted active:bg-muted active:scale-90 transition-transform duration-75 touch-manipulation focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
-                <ChevronLeft className="h-6 w-6" />
+                <ChevronLeft className="h-6 w-6" aria-hidden="true" />
               </button>
             )}
             {step === 'channel' && mustChoosePurpose && depositPurpose && (
               <button
                 type="button"
                 onClick={() => setStep('purpose')}
-                aria-label="Back"
-                className="-ml-1 h-11 w-11 rounded-full flex items-center justify-center hover:bg-muted active:bg-muted active:scale-90 transition-transform duration-75 touch-manipulation"
+                aria-label="Back to choose purpose"
+                className="-ml-1 h-11 w-11 rounded-full flex items-center justify-center hover:bg-muted active:bg-muted active:scale-90 transition-transform duration-75 touch-manipulation focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
-                <ChevronLeft className="h-6 w-6" />
+                <ChevronLeft className="h-6 w-6" aria-hidden="true" />
               </button>
             )}
             <div className="min-w-0 flex-1">
@@ -1456,10 +1457,11 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
               <button
                 type="button"
                 onClick={requestClose}
-                aria-label="Close"
-                className="-mr-1 h-11 w-11 rounded-full flex items-center justify-center hover:bg-muted active:bg-muted active:scale-90 transition-transform duration-75 touch-manipulation shrink-0"
+                aria-label="Close deposit dialog"
+                aria-keyshortcuts="Escape"
+                className="-mr-1 h-11 w-11 rounded-full flex items-center justify-center hover:bg-muted active:bg-muted active:scale-90 transition-transform duration-75 touch-manipulation shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
-                <X className="h-5 w-5" />
+                <X className="h-5 w-5" aria-hidden="true" />
               </button>
             )}
           </div>
