@@ -831,10 +831,12 @@ export function TenantOpsDashboard() {
 
   const handleDeleteTenant = async () => {
     if (!deleteDialog.tenantId) return;
+    const reason = window.prompt('Reason for archiving this tenant (min 10 characters, recorded in audit log):')?.trim() || '';
+    if (reason.length < 10) { toast.error('A reason of at least 10 characters is required'); return; }
     setDeleting(true);
     try {
       const { error } = await supabase.functions.invoke('delete-user', {
-        body: { user_id: deleteDialog.tenantId, preserve_history: true },
+        body: { user_id: deleteDialog.tenantId, preserve_history: true, reason },
       });
       if (error) throw error;
       toast.success(`Tenant "${deleteDialog.tenantName}" has been archived; payment history is preserved`);
@@ -849,13 +851,15 @@ export function TenantOpsDashboard() {
 
   const handleBulkDelete = async () => {
     if (selectedTenantIds.length === 0) return;
+    const reason = window.prompt(`Reason for archiving ${selectedTenantIds.length} tenants (min 10 characters, recorded in audit log):`)?.trim() || '';
+    if (reason.length < 10) { toast.error('A reason of at least 10 characters is required'); return; }
     setBulkDeleting(true);
     let success = 0;
     let failed = 0;
     const failures: string[] = [];
     for (const id of selectedTenantIds) {
       try {
-        const { error } = await supabase.functions.invoke('delete-user', { body: { user_id: id, preserve_history: true } });
+        const { error } = await supabase.functions.invoke('delete-user', { body: { user_id: id, preserve_history: true, reason } });
         if (error) throw error;
         success += 1;
       } catch (err: any) {
