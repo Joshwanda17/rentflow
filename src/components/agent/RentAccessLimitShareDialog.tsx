@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import {
   Loader2, MessageCircle, Image as ImageIcon, FileText, Copy, CheckCircle2, ExternalLink,
-  ArrowLeft, Eye, ShieldCheck, RotateCw, AlertTriangle, Phone, Check, CheckCheck,
+  ArrowLeft, Eye, ShieldCheck, RotateCw, AlertTriangle, Phone, Check, CheckCheck, Send,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -11,6 +11,7 @@ import { createShortLink } from '@/lib/createShortLink';
 import { formatUGX } from '@/lib/rentCalculations';
 import type { RentAccessLimitResult } from '@/lib/rentAccessLimit';
 import { generateRentAccessLimitPdf, generateRentAccessLimitPng } from '@/lib/rentAccessLimitPdf';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Props {
   open: boolean;
@@ -55,6 +56,7 @@ export function RentAccessLimitShareDialog({
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const [sendAttempts, setSendAttempts] = useState(0);
+  const [smsSending, setSmsSending] = useState(false);
 
   // Reset preview whenever the dialog closes / inputs change
   useEffect(() => {
@@ -259,6 +261,48 @@ export function RentAccessLimitShareDialog({
     }
   };
 
+  /** Send a short SMS to the tenant linking to their branded card. */
+  const sendSms = async () => {
+    if (!tenantPhone) {
+      toast({
+        title: 'No phone on file',
+        description: 'Add a phone number for this tenant first.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setSmsSending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        'send-rent-access-sms',
+        {
+          body: {
+            tenant_id: tenantId,
+            tenant_name: tenantName,
+            tenant_phone: tenantPhone,
+            share_url: shareUrl,
+            limit_amount: result.limit,
+            mode: 'manual',
+          },
+        },
+      );
+      if (error) throw error;
+      if (!data?.success) throw new Error('Carrier did not accept the SMS.');
+      toast({
+        title: 'SMS sent',
+        description: `${tenantName.split(' ')[0]} will get the branded card link by text.`,
+      });
+    } catch (err: any) {
+      toast({
+        title: 'SMS failed',
+        description: err?.message || 'Could not send SMS. Please retry.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSmsSending(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
@@ -450,6 +494,24 @@ export function RentAccessLimitShareDialog({
                 className="h-11 rounded-xl gap-2"
               >
                 <MessageCircle className="h-4 w-4" /> Send text only
+              </Button>
+              <Button
+                onClick={sendSms}
+                disabled={smsSending || linkLoading || !tenantPhone}
+                className="h-12 rounded-xl gap-2 font-bold bg-primary hover:bg-primary/90 text-primary-foreground"
+                size="lg"
+                aria-label="Send the branded card link to the tenant via SMS"
+              >
+                {smsSending ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Send className="h-5 w-5" />
+                )}
+                {smsSending
+                  ? 'Sending SMS…'
+                  : tenantPhone
+                    ? `Send branded card via SMS to ${tenantName.split(' ')[0]}`
+                    : 'Add tenant phone to send SMS'}
               </Button>
               <div className="grid grid-cols-2 gap-2">
                 <Button
