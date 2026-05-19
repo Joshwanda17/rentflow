@@ -64,6 +64,7 @@ interface AgentTenantsSheetProps {
 }
 
 type FilterTab = 'owing' | 'paid-up' | 'all';
+type LifecycleFilter = 'any' | 'active' | 'pending' | 'settled';
 type RiskFilter = 'all' | 'good' | 'standard' | 'caution' | 'new';
 type SortKey = 'risk' | 'aiId' | 'property' | 'balance' | 'daily' | 'property-daily' | 'property-balance' | 'lastCollected';
 type SortDir = 'asc' | 'desc';
@@ -165,6 +166,10 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [tenantRequests, setTenantRequests] = useState<Record<string, TenantRentRequest[]>>({});
   const [loadingRequests, setLoadingRequests] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterTab>(() => loadPrefs().activeFilter ?? 'owing');
+  // Lifecycle quick filter — narrows the visible tenants by the stage of
+  // their rent requests (active = currently repaying, pending = awaiting
+  // disbursement, settled = fully completed with no balance).
+  const [lifecycleFilter, setLifecycleFilter] = useState<LifecycleFilter>('any');
   const [riskFilter, setRiskFilter] = useState<RiskFilter>(() => loadPrefs().riskFilter ?? 'all');
   const [sortKey, setSortKey] = useState<SortKey>(() => loadPrefs().sortKey ?? 'balance');
   const [sortDir, setSortDir] = useState<SortDir>(() => loadPrefs().sortDir ?? 'desc');
@@ -580,6 +585,19 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     if (propertyFilter !== 'all') {
       list = list.filter(t => (tenantContext[t.id]?.propertyAddress || '') === propertyFilter);
     }
+    if (lifecycleFilter !== 'any') {
+      list = list.filter(t => {
+        const statuses = tenantStatuses[t.id] ?? new Set<string>();
+        const balance = tenantBalances[t.id] || 0;
+        const isActive = statuses.has('disbursed') || statuses.has('repaying');
+        const isPending = !isActive && (statuses.has('pending') || statuses.has('approved') || statuses.has('funded'));
+        const isSettled = !isActive && !isPending && statuses.has('completed') && balance === 0;
+        if (lifecycleFilter === 'active') return isActive;
+        if (lifecycleFilter === 'pending') return isPending;
+        if (lifecycleFilter === 'settled') return isSettled;
+        return true;
+      });
+    }
     if (recentCollectionFilter !== 'all') {
       if (recentCollectionFilter === 'never') {
         list = list.filter(t => !tenantLastPaid[t.id]?.date);
@@ -656,7 +674,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
       return cmp * dir;
     });
     return list;
-  }, [tenants, search, activeFilter, riskFilter, sortKey, sortDir, tenantBalances, tenantDaily, tenantStatuses, tenantContext, tenantMeta, tenantLastPaid, recentCollectionFilter, propertyFilter]);
+  }, [tenants, search, activeFilter, riskFilter, sortKey, sortDir, tenantBalances, tenantDaily, tenantStatuses, tenantContext, tenantMeta, tenantLastPaid, recentCollectionFilter, propertyFilter, lifecycleFilter]);
 
   const propertyOptions = useMemo(() => {
     const counts = new Map<string, number>();
@@ -699,6 +717,31 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     { key: 'owing', label: 'Owing', count: stats.owingCount },
     { key: 'paid-up', label: 'Paid up', count: stats.paidUpCount },
     { key: 'all', label: 'All', count: stats.total },
+  ];
+
+  // Counts for the lifecycle quick filters. Computed across the full tenant
+  // list (independent of search) so the chip badges reflect the agent's
+  // overall pipeline rather than the current query result.
+  const lifecycleCounts = useMemo(() => {
+    let active = 0, pending = 0, settled = 0;
+    for (const t of tenants) {
+      const statuses = tenantStatuses[t.id] ?? new Set<string>();
+      const balance = tenantBalances[t.id] || 0;
+      const isActive = statuses.has('disbursed') || statuses.has('repaying');
+      const isPending = !isActive && (statuses.has('pending') || statuses.has('approved') || statuses.has('funded'));
+      const isSettled = !isActive && !isPending && statuses.has('completed') && balance === 0;
+      if (isActive) active++;
+      else if (isPending) pending++;
+      else if (isSettled) settled++;
+    }
+    return { active, pending, settled };
+  }, [tenants, tenantStatuses, tenantBalances]);
+
+  const lifecycleTabs: { key: LifecycleFilter; label: string; count?: number }[] = [
+    { key: 'any', label: 'Any' },
+    { key: 'active', label: 'Active', count: lifecycleCounts.active },
+    { key: 'pending', label: 'Pending', count: lifecycleCounts.pending },
+    { key: 'settled', label: 'Settled', count: lifecycleCounts.settled },
   ];
 
   // ───── Handlers ─────
