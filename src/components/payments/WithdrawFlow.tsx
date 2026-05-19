@@ -102,6 +102,10 @@ export default function WithdrawFlow({
   // status tracker subscription on the success step.
   const [createdRequestId, setCreatedRequestId] = useState<string | null>(null);
   const [withdrawalRef, setWithdrawalRef] = useState('');
+  // Server-confirmed submission timestamp. Set the moment the
+  // withdrawal_requests insert returns successfully so the success
+  // receipt can display the exact processed date/time.
+  const [submittedAt, setSubmittedAt] = useState<Date | null>(null);
 
   // ─── Duplicate-submission guards ────────────────────────────────────
   // 1. Re-entrant lock: blocks double-tap on slow phones before the
@@ -448,6 +452,7 @@ export default function WithdrawFlow({
         : '';
       setWithdrawalRef(requestId);
       setCreatedRequestId(insertedRow?.id ?? null);
+      setSubmittedAt(new Date());
       // IMPORTANT: a withdrawal is NOT successful until Financial Ops
       // approves and disburses. Keep status as `pending` and let the
       // realtime tracker flip it to success when the DB row updates.
@@ -1147,14 +1152,30 @@ export default function WithdrawFlow({
         // updates Submitted → Ops review → Disbursed in realtime, with a
         // self-cancel button while still pending.
         return (
-          <WithdrawalStatusTracker
-            requestId={createdRequestId}
-            amount={amount}
-            currency={currency}
-            recipientLabel={getPayoutSummary()}
-            reference={withdrawalRef || 'PENDING'}
-            onClose={handleClose}
-          />
+          <div className="space-y-4">
+            {/* Server-confirmed receipt — shown immediately after the
+                withdrawal_requests insert returns. Contains the
+                reference ID, processed date/time and verified amount.
+                Disbursement status continues to update live below. */}
+            <ReceiptCard
+              status="pending"
+              amount={amount}
+              currency={currency}
+              fees={0}
+              recipient={getPayoutSummary()}
+              reference={withdrawalRef || 'PENDING'}
+              method={payoutMode === 'mobile_money' ? 'Mobile Money' : payoutMode === 'bank_transfer' ? 'Bank Transfer' : 'Cash Pickup'}
+              date={submittedAt ?? new Date()}
+            />
+            <WithdrawalStatusTracker
+              requestId={createdRequestId}
+              amount={amount}
+              currency={currency}
+              recipientLabel={getPayoutSummary()}
+              reference={withdrawalRef || 'PENDING'}
+              onClose={handleClose}
+            />
+          </div>
         );
 
       default:
