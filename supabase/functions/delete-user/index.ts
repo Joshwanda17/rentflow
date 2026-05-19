@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Forbidden: Manager role required' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const { user_id, preserve_history } = await req.json();
+    const { user_id, preserve_history, reason } = await req.json();
     if (!user_id) {
       return new Response(JSON.stringify({ error: 'user_id is required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
@@ -49,6 +49,25 @@ Deno.serve(async (req) => {
     if (user_id === caller.id) {
       return new Response(JSON.stringify({ error: 'Cannot delete your own account' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
+
+    // Mandatory reason (>=10 chars) per audit governance policy
+    const auditReason = typeof reason === 'string' ? reason.trim() : '';
+    if (auditReason.length < 10) {
+      return new Response(JSON.stringify({ error: 'A reason of at least 10 characters is required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // Snapshot BEFORE values (email/phone) for the audit trail
+    const [{ data: beforeAuth }, { data: beforeProfile }] = await Promise.all([
+      supabaseAdmin.auth.admin.getUserById(user_id),
+      supabaseAdmin.from('profiles').select('full_name, phone, email').eq('id', user_id).maybeSingle(),
+    ]);
+    const beforeValues = {
+      auth_email: beforeAuth?.user?.email ?? null,
+      auth_phone: beforeAuth?.user?.phone ?? null,
+      profile_email: beforeProfile?.email ?? null,
+      profile_phone: beforeProfile?.phone ?? null,
+      full_name: beforeProfile?.full_name ?? null,
+    };
 
     if (preserve_history === true) {
       const { data: profile } = await supabaseAdmin
@@ -77,6 +96,32 @@ Deno.serve(async (req) => {
       if (softDeleteError) {
         console.warn('Tenant archived, but auth soft-delete failed:', softDeleteError);
       }
+
+      // Snapshot AFTER values for audit
+      const { data: afterAuth } = await supabaseAdmin.auth.admin.getUserById(user_id);
+      const afterValues = {
+        auth_email: afterAuth?.user?.email ?? null,
+        auth_phone: afterAuth?.user?.phone ?? null,
+        full_name: archivedName,
+        deleted_at: afterAuth?.user?.deleted_at ?? null,
+      };
+
+      await supabaseAdmin.from('audit_logs').insert({
+        user_id: caller.id,
+        action_type: 'archive_account',
+        action: 'archive_account',
+        table_name: 'auth.users',
+        record_id: user_id,
+        metadata: {
+          reason: auditReason,
+          target_user_id: user_id,
+          performed_by: caller.id,
+          performed_by_email: caller.email,
+          before: beforeValues,
+          after: afterValues,
+          auth_soft_deleted: !softDeleteError,
+        },
+      });
 
       return new Response(JSON.stringify({ success: true, archived: true, auth_soft_deleted: !softDeleteError, message: 'Tenant archived and payment history preserved' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
@@ -133,6 +178,24 @@ Deno.serve(async (req) => {
 
     // Delete profile last (other FKs reference it)
     await supabaseAdmin.from('profiles').delete().eq('id', user_id);
+
+    // Audit the hard-delete with before/after (after = nulls, record removed)
+    await supabaseAdmin.from('audit_logs').insert({
+      user_id: caller.id,
+      action_type: 'delete_account',
+      action: 'delete_account',
+      table_name: 'auth.users',
+      record_id: user_id,
+      metadata: {
+        reason: auditReason,
+        target_user_id: user_id,
+        performed_by: caller.id,
+        performed_by_email: caller.email,
+        before: beforeValues,
+        after: { auth_email: null, auth_phone: null, profile_email: null, profile_phone: null, full_name: null },
+        hard_delete: true,
+      },
+    });
 
 
     // Notify managers (fire-and-forget)
