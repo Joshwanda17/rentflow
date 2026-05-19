@@ -15135,6 +15135,29 @@ export type Database = {
         Args: { p_page?: number; p_page_size?: number }
         Returns: Json
       }
+      get_phantom_correction_drift: {
+        Args: {
+          p_min_admin_abs?: number
+          p_ratio_threshold?: number
+          p_window_days?: number
+        }
+        Returns: {
+          abs_ratio: number
+          admin_abs: number
+          admin_entry_count: number
+          admin_net: number
+          cached_float: number
+          cached_withdrawable: number
+          full_name: string
+          last_admin_at: string
+          phone: string
+          production_abs: number
+          production_net: number
+          strict_withdrawable: number
+          user_id: string
+          window_days: number
+        }[]
+      }
       get_platform_cash_breakdown: { Args: never; Returns: Json }
       get_platform_cash_summary: { Args: never; Returns: Json }
       get_property_clusters: {
