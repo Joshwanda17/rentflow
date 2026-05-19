@@ -176,6 +176,7 @@ export default {
         "fade-in-up": "fade-in-up 0.3s ease-out",
         "scale-in": "scale-in 0.2s ease-out",
         "slide-in-right": "slide-in-right 0.2s ease-out",
+        "slide-in-left": "slide-in-left 0.2s ease-out",
         "slide-up": "slide-up 0.25s ease-out",
         "shake": "shake 0.5s ease-in-out",
         "blink": "blink 1s steps(2, start) infinite",
