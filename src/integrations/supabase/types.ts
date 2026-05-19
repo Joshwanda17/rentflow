@@ -14564,6 +14564,7 @@ export type Database = {
           archived_at: string
           full_name: string
           is_archived: boolean
+          user_id: string
         }[]
       }
       check_landlord_payout_eligibility: {
