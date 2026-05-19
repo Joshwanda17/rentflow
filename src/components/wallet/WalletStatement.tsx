@@ -91,6 +91,7 @@ export function WalletStatement() {
   // Filters
   const [directionFilter, setDirectionFilter] = useState<'all' | 'credit' | 'debit'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [rangePreset, setRangePreset] = useState<'all' | '7d' | '30d' | '90d'>('all');
   // Progressive disclosure for a calmer default view
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [showCategoryFilters, setShowCategoryFilters] = useState(false);
