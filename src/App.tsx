@@ -147,6 +147,7 @@ const OperationsDashboardPage = lazy(() => import('./pages/operations/Dashboard'
 const AgentAdvances = lazy(() => import('./pages/AgentAdvances'));
 const AgentAdvanceDetail = lazy(() => import('./pages/AgentAdvanceDetail'));
 const AgentCashPayoutsPage = lazy(() => import('./pages/agent/CashPayouts'));
+const AgentFloatBreakdownPage = lazy(() => import('./pages/agent/FloatBreakdown'));
 const RentDisbursementProcessPage = lazy(() => import('./pages/RentDisbursementProcess'));
 const ActiveUsersDetail = lazy(() => import('./pages/coo/ActiveUsersDetail'));
 const EarningAgentsDetail = lazy(() => import('./pages/coo/EarningAgentsDetail'));
@@ -414,6 +415,7 @@ function AppRoutes() {
            <Route path="/agent-advances" element={<AgentAdvances />} />
            <Route path="/agent-advances/:id" element={<AgentAdvanceDetail />} />
            <Route path="/agent/cash-payouts" element={<AgentCashPayoutsPage />} />
+           <Route path="/agent/float-breakdown" element={<AgentFloatBreakdownPage />} />
           <Route path="/coo/active-users" element={<ActiveUsersDetail />} />
           <Route path="/coo/earning-agents" element={<EarningAgentsDetail />} />
           <Route path="/coo/tenants-balances" element={<TenantsBalancesDetail />} />
