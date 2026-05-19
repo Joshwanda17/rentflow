@@ -481,11 +481,11 @@ export function useAuthForm() {
       try {
         const { data } = await Promise.race([
           withRetry(
-            () => supabase.rpc('get_email_by_phone', { phone_variants: [`0${last9}`, `256${last9}`, last9] })
-              .then((res) => {
-                if (res.error && isTransientError(res.error)) throw res.error;
-                return res;
-              }),
+            async () => {
+              const res = await supabase.rpc('get_email_by_phone', { phone_variants: [`0${last9}`, `256${last9}`, last9] });
+              if (res.error && isTransientError(res.error)) throw res.error;
+              return res;
+            },
             { maxAttempts: 2, baseMs: 250, label: 'rpc:get_email_by_phone' },
           ),
           new Promise<{ data: null }>((resolve) => setTimeout(() => resolve({ data: null }), 3000)),
