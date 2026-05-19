@@ -102,6 +102,10 @@ export default function WithdrawFlow({
   // status tracker subscription on the success step.
   const [createdRequestId, setCreatedRequestId] = useState<string | null>(null);
   const [withdrawalRef, setWithdrawalRef] = useState('');
+  // Server-confirmed submission timestamp. Set the moment the
+  // withdrawal_requests insert returns successfully so the success
+  // receipt can display the exact processed date/time.
+  const [submittedAt, setSubmittedAt] = useState<Date | null>(null);
 
   // ─── Duplicate-submission guards ────────────────────────────────────
   // 1. Re-entrant lock: blocks double-tap on slow phones before the
