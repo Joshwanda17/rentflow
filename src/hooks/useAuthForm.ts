@@ -155,6 +155,21 @@ export function useAuthForm() {
     if (error) {
       let errorMessage = error.message;
       if (error.message.includes('Invalid login credentials')) {
+        // Try to detect a deleted/archived account by email so we can show a precise message.
+        try {
+          const { data: archivedRow } = await supabase
+            .from('profiles')
+            .select('full_name, id')
+            .eq('email', email.trim().toLowerCase())
+            .ilike('full_name', '[ARCHIVED]%')
+            .maybeSingle();
+          if (archivedRow) {
+            const cleanName = (archivedRow.full_name || '').replace(/^\[ARCHIVED\]\s*/i, '').trim();
+            errorMessage = `This account${cleanName ? ` for ${cleanName}` : ''} was deleted. Contact Welile support to restore access — this email cannot sign in until then.`;
+            toast({ title: 'Account Deleted', description: errorMessage, variant: 'destructive' });
+            return;
+          }
+        } catch { /* fall through to generic message */ }
         errorMessage = 'No account found with this email, or the password is incorrect. If you signed in with Google, please use the "Continue with Google" button instead.';
       }
       toast({ title: 'Sign In Failed', description: errorMessage, variant: 'destructive' });
