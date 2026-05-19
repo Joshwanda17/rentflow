@@ -1167,6 +1167,23 @@ export default function WithdrawFlow({
               reference={withdrawalRef || 'PENDING'}
               method={payoutMode === 'mobile_money' ? 'Mobile Money' : payoutMode === 'bank_transfer' ? 'Bank Transfer' : 'Cash Pickup'}
               date={submittedAt ?? new Date()}
+              onDownload={async () => {
+                try {
+                  await downloadWithdrawalReceiptPdf({
+                    reference: withdrawalRef || 'PENDING',
+                    amount,
+                    currency,
+                    recipient: getPayoutSummary(),
+                    method: payoutMode === 'mobile_money' ? 'Mobile Money' : payoutMode === 'bank_transfer' ? 'Bank Transfer' : 'Cash Pickup',
+                    date: submittedAt ?? new Date(),
+                    status: 'Pending disbursement',
+                  });
+                  toast.success('Receipt downloaded');
+                } catch (e) {
+                  console.error('[WithdrawFlow] receipt PDF failed', e);
+                  toast.error('Could not generate PDF receipt');
+                }
+              }}
             />
             <WithdrawalStatusTracker
               requestId={createdRequestId}
