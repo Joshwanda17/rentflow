@@ -294,11 +294,13 @@ export default function WithdrawFlow({
         return false;
       }
       case 4:
+        // NOTE: we intentionally do NOT block on `validating` or `isStale`
+        // here. If the snapshot is stale when the user taps Confirm, the
+        // `handleNext` handler will transparently refetch the ledger and
+        // then proceed — so the button must remain clickable.
         return (
           pin.length === 4 &&
           ledgerAvailable !== null &&
-          !validating &&
-          !isStale &&
           amount <= maxAmount
         );
       default: return false;
