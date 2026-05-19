@@ -392,6 +392,7 @@ export default function WithdrawFlow({
       date: submittedAt ?? new Date(),
       status: 'Pending disbursement',
       feeBreakdown,
+      language,
     };
   };
 
