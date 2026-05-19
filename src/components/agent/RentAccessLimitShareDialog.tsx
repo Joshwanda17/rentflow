@@ -495,6 +495,24 @@ export function RentAccessLimitShareDialog({
               >
                 <MessageCircle className="h-4 w-4" /> Send text only
               </Button>
+              <Button
+                onClick={sendSms}
+                disabled={smsSending || linkLoading || !tenantPhone}
+                className="h-12 rounded-xl gap-2 font-bold bg-primary hover:bg-primary/90 text-primary-foreground"
+                size="lg"
+                aria-label="Send the branded card link to the tenant via SMS"
+              >
+                {smsSending ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Send className="h-5 w-5" />
+                )}
+                {smsSending
+                  ? 'Sending SMS…'
+                  : tenantPhone
+                    ? `Send branded card via SMS to ${tenantName.split(' ')[0]}`
+                    : 'Add tenant phone to send SMS'}
+              </Button>
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   variant="outline"
