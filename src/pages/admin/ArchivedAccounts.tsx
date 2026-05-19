@@ -142,12 +142,15 @@ export default function ArchivedAccountsPage() {
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div>
+          <div className="flex-1">
             <h1 className="text-2xl font-bold">Archived Accounts</h1>
             <p className="text-sm text-muted-foreground">
               Restore soft-deleted accounts. This clears the deletion timestamp and re-attaches the original email/phone so the user can sign in again.
             </p>
           </div>
+          <Button variant="outline" size="sm" onClick={() => navigate('/admin/account-conflicts')}>
+            Conflict resolver
+          </Button>
         </div>
 
         <Card>
