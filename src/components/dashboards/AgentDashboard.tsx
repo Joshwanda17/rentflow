@@ -259,19 +259,26 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [shareLandlordOpen, setShareLandlordOpen] = useState(false);
   const [lendingAgentOpen, setLendingAgentOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<AgentHubTab>('home');
+  const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
 
   // Horizontal swipe → switch hub tabs (mobile gesture)
   const TAB_ORDER: AgentHubTab[] = ['home', 'money', 'tenants', 'grow', 'subagents'];
   const swipeHandlers = useHorizontalSwipe({
     onSwipeLeft: () => {
       const i = TAB_ORDER.indexOf(activeTab);
-      if (i < TAB_ORDER.length - 1) { hapticTap(); setActiveTab(TAB_ORDER[i + 1]); }
+      if (i < TAB_ORDER.length - 1) { hapticTap(); setSlideDirection('left'); setActiveTab(TAB_ORDER[i + 1]); }
     },
     onSwipeRight: () => {
       const i = TAB_ORDER.indexOf(activeTab);
-      if (i > 0) { hapticTap(); setActiveTab(TAB_ORDER[i - 1]); }
+      if (i > 0) { hapticTap(); setSlideDirection('right'); setActiveTab(TAB_ORDER[i - 1]); }
     },
   });
+
+  const tabAnimClass = slideDirection === 'left'
+    ? 'animate-slide-in-right'
+    : slideDirection === 'right'
+      ? 'animate-slide-in-left'
+      : 'animate-in fade-in duration-200';
 
   const [showQuickDeposit, setShowQuickDeposit] = useState(false);
   const [showQuickWithdraw, setShowQuickWithdraw] = useState(false);
@@ -483,14 +490,14 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
         {/* Tab Navigation — sticky so it stays under the header and never collides with the fixed bottom role switcher */}
         <div className="sticky top-0 z-20 -mx-4 px-4 py-2 bg-background border-b border-border/40">
-          <AgentHubTabs active={activeTab} onChange={setActiveTab} />
+          <AgentHubTabs active={activeTab} onChange={(tab) => { setSlideDirection(null); setActiveTab(tab); }} />
         </div>
 
         {/* Swipe surface — left/right gestures navigate adjacent hub tabs */}
         <div {...swipeHandlers} className="touch-pan-y">
         {/* === HOME TAB === Most-used actions, at-a-glance */}
         {activeTab === 'home' && (
-          <div className="space-y-4 animate-in fade-in duration-200">
+          <div className={cn("space-y-4", tabAnimClass)}>
             {/*
              * Agent shortcut: paste a bank reference / MoMo TID / merchant
              * receipt number you grabbed in the field, and we resolve it
@@ -607,7 +614,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
         {/* === MONEY TAB === Wallet, advances, payouts, recovery */}
         {activeTab === 'money' && (
-          <div className="space-y-5 animate-in fade-in duration-200">
+          <div className={cn("space-y-5", tabAnimClass)}>
             <AgentCompanyDebtCard onViewBreakdown={() => { hapticTap(); setTenantsSheetOpen(true); }} />
             <AgentRiskExposureCard />
             <EarnedSinceLastWithdrawalCard />
@@ -651,7 +658,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
         {/* === TENANTS TAB === People & properties */}
         {activeTab === 'tenants' && (
-          <div className="space-y-5 animate-in fade-in duration-200">
+          <div className={cn("space-y-5", tabAnimClass)}>
             <div className="grid grid-cols-2 gap-2.5">
               {[
                 { icon: FileText, label: 'New Tenant', onClick: () => setRentRequestOpen(true) },
@@ -683,7 +690,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
         {/* === GROW TAB === Share, recruit, partners */}
         {activeTab === 'grow' && (
-          <div className="space-y-5 animate-in fade-in duration-200">
+          <div className={cn("space-y-5", tabAnimClass)}>
             <div className="grid grid-cols-2 gap-2.5">
               {[
                 { icon: Building2, label: 'Share Landlord', onClick: handleShareLandlordSignup },
@@ -710,7 +717,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
         {/* === SUB AGENTS TAB === Team management */}
         {activeTab === 'subagents' && (
-          <div className="space-y-5 animate-in fade-in duration-200">
+          <div className={cn("space-y-5", tabAnimClass)}>
             <SubAgentsPanel agentId={user.id} onInviteSubAgent={handleInviteSubAgent} />
           </div>
         )}
