@@ -641,7 +641,7 @@ export function WalletStatement() {
                 </button>
                 {hasActiveFilters && (
                   <button
-                    onClick={() => { setDirectionFilter('all'); setCategoryFilter('all'); }}
+                    onClick={() => { setDirectionFilter('all'); setCategoryFilter('all'); setRangePreset('all'); }}
                     className="flex items-center gap-1 text-[11px] font-medium text-destructive"
                   >
                     <X className="h-3 w-3" /> Clear filters
