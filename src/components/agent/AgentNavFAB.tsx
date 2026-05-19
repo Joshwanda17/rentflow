@@ -231,7 +231,9 @@ export default function AgentNavFAB() {
                 <li key={`${c.path}-${i}`} className="flex items-center gap-1">
                   <button
                     type="button"
-                    onClick={() => navigate(c.path)}
+                    onClick={() => {
+                      if (confirmDiscardIfDirty()) navigate(c.path);
+                    }}
                     className={cn(
                       'h-9 px-3 rounded-full text-xs font-medium',
                       'text-muted-foreground hover:text-foreground hover:bg-muted',
@@ -255,7 +257,9 @@ export default function AgentNavFAB() {
         {!onHome && (
           <button
             type="button"
-            onClick={() => navigate(-1)}
+            onClick={() => {
+              if (confirmDiscardIfDirty()) navigate(-1);
+            }}
             aria-label="Go back"
             aria-keyshortcuts="Alt+ArrowLeft"
             className={cn(
@@ -273,7 +277,9 @@ export default function AgentNavFAB() {
         )}
         <button
           type="button"
-          onClick={() => navigate('/dashboard')}
+          onClick={() => {
+            if (confirmDiscardIfDirty()) navigate('/dashboard');
+          }}
           aria-label="Go to agent home"
           className={cn(
             'h-14 w-14 rounded-full',
