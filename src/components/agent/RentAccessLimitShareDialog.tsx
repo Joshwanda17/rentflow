@@ -12,6 +12,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import type { RentAccessLimitResult } from '@/lib/rentAccessLimit';
 import { generateRentAccessLimitPdf, generateRentAccessLimitPng } from '@/lib/rentAccessLimitPdf';
 import { supabase } from '@/integrations/supabase/client';
+import { recordRentAccessShare } from '@/lib/rentAccessShareAudit';
 
 interface Props {
   open: boolean;
@@ -114,6 +115,19 @@ export function RentAccessLimitShareDialog({
       ? `https://wa.me/${intl}?text=${encodeURIComponent(message)}`
       : `https://wa.me/?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank', 'noopener,noreferrer');
+    if (user) {
+      void recordRentAccessShare({
+        agentId: user.id,
+        tenantId,
+        tenantName,
+        tenantPhone,
+        channel: 'whatsapp',
+        limitAmount: result.limit,
+        shareUrl,
+        messageSnapshot: message,
+        metadata: { hasPhone: Boolean(intl) },
+      });
+    }
   };
 
   /** Step 1 — generate the card image and show preview. */
@@ -134,6 +148,18 @@ export function RentAccessLimitShareDialog({
       setPreviewUrl(url);
       setPreviewMessage(message);
       setPreviewing(true);
+      if (user) {
+        void recordRentAccessShare({
+          agentId: user.id,
+          tenantId,
+          tenantName,
+          tenantPhone,
+          channel: 'whatsapp_preview',
+          limitAmount: result.limit,
+          shareUrl,
+          messageSnapshot: message,
+        });
+      }
     } catch (err: any) {
       toast({ title: 'Preview failed', description: err.message, variant: 'destructive' });
     } finally {
@@ -162,6 +188,19 @@ export function RentAccessLimitShareDialog({
             text: previewMessage,
           });
           toast({ title: 'Ready to share' });
+          if (user) {
+            void recordRentAccessShare({
+              agentId: user.id,
+              tenantId,
+              tenantName,
+              tenantPhone,
+              channel: 'native_share',
+              limitAmount: result.limit,
+              shareUrl,
+              messageSnapshot: previewMessage,
+              metadata: { attempt: sendAttempts + 1 },
+            });
+          }
           return;
         } catch (err: any) {
           // User cancelled — not an error, just stop quietly
@@ -191,10 +230,38 @@ export function RentAccessLimitShareDialog({
         title: 'Image saved',
         description: 'Attach it in the WhatsApp chat that just opened.',
       });
+      if (user) {
+        void recordRentAccessShare({
+          agentId: user.id,
+          tenantId,
+          tenantName,
+          tenantPhone,
+          channel: 'whatsapp',
+          limitAmount: result.limit,
+          shareUrl,
+          messageSnapshot: previewMessage,
+          metadata: { fallback: 'wa.me+download', hasPhone: Boolean(intl), attempt: sendAttempts + 1 },
+        });
+      }
     } catch (err: any) {
       const msg = err?.message || 'Could not open WhatsApp. Please try again.';
       setSendError(msg);
       toast({ title: 'Share failed', description: msg, variant: 'destructive' });
+      if (user) {
+        void recordRentAccessShare({
+          agentId: user.id,
+          tenantId,
+          tenantName,
+          tenantPhone,
+          channel: 'whatsapp',
+          limitAmount: result.limit,
+          shareUrl,
+          messageSnapshot: previewMessage,
+          success: false,
+          errorMessage: msg,
+          metadata: { attempt: sendAttempts + 1 },
+        });
+      }
     } finally {
       setSending(false);
     }
@@ -206,6 +273,18 @@ export function RentAccessLimitShareDialog({
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
       toast({ title: 'Copied to clipboard' });
+      if (user) {
+        void recordRentAccessShare({
+          agentId: user.id,
+          tenantId,
+          tenantName,
+          tenantPhone,
+          channel: 'copy_link',
+          limitAmount: result.limit,
+          shareUrl,
+          messageSnapshot: message,
+        });
+      }
     } catch {
       toast({ title: 'Copy failed', variant: 'destructive' });
     }
@@ -229,8 +308,32 @@ export function RentAccessLimitShareDialog({
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 2000);
       toast({ title: 'Image saved', description: 'Share it on WhatsApp from your gallery.' });
+      if (user) {
+        void recordRentAccessShare({
+          agentId: user.id,
+          tenantId,
+          tenantName,
+          tenantPhone,
+          channel: 'image_download',
+          limitAmount: result.limit,
+          shareUrl,
+        });
+      }
     } catch (err: any) {
       toast({ title: 'Image generation failed', description: err.message, variant: 'destructive' });
+      if (user) {
+        void recordRentAccessShare({
+          agentId: user.id,
+          tenantId,
+          tenantName,
+          tenantPhone,
+          channel: 'image_download',
+          limitAmount: result.limit,
+          shareUrl,
+          success: false,
+          errorMessage: err?.message ?? 'unknown',
+        });
+      }
     } finally {
       setPngLoading(false);
     }
@@ -254,8 +357,32 @@ export function RentAccessLimitShareDialog({
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 2000);
       toast({ title: 'Certificate downloaded' });
+      if (user) {
+        void recordRentAccessShare({
+          agentId: user.id,
+          tenantId,
+          tenantName,
+          tenantPhone,
+          channel: 'pdf_download',
+          limitAmount: result.limit,
+          shareUrl,
+        });
+      }
     } catch (err: any) {
       toast({ title: 'PDF generation failed', description: err.message, variant: 'destructive' });
+      if (user) {
+        void recordRentAccessShare({
+          agentId: user.id,
+          tenantId,
+          tenantName,
+          tenantPhone,
+          channel: 'pdf_download',
+          limitAmount: result.limit,
+          shareUrl,
+          success: false,
+          errorMessage: err?.message ?? 'unknown',
+        });
+      }
     } finally {
       setPdfLoading(false);
     }
@@ -292,12 +419,38 @@ export function RentAccessLimitShareDialog({
         title: 'SMS sent',
         description: `${tenantName.split(' ')[0]} will get the branded card link by text.`,
       });
+      if (user) {
+        void recordRentAccessShare({
+          agentId: user.id,
+          tenantId,
+          tenantName,
+          tenantPhone,
+          channel: 'sms',
+          limitAmount: result.limit,
+          shareUrl,
+          metadata: { mode: 'manual' },
+        });
+      }
     } catch (err: any) {
       toast({
         title: 'SMS failed',
         description: err?.message || 'Could not send SMS. Please retry.',
         variant: 'destructive',
       });
+      if (user) {
+        void recordRentAccessShare({
+          agentId: user.id,
+          tenantId,
+          tenantName,
+          tenantPhone,
+          channel: 'sms',
+          limitAmount: result.limit,
+          shareUrl,
+          success: false,
+          errorMessage: err?.message ?? 'unknown',
+          metadata: { mode: 'manual' },
+        });
+      }
     } finally {
       setSmsSending(false);
     }
