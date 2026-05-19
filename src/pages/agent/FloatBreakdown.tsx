@@ -498,6 +498,38 @@ export default function AgentFloatBreakdown() {
           </p>
         </div>
 
+        {/* Export */}
+        <div className="rounded-2xl border bg-card p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <Download className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-[11px] uppercase font-bold tracking-wider text-muted-foreground">Export</span>
+            <span className="ml-auto text-[10px] text-muted-foreground">
+              {filteredRows.length} row{filteredRows.length === 1 ? '' : 's'}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={exportCsv}
+              disabled={filteredRows.length === 0}
+              className="flex items-center justify-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm font-semibold hover:bg-muted active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Download className="h-4 w-4" />
+              Download CSV
+            </button>
+            <button
+              onClick={exportPdf}
+              disabled={filteredRows.length === 0}
+              className="flex items-center justify-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm font-semibold hover:bg-muted active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <FileText className="h-4 w-4" />
+              Download PDF
+            </button>
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-2 leading-snug">
+            Exports the {filteredRows.length} row{filteredRows.length === 1 ? '' : 's'} currently shown — respects your date range and search filters.
+          </p>
+        </div>
+
         {/* Timeline */}
         {loading ? (
           <div className="py-12 text-center text-sm text-muted-foreground">Loading...</div>
