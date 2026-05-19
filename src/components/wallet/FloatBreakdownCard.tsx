@@ -6,6 +6,7 @@ import { ArrowDownLeft, ArrowUpRight, ChevronDown, ChevronLeft, ChevronRight, Ch
 import { CompactAmount } from '@/components/ui/CompactAmount';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 
 // Categories that move money into/out of the FLOAT bucket on the wallet leg.
@@ -69,6 +70,9 @@ export function FloatBreakdownCard({ floatBalance }: FloatBreakdownCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
+  const [cumulativeIn, setCumulativeIn] = useState(0);
+  const [cumulativeOut, setCumulativeOut] = useState(0);
+  const [seenIds, setSeenIds] = useState<Set<string>>(new Set());
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
@@ -122,12 +126,37 @@ export function FloatBreakdownCard({ floatBalance }: FloatBreakdownCardProps) {
     fetchPage(page);
   }, [user?.id, expanded, page, fetchPage]);
 
+  // Accumulate totals across all pages the user has visited so far.
+  useEffect(() => {
+    if (entries.length === 0) return;
+    setSeenIds((prev) => {
+      const next = new Set(prev);
+      let addedIn = 0;
+      let addedOut = 0;
+      for (const e of entries) {
+        if (!next.has(e.id)) {
+          next.add(e.id);
+          if (e.direction === 'cash_in') addedIn += Number(e.amount || 0);
+          else addedOut += Number(e.amount || 0);
+        }
+      }
+      if (addedIn > 0) setCumulativeIn((c) => c + addedIn);
+      if (addedOut > 0) setCumulativeOut((c) => c + addedOut);
+      return next;
+    });
+  }, [entries]);
+
   const totalIn = entries
     .filter((e) => e.direction === 'cash_in')
     .reduce((s, e) => s + Number(e.amount || 0), 0);
   const totalOut = entries
     .filter((e) => e.direction === 'cash_out')
     .reduce((s, e) => s + Number(e.amount || 0), 0);
+
+  const netCumulative = cumulativeIn - cumulativeOut;
+  const diff = netCumulative - floatBalance;
+  const isReconciled = Math.abs(diff) < 1;
+  const allReviewed = seenIds.size >= totalCount && totalCount > 0;
 
   const canGoPrev = page > 0;
   const canGoNext = page < totalPages - 1;
@@ -280,6 +309,65 @@ export function FloatBreakdownCard({ floatBalance }: FloatBreakdownCardProps) {
                     </Button>
                   </div>
                 )}
+
+                {/* Reconciliation row */}
+                <div
+                  className={`rounded-xl border px-3 py-2.5 space-y-1 ${
+                    isReconciled
+                      ? 'border-emerald-500/30 bg-emerald-500/5'
+                      : 'border-amber-500/30 bg-amber-500/5'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-semibold text-foreground">
+                      Reconciliation
+                    </p>
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] h-5 ${
+                        isReconciled
+                          ? 'border-emerald-500/40 text-emerald-700 dark:text-emerald-400'
+                          : 'border-amber-500/40 text-amber-700 dark:text-amber-400'
+                      }`}
+                    >
+                      {isReconciled ? 'Reconciled' : 'Mismatch'}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-muted-foreground">
+                      Cash in − Cash out
+                    </span>
+                    <span className="font-medium tabular-nums">
+                      {formatUGX(netCumulative)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-muted-foreground">Float balance</span>
+                    <span className="font-medium tabular-nums">
+                      {formatUGX(floatBalance)}
+                    </span>
+                  </div>
+                  {!isReconciled && (
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-muted-foreground">Difference</span>
+                      <span
+                        className={`font-semibold tabular-nums ${
+                          diff > 0
+                            ? 'text-emerald-700 dark:text-emerald-400'
+                            : 'text-rose-700 dark:text-rose-400'
+                        }`}
+                      >
+                        {diff > 0 ? '+' : ''}
+                        {formatUGX(diff)}
+                      </span>
+                    </div>
+                  )}
+                  <p className="text-[10px] text-muted-foreground/70 pt-0.5">
+                    Based on {seenIds.size.toLocaleString()} of{' '}
+                    {totalCount.toLocaleString()} entries
+                    {allReviewed ? ' (all reviewed)' : ''}
+                  </p>
+                </div>
 
                 <p className="text-[10px] text-muted-foreground/70 text-center">
                   Source: general ledger · wallet-side entries · {totalCount.toLocaleString()} total
