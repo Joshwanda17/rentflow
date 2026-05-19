@@ -452,6 +452,7 @@ export default function WithdrawFlow({
         : '';
       setWithdrawalRef(requestId);
       setCreatedRequestId(insertedRow?.id ?? null);
+      setSubmittedAt(new Date());
       // IMPORTANT: a withdrawal is NOT successful until Financial Ops
       // approves and disburses. Keep status as `pending` and let the
       // realtime tracker flip it to success when the DB row updates.
