@@ -584,6 +584,28 @@ export function WalletStatement() {
 
             {/* ── Filters (calm default, advanced behind toggle) ── */}
             <div className="mb-5 space-y-2.5">
+              {/* Date range presets */}
+              <div className="flex gap-1 rounded-lg bg-muted p-1">
+                {[
+                  { value: 'all' as const, label: 'All time' },
+                  { value: '7d' as const, label: '7d' },
+                  { value: '30d' as const, label: '30d' },
+                  { value: '90d' as const, label: '90d' },
+                ].map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setRangePreset(opt.value)}
+                    className={`flex-1 rounded-md px-2 py-1.5 text-xs font-semibold transition-all ${
+                      rangePreset === opt.value
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
               {/* Direction segmented control */}
               <div className="flex gap-1 rounded-lg bg-muted p-1">
                 {[
