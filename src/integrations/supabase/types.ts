@@ -15403,6 +15403,23 @@ export type Database = {
         }
         Returns: boolean
       }
+      inspect_account_conflicts: {
+        Args: { p_email?: string; p_national_id?: string; p_phone?: string }
+        Returns: {
+          auth_deleted_at: string
+          auth_email: string
+          auth_last_sign_in_at: string
+          auth_phone: string
+          full_name: string
+          is_archived: boolean
+          match_reason: string
+          profile_email: string
+          profile_national_id: string
+          profile_phone: string
+          tenant_status: string
+          user_id: string
+        }[]
+      }
       is_business_advance_ops: { Args: { _uid: string }; Returns: boolean }
       is_conversation_participant: {
         Args: { _conversation_id: string; _user_id: string }
