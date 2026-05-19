@@ -205,6 +205,22 @@ export function AgentTenantCollectDialog({
               if (error || !data?.success) {
                 console.warn('[AgentTenantCollectDialog] auto SMS failed', error, data);
               }
+              if (user) {
+                void import('@/lib/rentAccessShareAudit').then(({ recordRentAccessShare }) =>
+                  recordRentAccessShare({
+                    agentId: user.id,
+                    tenantId: tenant.id,
+                    tenantName: tenant.full_name,
+                    tenantPhone: tenant.phone,
+                    channel: 'sms',
+                    limitAmount: null,
+                    shareUrl,
+                    success: !error && Boolean(data?.success),
+                    errorMessage: error?.message ?? (data?.success ? null : 'carrier_rejected'),
+                    metadata: { mode: 'allocation', allocation_amount: amount, auto: true },
+                  }),
+                );
+              }
             })
             .catch((e) => console.warn('[AgentTenantCollectDialog] auto SMS threw', e));
         } catch (e) {
