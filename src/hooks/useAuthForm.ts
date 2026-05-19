@@ -396,6 +396,62 @@ export function useAuthForm() {
     let lastError: Error | null = null;
     let accountExists = false;
 
+    // ── Transient-error retry helper ────────────────────────────────────
+    // Retries an async op with exponential backoff (200ms → 500ms → 1100ms,
+    // jittered) for network/fetch/timeout/5xx errors. STOPS IMMEDIATELY on
+    // auth-meaningful errors like "Invalid login credentials" so a wrong
+    // password never gets retried (avoids rate-limit lockouts).
+    const isTransientError = (err: any): boolean => {
+      const msg = (err?.message || err?.error_description || String(err || '')).toLowerCase();
+      if (!msg) return false;
+      // Hard NO — auth-meaningful, do not retry.
+      if (msg.includes('invalid login credentials')) return false;
+      if (msg.includes('email not confirmed')) return false;
+      if (msg.includes('user not found')) return false;
+      if (msg.includes('rate') || msg.includes('too many')) return false;
+      // Transient signals worth retrying.
+      return (
+        msg.includes('fetch') ||
+        msg.includes('network') ||
+        msg.includes('timeout') ||
+        msg.includes('timed out') ||
+        msg.includes('failed to fetch') ||
+        msg.includes('load failed') ||
+        msg.includes('econn') ||
+        msg.includes('socket') ||
+        msg.includes('502') ||
+        msg.includes('503') ||
+        msg.includes('504') ||
+        msg.includes('gateway')
+      );
+    };
+    const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
+    const withRetry = async <T,>(
+      op: () => Promise<T>,
+      opts: { maxAttempts?: number; baseMs?: number; label: string; isTransient?: (e: any) => boolean } = { label: 'op' },
+    ): Promise<T> => {
+      const max = opts.maxAttempts ?? 3;
+      const base = opts.baseMs ?? 200;
+      const transient = opts.isTransient ?? isTransientError;
+      let attempt = 0;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        attempt += 1;
+        try {
+          return await op();
+        } catch (e: any) {
+          if (attempt >= max || !transient(e)) throw e;
+          const backoff = base * Math.pow(2.2, attempt - 1);
+          const jitter = Math.random() * (base / 2);
+          const wait = Math.round(backoff + jitter);
+          // eslint-disable-next-line no-console
+          console.warn(`[LoginRetry] ${opts.label} attempt ${attempt} failed (transient): ${e?.message || e}. Retrying in ${wait}ms`);
+          (metrics as any).retries = ((metrics as any).retries ?? 0) + 1;
+          await sleep(wait);
+        }
+      }
+    };
+
     const placeholderCandidates = [
       `0${last9}@welile.user`,
       `256${last9}@welile.user`,
@@ -424,7 +480,14 @@ export function useAuthForm() {
       (metrics as any).rpcCacheHit = false;
       try {
         const { data } = await Promise.race([
-          supabase.rpc('get_email_by_phone', { phone_variants: [`0${last9}`, `256${last9}`, last9] }),
+          withRetry(
+            async () => {
+              const res = await supabase.rpc('get_email_by_phone', { phone_variants: [`0${last9}`, `256${last9}`, last9] });
+              if (res.error && isTransientError(res.error)) throw res.error;
+              return res;
+            },
+            { maxAttempts: 2, baseMs: 250, label: 'rpc:get_email_by_phone' },
+          ),
           new Promise<{ data: null }>((resolve) => setTimeout(() => resolve({ data: null }), 3000)),
         ]);
         metrics.rpcMs = Math.round(performance.now() - rpcStart);
@@ -445,7 +508,18 @@ export function useAuthForm() {
     const tryOne = async (emailToTry: string): Promise<{ ok: boolean; email: string; error: Error | null }> => {
       const tStart = performance.now();
       try {
-        const { error } = await signIn(emailToTry, password);
+        // Retry only on transient failures. signIn returns { error } rather
+        // than throwing on auth failures, so promote transient errors into
+        // throws that withRetry can catch — auth-meaningful errors (wrong
+        // password, unknown user) fall through immediately on the first try.
+        const { error } = await withRetry(
+          async () => {
+            const res = await signIn(emailToTry, password);
+            if (res?.error && isTransientError(res.error)) throw res.error;
+            return res;
+          },
+          { maxAttempts: 3, baseMs: 200, label: `signIn:${emailToTry}` },
+        );
         const ms = Math.round(performance.now() - tStart);
         metrics.attempts += 1;
         metrics.attemptTimings.push({ email: emailToTry, ms, ok: !error });
