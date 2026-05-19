@@ -125,12 +125,37 @@ export function FloatBreakdownCard({ floatBalance }: FloatBreakdownCardProps) {
     fetchPage(page);
   }, [user?.id, expanded, page, fetchPage]);
 
+  // Accumulate totals across all pages the user has visited so far.
+  useEffect(() => {
+    if (entries.length === 0) return;
+    setSeenIds((prev) => {
+      const next = new Set(prev);
+      let addedIn = 0;
+      let addedOut = 0;
+      for (const e of entries) {
+        if (!next.has(e.id)) {
+          next.add(e.id);
+          if (e.direction === 'cash_in') addedIn += Number(e.amount || 0);
+          else addedOut += Number(e.amount || 0);
+        }
+      }
+      if (addedIn > 0) setCumulativeIn((c) => c + addedIn);
+      if (addedOut > 0) setCumulativeOut((c) => c + addedOut);
+      return next;
+    });
+  }, [entries]);
+
   const totalIn = entries
     .filter((e) => e.direction === 'cash_in')
     .reduce((s, e) => s + Number(e.amount || 0), 0);
   const totalOut = entries
     .filter((e) => e.direction === 'cash_out')
     .reduce((s, e) => s + Number(e.amount || 0), 0);
+
+  const netCumulative = cumulativeIn - cumulativeOut;
+  const diff = netCumulative - floatBalance;
+  const isReconciled = Math.abs(diff) < 1;
+  const allReviewed = seenIds.size >= totalCount && totalCount > 0;
 
   const canGoPrev = page > 0;
   const canGoNext = page < totalPages - 1;
