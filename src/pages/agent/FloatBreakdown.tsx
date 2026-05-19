@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCurrency } from '@/hooks/useCurrency';
 import { hapticTap } from '@/lib/haptics';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface FloatRow {
   entry_id: string;
@@ -382,28 +383,67 @@ export default function AgentFloatBreakdown() {
                 : 'text-rose-600 dark:text-rose-400 bg-rose-500/10';
             const rangeLabel = fromDate || toDate ? 'in selected range' : 'all-time';
             return (
-              <div className={`mt-3 rounded-xl p-3 ${tone}`}>
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Icon className="h-4 w-4 flex-shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-[10px] uppercase font-bold tracking-wider">Net Float Movement</p>
-                      <p className="text-[10px] opacity-80 truncate">Deposits − Used, {rangeLabel}</p>
+              <TooltipProvider delayDuration={150}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={() => hapticTap()}
+                      className={`mt-3 w-full text-left rounded-xl p-3 ${tone} focus:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
+                      aria-label={`Net float movement ${formatAmount(Math.abs(net))} ${rangeLabel}. Deposits ${formatAmount(totalIn)}, used ${formatAmount(Math.abs(totalOut))}.`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Icon className="h-4 w-4 flex-shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-[10px] uppercase font-bold tracking-wider">Net Float Movement</p>
+                            <p className="text-[10px] opacity-80 truncate">Deposits − Used, {rangeLabel}</p>
+                          </div>
+                        </div>
+                        <p className="text-lg font-black tabular-nums whitespace-nowrap">
+                          {isZero ? '' : isPositive ? '+' : '−'}
+                          {formatAmount(Math.abs(net))}
+                        </p>
+                      </div>
+                      <p className="text-[10px] mt-2 opacity-80 leading-snug">
+                        {isZero
+                          ? 'Your float balance did not change in this range.'
+                          : isPositive
+                            ? 'Your float grew — more came in than went out to tenants.'
+                            : 'Your float shrank — more was spent on tenants than came in.'}
+                      </p>
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-[260px]">
+                    <div className="space-y-1.5">
+                      <p className="text-[10px] uppercase font-bold tracking-wider opacity-80">
+                        Net Breakdown ({rangeLabel})
+                      </p>
+                      <div className="flex items-center justify-between gap-4 text-xs">
+                        <span className="flex items-center gap-1.5">
+                          <ArrowDownCircle className="h-3 w-3 text-emerald-500" />
+                          Deposits in
+                        </span>
+                        <span className="font-bold tabular-nums">{formatAmount(totalIn)}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-4 text-xs">
+                        <span className="flex items-center gap-1.5">
+                          <ArrowUpCircle className="h-3 w-3 text-rose-500" />
+                          Used / out
+                        </span>
+                        <span className="font-bold tabular-nums">−{formatAmount(Math.abs(totalOut))}</span>
+                      </div>
+                      <div className="border-t border-border/50 pt-1.5 flex items-center justify-between gap-4 text-xs">
+                        <span className="font-semibold">Net</span>
+                        <span className="font-black tabular-nums">
+                          {isZero ? '' : isPositive ? '+' : '−'}
+                          {formatAmount(Math.abs(net))}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                  <p className="text-lg font-black tabular-nums whitespace-nowrap">
-                    {isZero ? '' : isPositive ? '+' : '−'}
-                    {formatAmount(Math.abs(net))}
-                  </p>
-                </div>
-                <p className="text-[10px] mt-2 opacity-80 leading-snug">
-                  {isZero
-                    ? 'Your float balance did not change in this range.'
-                    : isPositive
-                      ? 'Your float grew — more came in than went out to tenants.'
-                      : 'Your float shrank — more was spent on tenants than came in.'}
-                </p>
-              </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             );
           })()}
 
