@@ -221,6 +221,8 @@ export function TidVerification() {
     depositorName: string;
     depositorPhone: string;
     transaction_id: string | null;
+    deposit_purpose: string | null;
+    agent_id: string | null;
   };
   const [pending, setPending] = useState<PendingDeposit[]>([]);
   const [pendingLoading, setPendingLoading] = useState(false);
