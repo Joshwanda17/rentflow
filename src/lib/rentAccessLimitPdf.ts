@@ -192,10 +192,20 @@ export async function generateRentAccessLimitPdf(data: RentAccessLimitPdfData): 
   y += 8;
 
   if (data.shareUrl) {
+    // QR code that links back to the live limit page
+    const qrSize = 32; // mm
+    const qrDataUrl = await generateQrDataUrl(data.shareUrl, 512);
+    const qrX = (pw - qrSize) / 2;
+    if (qrDataUrl) {
+      pdf.addImage(qrDataUrl, 'PNG', qrX, y + 2, qrSize, qrSize);
+    }
     pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(9);
+    pdf.setFontSize(8);
     pdf.setTextColor(100, 116, 139);
-    pdf.text(`Live limit: ${data.shareUrl}`, pw / 2, y, { align: 'center' });
+    pdf.text('Scan to view live limit', pw / 2, y + qrSize + 6, { align: 'center' });
+    pdf.setFontSize(7);
+    pdf.setTextColor(148, 163, 184);
+    pdf.text(data.shareUrl, pw / 2, y + qrSize + 11, { align: 'center' });
   }
 
   // Footer
