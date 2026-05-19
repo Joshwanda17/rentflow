@@ -21,11 +21,7 @@ export default function AgentNavFAB() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const isAgent =
-    role === 'agent' ||
-    role === 'sub_agent' ||
-    role === 'partner_agent' ||
-    role === 'proxy_agent';
+  const isAgent = role === 'agent';
 
   const onHome = location.pathname === '/' || location.pathname === '/dashboard';
 
