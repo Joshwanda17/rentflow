@@ -14836,6 +14836,21 @@ export type Database = {
         Returns: Json
       }
       get_agent_float_balance: { Args: { p_agent_id: string }; Returns: number }
+      get_agent_float_breakdown: {
+        Args: { p_limit?: number; p_user_id: string }
+        Returns: {
+          amount: number
+          category: string
+          description: string
+          direction: string
+          entry_id: string
+          linked_party: string
+          occurred_at: string
+          running_balance: number
+          signed_amount: number
+          transaction_group_id: string
+        }[]
+      }
       get_agent_mission_stats: { Args: { p_agent_id?: string }; Returns: Json }
       get_agent_network_summary: { Args: { p_agent_id: string }; Returns: Json }
       get_agent_ops_balances: {
