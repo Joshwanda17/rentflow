@@ -456,6 +456,18 @@ export function EmailTransactionsPanel() {
     typeof window === 'undefined' ? '' : (localStorage.getItem('gmail_filter_search') || '')
   );
   useEffect(() => { try { localStorage.setItem('gmail_filter_search', searchQuery); } catch {} }, [searchQuery]);
+  // Match-type filter for the Recent emails list. Persisted so it survives reload.
+  //   all       → no match filter
+  //   confident → at least one reference OR from-phone match
+  //   reference → at least one reference / TID match
+  //   from      → at least one phone-after-"from" match
+  type MatchFilter = 'all' | 'confident' | 'reference' | 'from';
+  const [matchFilter, setMatchFilter] = useState<MatchFilter>(() => {
+    if (typeof window === 'undefined') return 'all';
+    const v = localStorage.getItem('gmail_filter_match') as MatchFilter | null;
+    return v && ['all', 'confident', 'reference', 'from'].includes(v) ? v : 'all';
+  });
+  useEffect(() => { try { localStorage.setItem('gmail_filter_match', matchFilter); } catch {} }, [matchFilter]);
 
   // Persisted cache of derived channel classifications keyed by transaction id
   // / receipt number (with gmail_message_id as fallback). Loaded once on mount
