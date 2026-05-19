@@ -643,8 +643,10 @@ export default function UserProfilesTable() {
     if (!deleteUserDialog.userId) return;
     setDeletingUser(true);
     try {
+      const reason = window.prompt(`Reason for permanently deleting ${deleteUserDialog.userName} (min 10 characters, recorded in audit log):`)?.trim() || '';
+      if (reason.length < 10) { toast.error('A reason of at least 10 characters is required'); setDeletingUser(false); return; }
       const response = await supabase.functions.invoke('delete-user', {
-        body: { user_id: deleteUserDialog.userId },
+        body: { user_id: deleteUserDialog.userId, reason },
       });
       if (response.error) throw new Error(response.error.message || 'Failed to delete user');
       if (response.data?.error) throw new Error(response.data.error);
