@@ -14564,6 +14564,7 @@ export type Database = {
           archived_at: string
           full_name: string
           is_archived: boolean
+          user_id: string
         }[]
       }
       check_landlord_payout_eligibility: {
@@ -15465,6 +15466,16 @@ export type Database = {
           p_limit?: number
         }
         Returns: Json
+      }
+      log_archived_login_attempt: {
+        Args: {
+          p_archived_at?: string
+          p_archived_user_id: string
+          p_full_name?: string
+          p_identifier: string
+          p_identifier_type: string
+        }
+        Returns: string
       }
       log_finops_provider_mismatch: {
         Args: {
