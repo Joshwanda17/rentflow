@@ -69,6 +69,9 @@ export function FloatBreakdownCard({ floatBalance }: FloatBreakdownCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
+  const [cumulativeIn, setCumulativeIn] = useState(0);
+  const [cumulativeOut, setCumulativeOut] = useState(0);
+  const [seenIds, setSeenIds] = useState<Set<string>>(new Set());
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
