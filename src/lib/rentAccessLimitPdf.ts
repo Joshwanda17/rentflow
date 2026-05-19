@@ -4,6 +4,13 @@ import type { RentAccessLimitResult } from '@/lib/rentAccessLimit';
 import { getShareCardThemeSync } from '@/hooks/useShareCardTheme';
 import QRCode from 'qrcode';
 
+/**
+ * Bumped whenever the visual layout of the branded share card / PDF changes.
+ * Recorded in `rent_access_share_audit.image_version` so reporting can tie a
+ * share event back to the exact card variant that the tenant received.
+ */
+export const RENT_ACCESS_CARD_IMAGE_VERSION = '2026-05-19.qr-v1';
+
 export interface RentAccessLimitPdfData {
   tenantName: string;
   tenantPhone: string;
