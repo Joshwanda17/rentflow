@@ -717,7 +717,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
         {/* === SUB AGENTS TAB === Team management */}
         {activeTab === 'subagents' && (
-          <div className="space-y-5 animate-in fade-in duration-200">
+          <div className={cn("space-y-5", tabAnimClass)}>
             <SubAgentsPanel agentId={user.id} onInviteSubAgent={handleInviteSubAgent} />
           </div>
         )}
