@@ -63,6 +63,29 @@ interface FloatBreakdownCardProps {
 const ALL_CATS = [...FLOAT_IN_CATEGORIES, ...FLOAT_OUT_CATEGORIES];
 const PAGE_SIZE = 50;
 
+type RangePreset = 'all' | '7d' | '30d' | '90d' | 'custom';
+
+const PRESET_LABEL: Record<RangePreset, string> = {
+  all: 'All time',
+  '7d': 'Last 7 days',
+  '30d': 'Last 30 days',
+  '90d': 'Last 90 days',
+  custom: 'Custom range',
+};
+
+function resolveRange(preset: RangePreset, customFrom?: Date, customTo?: Date): { from?: string; to?: string } {
+  const now = new Date();
+  if (preset === 'all') return {};
+  if (preset === '7d') return { from: startOfDay(subDays(now, 6)).toISOString(), to: endOfDay(now).toISOString() };
+  if (preset === '30d') return { from: startOfDay(subDays(now, 29)).toISOString(), to: endOfDay(now).toISOString() };
+  if (preset === '90d') return { from: startOfDay(subDays(now, 89)).toISOString(), to: endOfDay(now).toISOString() };
+  // custom
+  return {
+    from: customFrom ? startOfDay(customFrom).toISOString() : undefined,
+    to: customTo ? endOfDay(customTo).toISOString() : undefined,
+  };
+}
+
 function labelFor(cat: string) {
   return CATEGORY_LABEL[cat] ?? cat.replace(/_/g, ' ');
 }
@@ -77,8 +100,16 @@ export function FloatBreakdownCard({ floatBalance }: FloatBreakdownCardProps) {
   const [cumulativeIn, setCumulativeIn] = useState(0);
   const [cumulativeOut, setCumulativeOut] = useState(0);
   const [seenIds, setSeenIds] = useState<Set<string>>(new Set());
+  const [preset, setPreset] = useState<RangePreset>('all');
+  const [customFrom, setCustomFrom] = useState<Date | undefined>();
+  const [customTo, setCustomTo] = useState<Date | undefined>();
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+
+  const range = useMemo(
+    () => resolveRange(preset, customFrom, customTo),
+    [preset, customFrom, customTo],
+  );
 
   const fetchPage = useCallback(async (pageIndex: number) => {
     if (!user?.id) return;
@@ -87,26 +118,36 @@ export function FloatBreakdownCard({ floatBalance }: FloatBreakdownCardProps) {
     const from = pageIndex * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
 
+    let rowsQ = supabase
+      .from('general_ledger')
+      .select('id, transaction_date, category, direction, amount, reference_id, description')
+      .eq('user_id', user.id)
+      .eq('ledger_scope', 'wallet')
+      .in('category', ALL_CATS)
+      // User-facing ledger filter (per memory)
+      .neq('classification', 'admin_correction')
+      .neq('category', 'system_balance_correction');
+    let countQ = supabase
+      .from('general_ledger')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('ledger_scope', 'wallet')
+      .in('category', ALL_CATS)
+      .neq('classification', 'admin_correction')
+      .neq('category', 'system_balance_correction');
+
+    if (range.from) {
+      rowsQ = rowsQ.gte('transaction_date', range.from);
+      countQ = countQ.gte('transaction_date', range.from);
+    }
+    if (range.to) {
+      rowsQ = rowsQ.lte('transaction_date', range.to);
+      countQ = countQ.lte('transaction_date', range.to);
+    }
+
     const [{ data, error }, { count, error: countError }] = await Promise.all([
-      supabase
-        .from('general_ledger')
-        .select('id, transaction_date, category, direction, amount, reference_id, description')
-        .eq('user_id', user.id)
-        .eq('ledger_scope', 'wallet')
-        .in('category', ALL_CATS)
-        // User-facing ledger filter (per memory)
-        .neq('classification', 'admin_correction')
-        .neq('category', 'system_balance_correction')
-        .order('transaction_date', { ascending: false })
-        .range(from, to),
-      supabase
-        .from('general_ledger')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('ledger_scope', 'wallet')
-        .in('category', ALL_CATS)
-        .neq('classification', 'admin_correction')
-        .neq('category', 'system_balance_correction'),
+      rowsQ.order('transaction_date', { ascending: false }).range(from, to),
+      countQ,
     ]);
 
     if (error) {
@@ -123,12 +164,20 @@ export function FloatBreakdownCard({ floatBalance }: FloatBreakdownCardProps) {
     }
 
     setLoading(false);
-  }, [user?.id]);
+  }, [user?.id, range.from, range.to]);
 
   useEffect(() => {
     if (!user?.id || !expanded) return;
     fetchPage(page);
   }, [user?.id, expanded, page, fetchPage]);
+
+  // Reset pagination and cumulative reconciliation when the filter changes.
+  useEffect(() => {
+    setPage(0);
+    setCumulativeIn(0);
+    setCumulativeOut(0);
+    setSeenIds(new Set());
+  }, [range.from, range.to]);
 
   // Accumulate totals across all pages the user has visited so far.
   useEffect(() => {
