@@ -2,6 +2,16 @@ import { useState, useEffect, useRef } from 'react';
 import { useCurrency } from '@/hooks/useCurrency';
 import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -1334,6 +1344,34 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       ? 'border-destructive ring-2 ring-destructive/40 focus-visible:ring-destructive'
       : '';
 
+  /* ─── Unsaved-changes guard ───
+   * Surfaces a confirm dialog when a user taps Back / Close / swipes-back
+   * after typing into the deposit form. Edits are also draft-saved to
+   * localStorage, so the dialog reassures users that leaving doesn't lose
+   * their work — they get explicit "Keep editing" vs "Leave anyway". */
+  const hasUnsavedChanges = (): boolean => {
+    if (isEditMode) return false; // edit mode already loaded from DB
+    if (step === 'success' || step === 'submitting') return false;
+    return !!(
+      amount.trim() ||
+      transactionId.trim() ||
+      receiptNumber.trim() ||
+      agentName.trim() ||
+      reason.trim() ||
+      bankSlipFile ||
+      (tenantAllocations && tenantAllocations.length > 0)
+    );
+  };
+  const [confirmIntent, setConfirmIntent] = useState<'back' | 'close' | null>(null);
+  const requestBack = () => {
+    if (hasUnsavedChanges()) setConfirmIntent('back');
+    else setStep('channel');
+  };
+  const requestClose = () => {
+    if (hasUnsavedChanges()) setConfirmIntent('close');
+    else handleClose();
+  };
+
   /* ─── Swipe navigation ───
    * Swipe right → go to previous step (same as the header back chevron).
    * Swipe left  → advance to the next step IF the user has already made the
@@ -1343,7 +1381,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
    * Disabled on submitting / success so users can't accidentally rewind a
    * completed deposit. */
   const swipeBack = () => {
-    if (step === 'form') setStep('channel');
+    if (step === 'form') requestBack();
     else if (step === 'channel' && mustChoosePurpose && depositPurpose) setStep('purpose');
   };
   const swipeForward = () => {
@@ -1357,7 +1395,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
 
   return (
     <>
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) requestClose(); }}>
       {/*
         Mobile-first dialog shell.
         On phones: full screen (no rounded corners, no margins) so everything
@@ -1380,7 +1418,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
             {step === 'form' && (
               <button
                 type="button"
-                onClick={() => setStep('channel')}
+                onClick={requestBack}
                 aria-label="Back"
                 className="-ml-1 h-11 w-11 rounded-full flex items-center justify-center hover:bg-muted active:bg-muted active:scale-90 transition-transform duration-75 touch-manipulation"
               >
@@ -1417,7 +1455,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
             {step !== 'submitting' && (
               <button
                 type="button"
-                onClick={handleClose}
+                onClick={requestClose}
                 aria-label="Close"
                 className="-mr-1 h-11 w-11 rounded-full flex items-center justify-center hover:bg-muted active:bg-muted active:scale-90 transition-transform duration-75 touch-manipulation shrink-0"
               >
@@ -2542,7 +2580,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setStep('channel')}
+                  onClick={requestBack}
                   disabled={isSubmitting}
                   className="h-14 basis-[38%] shrink-0 text-base font-semibold rounded-xl active:scale-95 transition-transform duration-75 touch-manipulation"
                   aria-label="Back to payment method"
@@ -2734,6 +2772,40 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
         })()}
       </DialogContent>
     </Dialog>
+    {/* Unsaved-changes confirm — only mounts when a user tries to back out
+        with content typed. Mobile-friendly: stacked full-width buttons. */}
+    <AlertDialog
+      open={confirmIntent !== null}
+      onOpenChange={(o) => { if (!o) setConfirmIntent(null); }}
+    >
+      <AlertDialogContent className="sm:max-w-sm">
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            {confirmIntent === 'close' ? 'Leave deposit?' : 'Go back?'}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            You have unsaved details. Don't worry — we'll keep a draft so you
+            can pick up where you left off. Leave anyway?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
+          <AlertDialogCancel className="h-12 mt-0 text-base font-semibold touch-manipulation">
+            Keep editing
+          </AlertDialogCancel>
+          <AlertDialogAction
+            className="h-12 text-base font-semibold touch-manipulation"
+            onClick={() => {
+              const intent = confirmIntent;
+              setConfirmIntent(null);
+              if (intent === 'back') setStep('channel');
+              else if (intent === 'close') handleClose();
+            }}
+          >
+            Leave anyway
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     </>
   );
 }
