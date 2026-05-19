@@ -572,7 +572,44 @@ export function WalletStatement() {
           .a11y-large .text-muted-foreground\\/80,
           .a11y-large .text-muted-foreground\\/70 { color: hsl(var(--foreground) / 0.85) !important; }
           .a11y-large .border { border-color: hsl(var(--foreground) / 0.35) !important; }
-          .a11y-large button, .a11y-large [role="button"] { min-height: 44px; }
+          /* Tap targets: WCAG 2.5.5 (44x44) for every interactive element */
+          .a11y-large button,
+          .a11y-large [role="button"],
+          .a11y-large [role="radio"],
+          .a11y-large summary,
+          .a11y-large a {
+            min-height: 48px;
+            min-width: 44px;
+          }
+          /* Segmented controls (date range + direction) — taller pills */
+          .a11y-large [role="radiogroup"] { padding: 4px; gap: 4px; }
+          .a11y-large [role="radiogroup"] > button {
+            padding-top: 12px !important;
+            padding-bottom: 12px !important;
+            padding-left: 14px !important;
+            padding-right: 14px !important;
+          }
+          /* Category chips */
+          .a11y-large [aria-label="Filter by transaction type"] > button {
+            padding: 10px 14px !important;
+            border-radius: 9999px;
+          }
+          /* Transaction row summary — bigger spacing + dedicated chevron affordance */
+          .a11y-large summary { padding-top: 14px !important; padding-bottom: 14px !important; }
+          /* Disclosure header (Income Breakdown / Filter by type toggle) */
+          .a11y-large details > summary,
+          .a11y-large [aria-expanded] { padding-top: 12px; padding-bottom: 12px; }
+          /* Clear filters + show/hide types — keep them comfortably tappable */
+          .a11y-large [aria-label="Clear all filters"] { padding: 10px 12px !important; }
+          /* Highlight cards (role-based) */
+          .a11y-large [aria-label="Category quick filters"] > button {
+            padding-top: 14px !important;
+            padding-bottom: 14px !important;
+            min-height: 64px;
+          }
+          /* Export buttons in header — keep spacing breathable */
+          .a11y-large header button,
+          .a11y-large [class*="SheetHeader"] button { padding: 10px 14px !important; }
         `}</style>
         <SheetHeader className="px-5 pt-5 pb-4 border-b shrink-0">
           <div className="flex items-center justify-between">
