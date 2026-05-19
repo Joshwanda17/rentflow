@@ -459,6 +459,7 @@ export function useAuthForm() {
     };
 
     // Phase 1 — race the 3 placeholders in parallel.
+    setLoginStage('trying-fast');
     const p1Start = performance.now();
     const phase1 = await Promise.all(placeholderCandidates.map(tryOne));
     metrics.phase1Ms = Math.round(performance.now() - p1Start);
@@ -477,6 +478,7 @@ export function useAuthForm() {
     // Phase 2 — only if no placeholder matched, consult the RPC for a real
     // contact email (Gmail/Outlook). Run remaining candidates in parallel too.
     if (!loginSuccess) {
+      setLoginStage('looking-up');
       const p2Start = performance.now();
       const rpcEmails = await rpcLookup;
       const remaining = [...new Set([
@@ -489,6 +491,7 @@ export function useAuthForm() {
 
       if (remaining.length) {
         if (rpcEmails.length) accountExists = true;
+        setLoginStage('trying-extended');
         const phase2 = await Promise.all(remaining.map(tryOne));
         const phase2Winner = phase2.find(r => r.ok);
         if (phase2Winner) {
@@ -531,6 +534,7 @@ export function useAuthForm() {
     );
 
     if (loginSuccess) {
+      setLoginStage('finalizing');
       setLoginError(null);
       setFailedAttempts(0);
       saveLocationInBackground();
