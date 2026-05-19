@@ -47,6 +47,7 @@ const BottomRoleSwitcher = memo(function BottomRoleSwitcher({ currentRole, onRol
 
   const [applyDialogOpen, setApplyDialogOpen] = useState(false);
   const [applyRole, setApplyRole] = useState<AppRole | null>(null);
+  const [announcement, setAnnouncement] = useState("");
 
   const hasStaffRole = roles.some((r) => STAFF_ROLES.includes(r));
   const staffRole = roles.find((r) => STAFF_ROLES.includes(r));
@@ -65,11 +66,15 @@ const BottomRoleSwitcher = memo(function BottomRoleSwitcher({ currentRole, onRol
 
     // Check if role is gated for qualified investors
     if (isRoleGated(role)) {
+      const label = PUBLIC_ROLES.find((r) => r.role === role)?.label ?? role;
+      setAnnouncement(`${label} dashboard is locked. Opening access request.`);
       setApplyRole(role);
       setApplyDialogOpen(true);
       return;
     }
 
+    const label = PUBLIC_ROLES.find((r) => r.role === role)?.label ?? role;
+    setAnnouncement(`Switched to ${label} dashboard`);
     onRoleChange(role);
     // Sync URL with the new persona — URL is the source of truth.
     navigate(roleToSlug(role));
@@ -77,6 +82,7 @@ const BottomRoleSwitcher = memo(function BottomRoleSwitcher({ currentRole, onRol
 
   const handleStaffNav = () => {
     hapticTap();
+    setAnnouncement("Opening Staff hub");
     if (staffRole) {
       const route = roleDashboardRoutes[staffRole] || "/admin/dashboard";
       navigate(route);
@@ -91,6 +97,16 @@ const BottomRoleSwitcher = memo(function BottomRoleSwitcher({ currentRole, onRol
 
   const navContent = (
     <>
+      {/* Polite live region — screen readers announce role changes without stealing focus */}
+      <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+      >
+        {announcement}
+      </div>
+
       <nav
         aria-label="Switch dashboard role"
         className="fixed bottom-0 left-0 right-0 z-[100] bg-background/95 backdrop-blur-md border-t border-border/40 pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-2px_12px_hsl(var(--foreground)/0.06)]"
@@ -108,6 +124,7 @@ const BottomRoleSwitcher = memo(function BottomRoleSwitcher({ currentRole, onRol
                 aria-current={isActive ? 'page' : undefined}
                 className={cn(
                   "flex flex-col items-center justify-center gap-1 py-2 min-h-[56px] transition-colors touch-manipulation active:scale-95 relative",
+                  "outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:rounded-lg focus-visible:z-10",
                   isActive
                     ? "text-primary"
                     : gated
@@ -144,7 +161,7 @@ const BottomRoleSwitcher = memo(function BottomRoleSwitcher({ currentRole, onRol
             <button
               onClick={handleStaffNav}
               aria-label="Staff hub"
-              className="flex flex-col items-center justify-center gap-1 py-2 min-h-[56px] transition-colors touch-manipulation active:scale-95 text-muted-foreground hover:text-foreground"
+              className="flex flex-col items-center justify-center gap-1 py-2 min-h-[56px] transition-colors touch-manipulation active:scale-95 text-muted-foreground hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:rounded-lg focus-visible:z-10"
             >
               <div className="flex items-center justify-center w-8 h-8 rounded-xl transition-colors">
                 <ShieldCheck className="h-5 w-5" />
