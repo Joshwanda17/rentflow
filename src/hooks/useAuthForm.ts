@@ -491,6 +491,12 @@ export function useAuthForm() {
       metrics.phase2Ms = Math.round(performance.now() - p2Start);
     }
 
+    // If we relied on a cached RPC result and still failed every attempt,
+    // drop the cache so the next try re-fetches a fresh email list.
+    if (!loginSuccess && (metrics as any).rpcCacheHit) {
+      try { localStorage.removeItem(`welile_phone_email_cache_${last9}`); } catch { /* non-critical */ }
+    }
+
     metrics.totalMs = Math.round(performance.now() - t0);
     // Persist last login metrics for in-app diagnostics + log to console for
     // remote debugging via session capture. Compact label so it stands out.
