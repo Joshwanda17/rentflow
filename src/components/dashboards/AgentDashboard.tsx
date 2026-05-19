@@ -715,6 +715,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           </div>
         )}
 
+        </div>
         </main>
       </div>
 
