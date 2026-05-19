@@ -266,13 +266,19 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const swipeHandlers = useHorizontalSwipe({
     onSwipeLeft: () => {
       const i = TAB_ORDER.indexOf(activeTab);
-      if (i < TAB_ORDER.length - 1) { hapticTap(); setActiveTab(TAB_ORDER[i + 1]); }
+      if (i < TAB_ORDER.length - 1) { hapticTap(); setSlideDirection('left'); setActiveTab(TAB_ORDER[i + 1]); }
     },
     onSwipeRight: () => {
       const i = TAB_ORDER.indexOf(activeTab);
-      if (i > 0) { hapticTap(); setActiveTab(TAB_ORDER[i - 1]); }
+      if (i > 0) { hapticTap(); setSlideDirection('right'); setActiveTab(TAB_ORDER[i - 1]); }
     },
   });
+
+  const tabAnimClass = slideDirection === 'left'
+    ? 'animate-slide-in-right'
+    : slideDirection === 'right'
+      ? 'animate-slide-in-left'
+      : 'animate-in fade-in duration-200';
 
   const [showQuickDeposit, setShowQuickDeposit] = useState(false);
   const [showQuickWithdraw, setShowQuickWithdraw] = useState(false);
