@@ -457,6 +457,22 @@ export default function WithdrawFlow({
         // "Ledger mismatch detected" message — surface as a clear
         // insufficient-funds toast and stop.
         const rawMsg = String((requestError as any).message || '');
+        const errCode = (requestError as any).code as string | undefined;
+        // RLS denial — almost always means this user has an active proxy
+        // agent assignment, so they cannot self-submit withdrawals. The
+        // funds must be released by their assigned proxy agent.
+        if (
+          errCode === '42501' ||
+          /row-level security|violates row-level security policy/i.test(rawMsg)
+        ) {
+          toast.error('Withdrawals are routed via your assigned agent', {
+            description:
+              'Your account is linked to a proxy agent, so you cannot submit a withdrawal directly. Contact your assigned agent — they will process the cash-out on your behalf.',
+            duration: 10000,
+          });
+          isSubmittingRef.current = false;
+          return false;
+        }
         if (rawMsg.includes('Ledger mismatch detected')) {
           toast.error(
             'Ledger mismatch detected. Transaction aborted. Refresh your balance and try again.',
