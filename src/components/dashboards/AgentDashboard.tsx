@@ -614,7 +614,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
         {/* === MONEY TAB === Wallet, advances, payouts, recovery */}
         {activeTab === 'money' && (
-          <div className="space-y-5 animate-in fade-in duration-200">
+          <div className={cn("space-y-5", tabAnimClass)}>
             <AgentCompanyDebtCard onViewBreakdown={() => { hapticTap(); setTenantsSheetOpen(true); }} />
             <AgentRiskExposureCard />
             <EarnedSinceLastWithdrawalCard />
