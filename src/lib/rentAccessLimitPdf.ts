@@ -2,6 +2,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import welileLogoUrl from '@/assets/welile-logo.png';
 import type { RentAccessLimitResult } from '@/lib/rentAccessLimit';
 import { getShareCardThemeSync } from '@/hooks/useShareCardTheme';
+import QRCode from 'qrcode';
 
 export interface RentAccessLimitPdfData {
   tenantName: string;
@@ -22,6 +23,44 @@ async function loadLogoBase64(): Promise<string | null> {
       reader.onerror = () => resolve(null);
       reader.readAsDataURL(blob);
     });
+  } catch {
+    return null;
+  }
+}
+
+/** Render a QR code (PNG data URL) for the given URL. Returns null on failure. */
+async function generateQrDataUrl(
+  url: string,
+  size: number,
+  opts?: { dark?: string; light?: string },
+): Promise<string | null> {
+  try {
+    return await QRCode.toDataURL(url, {
+      width: size,
+      margin: 1,
+      errorCorrectionLevel: 'M',
+      color: {
+        dark: opts?.dark ?? '#0f172a',
+        light: opts?.light ?? '#ffffff',
+      },
+    });
+  } catch {
+    return null;
+  }
+}
+
+/** Render a QR code as an HTMLImageElement for canvas drawing. */
+async function loadQrImage(url: string, size: number): Promise<HTMLImageElement | null> {
+  const dataUrl = await generateQrDataUrl(url, size);
+  if (!dataUrl) return null;
+  try {
+    const img = new Image();
+    img.src = dataUrl;
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('qr load failed'));
+    });
+    return img;
   } catch {
     return null;
   }
