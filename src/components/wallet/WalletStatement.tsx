@@ -30,10 +30,11 @@ import {
   Filter,
   X,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  FileSpreadsheet
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
-import { format } from 'date-fns';
+import { format, subDays } from 'date-fns';
 // jsPDF loaded dynamically when needed
 import { toast } from 'sonner';
 
