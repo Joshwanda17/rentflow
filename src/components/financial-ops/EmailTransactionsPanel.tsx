@@ -562,7 +562,7 @@ export function EmailTransactionsPanel() {
       // this exact transaction id maps the email straight to its user.
       const depQ = refList.length
         ? (supabase.from('deposit_requests') as any)
-            .select('transaction_id, user_id, profiles:profiles!deposit_requests_user_id_fkey(id, full_name, phone, mobile_money_number)')
+            .select('transaction_id, user_id')
             .in('transaction_id', refList)
             .limit(500)
         : Promise.resolve({ data: [], error: null });
@@ -579,9 +579,21 @@ export function EmailTransactionsPanel() {
           byPhone.set(n, list);
         }
       }
+      // Resolve deposit_requests.user_id → profile in a second roundtrip so
+      // we don't depend on a specific FK alias being declared on the table.
+      const depRows = (deps ?? []) as Array<{ transaction_id: string; user_id: string }>;
+      const userIds = Array.from(new Set(depRows.map((d) => d.user_id).filter(Boolean)));
+      let refProfiles: Record<string, P> = {};
+      if (userIds.length) {
+        const { data: pps } = await (supabase.from('profiles') as any)
+          .select('id, full_name, phone, mobile_money_number')
+          .in('id', userIds);
+        for (const p of (pps ?? []) as P[]) refProfiles[p.id] = p;
+      }
       const byRef = new Map<string, P>();
-      for (const d of (deps ?? []) as Array<{ transaction_id: string; profiles: P | null }>) {
-        if (d.transaction_id && d.profiles) byRef.set(d.transaction_id.toUpperCase(), d.profiles);
+      for (const d of depRows) {
+        const p = refProfiles[d.user_id];
+        if (d.transaction_id && p) byRef.set(d.transaction_id.toUpperCase(), p);
       }
       const next: Record<string, MatchedUser[]> = {};
       for (const [rowId, phones] of rowPhones) {
