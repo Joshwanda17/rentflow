@@ -456,6 +456,18 @@ export function EmailTransactionsPanel() {
     typeof window === 'undefined' ? '' : (localStorage.getItem('gmail_filter_search') || '')
   );
   useEffect(() => { try { localStorage.setItem('gmail_filter_search', searchQuery); } catch {} }, [searchQuery]);
+  // Match-type filter for the Recent emails list. Persisted so it survives reload.
+  //   all       → no match filter
+  //   confident → at least one reference OR from-phone match
+  //   reference → at least one reference / TID match
+  //   from      → at least one phone-after-"from" match
+  type MatchFilter = 'all' | 'confident' | 'reference' | 'from';
+  const [matchFilter, setMatchFilter] = useState<MatchFilter>(() => {
+    if (typeof window === 'undefined') return 'all';
+    const v = localStorage.getItem('gmail_filter_match') as MatchFilter | null;
+    return v && ['all', 'confident', 'reference', 'from'].includes(v) ? v : 'all';
+  });
+  useEffect(() => { try { localStorage.setItem('gmail_filter_match', matchFilter); } catch {} }, [matchFilter]);
 
   // Persisted cache of derived channel classifications keyed by transaction id
   // / receipt number (with gmail_message_id as fallback). Loaded once on mount
@@ -1127,8 +1139,52 @@ export function EmailTransactionsPanel() {
       )}
 
       <div className="rounded-xl border bg-card overflow-hidden">
-        <div className="p-4 border-b">
+        <div className="p-4 border-b flex items-center justify-between gap-3 flex-wrap">
           <h3 className="font-semibold text-sm">Recent emails</h3>
+          {(() => {
+            // Pre-compute counts so the user knows what each chip will narrow to.
+            const refCount = filteredRows.filter((r) =>
+              (userMatches[r.id] ?? []).some((u) => u.matched_on.startsWith('reference '))
+            ).length;
+            const fromCount = filteredRows.filter((r) =>
+              (userMatches[r.id] ?? []).some((u) => u.matched_on.startsWith('from '))
+            ).length;
+            const confCount = filteredRows.filter((r) =>
+              (userMatches[r.id] ?? []).some(
+                (u) => u.matched_on.startsWith('reference ') || u.matched_on.startsWith('from ')
+              )
+            ).length;
+            const chips: Array<{ key: MatchFilter; label: string; count: number }> = [
+              { key: 'all', label: 'All', count: filteredRows.length },
+              { key: 'confident', label: 'Confident matches', count: confCount },
+              { key: 'reference', label: 'Reference (TID)', count: refCount },
+              { key: 'from', label: 'From-phone', count: fromCount },
+            ];
+            return (
+              <div className="flex items-center gap-1 flex-wrap">
+                {chips.map((c) => {
+                  const active = matchFilter === c.key;
+                  return (
+                    <button
+                      key={c.key}
+                      type="button"
+                      onClick={() => setMatchFilter(c.key)}
+                      className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
+                        active
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-background hover:bg-muted text-muted-foreground border-border'
+                      }`}
+                    >
+                      {c.label}
+                      <span className={`ml-1.5 font-mono tabular-nums ${active ? 'opacity-90' : 'opacity-60'}`}>
+                        {c.count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
         {loading ? (
           <div className="p-8 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
@@ -1140,7 +1196,18 @@ export function EmailTransactionsPanel() {
           </div>
         ) : (
           <div className="divide-y max-h-[600px] overflow-y-auto">
-            {filteredRows.map((r) => (
+            {filteredRows
+              .filter((r) => {
+                if (matchFilter === 'all') return true;
+                const list = userMatches[r.id] ?? [];
+                if (matchFilter === 'reference') return list.some((u) => u.matched_on.startsWith('reference '));
+                if (matchFilter === 'from') return list.some((u) => u.matched_on.startsWith('from '));
+                // 'confident'
+                return list.some(
+                  (u) => u.matched_on.startsWith('reference ') || u.matched_on.startsWith('from ')
+                );
+              })
+              .map((r) => (
               <div
                 key={r.id}
                 className={`p-4 transition-colors ${
