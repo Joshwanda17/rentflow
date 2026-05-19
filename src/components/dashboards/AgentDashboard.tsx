@@ -497,7 +497,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         <div {...swipeHandlers} className="touch-pan-y">
         {/* === HOME TAB === Most-used actions, at-a-glance */}
         {activeTab === 'home' && (
-          <div className="space-y-4 animate-in fade-in duration-200">
+          <div className={cn("space-y-4", tabAnimClass)}>
             {/*
              * Agent shortcut: paste a bank reference / MoMo TID / merchant
              * receipt number you grabbed in the field, and we resolve it
