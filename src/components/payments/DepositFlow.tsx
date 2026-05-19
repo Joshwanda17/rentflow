@@ -385,6 +385,97 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     };
   }, []);
 
+  /* ─── Draft autosave / restore ───
+   * Smartphone users frequently background the app (incoming call, SMS to
+   * copy the MoMo confirmation, switching to MyMTN). Losing typed amount /
+   * TID / reason on every interruption was the #1 friction point in the
+   * deposit flow. We persist a per-user snapshot to localStorage on every
+   * relevant change and silently rehydrate the next time the dialog opens.
+   *
+   * Skipped in edit mode (we already prefill from the DB row) and when the
+   * caller pins `lockPurpose` (top-up flows that pre-decide the purpose). */
+  const draftKey = currentUserId
+    ? `welile.depositDraft.${currentUserId}`
+    : null;
+  const draftSuppressRef = useRef(false);
+  const draftRestoredRef = useRef(false);
+  const clearDraft = () => {
+    draftSuppressRef.current = true;
+    if (draftKey) {
+      try { localStorage.removeItem(draftKey); } catch { /* quota / safari */ }
+    }
+  };
+
+  // Restore once per dialog opening.
+  useEffect(() => {
+    if (!open) { draftRestoredRef.current = false; draftSuppressRef.current = false; return; }
+    if (draftRestoredRef.current) return;
+    if (!draftKey || isEditMode || lockPurpose) return;
+    let raw: string | null = null;
+    try { raw = localStorage.getItem(draftKey); } catch { return; }
+    if (!raw) { draftRestoredRef.current = true; return; }
+    try {
+      const d = JSON.parse(raw) as Record<string, unknown>;
+      // Drafts older than 7 days are stale — discard.
+      const savedAt = typeof d._savedAt === 'number' ? d._savedAt : 0;
+      if (Date.now() - savedAt > 7 * 24 * 60 * 60 * 1000) {
+        localStorage.removeItem(draftKey);
+        draftRestoredRef.current = true;
+        return;
+      }
+      if (typeof d.step === 'string' && ['purpose', 'channel', 'form'].includes(d.step)) {
+        setStep(d.step as 'purpose' | 'channel' | 'form');
+      }
+      if (typeof d.channel === 'string') setChannel(d.channel as DepositChannel);
+      if (d.momoProvider === 'mtn' || d.momoProvider === 'airtel') setMomoProvider(d.momoProvider);
+      if (typeof d.amount === 'string') setAmount(d.amount);
+      if (typeof d.transactionId === 'string') setTransactionId(d.transactionId);
+      if (typeof d.receiptNumber === 'string') setReceiptNumber(d.receiptNumber);
+      if (typeof d.agentName === 'string') setAgentName(d.agentName);
+      if (typeof d.transactionDate === 'string') setTransactionDate(d.transactionDate);
+      if (typeof d.transactionTime === 'string') setTransactionTime(d.transactionTime);
+      if (typeof d.reason === 'string') setReason(d.reason);
+      if (typeof d.depositPurpose === 'string') setDepositPurpose(d.depositPurpose as DepositPurpose | '');
+      if (typeof d.breakdownChoice === 'string' && ['pending', 'no', 'yes'].includes(d.breakdownChoice)) {
+        setBreakdownChoice(d.breakdownChoice as 'pending' | 'no' | 'yes');
+      }
+      if (typeof d.agentPersonalConfirmedAt === 'string') setAgentPersonalConfirmedAt(d.agentPersonalConfirmedAt);
+      if (typeof d.purposeChosenAt === 'string') setPurposeChosenAt(d.purposeChosenAt);
+      if (d.purposeEntryPoint === 'gate' || d.purposeEntryPoint === 'default' || d.purposeEntryPoint === 'in_form') {
+        setPurposeEntryPoint(d.purposeEntryPoint);
+      }
+      toast.info('Draft restored', {
+        description: 'We kept your last deposit details. Tap the X to start fresh.',
+        duration: 3500,
+      });
+    } catch { /* malformed JSON — ignore */ }
+    draftRestoredRef.current = true;
+  }, [open, draftKey, isEditMode, lockPurpose]);
+
+  // Autosave — fires on every keystroke. Debounced via microtask coalesce
+  // (React batches state updates so this runs at most once per commit).
+  useEffect(() => {
+    if (!open || !draftKey || isEditMode) return;
+    if (draftSuppressRef.current) return;
+    if (step === 'submitting' || step === 'success') return;
+    // Avoid saving an empty shell before the user has typed anything.
+    const hasContent = amount || transactionId || receiptNumber || agentName || reason || depositPurpose;
+    if (!hasContent) return;
+    try {
+      localStorage.setItem(draftKey, JSON.stringify({
+        step, channel, momoProvider, amount, transactionId, receiptNumber,
+        agentName, transactionDate, transactionTime, reason, depositPurpose,
+        breakdownChoice, agentPersonalConfirmedAt, purposeChosenAt, purposeEntryPoint,
+        _savedAt: Date.now(),
+      }));
+    } catch { /* quota / safari private mode — silent */ }
+  }, [
+    open, draftKey, isEditMode, step, channel, momoProvider, amount,
+    transactionId, receiptNumber, agentName, transactionDate, transactionTime,
+    reason, depositPurpose, breakdownChoice, agentPersonalConfirmedAt,
+    purposeChosenAt, purposeEntryPoint,
+  ]);
+
   /**
    * Read the clipboard, parse the full deposit-confirmation SMS, and
    * auto-fill amount, transaction ID, date, and time in one tap.
