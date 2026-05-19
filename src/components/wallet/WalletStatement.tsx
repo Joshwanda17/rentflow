@@ -573,14 +573,18 @@ export function WalletStatement() {
         </Button>
       </SheetTrigger>
 
-      <SheetContent side="bottom" className={`h-[92vh] rounded-t-3xl p-0 flex flex-col ${a11yMode ? 'a11y-large' : ''}`}>
+      <SheetContent
+        side="bottom"
+        className={`h-[92vh] rounded-t-3xl p-0 flex flex-col ${a11yMode ? 'a11y-large' : ''}`}
+        style={a11yMode ? ({ ['--a11y-scale' as any]: a11ySize === 2 ? 1.3 : a11ySize === 1 ? 1.15 : 1 } as React.CSSProperties) : undefined}
+      >
         {/* Scoped accessibility overrides: larger text + stronger contrast */}
         <style>{`
-          .a11y-large { font-size: 17px; }
-          .a11y-large .text-\\[10px\\] { font-size: 13px !important; line-height: 1.3 !important; }
-          .a11y-large .text-\\[11px\\] { font-size: 14px !important; line-height: 1.4 !important; }
-          .a11y-large .text-xs { font-size: 15px !important; line-height: 1.45 !important; }
-          .a11y-large .text-sm { font-size: 16px !important; line-height: 1.5 !important; }
+          .a11y-large { font-size: calc(17px * var(--a11y-scale, 1)); }
+          .a11y-large .text-\\[10px\\] { font-size: calc(13px * var(--a11y-scale, 1)) !important; line-height: 1.3 !important; }
+          .a11y-large .text-\\[11px\\] { font-size: calc(14px * var(--a11y-scale, 1)) !important; line-height: 1.4 !important; }
+          .a11y-large .text-xs { font-size: calc(15px * var(--a11y-scale, 1)) !important; line-height: 1.45 !important; }
+          .a11y-large .text-sm { font-size: calc(16px * var(--a11y-scale, 1)) !important; line-height: 1.5 !important; }
           .a11y-large .text-muted-foreground { color: hsl(var(--foreground) / 0.92) !important; }
           .a11y-large .text-muted-foreground\\/80,
           .a11y-large .text-muted-foreground\\/70 { color: hsl(var(--foreground) / 0.85) !important; }
