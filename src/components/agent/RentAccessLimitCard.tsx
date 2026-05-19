@@ -11,6 +11,7 @@ import {
   RENT_ACCESS_MAX_LIMIT_UGX,
   type RepaymentLike,
 } from '@/lib/rentAccessLimit';
+import { useRentAccessLimitParams } from '@/hooks/useRentAccessLimitParams';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -111,10 +112,18 @@ export function RentAccessLimitCard({
     suggestedRent && suggestedRent > 0 ? String(suggestedRent) : '',
   );
   const [savingRent, setSavingRent] = useState(false);
+  const { params } = useRentAccessLimitParams();
+  const PAID_INC = params.paid_increment_ugx;
+  const MISS_DEC = params.missed_decrement_ugx;
+  const MAX_LIMIT = params.max_limit_ugx;
 
   const result = useMemo(
-    () => calculateRentAccessLimit(monthlyRent, repayments),
-    [monthlyRent, repayments],
+    () => calculateRentAccessLimit(monthlyRent, repayments, new Date(), {
+      paidIncrementUgx: PAID_INC,
+      missedDecrementUgx: MISS_DEC,
+      maxLimitUgx: MAX_LIMIT,
+    }),
+    [monthlyRent, repayments, PAID_INC, MISS_DEC, MAX_LIMIT],
   );
 
   // Rent missing → still show the limit card (no minimum-payments gate),
@@ -165,10 +174,10 @@ export function RentAccessLimitCard({
           </div>
           <div className="min-w-0">
             <p className="text-sm font-bold text-foreground">
-              Unlock up to {formatUGX(RENT_ACCESS_MAX_LIMIT_UGX)} in rent money
+              Unlock up to {formatUGX(MAX_LIMIT)} in rent money
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Every on-time payment adds {formatUGX(RENT_ACCESS_PAID_INCREMENT_UGX)} to {tenantName.split(' ')[0]}'s limit.
+              Every on-time payment adds {formatUGX(PAID_INC)} to {tenantName.split(' ')[0]}'s limit.
               Add monthly rent below to power the share card.
             </p>
           </div>
@@ -323,17 +332,17 @@ export function RentAccessLimitCard({
             <p className="text-sm font-semibold text-primary mt-1.5 flex items-center gap-1">
               <Wallet className="h-3.5 w-3.5" aria-hidden />
               {result.atMax
-                ? `Maxed out at ${formatUGX(RENT_ACCESS_MAX_LIMIT_UGX)} — the ceiling`
+                ? `Maxed out at ${formatUGX(MAX_LIMIT)} — the ceiling`
                 : 'You can use this money for rent today'}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              {progressPct}% toward the {formatUGX(RENT_ACCESS_MAX_LIMIT_UGX)} ceiling ·{' '}
+              {progressPct}% toward the {formatUGX(MAX_LIMIT)} ceiling ·{' '}
               <span className="text-success font-semibold">
-                +{formatUGX(RENT_ACCESS_PAID_INCREMENT_UGX)}/paid day
+                +{formatUGX(PAID_INC)}/paid day
               </span>
               {' · '}
               <span className="text-destructive font-semibold">
-                −{formatUGX(RENT_ACCESS_MISSED_DECREMENT_UGX)}/missed day
+                −{formatUGX(MISS_DEC)}/missed day
               </span>
             </p>
           </div>
@@ -356,8 +365,8 @@ export function RentAccessLimitCard({
             )}
             <p className="text-xs sm:text-sm font-semibold flex-1">
               {result.paidToday
-                ? `+${formatUGX(RENT_ACCESS_PAID_INCREMENT_UGX)} earned today`
-                : `Pay today to earn +${formatUGX(RENT_ACCESS_PAID_INCREMENT_UGX)} (skip = −${formatUGX(RENT_ACCESS_MISSED_DECREMENT_UGX)})`}
+                ? `+${formatUGX(PAID_INC)} earned today`
+                : `Pay today to earn +${formatUGX(PAID_INC)} (skip = −${formatUGX(MISS_DEC)})`}
             </p>
           </div>
 
@@ -402,13 +411,13 @@ export function RentAccessLimitCard({
                 Every tenant starts with a fresh limit — no minimum payments needed.
               </p>
               <p className="text-success">
-                ✅ Pay rent today → limit grows by {formatUGX(RENT_ACCESS_PAID_INCREMENT_UGX)}
+                ✅ Pay rent today → limit grows by {formatUGX(PAID_INC)}
               </p>
               <p className="text-destructive">
-                ❌ Miss a day → limit drops by {formatUGX(RENT_ACCESS_MISSED_DECREMENT_UGX)}
+                ❌ Miss a day → limit drops by {formatUGX(MISS_DEC)}
               </p>
               <p className="text-foreground">
-                🏁 Maximum any tenant can reach: <span className="font-bold">{formatUGX(RENT_ACCESS_MAX_LIMIT_UGX)}</span>
+                🏁 Maximum any tenant can reach: <span className="font-bold">{formatUGX(MAX_LIMIT)}</span>
               </p>
               <p className="text-muted-foreground pt-1 font-medium">
                 Pay every day. The more you pay, the more rent Welile can give you.
