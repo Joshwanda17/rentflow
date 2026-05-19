@@ -38,6 +38,43 @@ import { format, subDays } from 'date-fns';
 // jsPDF loaded dynamically when needed
 import { toast } from 'sonner';
 
+// ── Role-based highlight config ──
+// Each role sees the categories that matter most to them surfaced first,
+// in a "For you" card. Falls back to a generic set for unknown roles.
+const ROLE_HIGHLIGHTS: Record<string, { title: string; subtitle: string; categories: string[] }> = {
+  tenant: {
+    title: 'Your rent activity',
+    subtitle: 'Deposits, daily rent and refunds that matter for tenants',
+    categories: ['deposit', 'rent_repayment', 'rent_auto_deduction', 'transfer_in', 'wallet_withdrawal'],
+  },
+  agent: {
+    title: 'Your earnings as an agent',
+    subtitle: 'Commissions, bonuses and float movements',
+    categories: ['agent_commission', 'subagent_commission', 'approval_bonus', 'referral_bonus', 'referral_first_transaction', 'wallet_withdrawal'],
+  },
+  proxy_agent: {
+    title: 'Your earnings as an agent',
+    subtitle: 'Commissions, bonuses and float movements',
+    categories: ['agent_commission', 'subagent_commission', 'approval_bonus', 'referral_bonus', 'wallet_withdrawal'],
+  },
+  partner: {
+    title: 'Partner activity',
+    subtitle: 'Proxy commissions, top-ups and payouts',
+    categories: ['partner_commission', 'agent_commission', 'pool_investment', 'wallet_withdrawal', 'deposit'],
+  },
+  supporter: {
+    title: 'Your investor activity',
+    subtitle: 'Returns, top-ups and payouts on your portfolio',
+    categories: ['supporter_reward', 'pool_investment', 'deposit', 'wallet_withdrawal', 'transfer_in'],
+  },
+};
+
+const DEFAULT_HIGHLIGHT = {
+  title: 'Your wallet activity',
+  subtitle: 'The main things moving in and out of your wallet',
+  categories: ['deposit', 'wallet_withdrawal', 'transfer_in', 'transfer_out', 'welcome_bonus'],
+};
+
 interface LedgerEntry {
   id: string;
   date: string;
@@ -80,7 +117,7 @@ function formatAmount(amount: number): string {
 }
 
 export function WalletStatement() {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -462,6 +499,20 @@ export function WalletStatement() {
 
   const breakdownItems = Object.entries(breakdown).filter(([, v]) => v > 0);
 
+  // ── Role-based highlights (computed from filtered entries) ──
+  const highlightConfig = (role && ROLE_HIGHLIGHTS[role]) || DEFAULT_HIGHLIGHT;
+  const highlightTotals = highlightConfig.categories
+    .map((cat) => {
+      const rows = filteredEntries.filter((e) => e.category === cat);
+      if (rows.length === 0) return null;
+      const inSum = rows.filter((e) => e.type === 'credit').reduce((s, e) => s + e.amount, 0);
+      const outSum = rows.filter((e) => e.type === 'debit').reduce((s, e) => s + e.amount, 0);
+      const net = inSum - outSum;
+      const meta = getCategoryMeta(cat, net >= 0 ? 'cash_in' : 'cash_out');
+      return { cat, count: rows.length, inSum, outSum, net, ...meta };
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null);
+
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
@@ -543,6 +594,54 @@ export function WalletStatement() {
                 </div>
               </div>
             </div>
+
+            {/* ── Role-based highlights ── */}
+            {highlightTotals.length > 0 && (
+              <div className="mb-4 rounded-2xl border bg-card p-4">
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-primary">
+                      {highlightConfig.title}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">{highlightConfig.subtitle}</p>
+                  </div>
+                  {role && (
+                    <Badge variant="secondary" className="shrink-0 text-[10px] capitalize">
+                      {role.replace(/_/g, ' ')}
+                    </Badge>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {highlightTotals.map((h) => {
+                    const isPositive = h.net >= 0;
+                    return (
+                      <button
+                        key={h.cat}
+                        type="button"
+                        onClick={() => {
+                          setCategoryFilter(h.cat === categoryFilter ? 'all' : h.cat);
+                          setShowCategoryFilters(true);
+                        }}
+                        className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-colors hover:bg-muted/40 ${
+                          categoryFilter === h.cat ? 'border-primary bg-primary/5' : 'border-border'
+                        }`}
+                      >
+                        <div className={`h-8 w-8 shrink-0 rounded-full flex items-center justify-center ${h.colorClass}`}>
+                          <h.Icon className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-semibold text-foreground">{h.label}</p>
+                          <p className="text-[10px] text-muted-foreground">{h.count} {h.count === 1 ? 'entry' : 'entries'}</p>
+                        </div>
+                        <p className={`shrink-0 text-sm font-bold tabular-nums ${isPositive ? 'text-success' : 'text-destructive'}`}>
+                          {isPositive ? '+' : '-'}{formatUGX(Math.abs(h.net))}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* ── Income Breakdown (collapsed by default) ── */}
             {breakdownItems.length > 0 && (
