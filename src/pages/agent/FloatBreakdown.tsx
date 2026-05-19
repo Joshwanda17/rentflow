@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowDownCircle, ArrowUpCircle, Wallet, Info, Calendar, X, ChevronRight, Copy, Check, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { ArrowLeft, ArrowDownCircle, ArrowUpCircle, Wallet, Info, Calendar, X, ChevronRight, Copy, Check, TrendingUp, TrendingDown, Minus, Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrency } from '@/hooks/useCurrency';
@@ -18,6 +18,7 @@ interface FloatRow {
   description: string | null;
   transaction_group_id: string | null;
   linked_party: string | null;
+  reference_id: string | null;
 }
 
 interface SiblingLeg {
@@ -94,6 +95,7 @@ export default function AgentFloatBreakdown() {
   const [preset, setPreset] = useState<Preset>('all');
   const [fromDate, setFromDate] = useState<string>('');
   const [toDate, setToDate] = useState<string>('');
+  const [search, setSearch] = useState<string>('');
   const [selected, setSelected] = useState<FloatRow | null>(null);
   const [detail, setDetail] = useState<EntryDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -150,14 +152,21 @@ export default function AgentFloatBreakdown() {
   const currentFloat = rows[0]?.running_balance ?? 0;
 
   const filteredRows = useMemo(() => {
-    if (!fromDate && !toDate) return rows;
     const fromMs = fromDate ? new Date(fromDate + 'T00:00:00').getTime() : -Infinity;
     const toMs = toDate ? new Date(toDate + 'T23:59:59.999').getTime() : Infinity;
+    const q = search.trim().toLowerCase();
     return rows.filter((r) => {
       const t = new Date(r.occurred_at).getTime();
-      return t >= fromMs && t <= toMs;
+      if (t < fromMs || t > toMs) return false;
+      if (!q) return true;
+      return (
+        (r.reference_id ?? '').toLowerCase().includes(q) ||
+        (r.transaction_group_id ?? '').toLowerCase().includes(q) ||
+        (r.entry_id ?? '').toLowerCase().includes(q) ||
+        (r.description ?? '').toLowerCase().includes(q)
+      );
     });
-  }, [rows, fromDate, toDate]);
+  }, [rows, fromDate, toDate, search]);
 
   const totalIn = filteredRows.filter(r => r.signed_amount > 0).reduce((s, r) => s + Number(r.signed_amount), 0);
   const totalOut = filteredRows.filter(r => r.signed_amount < 0).reduce((s, r) => s + Number(r.signed_amount), 0);
