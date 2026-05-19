@@ -28,6 +28,7 @@ import { RegisterSubAgentDialog } from './RegisterSubAgentDialog';
 import { EditTenantDialog } from './EditTenantDialog';
 import { TenantQuickActionsSheet } from './TenantQuickActionsSheet';
 import { RentAccessLimitCard } from './RentAccessLimitCard';
+import RentAccessLimitActivity from './RentAccessLimitActivity';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Sparkles, ChevronRight } from 'lucide-react';
 
@@ -1527,7 +1528,7 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
               {profile.full_name}'s live limit — recalculated daily from repayments.
             </SheetDescription>
           </SheetHeader>
-          <div className="flex-1 overflow-y-auto px-3 sm:px-4 pb-6">
+          <div className="flex-1 overflow-y-auto px-3 sm:px-4 pb-6 space-y-3">
             <RentAccessLimitCard
               tenantId={profile.id}
               tenantName={profile.full_name}
@@ -1542,6 +1543,11 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
               }}
               repayments={repayments.map(r => ({ amount: r.amount, created_at: r.created_at }))}
               aiId={aiId}
+            />
+            <RentAccessLimitActivity
+              tenantName={profile.full_name}
+              monthlyRent={effectiveMonthlyRent}
+              repayments={repayments.map(r => ({ amount: r.amount, created_at: r.created_at }))}
             />
           </div>
         </SheetContent>
