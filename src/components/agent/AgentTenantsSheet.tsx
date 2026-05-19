@@ -1320,6 +1320,10 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                 </div>
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="recent-desc">Most recent (Newest → Oldest)</SelectItem>
+                <SelectItem value="recent-asc">Most recent (Oldest → Newest)</SelectItem>
+                <SelectItem value="name-asc">Name (A → Z)</SelectItem>
+                <SelectItem value="name-desc">Name (Z → A)</SelectItem>
                 <SelectItem value="balance-desc">Balance (High → Low)</SelectItem>
                 <SelectItem value="balance-asc">Balance (Low → High)</SelectItem>
                 <SelectItem value="daily-desc">Daily Expected (High → Low)</SelectItem>
