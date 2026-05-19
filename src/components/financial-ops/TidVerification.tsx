@@ -43,7 +43,13 @@ import {
   ArrowUpDown,
   Users,
   Receipt,
+  Info,
 } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { decodeAllocationsFromNote } from '@/components/payments/OperationalFloatTenantAllocator';
 import type { TenantAllocation } from '@/components/payments/OperationalFloatTenantAllocator';
 
@@ -2227,29 +2233,37 @@ export function TidVerification() {
                               else reasons.push(`No linked agent (self-deposit).`);
                             }
                             return (
-                              <div
-                                className={`mt-1.5 rounded-md border p-1.5 text-[10px] leading-snug ${
-                                  isOpFloat
-                                    ? 'border-primary/30 bg-primary/5 text-foreground'
-                                    : 'border-amber-300/60 bg-amber-50/40 dark:bg-amber-950/10 text-amber-900 dark:text-amber-200'
-                                }`}
-                                aria-label={`Categorisation explanation: ${isOpFloat ? 'is' : 'is not'} operational float`}
-                              >
-                                <p className="font-semibold flex items-center gap-1">
-                                  {isOpFloat ? (
-                                    <><Users className="h-2.5 w-2.5" /> Why this is Operational Float</>
-                                  ) : (
-                                    <><AlertTriangle className="h-2.5 w-2.5" /> Why this is NOT Operational Float</>
-                                  )}
-                                </p>
-                                <p className="mt-0.5 text-muted-foreground">
-                                  Purpose: <span className="font-mono text-foreground">{purposeLabel}</span>
-                                  {' · '}Agent link: <span className="font-mono text-foreground">{hasAgent ? 'set' : 'none'}</span>
-                                </p>
-                                <ul className="mt-0.5 list-disc pl-3.5 space-y-0.5">
-                                  {reasons.map((r, i) => <li key={i}>{r}</li>)}
-                                </ul>
-                              </div>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    type="button"
+                                    className={`mt-1.5 inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                                      isOpFloat
+                                        ? 'border-primary/30 bg-primary/5 text-primary hover:bg-primary/10'
+                                        : 'border-amber-300/60 bg-amber-50/40 dark:bg-amber-950/10 text-amber-700 dark:text-amber-300 hover:bg-amber-100/60 dark:hover:bg-amber-900/20'
+                                    }`}
+                                    aria-label={`Categorisation explanation: ${isOpFloat ? 'is' : 'is not'} operational float`}
+                                  >
+                                    {isOpFloat ? (
+                                      <><Users className="h-2.5 w-2.5" /> Op-Float · {hasAgent ? 'linked' : 'unlinked'}</>
+                                    ) : (
+                                      <><Info className="h-2.5 w-2.5" /> Not float · {purposeLabel}</>
+                                    )}
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom" align="start" className="max-w-xs p-2.5 text-[11px] leading-snug space-y-1">
+                                  <p className="font-semibold">
+                                    {isOpFloat ? 'Why this is Operational Float' : 'Why this is NOT Operational Float'}
+                                  </p>
+                                  <p className="text-muted-foreground">
+                                    Purpose: <span className="font-mono text-foreground">{purposeLabel}</span>
+                                    {' · '}Agent link: <span className="font-mono text-foreground">{hasAgent ? 'set' : 'none'}</span>
+                                  </p>
+                                  <ul className="list-disc pl-3.5 space-y-0.5">
+                                    {reasons.map((r, i) => <li key={i}>{r}</li>)}
+                                  </ul>
+                                </TooltipContent>
+                              </Tooltip>
                             );
                           })()}
                           {m.deposit_purpose === 'operational_float' && m.allocations && m.allocations.length > 0 && (
