@@ -355,120 +355,82 @@ export function useAuthForm() {
     const digits = phone.replace(/\D/g, '');
     const last9 = digits.slice(-9);
 
-    // Build email candidates — real emails first, then placeholders as fallback
-    const emailCandidates: string[] = [];
+    // PARALLEL LOGIN STRATEGY (fast path)
+    // The old flow ran an RPC lookup (up to 5s) → optional profile fallback
+    // (~500ms) → then up to 5+ sequential signInWithPassword attempts. On the
+    // common phone-only account that meant 4–8s before the user got in.
+    //
+    // New flow: fire the 3 most likely placeholder identifiers AND the RPC
+    // lookup in parallel. Whichever signin returns a session first wins.
+    // Only if every placeholder fails do we wait on the RPC result and try
+    // any real (Gmail/Outlook) email it returns.
+    let loginSuccess = false;
+    let lastError: Error | null = null;
+    let accountExists = false;
 
-    // RPC lookup first: find real email linked to this phone (Gmail, Outlook, etc.)
-    let rpcEmails: string[] = [];
-    try {
-      const { data } = await Promise.race([
-        supabase.rpc('get_email_by_phone', { phone_variants: [`0${last9}`, `256${last9}`, last9] }),
-        new Promise<{ data: null }>((resolve) => setTimeout(() => resolve({ data: null }), 5000)),
-      ]);
-      if (data?.length) {
-        rpcEmails = (data as { email: string }[]).map(r => r.email).filter(Boolean);
-      }
-    } catch {
-      // RPC lookup failed — continue to direct profile lookup fallback
-    }
-
-    // Fallback: direct profile lookup by phone so phone->email login still works if RPC is slow/unavailable
-    if (!rpcEmails.length) {
-      try {
-        const { data: profileMatches } = await supabase
-          .from('profiles')
-          .select('email')
-          .in('phone', [`0${last9}`, `256${last9}`, last9])
-          .not('email', 'is', null)
-          .limit(10);
-
-        if (profileMatches?.length) {
-          rpcEmails = profileMatches
-            .map((row) => row.email)
-            .filter((value): value is string => Boolean(value));
-        }
-      } catch {
-        // Ignore and continue with generated placeholder candidates
-      }
-    }
-
-    if (rpcEmails.length) {
-      // PRIORITY: Real emails first (Gmail, Outlook, etc.) — these are verified accounts
-      const realEmails = rpcEmails.filter(e => !e.includes('@welile.'));
-      const placeholderEmails = rpcEmails.filter(e => e.includes('@welile.'));
-      emailCandidates.push(...realEmails, ...placeholderEmails);
-    }
-
-    // Fallback: generated placeholder emails (tried only if RPC found nothing)
-    emailCandidates.push(
+    const placeholderCandidates = [
       `0${last9}@welile.user`,
       `256${last9}@welile.user`,
       `${last9}@welile.user`,
-      `0${last9}@welile.agent`,
-      `256${last9}@welile.agent`,
-      `${last9}@welile.agent`,
-    );
+    ];
 
-    // Deduplicate while preserving order
-    const uniqueCandidates = [...new Set(emailCandidates)];
+    const rpcLookup = (async (): Promise<string[]> => {
+      try {
+        const { data } = await Promise.race([
+          supabase.rpc('get_email_by_phone', { phone_variants: [`0${last9}`, `256${last9}`, last9] }),
+          new Promise<{ data: null }>((resolve) => setTimeout(() => resolve({ data: null }), 3000)),
+        ]);
+        if (data?.length) {
+          return (data as { email: string }[]).map(r => r.email).filter(Boolean);
+        }
+      } catch { /* ignore */ }
+      return [];
+    })();
 
-    // Try each email candidate with the provided password
-    let loginSuccess = false;
-    let lastError: Error | null = null;
-    let accountExists = rpcEmails.length > 0;
-
-    // Split candidates: RPC-matched emails first, generated placeholders only as fallback
-    const rpcMatchedEmails = uniqueCandidates.slice(0, rpcEmails.length);
-    const generatedPlaceholders = uniqueCandidates.slice(rpcEmails.length);
-
-    // Phase 1: Try RPC-matched emails (max 2-3 attempts)
-    for (const emailToTry of rpcMatchedEmails) {
+    const tryOne = async (emailToTry: string): Promise<{ ok: boolean; email: string; error: Error | null }> => {
       try {
         const { error } = await signIn(emailToTry, password);
-        if (!error) {
-          loginSuccess = true;
-          lastError = null;
-          break;
-        }
-        lastError = error;
-        if (error.message.includes('Invalid login credentials')) {
-          accountExists = true;
-          // Continue to next RPC email — might be a different account format
-        } else {
-          // Fatal error (rate limit, network, etc.) — stop entirely
-          break;
-        }
+        return { ok: !error, email: emailToTry, error: error ?? null };
       } catch (e: any) {
-        lastError = e;
-        break;
+        return { ok: false, email: emailToTry, error: e };
+      }
+    };
+
+    // Phase 1 — race the 3 placeholders in parallel.
+    const phase1 = await Promise.all(placeholderCandidates.map(tryOne));
+    const phase1Winner = phase1.find(r => r.ok);
+    if (phase1Winner) {
+      loginSuccess = true;
+    } else {
+      for (const r of phase1) {
+        if (r.error?.message?.includes('Invalid login credentials')) accountExists = true;
+        lastError = r.error;
       }
     }
 
-    // Phase 2: Try generated placeholders.
-    // We attempt these even if Phase 1 found a profile email, because the auth
-    // account may be keyed off the synthetic `@welile.user` / `@welile.agent`
-    // placeholder while `profiles.email` stores a contact address (e.g. Gmail).
-    // Without this fallback, users whose contact email differs from their auth
-    // identifier can never sign in by phone.
+    // Phase 2 — only if no placeholder matched, consult the RPC for a real
+    // contact email (Gmail/Outlook). Run remaining candidates in parallel too.
     if (!loginSuccess) {
-      // Limit to 3 placeholder attempts max to avoid rate limiting
-      for (const emailToTry of generatedPlaceholders.slice(0, 3)) {
-        try {
-          const { error } = await signIn(emailToTry, password);
-          if (!error) {
-            loginSuccess = true;
-            lastError = null;
-            break;
+      const rpcEmails = await rpcLookup;
+      const remaining = [...new Set([
+        ...rpcEmails.filter(e => !e.includes('@welile.')),
+        ...rpcEmails.filter(e => e.includes('@welile.')),
+        `0${last9}@welile.agent`,
+        `256${last9}@welile.agent`,
+        `${last9}@welile.agent`,
+      ])].filter(e => !placeholderCandidates.includes(e)).slice(0, 4);
+
+      if (remaining.length) {
+        if (rpcEmails.length) accountExists = true;
+        const phase2 = await Promise.all(remaining.map(tryOne));
+        const phase2Winner = phase2.find(r => r.ok);
+        if (phase2Winner) {
+          loginSuccess = true;
+        } else {
+          for (const r of phase2) {
+            if (r.error?.message?.includes('Invalid login credentials')) accountExists = true;
+            lastError = r.error ?? lastError;
           }
-          lastError = error;
-          if (error.message.includes('Invalid login credentials')) {
-            accountExists = true;
-          } else {
-            break;
-          }
-        } catch (e: any) {
-          lastError = e;
-          break;
         }
       }
     }
