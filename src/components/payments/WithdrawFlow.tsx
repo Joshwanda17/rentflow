@@ -21,6 +21,7 @@ import { UGANDA_BANKS, PAYOUT_METHODS } from '@/lib/ugandaBanks';
 import { useSavedPayoutMethods, type SavedPayoutMethod } from '@/hooks/useSavedPayoutMethods';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Trash2, Star } from 'lucide-react';
+import { downloadWithdrawalReceiptPdf } from '@/lib/withdrawalReceiptPdf';
 
 /**
  * Maps a Ugandan mobile-money number to its provider based on the operator
