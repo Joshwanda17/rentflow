@@ -10678,6 +10678,9 @@ export type Database = {
       rent_requests: {
         Row: {
           access_fee: number
+          agent_guarantor_consent: boolean
+          agent_guarantor_consent_at: string | null
+          agent_guarantor_consent_version: string | null
           agent_id: string | null
           agent_ops_comment: string | null
           agent_ops_reviewed_at: string | null
@@ -10765,6 +10768,9 @@ export type Database = {
         }
         Insert: {
           access_fee: number
+          agent_guarantor_consent?: boolean
+          agent_guarantor_consent_at?: string | null
+          agent_guarantor_consent_version?: string | null
           agent_id?: string | null
           agent_ops_comment?: string | null
           agent_ops_reviewed_at?: string | null
@@ -10852,6 +10858,9 @@ export type Database = {
         }
         Update: {
           access_fee?: number
+          agent_guarantor_consent?: boolean
+          agent_guarantor_consent_at?: string | null
+          agent_guarantor_consent_version?: string | null
           agent_id?: string | null
           agent_ops_comment?: string | null
           agent_ops_reviewed_at?: string | null
