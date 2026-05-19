@@ -2,6 +2,16 @@ import { useState, useEffect, useRef } from 'react';
 import { useCurrency } from '@/hooks/useCurrency';
 import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -1343,7 +1353,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
    * Disabled on submitting / success so users can't accidentally rewind a
    * completed deposit. */
   const swipeBack = () => {
-    if (step === 'form') setStep('channel');
+    if (step === 'form') requestBack();
     else if (step === 'channel' && mustChoosePurpose && depositPurpose) setStep('purpose');
   };
   const swipeForward = () => {
