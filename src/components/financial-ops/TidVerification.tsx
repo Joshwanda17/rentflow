@@ -43,7 +43,13 @@ import {
   ArrowUpDown,
   Users,
   Receipt,
+  Info,
 } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { decodeAllocationsFromNote } from '@/components/payments/OperationalFloatTenantAllocator';
 import type { TenantAllocation } from '@/components/payments/OperationalFloatTenantAllocator';
 
