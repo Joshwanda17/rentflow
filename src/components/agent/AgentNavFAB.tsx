@@ -200,6 +200,45 @@ export default function AgentNavFAB() {
     return () => window.removeEventListener('popstate', onPop);
   }, [isAgent, onHome]);
 
+  // Global keyboard shortcuts: Alt+← for Back, Alt+Home for the dashboard.
+  // These mirror the visible aria-keyshortcuts hints on each button so power
+  // users (and external keyboards on tablets) can navigate without touch.
+  useEffect(() => {
+    if (!isAgent || modalOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (!e.altKey) return;
+      if (e.key === 'ArrowLeft' && !onHome) {
+        e.preventDefault();
+        if (confirmDiscardIfDirty()) navigate(-1);
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        if (!onHome && confirmDiscardIfDirty()) navigate('/dashboard');
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isAgent, onHome, modalOpen, navigate]);
+
+  // Arrow-key roving focus inside the chip strip. Left/Right move between
+  // chips, Home/End jump to the ends — matches the WAI-ARIA "toolbar" pattern
+  // that screen readers expect for horizontal lists of buttons.
+  const chipStripRef = useRef<HTMLOListElement | null>(null);
+  const onChipKeyDown = (e: React.KeyboardEvent<HTMLOListElement>) => {
+    const buttons = Array.from(
+      chipStripRef.current?.querySelectorAll<HTMLButtonElement>('button') ?? [],
+    );
+    if (buttons.length === 0) return;
+    const idx = buttons.indexOf(document.activeElement as HTMLButtonElement);
+    let next = idx;
+    if (e.key === 'ArrowRight') next = idx < 0 ? 0 : Math.min(buttons.length - 1, idx + 1);
+    else if (e.key === 'ArrowLeft') next = idx < 0 ? 0 : Math.max(0, idx - 1);
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = buttons.length - 1;
+    else return;
+    e.preventDefault();
+    buttons[next]?.focus();
+  };
+
   if (!isAgent || modalOpen) return null;
 
   return (
@@ -226,7 +265,18 @@ export default function AgentNavFAB() {
               'px-2 py-1',
             )}
           >
-            <ol className="flex items-center gap-1 whitespace-nowrap">
+            <p className="sr-only" id="agent-nav-chip-help">
+              {`${crumbs.length} recent ${crumbs.length === 1 ? 'screen' : 'screens'}. Use Left and Right arrow keys to move between them.`}
+            </p>
+            <ol
+              ref={chipStripRef}
+              role="toolbar"
+              aria-label="Recent screens"
+              aria-describedby="agent-nav-chip-help"
+              aria-orientation="horizontal"
+              onKeyDown={onChipKeyDown}
+              className="flex items-center gap-1 whitespace-nowrap"
+            >
               {crumbs.map((c, i) => (
                 <li key={`${c.path}-${i}`} className="flex items-center gap-1">
                   <button
@@ -234,6 +284,7 @@ export default function AgentNavFAB() {
                     onClick={() => {
                       if (confirmDiscardIfDirty()) navigate(c.path);
                     }}
+                    tabIndex={i === crumbs.length - 1 ? 0 : -1}
                     className={cn(
                       'h-9 px-3 rounded-full text-xs font-medium',
                       'text-muted-foreground hover:text-foreground hover:bg-muted',
@@ -253,7 +304,11 @@ export default function AgentNavFAB() {
           </nav>
         )}
 
-        <div className="flex items-center gap-2">
+        <div
+          role="toolbar"
+          aria-label="Agent navigation"
+          className="flex items-center gap-2"
+        >
         {!onHome && (
           <button
             type="button"
@@ -281,6 +336,8 @@ export default function AgentNavFAB() {
             if (confirmDiscardIfDirty()) navigate('/dashboard');
           }}
           aria-label="Go to agent home"
+          aria-keyshortcuts="Alt+Home"
+          aria-disabled={onHome}
           className={cn(
             'h-14 w-14 rounded-full',
             'bg-primary text-primary-foreground',
