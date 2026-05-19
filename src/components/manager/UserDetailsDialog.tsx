@@ -784,8 +784,10 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData?.session?.access_token;
       
+      const reason = window.prompt(`Reason for permanently deleting this user (min 10 characters, recorded in audit log):`)?.trim() || '';
+      if (reason.length < 10) { toast.error('A reason of at least 10 characters is required'); return; }
       const response = await supabase.functions.invoke('delete-user', {
-        body: { user_id: user.id },
+        body: { user_id: user.id, reason },
       });
       
       if (response.error) throw new Error(response.error.message || 'Failed to delete user');
