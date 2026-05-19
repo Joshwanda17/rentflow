@@ -2423,7 +2423,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
             handleSubmit();
           };
           return (
-            <div className="sticky bottom-0 left-0 right-0 border-t bg-background/95 backdrop-blur px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <div className="sticky bottom-0 left-0 right-0 border-t bg-background/95 backdrop-blur px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
               {blockReason && !isSubmitting && (
                 <div className="mb-2 flex items-start gap-2 rounded-md bg-destructive/10 border border-destructive/40 px-2.5 py-2 text-[11px] text-foreground">
                   <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
@@ -2440,21 +2440,26 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
               {/* Back + Continue pair — Back is always reachable so users
                   never feel trapped on the form. Both buttons are thumb-sized
                   with snappy press feedback (duration-75 + active:scale). */}
-              <div className="flex gap-2">
+              {/* Extra-large Back + Continue pair for small iPhones (SE / mini).
+                  Both buttons are ≥56px tall (well above the 44px Apple HIG
+                  minimum), separated by a 12px gap so a thumb can't tap both
+                  at once, and Back is fixed at ~38% width so the primary
+                  Deposit CTA stays visually dominant. */}
+              <div className="flex gap-3">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setStep('channel')}
                   disabled={isSubmitting}
-                  className="h-12 px-4 text-base font-semibold shrink-0 active:scale-95 transition-transform duration-75 touch-manipulation"
+                  className="h-14 basis-[38%] shrink-0 text-base font-semibold rounded-xl active:scale-95 transition-transform duration-75 touch-manipulation"
                   aria-label="Back to payment method"
                 >
-                  <ChevronLeft className="h-5 w-5 mr-1" /> Back
+                  <ChevronLeft className="h-5 w-5 mr-1.5" /> Back
                 </Button>
                 <Button
                   onClick={handleAttempt}
                   disabled={isSubmitting}
-                  className="flex-1 h-12 text-base font-semibold active:scale-[0.98] transition-transform duration-75 touch-manipulation"
+                  className="flex-1 h-14 text-base font-semibold rounded-xl active:scale-[0.98] transition-transform duration-75 touch-manipulation"
                   size="lg"
                   aria-disabled={blocked}
                 >
