@@ -756,9 +756,9 @@ export function WalletStatement() {
             )}
 
             {/* ── Filters (calm default, advanced behind toggle) ── */}
-            <div className="mb-5 space-y-2.5">
+            <div className="mb-5 space-y-2.5" role="region" aria-label="Statement filters">
               {/* Date range presets */}
-              <div className="flex gap-1 rounded-lg bg-muted p-1">
+              <div className="flex gap-1 rounded-lg bg-muted p-1" role="radiogroup" aria-label="Date range">
                 {[
                   { value: 'all' as const, label: 'All time' },
                   { value: '7d' as const, label: '7d' },
@@ -768,6 +768,9 @@ export function WalletStatement() {
                   <button
                     key={opt.value}
                     onClick={() => setRangePreset(opt.value)}
+                    role="radio"
+                    aria-checked={rangePreset === opt.value}
+                    aria-label={`Filter to ${opt.label}`}
                     className={`flex-1 rounded-md px-2 py-1.5 text-xs font-semibold transition-all ${
                       rangePreset === opt.value
                         ? 'bg-background text-foreground shadow-sm'
@@ -780,7 +783,7 @@ export function WalletStatement() {
               </div>
 
               {/* Direction segmented control */}
-              <div className="flex gap-1 rounded-lg bg-muted p-1">
+              <div className="flex gap-1 rounded-lg bg-muted p-1" role="radiogroup" aria-label="Transaction direction">
                 {[
                   { value: 'all' as const, label: 'All', count: entries.length },
                   { value: 'credit' as const, label: 'In', count: entries.filter(e => e.type === 'credit').length },
@@ -789,13 +792,16 @@ export function WalletStatement() {
                   <button
                     key={opt.value}
                     onClick={() => setDirectionFilter(opt.value)}
+                    role="radio"
+                    aria-checked={directionFilter === opt.value}
+                    aria-label={`${opt.label === 'In' ? 'Money in' : opt.label === 'Out' ? 'Money out' : 'All transactions'}, ${opt.count} entries`}
                     className={`flex-1 rounded-md px-2 py-1.5 text-xs font-semibold transition-all ${
                       directionFilter === opt.value
                         ? 'bg-background text-foreground shadow-sm'
                         : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
-                    {opt.label} <span className="text-muted-foreground/70">· {opt.count}</span>
+                    {opt.label} <span className="text-muted-foreground/70" aria-hidden="true">· {opt.count}</span>
                   </button>
                 ))}
               </div>
@@ -804,28 +810,32 @@ export function WalletStatement() {
                 <button
                   type="button"
                   onClick={() => setShowCategoryFilters(v => !v)}
+                  aria-expanded={showCategoryFilters}
+                  aria-controls="ws-category-filters"
                   className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground hover:text-foreground"
                 >
-                  <Filter className="h-3 w-3" />
+                  <Filter className="h-3 w-3" aria-hidden="true" />
                   {showCategoryFilters ? 'Hide types' : 'Filter by type'}
                   {showCategoryFilters
-                    ? <ChevronUp className="h-3 w-3" />
-                    : <ChevronDown className="h-3 w-3" />}
+                    ? <ChevronUp className="h-3 w-3" aria-hidden="true" />
+                    : <ChevronDown className="h-3 w-3" aria-hidden="true" />}
                 </button>
                 {hasActiveFilters && (
                   <button
                     onClick={() => { setDirectionFilter('all'); setCategoryFilter('all'); setRangePreset('all'); }}
+                    aria-label="Clear all filters"
                     className="flex items-center gap-1 text-[11px] font-medium text-destructive"
                   >
-                    <X className="h-3 w-3" /> Clear filters
+                    <X className="h-3 w-3" aria-hidden="true" /> Clear filters
                   </button>
                 )}
               </div>
 
               {showCategoryFilters && (
-                <div className="flex flex-wrap gap-1.5 pt-1">
+                <div id="ws-category-filters" className="flex flex-wrap gap-1.5 pt-1" role="group" aria-label="Filter by transaction type">
                   <button
                     onClick={() => setCategoryFilter('all')}
+                    aria-pressed={categoryFilter === 'all'}
                     className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-all ${
                       categoryFilter === 'all'
                         ? 'bg-primary text-primary-foreground'
@@ -837,12 +847,15 @@ export function WalletStatement() {
                   {uniqueCategories.map(cat => {
                     const { label } = getCategoryMeta(cat, 'cash_in');
                     const count = entries.filter(e => e.category === cat).length;
+                    const selected = categoryFilter === cat;
                     return (
                       <button
                         key={cat}
                         onClick={() => setCategoryFilter(cat === categoryFilter ? 'all' : cat)}
+                        aria-pressed={selected}
+                        aria-label={`${selected ? 'Remove' : 'Apply'} ${label} filter, ${count} entries`}
                         className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-all ${
-                          categoryFilter === cat
+                          selected
                             ? 'bg-primary text-primary-foreground'
                             : 'bg-muted text-muted-foreground hover:bg-muted/80'
                         }`}
@@ -854,11 +867,11 @@ export function WalletStatement() {
                 </div>
               )}
 
-              {hasActiveFilters && (
-                <p className="text-[10px] text-muted-foreground">
-                  Showing {filteredEntries.length} of {entries.length} transactions
-                </p>
-              )}
+              <p className="text-[10px] text-muted-foreground" role="status" aria-live="polite">
+                {hasActiveFilters
+                  ? `Showing ${filteredEntries.length} of ${entries.length} transactions`
+                  : `${entries.length} transactions`}
+              </p>
             </div>
 
             {/* ── Transaction Timeline ── */}
