@@ -633,33 +633,36 @@ export function WalletStatement() {
             <Skeleton className="h-16 w-full rounded-xl" />
           </div>
         ) : (
-          <ScrollArea className="flex-1 px-4 py-4">
+          <ScrollArea className="flex-1 px-4 py-4" aria-label="Wallet statement content">
 
             {/* ── Hero: Net Balance ── */}
-            <div className="mb-4 rounded-2xl border bg-card p-5">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Net Balance</p>
-              <p className={`mt-1 text-3xl font-extrabold tracking-tight tabular-nums ${
+            <section aria-labelledby="ws-net-balance" className="mb-4 rounded-2xl border bg-card p-5">
+              <h3 id="ws-net-balance" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Net Balance</h3>
+              <p
+                className={`mt-1 text-3xl font-extrabold tracking-tight tabular-nums ${
                 totals.totalIn - totals.totalOut >= 0 ? 'text-foreground' : 'text-destructive'
-              }`}>
+              }`}
+                aria-label={`Net balance ${formatUGX(Math.max(0, totals.totalIn - totals.totalOut))}`}
+              >
                 {formatUGX(Math.max(0, totals.totalIn - totals.totalOut))}
               </p>
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <div className="rounded-xl bg-success/10 px-3 py-2.5">
                   <div className="flex items-center gap-1.5 text-success">
-                    <TrendingUp className="h-3.5 w-3.5" />
+                    <TrendingUp className="h-3.5 w-3.5" aria-hidden="true" />
                     <span className="text-[10px] font-semibold uppercase tracking-wide">Money In</span>
                   </div>
-                  <p className="mt-0.5 text-sm font-bold text-success tabular-nums">+{formatUGX(totals.totalIn)}</p>
+                  <p className="mt-0.5 text-sm font-bold text-success tabular-nums" aria-label={`Money in total ${formatUGX(totals.totalIn)}`}>+{formatUGX(totals.totalIn)}</p>
                 </div>
                 <div className="rounded-xl bg-destructive/10 px-3 py-2.5">
                   <div className="flex items-center gap-1.5 text-destructive">
-                    <TrendingDown className="h-3.5 w-3.5" />
+                    <TrendingDown className="h-3.5 w-3.5" aria-hidden="true" />
                     <span className="text-[10px] font-semibold uppercase tracking-wide">Money Out</span>
                   </div>
-                  <p className="mt-0.5 text-sm font-bold text-destructive tabular-nums">-{formatUGX(totals.totalOut)}</p>
+                  <p className="mt-0.5 text-sm font-bold text-destructive tabular-nums" aria-label={`Money out total ${formatUGX(totals.totalOut)}`}>-{formatUGX(totals.totalOut)}</p>
                 </div>
               </div>
-            </div>
+            </section>
 
             {/* ── Role-based highlights ── */}
             {highlightTotals.length > 0 && (
