@@ -1,13 +1,17 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowDownLeft, ArrowUpRight, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Wallet } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, CalendarIcon, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Wallet } from 'lucide-react';
 import { CompactAmount } from '@/components/ui/CompactAmount';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { formatUGX } from '@/lib/rentCalculations';
-import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
+import { format, startOfDay, endOfDay, subDays } from 'date-fns';
 
 // Categories that move money into/out of the FLOAT bucket on the wallet leg.
 // Kept narrow + explicit so we never miscount commission/withdrawable entries.
@@ -59,6 +63,29 @@ interface FloatBreakdownCardProps {
 const ALL_CATS = [...FLOAT_IN_CATEGORIES, ...FLOAT_OUT_CATEGORIES];
 const PAGE_SIZE = 50;
 
+type RangePreset = 'all' | '7d' | '30d' | '90d' | 'custom';
+
+const PRESET_LABEL: Record<RangePreset, string> = {
+  all: 'All time',
+  '7d': 'Last 7 days',
+  '30d': 'Last 30 days',
+  '90d': 'Last 90 days',
+  custom: 'Custom range',
+};
+
+function resolveRange(preset: RangePreset, customFrom?: Date, customTo?: Date): { from?: string; to?: string } {
+  const now = new Date();
+  if (preset === 'all') return {};
+  if (preset === '7d') return { from: startOfDay(subDays(now, 6)).toISOString(), to: endOfDay(now).toISOString() };
+  if (preset === '30d') return { from: startOfDay(subDays(now, 29)).toISOString(), to: endOfDay(now).toISOString() };
+  if (preset === '90d') return { from: startOfDay(subDays(now, 89)).toISOString(), to: endOfDay(now).toISOString() };
+  // custom
+  return {
+    from: customFrom ? startOfDay(customFrom).toISOString() : undefined,
+    to: customTo ? endOfDay(customTo).toISOString() : undefined,
+  };
+}
+
 function labelFor(cat: string) {
   return CATEGORY_LABEL[cat] ?? cat.replace(/_/g, ' ');
 }
@@ -73,8 +100,16 @@ export function FloatBreakdownCard({ floatBalance }: FloatBreakdownCardProps) {
   const [cumulativeIn, setCumulativeIn] = useState(0);
   const [cumulativeOut, setCumulativeOut] = useState(0);
   const [seenIds, setSeenIds] = useState<Set<string>>(new Set());
+  const [preset, setPreset] = useState<RangePreset>('all');
+  const [customFrom, setCustomFrom] = useState<Date | undefined>();
+  const [customTo, setCustomTo] = useState<Date | undefined>();
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+
+  const range = useMemo(
+    () => resolveRange(preset, customFrom, customTo),
+    [preset, customFrom, customTo],
+  );
 
   const fetchPage = useCallback(async (pageIndex: number) => {
     if (!user?.id) return;
@@ -83,26 +118,36 @@ export function FloatBreakdownCard({ floatBalance }: FloatBreakdownCardProps) {
     const from = pageIndex * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
 
+    let rowsQ = supabase
+      .from('general_ledger')
+      .select('id, transaction_date, category, direction, amount, reference_id, description')
+      .eq('user_id', user.id)
+      .eq('ledger_scope', 'wallet')
+      .in('category', ALL_CATS)
+      // User-facing ledger filter (per memory)
+      .neq('classification', 'admin_correction')
+      .neq('category', 'system_balance_correction');
+    let countQ = supabase
+      .from('general_ledger')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('ledger_scope', 'wallet')
+      .in('category', ALL_CATS)
+      .neq('classification', 'admin_correction')
+      .neq('category', 'system_balance_correction');
+
+    if (range.from) {
+      rowsQ = rowsQ.gte('transaction_date', range.from);
+      countQ = countQ.gte('transaction_date', range.from);
+    }
+    if (range.to) {
+      rowsQ = rowsQ.lte('transaction_date', range.to);
+      countQ = countQ.lte('transaction_date', range.to);
+    }
+
     const [{ data, error }, { count, error: countError }] = await Promise.all([
-      supabase
-        .from('general_ledger')
-        .select('id, transaction_date, category, direction, amount, reference_id, description')
-        .eq('user_id', user.id)
-        .eq('ledger_scope', 'wallet')
-        .in('category', ALL_CATS)
-        // User-facing ledger filter (per memory)
-        .neq('classification', 'admin_correction')
-        .neq('category', 'system_balance_correction')
-        .order('transaction_date', { ascending: false })
-        .range(from, to),
-      supabase
-        .from('general_ledger')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('ledger_scope', 'wallet')
-        .in('category', ALL_CATS)
-        .neq('classification', 'admin_correction')
-        .neq('category', 'system_balance_correction'),
+      rowsQ.order('transaction_date', { ascending: false }).range(from, to),
+      countQ,
     ]);
 
     if (error) {
@@ -119,12 +164,20 @@ export function FloatBreakdownCard({ floatBalance }: FloatBreakdownCardProps) {
     }
 
     setLoading(false);
-  }, [user?.id]);
+  }, [user?.id, range.from, range.to]);
 
   useEffect(() => {
     if (!user?.id || !expanded) return;
     fetchPage(page);
   }, [user?.id, expanded, page, fetchPage]);
+
+  // Reset pagination and cumulative reconciliation when the filter changes.
+  useEffect(() => {
+    setPage(0);
+    setCumulativeIn(0);
+    setCumulativeOut(0);
+    setSeenIds(new Set());
+  }, [range.from, range.to]);
 
   // Accumulate totals across all pages the user has visited so far.
   useEffect(() => {
@@ -190,6 +243,90 @@ export function FloatBreakdownCard({ floatBalance }: FloatBreakdownCardProps) {
 
         {expanded && (
           <div id="float-breakdown-body" className="mt-4 space-y-3">
+            {/* Date-range filter */}
+            <div className="flex flex-wrap items-center gap-2">
+              <Select value={preset} onValueChange={(v) => setPreset(v as RangePreset)}>
+                <SelectTrigger className="h-8 w-[150px] text-xs">
+                  <SelectValue placeholder="Range" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(PRESET_LABEL) as RangePreset[]).map((k) => (
+                    <SelectItem key={k} value={k} className="text-xs">
+                      {PRESET_LABEL[k]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {preset === 'custom' && (
+                <>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={cn(
+                          'h-8 justify-start text-left text-xs font-normal',
+                          !customFrom && 'text-muted-foreground',
+                        )}
+                      >
+                        <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
+                        {customFrom ? format(customFrom, 'MMM d, yyyy') : 'From'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={customFrom}
+                        onSelect={setCustomFrom}
+                        disabled={(d) => d > new Date() || (customTo ? d > customTo : false)}
+                        initialFocus
+                        className={cn('p-3 pointer-events-auto')}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={cn(
+                          'h-8 justify-start text-left text-xs font-normal',
+                          !customTo && 'text-muted-foreground',
+                        )}
+                      >
+                        <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
+                        {customTo ? format(customTo, 'MMM d, yyyy') : 'To'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={customTo}
+                        onSelect={setCustomTo}
+                        disabled={(d) => d > new Date() || (customFrom ? d < customFrom : false)}
+                        initialFocus
+                        className={cn('p-3 pointer-events-auto')}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  {(customFrom || customTo) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 text-xs text-muted-foreground"
+                      onClick={() => {
+                        setCustomFrom(undefined);
+                        setCustomTo(undefined);
+                      }}
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-xl bg-emerald-500/10 px-3 py-2">
                 <p className="text-[10px] uppercase tracking-wider text-emerald-700 dark:text-emerald-400 font-semibold">
