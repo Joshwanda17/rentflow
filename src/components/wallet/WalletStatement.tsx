@@ -117,7 +117,7 @@ function formatAmount(amount: number): string {
 }
 
 export function WalletStatement() {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
