@@ -198,9 +198,13 @@ describe('useAuthForm — parallel login performance', () => {
       await result.current.handleSubmit(fakeFormEvent());
     });
 
-    // Phase 1 = 3 placeholders. No retries on wrong-creds. Phase 2 only
-    // adds attempts if the RPC returned real emails — it didn't.
-    expect(signInMock).toHaveBeenCalledTimes(3);
+    // Phase 1 = 3 @welile.user placeholders. Phase 2 falls through to
+    // the 3 @welile.agent fallbacks (always tried even when RPC returns
+    // []). That's 6 total, with each email called exactly once because
+    // "Invalid login credentials" is non-transient ⇒ NO retries.
+    expect(signInMock).toHaveBeenCalledTimes(6);
+    const uniqueEmails = new Set(signInMock.mock.calls.map(c => c[0]));
+    expect(uniqueEmails.size).toBe(6);
     const metrics = JSON.parse(localStorage.getItem('welile_last_login_metrics')!);
     expect(metrics.success).toBe(false);
     // `retries` is only set when withRetry actually re-fires. Must be 0/undefined.
