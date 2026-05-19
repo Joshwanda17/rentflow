@@ -578,7 +578,7 @@ export function WalletStatement() {
           <div className="flex items-center justify-between">
             <div>
               <SheetTitle className="text-xl font-bold flex items-center gap-2">
-                <ArrowUpDown className="h-5 w-5 text-primary" />
+                <ArrowUpDown className="h-5 w-5 text-primary" aria-hidden="true" />
                 Wallet Statement
               </SheetTitle>
               <p className="text-xs text-muted-foreground">All money in & out of your wallet</p>
@@ -593,7 +593,7 @@ export function WalletStatement() {
                 className="gap-1.5 text-xs font-semibold"
                 title={a11yMode ? 'Easy-read mode: ON' : 'Easy-read mode: OFF'}
               >
-                <Eye className="h-3.5 w-3.5" />
+                <Eye className="h-3.5 w-3.5" aria-hidden="true" />
                 {a11yMode ? 'A−' : 'A+'}
               </Button>
               <Button
@@ -603,8 +603,9 @@ export function WalletStatement() {
                 disabled={loading || filteredEntries.length === 0}
                 className="gap-1.5 text-xs font-semibold border-primary/30 text-primary hover:bg-primary/10"
                 title={`Download CSV · ${filterSummary}`}
+                aria-label={`Download wallet statement as CSV. Filters applied: ${filterSummary}`}
               >
-                <FileSpreadsheet className="h-3.5 w-3.5" />
+                <FileSpreadsheet className="h-3.5 w-3.5" aria-hidden="true" />
                 CSV
               </Button>
               <Button
@@ -614,8 +615,10 @@ export function WalletStatement() {
                 disabled={exporting || loading || filteredEntries.length === 0}
                 className="gap-1.5 text-xs font-semibold border-primary/30 text-primary hover:bg-primary/10"
                 title={`Download PDF · ${filterSummary}`}
+                aria-label={exporting ? 'Generating PDF, please wait' : `Download wallet statement as PDF. Filters applied: ${filterSummary}`}
+                aria-busy={exporting}
               >
-                {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <Download className="h-3.5 w-3.5" aria-hidden="true" />}
                 PDF
               </Button>
             </div>
@@ -630,42 +633,45 @@ export function WalletStatement() {
             <Skeleton className="h-16 w-full rounded-xl" />
           </div>
         ) : (
-          <ScrollArea className="flex-1 px-4 py-4">
+          <ScrollArea className="flex-1 px-4 py-4" aria-label="Wallet statement content">
 
             {/* ── Hero: Net Balance ── */}
-            <div className="mb-4 rounded-2xl border bg-card p-5">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Net Balance</p>
-              <p className={`mt-1 text-3xl font-extrabold tracking-tight tabular-nums ${
+            <section aria-labelledby="ws-net-balance" className="mb-4 rounded-2xl border bg-card p-5">
+              <h3 id="ws-net-balance" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Net Balance</h3>
+              <p
+                className={`mt-1 text-3xl font-extrabold tracking-tight tabular-nums ${
                 totals.totalIn - totals.totalOut >= 0 ? 'text-foreground' : 'text-destructive'
-              }`}>
+              }`}
+                aria-label={`Net balance ${formatUGX(Math.max(0, totals.totalIn - totals.totalOut))}`}
+              >
                 {formatUGX(Math.max(0, totals.totalIn - totals.totalOut))}
               </p>
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <div className="rounded-xl bg-success/10 px-3 py-2.5">
                   <div className="flex items-center gap-1.5 text-success">
-                    <TrendingUp className="h-3.5 w-3.5" />
+                    <TrendingUp className="h-3.5 w-3.5" aria-hidden="true" />
                     <span className="text-[10px] font-semibold uppercase tracking-wide">Money In</span>
                   </div>
-                  <p className="mt-0.5 text-sm font-bold text-success tabular-nums">+{formatUGX(totals.totalIn)}</p>
+                  <p className="mt-0.5 text-sm font-bold text-success tabular-nums" aria-label={`Money in total ${formatUGX(totals.totalIn)}`}>+{formatUGX(totals.totalIn)}</p>
                 </div>
                 <div className="rounded-xl bg-destructive/10 px-3 py-2.5">
                   <div className="flex items-center gap-1.5 text-destructive">
-                    <TrendingDown className="h-3.5 w-3.5" />
+                    <TrendingDown className="h-3.5 w-3.5" aria-hidden="true" />
                     <span className="text-[10px] font-semibold uppercase tracking-wide">Money Out</span>
                   </div>
-                  <p className="mt-0.5 text-sm font-bold text-destructive tabular-nums">-{formatUGX(totals.totalOut)}</p>
+                  <p className="mt-0.5 text-sm font-bold text-destructive tabular-nums" aria-label={`Money out total ${formatUGX(totals.totalOut)}`}>-{formatUGX(totals.totalOut)}</p>
                 </div>
               </div>
-            </div>
+            </section>
 
             {/* ── Role-based highlights ── */}
             {highlightTotals.length > 0 && (
-              <div className="mb-4 rounded-2xl border bg-card p-4">
+              <section aria-labelledby="ws-highlights" className="mb-4 rounded-2xl border bg-card p-4">
                 <div className="mb-3 flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-primary">
+                    <h3 id="ws-highlights" className="text-[11px] font-semibold uppercase tracking-wider text-primary">
                       {highlightConfig.title}
-                    </p>
+                    </h3>
                     <p className="mt-0.5 text-[11px] text-muted-foreground">{highlightConfig.subtitle}</p>
                   </div>
                   {role && (
@@ -674,9 +680,10 @@ export function WalletStatement() {
                     </Badge>
                   )}
                 </div>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" role="group" aria-label="Category quick filters">
                   {highlightTotals.map((h) => {
                     const isPositive = h.net >= 0;
+                    const selected = categoryFilter === h.cat;
                     return (
                       <button
                         key={h.cat}
@@ -685,12 +692,14 @@ export function WalletStatement() {
                           setCategoryFilter(h.cat === categoryFilter ? 'all' : h.cat);
                           setShowCategoryFilters(true);
                         }}
+                        aria-pressed={selected}
+                        aria-label={`${selected ? 'Remove' : 'Apply'} filter for ${h.label}. ${h.count} ${h.count === 1 ? 'entry' : 'entries'}, net ${isPositive ? 'plus' : 'minus'} ${formatUGX(Math.abs(h.net))}`}
                         className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-colors hover:bg-muted/40 ${
-                          categoryFilter === h.cat ? 'border-primary bg-primary/5' : 'border-border'
+                          selected ? 'border-primary bg-primary/5' : 'border-border'
                         }`}
                       >
-                        <div className={`h-8 w-8 shrink-0 rounded-full flex items-center justify-center ${h.colorClass}`}>
-                          <h.Icon className="h-4 w-4" />
+                        <div className={`h-8 w-8 shrink-0 rounded-full flex items-center justify-center ${h.colorClass}`} aria-hidden="true">
+                          <h.Icon className="h-4 w-4" aria-hidden="true" />
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-xs font-semibold text-foreground">{h.label}</p>
@@ -703,7 +712,7 @@ export function WalletStatement() {
                     );
                   })}
                 </div>
-              </div>
+              </section>
             )}
 
             {/* ── Income Breakdown (collapsed by default) ── */}
@@ -712,32 +721,34 @@ export function WalletStatement() {
                 <button
                   type="button"
                   onClick={() => setShowBreakdown(v => !v)}
+                  aria-expanded={showBreakdown}
+                  aria-controls="ws-income-breakdown"
                   className="flex w-full items-center justify-between px-4 py-3 hover:bg-muted/40"
                 >
                   <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Income Breakdown</span>
                   {showBreakdown
-                    ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                    : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                    ? <ChevronUp className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                    : <ChevronDown className="h-4 w-4 text-muted-foreground" aria-hidden="true" />}
                 </button>
                 {showBreakdown && (
-                  <div className="divide-y divide-border/50 border-t">
+                  <div id="ws-income-breakdown" className="divide-y divide-border/50 border-t" role="region" aria-label="Income breakdown by category">
                     {breakdownItems.map(([category, amount]) => {
                       const { label, Icon, colorClass } = getCategoryMeta(category, 'cash_in');
                       return (
                         <div key={category} className="flex items-center justify-between px-4 py-2.5">
                           <div className="flex items-center gap-2.5">
-                            <div className={`h-7 w-7 rounded-full flex items-center justify-center ${colorClass}`}>
-                              <Icon className="h-3.5 w-3.5" />
+                            <div className={`h-7 w-7 rounded-full flex items-center justify-center ${colorClass}`} aria-hidden="true">
+                              <Icon className="h-3.5 w-3.5" aria-hidden="true" />
                             </div>
                             <span className="text-sm text-muted-foreground">{label}</span>
                           </div>
-                          <span className="font-mono text-sm font-semibold text-success tabular-nums">+{formatUGX(amount)}</span>
+                          <span className="font-mono text-sm font-semibold text-success tabular-nums" aria-label={`${label} total ${formatUGX(amount)}`}>+{formatUGX(amount)}</span>
                         </div>
                       );
                     })}
                     <div className="flex justify-between bg-success/5 px-4 py-2.5 font-bold">
                       <span className="text-sm">Total Earned</span>
-                      <span className="font-mono text-sm text-success tabular-nums">+{formatUGX(totals.totalIn)}</span>
+                      <span className="font-mono text-sm text-success tabular-nums" aria-label={`Total earned ${formatUGX(totals.totalIn)}`}>+{formatUGX(totals.totalIn)}</span>
                     </div>
                   </div>
                 )}
@@ -745,9 +756,9 @@ export function WalletStatement() {
             )}
 
             {/* ── Filters (calm default, advanced behind toggle) ── */}
-            <div className="mb-5 space-y-2.5">
+            <div className="mb-5 space-y-2.5" role="region" aria-label="Statement filters">
               {/* Date range presets */}
-              <div className="flex gap-1 rounded-lg bg-muted p-1">
+              <div className="flex gap-1 rounded-lg bg-muted p-1" role="radiogroup" aria-label="Date range">
                 {[
                   { value: 'all' as const, label: 'All time' },
                   { value: '7d' as const, label: '7d' },
@@ -757,6 +768,9 @@ export function WalletStatement() {
                   <button
                     key={opt.value}
                     onClick={() => setRangePreset(opt.value)}
+                    role="radio"
+                    aria-checked={rangePreset === opt.value}
+                    aria-label={`Filter to ${opt.label}`}
                     className={`flex-1 rounded-md px-2 py-1.5 text-xs font-semibold transition-all ${
                       rangePreset === opt.value
                         ? 'bg-background text-foreground shadow-sm'
@@ -769,7 +783,7 @@ export function WalletStatement() {
               </div>
 
               {/* Direction segmented control */}
-              <div className="flex gap-1 rounded-lg bg-muted p-1">
+              <div className="flex gap-1 rounded-lg bg-muted p-1" role="radiogroup" aria-label="Transaction direction">
                 {[
                   { value: 'all' as const, label: 'All', count: entries.length },
                   { value: 'credit' as const, label: 'In', count: entries.filter(e => e.type === 'credit').length },
@@ -778,13 +792,16 @@ export function WalletStatement() {
                   <button
                     key={opt.value}
                     onClick={() => setDirectionFilter(opt.value)}
+                    role="radio"
+                    aria-checked={directionFilter === opt.value}
+                    aria-label={`${opt.label === 'In' ? 'Money in' : opt.label === 'Out' ? 'Money out' : 'All transactions'}, ${opt.count} entries`}
                     className={`flex-1 rounded-md px-2 py-1.5 text-xs font-semibold transition-all ${
                       directionFilter === opt.value
                         ? 'bg-background text-foreground shadow-sm'
                         : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
-                    {opt.label} <span className="text-muted-foreground/70">· {opt.count}</span>
+                    {opt.label} <span className="text-muted-foreground/70" aria-hidden="true">· {opt.count}</span>
                   </button>
                 ))}
               </div>
@@ -793,28 +810,32 @@ export function WalletStatement() {
                 <button
                   type="button"
                   onClick={() => setShowCategoryFilters(v => !v)}
+                  aria-expanded={showCategoryFilters}
+                  aria-controls="ws-category-filters"
                   className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground hover:text-foreground"
                 >
-                  <Filter className="h-3 w-3" />
+                  <Filter className="h-3 w-3" aria-hidden="true" />
                   {showCategoryFilters ? 'Hide types' : 'Filter by type'}
                   {showCategoryFilters
-                    ? <ChevronUp className="h-3 w-3" />
-                    : <ChevronDown className="h-3 w-3" />}
+                    ? <ChevronUp className="h-3 w-3" aria-hidden="true" />
+                    : <ChevronDown className="h-3 w-3" aria-hidden="true" />}
                 </button>
                 {hasActiveFilters && (
                   <button
                     onClick={() => { setDirectionFilter('all'); setCategoryFilter('all'); setRangePreset('all'); }}
+                    aria-label="Clear all filters"
                     className="flex items-center gap-1 text-[11px] font-medium text-destructive"
                   >
-                    <X className="h-3 w-3" /> Clear filters
+                    <X className="h-3 w-3" aria-hidden="true" /> Clear filters
                   </button>
                 )}
               </div>
 
               {showCategoryFilters && (
-                <div className="flex flex-wrap gap-1.5 pt-1">
+                <div id="ws-category-filters" className="flex flex-wrap gap-1.5 pt-1" role="group" aria-label="Filter by transaction type">
                   <button
                     onClick={() => setCategoryFilter('all')}
+                    aria-pressed={categoryFilter === 'all'}
                     className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-all ${
                       categoryFilter === 'all'
                         ? 'bg-primary text-primary-foreground'
@@ -826,12 +847,15 @@ export function WalletStatement() {
                   {uniqueCategories.map(cat => {
                     const { label } = getCategoryMeta(cat, 'cash_in');
                     const count = entries.filter(e => e.category === cat).length;
+                    const selected = categoryFilter === cat;
                     return (
                       <button
                         key={cat}
                         onClick={() => setCategoryFilter(cat === categoryFilter ? 'all' : cat)}
+                        aria-pressed={selected}
+                        aria-label={`${selected ? 'Remove' : 'Apply'} ${label} filter, ${count} entries`}
                         className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-all ${
-                          categoryFilter === cat
+                          selected
                             ? 'bg-primary text-primary-foreground'
                             : 'bg-muted text-muted-foreground hover:bg-muted/80'
                         }`}
@@ -843,42 +867,42 @@ export function WalletStatement() {
                 </div>
               )}
 
-              {hasActiveFilters && (
-                <p className="text-[10px] text-muted-foreground">
-                  Showing {filteredEntries.length} of {entries.length} transactions
-                </p>
-              )}
+              <p className="text-[10px] text-muted-foreground" role="status" aria-live="polite">
+                {hasActiveFilters
+                  ? `Showing ${filteredEntries.length} of ${entries.length} transactions`
+                  : `${entries.length} transactions`}
+              </p>
             </div>
 
             {/* ── Transaction Timeline ── */}
             {Object.keys(groupedEntries).length > 0 ? (
-              <div className="space-y-5">
+              <section className="space-y-5" aria-labelledby="ws-tx-history">
                 <div className="flex items-center justify-between">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Transaction History</p>
+                  <h3 id="ws-tx-history" className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Transaction History</h3>
                   <span className="text-[10px] text-muted-foreground">{filteredEntries.length} entries</span>
                 </div>
                 {Object.entries(groupedEntries).map(([dateKey, dayEntries]) => (
-                  <div key={dateKey}>
+                  <div key={dateKey} role="group" aria-labelledby={`ws-day-${dateKey}`}>
                     {/* Sticky day header */}
                     <div className="sticky top-0 z-10 -mx-4 mb-2 flex items-center justify-between bg-background/95 px-4 py-2 backdrop-blur">
                       <div className="flex items-center gap-2">
-                        <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span className="text-xs font-semibold text-muted-foreground">
+                        <Calendar className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                        <h4 id={`ws-day-${dateKey}`} className="text-xs font-semibold text-muted-foreground">
                           {format(new Date(dateKey), 'EEE, MMM d, yyyy')}
-                        </span>
+                        </h4>
                       </div>
                       <div className="flex gap-2 text-[10px] font-medium tabular-nums">
                         {dayEntries.some(e => e.type === 'credit') && (
-                          <span className="text-success">+{formatUGX(dayEntries.filter(e => e.type === 'credit').reduce((s, e) => s + e.amount, 0))}</span>
+                          <span className="text-success" aria-label={`Money in for the day ${formatUGX(dayEntries.filter(e => e.type === 'credit').reduce((s, e) => s + e.amount, 0))}`}>+{formatUGX(dayEntries.filter(e => e.type === 'credit').reduce((s, e) => s + e.amount, 0))}</span>
                         )}
                         {dayEntries.some(e => e.type === 'debit') && (
-                          <span className="text-destructive">-{formatUGX(dayEntries.filter(e => e.type === 'debit').reduce((s, e) => s + e.amount, 0))}</span>
+                          <span className="text-destructive" aria-label={`Money out for the day ${formatUGX(dayEntries.filter(e => e.type === 'debit').reduce((s, e) => s + e.amount, 0))}`}>-{formatUGX(dayEntries.filter(e => e.type === 'debit').reduce((s, e) => s + e.amount, 0))}</span>
                         )}
                       </div>
                     </div>
 
                     {/* Entries — clean rows */}
-                    <div className="overflow-hidden rounded-xl border bg-card divide-y divide-border/60">
+                    <ul className="overflow-hidden rounded-xl border bg-card divide-y divide-border/60 list-none p-0 m-0">
                       {dayEntries.map((entry) => {
                         const meta = getCategoryMeta(entry.category, entry.type === 'credit' ? 'cash_in' : 'cash_out');
                         const { label, Icon, colorClass, plainExplanation } = meta;
@@ -889,12 +913,17 @@ export function WalletStatement() {
                           entry.linked_party && entry.linked_party !== 'platform' && entry.category === 'agent_commission' ? `From: ${entry.linked_party}` :
                           entry.linked_party && entry.linked_party !== 'platform' ? `→ ${entry.linked_party}` :
                           null;
+                        const summaryAria = `${label}, ${isCredit ? 'money in' : 'money out'} ${formatUGX(entry.amount)}, ${format(new Date(entry.date), 'h:mm a')}${partyNote ? `, ${partyNote.replace('→', 'to')}` : ''}. Balance after ${formatUGX(entry.balance_after || 0)}. Activate to expand details.`;
 
                         return (
-                          <details key={entry.id} className="group">
-                            <summary className="flex cursor-pointer list-none items-center gap-3 px-3 py-3 hover:bg-muted/30">
-                              <div className={`h-9 w-9 rounded-full flex items-center justify-center shrink-0 ${colorClass}`}>
-                                <Icon className="h-4 w-4" />
+                          <li key={entry.id} className="list-none">
+                          <details className="group">
+                            <summary
+                              className="flex cursor-pointer list-none items-center gap-3 px-3 py-3 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                              aria-label={summaryAria}
+                            >
+                              <div className={`h-9 w-9 rounded-full flex items-center justify-center shrink-0 ${colorClass}`} aria-hidden="true">
+                                <Icon className="h-4 w-4" aria-hidden="true" />
                               </div>
                               <div className="min-w-0 flex-1">
                                 <p className="truncate text-sm font-semibold text-foreground">{label}</p>
@@ -908,7 +937,9 @@ export function WalletStatement() {
                                   {isCredit ? '+' : '-'}{formatUGX(entry.amount)}
                                 </p>
                                 <p className="text-[10px] text-muted-foreground tabular-nums">
-                                  Bal {formatUGX(entry.balance_after || 0)}
+                                  <span aria-hidden="true">Bal </span>
+                                  <span className="sr-only">Balance after </span>
+                                  {formatUGX(entry.balance_after || 0)}
                                 </p>
                               </div>
                             </summary>
@@ -919,20 +950,22 @@ export function WalletStatement() {
                               )}
                               {entry.reference_id && (
                                 <p className="mt-1.5 font-mono text-[10px] text-muted-foreground/80">
-                                  Ref: {entry.reference_id}
+                                  <span className="sr-only">Reference number </span>
+                                  <span aria-hidden="true">Ref: </span>{entry.reference_id}
                                 </p>
                               )}
                             </div>
                           </details>
+                          </li>
                         );
                       })}
-                    </div>
+                    </ul>
                   </div>
                 ))}
-              </div>
+              </section>
             ) : (
-              <div className="text-center py-12">
-                <FileText className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
+              <div className="text-center py-12" role="status">
+                <FileText className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" aria-hidden="true" />
                 <p className="font-semibold text-muted-foreground">No transactions yet</p>
                 <p className="text-sm text-muted-foreground/70">Your wallet activity will appear here</p>
               </div>
