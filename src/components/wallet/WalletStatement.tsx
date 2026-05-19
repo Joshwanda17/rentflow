@@ -90,6 +90,9 @@ export function WalletStatement() {
   // Filters
   const [directionFilter, setDirectionFilter] = useState<'all' | 'credit' | 'debit'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  // Progressive disclosure for a calmer default view
+  const [showBreakdown, setShowBreakdown] = useState(false);
+  const [showCategoryFilters, setShowCategoryFilters] = useState(false);
 
   useEffect(() => {
     if (open && user) {
