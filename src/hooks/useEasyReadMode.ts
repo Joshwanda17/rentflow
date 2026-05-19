@@ -38,12 +38,16 @@ export function useEasyReadMode() {
     (async () => {
       const { data } = await supabase
         .from('profiles')
-        .select('prefers_easy_read')
+        .select('prefers_easy_read, easy_read_size')
         .eq('id', user.id)
         .maybeSingle();
       if (cancelled) return;
       if (data && typeof (data as any).prefers_easy_read === 'boolean') {
         setEnabled((data as any).prefers_easy_read);
+      }
+      const srvSize = (data as any)?.easy_read_size;
+      if (srvSize === 0 || srvSize === 1 || srvSize === 2) {
+        setSize(srvSize as A11ySize);
       }
       setHydrated(true);
     })();
@@ -66,7 +70,7 @@ export function useEasyReadMode() {
     if (user && hydrated) {
       supabase
         .from('profiles')
-        .update({ prefers_easy_read: enabled })
+        .update({ prefers_easy_read: enabled, easy_read_size: size })
         .eq('id', user.id)
         .then(({ error }) => {
           if (error) console.error('[useEasyReadMode] save pref', error);
