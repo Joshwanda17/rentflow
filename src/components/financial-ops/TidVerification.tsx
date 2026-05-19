@@ -68,6 +68,8 @@ interface MatchResult {
    *  For agent personal deposits, presence of `agent_personal_confirmed_at`
    *  proves the agent acknowledged the in-app gate. */
   purpose_audit?: Record<string, unknown> | null;
+  /** Agent who collected the deposit, when applicable. NULL means self-deposit. */
+  agent_id?: string | null;
 }
 
 type ResultState = 'idle' | 'searching' | 'found' | 'not_found';
