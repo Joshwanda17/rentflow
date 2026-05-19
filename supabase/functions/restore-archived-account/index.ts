@@ -109,12 +109,12 @@ Deno.serve(async (req) => {
 
     // ---- 4. Audit log ----
     await admin.from("audit_logs").insert({
-      actor_id: caller.id,
+      user_id: caller.id,
       action_type: "account_restored",
       table_name: "auth.users",
       record_id: user_id,
-      reason: reasonRaw,
       metadata: {
+        reason: reasonRaw,
         restored_name: restoredName,
         restored_email: restoredEmail,
         restored_phone: restoredPhone,
