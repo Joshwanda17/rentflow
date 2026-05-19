@@ -146,15 +146,15 @@ export default function StepperModal({
           <div className="p-4 border-t bg-muted/20">
             <Button
               onClick={handleNext}
-              disabled={!canGoNext || nextBusy}
-              aria-busy={nextBusy || undefined}
+              disabled={!canGoNext || nextBusy || advancing}
+              aria-busy={nextBusy || advancing || undefined}
               className="w-full"
               size="lg"
             >
-              {nextBusy && (
+              {(nextBusy || advancing) && (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" aria-hidden="true" />
               )}
-              {nextBusy
+              {nextBusy || advancing
                 ? (nextBusyLabel ?? 'Working…')
                 : isLastStep
                 ? 'Confirm'
