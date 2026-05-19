@@ -980,6 +980,16 @@ export default function WithdrawFlow({
               </InputOTP>
             </div>
 
+            {/* Surface WHY the Confirm button might be disabled so the user
+                isn't left staring at an unresponsive button. */}
+            {pin.length === 4 && (validating || isStale) && (
+              <p className="text-xs text-muted-foreground">
+                {validating
+                  ? 'Re-checking your available balance…'
+                  : 'Refreshing balance — Confirm will be available in a moment.'}
+              </p>
+            )}
+
             <ConfirmSummaryCard
               title="Withdrawal Summary"
               items={[
