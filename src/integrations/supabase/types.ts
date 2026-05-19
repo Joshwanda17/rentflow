@@ -14356,6 +14356,7 @@ export type Database = {
         Args: { p_balance: number; p_user_id: string; p_withdrawable: number }
         Returns: undefined
       }
+      admin_restore_auth_user: { Args: { p_user_id: string }; Returns: Json }
       agent_allocate_tenant_payment:
         | {
             Args: {
