@@ -523,30 +523,54 @@ export function EmailTransactionsPanel() {
   useEffect(() => {
     let cancelled = false;
     const rowPhones = new Map<string, string[]>();
+    const rowFromPhones = new Map<string, string[]>();
+    const rowRefs = new Map<string, string[]>();
     const allPhones = new Set<string>();
+    const allRefs = new Set<string>();
     for (const r of rows) {
       const phones = extractPhones(r);
       if (phones.length) {
         rowPhones.set(r.id, phones);
         phones.forEach((p) => allPhones.add(p));
       }
+      const fromPhones = extractFromPhones(r);
+      if (fromPhones.length) {
+        rowFromPhones.set(r.id, fromPhones);
+        fromPhones.forEach((p) => allPhones.add(p));
+      }
+      const refs = extractReferences(r);
+      if (refs.length) {
+        rowRefs.set(r.id, refs);
+        refs.forEach((x) => allRefs.add(x));
+      }
     }
-    if (allPhones.size === 0) {
+    if (allPhones.size === 0 && allRefs.size === 0) {
       setUserMatches({});
       return;
     }
     const phoneList = Array.from(allPhones);
+    const refList = Array.from(allRefs);
     (async () => {
       // Build the in-list once and query both phone columns.
-      const { data, error } = await (supabase
-        .from('profiles') as any)
-        .select('id, full_name, phone, mobile_money_number, verified')
-        .or(`phone.in.(${phoneList.join(',')}),mobile_money_number.in.(${phoneList.join(',')})`)
-        .limit(500);
-      if (cancelled || error || !data) return;
+      const profileQ = phoneList.length
+        ? (supabase.from('profiles') as any)
+            .select('id, full_name, phone, mobile_money_number, verified')
+            .or(`phone.in.(${phoneList.join(',')}),mobile_money_number.in.(${phoneList.join(',')})`)
+            .limit(500)
+        : Promise.resolve({ data: [], error: null });
+      // Authoritative lookup: a Welile deposit_request that already carries
+      // this exact transaction id maps the email straight to its user.
+      const depQ = refList.length
+        ? (supabase.from('deposit_requests') as any)
+            .select('transaction_id, user_id, profiles:profiles!deposit_requests_user_id_fkey(id, full_name, phone, mobile_money_number)')
+            .in('transaction_id', refList)
+            .limit(500)
+        : Promise.resolve({ data: [], error: null });
+      const [{ data, error }, { data: deps }] = await Promise.all([profileQ, depQ]);
+      if (cancelled || error) return;
       type P = { id: string; full_name: string; phone: string | null; mobile_money_number: string | null };
       const byPhone = new Map<string, P[]>();
-      for (const p of data as P[]) {
+      for (const p of (data ?? []) as P[]) {
         for (const candidate of [p.phone, p.mobile_money_number]) {
           const n = candidate ? normalizeUgPhone(candidate) : null;
           if (!n) continue;
@@ -555,10 +579,28 @@ export function EmailTransactionsPanel() {
           byPhone.set(n, list);
         }
       }
+      const byRef = new Map<string, P>();
+      for (const d of (deps ?? []) as Array<{ transaction_id: string; profiles: P | null }>) {
+        if (d.transaction_id && d.profiles) byRef.set(d.transaction_id.toUpperCase(), d.profiles);
+      }
       const next: Record<string, MatchedUser[]> = {};
       for (const [rowId, phones] of rowPhones) {
         const seen = new Set<string>();
         const list: MatchedUser[] = [];
+        // 1. Reference / TID hit — authoritative, push first.
+        for (const ref of rowRefs.get(rowId) ?? []) {
+          const p = byRef.get(ref);
+          if (p && !seen.has(p.id)) {
+            seen.add(p.id);
+            list.push({
+              id: p.id, full_name: p.full_name,
+              phone: p.phone, mobile_money_number: p.mobile_money_number,
+              matched_on: `reference ${ref}`,
+            });
+          }
+        }
+        // 2. Phone right after the word "from" — strongest heuristic match.
+        const fromSet = new Set(rowFromPhones.get(rowId) ?? []);
         for (const ph of phones) {
           for (const p of byPhone.get(ph) ?? []) {
             if (seen.has(p.id)) continue;
@@ -568,7 +610,25 @@ export function EmailTransactionsPanel() {
               full_name: p.full_name,
               phone: p.phone,
               mobile_money_number: p.mobile_money_number,
-              matched_on: `phone ${ph}`,
+              matched_on: fromSet.has(ph) ? `from ${ph}` : `phone ${ph}`,
+            });
+          }
+        }
+        if (list.length) next[rowId] = list;
+      }
+      // Rows that had no extracted phone but did match by reference id.
+      for (const [rowId, refs] of rowRefs) {
+        if (next[rowId]) continue;
+        const list: MatchedUser[] = [];
+        const seen = new Set<string>();
+        for (const ref of refs) {
+          const p = byRef.get(ref);
+          if (p && !seen.has(p.id)) {
+            seen.add(p.id);
+            list.push({
+              id: p.id, full_name: p.full_name,
+              phone: p.phone, mobile_money_number: p.mobile_money_number,
+              matched_on: `reference ${ref}`,
             });
           }
         }
