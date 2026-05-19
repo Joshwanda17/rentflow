@@ -207,15 +207,50 @@ export default function AgentFloatBreakdown() {
     return 'All-time';
   }
 
+  // Build per-row running totals (deposits, used, net) computed chronologically
+  // (oldest → newest) within the currently filtered range, then keyed by entry_id
+  // so they can be emitted in whatever display order we want.
+  function buildRunningTotals(): Map<string, { runDeposits: number; runUsed: number; runNet: number }> {
+    const chrono = [...filteredRows].sort(
+      (a, b) => new Date(a.occurred_at).getTime() - new Date(b.occurred_at).getTime(),
+    );
+    const map = new Map<string, { runDeposits: number; runUsed: number; runNet: number }>();
+    let runDeposits = 0;
+    let runUsed = 0;
+    for (const r of chrono) {
+      const signed = Number(r.signed_amount);
+      if (signed > 0) runDeposits += signed;
+      else if (signed < 0) runUsed += Math.abs(signed);
+      map.set(r.entry_id, { runDeposits, runUsed, runNet: runDeposits - runUsed });
+    }
+    return map;
+  }
+
   function exportCsv() {
     hapticTap();
-    const headers = ['Date', 'Category', 'Direction', 'Amount (UGX)', 'Signed Amount (UGX)', 'Running Balance (UGX)', 'Reference ID', 'Transaction Group', 'Entry ID', 'Description'];
+    const headers = [
+      'Date',
+      'Category',
+      'Direction',
+      'Amount (UGX)',
+      'Signed Amount (UGX)',
+      'Running Balance (UGX)',
+      'Running Deposits (UGX)',
+      'Running Used (UGX)',
+      'Running Net (UGX)',
+      'Reference ID',
+      'Transaction Group',
+      'Entry ID',
+      'Description',
+    ];
     const esc = (v: unknown) => {
       const s = v === null || v === undefined ? '' : String(v);
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
+    const totals = buildRunningTotals();
     const lines = [headers.join(',')];
     for (const r of filteredRows) {
+      const t = totals.get(r.entry_id) ?? { runDeposits: 0, runUsed: 0, runNet: 0 };
       lines.push([
         new Date(r.occurred_at).toISOString(),
         labelFor(r.category),
@@ -223,6 +258,9 @@ export default function AgentFloatBreakdown() {
         Number(r.amount),
         Number(r.signed_amount),
         Number(r.running_balance),
+        t.runDeposits,
+        t.runUsed,
+        t.runNet,
         r.reference_id ?? '',
         r.transaction_group_id ?? '',
         r.entry_id,
@@ -267,17 +305,38 @@ export default function AgentFloatBreakdown() {
 
     autoTable(doc, {
       startY: 105,
-      head: [['Date', 'Category', 'Dir', 'Amount', 'Signed', 'Running Bal.', 'Reference ID', 'Description']],
-      body: filteredRows.map((r) => [
-        new Date(r.occurred_at).toLocaleString(),
-        labelFor(r.category),
-        r.direction === 'cash_in' ? 'IN' : 'OUT',
-        formatAmount(Number(r.amount)),
-        formatAmount(Number(r.signed_amount)),
-        formatAmount(Number(r.running_balance)),
-        r.reference_id ?? '',
-        r.description ?? '',
-      ]),
+      head: [[
+        'Date',
+        'Category',
+        'Dir',
+        'Amount',
+        'Signed',
+        'Running Bal.',
+        'Run. Deposits',
+        'Run. Used',
+        'Run. Net',
+        'Reference ID',
+        'Description',
+      ]],
+      body: (() => {
+        const totals = buildRunningTotals();
+        return filteredRows.map((r) => {
+          const t = totals.get(r.entry_id) ?? { runDeposits: 0, runUsed: 0, runNet: 0 };
+          return [
+            new Date(r.occurred_at).toLocaleString(),
+            labelFor(r.category),
+            r.direction === 'cash_in' ? 'IN' : 'OUT',
+            formatAmount(Number(r.amount)),
+            formatAmount(Number(r.signed_amount)),
+            formatAmount(Number(r.running_balance)),
+            formatAmount(t.runDeposits),
+            formatAmount(t.runUsed),
+            formatAmount(t.runNet),
+            r.reference_id ?? '',
+            r.description ?? '',
+          ];
+        });
+      })(),
       styles: { fontSize: 8, cellPadding: 4 },
       headStyles: { fillColor: [30, 41, 59], textColor: 255 },
       margin: { left: 40, right: 40 },
