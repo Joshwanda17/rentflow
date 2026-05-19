@@ -10,14 +10,96 @@ import { confirmDiscardIfDirty } from '@/hooks/useUnsavedChangesGuard';
 type HistoryEntry = { path: string; label: string };
 
 /**
- * Convert "/agent/tenants/abc-123" → "Tenants".
- * Keeps labels short, friendly, and stable for repeat visits.
+ * Known-route → short human label. Keep entries short (≤ 14 chars) so the
+ * chip strip stays readable on a 360px phone. Longest-prefix match wins,
+ * so dynamic routes like `/house/:id` resolve via their static prefix.
+ */
+const ROUTE_LABELS: Array<[RegExp, string]> = [
+  [/^\/dashboard\/agent\b/, 'Agent Home'],
+  [/^\/dashboard\/tenant\b/, 'Tenant Home'],
+  [/^\/dashboard\/landlord\b/, 'Landlord Home'],
+  [/^\/dashboard\/funder\b/, 'Supporter Home'],
+  [/^\/dashboard\/manager\b/, 'Manager Home'],
+  [/^\/dashboard\b/, 'Home'],
+  [/^\/transactions\b/, 'Transactions'],
+  [/^\/financial-statement\b/, 'Statement'],
+  [/^\/settings\b/, 'Settings'],
+  [/^\/earnings\b/, 'Earnings'],
+  [/^\/analytics\b/, 'Analytics'],
+  [/^\/orders\b/, 'Orders'],
+  [/^\/wishlist\b/, 'Wishlist'],
+  [/^\/marketplace\b/, 'Marketplace'],
+  [/^\/categories\b/, 'Categories'],
+  [/^\/flash-sales\b/, 'Flash Sales'],
+  [/^\/seller-portal\b/, 'Seller Portal'],
+  [/^\/seller\b/, 'Seller'],
+  [/^\/my-receipts\b/, 'Receipts'],
+  [/^\/my-loans\b/, 'Rent Plans'],
+  [/^\/payment-schedule\b/, 'Schedule'],
+  [/^\/pay-landlord\b/, 'Pay Landlord'],
+  [/^\/rent-discount-history\b/, 'Discounts'],
+  [/^\/benefits\b/, 'Benefits'],
+  [/^\/referrals\b/, 'Referrals'],
+  [/^\/manager-access\b/, 'Manager Access'],
+  [/^\/become-supporter\b/, 'Become Supporter'],
+  [/^\/angel-pool-agreement\b/, 'Angel Agreement'],
+  [/^\/angel-pool\b/, 'Angel Pool'],
+  [/^\/vendor-portal\b/, 'Vendor Portal'],
+  [/^\/deposits-management\b/, 'Deposits Ops'],
+  [/^\/deposit-history\b/, 'Deposits'],
+  [/^\/activate-supporter\b/, 'Activate'],
+  [/^\/agent-registrations\b/, 'Registrations'],
+  [/^\/sub-agents\b/, 'Sub-Agents'],
+  [/^\/agent\/partners\b/, 'My Partners'],
+  [/^\/agent\/tenants\b/, 'Tenants'],
+  [/^\/agent\/funders\b/, 'My Funders'],
+  [/^\/agent\b/, 'Agent'],
+  [/^\/record-rent\b/, 'Record Rent'],
+  [/^\/calculator\b/, 'Calculator'],
+  [/^\/rent-calculator\b/, 'Rent Calc'],
+  [/^\/try-calculator\b/, 'Try Calc'],
+  [/^\/users\b/, 'Users'],
+  [/^\/platform-users\b/, 'Platform Users'],
+  [/^\/supporter-earnings\b/, 'Returns'],
+  [/^\/reinvestment-history\b/, 'Reinvest'],
+  [/^\/investment-portfolio\b/, 'Portfolio'],
+  [/^\/my-watchlist\b/, 'Watchlist'],
+  [/^\/opportunities\b/, 'Opportunities'],
+  [/^\/audit-log\b/, 'Audit Log'],
+  [/^\/welile-homes-dashboard\b/, 'Homes Ops'],
+  [/^\/landlord-welile-homes\b/, 'My Homes'],
+  [/^\/welile-homes\b/, 'Welile Homes'],
+  [/^\/find-a-house\b/, 'Find House'],
+  [/^\/house\b/, 'House'],
+  [/^\/shop\b/, 'Shop'],
+  [/^\/landlord-signup\b/, 'Landlord Signup'],
+  [/^\/landlord-agreement\b/, 'Landlord Terms'],
+  [/^\/agent-agreement\b/, 'Agent Terms'],
+  [/^\/agent-commission-benefits\b/, 'Commissions'],
+  [/^\/profile\b/, 'Profile'],
+  [/^\/id\b/, 'Trust ID'],
+  [/^\/staff\b/, 'Staff'],
+  [/^\/select-role\b/, 'Switch Role'],
+  [/^\/onboarding\b/, 'Onboarding'],
+  [/^\/funder-onboarding\b/, 'Supporter Onboarding'],
+  [/^\/partner-onboarding\b/, 'Partner Onboarding'],
+  [/^\/welcome\b/, 'Welcome'],
+  [/^\/auth\b/, 'Sign In'],
+];
+
+/**
+ * Convert a pathname into a short, friendly chip label.
+ * Looks up the curated route map first so labels match what agents see in
+ * the rest of the UI ("Rent Plans", "Returns", "My Partners"…). Falls back
+ * to a title-cased first segment with UUID-ish tails stripped.
  */
 function labelFor(pathname: string): string {
   if (pathname === '/' || pathname === '/dashboard') return 'Home';
+  for (const [re, label] of ROUTE_LABELS) {
+    if (re.test(pathname)) return label;
+  }
   const seg = pathname.split('/').filter(Boolean)[0] ?? '';
   if (!seg) return 'Home';
-  // Drop UUID-ish trailing segments by only using the first segment.
   return seg
     .replace(/[-_]+/g, ' ')
     .replace(/\b\w/g, (c) => c.toUpperCase())
