@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowDownLeft, ArrowUpRight, ChevronDown, ChevronUp, Wallet } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Wallet } from 'lucide-react';
 import { CompactAmount } from '@/components/ui/CompactAmount';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -56,6 +56,7 @@ interface FloatBreakdownCardProps {
 }
 
 const ALL_CATS = [...FLOAT_IN_CATEGORIES, ...FLOAT_OUT_CATEGORIES];
+const PAGE_SIZE = 50;
 
 function labelFor(cat: string) {
   return CATEGORY_LABEL[cat] ?? cat.replace(/_/g, ' ');
@@ -66,14 +67,20 @@ export function FloatBreakdownCard({ floatBalance }: FloatBreakdownCardProps) {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
-  const [showAll, setShowAll] = useState(false);
+  const [page, setPage] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
 
-  useEffect(() => {
-    if (!user?.id || !expanded) return;
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      const { data, error } = await supabase
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+
+  const fetchPage = useCallback(async (pageIndex: number) => {
+    if (!user?.id) return;
+    setLoading(true);
+
+    const from = pageIndex * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
+    const [{ data, error }, { count, error: countError }] = await Promise.all([
+      supabase
         .from('general_ledger')
         .select('id, transaction_date, category, direction, amount, reference_id, description')
         .eq('user_id', user.id)
@@ -83,21 +90,37 @@ export function FloatBreakdownCard({ floatBalance }: FloatBreakdownCardProps) {
         .neq('classification', 'admin_correction')
         .neq('category', 'system_balance_correction')
         .order('transaction_date', { ascending: false })
-        .limit(200);
-      if (!cancelled) {
-        if (error) {
-          console.error('[FloatBreakdownCard] load error', error);
-          setEntries([]);
-        } else {
-          setEntries((data ?? []) as Entry[]);
-        }
-        setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id, expanded]);
+        .range(from, to),
+      supabase
+        .from('general_ledger')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('ledger_scope', 'wallet')
+        .in('category', ALL_CATS)
+        .neq('classification', 'admin_correction')
+        .neq('category', 'system_balance_correction'),
+    ]);
+
+    if (error) {
+      console.error('[FloatBreakdownCard] load error', error);
+      setEntries([]);
+    } else {
+      setEntries((data ?? []) as Entry[]);
+    }
+
+    if (countError) {
+      console.error('[FloatBreakdownCard] count error', countError);
+    } else {
+      setTotalCount(count ?? 0);
+    }
+
+    setLoading(false);
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id || !expanded) return;
+    fetchPage(page);
+  }, [user?.id, expanded, page, fetchPage]);
 
   const totalIn = entries
     .filter((e) => e.direction === 'cash_in')
@@ -106,7 +129,8 @@ export function FloatBreakdownCard({ floatBalance }: FloatBreakdownCardProps) {
     .filter((e) => e.direction === 'cash_out')
     .reduce((s, e) => s + Number(e.amount || 0), 0);
 
-  const visible = showAll ? entries : entries.slice(0, 10);
+  const canGoPrev = page > 0;
+  const canGoNext = page < totalPages - 1;
 
   return (
     <Card className="border-border/50 shadow-sm">
@@ -146,6 +170,9 @@ export function FloatBreakdownCard({ floatBalance }: FloatBreakdownCardProps) {
                   value={totalIn}
                   className="text-emerald-700 dark:text-emerald-400 font-bold border-0 p-0"
                 />
+                <p className="text-[10px] text-emerald-700/60 dark:text-emerald-400/60 mt-0.5">
+                  this page
+                </p>
               </div>
               <div className="rounded-xl bg-rose-500/10 px-3 py-2">
                 <p className="text-[10px] uppercase tracking-wider text-rose-700 dark:text-rose-400 font-semibold">
@@ -155,6 +182,9 @@ export function FloatBreakdownCard({ floatBalance }: FloatBreakdownCardProps) {
                   value={totalOut}
                   className="text-rose-700 dark:text-rose-400 font-bold border-0 p-0"
                 />
+                <p className="text-[10px] text-rose-700/60 dark:text-rose-400/60 mt-0.5">
+                  this page
+                </p>
               </div>
             </div>
 
@@ -169,7 +199,7 @@ export function FloatBreakdownCard({ floatBalance }: FloatBreakdownCardProps) {
             ) : (
               <>
                 <ul className="divide-y divide-border/60 rounded-xl border border-border/60 overflow-hidden">
-                  {visible.map((e) => {
+                  {entries.map((e) => {
                     const isIn = e.direction === 'cash_in';
                     return (
                       <li
@@ -221,18 +251,38 @@ export function FloatBreakdownCard({ floatBalance }: FloatBreakdownCardProps) {
                     );
                   })}
                 </ul>
-                {entries.length > 10 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => setShowAll((v) => !v)}
-                  >
-                    {showAll ? 'Show less' : `Show all ${entries.length}`}
-                  </Button>
+
+                {/* Pagination controls */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between pt-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1 px-2"
+                      disabled={!canGoPrev}
+                      onClick={() => setPage((p) => Math.max(0, p - 1))}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Prev
+                    </Button>
+                    <span className="text-xs text-muted-foreground font-medium">
+                      Page {page + 1} of {totalPages}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1 px-2"
+                      disabled={!canGoNext}
+                      onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                 )}
+
                 <p className="text-[10px] text-muted-foreground/70 text-center">
-                  Source: general ledger · wallet-side entries
+                  Source: general ledger · wallet-side entries · {totalCount.toLocaleString()} total
                 </p>
               </>
             )}
