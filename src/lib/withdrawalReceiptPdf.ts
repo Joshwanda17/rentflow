@@ -2,6 +2,193 @@
 // Uses jsPDF dynamically to keep it out of the initial bundle.
 import { format } from 'date-fns';
 
+/**
+ * Supported language codes for the receipt PDF. Mirrors the union in
+ * `src/i18n/translations.ts` but kept local so this module doesn't pull
+ * in the full app translation bundle (the PDF only needs a handful of
+ * labels). Languages whose scripts aren't covered by jsPDF's built-in
+ * helvetica font (e.g. Amharic, Arabic, CJK, Hindi, Bengali, Thai) fall
+ * back to English labels so we never render unreadable box glyphs.
+ */
+export type ReceiptLanguage =
+  | 'en' | 'sw' | 'fr' | 'am' | 'ar' | 'hi' | 'pt' | 'es' | 'zh' | 'ru'
+  | 'de' | 'ja' | 'ko' | 'id' | 'tr' | 'vi' | 'th' | 'bn';
+
+interface ReceiptLabels {
+  title: string;
+  subtitle: string;
+  grossAmount: string;
+  feeBreakdown: string;
+  withdrawalAmount: string;
+  platformServiceFee: string;
+  transactionExpenses: string;
+  netAmountPayable: string;
+  reference: string;
+  status: string;
+  statusDefault: string;
+  processed: string;
+  method: string;
+  recipient: string;
+  footer: string;
+}
+
+const EN_LABELS: ReceiptLabels = {
+  title: 'Withdrawal Receipt',
+  subtitle: 'Welile — server-confirmed',
+  grossAmount: 'Gross Amount',
+  feeBreakdown: 'Fee Breakdown',
+  withdrawalAmount: 'Withdrawal amount',
+  platformServiceFee: 'Platform service fee',
+  transactionExpenses: 'Transaction expenses',
+  netAmountPayable: 'Net amount payable',
+  reference: 'Reference',
+  status: 'Status',
+  statusDefault: 'Pending disbursement',
+  processed: 'Processed',
+  method: 'Method',
+  recipient: 'Recipient',
+  footer:
+    'This receipt confirms the withdrawal request was accepted by Welile. Funds are released after Financial Ops approval.',
+};
+
+// Only languages whose glyphs render correctly with jsPDF's built-in
+// helvetica (WinAnsi-compatible Latin scripts) get full translations.
+// Everything else falls back to English to avoid box glyphs.
+const LABELS: Partial<Record<ReceiptLanguage, ReceiptLabels>> = {
+  en: EN_LABELS,
+  sw: {
+    title: 'Risiti ya Utoaji',
+    subtitle: 'Welile — imethibitishwa na seva',
+    grossAmount: 'Kiasi Kamili',
+    feeBreakdown: 'Mchanganuo wa Ada',
+    withdrawalAmount: 'Kiasi cha utoaji',
+    platformServiceFee: 'Ada ya huduma ya jukwaa',
+    transactionExpenses: 'Gharama za muamala',
+    netAmountPayable: 'Kiasi halisi cha kulipwa',
+    reference: 'Kumbukumbu',
+    status: 'Hali',
+    statusDefault: 'Inasubiri kulipwa',
+    processed: 'Imechakatwa',
+    method: 'Njia',
+    recipient: 'Mpokeaji',
+    footer:
+      'Risiti hii inathibitisha ombi la utoaji limepokelewa na Welile. Fedha hutolewa baada ya idhini ya Financial Ops.',
+  },
+  fr: {
+    title: 'Reçu de Retrait',
+    subtitle: 'Welile — confirmé par le serveur',
+    grossAmount: 'Montant Brut',
+    feeBreakdown: 'Détail des Frais',
+    withdrawalAmount: 'Montant du retrait',
+    platformServiceFee: 'Frais de service de la plateforme',
+    transactionExpenses: 'Frais de transaction',
+    netAmountPayable: 'Montant net à payer',
+    reference: 'Référence',
+    status: 'Statut',
+    statusDefault: 'En attente de décaissement',
+    processed: 'Traité',
+    method: 'Méthode',
+    recipient: 'Destinataire',
+    footer:
+      "Ce reçu confirme que la demande de retrait a été acceptée par Welile. Les fonds sont versés après approbation par Financial Ops.",
+  },
+  pt: {
+    title: 'Recibo de Levantamento',
+    subtitle: 'Welile — confirmado pelo servidor',
+    grossAmount: 'Valor Bruto',
+    feeBreakdown: 'Detalhe de Taxas',
+    withdrawalAmount: 'Valor do levantamento',
+    platformServiceFee: 'Taxa de serviço da plataforma',
+    transactionExpenses: 'Despesas de transação',
+    netAmountPayable: 'Valor líquido a pagar',
+    reference: 'Referência',
+    status: 'Estado',
+    statusDefault: 'Aguardando desembolso',
+    processed: 'Processado',
+    method: 'Método',
+    recipient: 'Destinatário',
+    footer:
+      'Este recibo confirma que o pedido de levantamento foi aceite pela Welile. Os fundos são libertados após aprovação da Financial Ops.',
+  },
+  es: {
+    title: 'Recibo de Retiro',
+    subtitle: 'Welile — confirmado por el servidor',
+    grossAmount: 'Importe Bruto',
+    feeBreakdown: 'Desglose de Comisiones',
+    withdrawalAmount: 'Importe del retiro',
+    platformServiceFee: 'Comisión de servicio de la plataforma',
+    transactionExpenses: 'Gastos de transacción',
+    netAmountPayable: 'Importe neto a pagar',
+    reference: 'Referencia',
+    status: 'Estado',
+    statusDefault: 'Pendiente de desembolso',
+    processed: 'Procesado',
+    method: 'Método',
+    recipient: 'Destinatario',
+    footer:
+      'Este recibo confirma que la solicitud de retiro fue aceptada por Welile. Los fondos se liberan tras la aprobación de Financial Ops.',
+  },
+  de: {
+    title: 'Auszahlungsbeleg',
+    subtitle: 'Welile — serverseitig bestätigt',
+    grossAmount: 'Bruttobetrag',
+    feeBreakdown: 'Gebührenaufstellung',
+    withdrawalAmount: 'Auszahlungsbetrag',
+    platformServiceFee: 'Plattform-Servicegebühr',
+    transactionExpenses: 'Transaktionskosten',
+    netAmountPayable: 'Auszahlbarer Nettobetrag',
+    reference: 'Referenz',
+    status: 'Status',
+    statusDefault: 'Auszahlung ausstehend',
+    processed: 'Verarbeitet',
+    method: 'Methode',
+    recipient: 'Empfänger',
+    footer:
+      'Dieser Beleg bestätigt, dass die Auszahlungsanfrage von Welile angenommen wurde. Die Auszahlung erfolgt nach Freigabe durch Financial Ops.',
+  },
+  id: {
+    title: 'Bukti Penarikan',
+    subtitle: 'Welile — dikonfirmasi server',
+    grossAmount: 'Jumlah Kotor',
+    feeBreakdown: 'Rincian Biaya',
+    withdrawalAmount: 'Jumlah penarikan',
+    platformServiceFee: 'Biaya layanan platform',
+    transactionExpenses: 'Biaya transaksi',
+    netAmountPayable: 'Jumlah bersih yang dibayar',
+    reference: 'Referensi',
+    status: 'Status',
+    statusDefault: 'Menunggu pencairan',
+    processed: 'Diproses',
+    method: 'Metode',
+    recipient: 'Penerima',
+    footer:
+      'Bukti ini mengonfirmasi permintaan penarikan telah diterima oleh Welile. Dana dicairkan setelah persetujuan Financial Ops.',
+  },
+  tr: {
+    title: 'Para Çekme Makbuzu',
+    subtitle: 'Welile — sunucu tarafından onaylandı',
+    grossAmount: 'Brüt Tutar',
+    feeBreakdown: 'Ücret Dökümü',
+    withdrawalAmount: 'Çekim tutarı',
+    platformServiceFee: 'Platform hizmet ücreti',
+    transactionExpenses: 'İşlem giderleri',
+    netAmountPayable: 'Ödenecek net tutar',
+    reference: 'Referans',
+    status: 'Durum',
+    statusDefault: 'Ödeme bekleniyor',
+    processed: 'İşlendi',
+    method: 'Yöntem',
+    recipient: 'Alıcı',
+    footer:
+      'Bu makbuz, çekim talebinin Welile tarafından kabul edildiğini doğrular. Tutar Financial Ops onayından sonra serbest bırakılır.',
+  },
+};
+
+function resolveLabels(language?: ReceiptLanguage): ReceiptLabels {
+  if (!language) return EN_LABELS;
+  return LABELS[language] ?? EN_LABELS;
+}
+
 export interface WithdrawalReceiptData {
   reference: string;
   amount: number;
@@ -10,6 +197,13 @@ export interface WithdrawalReceiptData {
   method: string;
   date: Date;
   status?: string;
+  /**
+   * User's preferred UI language. When provided and supported, all
+   * labels on the PDF (header, fee panel, detail rows, footer) are
+   * rendered in that language. Unsupported scripts fall back to English
+   * so the PDF never shows unreadable glyphs.
+   */
+  language?: ReceiptLanguage;
   /**
    * Itemised fee/expense lines that apply to this withdrawal. Each entry
    * shows as its own row in the breakdown panel. Use a negative `amount`
@@ -38,6 +232,8 @@ async function renderWithdrawalReceiptPdf(data: WithdrawalReceiptData) {
   const { default: JsPDF } = await import('jspdf');
   const doc = new JsPDF({ unit: 'pt', format: 'a4' });
 
+  const L = resolveLabels(data.language);
+
   const pageWidth = doc.internal.pageSize.getWidth();
   const marginX = 48;
   let y = 64;
@@ -45,13 +241,13 @@ async function renderWithdrawalReceiptPdf(data: WithdrawalReceiptData) {
   // Header
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(20);
-  doc.text('Withdrawal Receipt', marginX, y);
+  doc.text(L.title, marginX, y);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.setTextColor(120);
   y += 18;
-  doc.text('Welile — server-confirmed', marginX, y);
+  doc.text(L.subtitle, marginX, y);
   doc.setTextColor(0);
 
   // Amount block
@@ -62,7 +258,7 @@ async function renderWithdrawalReceiptPdf(data: WithdrawalReceiptData) {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.setTextColor(110);
-  doc.text('Gross Amount', marginX + 16, y + 22);
+  doc.text(L.grossAmount, marginX + 16, y + 22);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(22);
   doc.setTextColor(20);
@@ -83,7 +279,7 @@ async function renderWithdrawalReceiptPdf(data: WithdrawalReceiptData) {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.setTextColor(20);
-  doc.text('Fee Breakdown', marginX, y);
+  doc.text(L.feeBreakdown, marginX, y);
   y += 10;
   doc.setDrawColor(230);
   doc.line(marginX, y, pageWidth - marginX, y);
@@ -101,11 +297,11 @@ async function renderWithdrawalReceiptPdf(data: WithdrawalReceiptData) {
     y += 16;
   };
 
-  drawLine('Withdrawal amount', `${data.currency} ${Math.round(data.amount).toLocaleString()}`);
+  drawLine(L.withdrawalAmount, `${data.currency} ${Math.round(data.amount).toLocaleString()}`);
 
   if (fees.length === 0) {
-    drawLine('Platform service fee', `${data.currency} 0`, { muted: true });
-    drawLine('Transaction expenses', `${data.currency} 0`, { muted: true });
+    drawLine(L.platformServiceFee, `${data.currency} 0`, { muted: true });
+    drawLine(L.transactionExpenses, `${data.currency} 0`, { muted: true });
   } else {
     fees.forEach((f) => {
       const amt = Math.round(f.amount);
@@ -117,15 +313,15 @@ async function renderWithdrawalReceiptPdf(data: WithdrawalReceiptData) {
   y += 4;
   doc.setDrawColor(210);
   doc.line(marginX, y - 8, pageWidth - marginX, y - 8);
-  drawLine('Net amount payable', `${data.currency} ${netAmount.toLocaleString()}`, { bold: true });
+  drawLine(L.netAmountPayable, `${data.currency} ${netAmount.toLocaleString()}`, { bold: true });
 
   // Details
   const rows: Array<[string, string]> = [
-    ['Reference', data.reference],
-    ['Status', data.status ?? 'Pending disbursement'],
-    ['Processed', format(data.date, 'MMM d, yyyy HH:mm')],
-    ['Method', data.method],
-    ['Recipient', data.recipient],
+    [L.reference, data.reference],
+    [L.status, data.status ?? L.statusDefault],
+    [L.processed, format(data.date, 'MMM d, yyyy HH:mm')],
+    [L.method, data.method],
+    [L.recipient, data.recipient],
   ];
 
   y += 24;
@@ -148,7 +344,7 @@ async function renderWithdrawalReceiptPdf(data: WithdrawalReceiptData) {
   doc.setFontSize(9);
   doc.setTextColor(140);
   doc.text(
-    'This receipt confirms the withdrawal request was accepted by Welile. Funds are released after Financial Ops approval.',
+    L.footer,
     marginX,
     doc.internal.pageSize.getHeight() - 48,
     { maxWidth: pageWidth - marginX * 2 },
