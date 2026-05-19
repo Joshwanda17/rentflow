@@ -139,6 +139,7 @@ const AdminUsersPage = lazy(() => import('./pages/admin/Users'));
 const AdminAccessAuditPage = lazy(() => import('./pages/admin/AccessAudit'));
 const AdminFinancialOpsPage = lazy(() => import('./pages/admin/FinancialOps'));
 const AdminReferralsPage = lazy(() => import('./pages/admin/Referrals'));
+const AdminArchivedAccountsPage = lazy(() => import('./pages/admin/ArchivedAccounts'));
 const RoleGuard = lazy(() => import('./components/auth/RoleGuard'));
 const ExecutiveHubPage = lazy(() => import('./pages/ExecutiveHub'));
 const AgentPerformanceReportPage = lazy(() => import('./pages/AgentPerformanceReport'));
@@ -404,6 +405,7 @@ function AppRoutes() {
           <Route path="/admin/access-audit" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cto']}><AdminAccessAuditPage /></RoleGuard>} />
           <Route path="/admin/financial-ops" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'coo', 'cfo']}><AdminFinancialOpsPage /></RoleGuard>} />
           <Route path="/admin/referrals" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cfo', 'coo', 'cto']}><AdminReferralsPage /></RoleGuard>} />
+          <Route path="/admin/archived-accounts" element={<RoleGuard allowedRoles={['super_admin', 'manager']}><AdminArchivedAccountsPage /></RoleGuard>} />
           <Route path="/operations" element={<RoleGuard allowedRoles={['operations', 'super_admin', 'manager']}><OperationsDashboardPage /></RoleGuard>} />
           {/* Legacy redirects */}
           <Route path="/coo-dashboard" element={<RoleGuard allowedRoles={['coo', 'super_admin', 'cto']}><COODashboardPage /></RoleGuard>} />
