@@ -481,16 +481,30 @@ export function WalletStatement() {
               </SheetTitle>
               <p className="text-xs text-muted-foreground">All money in & out of your wallet</p>
             </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={exportToPDF}
-              disabled={exporting || loading || entries.length === 0}
-              className="gap-1.5 text-xs font-semibold border-primary/30 text-primary hover:bg-primary/10"
-            >
-              {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-              Export PDF
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={exportToCSV}
+                disabled={loading || filteredEntries.length === 0}
+                className="gap-1.5 text-xs font-semibold border-primary/30 text-primary hover:bg-primary/10"
+                title={`Download CSV · ${filterSummary}`}
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5" />
+                CSV
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={exportToPDF}
+                disabled={exporting || loading || filteredEntries.length === 0}
+                className="gap-1.5 text-xs font-semibold border-primary/30 text-primary hover:bg-primary/10"
+                title={`Download PDF · ${filterSummary}`}
+              >
+                {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                PDF
+              </Button>
+            </div>
           </div>
         </SheetHeader>
 
