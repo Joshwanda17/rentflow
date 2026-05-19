@@ -390,6 +390,24 @@ export function useAuthForm() {
 
     const rpcLookup = (async (): Promise<string[]> => {
       const rpcStart = performance.now();
+      // Short-TTL cache: repeated logins on the same device should not
+      // re-pay the 300–3000ms RPC cost. Keyed by phone last-9, cached
+      // for 7 days. Cleared on auth errors below if it goes stale.
+      const cacheKey = `welile_phone_email_cache_${last9}`;
+      const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+      try {
+        const raw = localStorage.getItem(cacheKey);
+        if (raw) {
+          const parsed = JSON.parse(raw) as { at: number; emails: string[] };
+          if (parsed?.at && Date.now() - parsed.at < CACHE_TTL_MS && Array.isArray(parsed.emails)) {
+            metrics.rpcMs = Math.round(performance.now() - rpcStart);
+            metrics.rpcFoundEmails = parsed.emails.length;
+            (metrics as any).rpcCacheHit = true;
+            return parsed.emails;
+          }
+        }
+      } catch { /* non-critical */ }
+      (metrics as any).rpcCacheHit = false;
       try {
         const { data } = await Promise.race([
           supabase.rpc('get_email_by_phone', { phone_variants: [`0${last9}`, `256${last9}`, last9] }),
@@ -399,6 +417,9 @@ export function useAuthForm() {
         if (data?.length) {
           const emails = (data as { email: string }[]).map(r => r.email).filter(Boolean);
           metrics.rpcFoundEmails = emails.length;
+          try {
+            localStorage.setItem(cacheKey, JSON.stringify({ at: Date.now(), emails }));
+          } catch { /* non-critical */ }
           return emails;
         }
       } catch {
@@ -468,6 +489,12 @@ export function useAuthForm() {
         }
       }
       metrics.phase2Ms = Math.round(performance.now() - p2Start);
+    }
+
+    // If we relied on a cached RPC result and still failed every attempt,
+    // drop the cache so the next try re-fetches a fresh email list.
+    if (!loginSuccess && (metrics as any).rpcCacheHit) {
+      try { localStorage.removeItem(`welile_phone_email_cache_${last9}`); } catch { /* non-critical */ }
     }
 
     metrics.totalMs = Math.round(performance.now() - t0);
