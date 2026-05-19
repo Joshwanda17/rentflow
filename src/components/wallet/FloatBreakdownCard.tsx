@@ -338,15 +338,13 @@ export function FloatBreakdownCard({ floatBalance }: FloatBreakdownCardProps) {
                       Cash in − Cash out
                     </span>
                     <span className="font-medium tabular-nums">
-                      {netCumulative >= 0 ? '+' : ''}
-                      {netCumulative.toLocaleString()} UGX
+                      {formatUGX(netCumulative)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-[11px]">
                     <span className="text-muted-foreground">Float balance</span>
                     <span className="font-medium tabular-nums">
-                      {floatBalance >= 0 ? '+' : ''}
-                      {floatBalance.toLocaleString()} UGX
+                      {formatUGX(floatBalance)}
                     </span>
                   </div>
                   {!isReconciled && (
@@ -360,7 +358,7 @@ export function FloatBreakdownCard({ floatBalance }: FloatBreakdownCardProps) {
                         }`}
                       >
                         {diff > 0 ? '+' : ''}
-                        {diff.toLocaleString()} UGX
+                        {formatUGX(diff)}
                       </span>
                     </div>
                   )}
