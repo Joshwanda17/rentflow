@@ -22,6 +22,7 @@ import { useSavedPayoutMethods, type SavedPayoutMethod } from '@/hooks/useSavedP
 import { Checkbox } from '@/components/ui/checkbox';
 import { Trash2, Star } from 'lucide-react';
 import { downloadWithdrawalReceiptPdf, shareWithdrawalReceiptPdf } from '@/lib/withdrawalReceiptPdf';
+import { useLanguage } from '@/hooks/useLanguage';
 
 /**
  * Maps a Ugandan mobile-money number to its provider based on the operator
