@@ -1,13 +1,17 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, AlertTriangle, Loader2 } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, Loader2, X } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface Entry {
   id: string;
@@ -115,6 +119,51 @@ export default function PhantomDriftDetailPage() {
   const admin = useMemo(() => (data?.entries ?? []).filter((e) => e.classification === 'admin_correction'), [data]);
   const production = useMemo(() => (data?.entries ?? []).filter((e) => e.classification !== 'admin_correction'), [data]);
 
+  // ---- Filters (presentation only; narrow within the fetched window) ----
+  const sinceISO = data?.summary?.since ?? null;
+  const windowStart = sinceISO ? format(new Date(sinceISO), 'yyyy-MM-dd') : '';
+  const today = format(new Date(), 'yyyy-MM-dd');
+
+  const [fromDate, setFromDate] = useState<string>('');
+  const [toDate, setToDate] = useState<string>('');
+  const [adminCats, setAdminCats] = useState<string[]>([]);
+  const [prodCats, setProdCats] = useState<string[]>([]);
+
+  const adminCategories = useMemo(
+    () => Array.from(new Set(admin.map((e) => e.category))).sort(),
+    [admin],
+  );
+  const prodCategories = useMemo(
+    () => Array.from(new Set(production.map((e) => e.category))).sort(),
+    [production],
+  );
+
+  const inDateRange = (e: Entry) => {
+    const t = new Date(e.created_at).getTime();
+    if (fromDate && t < new Date(fromDate + 'T00:00:00').getTime()) return false;
+    if (toDate && t > new Date(toDate + 'T23:59:59').getTime()) return false;
+    return true;
+  };
+
+  const adminFiltered = useMemo(
+    () => admin.filter((e) => inDateRange(e) && (adminCats.length === 0 || adminCats.includes(e.category))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [admin, adminCats, fromDate, toDate],
+  );
+  const productionFiltered = useMemo(
+    () => production.filter((e) => inDateRange(e) && (prodCats.length === 0 || prodCats.includes(e.category))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [production, prodCats, fromDate, toDate],
+  );
+
+  const filtersActive = !!fromDate || !!toDate || adminCats.length > 0 || prodCats.length > 0;
+  const resetFilters = () => {
+    setFromDate('');
+    setToDate('');
+    setAdminCats([]);
+    setProdCats([]);
+  };
+
   return (
     <div className="max-w-6xl mx-auto p-4 space-y-4">
       <Button asChild variant="ghost" size="sm">
@@ -190,13 +239,72 @@ export default function PhantomDriftDetailPage() {
 
       <Card>
         <CardHeader className="pb-2">
+          <CardTitle className="text-sm">Filters</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs items-end">
+          <div className="space-y-1">
+            <Label className="text-xs">From</Label>
+            <Input
+              type="date"
+              value={fromDate}
+              min={windowStart || undefined}
+              max={toDate || today}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="h-8"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">To</Label>
+            <Input
+              type="date"
+              value={toDate}
+              min={fromDate || windowStart || undefined}
+              max={today}
+              onChange={(e) => setToDate(e.target.value)}
+              className="h-8"
+            />
+          </div>
+          <CategoryMultiSelect
+            label="Admin categories"
+            options={adminCategories}
+            selected={adminCats}
+            onChange={setAdminCats}
+          />
+          <CategoryMultiSelect
+            label="Production categories"
+            options={prodCategories}
+            selected={prodCats}
+            onChange={setProdCats}
+          />
+          {filtersActive && (
+            <div className="md:col-span-4">
+              <Button variant="ghost" size="sm" onClick={resetFilters} className="h-7 text-xs">
+                <X className="h-3 w-3 mr-1" /> Clear filters
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
             Admin / system corrections
-            <Badge variant="destructive">{admin.length}</Badge>
+            <Badge variant="destructive">
+              {adminFiltered.length}
+              {filtersActive && admin.length !== adminFiltered.length ? ` / ${admin.length}` : ''}
+            </Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <EntryTable entries={admin} emptyLabel="No admin corrections in this window." />
+          <EntryTable
+            entries={adminFiltered}
+            emptyLabel={
+              admin.length === 0
+                ? 'No admin corrections in this window.'
+                : 'No admin corrections match the current filters.'
+            }
+          />
         </CardContent>
       </Card>
 
@@ -204,13 +312,94 @@ export default function PhantomDriftDetailPage() {
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
             Real production activity
-            <Badge variant="secondary">{production.length}</Badge>
+            <Badge variant="secondary">
+              {productionFiltered.length}
+              {filtersActive && production.length !== productionFiltered.length
+                ? ` / ${production.length}`
+                : ''}
+            </Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <EntryTable entries={production} emptyLabel="No production activity in this window." />
+          <EntryTable
+            entries={productionFiltered}
+            emptyLabel={
+              production.length === 0
+                ? 'No production activity in this window.'
+                : 'No production activity matches the current filters.'
+            }
+          />
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function CategoryMultiSelect({
+  label,
+  options,
+  selected,
+  onChange,
+}: {
+  label: string;
+  options: string[];
+  selected: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const toggle = (cat: string) => {
+    onChange(selected.includes(cat) ? selected.filter((c) => c !== cat) : [...selected, cat]);
+  };
+  const summary =
+    selected.length === 0
+      ? options.length === 0
+        ? 'No categories'
+        : `All (${options.length})`
+      : `${selected.length} selected`;
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs">{label}</Label>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 w-full justify-between text-xs font-normal"
+            disabled={options.length === 0}
+          >
+            <span className="truncate">{summary}</span>
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-64 p-2 max-h-72 overflow-auto bg-popover">
+          {options.length === 0 ? (
+            <div className="text-xs text-muted-foreground p-2">No categories available.</div>
+          ) : (
+            <div className="space-y-1">
+              {selected.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-full justify-start text-[11px]"
+                  onClick={() => onChange([])}
+                >
+                  <X className="h-3 w-3 mr-1" /> Clear
+                </Button>
+              )}
+              {options.map((cat) => (
+                <label
+                  key={cat}
+                  className="flex items-center gap-2 text-xs font-mono px-1 py-1 rounded hover:bg-muted cursor-pointer"
+                >
+                  <Checkbox
+                    checked={selected.includes(cat)}
+                    onCheckedChange={() => toggle(cat)}
+                  />
+                  <span className="truncate">{cat}</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }
