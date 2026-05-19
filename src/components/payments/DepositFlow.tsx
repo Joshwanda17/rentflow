@@ -2580,7 +2580,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setStep('channel')}
+                  onClick={requestBack}
                   disabled={isSubmitting}
                   className="h-14 basis-[38%] shrink-0 text-base font-semibold rounded-xl active:scale-95 transition-transform duration-75 touch-manipulation"
                   aria-label="Back to payment method"
