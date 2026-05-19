@@ -201,6 +201,17 @@ export default function WithdrawFlow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep, open, user]);
 
+  // Keep the ledger snapshot fresh on the Verify (Confirm) step. Without this,
+  // the `isStale` gate (STALE_MS = 30s) silently disables the Confirm button if
+  // the user takes more than 30 seconds to type their PIN, leaving them with a
+  // button that "does nothing". We re-fetch every 20s while sitting on step 4.
+  useEffect(() => {
+    if (!open || !user || currentStep !== 4) return;
+    const interval = setInterval(() => { refetchLedger(); }, 20_000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, user, currentStep]);
+
   // Debounced re-validation as the user types a new amount — keeps
   // the maxAmount and inline error in sync without spamming the API.
   useEffect(() => {
@@ -968,6 +979,16 @@ export default function WithdrawFlow({
                 </InputOTPGroup>
               </InputOTP>
             </div>
+
+            {/* Surface WHY the Confirm button might be disabled so the user
+                isn't left staring at an unresponsive button. */}
+            {pin.length === 4 && (validating || isStale) && (
+              <p className="text-xs text-muted-foreground">
+                {validating
+                  ? 'Re-checking your available balance…'
+                  : 'Refreshing balance — Confirm will be available in a moment.'}
+              </p>
+            )}
 
             <ConfirmSummaryCard
               title="Withdrawal Summary"
