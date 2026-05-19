@@ -309,7 +309,7 @@ export function TidVerification() {
       const to = from + PENDING_PAGE_SIZE - 1;
       let query = supabase
         .from('deposit_requests')
-        .select('id, user_id, amount, provider, created_at, transaction_id')
+        .select('id, user_id, amount, provider, created_at, transaction_id, deposit_purpose, agent_id')
         .eq('status', 'pending');
       if (pendingProviderFilter !== 'all') {
         query = query.eq('provider', pendingProviderFilter);
@@ -342,6 +342,8 @@ export function TidVerification() {
         depositorName: profileMap.get(d.user_id)?.name ?? 'Unknown depositor',
         depositorPhone: profileMap.get(d.user_id)?.phone ?? '',
         transaction_id: d.transaction_id ?? null,
+        deposit_purpose: d.deposit_purpose ?? null,
+        agent_id: d.agent_id ?? null,
       }));
       setPending((prev) => {
         if (!append) return mapped;
