@@ -868,7 +868,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               )}
               {search && (
                 <p className="mt-1 text-[11px] text-muted-foreground px-1">
-                  {filteredTenants.length} match{filteredTenants.length === 1 ? '' : 'es'} for "{search}"
+                  {processedTenants.length} match{processedTenants.length === 1 ? '' : 'es'} for "{search}"
                 </p>
               )}
             </div>
