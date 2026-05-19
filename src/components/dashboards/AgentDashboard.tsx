@@ -280,6 +280,22 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       ? 'animate-slide-in-left'
       : 'animate-in fade-in duration-200';
 
+  // Announce tab changes to screen readers when triggered by swipe gestures
+  const [tabAnnounce, setTabAnnounce] = useState('');
+  useEffect(() => {
+    if (slideDirection) {
+      const labelMap: Record<AgentHubTab, string> = {
+        home: 'Home',
+        money: 'Money',
+        tenants: 'Tenants',
+        grow: 'Grow',
+        subagents: 'Sub Agents',
+      };
+      setTabAnnounce(`Switched to ${labelMap[activeTab]} section`);
+      setSlideDirection(null);
+    }
+  }, [activeTab]);
+
   const [showQuickDeposit, setShowQuickDeposit] = useState(false);
   const [showQuickWithdraw, setShowQuickWithdraw] = useState(false);
   const [showQuickTransfer, setShowQuickTransfer] = useState(false);
@@ -491,6 +507,11 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {/* Tab Navigation — sticky so it stays under the header and never collides with the fixed bottom role switcher */}
         <div className="sticky top-0 z-20 -mx-4 px-4 py-2 bg-background border-b border-border/40">
           <AgentHubTabs active={activeTab} onChange={(tab) => { setSlideDirection(null); setActiveTab(tab); }} />
+        </div>
+
+        {/* Screen-reader live region announces the active hub tab after a swipe gesture */}
+        <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+          {tabAnnounce}
         </div>
 
         {/* Swipe surface — left/right gestures navigate adjacent hub tabs */}
