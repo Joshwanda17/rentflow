@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Search, Loader2, ArchiveRestore, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Search, Loader2, ArchiveRestore, AlertTriangle, UserPlus, LifeBuoy } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,8 @@ interface ArchivedRow {
   created_at: string;
 }
 
+type Mode = 'choose' | 'restore' | 'free';
+
 export default function ArchivedAccountsPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -33,10 +35,11 @@ export default function ArchivedAccountsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [active, setActive] = useState<ArchivedRow | null>(null);
+  const [mode, setMode] = useState<Mode>('choose');
   const [overrideEmail, setOverrideEmail] = useState('');
   const [overridePhone, setOverridePhone] = useState('');
   const [reason, setReason] = useState('');
-  const [restoring, setRestoring] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -69,6 +72,7 @@ export default function ArchivedAccountsPage() {
 
   const openRestore = (row: ArchivedRow) => {
     setActive(row);
+    setMode('choose');
     setOverrideEmail('');
     setOverridePhone('');
     setReason('');
@@ -80,7 +84,7 @@ export default function ArchivedAccountsPage() {
       toast({ title: 'Reason too short', description: 'Provide at least 10 characters explaining the restore.', variant: 'destructive' });
       return;
     }
-    setRestoring(true);
+    setSubmitting(true);
     try {
       const { data, error } = await supabase.functions.invoke('restore-archived-account', {
         body: {
@@ -101,7 +105,33 @@ export default function ArchivedAccountsPage() {
     } catch (e: any) {
       toast({ title: 'Restore failed', description: e?.message || 'Unknown error', variant: 'destructive' });
     } finally {
-      setRestoring(false);
+      setSubmitting(false);
+    }
+  };
+
+  const submitFreeForResignup = async () => {
+    if (!active) return;
+    if (reason.trim().length < 10) {
+      toast({ title: 'Reason too short', description: 'Provide at least 10 characters explaining why credentials are being freed.', variant: 'destructive' });
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('free-credentials-for-resignup', {
+        body: { user_id: active.id, reason: reason.trim() },
+      });
+      if (error) throw new Error(error.message);
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast({
+        title: 'Credentials freed',
+        description: `${active.phone || active.email || 'The user'} can now register fresh.`,
+      });
+      setActive(null);
+      await load();
+    } catch (e: any) {
+      toast({ title: 'Failed to free credentials', description: e?.message || 'Unknown error', variant: 'destructive' });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -169,56 +199,115 @@ export default function ArchivedAccountsPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <ArchiveRestore className="h-5 w-5" />
-              Restore archived account
+              <LifeBuoy className="h-5 w-5" />
+              Resolve account access
             </DialogTitle>
             <DialogDescription>
-              This will clear the deletion flag on{' '}
-              <strong>{active?.full_name?.replace(/^\[ARCHIVED\]\s*/i, '') || 'the account'}</strong>{' '}
-              and re-attach the email/phone so the user can sign in again.
+              <strong>{active?.full_name?.replace(/^\[ARCHIVED\]\s*/i, '') || 'This account'}</strong>{' '}
+              ({active?.phone || active?.email || 'no contact'}) is archived. Pick the path that matches the user's situation.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-2">
-            <div className="bg-muted rounded-md p-3 text-sm space-y-1">
-              <div><span className="text-muted-foreground">Original phone:</span> {active?.phone || <Badge variant="outline">none</Badge>}</div>
-              <div><span className="text-muted-foreground">Original email:</span> {active?.email || <Badge variant="outline">none</Badge>}</div>
-            </div>
+          {mode === 'choose' && (
+            <div className="space-y-3 py-2">
+              <button
+                type="button"
+                onClick={() => setMode('restore')}
+                className="w-full text-left rounded-lg border bg-card p-4 hover:border-primary hover:bg-accent transition-colors"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="rounded-md bg-primary/10 p-2"><ArchiveRestore className="h-5 w-5 text-primary" /></div>
+                  <div className="min-w-0">
+                    <p className="font-medium">Un-archive &amp; restore</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      Best when the deletion was a <strong>mistake</strong>. Clears the deletion flag, re-attaches the original email/phone, and lets the user sign in again with the same credentials and history.
+                    </p>
+                  </div>
+                </div>
+              </button>
 
-            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200 flex gap-2">
-              <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
-              <span>If the original email or phone is now used by another live account, the restore will fail. Use the override fields below to assign new ones in that case.</span>
+              <button
+                type="button"
+                onClick={() => setMode('free')}
+                className="w-full text-left rounded-lg border bg-card p-4 hover:border-primary hover:bg-accent transition-colors"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="rounded-md bg-primary/10 p-2"><UserPlus className="h-5 w-5 text-primary" /></div>
+                  <div className="min-w-0">
+                    <p className="font-medium">Free credentials for fresh signup</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      Best when the deletion was <strong>intentional</strong> but the user wants back in as a brand-new account. Keeps the archived record (for history) and releases the phone/email so the user can register from scratch.
+                    </p>
+                  </div>
+                </div>
+              </button>
             </div>
+          )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="ov-email">Override email (optional)</Label>
-                <Input id="ov-email" placeholder="leave blank to use original" value={overrideEmail} onChange={(e) => setOverrideEmail(e.target.value)} />
+          {mode === 'restore' && (
+            <div className="space-y-4 py-2">
+              <div className="bg-muted rounded-md p-3 text-sm space-y-1">
+                <div><span className="text-muted-foreground">Original phone:</span> {active?.phone || <Badge variant="outline">none</Badge>}</div>
+                <div><span className="text-muted-foreground">Original email:</span> {active?.email || <Badge variant="outline">none</Badge>}</div>
+              </div>
+              <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200 flex gap-2">
+                <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                <span>If the original email or phone is now used by another live account, the restore will fail. Use the override fields below to assign new ones in that case.</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="ov-email">Override email (optional)</Label>
+                  <Input id="ov-email" placeholder="leave blank to use original" value={overrideEmail} onChange={(e) => setOverrideEmail(e.target.value)} />
+                </div>
+                <div>
+                  <Label htmlFor="ov-phone">Override phone (optional)</Label>
+                  <Input id="ov-phone" placeholder="leave blank to use original" value={overridePhone} onChange={(e) => setOverridePhone(e.target.value)} />
+                </div>
               </div>
               <div>
-                <Label htmlFor="ov-phone">Override phone (optional)</Label>
-                <Input id="ov-phone" placeholder="leave blank to use original" value={overridePhone} onChange={(e) => setOverridePhone(e.target.value)} />
+                <Label htmlFor="reason">Reason (min 10 chars, audited)</Label>
+                <Textarea id="reason" placeholder="Why is this account being restored?" value={reason} onChange={(e) => setReason(e.target.value)} rows={3} />
               </div>
             </div>
+          )}
 
-            <div>
-              <Label htmlFor="reason">Reason (min 10 chars, audited)</Label>
-              <Textarea
-                id="reason"
-                placeholder="Why is this account being restored?"
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                rows={3}
-              />
+          {mode === 'free' && (
+            <div className="space-y-4 py-2">
+              <div className="bg-muted rounded-md p-3 text-sm space-y-1">
+                <div><span className="text-muted-foreground">Phone to release:</span> {active?.phone || <Badge variant="outline">none</Badge>}</div>
+                <div><span className="text-muted-foreground">Email to release:</span> {active?.email || <Badge variant="outline">none</Badge>}</div>
+              </div>
+              <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200 flex gap-2">
+                <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                <span>The archived record stays in place (for history and audit). After this, the user must complete a fresh signup themselves — their previous wallet, roles and history will NOT carry over.</span>
+              </div>
+              <div>
+                <Label htmlFor="reason-free">Reason (min 10 chars, audited)</Label>
+                <Textarea id="reason-free" placeholder="Why are these credentials being freed?" value={reason} onChange={(e) => setReason(e.target.value)} rows={3} />
+              </div>
             </div>
-          </div>
+          )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setActive(null)} disabled={restoring}>Cancel</Button>
-            <Button onClick={submitRestore} disabled={restoring || reason.trim().length < 10}>
-              {restoring ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ArchiveRestore className="h-4 w-4 mr-2" />}
-              Restore Account
-            </Button>
+            {mode === 'choose' ? (
+              <Button variant="outline" onClick={() => setActive(null)}>Cancel</Button>
+            ) : (
+              <>
+                <Button variant="ghost" onClick={() => setMode('choose')} disabled={submitting}>Back</Button>
+                <Button variant="outline" onClick={() => setActive(null)} disabled={submitting}>Cancel</Button>
+                {mode === 'restore' ? (
+                  <Button onClick={submitRestore} disabled={submitting || reason.trim().length < 10}>
+                    {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ArchiveRestore className="h-4 w-4 mr-2" />}
+                    Restore Account
+                  </Button>
+                ) : (
+                  <Button onClick={submitFreeForResignup} disabled={submitting || reason.trim().length < 10}>
+                    {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <UserPlus className="h-4 w-4 mr-2" />}
+                    Free Credentials
+                  </Button>
+                )}
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
