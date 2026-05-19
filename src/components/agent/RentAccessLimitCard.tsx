@@ -365,10 +365,17 @@ export function RentAccessLimitCard({
             )}
             <p className="text-xs sm:text-sm font-semibold flex-1">
               {result.paidToday
-                ? `+${formatUGX(PAID_INC)} earned today`
+                ? result.paymentsToday > 1
+                  ? `+${formatUGX(PAID_INC)} earned today · ${result.paymentsToday} payments count as 1 on-time day`
+                  : `+${formatUGX(PAID_INC)} earned today`
                 : `Pay today to earn +${formatUGX(PAID_INC)} (skip = −${formatUGX(MISS_DEC)})`}
             </p>
           </div>
+
+          {/* Same-day dedupe hint — always visible so tenants know extra payments today don't stack */}
+          <p className="text-[11px] text-muted-foreground italic text-center -mt-1">
+            Tip: multiple payments on the same calendar day count as <span className="font-semibold">one</span> on-time day.
+          </p>
 
           {/* Stats strip */}
           <div className="grid grid-cols-3 gap-1.5 text-center">
