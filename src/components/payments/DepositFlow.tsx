@@ -1228,6 +1228,8 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
           toast.success('Deposit submitted for verification');
         }
       }
+      // Draft fulfilled — wipe so the next deposit starts blank.
+      clearDraft();
       setStep('success');
     } catch (error: any) {
       console.error('Deposit error:', error);
