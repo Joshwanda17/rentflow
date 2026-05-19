@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowDownCircle, ArrowUpCircle, Wallet, Info, Calendar, X } from 'lucide-react';
+import { ArrowLeft, ArrowDownCircle, ArrowUpCircle, Wallet, Info, Calendar, X, ChevronRight, Copy, Check } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrency } from '@/hooks/useCurrency';
 import { hapticTap } from '@/lib/haptics';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
 interface FloatRow {
   entry_id: string;
@@ -17,6 +18,48 @@ interface FloatRow {
   description: string | null;
   transaction_group_id: string | null;
   linked_party: string | null;
+}
+
+interface SiblingLeg {
+  id: string;
+  user_id: string | null;
+  user_name: string | null;
+  category: string;
+  direction: 'cash_in' | 'cash_out';
+  amount: number;
+  ledger_scope: string;
+  wallet_bucket: string | null;
+  recipient_type: string | null;
+  account: string | null;
+  description: string | null;
+  reference_id: string | null;
+  linked_party: string | null;
+  created_at: string;
+  is_self: boolean;
+}
+
+interface EntryDetail {
+  entry: {
+    id: string;
+    created_at: string;
+    transaction_date: string;
+    category: string;
+    direction: 'cash_in' | 'cash_out';
+    amount: number;
+    description: string | null;
+    reference_id: string | null;
+    linked_party: string | null;
+    linked_party_name: string | null;
+    source_table: string | null;
+    source_id: string | null;
+    transaction_group_id: string | null;
+    wallet_bucket: string | null;
+    recipient_type: string | null;
+    account: string | null;
+    currency: string | null;
+    idempotency_key: string | null;
+  };
+  siblings: SiblingLeg[];
 }
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -51,6 +94,11 @@ export default function AgentFloatBreakdown() {
   const [preset, setPreset] = useState<Preset>('all');
   const [fromDate, setFromDate] = useState<string>('');
   const [toDate, setToDate] = useState<string>('');
+  const [selected, setSelected] = useState<FloatRow | null>(null);
+  const [detail, setDetail] = useState<EntryDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailErr, setDetailErr] = useState<string | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -69,6 +117,35 @@ export default function AgentFloatBreakdown() {
     })();
     return () => { cancelled = true; };
   }, [user?.id]);
+
+  // Load full detail when a row is selected
+  useEffect(() => {
+    if (!selected || !user?.id) return;
+    let cancelled = false;
+    setDetailLoading(true);
+    setDetailErr(null);
+    setDetail(null);
+    (async () => {
+      const { data, error } = await supabase.rpc('get_float_entry_detail', {
+        p_user_id: user.id,
+        p_entry_id: selected.entry_id,
+      });
+      if (cancelled) return;
+      if (error) setDetailErr(error.message);
+      else setDetail(data as unknown as EntryDetail);
+      setDetailLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [selected, user?.id]);
+
+  async function copyToClipboard(value: string, key: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(key);
+      hapticTap();
+      setTimeout(() => setCopied((c) => (c === key ? null : c)), 1200);
+    } catch { /* noop */ }
+  }
 
   const currentFloat = rows[0]?.running_balance ?? 0;
 
@@ -238,7 +315,11 @@ export default function AgentFloatBreakdown() {
               {filteredRows.map((r) => {
                 const isIn = r.signed_amount > 0;
                 return (
-                  <li key={r.entry_id} className="px-4 py-3 flex items-start gap-3">
+                  <li
+                    key={r.entry_id}
+                    onClick={() => { hapticTap(); setSelected(r); }}
+                    className="px-4 py-3 flex items-start gap-3 cursor-pointer hover:bg-muted/40 active:bg-muted/60 transition-colors"
+                  >
                     <div className={`mt-0.5 p-1.5 rounded-full ${isIn ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/15 text-rose-600 dark:text-rose-400'}`}>
                       {isIn ? <ArrowDownCircle className="h-3.5 w-3.5" /> : <ArrowUpCircle className="h-3.5 w-3.5" />}
                     </div>
@@ -256,9 +337,12 @@ export default function AgentFloatBreakdown() {
                         <p className="text-[10px] text-muted-foreground">
                           {new Date(r.occurred_at).toLocaleString('en-UG', { dateStyle: 'medium', timeStyle: 'short' })}
                         </p>
-                        <p className="text-[10px] text-muted-foreground tabular-nums">
-                          Bal: {formatAmount(Number(r.running_balance))}
-                        </p>
+                        <div className="flex items-center gap-1">
+                          <p className="text-[10px] text-muted-foreground tabular-nums">
+                            Bal: {formatAmount(Number(r.running_balance))}
+                          </p>
+                          <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                        </div>
                       </div>
                     </div>
                   </li>
@@ -268,6 +352,143 @@ export default function AgentFloatBreakdown() {
           </div>
         )}
       </div>
+
+      {/* Drill-down sheet */}
+      <Sheet open={!!selected} onOpenChange={(o) => { if (!o) { setSelected(null); setDetail(null); } }}>
+        <SheetContent side="bottom" className="h-[90vh] overflow-y-auto p-0">
+          <SheetHeader className="sticky top-0 z-10 bg-background border-b px-4 py-3">
+            <SheetTitle className="text-base text-left">
+              {selected ? labelFor(selected.category) : 'Transaction Detail'}
+            </SheetTitle>
+          </SheetHeader>
+
+          <div className="p-4 space-y-4">
+            {detailLoading && (
+              <div className="py-10 text-center text-sm text-muted-foreground">Loading details...</div>
+            )}
+            {detailErr && (
+              <div className="py-10 text-center text-sm text-rose-500">{detailErr}</div>
+            )}
+            {detail && (
+              <>
+                {/* Amount headline */}
+                <div className="rounded-2xl border bg-card p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
+                        {selected && selected.signed_amount > 0 ? 'Float In' : 'Float Out'}
+                      </p>
+                      <p className={`text-2xl font-black tabular-nums mt-1 ${selected && selected.signed_amount > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                        {selected && selected.signed_amount > 0 ? '+' : '−'}
+                        {formatAmount(Math.abs(Number(selected?.signed_amount ?? detail.entry.amount)))}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Bucket</p>
+                      <p className="text-xs font-semibold mt-1 capitalize">{detail.entry.wallet_bucket ?? 'float'}</p>
+                    </div>
+                  </div>
+                  {detail.entry.description && (
+                    <p className="text-sm mt-3 leading-snug">{detail.entry.description}</p>
+                  )}
+                  <p className="text-[11px] text-muted-foreground mt-2">
+                    {new Date(detail.entry.created_at).toLocaleString('en-UG', { dateStyle: 'full', timeStyle: 'short' })}
+                  </p>
+                </div>
+
+                {/* Reference IDs */}
+                <div className="rounded-2xl border bg-card overflow-hidden">
+                  <div className="px-4 py-2.5 border-b bg-muted/30">
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">References</span>
+                  </div>
+                  <dl className="divide-y">
+                    <RefRow label="Reference ID" value={detail.entry.reference_id} copyKey="ref" copied={copied} onCopy={copyToClipboard} mono />
+                    <RefRow label="Transaction Group" value={detail.entry.transaction_group_id} copyKey="grp" copied={copied} onCopy={copyToClipboard} mono />
+                    <RefRow label="Entry ID" value={detail.entry.id} copyKey="eid" copied={copied} onCopy={copyToClipboard} mono />
+                    <RefRow label="Source" value={detail.entry.source_table ? `${detail.entry.source_table}${detail.entry.source_id ? ' · ' + detail.entry.source_id.slice(0,8) : ''}` : null} copyKey="src" copied={copied} onCopy={detail.entry.source_id ? copyToClipboard : undefined} mono />
+                    <RefRow label="Linked Party" value={detail.entry.linked_party_name ?? detail.entry.linked_party} copyKey="lp" copied={copied} onCopy={copyToClipboard} />
+                    <RefRow label="Category" value={labelFor(detail.entry.category)} />
+                    <RefRow label="Account" value={detail.entry.account} />
+                    <RefRow label="Recipient Type" value={detail.entry.recipient_type} />
+                  </dl>
+                </div>
+
+                {/* Double-entry legs */}
+                {detail.siblings.length > 0 && (
+                  <div className="rounded-2xl border bg-card overflow-hidden">
+                    <div className="px-4 py-2.5 border-b bg-muted/30">
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
+                        Double-Entry Legs ({detail.siblings.length})
+                      </span>
+                    </div>
+                    <ul className="divide-y">
+                      {detail.siblings.map((s) => {
+                        const isIn = s.direction === 'cash_in';
+                        return (
+                          <li key={s.id} className={`px-4 py-3 ${s.is_self ? 'bg-primary/5' : ''}`}>
+                            <div className="flex items-baseline justify-between gap-2">
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-semibold truncate">
+                                  {labelFor(s.category)}
+                                  {s.is_self && <span className="ml-2 text-[10px] text-primary font-bold">THIS LEG</span>}
+                                </p>
+                                <p className="text-[11px] text-muted-foreground mt-0.5">
+                                  {s.user_name ?? (s.user_id ? s.user_id.slice(0,8) + '…' : 'Platform')}
+                                  {' · '}
+                                  <span className="capitalize">{s.ledger_scope}{s.wallet_bucket ? ' / ' + s.wallet_bucket : ''}</span>
+                                </p>
+                              </div>
+                              <p className={`text-sm font-bold tabular-nums whitespace-nowrap ${isIn ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                                {isIn ? '+' : '−'}{formatAmount(Number(s.amount))}
+                              </p>
+                            </div>
+                            {s.reference_id && (
+                              <p className="text-[10px] text-muted-foreground font-mono mt-1 truncate">
+                                Ref: {s.reference_id}
+                              </p>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+    </div>
+  );
+}
+
+function RefRow({
+  label, value, copyKey, copied, onCopy, mono,
+}: {
+  label: string;
+  value: string | null | undefined;
+  copyKey?: string;
+  copied?: string | null;
+  onCopy?: (v: string, k: string) => void;
+  mono?: boolean;
+}) {
+  if (!value) return null;
+  const canCopy = !!(copyKey && onCopy);
+  return (
+    <div className="px-4 py-2.5 flex items-center justify-between gap-3">
+      <dt className="text-[11px] uppercase font-bold tracking-wider text-muted-foreground flex-shrink-0">{label}</dt>
+      <dd className={`text-xs text-right truncate flex items-center gap-2 ${mono ? 'font-mono' : ''}`}>
+        <span className="truncate">{value}</span>
+        {canCopy && (
+          <button
+            onClick={() => onCopy!(value, copyKey!)}
+            className="p-1 -m-1 rounded hover:bg-muted active:scale-95 flex-shrink-0"
+            aria-label={`Copy ${label}`}
+          >
+            {copied === copyKey ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3 text-muted-foreground" />}
+          </button>
+        )}
+      </dd>
     </div>
   );
 }
