@@ -346,7 +346,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
       />
 
       {/* Scrollable content area */}
-      <div className="flex-1 overflow-y-auto pb-16 md:pb-4">
+      <div className="flex-1 overflow-y-auto pb-nav">
         <main className="px-4 py-5 space-y-5 animate-fade-in max-w-lg mx-auto flex flex-col min-h-full">
           {/* Offline Notice */}
           <AnimatePresence>

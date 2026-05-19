@@ -19,24 +19,32 @@ const tabs: { id: AgentHubTab; icon: typeof Home; label: string }[] = [
 
 export function AgentHubTabs({ active, onChange }: AgentHubTabsProps) {
   return (
-    <div className="sticky top-0 z-20 -mx-4 px-4 pt-2 pb-2 bg-background/95 backdrop-blur-md border-b border-border/40">
+    <div
+      className="sticky z-20 -mx-4 px-4 pb-2 bg-background/95 backdrop-blur-md border-b border-border/40"
+      style={{ top: 0, paddingTop: 'calc(0.5rem + env(safe-area-inset-top, 0px))' }}
+      role="tablist"
+      aria-label="Agent hub sections"
+    >
       <div className="grid grid-cols-5 gap-1 p-1 rounded-2xl bg-muted/60">
         {tabs.map((t) => {
           const isActive = active === t.id;
           return (
             <button
               key={t.id}
+              role="tab"
+              aria-selected={isActive}
+              aria-label={t.label}
               onClick={() => { hapticTap(); onChange(t.id); }}
               className={cn(
-                'flex flex-col items-center justify-center gap-0.5 py-2 rounded-xl transition-all touch-manipulation min-h-[48px]',
+                'flex flex-col items-center justify-center gap-0.5 py-2.5 rounded-xl transition-all touch-manipulation min-h-[56px]',
                 isActive
                   ? 'bg-background text-primary shadow-sm font-bold'
                   : 'text-muted-foreground active:scale-95'
               )}
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
-              <t.icon className={cn('h-4 w-4', isActive && 'scale-110')} strokeWidth={isActive ? 2.5 : 2} />
-              <span className="text-[9px] font-semibold tracking-tight leading-tight text-center">{t.label}</span>
+              <t.icon className={cn('h-5 w-5', isActive && 'scale-110')} strokeWidth={isActive ? 2.5 : 2} />
+              <span className="text-[10px] font-semibold tracking-tight leading-tight text-center">{t.label}</span>
             </button>
           );
         })}
