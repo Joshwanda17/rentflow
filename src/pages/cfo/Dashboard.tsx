@@ -52,6 +52,7 @@ import { CFOAgentOpsFloatSender } from '@/components/cfo/CFOAgentOpsFloatSender'
 import { CFOImpactKPIStrip } from '@/components/cfo/CFOImpactKPIStrip';
 import { CFOWalletActivities } from '@/components/cfo/CFOWalletActivities';
 import { AgentAllocationTracesPanel } from '@/components/cfo/AgentAllocationTracesPanel';
+import { PhantomCorrectionDriftPanel } from '@/components/cfo/PhantomCorrectionDriftPanel';
 import { usePersistedActiveTab } from '@/hooks/usePersistedActiveTab';
 
 export default function CFODashboardPage() {
@@ -110,16 +111,7 @@ export default function CFODashboardPage() {
       case 'reconciliation':
         return (
           <div className="space-y-6">
-            <div className="rounded-xl border bg-muted/30 p-6 text-sm text-muted-foreground">
-              <p className="font-medium text-foreground mb-1">Reconciliation</p>
-              <p>
-                Drift monitoring has been retired. Money-flow safety is now enforced
-                directly by the Wallet Sole Writer, the Strict Pivot view, and the
-                Wallet Write Lockdown trigger — every wallet read returns the
-                ledger-true figure by construction, so there is nothing left to
-                reconcile asynchronously.
-              </p>
-            </div>
+            <PhantomCorrectionDriftPanel />
           </div>
         );
       case 'ledger':
