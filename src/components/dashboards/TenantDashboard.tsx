@@ -182,6 +182,29 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
     return () => { cancelled = true; };
   }, []);
   const [depositOpen, setDepositOpen] = useState(false);
+  // Global "open deposit" entry: triggered from the mobile bottom-nav Deposit
+  // FAB and from `?deposit=1` deep-links so users can reach the deposit flow
+  // in one tap from anywhere.
+  useEffect(() => {
+    const handler = () => setDepositOpen(true);
+    window.addEventListener('open-deposit', handler);
+    return () => window.removeEventListener('open-deposit', handler);
+  }, []);
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('deposit') === '1') {
+        setDepositOpen(true);
+        params.delete('deposit');
+        const qs = params.toString();
+        window.history.replaceState(
+          {},
+          '',
+          window.location.pathname + (qs ? `?${qs}` : '') + window.location.hash,
+        );
+      }
+    } catch { /* ignore */ }
+  }, []);
   const [housesOpen, setHousesOpen] = useState(false);
   const housesTriggerRef = useRef<HTMLElement | null>(null);
   const openHousesSheet = useCallback(() => {

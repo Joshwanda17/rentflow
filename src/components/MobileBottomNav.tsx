@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Menu, Settings, Store, Users, FileText, Wallet, Shield } from 'lucide-react';
+import { Home, Menu, Settings, Store, Users, FileText, Wallet, Shield, ArrowDownToLine } from 'lucide-react';
 import { AppRole } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
@@ -27,13 +27,29 @@ interface MobileBottomNavProps {
 
 export default function MobileBottomNav({ currentRole, onManagerHubChange, activeManagerHub, onScrollToProductivity, onOpenMenu }: MobileBottomNavProps) {
   const location = useLocation();
+  const navigate = useNavigate();
   const currentPath = location.pathname;
   const currentSearch = location.search;
   const personaSlug = roleToSlug(currentRole);
   const [aiOpen, setAiOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  
+
   const handleTap = () => { hapticTap(); };
+
+  // One-tap Deposit shortcut for money-handling personas. If we are already
+  // on the persona dashboard, fire the global `open-deposit` event so the
+  // dashboard opens its deposit dialog without remounting. Otherwise,
+  // navigate to the persona home with `?deposit=1` — the dashboards read
+  // that flag on mount and auto-open the same dialog.
+  const showDepositFab = ['tenant', 'agent', 'supporter'].includes(currentRole);
+  const handleDepositTap = () => {
+    hapticTap();
+    if (currentPath === personaSlug) {
+      window.dispatchEvent(new CustomEvent('open-deposit'));
+    } else {
+      navigate(`${personaSlug}?deposit=1`);
+    }
+  };
 
   // Manager bottom nav: hub switching when on the manager dashboard
   if (currentRole === 'manager' && currentPath === '/dashboard/manager' && onManagerHubChange) {
@@ -123,7 +139,7 @@ export default function MobileBottomNav({ currentRole, onManagerHubChange, activ
   return (
     <>
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
-        <div className="flex items-center justify-around py-1.5 px-1">
+        <div className="relative flex items-center justify-around py-1.5 px-1">
           {navItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -141,6 +157,18 @@ export default function MobileBottomNav({ currentRole, onManagerHubChange, activ
               </Link>
             );
           })}
+          {showDepositFab && (
+            <button
+              onClick={handleDepositTap}
+              aria-label="Deposit"
+              className="flex flex-col items-center justify-center gap-0.5 py-1 px-2 rounded-2xl min-w-[64px] text-primary-foreground active:scale-95 touch-manipulation"
+            >
+              <div className="h-12 w-12 -mt-4 rounded-full bg-primary flex items-center justify-center shadow-lg ring-4 ring-card">
+                <ArrowDownToLine className="h-6 w-6" strokeWidth={2.5} />
+              </div>
+              <span className="text-[9px] font-bold tracking-wide leading-tight text-primary">Deposit</span>
+            </button>
+          )}
           <button onClick={() => { handleTap(); setAiOpen(true); }} className="flex flex-col items-center justify-center gap-0.5 py-2 px-2 rounded-2xl transition-all min-w-[52px] text-primary active:scale-95 touch-manipulation">
             <div className="relative p-1 rounded-xl bg-primary/15"><GeminiSparkle size={20} /></div>
             <span className="text-[9px] font-bold tracking-wide leading-tight text-primary">AI</span>
