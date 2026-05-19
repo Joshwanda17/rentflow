@@ -229,6 +229,25 @@ export default function SupporterDashboard({
     return () => window.removeEventListener('open-deposit', handler);
   }, []);
 
+  // Deep-link entry: `?deposit=1` auto-opens the deposit flow once on mount
+  // (used by the mobile bottom-nav Deposit FAB when navigating from another
+  // page).
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('deposit') === '1') {
+        setShowPaymentPartners(true);
+        params.delete('deposit');
+        const qs = params.toString();
+        window.history.replaceState(
+          {},
+          '',
+          window.location.pathname + (qs ? `?${qs}` : '') + window.location.hash,
+        );
+      }
+    } catch { /* ignore */ }
+  }, []);
+
   // Fetch total contributions from ledger + investor_portfolios (bounded query)
   const fetchTotalContributed = useCallback(async () => {
     if (!user?.id) return;
