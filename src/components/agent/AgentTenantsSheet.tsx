@@ -131,27 +131,66 @@ function escapeRegex(s: string) {
 /**
  * Render `text` with all case-insensitive occurrences of `query` wrapped in a
  * highlight span. Falls back to plain text when there's no query / no match.
+ *
+ * In addition to plain case-insensitive substring matching, this also
+ * highlights:
+ *   - phone digits typed without separators (e.g. "772123" against
+ *     "+256 772 123 456" highlights just the "772 123" span)
+ *   - reference-ID / Welile AI ID fragments typed without dashes
+ *     (e.g. "ab129x" against "WID-AB12-9X")
+ *   - UUID prefixes typed without dashes
+ * so the exact characters that matched are visually called out — even when
+ * the stored value is formatted differently than what the agent typed.
  */
+function findNormalizedRange(
+  text: string,
+  query: string,
+  normalize: (ch: string) => string,
+): [number, number] | null {
+  const nq = normalize(query);
+  if (!nq) return null;
+  let normalized = '';
+  const map: number[] = [];
+  for (let i = 0; i < text.length; i++) {
+    const n = normalize(text[i]);
+    for (let k = 0; k < n.length; k++) map.push(i);
+    normalized += n;
+  }
+  const idx = normalized.indexOf(nq);
+  if (idx === -1) return null;
+  return [map[idx], map[idx + nq.length - 1] + 1];
+}
+
+const normLower = (s: string) => s.toLowerCase();
+const normDigits = (s: string) => s.replace(/\D+/g, '');
+const normAlnumLower = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '');
+
 function Highlight({ text, query }: { text?: string | null; query: string }) {
   const value = text ?? '';
   const q = query.trim();
   if (!q || !value) return <>{value}</>;
-  const re = new RegExp(`(${escapeRegex(q)})`, 'ig');
-  const parts = value.split(re);
+
+  // Try matchers in priority order. First hit wins — this guarantees we
+  // highlight the most precise span (e.g. plain substring before a looser
+  // digits-only / alnum-only match).
+  const range =
+    findNormalizedRange(value, q, normLower) ||
+    (normDigits(q).length > 0
+      ? findNormalizedRange(value, q, normDigits)
+      : null) ||
+    (normAlnumLower(q).length >= 3
+      ? findNormalizedRange(value, q, normAlnumLower)
+      : null);
+
+  if (!range) return <>{value}</>;
+  const [start, end] = range;
   return (
     <>
-      {parts.map((part, i) =>
-        part.toLowerCase() === q.toLowerCase() ? (
-          <mark
-            key={i}
-            className="bg-warning/30 text-foreground rounded px-0.5 py-0 font-semibold"
-          >
-            {part}
-          </mark>
-        ) : (
-          <span key={i}>{part}</span>
-        ),
-      )}
+      {start > 0 && <span>{value.slice(0, start)}</span>}
+      <mark className="bg-warning/30 text-foreground rounded px-0.5 py-0 font-semibold">
+        {value.slice(start, end)}
+      </mark>
+      {end < value.length && <span>{value.slice(end)}</span>}
     </>
   );
 }
