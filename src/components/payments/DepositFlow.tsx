@@ -36,6 +36,7 @@ import { parseSMS } from '@/utils/smsParser';
 import { cn } from '@/lib/utils';
 import { validateDepositReference } from '@/lib/depositReferenceValidator';
 import { useHorizontalSwipe } from '@/hooks/useHorizontalSwipe';
+import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
 
 /**
  * Extract a Mobile Money / bank reference from arbitrary SMS text.
