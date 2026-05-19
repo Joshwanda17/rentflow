@@ -445,7 +445,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
         setPurposeEntryPoint(d.purposeEntryPoint);
       }
       toast.info('Draft restored', {
-        description: 'We kept your last deposit details. Tap the X to start fresh.',
+        description: 'We kept what you typed last time. Edit anything to update.',
         duration: 3500,
       });
     } catch { /* malformed JSON — ignore */ }
