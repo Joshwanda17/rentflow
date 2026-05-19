@@ -499,6 +499,20 @@ export function WalletStatement() {
 
   const breakdownItems = Object.entries(breakdown).filter(([, v]) => v > 0);
 
+  // ── Role-based highlights (computed from filtered entries) ──
+  const highlightConfig = (role && ROLE_HIGHLIGHTS[role]) || DEFAULT_HIGHLIGHT;
+  const highlightTotals = highlightConfig.categories
+    .map((cat) => {
+      const rows = filteredEntries.filter((e) => e.category === cat);
+      if (rows.length === 0) return null;
+      const inSum = rows.filter((e) => e.type === 'credit').reduce((s, e) => s + e.amount, 0);
+      const outSum = rows.filter((e) => e.type === 'debit').reduce((s, e) => s + e.amount, 0);
+      const net = inSum - outSum;
+      const meta = getCategoryMeta(cat, net >= 0 ? 'cash_in' : 'cash_out');
+      return { cat, count: rows.length, inSum, outSum, net, ...meta };
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null);
+
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
