@@ -155,6 +155,21 @@ export function useAuthForm() {
     if (error) {
       let errorMessage = error.message;
       if (error.message.includes('Invalid login credentials')) {
+        // Try to detect a deleted/archived account by email so we can show a precise message.
+        try {
+          const { data: archivedRow } = await supabase
+            .from('profiles')
+            .select('full_name, id')
+            .eq('email', email.trim().toLowerCase())
+            .ilike('full_name', '[ARCHIVED]%')
+            .maybeSingle();
+          if (archivedRow) {
+            const cleanName = (archivedRow.full_name || '').replace(/^\[ARCHIVED\]\s*/i, '').trim();
+            errorMessage = `This account${cleanName ? ` for ${cleanName}` : ''} was deleted. Contact Welile support to restore access — this email cannot sign in until then.`;
+            toast({ title: 'Account Deleted', description: errorMessage, variant: 'destructive' });
+            return;
+          }
+        } catch { /* fall through to generic message */ }
         errorMessage = 'No account found with this email, or the password is incorrect. If you signed in with Google, please use the "Continue with Google" button instead.';
       }
       toast({ title: 'Sign In Failed', description: errorMessage, variant: 'destructive' });
@@ -646,6 +661,23 @@ export function useAuthForm() {
     } else if (accountExists) {
       errorMessage = 'Incorrect password. Tap "Forgot Password?" below to reset it via SMS.';
     } else {
+      // Before giving up, check whether this phone belongs to a
+      // deleted/archived account so we can show a precise message
+      // instead of "no account found".
+      try {
+        const { data: archived } = await supabase.rpc('check_archived_account_by_phone', {
+          phone_variants: [`0${last9}`, `256${last9}`, last9],
+        });
+        const row = Array.isArray(archived) ? archived[0] : null;
+        if (row?.is_archived) {
+          const who = row.full_name ? ` for ${row.full_name}` : '';
+          const when = row.archived_at ? ` on ${new Date(row.archived_at).toLocaleDateString()}` : '';
+          errorMessage = `This account${who} was deleted${when}. Contact Welile support to restore access — your phone number cannot sign in until then.`;
+          setLoginError({ message: errorMessage, triedFormats });
+          toast({ title: 'Account Deleted', description: errorMessage, variant: 'destructive' });
+          return;
+        }
+      } catch { /* non-critical — fall back to the generic message */ }
       errorMessage = 'No account found with this phone number. Please check the number or sign up.';
     }
 
