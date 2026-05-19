@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert, Copy, Check, Wifi, WifiOff, ShieldCheck, History, LinkIcon, ChevronDown, ChevronUp, FileDown, FileText, AlertTriangle, Search, X, Pencil, Trash2 } from 'lucide-react';
+import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert, Copy, Check, Wifi, WifiOff, ShieldCheck, History, LinkIcon, ChevronDown, ChevronUp, FileDown, FileText, AlertTriangle, Search, X, Pencil, Trash2, Star, Users } from 'lucide-react';
 import { Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
@@ -1245,11 +1245,22 @@ export function EmailTransactionsPanel() {
                     <p className="text-xs text-muted-foreground/80 line-clamp-2 mt-1">{r.snippet}</p>
                     {userMatches[r.id]?.length ? (
                       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
-                          Possible user{userMatches[r.id].length > 1 ? 's' : ''}:
+                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold inline-flex items-center gap-1">
+                          {userMatches[r.id].length > 1 ? <Users className="h-3 w-3" /> : null}
+                          {userMatches[r.id].length > 1
+                            ? `${userMatches[r.id].length} possible users:`
+                            : 'Possible user:'}
                         </span>
                         <TooltipProvider delayDuration={150}>
-                          {userMatches[r.id].map((u) => {
+                          {[...userMatches[r.id]]
+                            .map((u) => {
+                              const isRef = u.matched_on.startsWith('reference ');
+                              const isFrom = u.matched_on.startsWith('from ');
+                              const score = isRef ? 100 : isFrom ? 90 : 60;
+                              return { u, score };
+                            })
+                            .sort((a, b) => b.score - a.score)
+                            .map(({ u, score }, idx, arr) => {
                             const isRef = u.matched_on.startsWith('reference ');
                             const isFrom = u.matched_on.startsWith('from ');
                             const strong = isRef || isFrom;
@@ -1258,22 +1269,31 @@ export function EmailTransactionsPanel() {
                               : isFrom
                                 ? 'Phone after "from"'
                                 : 'Phone in email body';
-                            const score = isRef ? 100 : isFrom ? 90 : 60;
                             const confidenceLabel = isRef ? 'authoritative' : isFrom ? 'high' : 'medium';
                             const matchedValue = u.matched_on.replace(/^(reference|from|phone)\s+/, '');
                             const shortLabel = isRef ? 'ref' : isFrom ? 'from' : 'phone';
+                            const isPrimary = idx === 0 && arr.length > 1;
+                            // Visual hierarchy:
+                            //  - primary (top-scoring when there are multiple matches): filled + Star
+                            //  - other strong matches: filled (no star)
+                            //  - weak matches: tinted outline
+                            const badgeClass = isPrimary
+                              ? 'bg-primary text-primary-foreground border-primary ring-2 ring-primary/50 shadow-sm'
+                              : strong
+                                ? 'bg-primary text-primary-foreground border-primary ring-1 ring-primary/30'
+                                : 'bg-primary/10 text-primary border-primary/30';
                             return (
                               <Tooltip key={u.id}>
                                 <TooltipTrigger asChild>
                                   <Badge
                                     variant="outline"
-                                    className={`text-[10px] gap-1 cursor-help ${
-                                      strong
-                                        ? 'bg-primary text-primary-foreground border-primary ring-1 ring-primary/40'
-                                        : 'bg-primary/10 text-primary border-primary/30'
-                                    }`}
+                                    className={`text-[10px] gap-1 cursor-help ${badgeClass}`}
                                   >
-                                    {strong && <CheckCircle2 className="h-3 w-3" />}
+                                    {isPrimary
+                                      ? <Star className="h-3 w-3 fill-current" />
+                                      : strong
+                                        ? <CheckCircle2 className="h-3 w-3" />
+                                        : null}
                                     <span className="font-medium">{u.full_name}</span>
                                     <span className="opacity-70">· {shortLabel}</span>
                                     <span className="font-mono tabular-nums opacity-80">{score}%</span>
@@ -1281,7 +1301,11 @@ export function EmailTransactionsPanel() {
                                 </TooltipTrigger>
                                 <TooltipContent side="top" className="max-w-xs text-xs">
                                   <div className="space-y-0.5">
-                                    <p className="font-semibold">{u.full_name}</p>
+                                    <p className="font-semibold flex items-center gap-1">
+                                      {isPrimary && <Star className="h-3 w-3 fill-current text-primary" />}
+                                      {u.full_name}
+                                      {isPrimary && <span className="text-[10px] uppercase tracking-wide text-primary font-bold">· Primary</span>}
+                                    </p>
                                     <p>
                                       <span className="text-muted-foreground">Match type: </span>
                                       {matchType}
@@ -1294,6 +1318,13 @@ export function EmailTransactionsPanel() {
                                       <span className="text-muted-foreground">Confidence: </span>
                                       {confidenceLabel} ({score}%)
                                     </p>
+                                    {arr.length > 1 && (
+                                      <p className="text-muted-foreground pt-0.5 border-t mt-1">
+                                        {isPrimary
+                                          ? `Top match of ${arr.length} candidates — primary attribution.`
+                                          : `Secondary match (rank ${idx + 1} of ${arr.length}). Review before attributing.`}
+                                      </p>
+                                    )}
                                     {u.phone && (
                                       <p className="font-mono">
                                         <span className="text-muted-foreground font-sans">Phone: </span>
