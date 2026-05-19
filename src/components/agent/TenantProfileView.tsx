@@ -622,11 +622,12 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
         <Button
           variant="ghost"
           onClick={onBack}
-          className="h-11 px-3 rounded-xl shrink-0 gap-1.5 text-base font-semibold"
+          className="h-11 px-3 rounded-xl shrink-0 gap-1.5 text-base font-semibold hover:bg-primary/10"
           aria-label="Back to tenants list"
+          title="Back to tenants list"
         >
           <ArrowLeft className="h-5 w-5" />
-          <span className="hidden xs:inline sm:inline">Back</span>
+          <span className="inline">Tenants</span>
         </Button>
         <div className="min-w-0 flex-1">
           <p className="font-bold text-base sm:text-lg leading-tight truncate">{profile.full_name}</p>
@@ -1436,6 +1437,18 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
             <p className="text-2xl sm:text-3xl font-black font-mono text-primary">{formatUGX(profile.monthly_rent)}</p>
           </SectionCard>
         )}
+
+        {/* ── Bottom "Back to Tenants" so agents don't scroll back up ── */}
+        <Button
+          variant="outline"
+          size="lg"
+          onClick={onBack}
+          className="w-full h-12 rounded-xl gap-2 text-base font-semibold"
+          aria-label="Back to tenants list"
+        >
+          <ArrowLeft className="h-5 w-5" />
+          Back to Tenants
+        </Button>
 
         {/* Spacer so sticky bottom toolbar doesn't cover the last card on mobile */}
         <div className="h-24 sm:h-4" />
