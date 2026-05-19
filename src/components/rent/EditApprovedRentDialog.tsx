@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Loader2, Save } from 'lucide-react';
 import { calculateRentRepayment } from '@/lib/rentCalculations';
+import { GuarantorConsentCheckbox } from '@/components/agent/GuarantorConsentCheckbox';
 
 
 interface EditableRequest {
@@ -32,11 +33,13 @@ export function EditApprovedRentDialog({ request, open, onOpenChange, onSaved }:
   const [rentAmount, setRentAmount] = useState<string>('');
   const [durationDays, setDurationDays] = useState<string>('');
   const [saving, setSaving] = useState(false);
+  const [guarantorConsent, setGuarantorConsent] = useState(false);
 
   const handleOpen = (isOpen: boolean) => {
     if (isOpen && request) {
       setRentAmount(String(request.rent_amount || 0));
       setDurationDays(String(request.duration_days || 0));
+      setGuarantorConsent(false);
     }
     onOpenChange(isOpen);
   };
@@ -54,6 +57,10 @@ export function EditApprovedRentDialog({ request, open, onOpenChange, onSaved }:
       toast.error(`Cannot lower below repaid amount (UGX ${repaid.toLocaleString()})`);
       return;
     }
+    if (!guarantorConsent) {
+      toast.error('You must re-accept guarantor responsibility before saving changes');
+      return;
+    }
 
     setSaving(true);
     const { error } = await supabase
@@ -65,6 +72,9 @@ export function EditApprovedRentDialog({ request, open, onOpenChange, onSaved }:
         request_fee: calc.requestFee,
         total_repayment: calc.totalRepayment,
         daily_repayment: calc.dailyRepayment,
+        agent_guarantor_consent: true,
+        agent_guarantor_consent_at: new Date().toISOString(),
+        agent_guarantor_consent_version: 'v1',
       })
       .eq('id', request.id);
 
@@ -108,13 +118,18 @@ export function EditApprovedRentDialog({ request, open, onOpenChange, onSaved }:
               <div className="flex justify-between"><span className="text-muted-foreground">Daily Repayment</span><span>UGX {preview.dailyRepayment.toLocaleString()}</span></div>
             </div>
           )}
+
+          <GuarantorConsentCheckbox
+            checked={guarantorConsent}
+            onCheckedChange={setGuarantorConsent}
+          />
         </div>
 
         <DialogFooter className="gap-2">
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancel
           </Button>
-          <Button size="sm" onClick={handleSave} disabled={saving}>
+          <Button size="sm" onClick={handleSave} disabled={saving || !guarantorConsent}>
             {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
             Save Changes
           </Button>
