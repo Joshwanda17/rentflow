@@ -405,7 +405,7 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
             Cancel
           </Button>
-          <Button onClick={submit} disabled={submitting || note.trim().length < 10} className="gap-2">
+          <Button onClick={submit} disabled={submitting} className="gap-2">
             {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             Resubmit
           </Button>
