@@ -173,6 +173,9 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [tenantTotals, setTenantTotals] = useState<Record<string, { total: number; paid: number }>>({});
   const [tenantStatuses, setTenantStatuses] = useState<Record<string, Set<string>>>({});
   const [tenantLastPaid, setTenantLastPaid] = useState<Record<string, { date: string; amount: number }>>({});
+  // Today-only repayments cache (created_at within today, by this agent's tenants)
+  // Used to power the "Today's Collection" status strip at the top of the sheet.
+  const [todayRepayments, setTodayRepayments] = useState<Array<{ tenant_id: string; amount: number; created_at: string }>>([]);
   // Per-tenant context for richer search/filter (latest landlord & address)
   const [tenantContext, setTenantContext] = useState<Record<string, { landlordName: string; propertyAddress: string; completedCount: number; totalRequests: number }>>({});
   const [propertyLocations, setPropertyLocations] = useState<Record<string, { lat: number; lng: number; address: string }>>({});
@@ -445,6 +448,17 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           }
         });
         setTenantLastPaid(lastPaid);
+
+        // Today-only slice for the live collection-status header.
+        const todayStart = startOfDay(new Date()).getTime();
+        const todays = (recentRepayments || [])
+          .filter((r: any) => new Date(r.created_at).getTime() >= todayStart)
+          .map((r: any) => ({
+            tenant_id: r.tenant_id as string,
+            amount: Number(r.amount || 0),
+            created_at: r.created_at as string,
+          }));
+        setTodayRepayments(todays);
       }
     } catch (err) {
       console.error('Failed to fetch tenants:', err);
@@ -667,6 +681,18 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     return { totalOwing, owingCount, paidUpCount, total: tenants.length, dailyExpectation };
   }, [tenants, tenantBalances, tenantStatuses, tenantDaily]);
 
+  // ───── Today's collection status ─────
+  // Drives the live header strip on My Tenants. All figures are scoped to
+  // today (since 00:00 local time) and to this agent's tenant allowlist.
+  const todayStats = useMemo(() => {
+    const collectedAmount = todayRepayments.reduce((s, r) => s + (r.amount || 0), 0);
+    const tenantsCollected = new Set(todayRepayments.map((r) => r.tenant_id)).size;
+    const tenantsOwing = stats.owingCount;
+    const expected = stats.dailyExpectation;
+    const rate = expected > 0 ? Math.min(100, Math.round((collectedAmount / expected) * 100)) : 0;
+    return { collectedAmount, tenantsCollected, tenantsOwing, expected, rate };
+  }, [todayRepayments, stats.owingCount, stats.dailyExpectation]);
+
   const filterTabs: { key: FilterTab; label: string; count: number }[] = [
     { key: 'owing', label: 'Owing', count: stats.owingCount },
     { key: 'paid-up', label: 'Paid up', count: stats.paidUpCount },
@@ -814,6 +840,50 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
 
           {view === 'tenants' && (
           <>
+          {/* ───── Today's Collection Status ───── */}
+          {/* Live strip showing the agent how their day is going. Driven by
+              `todayRepayments` (created_at >= startOfDay) and the same
+              owing/expected figures already powering the cards below. */}
+          <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 p-3 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <CalendarClock className="h-4 w-4 text-emerald-700" />
+                <span className="text-xs font-semibold uppercase tracking-wide text-emerald-800">
+                  Today's Collection
+                </span>
+              </div>
+              <Badge variant="outline" className="text-[10px] font-mono px-2 py-0.5 border-emerald-300 text-emerald-700 bg-white">
+                {todayStats.rate}% of expected
+              </Badge>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              <div>
+                <p className="text-[10px] text-emerald-700/80 leading-tight">Collected</p>
+                <p className="text-sm font-bold text-emerald-900 leading-tight truncate">
+                  {formatUGX(todayStats.collectedAmount)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] text-emerald-700/80 leading-tight">Tenants paid</p>
+                <p className="text-sm font-bold text-emerald-900 leading-tight">
+                  {todayStats.tenantsCollected}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] text-emerald-700/80 leading-tight">Still owing</p>
+                <p className="text-sm font-bold text-rose-700 leading-tight">
+                  {todayStats.tenantsOwing}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] text-emerald-700/80 leading-tight">Expected</p>
+                <p className="text-sm font-bold text-emerald-900 leading-tight truncate">
+                  {formatUGX(todayStats.expected)}
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Stat cards row — exec-dashboard style */}
           <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
             {[
