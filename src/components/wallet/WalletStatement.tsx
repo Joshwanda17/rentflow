@@ -530,7 +530,20 @@ export function WalletStatement() {
         </Button>
       </SheetTrigger>
 
-      <SheetContent side="bottom" className="h-[92vh] rounded-t-3xl p-0 flex flex-col">
+      <SheetContent side="bottom" className={`h-[92vh] rounded-t-3xl p-0 flex flex-col ${a11yMode ? 'a11y-large' : ''}`}>
+        {/* Scoped accessibility overrides: larger text + stronger contrast */}
+        <style>{`
+          .a11y-large { font-size: 17px; }
+          .a11y-large .text-\\[10px\\] { font-size: 13px !important; line-height: 1.3 !important; }
+          .a11y-large .text-\\[11px\\] { font-size: 14px !important; line-height: 1.4 !important; }
+          .a11y-large .text-xs { font-size: 15px !important; line-height: 1.45 !important; }
+          .a11y-large .text-sm { font-size: 16px !important; line-height: 1.5 !important; }
+          .a11y-large .text-muted-foreground { color: hsl(var(--foreground) / 0.92) !important; }
+          .a11y-large .text-muted-foreground\\/80,
+          .a11y-large .text-muted-foreground\\/70 { color: hsl(var(--foreground) / 0.85) !important; }
+          .a11y-large .border { border-color: hsl(var(--foreground) / 0.35) !important; }
+          .a11y-large button, .a11y-large [role="button"] { min-height: 44px; }
+        `}</style>
         <SheetHeader className="px-5 pt-5 pb-4 border-b shrink-0">
           <div className="flex items-center justify-between">
             <div>
@@ -541,6 +554,18 @@ export function WalletStatement() {
               <p className="text-xs text-muted-foreground">All money in & out of your wallet</p>
             </div>
             <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant={a11yMode ? 'default' : 'outline'}
+                onClick={() => setA11yMode(v => !v)}
+                aria-pressed={a11yMode}
+                aria-label={a11yMode ? 'Turn off larger text and higher contrast' : 'Turn on larger text and higher contrast'}
+                className="gap-1.5 text-xs font-semibold"
+                title={a11yMode ? 'Easy-read mode: ON' : 'Easy-read mode: OFF'}
+              >
+                <Eye className="h-3.5 w-3.5" />
+                {a11yMode ? 'A−' : 'A+'}
+              </Button>
               <Button
                 size="sm"
                 variant="outline"
