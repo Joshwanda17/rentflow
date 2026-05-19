@@ -14558,12 +14558,23 @@ export type Database = {
         }
         Returns: Json
       }
+      check_archived_account_by_email: {
+        Args: { p_email: string }
+        Returns: {
+          archived_at: string
+          full_name: string
+          is_archived: boolean
+          status: string
+          user_id: string
+        }[]
+      }
       check_archived_account_by_phone: {
         Args: { phone_variants: string[] }
         Returns: {
           archived_at: string
           full_name: string
           is_archived: boolean
+          status: string
           user_id: string
         }[]
       }

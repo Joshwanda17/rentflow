@@ -387,6 +387,10 @@ export default function Auth() {
                     <ArchivedAccountSupport
                       identifier={phone ? `+${countryCode}${phone.replace(/\D/g, '')}` : undefined}
                       errorMessage={loginError.message}
+                      onSignUp={() => {
+                        setLoginError(null);
+                        setIsSignUp(true);
+                      }}
                     />
                   )}
 
@@ -561,6 +565,10 @@ export default function Auth() {
                     <ArchivedAccountSupport
                       identifier={emailLoginAddress || undefined}
                       errorMessage={loginError.message}
+                      onSignUp={() => {
+                        setLoginError(null);
+                        setIsSignUp(true);
+                      }}
                     />
                   )}
 
