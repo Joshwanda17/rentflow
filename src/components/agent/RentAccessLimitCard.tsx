@@ -384,30 +384,53 @@ export function RentAccessLimitCard({
             <Stat label="Tracked" value={result.trackedDays} tone="muted" />
           </div>
 
-          {/* CTA row */}
-          <div className="flex items-center gap-2 pt-1">
-            <Button
-              type="button"
-              size="lg"
-              className="flex-1 h-11 rounded-xl font-bold shadow-md bg-primary hover:bg-primary/90 text-primary-foreground"
-              onClick={() => setShareOpen(true)}
-              aria-label="Send this rent money offer to the tenant on WhatsApp"
-            >
-              <MessageCircle className="h-4 w-4 mr-1.5" />
-              Send to {tenantName.split(' ')[0]} on WhatsApp
-              <ArrowRight className="h-4 w-4 ml-1" />
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="lg"
-              className="h-11 w-11 rounded-xl p-0 shrink-0"
-              onClick={() => setShowHow(v => !v)}
-              aria-expanded={showHow}
-              aria-label="How is this calculated?"
-            >
-              <Info className="h-4 w-4" />
-            </Button>
+          {/* CTA row — oversized, pulsing share button to nudge agents */}
+          <div className="pt-2 space-y-2">
+            <div className="relative">
+              {/* Glow halo */}
+              <span
+                aria-hidden
+                className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-green-500/40 via-emerald-500/40 to-green-500/40 blur-lg opacity-70 animate-pulse pointer-events-none"
+              />
+              <Button
+                type="button"
+                onClick={() => setShareOpen(true)}
+                aria-label="Send this rent money offer to the tenant on WhatsApp"
+                className={cn(
+                  'relative w-full h-16 sm:h-[68px] rounded-2xl',
+                  'text-base sm:text-lg font-black tracking-wide uppercase',
+                  'bg-gradient-to-r from-[#25D366] via-[#1ebe57] to-[#128C7E] hover:brightness-110',
+                  'text-white shadow-[0_10px_30px_-8px_rgba(37,211,102,0.7)]',
+                  'ring-2 ring-white/20 active:scale-[0.98] transition-transform',
+                )}
+              >
+                <MessageCircle className="h-6 w-6 sm:h-7 sm:w-7 mr-2 shrink-0" />
+                <span className="flex flex-col items-start leading-tight">
+                  <span className="text-[10px] sm:text-[11px] font-bold opacity-90 tracking-widest">
+                    SHARE ON WHATSAPP
+                  </span>
+                  <span className="text-base sm:text-lg font-black normal-case">
+                    Send {tenantName.split(' ')[0]} {formatUGX(result.limit)}
+                  </span>
+                </span>
+                <ArrowRight className="h-6 w-6 ml-auto shrink-0" />
+              </Button>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[11px] sm:text-xs font-semibold text-foreground/80 flex items-center gap-1">
+                <Sparkles className="h-3.5 w-3.5 text-primary" aria-hidden />
+                Branded image + link · ready to send
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowHow(v => !v)}
+                aria-expanded={showHow}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Info className="h-3.5 w-3.5" />
+                How it works
+              </button>
+            </div>
           </div>
 
           {/* How-it-works */}
