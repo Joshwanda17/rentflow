@@ -996,15 +996,58 @@ export default function WithdrawFlow({
               </InputOTP>
             </div>
 
-            {/* Surface WHY the Confirm button might be disabled so the user
-                isn't left staring at an unresponsive button. */}
-            {pin.length === 4 && (validating || isStale) && (
-              <p className="text-xs text-muted-foreground">
-                {validating
-                  ? 'Re-checking your available balance…'
-                  : 'Refreshing balance — Confirm will be available in a moment.'}
-              </p>
-            )}
+            {/* Always surface ledger freshness — explains why Confirm may
+                feel slow, and reassures the user we just checked. */}
+            {(() => {
+              const secsAgo = ledgerCheckedAt
+                ? Math.max(0, Math.round((Date.now() - ledgerCheckedAt) / 1000))
+                : null;
+              const refreshLabel =
+                secsAgo === null
+                  ? 'never'
+                  : secsAgo < 5
+                  ? 'just now'
+                  : secsAgo < 60
+                  ? `${secsAgo}s ago`
+                  : `${Math.round(secsAgo / 60)}m ago`;
+
+              let reason: string | null = null;
+              if (validating) {
+                reason = 'Re-checking your available balance with the ledger…';
+              } else if (isStale) {
+                reason =
+                  'Your balance snapshot is stale. Tapping Confirm will refresh it first, then proceed automatically.';
+              } else if (pin.length < 4) {
+                reason = 'Enter your 4-digit PIN to enable Confirm.';
+              } else if (ledgerAvailable === null) {
+                reason = 'Waiting for your ledger balance to load…';
+              } else if (amount > maxAmount) {
+                reason = `Amount exceeds your available balance (UGX ${maxAmount.toLocaleString()}).`;
+              }
+
+              return (
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className="rounded-md border border-border bg-muted/30 px-3 py-2 text-left space-y-1"
+                >
+                  {reason && (
+                    <p className="text-xs text-foreground">{reason}</p>
+                  )}
+                  <p className="text-[11px] text-muted-foreground flex items-center justify-between gap-2">
+                    <span>Balance checked: {refreshLabel}</span>
+                    <button
+                      type="button"
+                      onClick={() => refetchLedger()}
+                      disabled={validating}
+                      className="underline underline-offset-2 hover:text-foreground disabled:opacity-50"
+                    >
+                      {validating ? 'Refreshing…' : 'Refresh now'}
+                    </button>
+                  </p>
+                </div>
+              );
+            })()}
 
             <ConfirmSummaryCard
               title="Withdrawal Summary"
