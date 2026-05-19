@@ -173,6 +173,9 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [tenantTotals, setTenantTotals] = useState<Record<string, { total: number; paid: number }>>({});
   const [tenantStatuses, setTenantStatuses] = useState<Record<string, Set<string>>>({});
   const [tenantLastPaid, setTenantLastPaid] = useState<Record<string, { date: string; amount: number }>>({});
+  // Today-only repayments cache (created_at within today, by this agent's tenants)
+  // Used to power the "Today's Collection" status strip at the top of the sheet.
+  const [todayRepayments, setTodayRepayments] = useState<Array<{ tenant_id: string; amount: number; created_at: string }>>([]);
   // Per-tenant context for richer search/filter (latest landlord & address)
   const [tenantContext, setTenantContext] = useState<Record<string, { landlordName: string; propertyAddress: string; completedCount: number; totalRequests: number }>>({});
   const [propertyLocations, setPropertyLocations] = useState<Record<string, { lat: number; lng: number; address: string }>>({});
