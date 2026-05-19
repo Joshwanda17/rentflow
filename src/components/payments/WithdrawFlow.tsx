@@ -1184,6 +1184,30 @@ export default function WithdrawFlow({
                   toast.error('Could not generate PDF receipt');
                 }
               }}
+              onShare={async () => {
+                const payload = {
+                  reference: withdrawalRef || 'PENDING',
+                  amount,
+                  currency,
+                  recipient: getPayoutSummary(),
+                  method: payoutMode === 'mobile_money' ? 'Mobile Money' : payoutMode === 'bank_transfer' ? 'Bank Transfer' : 'Cash Pickup',
+                  date: submittedAt ?? new Date(),
+                  status: 'Pending disbursement',
+                };
+                try {
+                  const shared = await shareWithdrawalReceiptPdf(payload);
+                  if (!shared) {
+                    // Platform can't share files (desktop Chrome, etc.) —
+                    // fall back to a normal download so the user still
+                    // gets the file and can share it manually.
+                    await downloadWithdrawalReceiptPdf(payload);
+                    toast.info('Sharing not supported here — receipt downloaded instead.');
+                  }
+                } catch (e) {
+                  console.error('[WithdrawFlow] receipt share failed', e);
+                  toast.error('Could not share receipt');
+                }
+              }}
             />
             <WithdrawalStatusTracker
               requestId={createdRequestId}
