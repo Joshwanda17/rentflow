@@ -48,6 +48,17 @@ export function useAuthForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isAppleLoading, setIsAppleLoading] = useState(false);
+  // Granular progress for the Sign In button so users see what's happening
+  // instead of a generic spinner. Set throughout handleSignInSubmit.
+  type LoginStage =
+    | 'idle'
+    | 'validating'
+    | 'checking-cache'
+    | 'looking-up'
+    | 'trying-fast'
+    | 'trying-extended'
+    | 'finalizing';
+  const [loginStage, setLoginStage] = useState<LoginStage>('idle');
 
   const phoneInputRef = useRef<HTMLInputElement>(null);
   const passwordInputRef = useRef<HTMLInputElement>(null);
