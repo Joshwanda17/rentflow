@@ -2772,6 +2772,40 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
         })()}
       </DialogContent>
     </Dialog>
+    {/* Unsaved-changes confirm — only mounts when a user tries to back out
+        with content typed. Mobile-friendly: stacked full-width buttons. */}
+    <AlertDialog
+      open={confirmIntent !== null}
+      onOpenChange={(o) => { if (!o) setConfirmIntent(null); }}
+    >
+      <AlertDialogContent className="sm:max-w-sm">
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            {confirmIntent === 'close' ? 'Leave deposit?' : 'Go back?'}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            You have unsaved details. Don't worry — we'll keep a draft so you
+            can pick up where you left off. Leave anyway?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
+          <AlertDialogCancel className="h-12 mt-0 text-base font-semibold touch-manipulation">
+            Keep editing
+          </AlertDialogCancel>
+          <AlertDialogAction
+            className="h-12 text-base font-semibold touch-manipulation"
+            onClick={() => {
+              const intent = confirmIntent;
+              setConfirmIntent(null);
+              if (intent === 'back') setStep('channel');
+              else if (intent === 'close') handleClose();
+            }}
+          >
+            Leave anyway
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     </>
   );
 }
