@@ -38,6 +38,43 @@ import { format, subDays } from 'date-fns';
 // jsPDF loaded dynamically when needed
 import { toast } from 'sonner';
 
+// ── Role-based highlight config ──
+// Each role sees the categories that matter most to them surfaced first,
+// in a "For you" card. Falls back to a generic set for unknown roles.
+const ROLE_HIGHLIGHTS: Record<string, { title: string; subtitle: string; categories: string[] }> = {
+  tenant: {
+    title: 'Your rent activity',
+    subtitle: 'Deposits, daily rent and refunds that matter for tenants',
+    categories: ['deposit', 'rent_repayment', 'rent_auto_deduction', 'transfer_in', 'wallet_withdrawal'],
+  },
+  agent: {
+    title: 'Your earnings as an agent',
+    subtitle: 'Commissions, bonuses and float movements',
+    categories: ['agent_commission', 'subagent_commission', 'approval_bonus', 'referral_bonus', 'referral_first_transaction', 'wallet_withdrawal'],
+  },
+  proxy_agent: {
+    title: 'Your earnings as an agent',
+    subtitle: 'Commissions, bonuses and float movements',
+    categories: ['agent_commission', 'subagent_commission', 'approval_bonus', 'referral_bonus', 'wallet_withdrawal'],
+  },
+  partner: {
+    title: 'Partner activity',
+    subtitle: 'Proxy commissions, top-ups and payouts',
+    categories: ['partner_commission', 'agent_commission', 'pool_investment', 'wallet_withdrawal', 'deposit'],
+  },
+  supporter: {
+    title: 'Your investor activity',
+    subtitle: 'Returns, top-ups and payouts on your portfolio',
+    categories: ['supporter_reward', 'pool_investment', 'deposit', 'wallet_withdrawal', 'transfer_in'],
+  },
+};
+
+const DEFAULT_HIGHLIGHT = {
+  title: 'Your wallet activity',
+  subtitle: 'The main things moving in and out of your wallet',
+  categories: ['deposit', 'wallet_withdrawal', 'transfer_in', 'transfer_out', 'welcome_bonus'],
+};
+
 interface LedgerEntry {
   id: string;
   date: string;
