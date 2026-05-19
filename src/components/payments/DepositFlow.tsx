@@ -1344,6 +1344,34 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       ? 'border-destructive ring-2 ring-destructive/40 focus-visible:ring-destructive'
       : '';
 
+  /* ─── Unsaved-changes guard ───
+   * Surfaces a confirm dialog when a user taps Back / Close / swipes-back
+   * after typing into the deposit form. Edits are also draft-saved to
+   * localStorage, so the dialog reassures users that leaving doesn't lose
+   * their work — they get explicit "Keep editing" vs "Leave anyway". */
+  const hasUnsavedChanges = (): boolean => {
+    if (isEditMode) return false; // edit mode already loaded from DB
+    if (step === 'success' || step === 'submitting') return false;
+    return !!(
+      amount.trim() ||
+      transactionId.trim() ||
+      receiptNumber.trim() ||
+      agentName.trim() ||
+      reason.trim() ||
+      bankSlipFile ||
+      (tenantAllocations && tenantAllocations.length > 0)
+    );
+  };
+  const [confirmIntent, setConfirmIntent] = useState<'back' | 'close' | null>(null);
+  const requestBack = () => {
+    if (hasUnsavedChanges()) setConfirmIntent('back');
+    else setStep('channel');
+  };
+  const requestClose = () => {
+    if (hasUnsavedChanges()) setConfirmIntent('close');
+    else handleClose();
+  };
+
   /* ─── Swipe navigation ───
    * Swipe right → go to previous step (same as the header back chevron).
    * Swipe left  → advance to the next step IF the user has already made the
