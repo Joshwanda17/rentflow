@@ -24,6 +24,7 @@ import { TenantBehaviorCard } from './TenantBehaviorCard';
 import { TenantProfileView } from './TenantProfileView';
 import { TenantFieldCollectDialog } from './TenantFieldCollectDialog';
 import { AgentRequestPipelineView } from './AgentRequestPipelineView';
+import { MarkNotFundedDialog } from './MarkNotFundedDialog';
 
 interface Tenant {
   id: string;
@@ -185,6 +186,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [collectDialogOpen, setCollectDialogOpen] = useState(false);
   const [collectTarget, setCollectTarget] = useState<{ tenant: Tenant; reqId: string; owing: number } | null>(null);
   const [fieldCollectTarget, setFieldCollectTarget] = useState<Tenant | null>(null);
+  const [notFundedTarget, setNotFundedTarget] = useState<{ tenantName: string; reqId: string } | null>(null);
   const [behaviorCardOpen, setBehaviorCardOpen] = useState(false);
   const [behaviorData, setBehaviorData] = useState<any>(null);
   const [profileTenantId, setProfileTenantId] = useState<string | null>(null);
@@ -1706,6 +1708,17 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                                     <TrendingUp className="h-4 w-4" />
                                     Share Behavior Card
                                   </button>
+                                  {/* Mark this tenant as not funded — reverses a recent float allocation */}
+                                  <button
+                                    onClick={() =>
+                                      setNotFundedTarget({ tenantName: tenant.full_name, reqId: req.id })
+                                    }
+                                    className="flex items-center justify-center gap-2 h-10 rounded-xl bg-destructive/10 text-destructive font-semibold text-xs active:scale-95 transition-transform w-full"
+                                    style={{ touchAction: 'manipulation' }}
+                                  >
+                                    <AlertCircle className="h-4 w-4" />
+                                    Mark not funded
+                                  </button>
                                 </div>
                                 </div>
                               );
@@ -1829,6 +1842,16 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         tenantId={fieldCollectTarget?.id || ''}
         tenantName={fieldCollectTarget?.full_name || ''}
         tenantPhone={fieldCollectTarget?.phone || null}
+      />
+      <MarkNotFundedDialog
+        open={!!notFundedTarget}
+        onOpenChange={(open) => { if (!open) setNotFundedTarget(null); }}
+        tenantName={notFundedTarget?.tenantName || ''}
+        rentRequestId={notFundedTarget?.reqId || ''}
+        onReversed={() => {
+          setTenantRequests({});
+          fetchTenants();
+        }}
       />
     </Sheet>
   );
