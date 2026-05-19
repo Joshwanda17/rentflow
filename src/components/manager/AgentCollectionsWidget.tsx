@@ -170,8 +170,10 @@ export function AgentCollectionsWidget() {
   const handleDeleteUser = async (userId: string) => {
     setDeletingUserId(userId);
     try {
+      const reason = window.prompt('Reason for permanently deleting this user (min 10 characters, recorded in audit log):')?.trim() || '';
+      if (reason.length < 10) { toast.error('A reason of at least 10 characters is required'); setDeletingUserId(null); return; }
       const { error } = await supabase.functions.invoke('delete-user', {
-        body: { user_id: userId },
+        body: { user_id: userId, reason },
       });
       if (error) throw error;
       toast.success('User permanently deleted');
