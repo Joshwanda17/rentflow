@@ -221,6 +221,8 @@ export function TidVerification() {
     depositorName: string;
     depositorPhone: string;
     transaction_id: string | null;
+    deposit_purpose: string | null;
+    agent_id: string | null;
   };
   const [pending, setPending] = useState<PendingDeposit[]>([]);
   const [pendingLoading, setPendingLoading] = useState(false);
@@ -243,9 +245,11 @@ export function TidVerification() {
   type MatchField = 'any' | 'name' | 'phone' | 'amount';
   type AmountRange = 'any' | 'low' | 'mid' | 'high';
   type Verification = 'any' | 'verified' | 'unverified';
+  type OpFloatFilter = 'any' | 'non_op_float';
   const [matchField, setMatchField] = useState<MatchField>('any');
   const [amountRange, setAmountRange] = useState<AmountRange>('any');
   const [verification, setVerification] = useState<Verification>('any');
+  const [opFloatFilter, setOpFloatFilter] = useState<OpFloatFilter>('any');
   // Sort controls for the pick-list. Default is the natural newest-first
   // order returned by the server query. Each click on a column header
   // cycles asc → desc → none.
@@ -307,7 +311,7 @@ export function TidVerification() {
       const to = from + PENDING_PAGE_SIZE - 1;
       let query = supabase
         .from('deposit_requests')
-        .select('id, user_id, amount, provider, created_at, transaction_id')
+        .select('id, user_id, amount, provider, created_at, transaction_id, deposit_purpose, agent_id')
         .eq('status', 'pending');
       if (pendingProviderFilter !== 'all') {
         query = query.eq('provider', pendingProviderFilter);
@@ -340,6 +344,8 @@ export function TidVerification() {
         depositorName: profileMap.get(d.user_id)?.name ?? 'Unknown depositor',
         depositorPhone: profileMap.get(d.user_id)?.phone ?? '',
         transaction_id: d.transaction_id ?? null,
+        deposit_purpose: d.deposit_purpose ?? null,
+        agent_id: d.agent_id ?? null,
       }));
       setPending((prev) => {
         if (!append) return mapped;
@@ -559,10 +565,14 @@ export function TidVerification() {
     !!p.depositorPhone &&
     !!p.depositorName &&
     p.depositorName.toLowerCase() !== 'unknown depositor';
+  const isNonOpFloat = (p: PendingDeposit) =>
+    p.deposit_purpose !== 'operational_float' || p.agent_id === null;
   const pendingFiltered = (() => {
     const q = pendingSearch.trim().toLowerCase();
     const qDigits = q.replace(/[^0-9]/g, '');
     return pending.filter((p) => {
+      // Operational float category chip
+      if (opFloatFilter === 'non_op_float' && !isNonOpFloat(p)) return false;
       // Amount range chip
       if (amountRange === 'low' && p.amount >= 50000) return false;
       if (amountRange === 'mid' && (p.amount < 50000 || p.amount > 200000)) return false;
@@ -584,7 +594,7 @@ export function TidVerification() {
     });
   })();
   const filtersActive =
-    matchField !== 'any' || amountRange !== 'any' || verification !== 'any';
+    matchField !== 'any' || amountRange !== 'any' || verification !== 'any' || opFloatFilter !== 'any';
 
   // Apply column sort on top of the filtered list. When no column is
   // active we keep the server's natural newest-first order so toggling
@@ -1566,6 +1576,15 @@ export function TidVerification() {
                     { value: 'unverified', label: 'Unverified' },
                   ]}
                 />
+                <FilterChipRow
+                  label="Float"
+                  value={opFloatFilter}
+                  onChange={(v) => setOpFloatFilter(v as OpFloatFilter)}
+                  options={[
+                    { value: 'any', label: 'Any' },
+                    { value: 'non_op_float', label: 'Not Op. Float' },
+                  ]}
+                />
                 {filtersActive && (
                   <button
                     type="button"
@@ -1573,6 +1592,7 @@ export function TidVerification() {
                       setMatchField('any');
                       setAmountRange('any');
                       setVerification('any');
+                      setOpFloatFilter('any');
                     }}
                     className="text-[10px] text-muted-foreground hover:text-foreground underline"
                   >
