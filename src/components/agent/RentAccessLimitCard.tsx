@@ -3,7 +3,14 @@ import { TrendingUp, TrendingDown, Info, Sparkles, MessageCircle, Loader2, Check
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatUGX } from '@/lib/rentCalculations';
-import { calculateRentAccessLimit, TIER_META, type RepaymentLike } from '@/lib/rentAccessLimit';
+import {
+  calculateRentAccessLimit,
+  TIER_META,
+  RENT_ACCESS_PAID_INCREMENT_UGX,
+  RENT_ACCESS_MISSED_DECREMENT_UGX,
+  RENT_ACCESS_MAX_LIMIT_UGX,
+  type RepaymentLike,
+} from '@/lib/rentAccessLimit';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -110,8 +117,10 @@ export function RentAccessLimitCard({
     [monthlyRent, repayments],
   );
 
-  // No monthly rent set → actionable prompt to capture it now
-  if (!monthlyRent || monthlyRent <= 0) {
+  // Rent missing → still show the limit card (no minimum-payments gate),
+  // but surface an inline prompt to capture monthly rent for share artefacts.
+  const rentMissing = !monthlyRent || monthlyRent <= 0;
+  if (rentMissing && result.limit === 0 && result.trackedDays === 0) {
     const validation = validateMonthlyRentUGX(rentInput);
     const isEmpty = !rentInput.replace(/[^0-9]/g, '');
     // Only surface validation errors after the user has typed something
@@ -155,10 +164,12 @@ export function RentAccessLimitCard({
             <Sparkles className="h-4.5 w-4.5 text-primary" aria-hidden />
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-bold text-foreground">Add monthly rent to unlock the limit</p>
+            <p className="text-sm font-bold text-foreground">
+              Unlock up to {formatUGX(RENT_ACCESS_MAX_LIMIT_UGX)} in rent money
+            </p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              We couldn't auto-detect rent from past records. Ask {tenantName.split(' ')[0]} or enter it yourself —
-              it powers their Rent Access Limit.
+              Every on-time payment adds {formatUGX(RENT_ACCESS_PAID_INCREMENT_UGX)} to {tenantName.split(' ')[0]}'s limit.
+              Add monthly rent below to power the share card.
             </p>
           </div>
         </div>
@@ -220,7 +231,7 @@ export function RentAccessLimitCard({
   }
 
   const tier = TIER_META[result.tier];
-  const isPositive = result.netAdjustmentPct >= 0;
+  const progressPct = Math.round(result.netAdjustmentPct * 100);
 
   return (
     <>
@@ -311,15 +322,19 @@ export function RentAccessLimitCard({
             </p>
             <p className="text-sm font-semibold text-primary mt-1.5 flex items-center gap-1">
               <Wallet className="h-3.5 w-3.5" aria-hidden />
-              You can use this money for rent today
+              {result.atMax
+                ? `Maxed out at ${formatUGX(RENT_ACCESS_MAX_LIMIT_UGX)} — the ceiling`
+                : 'You can use this money for rent today'}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Base: {formatUGX(result.base)} ·{' '}
-              <span className={isPositive ? 'text-success font-semibold' : 'text-destructive font-semibold'}>
-                {isPositive ? '+' : ''}
-                {(result.netAdjustmentPct * 100).toFixed(0)}%
-              </span>{' '}
-              from daily payments
+              {progressPct}% toward the {formatUGX(RENT_ACCESS_MAX_LIMIT_UGX)} ceiling ·{' '}
+              <span className="text-success font-semibold">
+                +{formatUGX(RENT_ACCESS_PAID_INCREMENT_UGX)}/paid day
+              </span>
+              {' · '}
+              <span className="text-destructive font-semibold">
+                −{formatUGX(RENT_ACCESS_MISSED_DECREMENT_UGX)}/missed day
+              </span>
             </p>
           </div>
 
@@ -341,8 +356,8 @@ export function RentAccessLimitCard({
             )}
             <p className="text-xs sm:text-sm font-semibold flex-1">
               {result.paidToday
-                ? `+${formatUGX(result.todayChange)} earned today`
-                : `Pay today to earn +${formatUGX(Math.abs(result.todayChange))}`}
+                ? `+${formatUGX(RENT_ACCESS_PAID_INCREMENT_UGX)} earned today`
+                : `Pay today to earn +${formatUGX(RENT_ACCESS_PAID_INCREMENT_UGX)} (skip = −${formatUGX(RENT_ACCESS_MISSED_DECREMENT_UGX)})`}
             </p>
           </div>
 
@@ -384,10 +399,17 @@ export function RentAccessLimitCard({
             <div className="rounded-xl bg-background/70 backdrop-blur border border-border/50 p-3 text-xs space-y-1 animate-fade-in">
               <p className="font-bold text-foreground">How much money can you get?</p>
               <p className="text-muted-foreground">
-                We start with your <span className="font-semibold text-foreground">monthly rent × 12 months</span>.
+                Every tenant starts with a fresh limit — no minimum payments needed.
               </p>
-              <p className="text-success">✅ Pay rent today → you get more money tomorrow (+5%)</p>
-              <p className="text-destructive">❌ Miss a day → the money you can get goes down (−5%)</p>
+              <p className="text-success">
+                ✅ Pay rent today → limit grows by {formatUGX(RENT_ACCESS_PAID_INCREMENT_UGX)}
+              </p>
+              <p className="text-destructive">
+                ❌ Miss a day → limit drops by {formatUGX(RENT_ACCESS_MISSED_DECREMENT_UGX)}
+              </p>
+              <p className="text-foreground">
+                🏁 Maximum any tenant can reach: <span className="font-bold">{formatUGX(RENT_ACCESS_MAX_LIMIT_UGX)}</span>
+              </p>
               <p className="text-muted-foreground pt-1 font-medium">
                 Pay every day. The more you pay, the more rent Welile can give you.
               </p>
