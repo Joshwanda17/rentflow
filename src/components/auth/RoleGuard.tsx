@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useRoleAccessRequests } from '@/hooks/useRoleAccessRequests';
 import { isStaffRole, isPublicRole } from '@/lib/roleConstants';
 import { useToast } from '@/hooks/use-toast';
+import PhoneVerificationGate from '@/components/auth/PhoneVerificationGate';
 
 interface RoleGuardProps {
   allowedRoles: AppRole[];
@@ -152,5 +153,5 @@ export default function RoleGuard({ allowedRoles, children, redirectTo = '/dashb
     );
   }
 
-  return <>{children}</>;
+  return <PhoneVerificationGate>{children}</PhoneVerificationGate>;
 }
