@@ -16,6 +16,7 @@ vi.mock('jspdf', () => {
     setFillColor() {}
     roundedRect() {}
     line() {}
+    getTextWidth() { return 50; }
     splitTextToSize(t: string) {
       return [t];
     }
@@ -25,6 +26,7 @@ vi.mock('jspdf', () => {
     save(name: string) {
       saveCalls.push(name);
     }
+    output() { return new Blob([], { type: 'application/pdf' }); }
   }
   return { default: FakePdf };
 });
@@ -59,6 +61,12 @@ describe('downloadWithdrawalReceiptPdf', () => {
     expect(flat).toMatch(/May 19, 2026 \d{2}:\d{2}/);
     // Status label present
     expect(flat).toContain('Pending disbursement');
+    // Fee breakdown panel renders zero-fee assurance lines + net total
+    expect(flat).toContain('Fee Breakdown');
+    expect(flat).toContain('Platform service fee');
+    expect(flat).toContain('Transaction expenses');
+    expect(flat).toContain('Net amount payable');
+    expect(flat).toContain('UGX 125,000');
 
     // Download was actually triggered with a safe filename including the ref
     expect(saveCalls).toHaveLength(1);

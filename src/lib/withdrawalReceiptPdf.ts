@@ -10,6 +10,14 @@ export interface WithdrawalReceiptData {
   method: string;
   date: Date;
   status?: string;
+  /**
+   * Itemised fee/expense lines that apply to this withdrawal. Each entry
+   * shows as its own row in the breakdown panel. Use a negative `amount`
+   * for charges (deductions) and a positive amount for adjustments that
+   * increase the payout (rare). Leave undefined/empty when no fees apply
+   * — the panel will show a single "Zero platform fees" line instead.
+   */
+  feeBreakdown?: Array<{ label: string; amount: number }>;
 }
 
 function safeRefOf(data: WithdrawalReceiptData): string {
@@ -54,12 +62,62 @@ async function renderWithdrawalReceiptPdf(data: WithdrawalReceiptData) {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.setTextColor(110);
-  doc.text('Amount', marginX + 16, y + 22);
+  doc.text('Gross Amount', marginX + 16, y + 22);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(22);
   doc.setTextColor(20);
   doc.text(`${data.currency} ${Math.round(data.amount).toLocaleString()}`, marginX + 16, y + 52);
   y += 70;
+
+  // ── Fee / expense breakdown ───────────────────────────────────────
+  // Always render a small breakdown panel so the user can audit what
+  // was (or wasn't) deducted. When `feeBreakdown` is empty we show a
+  // single reassurance line — Welile charges no platform withdrawal
+  // fees today, but third-party operator charges can be itemised here
+  // when the caller knows them.
+  const fees = (data.feeBreakdown ?? []).filter((f) => Number.isFinite(f.amount));
+  const totalFees = fees.reduce((sum, f) => sum + Math.round(f.amount), 0);
+  const netAmount = Math.max(0, Math.round(data.amount) - totalFees);
+
+  y += 18;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(20);
+  doc.text('Fee Breakdown', marginX, y);
+  y += 10;
+  doc.setDrawColor(230);
+  doc.line(marginX, y, pageWidth - marginX, y);
+  y += 14;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+
+  const drawLine = (label: string, valueText: string, opts?: { bold?: boolean; muted?: boolean }) => {
+    doc.setFont('helvetica', opts?.bold ? 'bold' : 'normal');
+    doc.setTextColor(opts?.muted ? 130 : 30);
+    doc.text(label, marginX, y);
+    const valueWidth = doc.getTextWidth(valueText);
+    doc.text(valueText, pageWidth - marginX - valueWidth, y);
+    y += 16;
+  };
+
+  drawLine('Withdrawal amount', `${data.currency} ${Math.round(data.amount).toLocaleString()}`);
+
+  if (fees.length === 0) {
+    drawLine('Platform service fee', `${data.currency} 0`, { muted: true });
+    drawLine('Transaction expenses', `${data.currency} 0`, { muted: true });
+  } else {
+    fees.forEach((f) => {
+      const amt = Math.round(f.amount);
+      const sign = amt < 0 ? '+' : amt > 0 ? '−' : '';
+      drawLine(f.label, `${sign}${data.currency} ${Math.abs(amt).toLocaleString()}`);
+    });
+  }
+
+  y += 4;
+  doc.setDrawColor(210);
+  doc.line(marginX, y - 8, pageWidth - marginX, y - 8);
+  drawLine('Net amount payable', `${data.currency} ${netAmount.toLocaleString()}`, { bold: true });
 
   // Details
   const rows: Array<[string, string]> = [
