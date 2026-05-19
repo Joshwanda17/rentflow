@@ -355,6 +355,9 @@ Deno.serve(async (req) => {
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: unknown) {
+      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "Unknown error";
     console.error("[password-reset-sms] Error:", msg);
     return new Response(JSON.stringify({ error: "Service temporarily unavailable" }), {
