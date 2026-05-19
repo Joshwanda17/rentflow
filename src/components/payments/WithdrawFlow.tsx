@@ -1152,14 +1152,30 @@ export default function WithdrawFlow({
         // updates Submitted → Ops review → Disbursed in realtime, with a
         // self-cancel button while still pending.
         return (
-          <WithdrawalStatusTracker
-            requestId={createdRequestId}
-            amount={amount}
-            currency={currency}
-            recipientLabel={getPayoutSummary()}
-            reference={withdrawalRef || 'PENDING'}
-            onClose={handleClose}
-          />
+          <div className="space-y-4">
+            {/* Server-confirmed receipt — shown immediately after the
+                withdrawal_requests insert returns. Contains the
+                reference ID, processed date/time and verified amount.
+                Disbursement status continues to update live below. */}
+            <ReceiptCard
+              status="pending"
+              amount={amount}
+              currency={currency}
+              fees={0}
+              recipient={getPayoutSummary()}
+              reference={withdrawalRef || 'PENDING'}
+              method={payoutMode === 'mobile_money' ? 'Mobile Money' : payoutMode === 'bank_transfer' ? 'Bank Transfer' : 'Cash Pickup'}
+              date={submittedAt ?? new Date()}
+            />
+            <WithdrawalStatusTracker
+              requestId={createdRequestId}
+              amount={amount}
+              currency={currency}
+              recipientLabel={getPayoutSummary()}
+              reference={withdrawalRef || 'PENDING'}
+              onClose={handleClose}
+            />
+          </div>
         );
 
       default:
