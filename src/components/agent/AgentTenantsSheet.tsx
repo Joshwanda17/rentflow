@@ -96,6 +96,7 @@ interface SheetPrefs {
   sortDir?: SortDir;
   recentCollectionFilter?: RecentCollectionFilter;
   groupByProperty?: boolean;
+  lifecycleFilter?: LifecycleFilter;
 }
 
 function loadPrefs(): SheetPrefs {
