@@ -509,6 +509,11 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           <AgentHubTabs active={activeTab} onChange={(tab) => { setSlideDirection(null); setActiveTab(tab); }} />
         </div>
 
+        {/* Screen-reader live region announces the active hub tab after a swipe gesture */}
+        <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+          {tabAnnounce}
+        </div>
+
         {/* Swipe surface — left/right gestures navigate adjacent hub tabs */}
         <div {...swipeHandlers} className="touch-pan-y">
         {/* === HOME TAB === Most-used actions, at-a-glance */}
