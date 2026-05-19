@@ -140,26 +140,9 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
     }
     setSubmitting(true);
     try {
-      // Persist landlord detail edits first (only if anything actually changed).
       const nextName = landlordName.trim();
       const nextPhone = landlordPhone.trim();
       const nextAddress = landlordAddress.trim();
-      const changed =
-        !landlordOriginal ||
-        landlordOriginal.name !== nextName ||
-        landlordOriginal.phone !== nextPhone ||
-        landlordOriginal.address !== nextAddress;
-      if (changed) {
-        const { error: lErr } = await supabase
-          .from('landlords')
-          .update({
-            name: nextName,
-            phone: nextPhone,
-            property_address: nextAddress || null,
-          })
-          .eq('id', landlord.id);
-        if (lErr) throw lErr;
-      }
 
       const patch: Record<string, unknown> = {
         rent_amount: rentNum,
@@ -171,6 +154,9 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
         preferred_language: preferredLanguage || null,
         tenant_no_smartphone: noSmartphone,
         landlord_id: landlord.id,
+        landlord_name: nextName,
+        landlord_phone: nextPhone,
+        landlord_address: nextAddress,
       };
       if (isOutstanding) {
         patch.initial_outstanding_balance = outstandingBalance ? Number(outstandingBalance) : null;
