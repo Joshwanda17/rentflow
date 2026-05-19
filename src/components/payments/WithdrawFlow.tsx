@@ -21,7 +21,7 @@ import { UGANDA_BANKS, PAYOUT_METHODS } from '@/lib/ugandaBanks';
 import { useSavedPayoutMethods, type SavedPayoutMethod } from '@/hooks/useSavedPayoutMethods';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Trash2, Star } from 'lucide-react';
-import { downloadWithdrawalReceiptPdf } from '@/lib/withdrawalReceiptPdf';
+import { downloadWithdrawalReceiptPdf, shareWithdrawalReceiptPdf } from '@/lib/withdrawalReceiptPdf';
 
 /**
  * Maps a Ugandan mobile-money number to its provider based on the operator
@@ -1182,6 +1182,30 @@ export default function WithdrawFlow({
                 } catch (e) {
                   console.error('[WithdrawFlow] receipt PDF failed', e);
                   toast.error('Could not generate PDF receipt');
+                }
+              }}
+              onShare={async () => {
+                const payload = {
+                  reference: withdrawalRef || 'PENDING',
+                  amount,
+                  currency,
+                  recipient: getPayoutSummary(),
+                  method: payoutMode === 'mobile_money' ? 'Mobile Money' : payoutMode === 'bank_transfer' ? 'Bank Transfer' : 'Cash Pickup',
+                  date: submittedAt ?? new Date(),
+                  status: 'Pending disbursement',
+                };
+                try {
+                  const shared = await shareWithdrawalReceiptPdf(payload);
+                  if (!shared) {
+                    // Platform can't share files (desktop Chrome, etc.) —
+                    // fall back to a normal download so the user still
+                    // gets the file and can share it manually.
+                    await downloadWithdrawalReceiptPdf(payload);
+                    toast.info('Sharing not supported here — receipt downloaded instead.');
+                  }
+                } catch (e) {
+                  console.error('[WithdrawFlow] receipt share failed', e);
+                  toast.error('Could not share receipt');
                 }
               }}
             />
