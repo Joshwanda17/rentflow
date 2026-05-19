@@ -547,6 +547,34 @@ export default function WithdrawFlow({
   };
 
   const handleNext = async () => {
+    // ── Step 1 (Amount): if our ledger snapshot is missing/stale, refetch
+    // before advancing. Show a real error instead of letting the stepper
+    // silently swallow the tap. This is the counterpart to the Confirm-step
+    // logic below and the reason `canProceed()` no longer hard-blocks here.
+    if (currentStep === 1) {
+      if (ledgerAvailable === null || isStale || validating) {
+        const fresh = await refetchLedger();
+        const freshMax =
+          source === 'available'
+            ? (fresh !== null ? Math.min(availableBalance, fresh) : availableBalance)
+            : roiBalance;
+        if (fresh === null && ledgerAvailable === null) {
+          toast.error(
+            'Could not verify your live balance. Check your connection and try again.',
+            { duration: 6000 },
+          );
+          return;
+        }
+        if (amount > freshMax) {
+          toast.error(
+            `Insufficient funds. Available: UGX ${freshMax.toLocaleString()}.`,
+            { duration: 6000 },
+          );
+          return;
+        }
+      }
+      return; // let the stepper advance to step 2
+    }
     if (currentStep === 4) {
       // If our ledger snapshot is stale (or actively refreshing), don't
       // silently no-op — refresh first, then continue with the freshest
