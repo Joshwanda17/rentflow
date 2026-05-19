@@ -603,6 +603,7 @@ export function useAuthForm() {
     } finally {
       clearTimeout(safetyTimer);
       setIsLoading(false);
+      setLoginStage('idle');
     }
   };
 
