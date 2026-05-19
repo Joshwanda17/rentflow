@@ -490,7 +490,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
         {/* Tab Navigation — sticky so it stays under the header and never collides with the fixed bottom role switcher */}
         <div className="sticky top-0 z-20 -mx-4 px-4 py-2 bg-background border-b border-border/40">
-          <AgentHubTabs active={activeTab} onChange={setActiveTab} />
+          <AgentHubTabs active={activeTab} onChange={(tab) => { setSlideDirection(null); setActiveTab(tab); }} />
         </div>
 
         {/* Swipe surface — left/right gestures navigate adjacent hub tabs */}
