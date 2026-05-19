@@ -355,6 +355,20 @@ export function useAuthForm() {
     const digits = phone.replace(/\D/g, '');
     const last9 = digits.slice(-9);
 
+    // ── Login performance metrics ────────────────────────────────────────
+    const t0 = performance.now();
+    const metrics = {
+      rpcMs: 0,
+      rpcFoundEmails: 0,
+      attempts: 0,
+      attemptTimings: [] as { email: string; ms: number; ok: boolean }[],
+      phase1Ms: 0,
+      phase2Ms: 0,
+      winnerEmail: null as string | null,
+      winnerPhase: null as 'phase1' | 'phase2' | null,
+      totalMs: 0,
+    };
+
     // PARALLEL LOGIN STRATEGY (fast path)
     // The old flow ran an RPC lookup (up to 5s) → optional profile fallback
     // (~500ms) → then up to 5+ sequential signInWithPassword attempts. On the
@@ -375,32 +389,49 @@ export function useAuthForm() {
     ];
 
     const rpcLookup = (async (): Promise<string[]> => {
+      const rpcStart = performance.now();
       try {
         const { data } = await Promise.race([
           supabase.rpc('get_email_by_phone', { phone_variants: [`0${last9}`, `256${last9}`, last9] }),
           new Promise<{ data: null }>((resolve) => setTimeout(() => resolve({ data: null }), 3000)),
         ]);
+        metrics.rpcMs = Math.round(performance.now() - rpcStart);
         if (data?.length) {
-          return (data as { email: string }[]).map(r => r.email).filter(Boolean);
+          const emails = (data as { email: string }[]).map(r => r.email).filter(Boolean);
+          metrics.rpcFoundEmails = emails.length;
+          return emails;
         }
-      } catch { /* ignore */ }
+      } catch {
+        metrics.rpcMs = Math.round(performance.now() - rpcStart);
+      }
       return [];
     })();
 
     const tryOne = async (emailToTry: string): Promise<{ ok: boolean; email: string; error: Error | null }> => {
+      const tStart = performance.now();
       try {
         const { error } = await signIn(emailToTry, password);
+        const ms = Math.round(performance.now() - tStart);
+        metrics.attempts += 1;
+        metrics.attemptTimings.push({ email: emailToTry, ms, ok: !error });
         return { ok: !error, email: emailToTry, error: error ?? null };
       } catch (e: any) {
+        const ms = Math.round(performance.now() - tStart);
+        metrics.attempts += 1;
+        metrics.attemptTimings.push({ email: emailToTry, ms, ok: false });
         return { ok: false, email: emailToTry, error: e };
       }
     };
 
     // Phase 1 — race the 3 placeholders in parallel.
+    const p1Start = performance.now();
     const phase1 = await Promise.all(placeholderCandidates.map(tryOne));
+    metrics.phase1Ms = Math.round(performance.now() - p1Start);
     const phase1Winner = phase1.find(r => r.ok);
     if (phase1Winner) {
       loginSuccess = true;
+      metrics.winnerEmail = phase1Winner.email;
+      metrics.winnerPhase = 'phase1';
     } else {
       for (const r of phase1) {
         if (r.error?.message?.includes('Invalid login credentials')) accountExists = true;
@@ -411,6 +442,7 @@ export function useAuthForm() {
     // Phase 2 — only if no placeholder matched, consult the RPC for a real
     // contact email (Gmail/Outlook). Run remaining candidates in parallel too.
     if (!loginSuccess) {
+      const p2Start = performance.now();
       const rpcEmails = await rpcLookup;
       const remaining = [...new Set([
         ...rpcEmails.filter(e => !e.includes('@welile.')),
@@ -426,6 +458,8 @@ export function useAuthForm() {
         const phase2Winner = phase2.find(r => r.ok);
         if (phase2Winner) {
           loginSuccess = true;
+          metrics.winnerEmail = phase2Winner.email;
+          metrics.winnerPhase = 'phase2';
         } else {
           for (const r of phase2) {
             if (r.error?.message?.includes('Invalid login credentials')) accountExists = true;
@@ -433,7 +467,27 @@ export function useAuthForm() {
           }
         }
       }
+      metrics.phase2Ms = Math.round(performance.now() - p2Start);
     }
+
+    metrics.totalMs = Math.round(performance.now() - t0);
+    // Persist last login metrics for in-app diagnostics + log to console for
+    // remote debugging via session capture. Compact label so it stands out.
+    try {
+      localStorage.setItem('welile_last_login_metrics', JSON.stringify({
+        at: new Date().toISOString(),
+        success: loginSuccess,
+        ...metrics,
+      }));
+    } catch { /* non-critical */ }
+    // eslint-disable-next-line no-console
+    console.log(
+      `[LoginPerf] ${loginSuccess ? '✅' : '❌'} total=${metrics.totalMs}ms ` +
+      `rpc=${metrics.rpcMs}ms (found ${metrics.rpcFoundEmails}) ` +
+      `attempts=${metrics.attempts} phase1=${metrics.phase1Ms}ms phase2=${metrics.phase2Ms}ms ` +
+      `winner=${metrics.winnerPhase ?? 'none'}`,
+      metrics.attemptTimings,
+    );
 
     if (loginSuccess) {
       setLoginError(null);
