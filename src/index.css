@@ -918,3 +918,7 @@ input[type="checkbox"], input[type="radio"] {
   body { background: white !important; }
   .printable, .printable * { color: black !important; box-shadow: none !important; }
 }
+
+/* Hide scrollbars on horizontally-scrollable chip strips (e.g. AgentNavFAB) */
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
