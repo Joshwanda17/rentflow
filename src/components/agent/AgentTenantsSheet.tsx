@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, useDeferredValue } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -162,6 +162,11 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState(() => loadPrefs().search ?? '');
+  // Defer the search query so filtering / highlighting follow the input
+  // smoothly while the user is still typing — React keeps the input
+  // responsive and only re-runs the heavy filter on the latest value.
+  const deferredSearch = useDeferredValue(search);
+  const isSearchPending = deferredSearch !== search;
   const [expandedTenantId, setExpandedTenantId] = useState<string | null>(null);
   const [tenantRequests, setTenantRequests] = useState<Record<string, TenantRentRequest[]>>({});
   const [loadingRequests, setLoadingRequests] = useState<string | null>(null);
