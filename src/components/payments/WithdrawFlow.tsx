@@ -1015,6 +1015,15 @@ export default function WithdrawFlow({
       case 4:
         return (
           <div className="space-y-6 text-center">
+            {paymentStatus === 'failed' && (
+              <div
+                role="alert"
+                className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-left text-xs text-destructive"
+              >
+                Last attempt didn't go through. Re-enter your PIN to retry —
+                your request will be reused if it actually reached our servers.
+              </div>
+            )}
             <div className="w-16 h-16 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
               <Lock className="w-8 h-8 text-primary" />
             </div>
