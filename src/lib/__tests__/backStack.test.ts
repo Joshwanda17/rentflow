@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { pushBackEntry, popBackEntry } from '@/lib/backStack';
+
+// The backStack module holds singleton state (the overlay stack and a
+// `suppressNext` counter that tracks the sentinel `history.back()` calls
+// it makes itself). Re-import a fresh copy per test so leftovers from
+// one scenario can't bleed into the next.
+let pushBackEntry: typeof import('@/lib/backStack').pushBackEntry;
+let popBackEntry: typeof import('@/lib/backStack').popBackEntry;
 
 /**
  * Verifies the global back-gesture stack used by every overlay (Dialog,
@@ -8,9 +14,12 @@ import { pushBackEntry, popBackEntry } from '@/lib/backStack';
  * the route.
  */
 describe('backStack — stacked overlay Back handling', () => {
-  beforeEach(() => {
-    // Reset history + any leftover state between tests.
+  beforeEach(async () => {
+    vi.resetModules();
     window.history.replaceState(null, '');
+    const mod = await import('@/lib/backStack');
+    pushBackEntry = mod.pushBackEntry;
+    popBackEntry = mod.popBackEntry;
   });
 
   it('pushes a sentinel history entry per overlay opened', () => {
@@ -18,10 +27,9 @@ describe('backStack — stacked overlay Back handling', () => {
     const a = pushBackEntry(() => {});
     const b = pushBackEntry(() => {});
     expect(pushSpy).toHaveBeenCalledTimes(2);
-    // cleanup
-    popBackEntry(b);
-    popBackEntry(a);
     pushSpy.mockRestore();
+    // Tests are isolated via vi.resetModules — no shared-state cleanup needed.
+    void a; void b;
   });
 
   it('closes only the topmost overlay on a single Back press (LIFO)', () => {
