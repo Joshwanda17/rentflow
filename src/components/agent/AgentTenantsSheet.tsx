@@ -66,7 +66,7 @@ interface AgentTenantsSheetProps {
 type FilterTab = 'owing' | 'paid-up' | 'all';
 type LifecycleFilter = 'any' | 'active' | 'pending' | 'settled';
 type RiskFilter = 'all' | 'good' | 'standard' | 'caution' | 'new';
-type SortKey = 'risk' | 'aiId' | 'property' | 'balance' | 'daily' | 'property-daily' | 'property-balance' | 'lastCollected';
+type SortKey = 'risk' | 'aiId' | 'property' | 'balance' | 'daily' | 'property-daily' | 'property-balance' | 'lastCollected' | 'recent' | 'name';
 type SortDir = 'asc' | 'desc';
 
 const PREFS_KEY = 'agent-tenants-sheet:prefs:v2';
@@ -688,6 +688,16 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           if (!ta && tb) return 1;
           if (ta && !tb) return -1;
           cmp = ta - tb;
+          break;
+        }
+        case 'recent': {
+          const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
+          cmp = ta - tb;
+          break;
+        }
+        case 'name': {
+          cmp = (a.full_name || '').localeCompare(b.full_name || '');
           break;
         }
       }
