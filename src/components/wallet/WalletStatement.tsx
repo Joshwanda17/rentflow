@@ -31,7 +31,8 @@ import {
   X,
   ChevronDown,
   ChevronUp,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Eye
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, subDays } from 'date-fns';
