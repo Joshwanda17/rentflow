@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Home } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
+import { toast } from '@/hooks/use-toast';
 
 type HistoryEntry = { path: string; label: string };
 
@@ -129,6 +130,61 @@ export default function AgentNavFAB() {
       window.removeEventListener('touchend', onEnd);
     };
   }, [isAgent, onHome, modalOpen, navigate]);
+
+  // Android hardware Back button handling (PWA / TWA / WebView).
+  // The system back triggers a `popstate`. We intercept it so:
+  //   1. If a modal/sheet/alertdialog is open → close it instead of navigating away.
+  //   2. If we're on the agent home → require a second press within 2s to exit
+  //      (prevents accidentally closing the installed app).
+  //   3. Otherwise → let the browser perform the natural back navigation.
+  const exitArmedRef = useRef(false);
+  useEffect(() => {
+    if (!isAgent) return;
+
+    const pushGuard = () => {
+      try {
+        window.history.pushState({ welileNavGuard: true }, '');
+      } catch {
+        /* history API unavailable — ignore */
+      }
+    };
+
+    // Seed a sentinel state on home so the very first hardware-back press
+    // is captured by us rather than exiting the app.
+    if (onHome) pushGuard();
+
+    const onPop = () => {
+      const modal = document.querySelector(
+        '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]',
+      );
+      if (modal) {
+        // Re-push the sentinel we just consumed, then close the topmost modal
+        // via the standard Escape handler that Radix listens for.
+        pushGuard();
+        document.dispatchEvent(
+          new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }),
+        );
+        return;
+      }
+
+      if (onHome) {
+        if (exitArmedRef.current) {
+          // Second press within the window — allow the app to close naturally.
+          return;
+        }
+        exitArmedRef.current = true;
+        pushGuard();
+        toast({ description: 'Press back again to exit', duration: 1800 });
+        window.setTimeout(() => {
+          exitArmedRef.current = false;
+        }, 2000);
+      }
+      // Non-home, no modal: popstate already navigated back. Nothing to do.
+    };
+
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [isAgent, onHome]);
 
   if (!isAgent || modalOpen) return null;
 
