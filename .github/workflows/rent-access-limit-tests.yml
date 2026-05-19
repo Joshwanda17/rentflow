@@ -36,5 +36,29 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Run rentAccessLimit unit tests
-        run: bunx vitest run src/lib/__tests__/rentAccessLimit.test.ts --reporter=verbose
+      - name: Run rentAccessLimit unit tests with coverage
+        # Thresholds are scoped to src/lib/rentAccessLimit.ts only so the
+        # gate measures the formula we actually own. CI fails if any of
+        # statements/lines/functions drops below 100% or branches below 85%.
+        run: |
+          bunx vitest run src/lib/__tests__/rentAccessLimit.test.ts \
+            --reporter=verbose \
+            --coverage \
+            --coverage.provider=v8 \
+            --coverage.include='src/lib/rentAccessLimit.ts' \
+            --coverage.reporter=text \
+            --coverage.reporter=lcov \
+            --coverage.reportsDirectory=coverage/rent-access-limit \
+            --coverage.thresholds.lines=100 \
+            --coverage.thresholds.statements=100 \
+            --coverage.thresholds.functions=100 \
+            --coverage.thresholds.branches=85
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rent-access-limit-coverage
+          path: coverage/rent-access-limit
+          if-no-files-found: ignore
+          retention-days: 14
