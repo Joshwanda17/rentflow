@@ -45,6 +45,7 @@ export default function Auth() {
     phone, setPhone,
     countryCode, setCountryCode,
     isLoading,
+    loginStage,
     loginError, setLoginError,
     failedAttempts,
     rememberMe, setRememberMe,
@@ -63,6 +64,19 @@ export default function Auth() {
   } = useAuthForm();
 
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // Friendly progress labels for the Sign In button so users know what's
+  // happening instead of staring at a blank spinner. Keep <22 chars to fit
+  // on small screens beside the spinner.
+  const loginStageLabel: Record<string, string> = {
+    'validating': 'Checking details…',
+    'checking-cache': 'Checking saved account…',
+    'looking-up': 'Looking up account…',
+    'trying-fast': 'Signing in…',
+    'trying-extended': 'Trying alternate emails…',
+    'finalizing': 'Finalizing…',
+  };
+  const stageText = loginStageLabel[loginStage] ?? 'Signing in…';
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, loading: authLoading, signIn: authSignIn, roles: authRoles } = useAuth();
@@ -404,7 +418,12 @@ export default function Auth() {
                     disabled={isLoading}
                     style={{ fontSize: '16px', WebkitTapHighlightColor: 'transparent' }}
                   >
-                    {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Sign In'}
+                    {isLoading ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <span className="text-sm font-medium truncate">{stageText}</span>
+                      </span>
+                    ) : 'Sign In'}
                   </Button>
                 </form>
 
@@ -761,7 +780,12 @@ export default function Auth() {
                     <Input type={showPassword ? "text" : "password"} autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" className="pl-10 h-12 text-base rounded-xl" style={{ fontSize: '16px' }} required />
                   </div>
                   <Button type="submit" className="w-full h-12 text-base rounded-xl font-semibold touch-manipulation active:scale-[0.98]" disabled={isLoading} style={{ fontSize: '16px' }}>
-                    {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Sign In'}
+                    {isLoading ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <span className="text-sm font-medium truncate">{stageText}</span>
+                      </span>
+                    ) : 'Sign In'}
                   </Button>
                 </form>
                 <button type="button" onClick={() => { setIsForgotPhone(false); setEmail(''); }} className="w-full text-xs text-muted-foreground hover:text-primary text-center flex items-center justify-center gap-1">
