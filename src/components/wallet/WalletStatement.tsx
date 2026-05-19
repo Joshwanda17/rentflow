@@ -603,8 +603,9 @@ export function WalletStatement() {
                 disabled={loading || filteredEntries.length === 0}
                 className="gap-1.5 text-xs font-semibold border-primary/30 text-primary hover:bg-primary/10"
                 title={`Download CSV · ${filterSummary}`}
+                aria-label={`Download wallet statement as CSV. Filters applied: ${filterSummary}`}
               >
-                <FileSpreadsheet className="h-3.5 w-3.5" />
+                <FileSpreadsheet className="h-3.5 w-3.5" aria-hidden="true" />
                 CSV
               </Button>
               <Button
@@ -614,8 +615,10 @@ export function WalletStatement() {
                 disabled={exporting || loading || filteredEntries.length === 0}
                 className="gap-1.5 text-xs font-semibold border-primary/30 text-primary hover:bg-primary/10"
                 title={`Download PDF · ${filterSummary}`}
+                aria-label={exporting ? 'Generating PDF, please wait' : `Download wallet statement as PDF. Filters applied: ${filterSummary}`}
+                aria-busy={exporting}
               >
-                {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <Download className="h-3.5 w-3.5" aria-hidden="true" />}
                 PDF
               </Button>
             </div>
