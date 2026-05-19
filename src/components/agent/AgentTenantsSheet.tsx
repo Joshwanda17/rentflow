@@ -555,7 +555,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
 
   // Filtered & sorted tenants — always sorted by highest debt
   const processedTenants = useMemo(() => {
-    const raw = search.trim();
+    const raw = deferredSearch.trim();
     const q = raw.toLowerCase();
     // Strip everything except digits so "+256 772 123 456", "0772-123-456"
     // and "772123456" all match the same tenant. Empty when the query has
@@ -699,7 +699,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
       return cmp * dir;
     });
     return list;
-  }, [tenants, search, activeFilter, riskFilter, sortKey, sortDir, tenantBalances, tenantDaily, tenantStatuses, tenantContext, tenantMeta, tenantLastPaid, recentCollectionFilter, propertyFilter, lifecycleFilter]);
+  }, [tenants, deferredSearch, activeFilter, riskFilter, sortKey, sortDir, tenantBalances, tenantDaily, tenantStatuses, tenantContext, tenantMeta, tenantLastPaid, recentCollectionFilter, propertyFilter, lifecycleFilter]);
 
   const propertyOptions = useMemo(() => {
     const counts = new Map<string, number>();
