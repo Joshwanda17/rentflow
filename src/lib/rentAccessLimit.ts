@@ -50,6 +50,13 @@ export const RENT_ACCESS_PAID_INCREMENT_UGX = 10_000;
 export const RENT_ACCESS_MISSED_DECREMENT_UGX = 7_000;
 export const RENT_ACCESS_MAX_LIMIT_UGX = 30_000_000;
 
+/** Runtime-configurable knobs (admin can override via system_config). */
+export interface RentAccessLimitOverrides {
+  paidIncrementUgx?: number;
+  missedDecrementUgx?: number;
+  maxLimitUgx?: number;
+}
+
 function startOfDayUtc(d: Date): number {
   return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
 }
@@ -58,7 +65,12 @@ export function calculateRentAccessLimit(
   monthlyRent: number | null | undefined,
   repayments: RepaymentLike[] | null | undefined,
   now: Date = new Date(),
+  overrides?: RentAccessLimitOverrides,
 ): RentAccessLimitResult {
+  const paidIncrement = Math.max(0, Number(overrides?.paidIncrementUgx ?? RENT_ACCESS_PAID_INCREMENT_UGX) || 0);
+  const missedDecrement = Math.max(0, Number(overrides?.missedDecrementUgx ?? RENT_ACCESS_MISSED_DECREMENT_UGX) || 0);
+  const maxLimit = Math.max(0, Number(overrides?.maxLimitUgx ?? RENT_ACCESS_MAX_LIMIT_UGX) || 0);
+
   const rent = Math.max(0, Number(monthlyRent) || 0);
   const base = rent * 12;
 
@@ -81,18 +93,14 @@ export function calculateRentAccessLimit(
   const paidDays = paidDaySet.size;
   const missedDays = Math.max(0, trackedDays - paidDays);
 
-  const rawLimit =
-    paidDays * RENT_ACCESS_PAID_INCREMENT_UGX -
-    missedDays * RENT_ACCESS_MISSED_DECREMENT_UGX;
-  const limit = Math.max(0, Math.min(RENT_ACCESS_MAX_LIMIT_UGX, rawLimit));
-  const atMax = limit >= RENT_ACCESS_MAX_LIMIT_UGX;
+  const rawLimit = paidDays * paidIncrement - missedDays * missedDecrement;
+  const limit = Math.max(0, Math.min(maxLimit, rawLimit));
+  const atMax = maxLimit > 0 && limit >= maxLimit;
 
-  const netAdjustmentPct = limit / RENT_ACCESS_MAX_LIMIT_UGX;
+  const netAdjustmentPct = maxLimit > 0 ? limit / maxLimit : 0;
 
   const paidToday = paidDaySet.has(todayKey);
-  const todayChange = paidToday
-    ? RENT_ACCESS_PAID_INCREMENT_UGX
-    : -RENT_ACCESS_MISSED_DECREMENT_UGX;
+  const todayChange = paidToday ? paidIncrement : -missedDecrement;
 
   let tier: RentAccessLimitResult['tier'] = 'starter';
   if (netAdjustmentPct >= 0.5) tier = 'elite';
