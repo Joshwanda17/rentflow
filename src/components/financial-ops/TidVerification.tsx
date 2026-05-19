@@ -834,6 +834,7 @@ export function TidVerification() {
             allocations: decoded?.allocations ?? null,
             matchedVia: 'tid',
             purpose_audit: (d as any).purpose_audit ?? null,
+            agent_id: (d as any).agent_id ?? null,
           };
           setMatches([result]);
           setResultState('found');
@@ -947,6 +948,7 @@ export function TidVerification() {
             allocations: decoded?.allocations ?? null,
             matchedVia: tidIds.has(d.id) ? 'tid' : 'notes',
             purpose_audit: (d as any).purpose_audit ?? null,
+            agent_id: (d as any).agent_id ?? null,
           };
         });
 
