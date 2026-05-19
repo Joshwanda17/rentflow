@@ -565,10 +565,14 @@ export function TidVerification() {
     !!p.depositorPhone &&
     !!p.depositorName &&
     p.depositorName.toLowerCase() !== 'unknown depositor';
+  const isNonOpFloat = (p: PendingDeposit) =>
+    p.deposit_purpose !== 'operational_float' || p.agent_id === null;
   const pendingFiltered = (() => {
     const q = pendingSearch.trim().toLowerCase();
     const qDigits = q.replace(/[^0-9]/g, '');
     return pending.filter((p) => {
+      // Operational float category chip
+      if (opFloatFilter === 'non_op_float' && !isNonOpFloat(p)) return false;
       // Amount range chip
       if (amountRange === 'low' && p.amount >= 50000) return false;
       if (amountRange === 'mid' && (p.amount < 50000 || p.amount > 200000)) return false;
@@ -590,7 +594,7 @@ export function TidVerification() {
     });
   })();
   const filtersActive =
-    matchField !== 'any' || amountRange !== 'any' || verification !== 'any';
+    matchField !== 'any' || amountRange !== 'any' || verification !== 'any' || opFloatFilter !== 'any';
 
   // Apply column sort on top of the filtered list. When no column is
   // active we keep the server's natural newest-first order so toggling
