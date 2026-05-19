@@ -46,6 +46,7 @@ import MaintenanceLockScreen from "@/components/MaintenanceLockScreen";
 const DeferredExtras = lazyWithRetry(() => import("@/components/DeferredExtras"));
 const FloatingToolbar = lazyWithRetry(() => import("@/components/FloatingToolbar"));
 const PWAInstallPrompt = lazyWithRetry(() => import("@/components/PWAInstallPrompt"));
+const AgentNavFAB = lazyWithRetry(() => import("@/components/agent/AgentNavFAB"));
 
 
 // Index is the entry router — must be eager for instant redirect
@@ -548,6 +549,7 @@ const App = () => {
                       <Suspense fallback={null}>
                         <DeferredExtras />
                         <FloatingToolbar />
+                        <AgentNavFAB />
                         <PWAInstallPrompt />
                         <Toaster />
                         <SonnerToaster />
