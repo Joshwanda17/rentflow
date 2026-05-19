@@ -2558,13 +2558,19 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
           return (
             <div className="sticky bottom-0 left-0 right-0 border-t bg-background/95 backdrop-blur px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
               {blockReason && !isSubmitting && (
-                <div className="mb-2 flex items-start gap-2 rounded-md bg-destructive/10 border border-destructive/40 px-2.5 py-2 text-[11px] text-foreground">
-                  <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
+                <div
+                  id="deposit-block-reason"
+                  role="alert"
+                  aria-live="polite"
+                  className="mb-2 flex items-start gap-2 rounded-md bg-destructive/10 border border-destructive/40 px-2.5 py-2 text-[11px] text-foreground"
+                >
+                  <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" aria-hidden="true" />
                   <span className="leading-snug flex-1">{blockReason.message}</span>
                   <button
                     type="button"
                     onClick={handleAttempt}
-                    className="text-[11px] font-semibold text-destructive underline underline-offset-2 shrink-0"
+                    aria-label={`Fix: ${blockReason.message}`}
+                    className="text-[11px] font-semibold text-destructive underline underline-offset-2 shrink-0 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-1"
                   >
                     Fix
                   </button>
@@ -2584,20 +2590,30 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   variant="outline"
                   onClick={requestBack}
                   disabled={isSubmitting}
-                  className="h-14 basis-[38%] shrink-0 text-base font-semibold rounded-xl active:scale-95 transition-transform duration-75 touch-manipulation"
-                  aria-label="Back to payment method"
+                  className="h-14 basis-[38%] shrink-0 text-base font-semibold rounded-xl active:scale-95 transition-transform duration-75 touch-manipulation focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                  aria-label="Go back to payment method selection"
                 >
-                  <ChevronLeft className="h-5 w-5 mr-1.5" /> Back
+                  <ChevronLeft className="h-5 w-5 mr-1.5" aria-hidden="true" /> Back
                 </Button>
                 <Button
                   onClick={handleAttempt}
                   disabled={isSubmitting}
-                  className="flex-1 h-14 text-base font-semibold rounded-xl active:scale-[0.98] transition-transform duration-75 touch-manipulation"
+                  className="flex-1 h-14 text-base font-semibold rounded-xl active:scale-[0.98] transition-transform duration-75 touch-manipulation focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                   size="lg"
                   aria-disabled={blocked}
+                  aria-describedby={blockReason ? 'deposit-block-reason' : undefined}
+                  aria-label={
+                    isSubmitting
+                      ? (isEditMode ? 'Saving changes' : 'Sending deposit')
+                      : isEditMode
+                        ? 'Save changes'
+                        : (total > 0
+                          ? `Submit deposit of ${formatCurrency(total)} for verification`
+                          : 'Submit deposit for verification')
+                  }
                 >
                   {isSubmitting
-                    ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> {isEditMode ? 'Saving…' : 'Sending…'}</>
+                    ? <><Loader2 className="h-4 w-4 animate-spin mr-2" aria-hidden="true" /> {isEditMode ? 'Saving…' : 'Sending…'}</>
                     : isEditMode
                       ? 'Save changes'
                       : (total > 0 ? `Deposit ${formatCurrency(total)}` : 'Deposit')}
