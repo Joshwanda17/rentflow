@@ -21,6 +21,7 @@ import { UGANDA_BANKS, PAYOUT_METHODS } from '@/lib/ugandaBanks';
 import { useSavedPayoutMethods, type SavedPayoutMethod } from '@/hooks/useSavedPayoutMethods';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Trash2, Star } from 'lucide-react';
+import { downloadWithdrawalReceiptPdf } from '@/lib/withdrawalReceiptPdf';
 
 /**
  * Maps a Ugandan mobile-money number to its provider based on the operator
@@ -1166,6 +1167,23 @@ export default function WithdrawFlow({
               reference={withdrawalRef || 'PENDING'}
               method={payoutMode === 'mobile_money' ? 'Mobile Money' : payoutMode === 'bank_transfer' ? 'Bank Transfer' : 'Cash Pickup'}
               date={submittedAt ?? new Date()}
+              onDownload={async () => {
+                try {
+                  await downloadWithdrawalReceiptPdf({
+                    reference: withdrawalRef || 'PENDING',
+                    amount,
+                    currency,
+                    recipient: getPayoutSummary(),
+                    method: payoutMode === 'mobile_money' ? 'Mobile Money' : payoutMode === 'bank_transfer' ? 'Bank Transfer' : 'Cash Pickup',
+                    date: submittedAt ?? new Date(),
+                    status: 'Pending disbursement',
+                  });
+                  toast.success('Receipt downloaded');
+                } catch (e) {
+                  console.error('[WithdrawFlow] receipt PDF failed', e);
+                  toast.error('Could not generate PDF receipt');
+                }
+              }}
             />
             <WithdrawalStatusTracker
               requestId={createdRequestId}
