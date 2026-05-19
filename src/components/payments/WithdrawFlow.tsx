@@ -69,6 +69,7 @@ export default function WithdrawFlow({
   onSuccess,
 }: WithdrawFlowProps) {
   const { user } = useAuth();
+  const { language } = useLanguage();
   const [currentStep, setCurrentStep] = useState(0);
   const [source, setSource] = useState<'available' | 'roi'>('available');
   const [amount, setAmount] = useState(100000);
