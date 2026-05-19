@@ -1,9 +1,26 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Home } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Home } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
+
+type HistoryEntry = { path: string; label: string };
+
+/**
+ * Convert "/agent/tenants/abc-123" → "Tenants".
+ * Keeps labels short, friendly, and stable for repeat visits.
+ */
+function labelFor(pathname: string): string {
+  if (pathname === '/' || pathname === '/dashboard') return 'Home';
+  const seg = pathname.split('/').filter(Boolean)[0] ?? '';
+  if (!seg) return 'Home';
+  // Drop UUID-ish trailing segments by only using the first segment.
+  return seg
+    .replace(/[-_]+/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .slice(0, 22);
+}
 
 /**
  * Global agent navigation aid: a thumb-zone Back + Home pill that follows the
@@ -24,6 +41,41 @@ export default function AgentNavFAB() {
   const isAgent = role === 'agent';
 
   const onHome = location.pathname === '/' || location.pathname === '/dashboard';
+
+  // Lightweight in-memory route history (most-recent last, max 5 unique entries).
+  // Persisted to sessionStorage so a refresh doesn't strand the agent.
+  const [history, setHistory] = useState<HistoryEntry[]>(() => {
+    try {
+      const raw = sessionStorage.getItem('welile.agentNavHistory');
+      return raw ? (JSON.parse(raw) as HistoryEntry[]) : [];
+    } catch {
+      return [];
+    }
+  });
+  const lastPathRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!isAgent) return;
+    if (lastPathRef.current === location.pathname) return;
+    lastPathRef.current = location.pathname;
+    setHistory((prev) => {
+      const entry: HistoryEntry = { path: location.pathname, label: labelFor(location.pathname) };
+      // Drop any existing occurrence of this path so it moves to the end.
+      const next = prev.filter((e) => e.path !== entry.path);
+      next.push(entry);
+      // Keep last 6 (current + 5 history items).
+      const trimmed = next.slice(-6);
+      try {
+        sessionStorage.setItem('welile.agentNavHistory', JSON.stringify(trimmed));
+      } catch {
+        /* ignore quota errors */
+      }
+      return trimmed;
+    });
+  }, [isAgent, location.pathname]);
+
+  // Everything except the current page, oldest → newest.
+  const crumbs = history.filter((e) => e.path !== location.pathname);
 
   // Hide whenever a modal/sheet/alertdialog is open.
   const [modalOpen, setModalOpen] = useState(false);
@@ -89,11 +141,47 @@ export default function AgentNavFAB() {
         exit={{ y: 24, opacity: 0 }}
         transition={{ type: 'spring', stiffness: 220, damping: 22 }}
         className={cn(
-          'md:hidden fixed left-3 z-[60] flex items-center gap-2',
+          'md:hidden fixed left-3 right-3 z-[60] flex flex-col items-start gap-2',
           // sit above the bottom safe area + above the WhatsApp FAB stack
           'bottom-[max(1rem,env(safe-area-inset-bottom))]',
         )}
       >
+        {/* Recent screens — scrollable horizontal chip strip */}
+        {!onHome && crumbs.length > 0 && (
+          <nav
+            aria-label="Recent screens"
+            className={cn(
+              'max-w-full overflow-x-auto no-scrollbar',
+              'rounded-full bg-background/90 backdrop-blur border border-border shadow-md',
+              'px-2 py-1',
+            )}
+          >
+            <ol className="flex items-center gap-1 whitespace-nowrap">
+              {crumbs.map((c, i) => (
+                <li key={`${c.path}-${i}`} className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => navigate(c.path)}
+                    className={cn(
+                      'h-9 px-3 rounded-full text-xs font-medium',
+                      'text-muted-foreground hover:text-foreground hover:bg-muted',
+                      'active:scale-95 transition-all touch-manipulation',
+                      'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                    )}
+                    aria-label={`Jump back to ${c.label}`}
+                  >
+                    {c.label}
+                  </button>
+                  {i < crumbs.length - 1 && (
+                    <ChevronRight className="h-3 w-3 text-muted-foreground/60" aria-hidden="true" />
+                  )}
+                </li>
+              ))}
+            </ol>
+          </nav>
+        )}
+
+        <div className="flex items-center gap-2">
         {!onHome && (
           <button
             type="button"
@@ -130,6 +218,7 @@ export default function AgentNavFAB() {
         >
           <Home className="h-6 w-6" aria-hidden="true" />
         </button>
+        </div>
       </motion.div>
     </AnimatePresence>
   );
