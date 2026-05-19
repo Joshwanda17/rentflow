@@ -915,6 +915,33 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                 </p>
               )}
             </div>
+            {/* Lifecycle quick filters — narrow the list by rent-request
+                stage. Independent of the Owing / Paid-up / All tabs below. */}
+            <div className="mt-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+              {lifecycleTabs.map((tab) => {
+                const active = lifecycleFilter === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    onClick={() => setLifecycleFilter(tab.key)}
+                    className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                      active
+                        ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                        : 'bg-muted/40 text-muted-foreground border-border hover:bg-muted'
+                    }`}
+                    style={{ touchAction: 'manipulation', minHeight: '32px' }}
+                    aria-pressed={active}
+                  >
+                    <span>{tab.label}</span>
+                    {typeof tab.count === 'number' && (
+                      <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-md ${
+                        active ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-background text-foreground/70'
+                      }`}>{tab.count}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* ───── Today's Collection Status ───── */}
