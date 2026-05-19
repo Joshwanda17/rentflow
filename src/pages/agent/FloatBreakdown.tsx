@@ -316,9 +316,16 @@ export default function AgentFloatBreakdown() {
         ) : (
           <div className="rounded-2xl border bg-card overflow-hidden">
             <div className="px-4 py-2.5 border-b bg-muted/30">
-              <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
-                Activity ({filteredRows.length}{filteredRows.length !== rows.length ? ` of ${rows.length}` : ''})
-              </span>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
+                  Activity ({filteredRows.length}{filteredRows.length !== rows.length ? ` of ${rows.length}` : ''})
+                </span>
+                <span className="text-[10px] text-muted-foreground">Tap a row for details</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
+                Each row is one float movement. <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Green +</span> adds to float, <span className="text-rose-600 dark:text-rose-400 font-semibold">red −</span> takes from float.
+                <span className="block mt-0.5"><span className="font-semibold">Bal:</span> your float balance immediately after that movement.</span>
+              </p>
             </div>
             <ul className="divide-y">
               {filteredRows.map((r) => {
