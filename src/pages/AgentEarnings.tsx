@@ -13,7 +13,14 @@ import { useAuth } from '@/hooks/useAuth';
 import { roleToSlug } from '@/lib/roleRoutes';
 import { useAgentEarnings, EarningBreakdown, DetailedEarning } from '@/hooks/useAgentEarnings';
 import { formatUGX } from '@/lib/rentCalculations';
-import { format } from 'date-fns';
+import {
+  format, startOfDay, endOfDay, startOfWeek, endOfWeek,
+  startOfMonth, endOfMonth, isWithinInterval,
+} from 'date-fns';
+import { DateRange } from 'react-day-picker';
+import { Calendar as CalendarComp } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 import { MobileMoneySettings } from '@/components/agent/MobileMoneySettings';
 import { RequestCommissionPayoutDialog } from '@/components/agent/RequestCommissionPayoutDialog';
 import { MyCommissionPayouts } from '@/components/agent/MyCommissionPayouts';
@@ -48,6 +55,29 @@ export default function AgentEarnings() {
   const [payoutDialogOpen, setPayoutDialogOpen] = useState(false);
   const [breakdownExpanded, setBreakdownExpanded] = useState(false);
   const [expandedEarningId, setExpandedEarningId] = useState<string | null>(null);
+  type RangePreset = 'all' | 'today' | 'week' | 'month' | 'custom';
+  const [rangePreset, setRangePreset] = useState<RangePreset>('all');
+  const [customRange, setCustomRange] = useState<DateRange | undefined>();
+
+  const activeInterval = (() => {
+    const now = new Date();
+    switch (rangePreset) {
+      case 'today': return { start: startOfDay(now), end: endOfDay(now) };
+      case 'week': return { start: startOfWeek(now, { weekStartsOn: 1 }), end: endOfWeek(now, { weekStartsOn: 1 }) };
+      case 'month': return { start: startOfMonth(now), end: endOfMonth(now) };
+      case 'custom':
+        if (customRange?.from) {
+          return { start: startOfDay(customRange.from), end: endOfDay(customRange.to ?? customRange.from) };
+        }
+        return null;
+      default: return null;
+    }
+  })();
+
+  const filterByRange = (list: DetailedEarning[]) => {
+    if (!activeInterval) return list;
+    return list.filter(e => isWithinInterval(new Date(e.created_at), activeInterval));
+  };
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -57,8 +87,12 @@ export default function AgentEarnings() {
     }
   }, [user, role, authLoading, navigate]);
 
-  const detailedCommissions = detailedEarnings.filter(e => ['commission', 'rent_commission', 'investment_commission', 'subagent_commission', 'subagent_override'].includes(e.earning_type));
-  const detailedBonuses = detailedEarnings.filter(e => ['approval_bonus', 'verification_bonus', 'rent_funded_bonus', 'facilitation_bonus', 'listing_bonus', 'registration', 'registration_bonus', 'referral_bonus', 'referral'].includes(e.earning_type));
+  const filteredEarnings = filterByRange(detailedEarnings);
+  const detailedCommissions = filteredEarnings.filter(e => ['commission', 'rent_commission', 'investment_commission', 'subagent_commission', 'subagent_override'].includes(e.earning_type));
+  const detailedBonuses = filteredEarnings.filter(e => ['approval_bonus', 'verification_bonus', 'rent_funded_bonus', 'facilitation_bonus', 'listing_bonus', 'registration', 'registration_bonus', 'referral_bonus', 'referral'].includes(e.earning_type));
+  const filteredCommissionTotal = detailedCommissions.reduce((s, e) => s + Number(e.amount), 0);
+  const filteredBonusTotal = detailedBonuses.reduce((s, e) => s + Number(e.amount), 0);
+  const filteredTotal = filteredEarnings.reduce((s, e) => s + Number(e.amount), 0);
 
   const groupByDate = (earningsList: DetailedEarning[]) => {
     const grouped: Record<string, DetailedEarning[]> = {};
@@ -366,12 +400,76 @@ export default function AgentEarnings() {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="all" className="space-y-4">
+              {/* Date range filter */}
+              <div className="space-y-2">
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    { key: 'all', label: 'All time' },
+                    { key: 'today', label: 'Today' },
+                    { key: 'week', label: 'This week' },
+                    { key: 'month', label: 'This month' },
+                  ] as { key: RangePreset; label: string }[]).map(p => (
+                    <Button
+                      key={p.key}
+                      size="sm"
+                      variant={rangePreset === p.key ? 'default' : 'outline'}
+                      onClick={() => { hapticTap(); setRangePreset(p.key); }}
+                      className="h-8 text-xs"
+                    >
+                      {p.label}
+                    </Button>
+                  ))}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant={rangePreset === 'custom' ? 'default' : 'outline'}
+                        className="h-8 text-xs gap-1"
+                      >
+                        <Calendar className="h-3.5 w-3.5" />
+                        {rangePreset === 'custom' && customRange?.from
+                          ? `${format(customRange.from, 'MMM d')}${customRange.to ? ` – ${format(customRange.to, 'MMM d')}` : ''}`
+                          : 'Custom'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComp
+                        mode="range"
+                        selected={customRange}
+                        onSelect={(r) => {
+                          setCustomRange(r);
+                          if (r?.from) setRangePreset('custom');
+                        }}
+                        numberOfMonths={1}
+                        initialFocus
+                        className={cn('p-3 pointer-events-auto')}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                {activeInterval && (
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground bg-secondary/40 rounded-lg px-3 py-2">
+                    <span>
+                      {format(activeInterval.start, 'MMM d, yyyy')} – {format(activeInterval.end, 'MMM d, yyyy')}
+                    </span>
+                    <span className="ml-auto font-mono font-semibold text-foreground">
+                      {formatUGX(filteredTotal)}
+                    </span>
+                    <span className="font-mono text-emerald-600">
+                      Comm {formatUGX(filteredCommissionTotal)}
+                    </span>
+                    <span className="font-mono text-amber-600">
+                      Bonus {formatUGX(filteredBonusTotal)}
+                    </span>
+                  </div>
+                )}
+              </div>
               <TabsList className="w-full">
-                <TabsTrigger value="all" className="flex-1">All ({detailedEarnings.length})</TabsTrigger>
+                <TabsTrigger value="all" className="flex-1">All ({filteredEarnings.length})</TabsTrigger>
                 <TabsTrigger value="commissions" className="flex-1">Commissions ({detailedCommissions.length})</TabsTrigger>
                 <TabsTrigger value="bonuses" className="flex-1">Bonuses ({detailedBonuses.length})</TabsTrigger>
               </TabsList>
-              <TabsContent value="all">{renderEarningsList(detailedEarnings)}</TabsContent>
+              <TabsContent value="all">{renderEarningsList(filteredEarnings)}</TabsContent>
               <TabsContent value="commissions">{renderEarningsList(detailedCommissions)}</TabsContent>
               <TabsContent value="bonuses">{renderEarningsList(detailedBonuses)}</TabsContent>
             </Tabs>
