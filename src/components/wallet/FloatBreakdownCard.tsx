@@ -6,6 +6,7 @@ import { ArrowDownLeft, ArrowUpRight, ChevronDown, ChevronLeft, ChevronRight, Ch
 import { CompactAmount } from '@/components/ui/CompactAmount';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 
 // Categories that move money into/out of the FLOAT bucket on the wallet leg.
