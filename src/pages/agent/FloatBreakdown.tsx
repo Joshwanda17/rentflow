@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowDownCircle, ArrowUpCircle, Wallet, Info, Calendar, X, ChevronRight, Copy, Check } from 'lucide-react';
+import { ArrowLeft, ArrowDownCircle, ArrowUpCircle, Wallet, Info, Calendar, X, ChevronRight, Copy, Check, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrency } from '@/hooks/useCurrency';
@@ -240,6 +240,45 @@ export default function AgentFloatBreakdown() {
               </p>
             </div>
           </div>
+
+          {/* Net movement */}
+          {(() => {
+            const net = totalIn + totalOut; // totalOut is already negative
+            const isPositive = net > 0;
+            const isZero = net === 0;
+            const Icon = isZero ? Minus : isPositive ? TrendingUp : TrendingDown;
+            const tone = isZero
+              ? 'text-muted-foreground bg-muted/40'
+              : isPositive
+                ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10'
+                : 'text-rose-600 dark:text-rose-400 bg-rose-500/10';
+            const rangeLabel = fromDate || toDate ? 'in selected range' : 'all-time';
+            return (
+              <div className={`mt-3 rounded-xl p-3 ${tone}`}>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Icon className="h-4 w-4 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] uppercase font-bold tracking-wider">Net Float Movement</p>
+                      <p className="text-[10px] opacity-80 truncate">Deposits − Used, {rangeLabel}</p>
+                    </div>
+                  </div>
+                  <p className="text-lg font-black tabular-nums whitespace-nowrap">
+                    {isZero ? '' : isPositive ? '+' : '−'}
+                    {formatAmount(Math.abs(net))}
+                  </p>
+                </div>
+                <p className="text-[10px] mt-2 opacity-80 leading-snug">
+                  {isZero
+                    ? 'Your float balance did not change in this range.'
+                    : isPositive
+                      ? 'Your float grew — more came in than went out to tenants.'
+                      : 'Your float shrank — more was spent on tenants than came in.'}
+                </p>
+              </div>
+            );
+          })()}
+
           <div className="flex items-start gap-2 mt-3 text-[11px] text-muted-foreground">
             <Info className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
             <p>
