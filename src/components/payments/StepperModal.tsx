@@ -27,7 +27,10 @@ interface StepperModalProps {
    *  non-interactive, and (optionally) swaps its label to `nextBusyLabel`. */
   nextBusy?: boolean;
   nextBusyLabel?: string;
-  onNext?: () => void;
+  /** Return `false` (or a promise resolving to `false`) to veto auto-advance.
+   *  Useful when the parent wants to run validation/refetch on tap and keep
+   *  the user on the current step if the check fails. */
+  onNext?: () => void | boolean | Promise<void | boolean>;
   onComplete?: () => void;
   isProcessing?: boolean;
   isComplete?: boolean;
@@ -64,12 +67,23 @@ export default function StepperModal({
     }
   };
 
-  const handleNext = () => {
+  const [advancing, setAdvancing] = useState(false);
+  const handleNext = async () => {
+    if (advancing) return;
     if (isLastStep) {
       onComplete?.();
-    } else {
-      onNext?.();
+      return;
+    }
+    if (!onNext) {
       onStepChange(currentStep + 1);
+      return;
+    }
+    setAdvancing(true);
+    try {
+      const result = await onNext();
+      if (result !== false) onStepChange(currentStep + 1);
+    } finally {
+      setAdvancing(false);
     }
   };
 
@@ -132,15 +146,15 @@ export default function StepperModal({
           <div className="p-4 border-t bg-muted/20">
             <Button
               onClick={handleNext}
-              disabled={!canGoNext || nextBusy}
-              aria-busy={nextBusy || undefined}
+              disabled={!canGoNext || nextBusy || advancing}
+              aria-busy={nextBusy || advancing || undefined}
               className="w-full"
               size="lg"
             >
-              {nextBusy && (
+              {(nextBusy || advancing) && (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" aria-hidden="true" />
               )}
-              {nextBusy
+              {nextBusy || advancing
                 ? (nextBusyLabel ?? 'Working…')
                 : isLastStep
                 ? 'Confirm'

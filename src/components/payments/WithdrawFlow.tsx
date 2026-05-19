@@ -321,12 +321,17 @@ export default function WithdrawFlow({
     switch (currentStep) {
       case 0: return true;
       case 1:
+        // Mirror the Confirm-step pattern: keep Continue tappable even when
+        // the live ledger check is still loading / failed / stale. We refetch
+        // inside handleNext and surface a clear inline error if the amount is
+        // actually invalid. Silent-disable was the #1 cause of "the button
+        // does nothing" reports.
         return (
           amount >= MIN_WITHDRAWAL &&
-          amount <= maxAmount &&
-          ledgerAvailable !== null &&
-          !validating &&
-          !isStale
+          // If we have a verified ledger figure, enforce it. If we don't
+          // (RPC slow/failed), let the tap through — handleNext will refetch
+          // and either advance or show a real error.
+          (ledgerAvailable === null || amount <= maxAmount)
         );
       case 2: return !!payoutMode;
       case 3: {
@@ -541,7 +546,35 @@ export default function WithdrawFlow({
     }
   };
 
-  const handleNext = async () => {
+  const handleNext = async (): Promise<void | false> => {
+    // ── Step 1 (Amount): if our ledger snapshot is missing/stale, refetch
+    // before advancing. Show a real error instead of letting the stepper
+    // silently swallow the tap. This is the counterpart to the Confirm-step
+    // logic below and the reason `canProceed()` no longer hard-blocks here.
+    if (currentStep === 1) {
+      if (ledgerAvailable === null || isStale || validating) {
+        const fresh = await refetchLedger();
+        const freshMax =
+          source === 'available'
+            ? (fresh !== null ? Math.min(availableBalance, fresh) : availableBalance)
+            : roiBalance;
+        if (fresh === null && ledgerAvailable === null) {
+          toast.error(
+            'Could not verify your live balance. Check your connection and try again.',
+            { duration: 6000 },
+          );
+          return false;
+        }
+        if (amount > freshMax) {
+          toast.error(
+            `Insufficient funds. Available: UGX ${freshMax.toLocaleString()}.`,
+            { duration: 6000 },
+          );
+          return false;
+        }
+      }
+      return; // let the stepper advance to step 2
+    }
     if (currentStep === 4) {
       // If our ledger snapshot is stale (or actively refreshing), don't
       // silently no-op — refresh first, then continue with the freshest
@@ -554,7 +587,7 @@ export default function WithdrawFlow({
             `Insufficient funds after refresh. Available: UGX ${freshLedger.toLocaleString()}.`,
             { duration: 8000 },
           );
-          return;
+          return false;
         }
       }
       // Event-driven completion: enter the Processing screen and submit to
@@ -577,6 +610,8 @@ export default function WithdrawFlow({
         setPin('');
         setCurrentStep(4);
       }
+      // We managed currentStep ourselves; veto the stepper's auto-advance.
+      return false;
     }
   };
 
