@@ -140,6 +140,7 @@ const AdminAccessAuditPage = lazy(() => import('./pages/admin/AccessAudit'));
 const AdminFinancialOpsPage = lazy(() => import('./pages/admin/FinancialOps'));
 const AdminReferralsPage = lazy(() => import('./pages/admin/Referrals'));
 const AdminArchivedAccountsPage = lazy(() => import('./pages/admin/ArchivedAccounts'));
+const AdminAccountConflictsPage = lazy(() => import('./pages/admin/AccountConflicts'));
 const RoleGuard = lazy(() => import('./components/auth/RoleGuard'));
 const ExecutiveHubPage = lazy(() => import('./pages/ExecutiveHub'));
 const AgentPerformanceReportPage = lazy(() => import('./pages/AgentPerformanceReport'));
