@@ -321,12 +321,17 @@ export default function WithdrawFlow({
     switch (currentStep) {
       case 0: return true;
       case 1:
+        // Mirror the Confirm-step pattern: keep Continue tappable even when
+        // the live ledger check is still loading / failed / stale. We refetch
+        // inside handleNext and surface a clear inline error if the amount is
+        // actually invalid. Silent-disable was the #1 cause of "the button
+        // does nothing" reports.
         return (
           amount >= MIN_WITHDRAWAL &&
-          amount <= maxAmount &&
-          ledgerAvailable !== null &&
-          !validating &&
-          !isStale
+          // If we have a verified ledger figure, enforce it. If we don't
+          // (RPC slow/failed), let the tap through — handleNext will refetch
+          // and either advance or show a real error.
+          (ledgerAvailable === null || amount <= maxAmount)
         );
       case 2: return !!payoutMode;
       case 3: {
