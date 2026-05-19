@@ -241,8 +241,10 @@ export default function ActivePartnersDetail() {
         metadata: { partner_name: deletePartner.name, reason: deleteReason },
       });
 
+      const reason = window.prompt('Reason for deleting this partner (min 10 characters, recorded in audit log):')?.trim() || '';
+      if (reason.length < 10) { toast.error('A reason of at least 10 characters is required'); return; }
       const { error } = await supabase.functions.invoke('delete-user', {
-        body: { userId: deletePartner.id },
+        body: { user_id: deletePartner.id, reason },
       });
       if (error) throw error;
 
