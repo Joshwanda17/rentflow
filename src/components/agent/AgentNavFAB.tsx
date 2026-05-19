@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
+import { confirmDiscardIfDirty } from '@/hooks/useUnsavedChangesGuard';
 
 type HistoryEntry = { path: string; label: string };
 
@@ -121,7 +122,9 @@ export default function AgentNavFAB() {
       if (!t) return;
       const dx = t.clientX - startX;
       const dy = Math.abs(t.clientY - startY);
-      if (dx > 70 && dy < 60) navigate(-1);
+      if (dx > 70 && dy < 60) {
+        if (confirmDiscardIfDirty()) navigate(-1);
+      }
     };
     window.addEventListener('touchstart', onStart, { passive: true });
     window.addEventListener('touchend', onEnd, { passive: true });
@@ -178,8 +181,19 @@ export default function AgentNavFAB() {
         window.setTimeout(() => {
           exitArmedRef.current = false;
         }, 2000);
+        return;
       }
-      // Non-home, no modal: popstate already navigated back. Nothing to do.
+
+      // Non-home, no modal: popstate already moved us back. If a form was
+      // dirty, ask now — and if the user wants to stay, roll forward by
+      // re-pushing the screen they were just on.
+      if (!confirmDiscardIfDirty()) {
+        window.history.pushState(
+          { welileNavGuard: true },
+          '',
+          location.pathname + location.search,
+        );
+      }
     };
 
     window.addEventListener('popstate', onPop);
