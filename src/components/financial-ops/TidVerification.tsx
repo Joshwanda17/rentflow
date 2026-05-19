@@ -1576,6 +1576,15 @@ export function TidVerification() {
                     { value: 'unverified', label: 'Unverified' },
                   ]}
                 />
+                <FilterChipRow
+                  label="Float"
+                  value={opFloatFilter}
+                  onChange={(v) => setOpFloatFilter(v as OpFloatFilter)}
+                  options={[
+                    { value: 'any', label: 'Any' },
+                    { value: 'non_op_float', label: 'Not Op. Float' },
+                  ]}
+                />
                 {filtersActive && (
                   <button
                     type="button"
