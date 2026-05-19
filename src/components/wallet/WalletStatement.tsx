@@ -876,33 +876,33 @@ export function WalletStatement() {
 
             {/* ── Transaction Timeline ── */}
             {Object.keys(groupedEntries).length > 0 ? (
-              <div className="space-y-5">
+              <section className="space-y-5" aria-labelledby="ws-tx-history">
                 <div className="flex items-center justify-between">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Transaction History</p>
+                  <h3 id="ws-tx-history" className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Transaction History</h3>
                   <span className="text-[10px] text-muted-foreground">{filteredEntries.length} entries</span>
                 </div>
                 {Object.entries(groupedEntries).map(([dateKey, dayEntries]) => (
-                  <div key={dateKey}>
+                  <div key={dateKey} role="group" aria-labelledby={`ws-day-${dateKey}`}>
                     {/* Sticky day header */}
                     <div className="sticky top-0 z-10 -mx-4 mb-2 flex items-center justify-between bg-background/95 px-4 py-2 backdrop-blur">
                       <div className="flex items-center gap-2">
-                        <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span className="text-xs font-semibold text-muted-foreground">
+                        <Calendar className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                        <h4 id={`ws-day-${dateKey}`} className="text-xs font-semibold text-muted-foreground">
                           {format(new Date(dateKey), 'EEE, MMM d, yyyy')}
-                        </span>
+                        </h4>
                       </div>
                       <div className="flex gap-2 text-[10px] font-medium tabular-nums">
                         {dayEntries.some(e => e.type === 'credit') && (
-                          <span className="text-success">+{formatUGX(dayEntries.filter(e => e.type === 'credit').reduce((s, e) => s + e.amount, 0))}</span>
+                          <span className="text-success" aria-label={`Money in for the day ${formatUGX(dayEntries.filter(e => e.type === 'credit').reduce((s, e) => s + e.amount, 0))}`}>+{formatUGX(dayEntries.filter(e => e.type === 'credit').reduce((s, e) => s + e.amount, 0))}</span>
                         )}
                         {dayEntries.some(e => e.type === 'debit') && (
-                          <span className="text-destructive">-{formatUGX(dayEntries.filter(e => e.type === 'debit').reduce((s, e) => s + e.amount, 0))}</span>
+                          <span className="text-destructive" aria-label={`Money out for the day ${formatUGX(dayEntries.filter(e => e.type === 'debit').reduce((s, e) => s + e.amount, 0))}`}>-{formatUGX(dayEntries.filter(e => e.type === 'debit').reduce((s, e) => s + e.amount, 0))}</span>
                         )}
                       </div>
                     </div>
 
                     {/* Entries — clean rows */}
-                    <div className="overflow-hidden rounded-xl border bg-card divide-y divide-border/60">
+                    <ul className="overflow-hidden rounded-xl border bg-card divide-y divide-border/60 list-none p-0 m-0">
                       {dayEntries.map((entry) => {
                         const meta = getCategoryMeta(entry.category, entry.type === 'credit' ? 'cash_in' : 'cash_out');
                         const { label, Icon, colorClass, plainExplanation } = meta;
@@ -913,12 +913,17 @@ export function WalletStatement() {
                           entry.linked_party && entry.linked_party !== 'platform' && entry.category === 'agent_commission' ? `From: ${entry.linked_party}` :
                           entry.linked_party && entry.linked_party !== 'platform' ? `→ ${entry.linked_party}` :
                           null;
+                        const summaryAria = `${label}, ${isCredit ? 'money in' : 'money out'} ${formatUGX(entry.amount)}, ${format(new Date(entry.date), 'h:mm a')}${partyNote ? `, ${partyNote.replace('→', 'to')}` : ''}. Balance after ${formatUGX(entry.balance_after || 0)}. Activate to expand details.`;
 
                         return (
-                          <details key={entry.id} className="group">
-                            <summary className="flex cursor-pointer list-none items-center gap-3 px-3 py-3 hover:bg-muted/30">
-                              <div className={`h-9 w-9 rounded-full flex items-center justify-center shrink-0 ${colorClass}`}>
-                                <Icon className="h-4 w-4" />
+                          <li key={entry.id} className="list-none">
+                          <details className="group">
+                            <summary
+                              className="flex cursor-pointer list-none items-center gap-3 px-3 py-3 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                              aria-label={summaryAria}
+                            >
+                              <div className={`h-9 w-9 rounded-full flex items-center justify-center shrink-0 ${colorClass}`} aria-hidden="true">
+                                <Icon className="h-4 w-4" aria-hidden="true" />
                               </div>
                               <div className="min-w-0 flex-1">
                                 <p className="truncate text-sm font-semibold text-foreground">{label}</p>
@@ -932,7 +937,9 @@ export function WalletStatement() {
                                   {isCredit ? '+' : '-'}{formatUGX(entry.amount)}
                                 </p>
                                 <p className="text-[10px] text-muted-foreground tabular-nums">
-                                  Bal {formatUGX(entry.balance_after || 0)}
+                                  <span aria-hidden="true">Bal </span>
+                                  <span className="sr-only">Balance after </span>
+                                  {formatUGX(entry.balance_after || 0)}
                                 </p>
                               </div>
                             </summary>
@@ -943,20 +950,22 @@ export function WalletStatement() {
                               )}
                               {entry.reference_id && (
                                 <p className="mt-1.5 font-mono text-[10px] text-muted-foreground/80">
-                                  Ref: {entry.reference_id}
+                                  <span className="sr-only">Reference number </span>
+                                  <span aria-hidden="true">Ref: </span>{entry.reference_id}
                                 </p>
                               )}
                             </div>
                           </details>
+                          </li>
                         );
                       })}
-                    </div>
+                    </ul>
                   </div>
                 ))}
-              </div>
+              </section>
             ) : (
-              <div className="text-center py-12">
-                <FileText className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
+              <div className="text-center py-12" role="status">
+                <FileText className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" aria-hidden="true" />
                 <p className="font-semibold text-muted-foreground">No transactions yet</p>
                 <p className="text-sm text-muted-foreground/70">Your wallet activity will appear here</p>
               </div>
