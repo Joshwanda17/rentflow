@@ -514,20 +514,26 @@ export default function WithdrawFlow({
           return;
         }
       }
+      // Event-driven completion: enter the Processing screen and submit to
+      // the server NOW. We DO NOT rely on ProcessingScreen's animation
+      // timer — the screen is just a "working…" indicator. As soon as the
+      // server confirms (success OR failure), we react.
       setCurrentStep(5);
       setIsProcessing(true);
-    }
-  };
-
-  const handleProcessingComplete = async () => {
-    const ok = await processWithdrawal();
-    setIsProcessing(false);
-    if (ok) {
-      setIsComplete(true);
-    } else {
-      // Bounce back to the review step so the user can retry instead of
-      // seeing a false "Payment Pending" success screen.
-      setCurrentStep(4);
+      setPaymentStatus('pending');
+      const ok = await processWithdrawal();
+      setIsProcessing(false);
+      if (ok) {
+        // Server confirmed — immediately show the live status receipt.
+        setIsComplete(true);
+      } else {
+        // Server rejected or threw — bounce back to Verify with a clean
+        // PIN field so the user can correct + retry. `paymentStatus` is
+        // already 'failed' (set inside processWithdrawal), and the
+        // idempotency key is preserved so a retry collapses server-side.
+        setPin('');
+        setCurrentStep(4);
+      }
     }
   };
 
