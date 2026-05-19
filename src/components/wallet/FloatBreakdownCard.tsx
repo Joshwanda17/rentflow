@@ -243,6 +243,90 @@ export function FloatBreakdownCard({ floatBalance }: FloatBreakdownCardProps) {
 
         {expanded && (
           <div id="float-breakdown-body" className="mt-4 space-y-3">
+            {/* Date-range filter */}
+            <div className="flex flex-wrap items-center gap-2">
+              <Select value={preset} onValueChange={(v) => setPreset(v as RangePreset)}>
+                <SelectTrigger className="h-8 w-[150px] text-xs">
+                  <SelectValue placeholder="Range" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(PRESET_LABEL) as RangePreset[]).map((k) => (
+                    <SelectItem key={k} value={k} className="text-xs">
+                      {PRESET_LABEL[k]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {preset === 'custom' && (
+                <>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={cn(
+                          'h-8 justify-start text-left text-xs font-normal',
+                          !customFrom && 'text-muted-foreground',
+                        )}
+                      >
+                        <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
+                        {customFrom ? format(customFrom, 'MMM d, yyyy') : 'From'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={customFrom}
+                        onSelect={setCustomFrom}
+                        disabled={(d) => d > new Date() || (customTo ? d > customTo : false)}
+                        initialFocus
+                        className={cn('p-3 pointer-events-auto')}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={cn(
+                          'h-8 justify-start text-left text-xs font-normal',
+                          !customTo && 'text-muted-foreground',
+                        )}
+                      >
+                        <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
+                        {customTo ? format(customTo, 'MMM d, yyyy') : 'To'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={customTo}
+                        onSelect={setCustomTo}
+                        disabled={(d) => d > new Date() || (customFrom ? d < customFrom : false)}
+                        initialFocus
+                        className={cn('p-3 pointer-events-auto')}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  {(customFrom || customTo) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 text-xs text-muted-foreground"
+                      onClick={() => {
+                        setCustomFrom(undefined);
+                        setCustomTo(undefined);
+                      }}
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-xl bg-emerald-500/10 px-3 py-2">
                 <p className="text-[10px] uppercase tracking-wider text-emerald-700 dark:text-emerald-400 font-semibold">
