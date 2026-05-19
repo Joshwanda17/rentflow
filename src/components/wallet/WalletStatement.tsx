@@ -28,7 +28,9 @@ import {
   Download,
   Loader2,
   Filter,
-  X
+  X,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
