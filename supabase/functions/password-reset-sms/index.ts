@@ -262,6 +262,53 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (action === "verify") {
+      // Lightweight pre-check so the UI can validate the OTP BEFORE the user
+      // types a new password. Does not consume an attempt on success; on a
+      // wrong code we increment attempts (mirrors verify-and-reset).
+      const otpCode = (body.otp as string || "").trim();
+      if (!otpCode || otpCode.length !== 6) {
+        return new Response(JSON.stringify({ error: "Please enter the 6-digit code" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const resetKey = `reset_${phoneKey}`;
+      const { data: otpRecord } = await adminClient
+        .from("otp_verifications")
+        .select("*")
+        .eq("phone", resetKey)
+        .maybeSingle();
+
+      if (!otpRecord) {
+        return new Response(JSON.stringify({ error: "No reset code found. Please request a new one." }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (new Date(otpRecord.expires_at) < new Date()) {
+        return new Response(JSON.stringify({ error: "Reset code has expired. Please request a new one." }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (otpRecord.attempts >= 5) {
+        return new Response(JSON.stringify({ error: "Too many failed attempts. Please request a new code." }), {
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (otpCode !== otpRecord.otp_code) {
+        await adminClient
+          .from("otp_verifications")
+          .update({ attempts: otpRecord.attempts + 1 })
+          .eq("phone", resetKey);
+        const remaining = Math.max(0, 4 - otpRecord.attempts);
+        return new Response(JSON.stringify({ error: `Invalid code. ${remaining} attempts remaining.` }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (action === "verify-and-reset") {
       const otpCode = (body.otp as string || "").trim();
       const newPassword = (body.new_password as string || "").trim();
