@@ -1463,14 +1463,14 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                           onClick={(e) => { e.stopPropagation(); setProfileTenantId(tenant.id); }}
                         >
                             {tenant.full_name && tenant.full_name.trim() ? (
-                              <Highlight text={tenant.full_name.trim()} query={search} />
+                              <Highlight text={tenant.full_name.trim()} query={deferredSearch} />
                             ) : (
                               <span className="text-muted-foreground italic">Unnamed tenant</span>
                             )}
                           </p>
                         <p className="text-[11px] text-muted-foreground flex items-center gap-1 truncate mt-0.5">
                             <Phone className="h-3 w-3" />
-                            <Highlight text={tenant.phone} query={search} />
+                            <Highlight text={tenant.phone} query={deferredSearch} />
                           {propertyAddress && (
                             <span className="truncate">· {propertyAddress}</span>
                           )}
@@ -1671,7 +1671,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                                         <div className="min-w-0">
                                           <p className="text-[9px] text-muted-foreground">Landlord</p>
                                           <p className="text-xs font-semibold truncate">
-                                            <Highlight text={req.landlord.name} query={search} />
+                                            <Highlight text={req.landlord.name} query={deferredSearch} />
                                           </p>
                                         </div>
                                       </div>
@@ -1687,7 +1687,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                                         <div className="min-w-0">
                                           <p className="text-[9px] text-muted-foreground">Location</p>
                                           <p className="text-xs font-semibold truncate">
-                                            <Highlight text={req.landlord.property_address || 'N/A'} query={search} />
+                                            <Highlight text={req.landlord.property_address || 'N/A'} query={deferredSearch} />
                                           </p>
                                         </div>
                                       </div>
