@@ -595,6 +595,54 @@ export function WalletStatement() {
               </div>
             </div>
 
+            {/* ── Role-based highlights ── */}
+            {highlightTotals.length > 0 && (
+              <div className="mb-4 rounded-2xl border bg-card p-4">
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-primary">
+                      {highlightConfig.title}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">{highlightConfig.subtitle}</p>
+                  </div>
+                  {role && (
+                    <Badge variant="secondary" className="shrink-0 text-[10px] capitalize">
+                      {role.replace(/_/g, ' ')}
+                    </Badge>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {highlightTotals.map((h) => {
+                    const isPositive = h.net >= 0;
+                    return (
+                      <button
+                        key={h.cat}
+                        type="button"
+                        onClick={() => {
+                          setCategoryFilter(h.cat === categoryFilter ? 'all' : h.cat);
+                          setShowCategoryFilters(true);
+                        }}
+                        className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-colors hover:bg-muted/40 ${
+                          categoryFilter === h.cat ? 'border-primary bg-primary/5' : 'border-border'
+                        }`}
+                      >
+                        <div className={`h-8 w-8 shrink-0 rounded-full flex items-center justify-center ${h.colorClass}`}>
+                          <h.Icon className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-semibold text-foreground">{h.label}</p>
+                          <p className="text-[10px] text-muted-foreground">{h.count} {h.count === 1 ? 'entry' : 'entries'}</p>
+                        </div>
+                        <p className={`shrink-0 text-sm font-bold tabular-nums ${isPositive ? 'text-success' : 'text-destructive'}`}>
+                          {isPositive ? '+' : '-'}{formatUGX(Math.abs(h.net))}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* ── Income Breakdown (collapsed by default) ── */}
             {breakdownItems.length > 0 && (
               <div className="mb-4 overflow-hidden rounded-xl border">
