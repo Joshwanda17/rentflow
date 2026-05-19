@@ -546,7 +546,7 @@ export default function WithdrawFlow({
     }
   };
 
-  const handleNext = async () => {
+  const handleNext = async (): Promise<void | false> => {
     // ── Step 1 (Amount): if our ledger snapshot is missing/stale, refetch
     // before advancing. Show a real error instead of letting the stepper
     // silently swallow the tap. This is the counterpart to the Confirm-step
@@ -563,14 +563,14 @@ export default function WithdrawFlow({
             'Could not verify your live balance. Check your connection and try again.',
             { duration: 6000 },
           );
-          return;
+          return false;
         }
         if (amount > freshMax) {
           toast.error(
             `Insufficient funds. Available: UGX ${freshMax.toLocaleString()}.`,
             { duration: 6000 },
           );
-          return;
+          return false;
         }
       }
       return; // let the stepper advance to step 2
@@ -587,7 +587,7 @@ export default function WithdrawFlow({
             `Insufficient funds after refresh. Available: UGX ${freshLedger.toLocaleString()}.`,
             { duration: 8000 },
           );
-          return;
+          return false;
         }
       }
       // Event-driven completion: enter the Processing screen and submit to
@@ -610,6 +610,8 @@ export default function WithdrawFlow({
         setPin('');
         setCurrentStep(4);
       }
+      // We managed currentStep ourselves; veto the stepper's auto-advance.
+      return false;
     }
   };
 
