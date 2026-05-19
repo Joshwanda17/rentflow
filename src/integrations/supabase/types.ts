@@ -10682,6 +10682,10 @@ export type Database = {
           agent_guarantor_consent_at: string | null
           agent_guarantor_consent_version: string | null
           agent_id: string | null
+          agent_liability_amount: number | null
+          agent_liability_reason: string | null
+          agent_liability_triggered: boolean
+          agent_liability_triggered_at: string | null
           agent_ops_comment: string | null
           agent_ops_reviewed_at: string | null
           agent_ops_reviewed_by: string | null
@@ -10772,6 +10776,10 @@ export type Database = {
           agent_guarantor_consent_at?: string | null
           agent_guarantor_consent_version?: string | null
           agent_id?: string | null
+          agent_liability_amount?: number | null
+          agent_liability_reason?: string | null
+          agent_liability_triggered?: boolean
+          agent_liability_triggered_at?: string | null
           agent_ops_comment?: string | null
           agent_ops_reviewed_at?: string | null
           agent_ops_reviewed_by?: string | null
@@ -10862,6 +10870,10 @@ export type Database = {
           agent_guarantor_consent_at?: string | null
           agent_guarantor_consent_version?: string | null
           agent_id?: string | null
+          agent_liability_amount?: number | null
+          agent_liability_reason?: string | null
+          agent_liability_triggered?: boolean
+          agent_liability_triggered_at?: string | null
           agent_ops_comment?: string | null
           agent_ops_reviewed_at?: string | null
           agent_ops_reviewed_by?: string | null
@@ -15943,6 +15955,15 @@ export type Database = {
       }
       test_wallet_drift_fix: { Args: never; Returns: Json }
       topup_dedup_bucket: { Args: { ts: string }; Returns: string }
+      trigger_agent_liability_for_unpaid_rents: {
+        Args: never
+        Returns: {
+          agent_id: string
+          outstanding: number
+          rent_request_id: string
+          tenant_id: string
+        }[]
+      }
       try_link_gmail_for_deposit: {
         Args: { p_deposit_id: string }
         Returns: Json
