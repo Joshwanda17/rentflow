@@ -1395,7 +1395,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
 
   return (
     <>
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) requestClose(); }}>
       {/*
         Mobile-first dialog shell.
         On phones: full screen (no rounded corners, no margins) so everything
@@ -1418,7 +1418,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
             {step === 'form' && (
               <button
                 type="button"
-                onClick={() => setStep('channel')}
+                onClick={requestBack}
                 aria-label="Back"
                 className="-ml-1 h-11 w-11 rounded-full flex items-center justify-center hover:bg-muted active:bg-muted active:scale-90 transition-transform duration-75 touch-manipulation"
               >
@@ -1455,7 +1455,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
             {step !== 'submitting' && (
               <button
                 type="button"
-                onClick={handleClose}
+                onClick={requestClose}
                 aria-label="Close"
                 className="-mr-1 h-11 w-11 rounded-full flex items-center justify-center hover:bg-muted active:bg-muted active:scale-90 transition-transform duration-75 touch-manipulation shrink-0"
               >
