@@ -1,13 +1,17 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowDownLeft, ArrowUpRight, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Wallet } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, CalendarIcon, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Wallet } from 'lucide-react';
 import { CompactAmount } from '@/components/ui/CompactAmount';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { formatUGX } from '@/lib/rentCalculations';
-import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
+import { format, startOfDay, endOfDay, subDays } from 'date-fns';
 
 // Categories that move money into/out of the FLOAT bucket on the wallet leg.
 // Kept narrow + explicit so we never miscount commission/withdrawable entries.
