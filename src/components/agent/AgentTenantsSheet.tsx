@@ -550,18 +550,38 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
 
   // Filtered & sorted tenants — always sorted by highest debt
   const processedTenants = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const raw = search.trim();
+    const q = raw.toLowerCase();
+    // Strip everything except digits so "+256 772 123 456", "0772-123-456"
+    // and "772123456" all match the same tenant. Empty when the query has
+    // no digits at all.
+    const qDigits = raw.replace(/\D+/g, '');
+    // Normalized reference-ID query — Welile AI IDs are stored uppercase
+    // and may contain dashes (e.g. "WID-AB12-9X"). Allow agents to type
+    // the ID with or without dashes / casing.
+    const qRef = q.replace(/[\s-]+/g, '');
     let list = tenants.filter(t => {
       if (!q) return true;
       const ctx = tenantContext[t.id];
       const meta = tenantMeta[t.id];
-      return (
+      const phoneDigits = (t.phone || '').replace(/\D+/g, '');
+      const aiId = (meta?.aiId || '').toLowerCase();
+      const aiIdCompact = aiId.replace(/[\s-]+/g, '');
+      // Text matches
+      if (
         t.full_name.toLowerCase().includes(q) ||
-        t.phone.includes(search) ||
         (ctx?.landlordName || '').toLowerCase().includes(q) ||
         (ctx?.propertyAddress || '').toLowerCase().includes(q) ||
-        (meta?.aiId || '').toLowerCase().includes(q)
-      );
+        aiId.includes(q) ||
+        aiIdCompact.includes(qRef)
+      ) return true;
+      // Digit-only matches: substring against the normalized phone, and
+      // last-4 / last-N convenience matching for short queries.
+      if (qDigits.length > 0 && phoneDigits.includes(qDigits)) return true;
+      // Tenant UUID prefix (lets agents paste a reference ID from another
+      // screen and still resolve the tenant).
+      if (qRef.length >= 4 && t.id.toLowerCase().replace(/-/g, '').startsWith(qRef)) return true;
+      return false;
     });
 
     switch (activeFilter) {
@@ -891,7 +911,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search tenants by name or phone…"
+                placeholder="Search by name, phone digits, or reference ID…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-10 h-11 rounded-xl bg-muted/40 border border-primary/40 focus-visible:ring-1 focus-visible:ring-primary/40 text-base"
