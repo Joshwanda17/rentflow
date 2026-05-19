@@ -15158,6 +15158,10 @@ export type Database = {
           window_days: number
         }[]
       }
+      get_phantom_correction_drift_detail: {
+        Args: { p_user_id: string; p_window_days?: number }
+        Returns: Json
+      }
       get_platform_cash_breakdown: { Args: never; Returns: Json }
       get_platform_cash_summary: { Args: never; Returns: Json }
       get_property_clusters: {
