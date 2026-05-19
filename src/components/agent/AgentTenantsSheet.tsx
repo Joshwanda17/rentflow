@@ -925,7 +925,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                 inputMode="search"
                 autoComplete="off"
               />
-              {search && (
+              {search && !isSearchPending && (
                 <button
                   onClick={() => setSearch('')}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
@@ -934,9 +934,17 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                   <X className="h-4 w-4" />
                 </button>
               )}
+              {isSearchPending && (
+                <Loader2
+                  className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground animate-spin"
+                  aria-label="Searching"
+                />
+              )}
               {search && (
                 <p className="mt-1 text-[11px] text-muted-foreground px-1">
-                  {processedTenants.length} match{processedTenants.length === 1 ? '' : 'es'} for "{search}"
+                  {isSearchPending
+                    ? 'Searching…'
+                    : `${processedTenants.length} match${processedTenants.length === 1 ? '' : 'es'} for "${deferredSearch}"`}
                 </p>
               )}
             </div>
