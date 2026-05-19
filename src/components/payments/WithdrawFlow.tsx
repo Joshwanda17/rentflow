@@ -514,20 +514,26 @@ export default function WithdrawFlow({
           return;
         }
       }
+      // Event-driven completion: enter the Processing screen and submit to
+      // the server NOW. We DO NOT rely on ProcessingScreen's animation
+      // timer — the screen is just a "working…" indicator. As soon as the
+      // server confirms (success OR failure), we react.
       setCurrentStep(5);
       setIsProcessing(true);
-    }
-  };
-
-  const handleProcessingComplete = async () => {
-    const ok = await processWithdrawal();
-    setIsProcessing(false);
-    if (ok) {
-      setIsComplete(true);
-    } else {
-      // Bounce back to the review step so the user can retry instead of
-      // seeing a false "Payment Pending" success screen.
-      setCurrentStep(4);
+      setPaymentStatus('pending');
+      const ok = await processWithdrawal();
+      setIsProcessing(false);
+      if (ok) {
+        // Server confirmed — immediately show the live status receipt.
+        setIsComplete(true);
+      } else {
+        // Server rejected or threw — bounce back to Verify with a clean
+        // PIN field so the user can correct + retry. `paymentStatus` is
+        // already 'failed' (set inside processWithdrawal), and the
+        // idempotency key is preserved so a retry collapses server-side.
+        setPin('');
+        setCurrentStep(4);
+      }
     }
   };
 
@@ -1009,6 +1015,15 @@ export default function WithdrawFlow({
       case 4:
         return (
           <div className="space-y-6 text-center">
+            {paymentStatus === 'failed' && (
+              <div
+                role="alert"
+                className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-left text-xs text-destructive"
+              >
+                Last attempt didn't go through. Re-enter your PIN to retry —
+                your request will be reused if it actually reached our servers.
+              </div>
+            )}
             <div className="w-16 h-16 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
               <Lock className="w-8 h-8 text-primary" />
             </div>
@@ -1101,7 +1116,10 @@ export default function WithdrawFlow({
 
       case 5:
         if (isProcessing) {
-          return <ProcessingScreen onComplete={handleProcessingComplete} />;
+          // No animated timer — we leave the spinner up until the actual
+          // server submission (kicked off in handleNext) resolves and
+          // flips `isProcessing` to false.
+          return <ProcessingScreen autoProgress={false} />;
         }
         // Submission failed before a row was created — fall back to the
         // legacy receipt so the user can see the failure + retry.
