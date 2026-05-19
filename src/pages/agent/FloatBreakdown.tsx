@@ -215,6 +215,9 @@ export default function AgentFloatBreakdown() {
             <span className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">Current Float</span>
           </div>
           <p className="text-3xl font-black tracking-tight">{formatAmount(Number(currentFloat))}</p>
+          <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
+            Company money you are holding right now to pay tenant rent on Welile's behalf. Not your earnings.
+          </p>
           <div className="grid grid-cols-2 gap-3 mt-4">
             <div className="rounded-xl bg-emerald-500/10 p-3">
               <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
@@ -222,6 +225,9 @@ export default function AgentFloatBreakdown() {
                 <span className="text-[10px] uppercase font-bold tracking-wider">Deposits In</span>
               </div>
               <p className="text-lg font-bold mt-1">{formatAmount(totalIn)}</p>
+              <p className="text-[10px] text-muted-foreground mt-1 leading-snug">
+                Total float that landed in your wallet from MoMo, cash, or transfers during this period.
+              </p>
             </div>
             <div className="rounded-xl bg-rose-500/10 p-3">
               <div className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400">
@@ -229,12 +235,15 @@ export default function AgentFloatBreakdown() {
                 <span className="text-[10px] uppercase font-bold tracking-wider">Used / Out</span>
               </div>
               <p className="text-lg font-bold mt-1">{formatAmount(Math.abs(totalOut))}</p>
+              <p className="text-[10px] text-muted-foreground mt-1 leading-snug">
+                Total float spent on tenant rent allocations or removed by admin corrections during this period.
+              </p>
             </div>
           </div>
           <div className="flex items-start gap-2 mt-3 text-[11px] text-muted-foreground">
             <Info className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
             <p>
-              Float is company money for tenant rent collection. It is never withdrawable as cash.
+              Float is never withdrawable as cash. Allocate it to tenants — your 10% commission lands in your withdrawable wallet automatically.
               {(fromDate || toDate) && ' Totals reflect the selected date range.'}
             </p>
           </div>
@@ -307,9 +316,16 @@ export default function AgentFloatBreakdown() {
         ) : (
           <div className="rounded-2xl border bg-card overflow-hidden">
             <div className="px-4 py-2.5 border-b bg-muted/30">
-              <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
-                Activity ({filteredRows.length}{filteredRows.length !== rows.length ? ` of ${rows.length}` : ''})
-              </span>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
+                  Activity ({filteredRows.length}{filteredRows.length !== rows.length ? ` of ${rows.length}` : ''})
+                </span>
+                <span className="text-[10px] text-muted-foreground">Tap a row for details</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
+                Each row is one float movement. <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Green +</span> adds to float, <span className="text-rose-600 dark:text-rose-400 font-semibold">red −</span> takes from float.
+                <span className="block mt-0.5"><span className="font-semibold">Bal:</span> your float balance immediately after that movement.</span>
+              </p>
             </div>
             <ul className="divide-y">
               {filteredRows.map((r) => {
