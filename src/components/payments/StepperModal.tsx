@@ -2,7 +2,7 @@ import { ReactNode, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { ChevronLeft, X } from 'lucide-react';
+import { ChevronLeft, X, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface Step {
@@ -23,6 +23,10 @@ interface StepperModalProps {
   canGoBack?: boolean;
   canGoNext?: boolean;
   nextLabel?: string;
+  /** When true, the Next/Confirm button shows a spinner, becomes
+   *  non-interactive, and (optionally) swaps its label to `nextBusyLabel`. */
+  nextBusy?: boolean;
+  nextBusyLabel?: string;
   onNext?: () => void;
   onComplete?: () => void;
   isProcessing?: boolean;
@@ -42,6 +46,8 @@ export default function StepperModal({
   canGoBack = true,
   canGoNext = true,
   nextLabel = 'Continue',
+  nextBusy = false,
+  nextBusyLabel,
   onNext,
   onComplete,
   isProcessing = false,
@@ -124,13 +130,21 @@ export default function StepperModal({
         {/* Navigation */}
         {showNavigation && !isComplete && !isProcessing && (
           <div className="p-4 border-t bg-muted/20">
-            <Button 
+            <Button
               onClick={handleNext}
-              disabled={!canGoNext}
+              disabled={!canGoNext || nextBusy}
+              aria-busy={nextBusy || undefined}
               className="w-full"
               size="lg"
             >
-              {isLastStep ? 'Confirm' : nextLabel}
+              {nextBusy && (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" aria-hidden="true" />
+              )}
+              {nextBusy
+                ? (nextBusyLabel ?? 'Working…')
+                : isLastStep
+                ? 'Confirm'
+                : nextLabel}
             </Button>
           </div>
         )}

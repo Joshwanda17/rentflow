@@ -1121,6 +1121,8 @@ export default function WithdrawFlow({
       onNext={handleNext}
       showNavigation={currentStep < 5 && !isProcessing && !isComplete}
       nextLabel={currentStep === 4 ? 'Confirm Withdrawal' : 'Continue'}
+      nextBusy={currentStep === 4 && validating}
+      nextBusyLabel="Refreshing balance…"
       isProcessing={isProcessing}
       isComplete={isComplete}
     >
