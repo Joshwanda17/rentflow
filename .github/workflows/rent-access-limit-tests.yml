@@ -20,15 +20,47 @@ concurrency:
 
 jobs:
   rent-access-limit-tests:
-    name: rent-access-limit-tests
+    name: rent-access-limit-tests (${{ matrix.runtime }} ${{ matrix.version }})
     runs-on: ubuntu-latest
     timeout-minutes: 5
+
+    # Small runtime matrix: two Bun versions (stable + latest) and two
+    # Node LTS lines. Bun is the primary dev runtime; the Node entries
+    # catch environment-specific regressions (date math, Intl, V8 quirks).
+    # fail-fast: false so one bad matrix cell doesn't mask the others.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runtime: bun
+            version: '1.1.38'
+          - runtime: bun
+            version: latest
+          - runtime: node
+            version: '20'
+          - runtime: node
+            version: '22'
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Bun
+        if: matrix.runtime == 'bun'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ matrix.version }}
+
+      - name: Setup Node
+        if: matrix.runtime == 'node'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.version }}
+
+      # Bun still needed under the Node matrix cells so we can install
+      # deps from bun.lock without forcing an npm/yarn lockfile in repo.
+      - name: Setup Bun (installer for node cells)
+        if: matrix.runtime == 'node'
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
@@ -40,8 +72,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lockb', 'bun.lock') }}
+          key: ${{ runner.os }}-bun-${{ matrix.runtime }}-${{ matrix.version }}-${{ hashFiles('bun.lockb', 'bun.lock') }}
           restore-keys: |
+            ${{ runner.os }}-bun-${{ matrix.runtime }}-${{ matrix.version }}-
             ${{ runner.os }}-bun-
 
       - name: Install dependencies
@@ -51,8 +84,12 @@ jobs:
         # Thresholds are scoped to src/lib/rentAccessLimit.ts only so the
         # gate measures the formula we actually own. CI fails if any of
         # statements/lines/functions drops below 100% or branches below 85%.
+        # Runner is chosen by the matrix: `bunx` under Bun, `npx` under Node
+        # so the test actually executes on the targeted runtime.
+        env:
+          RUNNER: ${{ matrix.runtime == 'bun' && 'bunx' || 'npx --no-install' }}
         run: |
-          bunx vitest run src/lib/__tests__/rentAccessLimit.test.ts \
+          $RUNNER vitest run src/lib/__tests__/rentAccessLimit.test.ts \
             --reporter=verbose \
             --coverage \
             --coverage.provider=v8 \
@@ -66,7 +103,8 @@ jobs:
             --coverage.thresholds.branches=85
 
       - name: Upload coverage report
-        if: always()
+        # One artifact per matrix cell to keep them distinct.
+        if: always() && matrix.runtime == 'bun' && matrix.version == 'latest'
         uses: actions/upload-artifact@v4
         with:
           name: rent-access-limit-coverage
