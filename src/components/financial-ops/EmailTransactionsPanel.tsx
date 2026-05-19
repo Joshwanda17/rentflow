@@ -1132,9 +1132,11 @@ export function EmailTransactionsPanel() {
               <div
                 key={r.id}
                 className={`p-4 transition-colors ${
-                  r.parsed && !validity.get(r.id)!.valid
-                    ? 'bg-amber-500/5 hover:bg-amber-500/10 border-l-2 border-l-amber-500'
-                    : 'hover:bg-muted/30'
+                  (userMatches[r.id] ?? []).some((u) => u.matched_on.startsWith('reference ') || u.matched_on.startsWith('from '))
+                    ? 'bg-primary/5 hover:bg-primary/10 border-l-2 border-l-primary'
+                    : r.parsed && !validity.get(r.id)!.valid
+                      ? 'bg-amber-500/5 hover:bg-amber-500/10 border-l-2 border-l-amber-500'
+                      : 'hover:bg-muted/30'
                 }`}
               >
                 <div className="flex items-start justify-between gap-4">
@@ -1234,16 +1236,25 @@ export function EmailTransactionsPanel() {
                         <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
                           Possible user{userMatches[r.id].length > 1 ? 's' : ''}:
                         </span>
-                        {userMatches[r.id].map((u) => (
-                          <Badge
-                            key={u.id}
-                            variant="outline"
-                            className="text-[10px] gap-1 bg-primary/10 text-primary border-primary/30 cursor-help"
-                            title={`${u.full_name}\n${u.matched_on}\n${u.phone ?? ''}${u.mobile_money_number && u.mobile_money_number !== u.phone ? ` · MoMo ${u.mobile_money_number}` : ''}`}
-                          >
-                            <span className="font-medium">{u.full_name}</span>
-                          </Badge>
-                        ))}
+                        {userMatches[r.id].map((u) => {
+                          const strong = u.matched_on.startsWith('reference ') || u.matched_on.startsWith('from ');
+                          return (
+                            <Badge
+                              key={u.id}
+                              variant="outline"
+                              className={`text-[10px] gap-1 cursor-help ${
+                                strong
+                                  ? 'bg-primary text-primary-foreground border-primary ring-1 ring-primary/40'
+                                  : 'bg-primary/10 text-primary border-primary/30'
+                              }`}
+                              title={`${u.full_name}\nmatched on ${u.matched_on}\n${u.phone ?? ''}${u.mobile_money_number && u.mobile_money_number !== u.phone ? ` · MoMo ${u.mobile_money_number}` : ''}`}
+                            >
+                              {strong && <CheckCircle2 className="h-3 w-3" />}
+                              <span className="font-medium">{u.full_name}</span>
+                              <span className="opacity-70">· {u.matched_on.startsWith('reference ') ? 'ref' : 'from'}</span>
+                            </Badge>
+                          );
+                        })}
                       </div>
                     ) : null}
                   </div>
