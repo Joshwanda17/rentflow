@@ -113,3 +113,5 @@ project_id = "wirntoujqoyjobfhyelc"
     verify_jwt = false
   [functions.validate-deposit-reference]
     verify_jwt = false
+  [functions.send-rent-access-sms]
+    verify_jwt = false
