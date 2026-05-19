@@ -294,11 +294,13 @@ export default function WithdrawFlow({
         return false;
       }
       case 4:
+        // NOTE: we intentionally do NOT block on `validating` or `isStale`
+        // here. If the snapshot is stale when the user taps Confirm, the
+        // `handleNext` handler will transparently refetch the ledger and
+        // then proceed — so the button must remain clickable.
         return (
           pin.length === 4 &&
           ledgerAvailable !== null &&
-          !validating &&
-          !isStale &&
           amount <= maxAmount
         );
       default: return false;
@@ -461,8 +463,22 @@ export default function WithdrawFlow({
     }
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentStep === 4) {
+      // If our ledger snapshot is stale (or actively refreshing), don't
+      // silently no-op — refresh first, then continue with the freshest
+      // numbers. This makes Confirm "always work" from the user's POV.
+      if (isStale || validating) {
+        const fresh = await refetchLedger();
+        const freshLedger = fresh !== null ? fresh : trueAvailable;
+        if (source === 'available' && amount > freshLedger) {
+          toast.error(
+            `Insufficient funds after refresh. Available: UGX ${freshLedger.toLocaleString()}.`,
+            { duration: 8000 },
+          );
+          return;
+        }
+      }
       setCurrentStep(5);
       setIsProcessing(true);
     }
