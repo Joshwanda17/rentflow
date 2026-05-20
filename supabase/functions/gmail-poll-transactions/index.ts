@@ -500,7 +500,7 @@ async function tryAutoCreditOperationalFloat(
   // Look up the user by phone (service-role bypasses RLS).
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, phone, full_name')
+    .select('id, phone, full_name, email')
     .filter('phone', 'ilike', `%${last9}`)
     .limit(1)
     .maybeSingle();
@@ -620,6 +620,44 @@ async function tryAutoCreditOperationalFloat(
       `(TID ${parsed.transaction_id}) was auto-credited to your Operational Float. ` +
       `New float balance: ${fmt(newFloat)}.`;
     await sendSmsViaAfricasTalking(profile.phone, msg);
+
+    // Also email the receipt if we have an email on file.
+    const recipientEmail = (profile as any).email ? String((profile as any).email).trim() : '';
+    if (recipientEmail) {
+      try {
+        const fnUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/send-transactional-email`;
+        const sk = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+        const providerLabel = provider === 'mtn' ? 'MTN MoMo' : 'Airtel Money';
+        const nowDate = new Date(internalMs || Date.now()).toLocaleString('en-GB', {
+          day: '2-digit', month: 'short', year: 'numeric',
+          hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Kampala',
+        });
+        await fetch(fnUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${sk}`,
+            'apikey': sk,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            templateName: 'operational-float-credit',
+            recipientEmail,
+            idempotencyKey: `op-float-credit-${gmailMessageId}`,
+            templateData: {
+              partner_name: profile.full_name || firstName,
+              transaction_id: parsed.transaction_id,
+              amount: parsed.amount,
+              currency: 'UGX',
+              date: nowDate,
+              source: providerLabel,
+              new_float_balance: newFloat,
+            },
+          }),
+        });
+      } catch (e) {
+        console.warn('[gmail-poll] auto-credit email failed (non-fatal):', e);
+      }
+    }
   } catch (e) {
     console.warn('[gmail-poll] auto-credit SMS failed (non-fatal):', e);
   }
