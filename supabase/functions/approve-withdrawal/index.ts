@@ -651,19 +651,15 @@ Deno.serve(async (req) => {
 
     // Create balanced ledger entries via RPC.
     //
-    // BUCKET ROUTING: normal external withdrawals drain withdrawable. Verified
-    // proxy partner deliveries drain the bucket where the partner-linked cash
-    // actually sits (float first, then withdrawable) while keeping every debit
-    // tagged to the beneficiary partner for earmark accounting.
+    // BUCKET ROUTING: normal external withdrawals drain withdrawable. Managed
+    // proxy ROI is always credited as withdrawable on the proxy agent wallet,
+    // earmarked by linked_party=partner, so FinOps must debit that same agent
+    // withdrawable bucket in one full amount — never split against float.
     const refUpper = reference.trim().toUpperCase();
     const baseDesc = `${payment_method} ref: ${refUpper}`;
     const nowIso = new Date().toISOString();
 
-    const proxyFloatPortion = isProxyPayout
-      ? fundingUserId === beneficiaryUserId
-        ? 0
-        : Math.min(amount, Math.max(0, walletFloat), partnerLinkedFloatAvailable)
-      : 0;
+    const proxyFloatPortion = 0;
     const proxyWithdrawablePortion = isProxyPayout ? amount - proxyFloatPortion : 0;
     const withdrawablePortion = isProxyPayout ? proxyWithdrawablePortion : amount;
     const floatPortion = proxyFloatPortion;

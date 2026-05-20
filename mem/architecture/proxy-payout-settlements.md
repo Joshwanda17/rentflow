@@ -16,6 +16,7 @@ type: feature
 2. Exclude any `approval_id` already in `proxy_payout_settlements`.
 3. FIFO-walk by `created_at ASC`, sum up to withdrawal amount.
 4. INSERT one settlement row per consumed approval (last partial approval also stamped settled — splits out of scope).
+5. For managed-proxy ROI, debit `agent_id` / resolved proxy agent only. The partner wallet is never a funding source; it is only the beneficiary/linked party for audit and settlement.
 
 **Frontend `ProxyPartnerFunds.tsx`.**
 - One card per partner (NOT per approval). Amount = `v_user_wallet_strict.available`.
@@ -30,6 +31,8 @@ type: feature
 - Settlement is out-of-band; original `pending_wallet_operations` audit trail preserved.
 - Wallet writes still go through `apply_wallet_movement` only.
 - Partner credit follows Wallet Routing v2: `recipient_type='user'` → withdrawable bucket.
+- Managed-proxy partner ROI follows proxy-custody routing: CFO/COO-approved ROI wallet legs credit the proxy agent's withdrawable wallet with `linked_party=partner_id`; the partner wallet/dashboard must not show that ROI as withdrawable.
+- Managed-proxy ROI is full-amount only. Do not split ROI into partial cash/reinvestment for managed proxy partners.
 - Proxy custody v2 cutoff still enforced; legacy `linked_party` rows pre-cutoff drained via the same edge fn branch.
 
 **Do not.**
