@@ -409,6 +409,67 @@ Deno.serve(async (req) => {
 
       const proxyLedgerPartnerId = isProxyPayout && proxyPartnerId ? String(proxyPartnerId) : null;
       if (proxyLedgerPartnerId) {
+        if (managedProxyAgentId && fundingUserId === managedProxyAgentId) {
+          const { data: misroutedRows, error: misroutedErr } = await admin
+            .from("general_ledger")
+            .select("id, amount, reference_id, source_table, source_id")
+            .eq("user_id", proxyLedgerPartnerId)
+            .eq("ledger_scope", "wallet")
+            .eq("linked_party", proxyLedgerPartnerId)
+            .eq("direction", "cash_in")
+            .in("category", ["roi_wallet_credit", "roi_payout"])
+            .or("classification.is.null,classification.eq.production");
+          if (misroutedErr) throw misroutedErr;
+
+          for (const row of misroutedRows || []) {
+            const correctionAmount = Number(row.amount || 0);
+            if (!Number.isFinite(correctionAmount) || correctionAmount <= 0) continue;
+
+            const correctionKey = `managed-proxy-roi-reanchor-${row.id}`;
+            const { error: correctionErr } = await admin.rpc("create_ledger_transaction", {
+              entries: [
+                {
+                  user_id: proxyLedgerPartnerId,
+                  amount: correctionAmount,
+                  direction: "cash_out",
+                  category: "roi_wallet_credit",
+                  ledger_scope: "wallet",
+                  wallet_bucket: "withdrawable",
+                  recipient_type: "user",
+                  routing_source: "managed_proxy_roi_reanchor_partner_debit",
+                  source_table: "general_ledger",
+                  source_id: row.id,
+                  reference_id: row.reference_id,
+                  description: "Managed-proxy ROI re-anchor: remove misrouted partner wallet credit",
+                  linked_party: proxyLedgerPartnerId,
+                  currency: "UGX",
+                  transaction_date: new Date().toISOString(),
+                },
+                {
+                  user_id: fundingUserId,
+                  amount: correctionAmount,
+                  direction: "cash_in",
+                  category: "roi_wallet_credit",
+                  ledger_scope: "wallet",
+                  wallet_bucket: "withdrawable",
+                  recipient_type: "user",
+                  routing_source: "managed_proxy_roi_reanchor_agent_credit",
+                  source_table: "general_ledger",
+                  source_id: row.id,
+                  reference_id: row.reference_id,
+                  description: "Managed-proxy ROI re-anchor: credit assigned proxy agent wallet",
+                  linked_party: proxyLedgerPartnerId,
+                  currency: "UGX",
+                  transaction_date: new Date().toISOString(),
+                },
+              ],
+              idempotency_key: correctionKey,
+              skip_balance_check: true,
+            });
+            if (correctionErr) throw correctionErr;
+          }
+        }
+
         const { data: linkedRows, error: linkedErr } = await admin
           .from("general_ledger")
           .select("amount, direction, category, account")
