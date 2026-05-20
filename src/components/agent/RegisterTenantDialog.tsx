@@ -290,10 +290,15 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
               >
                 <CheckCircle2 className="h-8 w-8 text-emerald-500" />
               </motion.div>
-              <h3 className="text-lg font-semibold mb-2">Tenant Registered!</h3>
+              <h3 className="text-lg font-semibold mb-2">Rent Request Submitted ✅</h3>
               <p className="text-muted-foreground text-sm mb-2">
-                The tenant is now linked to the landlord
+                Your rent request has been posted successfully and is now pending review.
               </p>
+              {createdRentRequestId && (
+                <p className="text-xs text-muted-foreground mb-3">
+                  Reference ID: <span className="font-mono font-semibold text-foreground">{createdRentRequestId.slice(0, 8).toUpperCase()}</span>
+                </p>
+              )}
               {createdRentRequestId && (
                 <div className="mb-4">
                   <RentRequestStatusTracker
