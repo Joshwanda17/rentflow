@@ -113,6 +113,31 @@ export function ProxyAgentManager() {
     [bulkBeneficiaries, assignmentByBeneficiary, bulkAgent],
   );
 
+  /** Breakdown for the pre-submit confirmation dialog. */
+  const bulkBreakdown = useMemo(() => {
+    const newLinks: any[] = [];
+    const reLinks: any[] = []; // already on the same agent (no-op / reactivation)
+    const moves: Array<{ partner: any; priorAgentName: string; priorAgentId: string }> = [];
+    const byPriorAgent = new Map<string, { name: string; partners: any[] }>();
+    bulkBeneficiaries.forEach((b) => {
+      const cur = assignmentByBeneficiary.get(b.id);
+      if (!cur) {
+        newLinks.push(b);
+      } else if (bulkAgent && cur.agent_id === bulkAgent.id) {
+        reLinks.push(b);
+      } else {
+        const priorName = cur.agent?.full_name || cur.agent?.phone || 'Unknown agent';
+        moves.push({ partner: b, priorAgentName: priorName, priorAgentId: cur.agent_id });
+        const slot = byPriorAgent.get(cur.agent_id) || { name: priorName, partners: [] };
+        slot.partners.push(b);
+        byPriorAgent.set(cur.agent_id, slot);
+      }
+    });
+    return { newLinks, reLinks, moves, byPriorAgent: Array.from(byPriorAgent.entries()) };
+  }, [bulkBeneficiaries, assignmentByBeneficiary, bulkAgent]);
+
+  const [showBulkConfirm, setShowBulkConfirm] = useState(false);
+
   const filteredAssignments = useMemo(() => {
     if (!searchTerm.trim()) return assignments;
     const q = searchTerm.toLowerCase();
