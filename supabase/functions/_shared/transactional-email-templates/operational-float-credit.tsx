@@ -494,20 +494,21 @@ const footerCopyText: React.CSSProperties = {
 }
 
 export const template = {
-  component: PartnerWalletDeposit,
+  component: OperationalFloatCredit,
   subject: (data: Record<string, any>) => {
     const formatted = formatAmount(data?.amount, data?.currency || 'UGX')
-    return `Wallet deposit of ${formatted} received`
+    return `Operational Float credited ${formatted}`
   },
-  displayName: 'Partner Wallet Deposit',
+  displayName: 'Operational Float Credit',
   previewData: {
     partner_name: 'Sarah Nakato',
-    transaction_id: 'PAY-MO8DYAFP-COT6',
-    amount: 251857,
+    transaction_id: 'FT26143XYZ12',
+    amount: 250000,
     currency: 'UGX',
-    date: '21 Apr 2026, 11:52',
-    wallet_id_last4: '4521',
-    source: 'Platform',
+    date: '20 May 2026, 11:52',
+    wallet_id_last4: '',
+    source: 'MTN MoMo',
+    new_float_balance: 1450000,
     company_name: 'Welile',
     logo_url: 'https://welilereceipts.com/welile-logo.png',
     unsubscribe_url: 'https://welile.com/unsubscribe',
