@@ -346,12 +346,38 @@ export default function RegisterTenantPublic() {
 
   return (
     <div className="min-h-[100dvh] bg-background">
-      <div className="bg-primary text-primary-foreground px-4 py-5 text-center">
-        <h1 className="text-lg font-bold">Tenant Registration</h1>
-        <p className="text-xs opacity-90">{incomeType === 'daily' ? '☀️ Daily Income' : '📅 Weekly/Monthly Income'}</p>
+      {/* Sticky header + section tabs */}
+      <div className="sticky top-0 z-30 bg-primary text-primary-foreground shadow-md">
+        <div className="px-4 py-3 text-center">
+          <h1 className="text-base font-bold">Tenant Registration</h1>
+          <p className="text-[11px] opacity-90">{incomeType === 'daily' ? '☀️ Daily Income' : '📅 Weekly/Monthly Income'}</p>
+        </div>
+        <nav className="flex gap-1 overflow-x-auto no-scrollbar px-3 pb-2">
+          {[
+            { id: 'sec-rent', label: '💰 Rent' },
+            { id: 'sec-tenant', label: '👤 Tenant' },
+            { id: 'sec-house', label: '🏠 House' },
+            { id: 'sec-landlord', label: '🧑‍💼 Landlord' },
+            { id: 'sec-property', label: '📍 Property' },
+            { id: 'sec-lc1', label: '🛡️ LC1' },
+            { id: 'sec-submit', label: '✅ Submit' },
+          ].map(s => (
+            <a
+              key={s.id}
+              href={`#${s.id}`}
+              onClick={(e) => {
+                e.preventDefault();
+                document.getElementById(s.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+              className="shrink-0 text-[11px] font-medium px-3 py-1.5 rounded-full bg-primary-foreground/10 hover:bg-primary-foreground/20 active:bg-primary-foreground/30 transition-colors whitespace-nowrap"
+            >
+              {s.label}
+            </a>
+          ))}
+        </nav>
       </div>
 
-      <form onSubmit={handleSubmit} className="max-w-md mx-auto px-4 py-5 space-y-6">
+      <form onSubmit={handleSubmit} className="max-w-md mx-auto px-4 py-5 space-y-6 pb-[calc(env(safe-area-inset-bottom,0px)+120px)]">
         {error && (
           <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
             <AlertCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
@@ -360,7 +386,7 @@ export default function RegisterTenantPublic() {
         )}
 
         {/* A. Rent Details */}
-        <section className="space-y-3">
+        <section id="sec-rent" className="space-y-3 scroll-mt-32">
           <h2 className="text-sm font-semibold flex items-center gap-1.5"><Banknote className="h-4 w-4" /> Rent Details</h2>
           <div className="space-y-2">
             <Label>How much is your rent amount? <span className="text-destructive">*</span></Label>
@@ -424,7 +450,7 @@ export default function RegisterTenantPublic() {
         </section>
 
         {/* B. Tenant Details */}
-        <section className="space-y-3">
+        <section id="sec-tenant" className="space-y-3 scroll-mt-32">
           <h2 className="text-sm font-semibold flex items-center gap-1.5"><User className="h-4 w-4" /> Tenant Details</h2>
           <div className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
             <Label className="text-xs">Tenant has no smartphone</Label>
@@ -441,7 +467,7 @@ export default function RegisterTenantPublic() {
         </section>
 
         {/* C. House Category */}
-        <section className="space-y-3">
+        <section id="sec-house" className="space-y-3 scroll-mt-32">
           <h2 className="text-sm font-semibold flex items-center gap-1.5"><Building2 className="h-4 w-4" /> House Category</h2>
           <Select value={houseCategory} onValueChange={setHouseCategory}>
             <SelectTrigger><SelectValue placeholder="Select house type" /></SelectTrigger>
@@ -454,7 +480,7 @@ export default function RegisterTenantPublic() {
         </section>
 
         {/* D. Landlord Details */}
-        <section className="space-y-3">
+        <section id="sec-landlord" className="space-y-3 scroll-mt-32">
           <h2 className="text-sm font-semibold flex items-center gap-1.5"><Home className="h-4 w-4" /> Landlord Details</h2>
           <div className="space-y-2">
             <Label>Landlord Name <span className="text-destructive">*</span></Label>
@@ -467,7 +493,7 @@ export default function RegisterTenantPublic() {
         </section>
 
         {/* E. Property Details */}
-        <section className="space-y-3">
+        <section id="sec-property" className="space-y-3 scroll-mt-32">
           <h2 className="text-sm font-semibold flex items-center gap-1.5"><MapPin className="h-4 w-4" /> Property Details</h2>
           <div className="space-y-2">
             <Label>Property Address <span className="text-destructive">*</span></Label>
@@ -502,7 +528,7 @@ export default function RegisterTenantPublic() {
         </section>
 
         {/* F. LC1 Chairperson */}
-        <section className="space-y-3">
+        <section id="sec-lc1" className="space-y-3 scroll-mt-32">
           <h2 className="text-sm font-semibold flex items-center gap-1.5"><Users className="h-4 w-4" /> LC1 Chairperson</h2>
           <div className="space-y-2">
             <Label>Name <span className="text-destructive">*</span></Label>
@@ -519,17 +545,9 @@ export default function RegisterTenantPublic() {
         </section>
 
         {/* G. Guarantor Consent */}
-        <section>
+        <section id="sec-submit" className="scroll-mt-32">
           <GuarantorConsentCheckbox checked={guarantorConsent} onCheckedChange={setGuarantorConsent} />
         </section>
-
-        <Button type="submit" className="w-full" size="lg" disabled={submitting || !canSubmit}>
-          {submitting ? (
-            <><Loader2 className="h-4 w-4 animate-spin" /> Submitting...</>
-          ) : (
-            <><UserPlus className="h-4 w-4" /> Submit Rent Request</>
-          )}
-        </Button>
 
         <button type="button" onClick={() => setStep('income')} className="w-full text-xs text-muted-foreground underline">
           ← Change income type
@@ -538,6 +556,33 @@ export default function RegisterTenantPublic() {
         <AgentFooter agentInfo={agentInfo} />
         <Branding />
       </form>
+
+      {/* Sticky submit footer */}
+      <div className="fixed bottom-0 inset-x-0 z-30 border-t bg-background/95 backdrop-blur px-4 py-3 pb-[calc(env(safe-area-inset-bottom,0px)+12px)]">
+        <div className="max-w-md mx-auto">
+          {!canSubmit && !submitting && (
+            <p className="text-[11px] text-amber-600 dark:text-amber-400 text-center mb-2">
+              Fill all required fields and accept guarantor consent to submit
+            </p>
+          )}
+          <Button
+            type="button"
+            onClick={() => {
+              const form = document.querySelector('form');
+              if (form) form.requestSubmit();
+            }}
+            className="w-full h-12 text-base font-semibold shadow-lg"
+            size="lg"
+            disabled={submitting || !canSubmit}
+          >
+            {submitting ? (
+              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting...</>
+            ) : (
+              <><UserPlus className="h-4 w-4 mr-2" /> Submit Rent Request</>
+            )}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
