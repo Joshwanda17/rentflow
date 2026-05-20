@@ -271,11 +271,32 @@ Deno.serve(async (req) => {
         )
 
         // Log success
+        // Carry forward the metadata (subject + template_data) that
+        // send-transactional-email stored on the 'pending' row so the
+        // CTO email-body viewer can render this row on its own.
+        let sentMetadata: Record<string, unknown> | null = null
+        if (payload.message_id) {
+          const { data: pendingRow } = await supabase
+            .from('email_send_log')
+            .select('metadata')
+            .eq('message_id', payload.message_id)
+            .not('metadata', 'is', null)
+            .order('created_at', { ascending: true })
+            .limit(1)
+            .maybeSingle()
+          if (pendingRow?.metadata && typeof pendingRow.metadata === 'object') {
+            sentMetadata = pendingRow.metadata as Record<string, unknown>
+          }
+        }
+        if (!sentMetadata && payload.subject) {
+          sentMetadata = { subject: payload.subject }
+        }
         await supabase.from('email_send_log').insert({
           message_id: payload.message_id,
           template_name: payload.label || queue,
           recipient_email: payload.to,
           status: 'sent',
+          metadata: sentMetadata,
         })
 
         // Delete from queue
