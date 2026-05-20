@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Collapsible,
   CollapsibleContent,
@@ -12,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import {
-  AlertTriangle, CalendarIcon, ChevronDown, ChevronUp, Inbox, Loader2, RefreshCw, Search, X,
+  AlertTriangle, CalendarIcon, CheckCircle2, ChevronDown, ChevronUp, Inbox, Loader2, RefreshCw, Search, Trash2, X,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
@@ -120,6 +121,10 @@ export function EmailNeedsReviewPanel() {
   const [conflictingPageSize, setConflictingPageSize] = useState<PageSize>(
     PAGE_SIZE_OPTIONS.includes(initial.conflictingPageSize) ? initial.conflictingPageSize : DEFAULT_PAGE_SIZE,
   );
+
+  // Bulk selection (Unmatched section only). Not persisted — page-local.
+  const [selectedUnmatched, setSelectedUnmatched] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   // Persist whenever any of the tracked UI bits change.
   useEffect(() => {
@@ -267,6 +272,18 @@ export function EmailNeedsReviewPanel() {
     if (conflictingPage > max) setConflictingPage(max);
   }, [conflicting.length, conflictingPage, conflictingPageSize]);
 
+  // Drop selections that are no longer present (after refresh / filter change).
+  useEffect(() => {
+    setSelectedUnmatched((cur) => {
+      if (cur.size === 0) return cur;
+      const live = new Set(unmatchedFiltered.map((x) => x.email.id));
+      let changed = false;
+      const next = new Set<string>();
+      cur.forEach((id) => { if (live.has(id)) next.add(id); else changed = true; });
+      return changed ? next : cur;
+    });
+  }, [unmatchedFiltered]);
+
   const linkEmail = async (emailId: string, depositId: string) => {
     const { error } = await (supabase.from('gmail_transactions') as any)
       .update({
@@ -283,11 +300,116 @@ export function EmailNeedsReviewPanel() {
     setEmails((cur) => cur.filter((x) => x.id !== emailId));
   };
 
-  const renderRow = (item: { email: GmailTx; candidates: PendingDeposit[] }, conflict: boolean) => {
+  // ── Bulk actions (current Unmatched page only) ─────────────────────
+  const unmatchedPageItems = useMemo(
+    () => paginate(unmatchedFiltered, unmatchedPage, unmatchedPageSize),
+    [unmatchedFiltered, unmatchedPage, unmatchedPageSize],
+  );
+  const pageIds = useMemo(() => unmatchedPageItems.map((x) => x.email.id), [unmatchedPageItems]);
+  const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedUnmatched.has(id));
+  const somePageSelected = pageIds.some((id) => selectedUnmatched.has(id));
+
+  const togglePageSelection = () => {
+    setSelectedUnmatched((cur) => {
+      const next = new Set(cur);
+      if (allPageSelected) pageIds.forEach((id) => next.delete(id));
+      else pageIds.forEach((id) => next.add(id));
+      return next;
+    });
+  };
+
+  // Items selected on the current page that have exactly one candidate (safe to auto-link).
+  const selectedAcceptable = useMemo(
+    () => unmatchedPageItems.filter((x) => selectedUnmatched.has(x.email.id) && x.candidates.length === 1),
+    [unmatchedPageItems, selectedUnmatched],
+  );
+  const selectedCount = useMemo(
+    () => unmatchedPageItems.filter((x) => selectedUnmatched.has(x.email.id)).length,
+    [unmatchedPageItems, selectedUnmatched],
+  );
+
+  const bulkAccept = async () => {
+    if (selectedAcceptable.length === 0) return;
+    setBulkBusy(true);
+    const now = new Date().toISOString();
+    let ok = 0, fail = 0;
+    for (const item of selectedAcceptable) {
+      const { error } = await (supabase.from('gmail_transactions') as any)
+        .update({
+          linked_deposit_request_id: item.candidates[0].id,
+          auto_matched_at: now,
+          auto_match_method: 'bulk_amount_strong',
+        })
+        .eq('id', item.email.id);
+      if (error) fail++; else ok++;
+    }
+    const okIds = new Set(selectedAcceptable.slice(0, ok).map((x) => x.email.id));
+    setEmails((cur) => cur.filter((x) => !okIds.has(x.id)));
+    setSelectedUnmatched((cur) => {
+      const next = new Set(cur);
+      okIds.forEach((id) => next.delete(id));
+      return next;
+    });
+    setBulkBusy(false);
+    toast({
+      title: `Linked ${ok} email${ok === 1 ? '' : 's'}`,
+      description: fail > 0 ? `${fail} failed — refresh and retry.` : 'Now visible in the auto-match panel for approval.',
+      variant: fail > 0 ? 'destructive' : undefined,
+    });
+  };
+
+  const bulkReject = async () => {
+    const ids = unmatchedPageItems
+      .filter((x) => selectedUnmatched.has(x.email.id))
+      .map((x) => x.email.id);
+    if (ids.length === 0) return;
+    setBulkBusy(true);
+    // "Reject" = mark parsed=false so the load query excludes them.
+    // They remain in gmail_transactions for audit but drop from the review queue.
+    const { error } = await (supabase.from('gmail_transactions') as any)
+      .update({ parsed: false })
+      .in('id', ids);
+    setBulkBusy(false);
+    if (error) {
+      toast({ title: 'Reject failed', description: error.message, variant: 'destructive' });
+      return;
+    }
+    const idSet = new Set(ids);
+    setEmails((cur) => cur.filter((x) => !idSet.has(x.id)));
+    setSelectedUnmatched((cur) => {
+      const next = new Set(cur);
+      idSet.forEach((id) => next.delete(id));
+      return next;
+    });
+    toast({ title: `Rejected ${ids.length} email${ids.length === 1 ? '' : 's'}`, description: 'Removed from the review queue.' });
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedUnmatched((cur) => {
+      const next = new Set(cur);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const renderRow = (
+    item: { email: GmailTx; candidates: PendingDeposit[] },
+    conflict: boolean,
+    selectable = false,
+  ) => {
     const e = item.email;
+    const checked = selectable && selectedUnmatched.has(e.id);
     return (
       <li key={e.id} className="p-3 sm:p-4 space-y-2">
-        <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="flex items-start gap-3 flex-wrap">
+          {selectable && (
+            <Checkbox
+              checked={checked}
+              onCheckedChange={() => toggleSelect(e.id)}
+              className="mt-1"
+              aria-label="Select email for bulk action"
+            />
+          )}
           <div className="flex-1 min-w-0 space-y-1">
             <div className="flex items-center gap-2 flex-wrap">
               <Badge variant={conflict ? 'destructive' : 'secondary'} className="text-[10px]">
@@ -448,7 +570,50 @@ export function EmailNeedsReviewPanel() {
                     <EmptyState text={`No unmatched items match “${unmatchedSearch}”.`} />
                   ) : (
                     <>
-                      <ul className="divide-y">{paginate(unmatchedFiltered, unmatchedPage, unmatchedPageSize).map((x) => renderRow(x, false))}</ul>
+                      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b bg-muted/20 text-xs flex-wrap">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <Checkbox
+                            checked={allPageSelected ? true : somePageSelected ? 'indeterminate' : false}
+                            onCheckedChange={togglePageSelection}
+                            aria-label="Select all on page"
+                          />
+                          <span className="text-muted-foreground">
+                            {selectedCount > 0
+                              ? `${selectedCount} selected on this page`
+                              : 'Select all on page'}
+                          </span>
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs gap-1.5"
+                            disabled={bulkBusy || selectedAcceptable.length === 0}
+                            onClick={bulkAccept}
+                            title="Auto-link selected emails that have exactly one pending deposit candidate."
+                          >
+                            {bulkBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                            Accept match{selectedAcceptable.length > 0 ? ` (${selectedAcceptable.length})` : ''}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs gap-1.5 text-destructive hover:text-destructive"
+                            disabled={bulkBusy || selectedCount === 0}
+                            onClick={bulkReject}
+                            title="Remove selected emails from the review queue (kept for audit)."
+                          >
+                            {bulkBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                            Reject{selectedCount > 0 ? ` (${selectedCount})` : ''}
+                          </Button>
+                        </div>
+                      </div>
+                      {selectedCount > 0 && selectedAcceptable.length < selectedCount && (
+                        <div className="px-3 py-1.5 text-[11px] text-muted-foreground bg-amber-500/5 border-b">
+                          {selectedCount - selectedAcceptable.length} selected item{selectedCount - selectedAcceptable.length === 1 ? '' : 's'} can't be auto-accepted (no candidate or multiple candidates) — use Link inline or Reject.
+                        </div>
+                      )}
+                      <ul className="divide-y">{unmatchedPageItems.map((x) => renderRow(x, false, true))}</ul>
                       <PaginationBar
                         page={unmatchedPage}
                         total={unmatchedFiltered.length}
