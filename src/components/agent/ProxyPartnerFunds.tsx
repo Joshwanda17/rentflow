@@ -714,9 +714,19 @@ export function ProxyPartnerFunds() {
       const totalApproved = rows.reduce((sum, row) => sum + row.amount, 0);
       const totalInFlight = activeWithdrawalsByPartner[partnerId] || 0;
       const historicalOpen = Math.max(0, totalApproved);
+      // For MANAGED proxy partners the disbursement lands in the agent's
+      // wallet (per Managed-Proxy Payout Routing) — the partner's strict
+      // withdrawable stays at 0 by design. Clamping against it would hide
+      // the card forever. Use the agent's strict withdrawable as the live
+      // ceiling in that case; for non-managed partners keep clamping
+      // against their own wallet (existing behaviour).
+      const isManaged = managedPartnerIds.has(partnerId);
+      const ceilingSource = isManaged
+        ? (strictWithdrawableByPartner[user?.id ?? ''] ?? historicalOpen)
+        : (strictWithdrawableByPartner[partnerId] ?? historicalOpen);
       const liveOpen = Math.max(
         0,
-        Math.min(historicalOpen, (strictWithdrawableByPartner[partnerId] ?? historicalOpen) + totalInFlight),
+        Math.min(historicalOpen, ceilingSource + totalInFlight),
       );
       if (liveOpen <= 50) return;
 
