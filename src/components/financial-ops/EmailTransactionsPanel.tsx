@@ -469,6 +469,20 @@ export function EmailTransactionsPanel() {
   });
   useEffect(() => { try { localStorage.setItem('gmail_filter_match', matchFilter); } catch {} }, [matchFilter]);
 
+  // Direction filter for the Recent emails list — lets Financial Ops slice
+  // the captured Gmail traffic into money-in vs money-out (sends + charges)
+  // without leaving the panel. Persisted so it survives reload.
+  //   all → no direction filter
+  //   in  → only credits (direction = 'in')
+  //   out → debits + fees (direction = 'out' or 'charge')
+  type DirectionFilter = 'all' | 'in' | 'out';
+  const [directionFilter, setDirectionFilter] = useState<DirectionFilter>(() => {
+    if (typeof window === 'undefined') return 'all';
+    const v = localStorage.getItem('gmail_filter_direction') as DirectionFilter | null;
+    return v && ['all', 'in', 'out'].includes(v) ? v : 'all';
+  });
+  useEffect(() => { try { localStorage.setItem('gmail_filter_direction', directionFilter); } catch {} }, [directionFilter]);
+
   // Persisted cache of derived channel classifications keyed by transaction id
   // / receipt number (with gmail_message_id as fallback). Loaded once on mount
   // and flushed back to localStorage whenever the heuristic learns a new key,
