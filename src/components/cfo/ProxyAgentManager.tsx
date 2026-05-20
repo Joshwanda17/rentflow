@@ -42,6 +42,9 @@ export function ProxyAgentManager() {
   // Extra filters
   const [bulkFromAgent, setBulkFromAgent] = useState<string>('any'); // 'any' | prior agent id
   const [bulkRequirePhone, setBulkRequirePhone] = useState(false);
+  // Deduplicate partners that share the same phone / national id / reference.
+  // Defaults ON: prevents the same human from being linked twice when filters overlap.
+  const [bulkDedupe, setBulkDedupe] = useState(true);
 
   const { data: assignments = [], isLoading } = useQuery({
     queryKey: ['proxy-assignments'],
@@ -90,7 +93,7 @@ export function ProxyAgentManager() {
 
   const filteredBulkPool = useMemo(() => {
     const q = bulkSearch.trim().toLowerCase();
-    return bulkPool.filter((p: any) => {
+    const passed = bulkPool.filter((p: any) => {
       const current = assignmentByBeneficiary.get(p.id);
       if (bulkFilter === 'assigned_other') {
         if (!current) return false;
@@ -111,7 +114,52 @@ export function ProxyAgentManager() {
         p.phone?.toLowerCase().includes(q)
       );
     });
-  }, [bulkPool, bulkSearch, bulkFilter, assignmentByBeneficiary, bulkAgent, bulkFromAgent, bulkRequirePhone]);
+    // Always collapse duplicate ids (same profile surfacing twice from joined rows).
+    // When bulkDedupe is ON, also collapse by phone / national_id so the same human
+    // (e.g. one profile per landlord that re-registered) only appears once.
+    const seenId = new Set<string>();
+    const seenDedupe = new Set<string>();
+    const out: any[] = [];
+    for (const p of passed) {
+      if (seenId.has(p.id)) continue;
+      seenId.add(p.id);
+      if (bulkDedupe) {
+        const key = dedupeKey(p);
+        if (key && seenDedupe.has(key)) continue;
+        if (key) seenDedupe.add(key);
+      }
+      out.push(p);
+    }
+    return out;
+  }, [bulkPool, bulkSearch, bulkFilter, assignmentByBeneficiary, bulkAgent, bulkFromAgent, bulkRequirePhone, bulkDedupe]);
+
+  /** How many partners were hidden as duplicates of another row in the current view. */
+  const dedupeHiddenCount = useMemo(() => {
+    if (!bulkDedupe) return 0;
+    // Count rows that would have passed the filters but were collapsed.
+    const seenId = new Set<string>();
+    const seenDedupe = new Set<string>();
+    let hidden = 0;
+    for (const p of bulkPool) {
+      const current = assignmentByBeneficiary.get(p.id);
+      if (bulkFilter === 'assigned_other') {
+        if (!current) continue;
+        if (bulkAgent && current.agent_id === bulkAgent.id) continue;
+      } else if (bulkFilter === 'unassigned') {
+        if (current) continue;
+      } else if (bulkFilter === 'managed') {
+        if (!current?.is_managed_account) continue;
+      }
+      if (bulkFromAgent !== 'any' && (!current || current.agent_id !== bulkFromAgent)) continue;
+      if (bulkRequirePhone && !p.phone) continue;
+      if (seenId.has(p.id)) { hidden++; continue; }
+      seenId.add(p.id);
+      const key = dedupeKey(p);
+      if (key && seenDedupe.has(key)) { hidden++; continue; }
+      if (key) seenDedupe.add(key);
+    }
+    return hidden;
+  }, [bulkPool, bulkDedupe, bulkFilter, bulkFromAgent, bulkRequirePhone, assignmentByBeneficiary, bulkAgent]);
 
   /** Counts for filter chips. Computed against the whole role-pool, ignoring the chip itself. */
   const filterCounts = useMemo(() => {
@@ -426,11 +474,22 @@ export function ProxyAgentManager() {
   });
 
   const toggleBulkBeneficiary = (u: any) =>
-    setBulkBeneficiaries((prev) =>
-      prev.some((x) => x.id === u.id)
-        ? prev.filter((x) => x.id !== u.id)
-        : [...prev, u],
-    );
+    setBulkBeneficiaries((prev) => {
+      if (prev.some((x) => x.id === u.id)) {
+        return prev.filter((x) => x.id !== u.id);
+      }
+      if (bulkDedupe) {
+        const key = dedupeKey(u);
+        if (key && prev.some((x) => dedupeKey(x) === key)) {
+          toast({
+            title: 'Duplicate skipped',
+            description: `${u.full_name || 'This partner'} shares a phone / ID with another selected partner.`,
+          });
+          return prev;
+        }
+      }
+      return [...prev, u];
+    });
   const removeBulkBeneficiary = (id: string) =>
     setBulkBeneficiaries((prev) => prev.filter((b) => b.id !== id));
   const toggleSelectAllFiltered = () => {
@@ -439,7 +498,24 @@ export function ProxyAgentManager() {
       setBulkBeneficiaries((prev) => prev.filter((b) => !idsToRemove.has(b.id)));
     } else {
       const existing = new Map(bulkBeneficiaries.map((b) => [b.id, b]));
-      filteredBulkPool.forEach((p: any) => existing.set(p.id, p));
+      const seenDedupe = new Set<string>();
+      if (bulkDedupe) {
+        bulkBeneficiaries.forEach((b) => {
+          const k = dedupeKey(b);
+          if (k) seenDedupe.add(k);
+        });
+      }
+      filteredBulkPool.forEach((p: any) => {
+        if (existing.has(p.id)) return;
+        if (bulkDedupe) {
+          const k = dedupeKey(p);
+          if (k) {
+            if (seenDedupe.has(k)) return;
+            seenDedupe.add(k);
+          }
+        }
+        existing.set(p.id, p);
+      });
       setBulkBeneficiaries(Array.from(existing.values()));
     }
   };
