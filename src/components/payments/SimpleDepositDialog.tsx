@@ -8,7 +8,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { validateDepositReference } from '@/lib/depositReferenceValidator';
-import { invokeEdgeFunction } from '@/lib/invokeEdgeFunction';
 import { formatUGX } from '@/lib/rentCalculations';
 import { safeDepositPurpose, type DepositPurpose } from '@/lib/depositPurposeGuard';
 
