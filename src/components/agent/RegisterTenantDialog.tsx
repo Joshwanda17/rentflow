@@ -329,7 +329,7 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
               </div>
 
               {/* Tenant Section */}
-              <div className="space-y-3">
+              <div id="sec-tenant" className="space-y-3 scroll-mt-16">
                 <h4 className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
                   <User className="h-4 w-4 text-primary" />
                   Tenant Details
@@ -388,7 +388,7 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
               </div>
 
               {/* Landlord Section */}
-              <div className="space-y-3">
+              <div id="sec-landlord" className="space-y-3 scroll-mt-16">
                 <h4 className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
                   <Building2 className="h-4 w-4 text-primary" />
                   Landlord Details
@@ -489,7 +489,7 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
               </div>
 
               {/* Location Capture */}
-              <div className="space-y-3">
+              <div id="sec-location" className="space-y-3 scroll-mt-16">
                 <h4 className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
                   <Navigation className="h-4 w-4 text-primary" />
                   Property Location
@@ -539,7 +539,7 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
               </div>
 
               {/* LC1 Chairperson */}
-              <div className="space-y-3">
+              <div id="sec-lc1" className="space-y-3 scroll-mt-16">
                 <h4 className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
                   <Shield className="h-4 w-4 text-primary" />
                   LC1 Chairperson Details
