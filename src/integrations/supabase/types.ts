@@ -4667,6 +4667,39 @@ export type Database = {
           },
         ]
       }
+      deposit_guardrail_alert_config: {
+        Row: {
+          cooldown_minutes: number
+          enabled: boolean
+          id: boolean
+          last_alert_at: string | null
+          severity: string
+          threshold_count: number
+          updated_at: string
+          window_minutes: number
+        }
+        Insert: {
+          cooldown_minutes?: number
+          enabled?: boolean
+          id?: boolean
+          last_alert_at?: string | null
+          severity?: string
+          threshold_count?: number
+          updated_at?: string
+          window_minutes?: number
+        }
+        Update: {
+          cooldown_minutes?: number
+          enabled?: boolean
+          id?: boolean
+          last_alert_at?: string | null
+          severity?: string
+          threshold_count?: number
+          updated_at?: string
+          window_minutes?: number
+        }
+        Relationships: []
+      }
       deposit_guardrail_audit: {
         Row: {
           action: string
@@ -14891,6 +14924,15 @@ export type Database = {
         Returns: string
       }
       derive_welile_ai_id: { Args: { p_user_id: string }; Returns: string }
+      detect_deposit_guardrail_alerts: {
+        Args: never
+        Returns: {
+          alert_id: string
+          block_count: number
+          threshold: number
+          window_minutes: number
+        }[]
+      }
       detect_velocity_abuse: {
         Args: { p_threshold?: number; p_window_minutes?: number }
         Returns: {
