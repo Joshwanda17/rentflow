@@ -47,6 +47,7 @@ import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
 import PartnerImportDialog from './PartnerImportDialog';
 import UpdateContributionDatesDialog from './UpdateContributionDatesDialog';
+import PartnerPaymentDetailsDialog from './PartnerPaymentDetailsDialog';
 
 
 /** Roll a stale next_roi_date forward month-by-month until it's >= today */
