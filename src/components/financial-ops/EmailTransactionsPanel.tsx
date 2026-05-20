@@ -848,7 +848,7 @@ export function EmailTransactionsPanel() {
               : `No range selected — showing all ${rows.length} emails · timezone ${tz}`}
           </p>
         </div>
-        <div className="flex flex-col">
+        <div className="flex flex-col flex-1 sm:flex-none min-w-[140px]">
           <label
             className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1"
             title="Date boundaries and daily buckets are interpreted in this timezone."
@@ -869,7 +869,7 @@ export function EmailTransactionsPanel() {
             )}
           </select>
         </div>
-        <div className="flex flex-col">
+        <div className="flex flex-col flex-1 sm:flex-none min-w-[130px]">
           <label className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">From</label>
           <input
             type="date"
@@ -879,7 +879,7 @@ export function EmailTransactionsPanel() {
             className="h-9 rounded-md border border-input bg-background px-3 text-sm"
           />
         </div>
-        <div className="flex flex-col">
+        <div className="flex flex-col flex-1 sm:flex-none min-w-[130px]">
           <label className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">To</label>
           <input
             type="date"
@@ -889,7 +889,7 @@ export function EmailTransactionsPanel() {
             className="h-9 rounded-md border border-input bg-background px-3 text-sm"
           />
         </div>
-        <div className="flex flex-col flex-1 min-w-[200px]">
+        <div className="flex flex-col flex-1 min-w-full sm:min-w-[200px]">
           <label
             className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1"
             title="Match against transaction id, bank reference number, receipt number (RCT-…), subject, snippet and counterparty. Whitespace-separated tokens are AND-matched."
@@ -917,7 +917,7 @@ export function EmailTransactionsPanel() {
             )}
           </div>
         </div>
-        <div className="flex flex-col">
+        <div className="flex flex-col flex-1 sm:flex-none min-w-[160px]">
           <label
             className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1"
             title="Warn when the absolute Net (in − out) exceeds this amount — flags potentially unusual parsing."
@@ -935,11 +935,11 @@ export function EmailTransactionsPanel() {
                 const v = Number(e.target.value);
                 setNetThreshold(Number.isFinite(v) && v >= 0 ? v : 0);
               }}
-              className="h-9 w-36 rounded-md border border-input bg-background pl-10 pr-2 text-sm tabular-nums"
+              className="h-9 w-full sm:w-36 rounded-md border border-input bg-background pl-10 pr-2 text-sm tabular-nums"
             />
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
           {[
             { label: '7d', days: 7 },
             { label: '30d', days: 30 },
@@ -949,6 +949,7 @@ export function EmailTransactionsPanel() {
               key={p.label}
               variant="outline"
               size="sm"
+              className="flex-1 sm:flex-none"
               onClick={() => {
                 // Anchor presets to "today" as seen in the selected timezone.
                 const todayKey = dateKeyInTz(new Date(), tz);
@@ -969,6 +970,7 @@ export function EmailTransactionsPanel() {
           <Button
             variant="ghost"
             size="sm"
+            className="flex-1 sm:flex-none"
             onClick={() => { setFromDate(''); setToDate(''); }}
             disabled={!rangeActive}
           >
