@@ -1,6 +1,7 @@
 // Generates a single-page PDF receipt for a confirmed withdrawal request.
 // Uses jsPDF dynamically to keep it out of the initial bundle.
 import { format } from 'date-fns';
+import { savePdfWithVault } from '@/lib/pdfVault';
 
 /**
  * Supported language codes for the receipt PDF. Mirrors the union in
@@ -354,7 +355,11 @@ async function renderWithdrawalReceiptPdf(data: WithdrawalReceiptData) {
 
 export async function downloadWithdrawalReceiptPdf(data: WithdrawalReceiptData): Promise<void> {
   const doc = await renderWithdrawalReceiptPdf(data);
-  doc.save(withdrawalReceiptFilename(data));
+  const filename = withdrawalReceiptFilename(data);
+  savePdfWithVault(doc, filename, {
+    label: `Withdrawal Receipt · ${(data as any).amount ? `UGX ${Number((data as any).amount).toLocaleString()}` : filename}`,
+    category: 'withdrawal-receipt',
+  });
 }
 
 /**
