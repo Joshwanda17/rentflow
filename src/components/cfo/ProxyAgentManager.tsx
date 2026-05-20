@@ -544,17 +544,24 @@ export function ProxyAgentManager() {
 
                 <div className="rounded-lg border border-border bg-muted/20">
                   <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/40">
-                    <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
+                    <button
+                      type="button"
+                      onClick={toggleSelectAllFiltered}
+                      disabled={filteredBulkPool.length === 0}
+                      className="flex items-center gap-2 text-xs font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
                       <Checkbox
                         checked={allFilteredSelected}
-                        onCheckedChange={toggleSelectAllFiltered}
                         disabled={filteredBulkPool.length === 0}
+                        tabIndex={-1}
+                        className="pointer-events-none"
                       />
-                      Select all{bulkSearch || bulkFilter !== 'all' ? ' filtered' : ''}
+                      {allFilteredSelected ? 'Clear' : 'Select all'}
+                      {bulkSearch || bulkFilter !== 'all' ? ' filtered' : ''}
                       <span className="text-muted-foreground font-normal">
                         ({filteredBulkPool.length})
                       </span>
-                    </label>
+                    </button>
                   </div>
                   <div
                     ref={scrollRef}
