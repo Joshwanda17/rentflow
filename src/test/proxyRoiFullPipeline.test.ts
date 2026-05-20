@@ -509,10 +509,33 @@ describe("ROI payout full pipeline · Partner Ops → COO → CFO → Proxy With
     expect(agentDebit!.user_id).toBe(PROXY_ID);
     expect(agentDebit!.linked_party).toBe(PARTNER_ID); // earmarked to partner
 
-    // Withdrawal email goes to the AGENT.
-    expect(
-      world.emails.find((e) => e.templateName === "withdrawal-paid"),
-    ).toMatchObject({ recipientEmail: PROXY_EMAIL });
+    // AIM #2 (Fin Ops stage) — the Disbursement Confirmed email is sent to
+    // BOTH the proxy PARTNER (beneficiary) and the proxy AGENT (funder).
+    // This mirrors approve-withdrawal/index.ts lines 1175–1213.
+    const disbursementEmails = world.emails.filter(
+      (e) => e.templateName === "returns-disbursement-confirmation",
+    );
+    // Two from CFO send (already there) + two from Fin Ops approval = 4.
+    expect(disbursementEmails).toHaveLength(4);
+
+    const finalPartnerEmail = disbursementEmails.at(-2)!;
+    const finalAgentEmail = disbursementEmails.at(-1)!;
+    expect(finalPartnerEmail).toMatchObject({
+      recipientEmail: PARTNER_EMAIL,
+      templateData: {
+        is_managed_by_agent: true,
+        agent_name: PROXY_NAME,
+        portfolio_code: PORTFOLIO_CODE,
+        amount: ROI_AMOUNT,
+      },
+    });
+    expect(finalPartnerEmail.templateData.payout_method).toMatch(/via Proxy Agent/);
+    expect(finalAgentEmail).toMatchObject({
+      recipientEmail: PROXY_EMAIL,
+      templateData: { is_managed_by_agent: true, agent_name: PROXY_NAME },
+    });
+    expect(finalAgentEmail.templateData.payout_method)
+      .toMatch(new RegExp(`Proxy payout for ${PARTNER_NAME}`));
 
     // AIM #3 again — financial statements still balance end-to-end.
     expect(isBalanced(world)).toBe(true);
