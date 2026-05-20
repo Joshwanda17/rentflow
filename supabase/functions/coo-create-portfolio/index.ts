@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { buildPartnershipAgreementRequest, dispatchTransactionalEmail } from "../_shared/partnership-emails.ts";
+import { buildPartnershipAgreementRequest, dispatchTransactionalEmail, resolveManagedProxy } from "../_shared/partnership-emails.ts";
 import { withRetry } from "../_shared/rpcRetry.ts";
 
 const corsHeaders = {
@@ -77,6 +77,24 @@ Deno.serve(async (req) => {
       .from("user_roles").select("id")
       .eq("user_id", body.partner_id).eq("role", "supporter").maybeSingle();
     if (!partnerRole) return json({ error: "Selected user is not a registered partner/supporter" }, 400);
+
+    // ── MANAGED-PROXY HARD GUARDRAIL ──
+    // If the partner is managed by a proxy agent (is_managed_account=true),
+    // ALL portfolio creation funding MUST come from the proxy agent's wallet
+    // — regardless of what the UI submitted. This is enforced server-side
+    // so no client path can bypass it.
+    const managedProxyForCreate = await resolveManagedProxy(adminClient, body.partner_id);
+    if (managedProxyForCreate) {
+      if (body.payment_method !== "proxy_agent" || body.source_wallet_user_id !== managedProxyForCreate.agentId) {
+        console.warn(
+          `[coo-create-portfolio] Managed-proxy override: partner=${body.partner_id} ` +
+          `forced payment_method=proxy_agent source=${managedProxyForCreate.agentId} ` +
+          `(was method=${body.payment_method} source=${body.source_wallet_user_id})`,
+        );
+      }
+      body.payment_method = "proxy_agent";
+      body.source_wallet_user_id = managedProxyForCreate.agentId;
+    }
 
     // If proxy_agent, validate the assignment is real & approved
     if (body.payment_method === "proxy_agent") {
