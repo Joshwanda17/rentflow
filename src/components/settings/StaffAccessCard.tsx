@@ -30,45 +30,43 @@ export default function StaffAccessCard() {
   };
 
   const handleVerify = async () => {
-    if (code !== ADMIN_ACCESS_CODE) {
-      toast.error('Invalid access code');
-      setCode('');
-      return;
-    }
-
+    if (!code) return;
     setLoading(true);
     try {
-      // Grant the manager role as the entry point to staff
       const targetRole: AppRole = 'manager';
+
+      // Server-side redemption: bypasses user_roles RLS chicken-and-egg.
+      // Validates the code in a SECURITY DEFINER RPC and grants 'manager'.
+      const { data, error } = await supabase.rpc('redeem_staff_access_code', {
+        p_code: code,
+      });
+
+      if (error) {
+        toast.error(error.message || 'Could not verify access code');
+        setLoading(false);
+        return;
+      }
+
+      const result = data as { success?: boolean; error?: string } | null;
+      if (!result?.success) {
+        toast.error(result?.error === 'invalid_code' ? 'Invalid access code' : 'Access denied');
+        setCode('');
+        setLoading(false);
+        return;
+      }
+
+      // Reflect the new role in client state without a full reload
       if (!roles.includes(targetRole)) {
-        const { error } = await addRole(targetRole);
-        if (error) {
-          toast.error(error.message);
-          setLoading(false);
-          return;
-        }
+        await addRole(targetRole);
       }
 
-      // Log the staff access attempt
-      if (user) {
-        await supabase.from('audit_logs').insert({
-          user_id: user.id,
-          action_type: 'staff_access_granted',
-          metadata: { method: 'access_code', role: targetRole },
-        }).then(() => {});
-      }
-
-      // Cache staff session for 24 hours
       if (user) setStaffSession(user.id, 'staff');
 
       switchRole(targetRole);
       toast.success('Staff access granted! Redirecting...');
-      
-      // Navigate directly to the manager dashboard
-      const route = getStaffDashboardRoute(targetRole);
-      navigate(route, { replace: true });
-    } catch (err) {
-      toast.error('Something went wrong. Please try again.');
+      navigate(getStaffDashboardRoute(targetRole), { replace: true });
+    } catch (err: any) {
+      toast.error(err?.message || 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
