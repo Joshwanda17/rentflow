@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
+import { archivePdfBlob } from '@/lib/pdfVault';
+import { ArchivedPdfsDrawer } from '@/components/financial-ops/ArchivedPdfsDrawer';
 import { Badge } from '@/components/ui/badge';
 import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert, Copy, Check, Wifi, WifiOff, ShieldCheck, History, LinkIcon, ChevronDown, ChevronUp, FileDown, FileText, AlertTriangle, Search, X, Pencil, Trash2, Star, Users } from 'lucide-react';
 import { Info } from 'lucide-react';
@@ -830,6 +832,7 @@ export function EmailTransactionsPanel() {
           >
             <FileText className="h-4 w-4" /> Export PDF
           </Button>
+          <ArchivedPdfsDrawer />
           <ReconnectGmailDialog />
           <DebugPollDialog />
           <SmsSetupGuide />
@@ -2404,6 +2407,13 @@ async function exportTotalsPdf({ rows, totalIn, totalOut, netAmount, channelBrea
 function downloadPdfMobileSafe(doc: any, filename: string) {
   try {
     const blob: Blob = doc.output('blob');
+    // Archive a copy in the offline PDF vault so the record survives
+    // network loss, browser cache wipes, or a cleared Downloads folder.
+    archivePdfBlob(blob, {
+      label: filename.replace(/\.pdf$/i, '').replace(/_/g, ' '),
+      filename,
+      category: 'finops-emails',
+    }).catch(() => {});
     const url = URL.createObjectURL(blob);
     const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
     if (isIOS) {
