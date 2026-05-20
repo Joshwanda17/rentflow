@@ -1,6 +1,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
-import { resolveManagedProxy } from "../_shared/partnership-emails.ts";
+// resolveManagedProxy removed: proxy custody is forbidden by DB trigger
+// (block_proxy_custody_writes, cutoff 2026-05-12). ROI credits land on the
+// partner directly; proxy agents withdraw via the proxy-partner flow.
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
