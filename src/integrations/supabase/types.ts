@@ -15993,6 +15993,20 @@ export type Database = {
           snapshotted_count: number
         }[]
       }
+      submit_withdrawal_request: {
+        Args: {
+          p_amount: number
+          p_bank_account_name?: string
+          p_bank_account_number?: string
+          p_bank_name?: string
+          p_client_request_id?: string
+          p_mobile_money_name?: string
+          p_mobile_money_number?: string
+          p_mobile_money_provider?: string
+          p_payout_method: string
+        }
+        Returns: Json
+      }
       suggest_nearby_agents: {
         Args: { _lat: number; _limit?: number; _lng: number }
         Returns: {

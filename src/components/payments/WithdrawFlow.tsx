@@ -425,23 +425,53 @@ export default function WithdrawFlow({
             ? crypto.randomUUID()
             : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       }
-      const insertData: any = {
-        user_id: user.id,
-        amount: amount,
-        status: 'pending',
-        mobile_money_number: payoutMode === 'mobile_money' ? momoNumber.trim() : null,
-        mobile_money_name: payoutMode === 'mobile_money' ? momoName.trim() : (payoutMode === 'bank_transfer' ? bankAccountName.trim() : 'Cash Pickup'),
-        mobile_money_provider: payoutMode === 'mobile_money' ? momoProvider.toLowerCase() : (payoutMode === 'bank_transfer' ? 'bank' : 'cash'),
-        client_request_id: clientRequestIdRef.current,
-      };
+      // Server-side validation gate. The RPC re-checks authorization,
+      // amount bounds, payout-method fields, and ledger-backed available
+      // balance — so the flow stays safe even without a client PIN.
+      const { data: rpcData, error: rpcError } = await supabase.rpc(
+        'submit_withdrawal_request',
+        {
+          p_amount: amount,
+          p_payout_method: payoutMode,
+          p_mobile_money_number: payoutMode === 'mobile_money' ? momoNumber.trim() : null,
+          p_mobile_money_name: payoutMode === 'mobile_money' ? momoName.trim() : null,
+          p_mobile_money_provider: payoutMode === 'mobile_money' ? momoProvider.toLowerCase() : null,
+          p_bank_name: payoutMode === 'bank_transfer' ? bankName.trim() : null,
+          p_bank_account_number: payoutMode === 'bank_transfer' ? bankAccountNumber.trim() : null,
+          p_bank_account_name: payoutMode === 'bank_transfer' ? bankAccountName.trim() : null,
+          p_client_request_id: clientRequestIdRef.current,
+        },
+      );
 
-      const { data: insertedRow, error: requestError } = await supabase
-        .from('withdrawal_requests')
-        .insert(insertData)
-        .select('id')
-        .single();
+      const result = (rpcData ?? null) as
+        | { success: boolean; code: string; message?: string; request_id?: string; available?: number }
+        | null;
 
-      if (requestError) {
+      // RPC returned a structured rejection — surface friendly toast + stop.
+      if (!rpcError && result && result.success === false) {
+        const code = result.code;
+        const msg = result.message || 'Withdrawal rejected.';
+        if (code === 'insufficient_funds') {
+          await refetchLedger();
+        }
+        if (code === 'forbidden') {
+          toast.error('Withdrawals are routed via your assigned agent', {
+            description:
+              'Your account is linked to a proxy agent, so you cannot submit a withdrawal directly. Contact your assigned agent — they will process the cash-out on your behalf.',
+            duration: 10000,
+          });
+        } else if (code === 'duplicate_pending') {
+          toast.error(msg, { duration: 8000 });
+          clientRequestIdRef.current = null;
+        } else {
+          toast.error(msg, { duration: 8000 });
+        }
+        isSubmittingRef.current = false;
+        return false;
+      }
+
+      if (rpcError) {
+        const requestError: any = rpcError;
         // 23505 = unique_violation. Two distinct cases:
         //   1. Idempotency key collision → genuine network retry of *this*
         //      submission. Treat as success (the row already exists).
@@ -501,11 +531,12 @@ export default function WithdrawFlow({
 
       // Stable request ID derived from the DB UUID. NOT a transaction ID —
       // the real provider TID is entered by Financial Ops at approval time.
-      const requestId = insertedRow?.id
-        ? `REQ-${String(insertedRow.id).replace(/-/g, '').slice(0, 12).toUpperCase()}`
+      const newId = result?.request_id ?? null;
+      const requestId = newId
+        ? `REQ-${String(newId).replace(/-/g, '').slice(0, 12).toUpperCase()}`
         : '';
       setWithdrawalRef(requestId);
-      setCreatedRequestId(insertedRow?.id ?? null);
+      setCreatedRequestId(newId);
       setSubmittedAt(new Date());
       // IMPORTANT: a withdrawal is NOT successful until Financial Ops
       // approves and disburses. Keep status as `pending` and let the
