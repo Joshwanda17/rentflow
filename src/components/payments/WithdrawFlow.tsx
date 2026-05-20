@@ -346,7 +346,6 @@ export default function WithdrawFlow({
         // `handleNext` handler will transparently refetch the ledger and
         // then proceed — so the button must remain clickable.
         return (
-          pin.length === 4 &&
           ledgerAvailable !== null &&
           amount <= maxAmount
         );
