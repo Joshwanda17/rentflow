@@ -386,11 +386,13 @@ Deno.serve(async (req) => {
     const walletAdvance = Number((wallet as any)?.advance_balance ?? 0);
 
     // Normal withdrawals can ONLY draw from withdrawable_balance.
-    // Proxy partner delivery is different: the partner owns the credited
-    // liability, but the assigned agent physically delivers it, so it may
-    // draw only from that partner-linked float — never from generic float.
+    // Managed proxy partner delivery is funded by the proxy agent wallet;
+    // the credited returns may sit in either withdrawable or legacy float,
+    // but must never draw from advance_balance.
     const withdrawable = walletWithdrawable;
-    const cachedSpendable = isProxyPayout ? walletFloat : withdrawable;
+    const cachedSpendable = isProxyPayout
+      ? Math.max(0, walletWithdrawable) + Math.max(0, walletFloat)
+      : withdrawable;
     let partnerLinkedFloatAvailable = 0;
 
     // STRICT LEDGER-BACKED GATE.
@@ -408,12 +410,7 @@ Deno.serve(async (req) => {
         return acc;
       }, 0);
 
-      if (isProxyPayout && fundingUserId === beneficiaryUserId) {
-        // Direct partner-funded proxy payout: the agent initiated the row, but
-        // the partner wallet now holds the ROI. Use the same strict available
-        // figure that user-facing wallets and withdrawal approval gates use.
-        ledgerAvailable = Math.max(0, Number(directPartnerFundingAvailable ?? 0));
-      } else if (isProxyPayout && wr.linked_party && wr.linked_party !== wr.user_id) {
+      if (isProxyPayout && wr.linked_party && wr.linked_party !== wr.user_id) {
         const { data: linkedRows, error: linkedErr } = await admin
           .from("general_ledger")
           .select("amount, direction, category, account")
@@ -485,12 +482,11 @@ Deno.serve(async (req) => {
           Math.max(0, partnerLinkedNet) - partnerPendingHolds,
         );
       } else if (isProxyPayout) {
-        // Proxy agent without a linked_party on the withdrawal row: gate
-        // against the agent's overall wallet ledger and allow draining
-        // EITHER float OR withdrawable (since this IS a proxy delivery —
-        // partner identity is recorded in the reason text, not the
-        // linked_party column, and partner-linked credits routinely land
-        // in the withdrawable bucket).
+        // Partner-owned managed-proxy rows have `user_id = partner` and no
+        // linked_party, but `fundingUserId` was resolved above to the proxy
+        // agent. Gate against that agent's wallet ledger and allow draining
+        // either float or withdrawable; the partner identity remains on the
+        // withdrawal row and settlement table.
         const { data: ledgerRows, error: ledgerErr } = await admin
           .from("general_ledger")
           .select("amount, direction")
