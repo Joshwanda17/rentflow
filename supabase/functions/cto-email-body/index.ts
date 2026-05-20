@@ -56,7 +56,28 @@ Deno.serve(async (req) => {
     if (rowErr) return json({ error: rowErr.message }, 500)
     if (!row) return json({ error: 'Email not found' }, 404)
 
-    const metadata = (row.metadata ?? {}) as Record<string, unknown>
+    let metadata = (row.metadata ?? {}) as Record<string, unknown>
+
+    // Fallback: 'sent'/'failed' rows historically don't carry metadata —
+    // it lives on the sibling 'pending' row written by send-transactional-email.
+    // Look it up by message_id when the current row is missing template_data.
+    const hasTemplateData =
+      metadata.template_data && typeof metadata.template_data === 'object'
+    if (!hasTemplateData) {
+      // message_id column on email_send_log links the lifecycle rows
+      const { data: sibling } = await adminClient
+        .from('email_send_log')
+        .select('metadata')
+        .eq('message_id', (row as any).message_id ?? '')
+        .not('metadata', 'is', null)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle()
+      if (sibling?.metadata && typeof sibling.metadata === 'object') {
+        metadata = sibling.metadata as Record<string, unknown>
+      }
+    }
+
     const storedSubject = typeof metadata.subject === 'string' ? metadata.subject : null
     const templateData =
       metadata.template_data && typeof metadata.template_data === 'object'
