@@ -1125,6 +1125,35 @@ Deno.serve(async (req) => {
         }
 
         const refUpper = reference.trim().toUpperCase();
+        // Build a friendly payout method label + masked destination so the
+        // disbursement email matches the template intent
+        // ("Mobile Money (MTN) •••• 4521" / "Bank Transfer (Stanbic) •••• 1234").
+        const _lastFour = (s?: string | null) => {
+          const digits = String(s ?? "").replace(/\D+/g, "");
+          return digits.length >= 4 ? `•••• ${digits.slice(-4)}` : "";
+        };
+        const _providerLabel = (p?: string | null) => {
+          const v = String(p ?? "").toLowerCase();
+          if (v.includes("mtn")) return "MTN";
+          if (v.includes("airtel")) return "Airtel";
+          return p ? String(p) : "";
+        };
+        const _wrPm = String((wr as any).payout_method || "").toLowerCase();
+        let resolvedPayoutMethod: string = payment_method;
+        let resolvedPayoutLast4 = "";
+        if (_wrPm === "mobile_money" || /mobile\s*money|momo|mtn|airtel/i.test(payment_method)) {
+          const prov = _providerLabel((wr as any).mobile_money_provider) || _providerLabel(payment_method);
+          resolvedPayoutMethod = prov ? `Mobile Money (${prov})` : "Mobile Money";
+          resolvedPayoutLast4 = _lastFour((wr as any).mobile_money_number);
+        } else if (_wrPm === "bank_transfer" || /bank/i.test(payment_method)) {
+          resolvedPayoutMethod = (wr as any).bank_name
+            ? `Bank Transfer (${(wr as any).bank_name})`
+            : "Bank Transfer";
+          resolvedPayoutLast4 = _lastFour((wr as any).bank_account_number);
+        } else if (_wrPm === "wallet" || /wallet/i.test(payment_method)) {
+          resolvedPayoutMethod = "Wallet";
+          resolvedPayoutLast4 = "";
+        }
         const emailReq = buildReturnsDisbursementRequest({
           recipientEmail: partnerProfile.email,
           partnerName: partnerProfile.full_name,
@@ -1134,8 +1163,9 @@ Deno.serve(async (req) => {
           transactionId: refUpper,
           portfolioCode: portfolio?.portfolio_code || undefined,
           payoutMethod: isProxyPayout
-            ? `${payment_method} — via Proxy Agent`
-            : payment_method,
+            ? `${resolvedPayoutMethod} — via Proxy Agent`
+            : resolvedPayoutMethod,
+          walletIdLast4: resolvedPayoutLast4,
           isManagedByAgent: isProxyPayout && fundingUserId !== partnerId,
           agentName,
           roiPercentage: Number((portfolio as any)?.roi_percentage) || undefined,
@@ -1157,7 +1187,8 @@ Deno.serve(async (req) => {
             amount,
             transactionId: refUpper,
             portfolioCode: portfolio?.portfolio_code || undefined,
-            payoutMethod: `${payment_method} — Proxy payout for ${partnerProfile.full_name || "funder"}`,
+            payoutMethod: `${resolvedPayoutMethod} — Proxy payout for ${partnerProfile.full_name || "funder"}`,
+            walletIdLast4: resolvedPayoutLast4,
             isManagedByAgent: true,
             agentName,
             roiPercentage: Number((portfolio as any)?.roi_percentage) || undefined,
