@@ -44,8 +44,6 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
   const [createdRentRequestId, setCreatedRentRequestId] = useState<string | null>(null);
   const { capture: captureSmart, loading: capturingLocation } = useSmartLocation();
   const [nationalIdError, setNationalIdError] = useState('');
-  const scrollRef = (typeof window !== 'undefined') ? null : null;
-
   const jumpTo = (id: string) => {
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
