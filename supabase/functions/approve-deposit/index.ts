@@ -282,6 +282,26 @@ Deno.serve(async (req) => {
       );
     }
 
+    // For system auto-credit, impersonate the deposit owner now that we
+    // know who it is. All rows in a single call must belong to the same
+    // owner — refuse otherwise.
+    if (isSystemAutoCredit) {
+      const ownerId = depositRequests[0].user_id;
+      if (!depositRequests.every((d) => d.user_id === ownerId)) {
+        return new Response(
+          JSON.stringify({ error: 'system_auto_credit: mixed owners not allowed' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+      user = { id: ownerId };
+    }
+    if (!user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
     if (!isManagerRole) {
       // ── Auto-approve path (MoMo gmail match) ──────────────────────────
       // A regular user (typically an agent) can self-approve their OWN
