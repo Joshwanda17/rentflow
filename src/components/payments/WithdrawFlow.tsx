@@ -1308,6 +1308,16 @@ export default function WithdrawFlow({
               recipientLabel={getPayoutSummary()}
               reference={withdrawalRef || 'PENDING'}
               onClose={handleClose}
+              onRetry={() => {
+                // 24h-stuck retry: clear the tracker state and drop the
+                // user back at the method-selection step so they can
+                // resubmit with the same recipient details intact.
+                setCreatedRequestId(null);
+                setPaymentStatus('pending');
+                clientRequestIdRef.current = null;
+                setCurrentStep(2);
+                toast.info('Previous request cancelled. Confirm the details to resubmit.');
+              }}
             />
           </div>
         );
