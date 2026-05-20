@@ -659,28 +659,56 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
         </div>
 
         {!success && (
-          <div className="border-t bg-background/95 backdrop-blur px-6 py-3 pb-[calc(env(safe-area-inset-bottom,0px)+12px)] sticky bottom-0">
-            {!guarantorConsent && (
+          <div className="border-t bg-background/95 backdrop-blur px-4 py-3 pb-[calc(env(safe-area-inset-bottom,0px)+12px)]">
+            {step === 4 && !guarantorConsent && (
               <p className="text-[11px] text-amber-600 dark:text-amber-400 mb-2 text-center">
-                Tick the guarantor consent above to enable submit
+                Tick the guarantor consent above to submit
               </p>
             )}
-            <Button
-              type="submit"
-              form="register-tenant-form"
-              size="lg"
-              className="w-full h-12 text-base font-semibold shadow-lg"
-              disabled={loading}
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Submitting rent request...
-                </>
-              ) : (
-                'Submit Rent Request'
+            <div className="flex gap-2">
+              {step > 1 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="h-12 px-4 text-base"
+                  onClick={goBack}
+                  disabled={loading}
+                >
+                  Back
+                </Button>
               )}
-            </Button>
+              {step < totalSteps ? (
+                <Button
+                  type="button"
+                  size="lg"
+                  className="flex-1 h-12 text-base font-semibold shadow-lg"
+                  onClick={goNext}
+                >
+                  Continue
+                </Button>
+              ) : (
+                <Button
+                  type="submit"
+                  form="register-tenant-form"
+                  size="lg"
+                  className="flex-1 h-12 text-base font-semibold shadow-lg"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    'Submit Rent Request'
+                  )}
+                </Button>
+              )}
+            </div>
+            <p className="text-[10px] text-muted-foreground text-center mt-2">
+              Step {step} of {totalSteps}
+            </p>
           </div>
         )}
       </DialogContent>
