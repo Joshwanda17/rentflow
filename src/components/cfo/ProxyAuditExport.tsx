@@ -337,6 +337,60 @@ export function ProxyAuditExport() {
           </Button>
         </div>
 
+        {/* Column picker — controls which fields land in the CSV / PDF */}
+        <div className="rounded-md border border-border bg-muted/20 p-3 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <p className="text-xs font-semibold">Columns to export</p>
+              <p className="text-[10px] text-muted-foreground">
+                Choose what appears in both CSV and PDF. Saved per browser.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 text-[10px]">
+              <Badge variant="secondary" className="tabular-nums">{activeCols.length}/{COLUMNS.length}</Badge>
+              <button
+                type="button"
+                className="text-primary hover:underline"
+                onClick={() => persistCols(new Set(COLUMNS.map((c) => c.key)))}
+              >
+                All
+              </button>
+              <button
+                type="button"
+                className="text-primary hover:underline"
+                onClick={() => persistCols(new Set(COLUMNS.filter((c) => c.defaultOn).map((c) => c.key)))}
+              >
+                Reset
+              </button>
+              <button
+                type="button"
+                className="text-muted-foreground hover:underline"
+                onClick={() => persistCols(new Set())}
+              >
+                None
+              </button>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+            {COLUMNS.map((c) => {
+              const on = selectedCols.has(c.key);
+              return (
+                <label
+                  key={c.key}
+                  className={`flex items-center gap-2 px-2 py-1.5 rounded border text-xs cursor-pointer transition-colors ${
+                    on
+                      ? 'border-primary/40 bg-primary/5'
+                      : 'border-border bg-background hover:bg-muted/40'
+                  }`}
+                >
+                  <Checkbox checked={on} onCheckedChange={() => toggleCol(c.key)} />
+                  <span className="truncate">{c.label}</span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="flex gap-2 pt-1">
           <Button
             variant="outline"
