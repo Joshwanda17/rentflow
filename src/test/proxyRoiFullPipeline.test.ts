@@ -327,12 +327,15 @@ function finOpsApproveWithdrawal(
   if (wr.status !== "pending") {
     throw new Error(`already in status ${wr.status}`);
   }
+  const isProxyPayout = !!wr.proxy_partner_id || !!wr.agent_id || wr.reason.includes("Proxy payout delivery for");
+  const fundingUserId = isProxyPayout ? (wr.agent_id || wr.initiated_by || wr.user_id) : wr.user_id;
+  const beneficiaryUserId = isProxyPayout ? (wr.proxy_partner_id || wr.beneficiary_id || wr.user_id) : wr.user_id;
 
-  // Available withdrawable for the agent = sum of their wallet legs so far.
-  const agentAvailable = netWallet(world, wr.user_id);
+  // Available withdrawable for the funding wallet = sum of its wallet legs so far.
+  const agentAvailable = netWallet(world, fundingUserId);
   if (agentAvailable < wr.amount) {
     throw new Error(
-      `Insufficient proxy partner balance. Available UGX ${agentAvailable}, requested UGX ${wr.amount}`,
+      `Insufficient proxy agent wallet balance. Available UGX ${agentAvailable}, requested UGX ${wr.amount}`,
     );
   }
 
