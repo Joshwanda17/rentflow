@@ -85,8 +85,12 @@ interface PayoutQueueRow {
 
 interface WithdrawalRequest {
   id: string;
-  user_id: string;        // submitter = proxy AGENT
-  linked_party: string;   // proxy PARTNER
+  user_id: string;        // owner = proxy PARTNER for v2 visibility/holds
+  agent_id?: string;      // funding proxy AGENT
+  initiated_by?: string;  // funding proxy AGENT audit trail
+  beneficiary_id?: string;
+  proxy_partner_id?: string;
+  linked_party?: string | null;
   amount: number;
   reason: string;
   status: "pending" | "approved" | "rejected";
