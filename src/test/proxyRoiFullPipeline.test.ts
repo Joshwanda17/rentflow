@@ -497,9 +497,11 @@ describe("ROI payout full pipeline · Partner Ops → COO → CFO → Proxy With
       reference: "REF-PIUS-001",
     });
     expect(wr.status).toBe("pending");
-    expect(wr.user_id).toBe(PROXY_ID);     // submitter = agent
-    expect(wr.linked_party).toBe(PARTNER_ID); // beneficiary = partner
-    expect(wr.reason).toMatch(/^Proxy payout delivery for /);
+    expect(wr.user_id).toBe(PARTNER_ID);     // owner/beneficiary = partner
+    expect(wr.agent_id).toBe(PROXY_ID);      // funding wallet = agent
+    expect(wr.proxy_partner_id).toBe(PARTNER_ID);
+    expect(wr.linked_party).toBeNull();
+    expect(wr.reason).toContain("Proxy payout delivery for");
     // No new ledger rows on submit.
     expect(world.ledger.length).toBe(2);
 
@@ -575,7 +577,7 @@ describe("ROI payout full pipeline · Partner Ops → COO → CFO → Proxy With
     });
     expect(() =>
       finOpsApproveWithdrawal(world, wr.id, "finops-1", APPROVE_CTX),
-    ).toThrow(/Insufficient proxy partner balance/);
+    ).toThrow(/Insufficient proxy agent wallet balance/);
     expect(wr.status).toBe("pending");
     expect(world.ledger).toHaveLength(0);
   });
