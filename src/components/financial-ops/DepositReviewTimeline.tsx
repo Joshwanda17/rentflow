@@ -11,6 +11,8 @@ import {
   Copy,
   CheckCheck,
   Users,
+  RotateCcw,
+  Ban,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -57,7 +59,9 @@ type EventKind =
   | 'rejected'
   | 'flagged'
   | 'breakdown_created'
-  | 'breakdown_edited';
+  | 'breakdown_edited'
+  | 'reopened'
+  | 'voided';
 
 interface TimelineEvent {
   kind: EventKind;
@@ -118,6 +122,18 @@ const KIND_META: Record<
     tone: 'text-warning',
     ring: 'bg-warning/10 ring-warning/30',
   },
+  reopened: {
+    icon: RotateCcw,
+    label: 'Request reopened',
+    tone: 'text-primary',
+    ring: 'bg-primary/10 ring-primary/30',
+  },
+  voided: {
+    icon: Ban,
+    label: 'Orphan duplicate voided',
+    tone: 'text-destructive',
+    ring: 'bg-destructive/10 ring-destructive/30',
+  },
 };
 
 function buildEvents(row: DepositLike): TimelineEvent[] {
@@ -167,9 +183,10 @@ export function DepositReviewTimeline({ request }: Props) {
   const [actors, setActors] = useState<Map<string, ProfileLite>>(new Map());
   const [copied, setCopied] = useState(false);
   const [auditEvents, setAuditEvents] = useState<TimelineEvent[]>([]);
+  const [adminEvents, setAdminEvents] = useState<TimelineEvent[]>([]);
 
   const baseEvents = request ? buildEvents(request) : [];
-  const events = [...baseEvents, ...auditEvents].sort(
+  const events = [...baseEvents, ...auditEvents, ...adminEvents].sort(
     (a, b) => new Date(a.at).getTime() - new Date(b.at).getTime(),
   );
   const reference =
@@ -216,6 +233,52 @@ export function DepositReviewTimeline({ request }: Props) {
       // The 'created' audit row duplicates the 'submitted' card we
       // already render — drop it to keep the strip tight.
       setAuditEvents(mapped.filter((e) => e.kind !== 'breakdown_created'));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [request?.id]);
+
+  // Pull admin/CFO reconciliation events from audit_logs for this
+  // specific deposit_request. Covers the Option A flow where an
+  // orphan Gmail-imported row was voided and the agent's real
+  // submission was reopened — reviewers need to see WHY a previously
+  // rejected request is back in their queue.
+  useEffect(() => {
+    if (!request?.id) {
+      setAdminEvents([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from('audit_logs')
+        .select('action_type, created_at, user_id, metadata')
+        .eq('table_name', 'deposit_requests')
+        .eq('record_id', request.id)
+        .in('action_type', ['deposit_request_reopened', 'deposit_request_voided'])
+        .order('created_at', { ascending: true });
+      if (cancelled) return;
+      if (error || !data) {
+        setAdminEvents([]);
+        return;
+      }
+      const mapped: TimelineEvent[] = data.map((row: any) => {
+        const meta = (row.metadata || {}) as Record<string, any>;
+        const detailParts: string[] = [];
+        if (meta.reason) detailParts.push(String(meta.reason));
+        if (meta.superseded_by) {
+          detailParts.push(`Superseded by ${String(meta.superseded_by).slice(0, 8)}…`);
+        }
+        if (meta.tid) detailParts.push(`TID ${meta.tid}`);
+        return {
+          kind: row.action_type === 'deposit_request_reopened' ? 'reopened' : 'voided',
+          at: row.created_at,
+          actorId: row.user_id ?? null,
+          detail: detailParts.length ? detailParts.join(' · ') : null,
+        };
+      });
+      setAdminEvents(mapped);
     })();
     return () => {
       cancelled = true;
