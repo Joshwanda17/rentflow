@@ -247,20 +247,6 @@ Deno.serve(async (req) => {
     const guardBlock = await checkTreasuryGuard(supabaseAdmin, "credit", req.headers.get("Authorization"));
     if (guardBlock) return guardBlock;
 
-    const { data: isManagerRole } = await supabaseAdmin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("role", "manager")
-      .maybeSingle();
-
-    const { data: processorProfile } = await supabaseAdmin
-      .from("profiles")
-      .select("full_name")
-      .eq("id", user.id)
-      .single();
-    const processorName = processorProfile?.full_name || "Manager";
-
     const { data: depositRequests, error: fetchError } = await supabaseAdmin
       .from("deposit_requests")
       .select("*")
@@ -301,6 +287,24 @@ Deno.serve(async (req) => {
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
+
+    const { data: isManagerRole } = isSystemAutoCredit
+      ? { data: null }
+      : await supabaseAdmin
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .eq("role", "manager")
+          .maybeSingle();
+
+    const { data: processorProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("full_name")
+      .eq("id", user.id)
+      .maybeSingle();
+    const processorName = isSystemAutoCredit
+      ? 'System Auto-Credit'
+      : (processorProfile?.full_name || "Manager");
 
     if (!isManagerRole) {
       // ── Auto-approve path (MoMo gmail match) ──────────────────────────
