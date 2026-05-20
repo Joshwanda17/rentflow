@@ -2391,7 +2391,40 @@ async function exportTotalsPdf({ rows, totalIn, totalOut, netAmount, channelBrea
     });
   }
 
-  doc.save(`email-transactions-totals_${format(new Date(), 'yyyy-MM-dd_HHmm')}.pdf`);
+  const filename = `email-transactions-totals_${format(new Date(), 'yyyy-MM-dd_HHmm')}.pdf`;
+  downloadPdfMobileSafe(doc, filename);
+}
+
+/**
+ * Trigger a PDF download in a way that works on mobile Safari / Chrome.
+ * `doc.save()` alone often opens a blank tab on iOS — we hand the user a
+ * proper blob URL via an anchor click, and fall back to opening in a new
+ * tab on iOS so they can use the share sheet.
+ */
+function downloadPdfMobileSafe(doc: any, filename: string) {
+  try {
+    const blob: Blob = doc.output('blob');
+    const url = URL.createObjectURL(blob);
+    const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
+    if (isIOS) {
+      // iOS Safari ignores the `download` attribute — opening the blob in a
+      // new tab lets the user save / share via the native share sheet.
+      window.open(url, '_blank');
+    } else {
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.rel = 'noopener';
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  } catch {
+    // Last-resort fallback to jsPDF's built-in saver.
+    try { doc.save(filename); } catch {}
+  }
 }
 
 function ReconnectGmailDialog() {
