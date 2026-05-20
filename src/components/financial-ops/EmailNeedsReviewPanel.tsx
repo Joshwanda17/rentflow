@@ -570,7 +570,50 @@ export function EmailNeedsReviewPanel() {
                     <EmptyState text={`No unmatched items match “${unmatchedSearch}”.`} />
                   ) : (
                     <>
-                      <ul className="divide-y">{paginate(unmatchedFiltered, unmatchedPage, unmatchedPageSize).map((x) => renderRow(x, false))}</ul>
+                      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b bg-muted/20 text-xs flex-wrap">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <Checkbox
+                            checked={allPageSelected ? true : somePageSelected ? 'indeterminate' : false}
+                            onCheckedChange={togglePageSelection}
+                            aria-label="Select all on page"
+                          />
+                          <span className="text-muted-foreground">
+                            {selectedCount > 0
+                              ? `${selectedCount} selected on this page`
+                              : 'Select all on page'}
+                          </span>
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs gap-1.5"
+                            disabled={bulkBusy || selectedAcceptable.length === 0}
+                            onClick={bulkAccept}
+                            title="Auto-link selected emails that have exactly one pending deposit candidate."
+                          >
+                            {bulkBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                            Accept match{selectedAcceptable.length > 0 ? ` (${selectedAcceptable.length})` : ''}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs gap-1.5 text-destructive hover:text-destructive"
+                            disabled={bulkBusy || selectedCount === 0}
+                            onClick={bulkReject}
+                            title="Remove selected emails from the review queue (kept for audit)."
+                          >
+                            {bulkBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                            Reject{selectedCount > 0 ? ` (${selectedCount})` : ''}
+                          </Button>
+                        </div>
+                      </div>
+                      {selectedCount > 0 && selectedAcceptable.length < selectedCount && (
+                        <div className="px-3 py-1.5 text-[11px] text-muted-foreground bg-amber-500/5 border-b">
+                          {selectedCount - selectedAcceptable.length} selected item{selectedCount - selectedAcceptable.length === 1 ? '' : 's'} can't be auto-accepted (no candidate or multiple candidates) — use Link inline or Reject.
+                        </div>
+                      )}
+                      <ul className="divide-y">{unmatchedPageItems.map((x) => renderRow(x, false, true))}</ul>
                       <PaginationBar
                         page={unmatchedPage}
                         total={unmatchedFiltered.length}
