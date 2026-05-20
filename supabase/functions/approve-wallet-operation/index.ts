@@ -784,6 +784,19 @@ Deno.serve(async (req) => {
               .maybeSingle();
 
             if (partnerProfile?.email) {
+              // Suppress this email for proxy partners — they receive the
+              // "Returns Disbursement Confirmation" email at withdrawal time
+              // instead. Sending both is redundant and confusing.
+              const { data: proxyAssignment } = await adminClient
+                .from("proxy_agent_assignments")
+                .select("id")
+                .eq("partner_id", op.user_id)
+                .eq("is_active", true)
+                .eq("approval_status", "approved")
+                .maybeSingle();
+              if (proxyAssignment) {
+                console.log(`[approve-wallet-op] Skipping partner-wallet-deposit email — partner ${op.user_id} is a proxy partner (assignment=${proxyAssignment.id}); disbursement email handles this on withdrawal.`);
+              } else {
               const { data: partnerWallet } = await adminClient
                 .from("wallets")
                 .select("id")
@@ -822,6 +835,7 @@ Deno.serve(async (req) => {
                 }),
               });
               console.log(`[approve-wallet-op] Partner wallet deposit email queued for partner ${op.user_id}`);
+              }
             }
           } catch (emailErr) {
             console.warn(`[approve-wallet-op] Partner wallet deposit email enqueue failed for ${op.id}:`, emailErr);
