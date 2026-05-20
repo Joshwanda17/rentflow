@@ -227,8 +227,27 @@ export function ProxyAgentManager() {
     const reLinks: any[] = []; // already on the same agent (no-op / reactivation)
     const moves: Array<{ partner: any; priorAgentName: string; priorAgentId: string }> = [];
     const byPriorAgent = new Map<string, { name: string; partners: any[] }>();
+    // Extra preview dimensions
+    let withPhone = 0, withoutPhone = 0;
+    let currentlyManaged = 0, currentlyUnmanaged = 0, currentlyNone = 0;
+    let currentlyActive = 0, currentlyInactive = 0;
+    let managedFlip = 0;   // currently managed → batch is unmanaged
+    let unmanagedFlip = 0; // currently unmanaged → batch is managed
     bulkBeneficiaries.forEach((b) => {
       const cur = assignmentByBeneficiary.get(b.id);
+      if (b.phone) withPhone++; else withoutPhone++;
+      if (!cur) {
+        currentlyNone++;
+      } else {
+        if (cur.is_active === false) currentlyInactive++; else currentlyActive++;
+        if (cur.is_managed_account) {
+          currentlyManaged++;
+          if (!bulkManaged) managedFlip++;
+        } else {
+          currentlyUnmanaged++;
+          if (bulkManaged) unmanagedFlip++;
+        }
+      }
       if (!cur) {
         newLinks.push(b);
       } else if (bulkAgent && cur.agent_id === bulkAgent.id) {
@@ -241,8 +260,23 @@ export function ProxyAgentManager() {
         byPriorAgent.set(cur.agent_id, slot);
       }
     });
-    return { newLinks, reLinks, moves, byPriorAgent: Array.from(byPriorAgent.entries()) };
-  }, [bulkBeneficiaries, assignmentByBeneficiary, bulkAgent]);
+    return {
+      newLinks,
+      reLinks,
+      moves,
+      byPriorAgent: Array.from(byPriorAgent.entries()),
+      total: bulkBeneficiaries.length,
+      withPhone,
+      withoutPhone,
+      currentlyManaged,
+      currentlyUnmanaged,
+      currentlyNone,
+      currentlyActive,
+      currentlyInactive,
+      managedFlip,
+      unmanagedFlip,
+    };
+  }, [bulkBeneficiaries, assignmentByBeneficiary, bulkAgent, bulkManaged]);
 
   const [showBulkConfirm, setShowBulkConfirm] = useState(false);
 
@@ -887,21 +921,32 @@ export function ProxyAgentManager() {
         </Dialog>
         {/* ── Bulk Assign Confirmation ───────────────────────────────── */}
         <Dialog open={showBulkConfirm} onOpenChange={setShowBulkConfirm}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Confirm Bulk Assignment</DialogTitle>
+              <DialogTitle>Preview Bulk Assignment</DialogTitle>
             </DialogHeader>
             <div className="space-y-3 text-sm">
               <div className="rounded-lg border border-border p-3">
-                <p className="text-xs text-muted-foreground">Assigning to agent</p>
-                <p className="font-semibold">{bulkAgent?.full_name || '—'}</p>
-                {bulkAgent?.phone && <p className="text-xs text-muted-foreground">{bulkAgent.phone}</p>}
-                {bulkManaged && (
-                  <Badge variant="secondary" className="mt-1 gap-1">
-                    <ShieldCheck className="h-3 w-3" /> Managed Account
-                  </Badge>
-                )}
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Assigning to agent</p>
+                    <p className="font-semibold">{bulkAgent?.full_name || '—'}</p>
+                    {bulkAgent?.phone && <p className="text-xs text-muted-foreground">{bulkAgent.phone}</p>}
+                    {bulkManaged && (
+                      <Badge variant="secondary" className="mt-1 gap-1">
+                        <ShieldCheck className="h-3 w-3" /> Managed Account
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Partners</p>
+                    <p className="text-2xl font-bold tabular-nums leading-none">{bulkBreakdown.total}</p>
+                    <p className="text-[10px] text-muted-foreground capitalize">{bulkRole}s</p>
+                  </div>
+                </div>
               </div>
+
+              {/* Action breakdown */}
               <div className="grid grid-cols-3 gap-2 text-center">
                 <div className="rounded-lg bg-muted/40 p-2">
                   <p className="text-[10px] text-muted-foreground">New links</p>
@@ -916,6 +961,71 @@ export function ProxyAgentManager() {
                   <p className="text-lg font-bold tabular-nums text-amber-700 dark:text-amber-400">{bulkBreakdown.moves.length}</p>
                 </div>
               </div>
+
+              {/* Current proxy status preview */}
+              <div className="rounded-lg border border-border p-3 space-y-2">
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                  Current proxy status
+                </p>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="rounded bg-muted/30 p-1.5">
+                    <p className="text-[9px] text-muted-foreground">No proxy</p>
+                    <p className="text-sm font-bold tabular-nums">{bulkBreakdown.currentlyNone}</p>
+                  </div>
+                  <div className="rounded bg-emerald-500/10 border border-emerald-500/20 p-1.5">
+                    <p className="text-[9px] text-emerald-700 dark:text-emerald-400">Active proxy</p>
+                    <p className="text-sm font-bold tabular-nums text-emerald-700 dark:text-emerald-400">
+                      {bulkBreakdown.currentlyActive}
+                    </p>
+                  </div>
+                  <div className="rounded bg-muted/30 p-1.5">
+                    <p className="text-[9px] text-muted-foreground">Inactive proxy</p>
+                    <p className="text-sm font-bold tabular-nums">{bulkBreakdown.currentlyInactive}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Managed-flag transitions + contactability */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-lg border border-border p-2 space-y-1">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+                    Managed flag
+                  </p>
+                  <p className="text-[11px]">
+                    Currently managed: <span className="font-semibold tabular-nums">{bulkBreakdown.currentlyManaged}</span>
+                  </p>
+                  <p className="text-[11px]">
+                    Currently unmanaged: <span className="font-semibold tabular-nums">{bulkBreakdown.currentlyUnmanaged}</span>
+                  </p>
+                  {bulkBreakdown.managedFlip > 0 && (
+                    <p className="text-[10px] text-amber-700 dark:text-amber-400">
+                      ⚠ {bulkBreakdown.managedFlip} will lose managed status
+                    </p>
+                  )}
+                  {bulkBreakdown.unmanagedFlip > 0 && (
+                    <p className="text-[10px] text-amber-700 dark:text-amber-400">
+                      ⚠ {bulkBreakdown.unmanagedFlip} will become managed
+                    </p>
+                  )}
+                </div>
+                <div className="rounded-lg border border-border p-2 space-y-1">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+                    Contactability
+                  </p>
+                  <p className="text-[11px]">
+                    Has phone: <span className="font-semibold tabular-nums">{bulkBreakdown.withPhone}</span>
+                  </p>
+                  <p className={`text-[11px] ${bulkBreakdown.withoutPhone > 0 ? 'text-amber-700 dark:text-amber-400' : ''}`}>
+                    Missing phone: <span className="font-semibold tabular-nums">{bulkBreakdown.withoutPhone}</span>
+                  </p>
+                  {bulkBreakdown.withoutPhone > 0 && (
+                    <p className="text-[10px] text-muted-foreground leading-snug">
+                      Cannot receive SMS notifications.
+                    </p>
+                  )}
+                </div>
+              </div>
+
               {bulkBreakdown.byPriorAgent.length > 0 && (
                 <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-2">
                   <p className="text-xs font-semibold flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
@@ -942,7 +1052,7 @@ export function ProxyAgentManager() {
               )}
               <div className="flex gap-2 pt-1">
                 <Button variant="outline" className="flex-1" onClick={() => setShowBulkConfirm(false)} disabled={bulkAssignMutation.isPending}>
-                  Cancel
+                  Back to edit
                 </Button>
                 <Button
                   className="flex-1"
