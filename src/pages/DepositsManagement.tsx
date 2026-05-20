@@ -473,7 +473,7 @@ export default function DepositsManagement() {
   if (!user || role !== 'manager') return null;
 
   return (
-    <div className="min-h-screen bg-background pb-6">
+    <div className="min-h-screen bg-background pb-24 sm:pb-6">
       {/* Header */}
       <header className="sticky top-0 z-50 wa-header shadow-sm">
         <div className="px-4 py-3">
@@ -504,7 +504,7 @@ export default function DepositsManagement() {
 
       <main className="px-4 py-4 space-y-4">
         <Tabs defaultValue="deposits" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-2 h-11">
             <TabsTrigger value="deposits" className="flex items-center gap-2">
               <Wallet className="h-4 w-4" />
               Deposits
@@ -516,8 +516,8 @@ export default function DepositsManagement() {
           </TabsList>
           
           <TabsContent value="deposits" className="mt-4 space-y-4">
-        {/* Search and Filter Bar */}
-        <div className="flex gap-2">
+        {/* Search and Filter Bar — sticky on mobile so it stays reachable while scrolling */}
+        <div className="flex gap-2 sticky top-[56px] z-40 -mx-4 px-4 py-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70 border-b border-border/50 sm:static sm:mx-0 sm:px-0 sm:py-0 sm:bg-transparent sm:border-0 sm:backdrop-blur-none">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -527,18 +527,21 @@ export default function DepositsManagement() {
                 setSearchQuery(e.target.value);
                 setPage(1);
               }}
-              className="pl-10"
+              className="pl-10 h-11"
             />
           </div>
           <Button
             variant={showFilters ? 'default' : 'outline'}
             size="icon"
             onClick={() => setShowFilters(!showFilters)}
-            className={cn(hasActiveFilters && !showFilters && 'border-primary text-primary')}
+            className={cn('h-11 w-11 relative', hasActiveFilters && !showFilters && 'border-primary text-primary')}
           >
             <Filter className="h-4 w-4" />
+            {hasActiveFilters && (
+              <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-primary border-2 border-background" />
+            )}
           </Button>
-          <Button variant="outline" size="icon" onClick={handleExport}>
+          <Button variant="outline" size="icon" onClick={handleExport} className="h-11 w-11">
             <Download className="h-4 w-4" />
           </Button>
         </div>
@@ -548,7 +551,7 @@ export default function DepositsManagement() {
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex items-center justify-between p-3 bg-primary/10 rounded-lg border border-primary/20"
+            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 bg-primary/10 rounded-lg border border-primary/20"
           >
             <div className="flex items-center gap-2">
               <CheckCheck className="h-4 w-4 text-primary" />
@@ -556,18 +559,20 @@ export default function DepositsManagement() {
                 {selectedPendingCount} deposit{selectedPendingCount > 1 ? 's' : ''} selected
               </span>
             </div>
-            <div className="flex gap-2">
+            <div className="grid grid-cols-3 gap-2 sm:flex">
               <Button
                 size="sm"
                 onClick={handleBulkApprove}
                 disabled={bulkProcessing}
+                className="h-10"
               >
                 {bulkProcessing ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <>
-                    <Check className="h-4 w-4 mr-1" />
-                    Approve All
+                    <Check className="h-4 w-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Approve All</span>
+                    <span className="sm:hidden">Approve</span>
                   </>
                 )}
               </Button>
@@ -576,15 +581,18 @@ export default function DepositsManagement() {
                 variant="destructive"
                 onClick={() => setRejectDialog({ open: true, deposit: null, isBulk: true })}
                 disabled={bulkProcessing}
+                className="h-10"
               >
-                <X className="h-4 w-4 mr-1" />
-                Reject All
+                <X className="h-4 w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Reject All</span>
+                <span className="sm:hidden">Reject</span>
               </Button>
               <Button
                 size="sm"
-                variant="ghost"
+                variant="outline"
                 onClick={() => setSelectedIds(new Set())}
                 disabled={bulkProcessing}
+                className="h-10"
               >
                 Clear
               </Button>
@@ -604,11 +612,16 @@ export default function DepositsManagement() {
                 <CardContent className="p-4 space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="font-medium">Filters</span>
-                    {hasActiveFilters && (
-                      <Button variant="ghost" size="sm" onClick={clearFilters}>
-                        Clear all
+                    <div className="flex gap-2">
+                      {hasActiveFilters && (
+                        <Button variant="ghost" size="sm" onClick={clearFilters}>
+                          Clear all
+                        </Button>
+                      )}
+                      <Button variant="outline" size="sm" onClick={() => setShowFilters(false)} className="sm:hidden">
+                        Done
                       </Button>
-                    )}
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
@@ -867,26 +880,28 @@ export default function DepositsManagement() {
           </div>
         )}
 
-        {/* Pagination */}
+        {/* Pagination — sticky bottom bar on mobile for easy thumb reach */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between pt-4">
+          <div className="fixed bottom-0 inset-x-0 z-40 flex items-center justify-between gap-2 px-4 py-3 bg-background/95 backdrop-blur border-t border-border pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:static sm:p-0 sm:pt-4 sm:bg-transparent sm:border-0 sm:backdrop-blur-none">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page === 1 || loading}
+              className="h-11 flex-1 sm:flex-none"
             >
               <ChevronLeft className="h-4 w-4 mr-1" />
               Previous
             </Button>
-            <span className="text-sm text-muted-foreground">
-              Page {page} of {totalPages}
+            <span className="text-sm text-muted-foreground font-medium whitespace-nowrap">
+              {page} / {totalPages}
             </span>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setPage(p => Math.min(totalPages, p + 1))}
               disabled={page === totalPages || loading}
+              className="h-11 flex-1 sm:flex-none"
             >
               Next
               <ChevronRight className="h-4 w-4 ml-1" />
