@@ -572,13 +572,65 @@ export function ProxyAgentManager() {
                   <Select value={bulkFilter} onValueChange={(v) => setBulkFilter(v as any)}>
                     <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All partners</SelectItem>
-                      <SelectItem value="unassigned">Unassigned only</SelectItem>
-                      <SelectItem value="assigned_other">On another agent</SelectItem>
-                      <SelectItem value="managed">Managed accounts</SelectItem>
+                      <SelectItem value="all">All partners ({filterCounts.all})</SelectItem>
+                      <SelectItem value="unassigned">Unassigned only ({filterCounts.unassigned})</SelectItem>
+                      <SelectItem value="assigned_other">On another agent ({filterCounts.assignedOther})</SelectItem>
+                      <SelectItem value="managed">Managed accounts ({filterCounts.managed})</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Secondary filters: pick a specific prior agent + require phone */}
+                <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
+                  <Select value={bulkFromAgent} onValueChange={setBulkFromAgent}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="From agent (any)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="any">From any agent</SelectItem>
+                      {priorAgentOptions.length === 0 ? (
+                        <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                          No prior assignments in this pool
+                        </div>
+                      ) : (
+                        priorAgentOptions.map((opt) => (
+                          <SelectItem key={opt.id} value={opt.id}>
+                            {opt.name} ({opt.count})
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <button
+                    type="button"
+                    onClick={() => setBulkRequirePhone((v) => !v)}
+                    className={`h-9 px-3 rounded-md border text-xs font-medium transition-colors ${
+                      bulkRequirePhone
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border text-muted-foreground hover:bg-muted'
+                    }`}
+                  >
+                    {bulkRequirePhone ? '✓ Has phone' : 'Has phone'}
+                  </button>
+                </div>
+
+                {(bulkFromAgent !== 'any' || bulkRequirePhone || bulkFilter !== 'all' || bulkSearch) && (
+                  <div className="flex items-center justify-between text-[10px] text-muted-foreground px-1">
+                    <span>Filters active</span>
+                    <button
+                      type="button"
+                      className="text-primary hover:underline"
+                      onClick={() => {
+                        setBulkFilter('all');
+                        setBulkFromAgent('any');
+                        setBulkRequirePhone(false);
+                        setBulkSearch('');
+                      }}
+                    >
+                      Clear all
+                    </button>
+                  </div>
+                )}
 
                 <div className="rounded-lg border border-border bg-muted/20">
                   <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/40">
