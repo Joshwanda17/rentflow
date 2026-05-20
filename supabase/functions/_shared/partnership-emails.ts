@@ -255,3 +255,79 @@ export function dispatchTransactionalEmail(
     console.warn(`[${logTag}] transactional email enqueue failed:`, err),
   );
 }
+
+/**
+ * Look up the active, approved, MANAGED proxy assignment for a partner.
+ * Returns the agent's profile when the partner is "managed by a proxy
+ * agent" (is_managed_account=true). Otherwise returns null.
+ *
+ * When a managed proxy exists, wallet-bound payouts MUST be routed to the
+ * agent's wallet, and the partner gets a notification email naming the
+ * agent. The agent gets a separate "proxy payout received" email.
+ */
+export async function resolveManagedProxy(
+  supabase: any,
+  partnerId: string,
+): Promise<null | {
+  assignmentId: string;
+  agentId: string;
+  agentName: string | null;
+  agentEmail: string | null;
+}> {
+  if (!partnerId) return null;
+  const { data: assignment, error } = await supabase
+    .from('proxy_agent_assignments')
+    .select('id, agent_id, is_managed_account, is_active, approval_status')
+    .eq('beneficiary_id', partnerId)
+    .eq('is_active', true)
+    .eq('is_managed_account', true)
+    .eq('approval_status', 'approved')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error || !assignment) return null;
+
+  const { data: agentProfile } = await supabase
+    .from('profiles')
+    .select('id, full_name, email')
+    .eq('id', assignment.agent_id)
+    .maybeSingle();
+
+  return {
+    assignmentId: assignment.id,
+    agentId: assignment.agent_id,
+    agentName: agentProfile?.full_name ?? null,
+    agentEmail: agentProfile?.email ?? null,
+  };
+}
+
+export interface ProxyManagedPayoutInput {
+  recipientEmail: string;
+  agentName: string | null | undefined;
+  agentId: string;
+  partnerName: string | null | undefined;
+  partnerId: string;
+  amount: number;
+  transactionId: string;
+  txGroupId: string;            // idempotency scoping
+  payoutKind?: string;          // e.g. "Monthly Returns"
+  reason?: string;
+}
+
+export function buildProxyManagedPayoutRequest(input: ProxyManagedPayoutInput) {
+  return {
+    templateName: 'proxy-managed-payout-notice',
+    recipientEmail: input.recipientEmail,
+    idempotencyKey: `proxy-managed-payout-${input.agentId}-${input.partnerId}-${input.txGroupId}`,
+    templateData: {
+      agent_name: input.agentName || 'Agent',
+      partner_name: input.partnerName || 'your partner',
+      amount: input.amount,
+      currency: CURRENCY,
+      transaction_id: input.transactionId,
+      payout_kind: input.payoutKind || 'Returns Payout',
+      date: formatLongDate(new Date().toISOString()),
+      reason: input.reason || 'Managed Proxy Account',
+    },
+  };
+}
