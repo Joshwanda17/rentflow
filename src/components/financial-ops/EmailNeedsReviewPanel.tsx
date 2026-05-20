@@ -74,6 +74,7 @@ export function EmailNeedsReviewPanel() {
   const [conflictingOpen, setConflictingOpen] = useState(true);
   const [unmatchedPage, setUnmatchedPage] = useState(1);
   const [conflictingPage, setConflictingPage] = useState(1);
+  const [unmatchedSearch, setUnmatchedSearch] = useState('');
 
   const load = useCallback(async (silent = false) => {
     if (silent) setRefreshing(true);
@@ -173,6 +174,27 @@ export function EmailNeedsReviewPanel() {
     }
     return { unmatched: u, conflicting: c };
   }, [emails, pending, depositFilter]);
+
+  // Per-section search within Unmatched — filters before pagination.
+  const unmatchedFiltered = useMemo(() => {
+    const q = unmatchedSearch.trim().toLowerCase();
+    if (!q) return unmatched;
+    return unmatched.filter(({ email: e, candidates }) => {
+      if (e.transaction_id?.toLowerCase().includes(q)) return true;
+      if (e.counterparty?.toLowerCase().includes(q)) return true;
+      if (e.from_email?.toLowerCase().includes(q)) return true;
+      if (e.from_name?.toLowerCase().includes(q)) return true;
+      return candidates.some((d) =>
+        d.id.toLowerCase().includes(q)
+        || d.transaction_id?.toLowerCase().includes(q)
+        || d.full_name?.toLowerCase().includes(q)
+        || d.phone?.toLowerCase().includes(q)
+      );
+    });
+  }, [unmatched, unmatchedSearch]);
+
+  // Reset to page 1 whenever the unmatched search changes.
+  useEffect(() => { setUnmatchedPage(1); }, [unmatchedSearch]);
 
   const linkEmail = async (emailId: string, depositId: string) => {
     const { error } = await (supabase.from('gmail_transactions') as any)
@@ -325,12 +347,44 @@ export function EmailNeedsReviewPanel() {
                 <EmptyState text="Nothing to review — every parsed email is linked or has no candidate." />
               ) : (
                 <>
-                  <ul className="divide-y">{paginate(unmatched, unmatchedPage).map((x) => renderRow(x, false))}</ul>
-                  <PaginationBar
-                    page={unmatchedPage}
-                    total={unmatched.length}
-                    onChange={setUnmatchedPage}
-                  />
+                  <div className="p-3 border-b bg-muted/10">
+                    <div className="relative">
+                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                      <Input
+                        value={unmatchedSearch}
+                        onChange={(ev) => setUnmatchedSearch(ev.target.value)}
+                        placeholder="Search reference ID, TID, depositor name or phone…"
+                        className="pl-7 pr-7 h-9 text-xs"
+                      />
+                      {unmatchedSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setUnmatchedSearch('')}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          aria-label="Clear search"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    {unmatchedSearch && (
+                      <p className="mt-1.5 text-[11px] text-muted-foreground">
+                        {unmatchedFiltered.length} of {unmatched.length} match “{unmatchedSearch}”
+                      </p>
+                    )}
+                  </div>
+                  {unmatchedFiltered.length === 0 ? (
+                    <EmptyState text={`No unmatched items match “${unmatchedSearch}”.`} />
+                  ) : (
+                    <>
+                      <ul className="divide-y">{paginate(unmatchedFiltered, unmatchedPage).map((x) => renderRow(x, false))}</ul>
+                      <PaginationBar
+                        page={unmatchedPage}
+                        total={unmatchedFiltered.length}
+                        onChange={setUnmatchedPage}
+                      />
+                    </>
+                  )}
                 </>
               )}
             </CollapsibleContent>
