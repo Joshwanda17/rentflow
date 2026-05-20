@@ -407,13 +407,14 @@ Deno.serve(async (req) => {
         return acc;
       }, 0);
 
-      if (isProxyPayout && wr.linked_party && wr.linked_party !== wr.user_id) {
+      const proxyLedgerPartnerId = isProxyPayout && proxyPartnerId ? String(proxyPartnerId) : null;
+      if (proxyLedgerPartnerId) {
         const { data: linkedRows, error: linkedErr } = await admin
           .from("general_ledger")
           .select("amount, direction, category, account")
           .eq("user_id", fundingUserId)
           .eq("ledger_scope", "wallet")
-          .eq("linked_party", wr.linked_party)
+          .eq("linked_party", proxyLedgerPartnerId)
           .or("classification.is.null,classification.eq.production");
         if (linkedErr) throw linkedErr;
 
@@ -436,9 +437,9 @@ Deno.serve(async (req) => {
         const { data: partnerPendingRows, error: partnerPendingErr } = await admin
           .from("withdrawal_requests")
           .select("amount")
-          .eq("user_id", fundingUserId)
-          .eq("linked_party", wr.linked_party)
           .neq("id", withdrawal_id)
+          .or(`user_id.eq.${fundingUserId},agent_id.eq.${fundingUserId},initiated_by.eq.${fundingUserId}`)
+          .or(`linked_party.eq.${proxyLedgerPartnerId},proxy_partner_id.eq.${proxyLedgerPartnerId},beneficiary_id.eq.${proxyLedgerPartnerId}`)
           .in("status", ["pending", "requested", "manager_approved", "processing"]);
         if (partnerPendingErr) throw partnerPendingErr;
 
