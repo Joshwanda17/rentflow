@@ -73,8 +73,6 @@ export default function WithdrawFlow({
   const [source, setSource] = useState<'available' | 'roi'>('available');
   const [amount, setAmount] = useState(100000);
   const [currency, setCurrency] = useState('UGX');
-  const [pin, setPin] = useState('');
-
   // Saved payout destinations — persisted across withdrawals so users
   // don't re-type MoMo / bank details every time.
   const savedMethods = useSavedPayoutMethods();
@@ -267,7 +265,6 @@ export default function WithdrawFlow({
     setSource('available');
     setAmount(100000);
     setCurrency('UGX');
-    setPin('');
     setPayoutMode('mobile_money');
     setMomoNumber('');
     setMomoName('');
@@ -617,11 +614,10 @@ export default function WithdrawFlow({
         // Server confirmed — immediately show the live status receipt.
         setIsComplete(true);
       } else {
-        // Server rejected or threw — bounce back to Verify with a clean
-        // PIN field so the user can correct + retry. `paymentStatus` is
-        // already 'failed' (set inside processWithdrawal), and the
-        // idempotency key is preserved so a retry collapses server-side.
-        setPin('');
+        // Server rejected or threw — bounce back to Verify so the user
+        // can retry. `paymentStatus` is already 'failed' (set inside
+        // processWithdrawal), and the idempotency key is preserved so a
+        // retry collapses server-side.
         setCurrentStep(4);
       }
       // We managed currentStep ourselves; veto the stepper's auto-advance.
