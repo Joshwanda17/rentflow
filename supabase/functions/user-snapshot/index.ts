@@ -49,8 +49,22 @@ Deno.serve(async (req) => {
     // critical → wallet + profile + roles only (fastest first paint)
     // extended → everything else (background fill)
     // all      → both (legacy, default)
+    // Tier can arrive via querystring (legacy direct fetch) OR via the JSON
+    // body — the supabase-js `functions.invoke()` SDK URL-encodes the entire
+    // function name, so `invoke('user-snapshot?tier=critical')` 404s. Clients
+    // now pass `{ tier }` in the body; the querystring path is kept for
+    // backwards compatibility with any direct curl-style callers.
     const url = new URL(req.url);
-    const tier = (url.searchParams.get("tier") || "all").toLowerCase() as
+    let tierRaw = url.searchParams.get("tier");
+    if (!tierRaw && (req.method === "POST" || req.method === "PUT")) {
+      try {
+        const body = await req.clone().json();
+        if (body && typeof body.tier === "string") tierRaw = body.tier;
+      } catch {
+        // body wasn't JSON — ignore and fall through to default
+      }
+    }
+    const tier = (tierRaw || "all").toLowerCase() as
       | "critical"
       | "extended"
       | "all";
