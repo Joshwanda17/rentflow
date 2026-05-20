@@ -39,6 +39,9 @@ export function ProxyAgentManager() {
   const [bulkManaged, setBulkManaged] = useState(false);
   const [bulkSearch, setBulkSearch] = useState('');
   const [bulkFilter, setBulkFilter] = useState<'all' | 'assigned_other' | 'unassigned' | 'managed'>('all');
+  // Extra filters
+  const [bulkFromAgent, setBulkFromAgent] = useState<string>('any'); // 'any' | prior agent id
+  const [bulkRequirePhone, setBulkRequirePhone] = useState(false);
 
   const { data: assignments = [], isLoading } = useQuery({
     queryKey: ['proxy-assignments'],
@@ -97,13 +100,46 @@ export function ProxyAgentManager() {
       } else if (bulkFilter === 'managed') {
         if (!current?.is_managed_account) return false;
       }
+      // "From agent" — partners currently held by this specific prior agent.
+      if (bulkFromAgent !== 'any') {
+        if (!current || current.agent_id !== bulkFromAgent) return false;
+      }
+      if (bulkRequirePhone && !p.phone) return false;
       if (!q) return true;
       return (
         p.full_name?.toLowerCase().includes(q) ||
         p.phone?.toLowerCase().includes(q)
       );
     });
-  }, [bulkPool, bulkSearch, bulkFilter, assignmentByBeneficiary, bulkAgent]);
+  }, [bulkPool, bulkSearch, bulkFilter, assignmentByBeneficiary, bulkAgent, bulkFromAgent, bulkRequirePhone]);
+
+  /** Counts for filter chips. Computed against the whole role-pool, ignoring the chip itself. */
+  const filterCounts = useMemo(() => {
+    let unassigned = 0, assignedOther = 0, managed = 0;
+    bulkPool.forEach((p: any) => {
+      const cur = assignmentByBeneficiary.get(p.id);
+      if (!cur) unassigned++;
+      else {
+        if (!bulkAgent || cur.agent_id !== bulkAgent.id) assignedOther++;
+        if (cur.is_managed_account) managed++;
+      }
+    });
+    return { all: bulkPool.length, unassigned, assignedOther, managed };
+  }, [bulkPool, assignmentByBeneficiary, bulkAgent]);
+
+  /** Prior agents represented in the pool, with counts — drives the "From agent" picker. */
+  const priorAgentOptions = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; count: number }>();
+    bulkPool.forEach((p: any) => {
+      const cur = assignmentByBeneficiary.get(p.id);
+      if (!cur) return;
+      const name = cur.agent?.full_name || cur.agent?.phone || 'Unknown agent';
+      const slot = map.get(cur.agent_id) || { id: cur.agent_id, name, count: 0 };
+      slot.count++;
+      map.set(cur.agent_id, slot);
+    });
+    return Array.from(map.values()).sort((a, b) => b.count - a.count);
+  }, [bulkPool, assignmentByBeneficiary]);
 
   const selectedIds = useMemo(
     () => new Set(bulkBeneficiaries.map((b) => b.id)),
@@ -155,7 +191,7 @@ export function ProxyAgentManager() {
   useEffect(() => {
     setVisibleCount(PAGE);
     if (scrollRef.current) scrollRef.current.scrollTop = 0;
-  }, [bulkSearch, bulkFilter, bulkRole, showBulk]);
+  }, [bulkSearch, bulkFilter, bulkRole, showBulk, bulkFromAgent, bulkRequirePhone]);
 
   const filteredAssignments = useMemo(() => {
     if (!searchTerm.trim()) return assignments;
@@ -252,6 +288,8 @@ export function ProxyAgentManager() {
     setBulkManaged(false);
     setBulkSearch('');
     setBulkFilter('all');
+    setBulkFromAgent('any');
+    setBulkRequirePhone(false);
   };
 
   const bulkAssignMutation = useMutation({
@@ -534,13 +572,65 @@ export function ProxyAgentManager() {
                   <Select value={bulkFilter} onValueChange={(v) => setBulkFilter(v as any)}>
                     <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All partners</SelectItem>
-                      <SelectItem value="unassigned">Unassigned only</SelectItem>
-                      <SelectItem value="assigned_other">On another agent</SelectItem>
-                      <SelectItem value="managed">Managed accounts</SelectItem>
+                      <SelectItem value="all">All partners ({filterCounts.all})</SelectItem>
+                      <SelectItem value="unassigned">Unassigned only ({filterCounts.unassigned})</SelectItem>
+                      <SelectItem value="assigned_other">On another agent ({filterCounts.assignedOther})</SelectItem>
+                      <SelectItem value="managed">Managed accounts ({filterCounts.managed})</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Secondary filters: pick a specific prior agent + require phone */}
+                <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
+                  <Select value={bulkFromAgent} onValueChange={setBulkFromAgent}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="From agent (any)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="any">From any agent</SelectItem>
+                      {priorAgentOptions.length === 0 ? (
+                        <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                          No prior assignments in this pool
+                        </div>
+                      ) : (
+                        priorAgentOptions.map((opt) => (
+                          <SelectItem key={opt.id} value={opt.id}>
+                            {opt.name} ({opt.count})
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <button
+                    type="button"
+                    onClick={() => setBulkRequirePhone((v) => !v)}
+                    className={`h-9 px-3 rounded-md border text-xs font-medium transition-colors ${
+                      bulkRequirePhone
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border text-muted-foreground hover:bg-muted'
+                    }`}
+                  >
+                    {bulkRequirePhone ? '✓ Has phone' : 'Has phone'}
+                  </button>
+                </div>
+
+                {(bulkFromAgent !== 'any' || bulkRequirePhone || bulkFilter !== 'all' || bulkSearch) && (
+                  <div className="flex items-center justify-between text-[10px] text-muted-foreground px-1">
+                    <span>Filters active</span>
+                    <button
+                      type="button"
+                      className="text-primary hover:underline"
+                      onClick={() => {
+                        setBulkFilter('all');
+                        setBulkFromAgent('any');
+                        setBulkRequirePhone(false);
+                        setBulkSearch('');
+                      }}
+                    >
+                      Clear all
+                    </button>
+                  </div>
+                )}
 
                 <div className="rounded-lg border border-border bg-muted/20">
                   <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/40">
