@@ -1,8 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
-// resolveManagedProxy removed: proxy custody is forbidden by DB trigger
-// (block_proxy_custody_writes, cutoff 2026-05-12). ROI credits land on the
-// partner directly; proxy agents withdraw via the proxy-partner flow.
+import { resolveManagedProxy } from "../_shared/partnership-emails.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -135,30 +133,25 @@ Deno.serve(async (req) => {
         // Ensure transaction_group_id is always set so sync_wallet_from_ledger trigger fires
         const effectiveTxGroupId = op.transaction_group_id || crypto.randomUUID();
 
-        // Proxy Partner Custody v2 (cutoff 2026-05-12):
-        // Wallet-scope credits MUST land on the original owner (op.user_id).
-        // Parking partner funds in an agent wallet via target_wallet_user_id +
-        // linked_party=partner is now blocked by trg_block_proxy_custody_writes.
-        // We keep target_wallet_user_id only for non-wallet (bridge/platform) entries
-        // where it is operationally meaningful, but for wallet credits we always
-        // credit the partner/owner directly. The agent merely initiated the op.
-        const requestedManaged = !!op.target_wallet_user_id && op.target_wallet_user_id !== op.user_id;
         const isRoiWalletPayout = op.category === 'roi_payout' || op.category === 'supporter_platform_rewards';
-        // PROXY CUSTODY v2 (DB trigger block_proxy_custody_writes, cutoff 2026-05-12):
-        // Parking partner funds in a proxy agent's wallet is forbidden. ROI is
-        // ALWAYS credited to the partner directly; proxy agents withdraw via
-        // proxy-partner-withdrawal flow, not via wallet custody.
-        const ledgerUserId = op.user_id;
-        const isManaged = false;
+        // Managed-proxy ROI rule: if the partner has an active approved managed
+        // proxy assignment, the FULL ROI wallet leg belongs on the proxy agent's
+        // wallet and is earmarked with linked_party=partner. The partner wallet
+        // must not receive any of that ROI; FinOps later debits the same agent
+        // wallet/partner earmark when approving the withdrawal.
+        const managedProxy = isRoiWalletPayout ? await resolveManagedProxy(adminClient, op.user_id) : null;
+        const ledgerUserId = managedProxy?.agentId || op.user_id;
+        const isManaged = !!managedProxy;
         const walletLinkedParty = isRoiWalletPayout ? op.user_id : op.linked_party;
         const displayDescription = isRoiWalletPayout && op.description
           ? String(op.description)
-              .replace(/\[Agent Wallet\]/gi, '[Partner Wallet]')
-              .replace(/'s agent wallet/gi, "'s partner wallet")
-              .replace(/to agent wallet/gi, 'to partner wallet')
+              .replace(/\[Partner Wallet via Proxy\]/gi, '[Proxy Agent Wallet]')
+              .replace(/\[Partner Wallet\]/gi, isManaged ? '[Proxy Agent Wallet]' : '[Partner Wallet]')
+              .replace(/'s partner wallet/gi, isManaged ? "'s proxy agent wallet" : "'s partner wallet")
+              .replace(/to partner wallet/gi, isManaged ? 'to proxy agent wallet' : 'to partner wallet')
           : op.description;
-        if (requestedManaged) {
-          console.log(`[approve-wallet-op] Proxy custody v2: ignoring target_wallet_user_id=${op.target_wallet_user_id}; crediting partner ${op.user_id} directly for op ${op.id}`);
+        if (isManaged) {
+          console.log(`[approve-wallet-op] Managed proxy ROI: crediting proxy agent ${ledgerUserId} for partner ${op.user_id} on op ${op.id}`);
         }
 
         // Insert into general_ledger (this triggers wallet balance update via existing trigger)
