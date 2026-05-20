@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { buildPartnershipTopupRequest, dispatchTransactionalEmail } from "../_shared/partnership-emails.ts";
+import { buildPartnershipTopupRequest, dispatchTransactionalEmail, resolveManagedProxy } from "../_shared/partnership-emails.ts";
 import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
 import { withRetry } from "../_shared/rpcRetry.ts";
 
@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { portfolio_id, amount, reason, payment_method, source_wallet_user_id } = body;
+    let { portfolio_id, amount, reason, payment_method, source_wallet_user_id } = body;
 
     // Validate inputs
     if (!portfolio_id || !UUID_RE.test(portfolio_id)) {
@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
     }
 
     // Validate payment method (default to wallet for backward compat)
-    const method = payment_method && VALID_METHODS.includes(payment_method) ? payment_method : "wallet";
+    let method = payment_method && VALID_METHODS.includes(payment_method) ? payment_method : "wallet";
 
     // Fetch portfolio
     const { data: portfolio, error: pErr } = await supabase
@@ -92,6 +92,21 @@ Deno.serve(async (req) => {
 
     const partnerId = portfolio.investor_id || portfolio.agent_id;
     const accountLabel = portfolio.account_name || portfolio.portfolio_code;
+
+    // ── MANAGED-PROXY HARD GUARDRAIL ──
+    // If partner is managed by a proxy agent, force funds to come from the
+    // proxy agent's wallet — regardless of what the UI submitted.
+    const managedProxy = await resolveManagedProxy(supabase, partnerId);
+    if (managedProxy) {
+      if (method !== "proxy_agent" || source_wallet_user_id !== managedProxy.agentId) {
+        console.warn(
+          `[coo-wallet-to-portfolio] Managed-proxy override: partner=${partnerId} ` +
+          `forced source=${managedProxy.agentId} (was method=${method} source=${source_wallet_user_id})`,
+        );
+      }
+      method = "proxy_agent";
+      source_wallet_user_id = managedProxy.agentId;
+    }
 
     // ── Resolve source wallet ──
     // For "wallet" method, use explicit source_wallet_user_id if provided (COO may be viewing

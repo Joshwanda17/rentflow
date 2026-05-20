@@ -14,3 +14,6 @@ When a partner has a `proxy_agent_assignments` row with `is_active=true`, `appro
 
 Withdrawal rule:
 - Once the proxy agent submits the partner withdrawal, `approve-withdrawal` must debit the assigned proxy agent wallet only, using the partner-linked ROI ledger basis. It must not debit or require withdrawable money on the partner wallet/dashboard.
+
+Funding rule (Partner Ops & COO dashboards):
+- When a partner has an active+approved+`is_managed_account=true` proxy assignment, ALL portfolio creation and ALL portfolio top-ups initiated from any operator dashboard MUST debit the proxy agent's wallet. This is enforced server-side in `coo-create-portfolio`, `coo-wallet-to-portfolio`, and `manager-portfolio-topup`: each function calls `resolveManagedProxy(partnerId)` and, if non-null, overrides the client-submitted `payment_method` to `proxy_agent` and `source_wallet_user_id` to the managed proxy `agentId` before any balance check or ledger write. The partner wallet is never touched for funding when a managed-proxy assignment exists.
