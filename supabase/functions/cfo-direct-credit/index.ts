@@ -458,7 +458,8 @@ Deno.serve(async (req) => {
           const { data: proxyAssignment } = await adminClient
             .from("proxy_agent_assignments")
             .select("id")
-            .eq("partner_id", target_user_id)
+            .eq("beneficiary_id", target_user_id)
+            .eq("beneficiary_role", "supporter")
             .eq("is_active", true)
             .eq("approval_status", "approved")
             .maybeSingle();
