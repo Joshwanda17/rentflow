@@ -800,8 +800,8 @@ export function EmailTransactionsPanel() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
+      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3">
+        <div className="min-w-0">
           <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2.5">
             <Mail className="h-6 w-6 text-primary" /> Email Transaction Extractor
           </h2>
@@ -809,34 +809,36 @@ export function EmailTransactionsPanel() {
             Live feed from the connected Gmail inbox. Polls every minute and parses MoMo, Airtel & bank confirmation emails.
           </p>
         </div>
-        <Button onClick={pollNow} disabled={polling} className="gap-2">
-          {polling ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-          Poll now
-        </Button>
-        <Button
-          variant="outline"
-          onClick={() => exportTotalsCsv({ rows: filteredRows, totalIn, totalOut, netAmount, channelBreakdown })}
-          disabled={filteredRows.length === 0}
-          className="gap-2"
-        >
-          <FileDown className="h-4 w-4" /> Export CSV
-        </Button>
-        <Button
-          variant="outline"
-          onClick={() => exportTotalsPdf({ rows: filteredRows, totalIn, totalOut, netAmount, channelBreakdown })}
-          disabled={filteredRows.length === 0}
-          className="gap-2"
-        >
-          <FileText className="h-4 w-4" /> Export PDF
-        </Button>
-        <ReconnectGmailDialog />
-        <DebugPollDialog />
-        <SmsSetupGuide />
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          <Button onClick={pollNow} disabled={polling} className="gap-2 flex-1 sm:flex-none min-w-[120px]">
+            {polling ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            Poll now
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => exportTotalsCsv({ rows: filteredRows, totalIn, totalOut, netAmount, channelBreakdown })}
+            disabled={filteredRows.length === 0}
+            className="gap-2 flex-1 sm:flex-none min-w-[120px]"
+          >
+            <FileDown className="h-4 w-4" /> Export CSV
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => exportTotalsPdf({ rows: filteredRows, totalIn, totalOut, netAmount, channelBreakdown })}
+            disabled={filteredRows.length === 0}
+            className="gap-2 flex-1 sm:flex-none min-w-[120px]"
+          >
+            <FileText className="h-4 w-4" /> Export PDF
+          </Button>
+          <ReconnectGmailDialog />
+          <DebugPollDialog />
+          <SmsSetupGuide />
+        </div>
       </div>
 
       {/* Date-range selector — recomputes totals/breakdown/exports for the chosen period. */}
-      <div className="rounded-xl border bg-card p-4 flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-4">
-        <div className="flex-1">
+      <div className="rounded-xl border bg-card p-3 sm:p-4 flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3 sm:gap-4">
+        <div className="flex-1 min-w-full sm:min-w-[200px]">
           <h3 className="font-semibold text-sm">Date range</h3>
           <p className="text-[11px] text-muted-foreground mt-0.5">
             {rangeActive
