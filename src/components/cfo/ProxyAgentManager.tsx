@@ -354,6 +354,7 @@ export function ProxyAgentManager() {
     setBulkFilter('all');
     setBulkFromAgent('any');
     setBulkRequirePhone(false);
+    setBulkDedupe(true);
   };
 
   const bulkAssignMutation = useMutation({
@@ -704,6 +705,22 @@ export function ProxyAgentManager() {
                   >
                     {bulkRequirePhone ? '✓ Has phone' : 'Has phone'}
                   </button>
+                </div>
+
+                {/* Deduplication toggle — collapses partners sharing phone / national id */}
+                <div className="flex items-center justify-between rounded-md border border-border bg-muted/20 px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium">Deduplicate by phone / ID</p>
+                    <p className="text-[10px] text-muted-foreground truncate">
+                      Prevent the same person from being linked twice when filters overlap.
+                      {bulkDedupe && dedupeHiddenCount > 0 && (
+                        <span className="ml-1 text-amber-600 dark:text-amber-400">
+                          {dedupeHiddenCount} duplicate{dedupeHiddenCount === 1 ? '' : 's'} hidden
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                  <Switch checked={bulkDedupe} onCheckedChange={setBulkDedupe} />
                 </div>
 
                 {(bulkFromAgent !== 'any' || bulkRequirePhone || bulkFilter !== 'all' || bulkSearch) && (
