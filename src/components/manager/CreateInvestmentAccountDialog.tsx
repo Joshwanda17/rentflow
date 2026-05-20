@@ -345,8 +345,10 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
               {selectedUser && (
                 <p className="text-[10px] text-muted-foreground">
                   {balanceLoading
-                    ? 'Loading partner wallet…'
-                    : `Available: UGX ${(partnerBalance ?? 0).toLocaleString()}`}
+                    ? (managedProxy ? 'Loading proxy agent wallet…' : 'Loading partner wallet…')
+                    : managedProxy
+                      ? `Proxy agent (${managedProxy.agentName}) · Available: UGX ${(partnerBalance ?? 0).toLocaleString()}`
+                      : `Available: UGX ${(partnerBalance ?? 0).toLocaleString()}`}
                 </p>
               )}
             </div>
