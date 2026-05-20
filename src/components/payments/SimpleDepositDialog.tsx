@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, CheckCircle2, Wallet } from 'lucide-react';
+import { Loader2, CheckCircle2, Wallet, Info } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
@@ -228,6 +228,16 @@ export default function SimpleDepositDialog({
                   </span>
                 )}
                 {!tid && 'Copy the reference from your MoMo/bank SMS'}
+              </p>
+            </div>
+
+            {/* Auto-verification policy notice */}
+            <div className="flex items-start gap-2 p-2.5 rounded-lg border border-primary/20 bg-primary/5">
+              <Info className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                <span className="font-semibold text-foreground">Auto-verified deposits</span>{' '}
+                are credited to your <span className="font-semibold text-foreground">Operational Float</span>{' '}
+                wallet by default.
               </p>
             </div>
 
