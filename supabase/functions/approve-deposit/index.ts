@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
     const body = await req.json().catch(() => ({}));
-    const { deposit_request_id, action, rejection_reason, bulk_ids, access_token, auto_approved, auto_match_method } = body as {
+    const { deposit_request_id, action, rejection_reason, bulk_ids, access_token, auto_approved, auto_match_method, system_auto_credit } = body as {
       deposit_request_id?: string;
       action?: string;
       rejection_reason?: string;
@@ -88,6 +88,7 @@ Deno.serve(async (req) => {
       access_token?: string;
       auto_approved?: boolean;
       auto_match_method?: string;
+      system_auto_credit?: boolean;
     };
 
     const authHeader = req.headers.get("Authorization")
@@ -99,16 +100,29 @@ Deno.serve(async (req) => {
       );
     }
 
-    const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
+    // ── System auto-credit branch ──────────────────────────────────
+    // The Gmail poller can auto-credit an operational-float deposit on
+    // behalf of a known user the moment a MoMo receipt is parsed. It calls
+    // us with `Authorization: Bearer <service_role_key>` and
+    // `system_auto_credit:true`. We impersonate the deposit OWNER so the
+    // existing eligibleAutoApprove + gmail re-verification path runs
+    // unchanged. No human user is involved in this call.
+    const isSystemAutoCredit =
+      !!system_auto_credit && authHeader === `Bearer ${supabaseServiceKey}`;
 
-    const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
-    if (userError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    let user: { id: string } | null = null;
+    if (!isSystemAutoCredit) {
+      const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: { user: authUser }, error: userError } = await supabaseUser.auth.getUser();
+      if (userError || !authUser) {
+        return new Response(
+          JSON.stringify({ error: "Unauthorized" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      user = { id: authUser.id };
     }
 
     if (!action || !["approve", "reject", "reopen"].includes(action)) {
@@ -233,20 +247,6 @@ Deno.serve(async (req) => {
     const guardBlock = await checkTreasuryGuard(supabaseAdmin, "credit", req.headers.get("Authorization"));
     if (guardBlock) return guardBlock;
 
-    const { data: isManagerRole } = await supabaseAdmin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("role", "manager")
-      .maybeSingle();
-
-    const { data: processorProfile } = await supabaseAdmin
-      .from("profiles")
-      .select("full_name")
-      .eq("id", user.id)
-      .single();
-    const processorName = processorProfile?.full_name || "Manager";
-
     const { data: depositRequests, error: fetchError } = await supabaseAdmin
       .from("deposit_requests")
       .select("*")
@@ -267,6 +267,44 @@ Deno.serve(async (req) => {
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // For system auto-credit, impersonate the deposit owner now that we
+    // know who it is. All rows in a single call must belong to the same
+    // owner — refuse otherwise.
+    if (isSystemAutoCredit) {
+      const ownerId = depositRequests[0].user_id;
+      if (!depositRequests.every((d) => d.user_id === ownerId)) {
+        return new Response(
+          JSON.stringify({ error: 'system_auto_credit: mixed owners not allowed' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+      user = { id: ownerId };
+    }
+    if (!user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    const { data: isManagerRole } = isSystemAutoCredit
+      ? { data: null }
+      : await supabaseAdmin
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .eq("role", "manager")
+          .maybeSingle();
+
+    const { data: processorProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("full_name")
+      .eq("id", user.id)
+      .maybeSingle();
+    const processorName = isSystemAutoCredit
+      ? 'System Auto-Credit'
+      : (processorProfile?.full_name || "Manager");
 
     if (!isManagerRole) {
       // ── Auto-approve path (MoMo gmail match) ──────────────────────────

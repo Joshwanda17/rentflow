@@ -417,6 +417,26 @@ Deno.serve(async (req) => {
       else if ((error as any)?.code === '23505') {
         // Race: another poll inserted this row between our check and insert. Safe to ignore.
       }
+
+      // ── Auto-credit operational float ───────────────────────────────
+      // If this is a parsed INCOMING MTN/Airtel MoMo receipt whose
+      // counterparty (sender) phone matches a known platform user, create
+      // an `operational_float` deposit_request on their behalf and run it
+      // through approve-deposit with system_auto_credit so the user opens
+      // the app to find the money already in their Operational Float
+      // wallet — no need to type anything.
+      if (!error && isParsed) {
+        try {
+          await tryAutoCreditOperationalFloat(supabase, {
+            parsed,
+            fromEmail,
+            internalMs,
+            gmailMessageId: m.id,
+          });
+        } catch (e) {
+          console.warn('[gmail-poll] auto-credit failed (non-fatal):', e);
+        }
+      }
     }
 
     if (!debug) {
@@ -447,3 +467,136 @@ Deno.serve(async (req) => {
     });
   }
 });
+
+// ── Helper: auto-credit operational float for matched user ───────────
+async function tryAutoCreditOperationalFloat(
+  supabase: ReturnType<typeof createClient>,
+  args: {
+    parsed: ReturnType<typeof parseTransaction>;
+    fromEmail: string | null;
+    internalMs: number;
+    gmailMessageId: string;
+  },
+): Promise<void> {
+  const { parsed, internalMs, gmailMessageId } = args;
+
+  // Eligibility gates
+  if (!parsed.amount || parsed.amount <= 0) return;
+  if (!parsed.transaction_id) return;
+  if (parsed.direction !== 'in') return;
+  if (parsed.channel !== 'mtn_momo' && parsed.channel !== 'airtel_money') return;
+
+  // Only credit receipts within the last 7 days (matches approve-deposit gate).
+  if (internalMs && internalMs < Date.now() - 7 * 24 * 3600 * 1000) return;
+
+  // Extract a phone from counterparty (parser already captures phone shape).
+  const cp = (parsed.counterparty ?? '').toString();
+  const phoneMatch = cp.match(/(?:\+?256|0)?\d{9,12}/);
+  if (!phoneMatch) return;
+  const digits = phoneMatch[0].replace(/[^0-9]/g, '');
+  if (digits.length < 9) return;
+  const last9 = digits.slice(-9);
+
+  // Look up the user by phone (service-role bypasses RLS).
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id, phone')
+    .filter('phone', 'ilike', `%${last9}`)
+    .limit(1)
+    .maybeSingle();
+  if (!profile?.id) return;
+
+  // Find the gmail_transactions row we just wrote so we can link it.
+  const { data: gmailRow } = await supabase
+    .from('gmail_transactions')
+    .select('id, linked_deposit_request_id')
+    .eq('gmail_message_id', gmailMessageId)
+    .maybeSingle();
+  if (!gmailRow?.id) return;
+  if (gmailRow.linked_deposit_request_id) return; // already linked
+
+  // Idempotency: skip if this user already has a non-rejected deposit with
+  // the same TID digits (means we — or a manual flow — already handled it).
+  const tidDigits = parsed.transaction_id.replace(/[^0-9]/g, '');
+  if (tidDigits) {
+    const { data: existingDep } = await supabase
+      .from('deposit_requests')
+      .select('id, status')
+      .eq('user_id', profile.id)
+      .not('status', 'in', '(rejected,cancelled,failed)')
+      .filter('transaction_id', 'ilike', `%${tidDigits}`)
+      .limit(1)
+      .maybeSingle();
+    if (existingDep?.id) return;
+  }
+
+  const provider = parsed.channel === 'mtn_momo' ? 'mtn' : 'airtel';
+  const auditMeta = {
+    source: 'gmail_auto_credit',
+    gmail_message_id: gmailMessageId,
+    matched_phone_last9: last9,
+    provider,
+    parsed_amount: parsed.amount,
+    parsed_tid: parsed.transaction_id,
+    internal_date: internalMs ? new Date(internalMs).toISOString() : null,
+    created_at: new Date().toISOString(),
+  };
+
+  // Create the deposit as pending — approve-deposit will flip it.
+  const { data: newDep, error: depErr } = await supabase
+    .from('deposit_requests')
+    .insert({
+      user_id: profile.id,
+      agent_id: profile.id,
+      amount: parsed.amount,
+      status: 'pending',
+      provider,
+      transaction_id: parsed.transaction_id,
+      transaction_date: internalMs ? new Date(internalMs).toISOString() : new Date().toISOString(),
+      deposit_purpose: 'operational_float',
+      auto_approved: true,
+      auto_match_audit: auditMeta,
+      notes: '[auto] Created from incoming Gmail MoMo receipt — phone matched a known user; credited to Operational Float.',
+    })
+    .select('id')
+    .single();
+  if (depErr || !newDep?.id) {
+    console.warn('[gmail-poll] auto-credit: could not insert deposit_request', depErr);
+    return;
+  }
+
+  // Link gmail row → deposit so approve-deposit re-verification succeeds.
+  await supabase
+    .from('gmail_transactions')
+    .update({ linked_deposit_request_id: newDep.id })
+    .eq('id', gmailRow.id);
+
+  // Invoke approve-deposit with system_auto_credit to credit the float wallet.
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  try {
+    const res = await fetch(`${supabaseUrl}/functions/v1/approve-deposit`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${serviceKey}`,
+        'apikey': serviceKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        deposit_request_id: newDep.id,
+        action: 'approve',
+        auto_approved: true,
+        auto_match_method: 'gmail_phone+tid+amount',
+        system_auto_credit: true,
+      }),
+    });
+    if (!res.ok) {
+      const txt = await res.text();
+      console.warn('[gmail-poll] approve-deposit non-200:', res.status, txt.slice(0, 300));
+    } else {
+      console.log(`[gmail-poll] auto-credited float for user=${profile.id} dep=${newDep.id} amt=${parsed.amount}`);
+    }
+  } catch (e) {
+    console.warn('[gmail-poll] approve-deposit invoke failed:', e);
+  }
+}
