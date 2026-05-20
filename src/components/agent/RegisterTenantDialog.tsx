@@ -689,11 +689,11 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                 </Button>
               ) : (
                 <Button
-                  type="submit"
-                  form="register-tenant-form"
+                  type="button"
                   size="lg"
                   className="flex-1 h-12 text-base font-semibold shadow-lg"
                   disabled={loading}
+                  onClick={() => handleSubmit({ preventDefault: () => {} } as React.FormEvent)}
                 >
                   {loading ? (
                     <>
