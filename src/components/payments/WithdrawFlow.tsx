@@ -9,7 +9,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { formatCurrency, SUPPORTED_CURRENCIES } from '@/lib/paymentMethods';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Wallet, TrendingUp, Lock, Phone, Building2, Banknote, BadgeCheck } from 'lucide-react';
@@ -346,7 +345,6 @@ export default function WithdrawFlow({
         // `handleNext` handler will transparently refetch the ledger and
         // then proceed — so the button must remain clickable.
         return (
-          pin.length === 4 &&
           ledgerAvailable !== null &&
           amount <= maxAmount
         );
@@ -1114,8 +1112,8 @@ export default function WithdrawFlow({
                 role="alert"
                 className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-left text-xs text-destructive"
               >
-                Last attempt didn't go through. Re-enter your PIN to retry —
-                your request will be reused if it actually reached our servers.
+                Last attempt didn't go through. Tap Confirm to retry — your
+                request will be reused if it actually reached our servers.
               </div>
             )}
             <div className="w-16 h-16 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
@@ -1123,21 +1121,10 @@ export default function WithdrawFlow({
             </div>
             
             <div>
-              <h3 className="font-semibold text-lg">Enter Your PIN</h3>
+              <h3 className="font-semibold text-lg">Confirm Withdrawal</h3>
               <p className="text-sm text-muted-foreground mt-1">
-                Enter your 4-digit security PIN to confirm
+                Review the details below and tap Confirm to submit.
               </p>
-            </div>
-
-            <div className="flex justify-center">
-              <InputOTP value={pin} onChange={setPin} maxLength={4}>
-                <InputOTPGroup>
-                  <InputOTPSlot index={0} />
-                  <InputOTPSlot index={1} />
-                  <InputOTPSlot index={2} />
-                  <InputOTPSlot index={3} />
-                </InputOTPGroup>
-              </InputOTP>
             </div>
 
             {/* Always surface ledger freshness — explains why Confirm may
@@ -1161,8 +1148,6 @@ export default function WithdrawFlow({
               } else if (isStale) {
                 reason =
                   'Your balance snapshot is stale. Tapping Confirm will refresh it first, then proceed automatically.';
-              } else if (pin.length < 4) {
-                reason = 'Enter your 4-digit PIN to enable Confirm.';
               } else if (ledgerAvailable === null) {
                 reason = 'Waiting for your ledger balance to load…';
               } else if (amount > maxAmount) {
