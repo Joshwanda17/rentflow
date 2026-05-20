@@ -47,6 +47,15 @@ const RR_ID = "rr-ssenkaali-1";
 const PAYMENT_NUMBER = 4;
 const ROI_AMOUNT = 200_000;
 const WITHDRAWAL_ID = "wr-proxy-1";
+const PORTFOLIO_CODE = "WIP2604226578";
+
+const APPROVE_CTX = {
+  agentEmail: PROXY_EMAIL,
+  agentName: PROXY_NAME,
+  partnerEmail: PARTNER_EMAIL,
+  partnerName: PARTNER_NAME,
+  portfolioCode: PORTFOLIO_CODE,
+};
 
 type LedgerEntry = {
   user_id: string;
