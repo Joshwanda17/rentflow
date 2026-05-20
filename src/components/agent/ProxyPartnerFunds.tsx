@@ -305,13 +305,19 @@ export function ProxyPartnerFunds() {
       // Resolve active proxy partners delegated to this agent (Custody v2).
       const { data: proxyAssignments } = await supabase
         .from('proxy_agent_assignments')
-        .select('beneficiary_id')
+        .select('beneficiary_id, is_managed_account')
         .eq('agent_id', user.id)
         .eq('is_active', true)
         .eq('approval_status', 'approved');
       const proxyPartnerIds = Array.from(
         new Set((proxyAssignments || []).map((r: any) => r.beneficiary_id).filter(Boolean)),
       ) as string[];
+      const managedSet = new Set<string>(
+        (proxyAssignments || [])
+          .filter((r: any) => r.is_managed_account && r.beneficiary_id)
+          .map((r: any) => r.beneficiary_id as string),
+      );
+      setManagedPartnerIds(managedSet);
 
       // Source IDs (portfolios) belonging to those proxy partners.
       let v2PortfolioIds: string[] = [];
