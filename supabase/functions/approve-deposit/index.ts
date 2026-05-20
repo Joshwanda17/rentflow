@@ -211,13 +211,13 @@ Deno.serve(async (req) => {
           action_type: 'deposit_request_reopened',
           table_name: 'deposit_requests',
           record_id: r.id,
-          old_values: { status: 'rejected' },
-          new_values: {
-            status: 'pending',
-            reopen_note: reopenNote || 'Reopened for re-review',
+          metadata: {
+            previous_status: 'rejected',
+            new_status: 'pending',
+            reason: reopenNote || 'Reopened for re-review',
             deposit_purpose: (r as any).deposit_purpose ?? null,
             amount: Number(r.amount),
-            transaction_id: (r as any).transaction_id ?? null,
+            tid: (r as any).transaction_id ?? null,
             target_user_id: r.user_id,
           },
         });
