@@ -44,10 +44,9 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
   const [createdRentRequestId, setCreatedRentRequestId] = useState<string | null>(null);
   const { capture: captureSmart, loading: capturingLocation } = useSmartLocation();
   const [nationalIdError, setNationalIdError] = useState('');
-  const jumpTo = (id: string) => {
-    const el = document.getElementById(id);
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const totalSteps = 4;
+  const stepLabels = ['Tenant', 'Landlord', 'Location', 'Confirm'];
   
   // Tenant info
   const [tenantEmail, setTenantEmail] = useState('');
@@ -93,7 +92,36 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
     setSuccess(false);
     setCreatedRentRequestId(null);
     setNationalIdError('');
+    setStep(1);
   };
+  const validateStep = (s: number): string | null => {
+    if (s === 1) {
+      if (!tenantFullName.trim()) return 'Enter tenant full name';
+      if (!tenantNationalId.trim()) return 'Enter tenant National ID';
+      if (nationalIdError) return 'National ID is already registered';
+      if (!tenantEmail.trim() && !tenantPhone.trim()) return 'Provide tenant email or phone';
+    }
+    if (s === 2) {
+      if (!landlordName.trim()) return 'Enter landlord name';
+      if (!landlordPhone.trim()) return 'Enter landlord phone';
+      if (!propertyAddress.trim()) return 'Enter property address';
+      if (!monthlyRent.trim() || parseInt(monthlyRent) <= 0) return 'Enter monthly rent';
+      const tp = tenantPhone.replace(/\s/g, '');
+      const lp = landlordPhone.replace(/\s/g, '');
+      if (tp && lp && tp === lp) return 'Tenant and landlord phone cannot match';
+    }
+    return null;
+  };
+
+  const goNext = () => {
+    const err = validateStep(step);
+    if (err) { toast.error(err); return; }
+    if (step < totalSteps) setStep((step + 1) as 1 | 2 | 3 | 4);
+  };
+  const goBack = () => {
+    if (step > 1) setStep((step - 1) as 1 | 2 | 3 | 4);
+  };
+
 
   const checkDuplicateNationalId = async (value: string) => {
     setNationalIdError('');
