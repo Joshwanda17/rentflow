@@ -68,6 +68,9 @@ interface TimelineEvent {
   at: string;
   actorId?: string | null;
   detail?: string | null;
+  linkedVoidedId?: string | null;
+  linkedVoidedTid?: string | null;
+  linkedVoidedSource?: string | null;
 }
 
 interface ProfileLite {
@@ -276,6 +279,9 @@ export function DepositReviewTimeline({ request }: Props) {
           at: row.created_at,
           actorId: row.user_id ?? null,
           detail: detailParts.length ? detailParts.join(' · ') : null,
+          linkedVoidedId: meta.voided_duplicate_id ?? null,
+          linkedVoidedTid: meta.voided_duplicate_tid ?? null,
+          linkedVoidedSource: meta.voided_duplicate_source ?? null,
         };
       });
       setAdminEvents(mapped);
