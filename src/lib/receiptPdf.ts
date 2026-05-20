@@ -2,6 +2,7 @@
 import type { jsPDF as JsPDFType } from 'jspdf';
 import { format } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
+import { savePdfWithVault } from '@/lib/pdfVault';
 
 const BRAND_PURPLE: [number, number, number] = [88, 28, 135];
 const BRAND_LIGHT: [number, number, number] = [147, 51, 234];
