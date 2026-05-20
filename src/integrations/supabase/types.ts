@@ -14354,6 +14354,19 @@ export type Database = {
         }
         Relationships: []
       }
+      v_operational_float_tid_duplicates: {
+        Row: {
+          amounts: number[] | null
+          first_seen_at: string | null
+          last_seen_at: string | null
+          normalized_tid: string | null
+          request_ids: string[] | null
+          row_count: number | null
+          statuses: string[] | null
+          user_ids: string[] | null
+        }
+        Relationships: []
+      }
       v_pivot_drift: {
         Row: {
           advance_delta: number | null
@@ -15619,6 +15632,7 @@ export type Database = {
         }
         Returns: number
       }
+      normalize_momo_tid: { Args: { p_tid: string }; Returns: string }
       normalize_phone_last9: { Args: { phone: string }; Returns: string }
       notify_landlord_registration_helper: {
         Args: { p_landlord_id: string }
