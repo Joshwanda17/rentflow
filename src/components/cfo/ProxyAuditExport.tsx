@@ -116,9 +116,16 @@ export function ProxyAuditExport() {
     return v === undefined || v === null ? '' : String(v);
   };
 
-  /** Pull bulk audit rows (preview window). Server-side date+action filter; client-side text filter. */
+  /**
+   * Pull bulk audit rows. ALL filters (date, action, role, from/to agent name)
+   * are applied server-side via PostgREST so the displayed row count and the
+   * exported file match exactly — even for older records beyond a client window.
+   * - `metadata->>to_agent_name` casts the JSONB scalar to text for ilike.
+   * - `metadata->>from_agents` casts the JSONB array to its JSON text form, so
+   *   an ilike substring match catches any nested `agent_name` value.
+   */
   const { data: rows = [], isFetching, refetch } = useQuery({
-    queryKey: ['proxy-audit-export', dateFrom, dateTo, actionFilter],
+    queryKey: ['proxy-audit-export', dateFrom, dateTo, actionFilter, roleFilter, fromAgentQ.trim(), toAgentQ.trim()],
     enabled: open,
     queryFn: async () => {
       let q = supabase
@@ -129,34 +136,18 @@ export function ProxyAuditExport() {
         .limit(5000);
       if (dateFrom) q = q.gte('created_at', `${dateFrom}T00:00:00Z`);
       if (dateTo) q = q.lte('created_at', `${dateTo}T23:59:59Z`);
+      if (roleFilter !== 'all') q = q.eq('metadata->>beneficiary_role', roleFilter);
+      const tq = toAgentQ.trim();
+      const fq = fromAgentQ.trim();
+      if (tq) q = q.ilike('metadata->>to_agent_name', `%${tq}%`);
+      if (fq) q = q.ilike('metadata->>from_agents', `%${fq}%`);
       const { data, error } = await q;
       if (error) throw error;
       return data || [];
     },
   });
 
-  /** Apply text + role filters client-side against metadata. */
-  const filtered = useMemo(() => {
-    const fq = fromAgentQ.trim().toLowerCase();
-    const tq = toAgentQ.trim().toLowerCase();
-    return rows.filter((r: any) => {
-      const m = r.metadata || {};
-      if (roleFilter !== 'all' && m.beneficiary_role !== roleFilter) return false;
-      if (tq) {
-        const t = (m.to_agent_name || '').toString().toLowerCase();
-        if (!t.includes(tq)) return false;
-      }
-      if (fq) {
-        const fromNames = Array.isArray(m.from_agents)
-          ? m.from_agents.map((a: any) => (a.agent_name || '').toString().toLowerCase()).join(' | ')
-          : '';
-        if (!fromNames.includes(fq)) return false;
-      }
-      return true;
-    });
-  }, [rows, fromAgentQ, toAgentQ, roleFilter]);
-
-  const flatRows = useMemo(() => filtered.map((r: any) => {
+  const flatRows = useMemo(() => rows.map((r: any) => {
     const m = r.metadata || {};
     const fromAgents = Array.isArray(m.from_agents) && m.from_agents.length
       ? m.from_agents.map((a: any) => a.agent_name || a.agent_id || '?').join(' | ')
@@ -174,7 +165,7 @@ export function ProxyAuditExport() {
       actor_id: r.user_id || '—',
       record_id: r.record_id || '—',
     };
-  }), [filtered]);
+  }), [rows]);
 
   const exportCsv = () => {
     if (flatRows.length === 0) { toast({ title: 'Nothing to export' }); return; }
