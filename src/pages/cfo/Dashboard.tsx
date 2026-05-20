@@ -25,7 +25,6 @@ import { RentPipelineQueue } from '@/components/executive/RentPipelineQueue';
 import { RejectedRequestsQueue } from '@/components/executive/RejectedRequestsQueue';
 import { ListingBonusApprovalQueue } from '@/components/executive/ListingBonusApprovalQueue';
 import { FinancialAgentsPanel } from '@/components/cfo/FinancialAgentsPanel';
-import { ProxyAgentManager } from '@/components/cfo/ProxyAgentManager';
 import { PayrollPanel } from '@/components/cfo/PayrollPanel';
 import { CashoutAgentManager } from '@/components/cfo/CashoutAgentManager';
 import { CashoutAgentActivity } from '@/components/cfo/CashoutAgentActivity';
@@ -129,8 +128,6 @@ export default function CFODashboardPage() {
         return <WithdrawalHistoryStatement />;
       case 'financial-agents':
         return <FinancialAgentsPanel />;
-      case 'proxy-agents':
-        return <ProxyAgentManager />;
       case 'cashout-agents':
         return <CashoutAgentManager />;
       case 'agent-activity':
