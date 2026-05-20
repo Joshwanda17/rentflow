@@ -92,19 +92,17 @@ Deno.test("guardrail: blocks approval of auto deposit without general_ledger row
       .update({ status: "approved", approved_at: new Date().toISOString() })
       .eq("id", depositId);
 
-    assertExists(updErr, "Expected guardrail to block the update");
-    assert(
-      (updErr!.message || "").toLowerCase().includes("guardrail"),
-      "Expected guardrail error message, got: " + updErr!.message,
-    );
+    // Guardrail silently demotes status back to pending; the update itself succeeds.
+    assertEquals(updErr, null);
 
     // Status must still be pending.
     const { data: after } = await getAdmin()
       .from("deposit_requests")
-      .select("status")
+      .select("status, approved_at")
       .eq("id", depositId)
       .single();
     assertEquals(after?.status, "pending");
+    assertEquals(after?.approved_at, null);
 
     // Audit row must have been written.
     const { data: audit } = await getAdmin()
