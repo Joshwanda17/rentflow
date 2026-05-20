@@ -3855,12 +3855,13 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
 
   // Handle Split click — transition to split-config step
   const handleSplitClick = async (p: NearingPayoutPortfolio) => {
+    if (managedInfo[p.portfolioId]?.isManaged) {
+      toast.error('Managed proxy ROI cannot be split', {
+        description: 'Use Pay so the full ROI goes to the proxy agent wallet.',
+      });
+      return;
+    }
     const roiAmount = Math.round(p.investmentAmount * p.roiPercentage / 100);
-    setSelectedPayout(p);
-    setSplitCashAmount(Math.round(roiAmount / 2)); // Default 50/50
-    setSplitPayMode('wallet');
-    setSplitReinvestMode('reinvest');
-    setPaymentStep('split-config');
 
     // Check managed status
     if (managedInfo[p.portfolioId] === undefined) {
@@ -3876,7 +3877,12 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         if (proxyData) {
           const agentName = (proxyData.agent as any)?.full_name || 'Agent';
           setManagedInfo(prev => ({ ...prev, [p.portfolioId]: { isManaged: !!proxyData.is_managed_account, agentName, agentId: proxyData.agent_id, hasProxy: true } }));
-          if (proxyData.is_managed_account) setSplitPayMode('wallet');
+          if (proxyData.is_managed_account) {
+            toast.error('Managed proxy ROI cannot be split', {
+              description: 'Use Pay so the full ROI goes to the proxy agent wallet.',
+            });
+            return;
+          }
         } else {
           setManagedInfo(prev => ({ ...prev, [p.portfolioId]: null }));
         }
@@ -3885,9 +3891,12 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       } finally {
         setCheckingManagedStep2(false);
       }
-    } else if (managedInfo[p.portfolioId]?.isManaged) {
-      setSplitPayMode('wallet');
     }
+    setSelectedPayout(p);
+    setSplitCashAmount(Math.round(roiAmount / 2)); // Default 50/50
+    setSplitPayMode('wallet');
+    setSplitReinvestMode('reinvest');
+    setPaymentStep('split-config');
   };
 
   // Handle Split Payout — cash portion to pending_wallet_operations, reinvest portion to portfolio
