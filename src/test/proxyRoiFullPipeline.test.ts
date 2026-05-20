@@ -493,7 +493,7 @@ describe("ROI payout full pipeline · Partner Ops → COO → CFO → Proxy With
     expect(world.ledger.length).toBe(2);
 
     // ── STAGE 5: Fin Ops approves the withdrawal ────────────────────────
-    finOpsApproveWithdrawal(world, wr.id, "finops-1", PROXY_EMAIL);
+    finOpsApproveWithdrawal(world, wr.id, "finops-1", APPROVE_CTX);
     expect(wr.status).toBe("approved");
 
     // AIM #4 — money deducted from the AGENT's wallet, not the partner.
@@ -540,7 +540,7 @@ describe("ROI payout full pipeline · Partner Ops → COO → CFO → Proxy With
       reference: "REF-X",
     });
     expect(() =>
-      finOpsApproveWithdrawal(world, wr.id, "finops-1", PROXY_EMAIL),
+      finOpsApproveWithdrawal(world, wr.id, "finops-1", APPROVE_CTX),
     ).toThrow(/Insufficient proxy partner balance/);
     expect(wr.status).toBe("pending");
     expect(world.ledger).toHaveLength(0);
@@ -561,7 +561,7 @@ describe("ROI payout full pipeline · Partner Ops → COO → CFO → Proxy With
       agentId: PROXY_ID, partnerId: PARTNER_ID, partnerName: PARTNER_NAME,
       amount: ROI_AMOUNT, paymentMethod: "MoMo", reference: "REF-Z",
     });
-    finOpsApproveWithdrawal(world, wr.id, "finops-1", PROXY_EMAIL);
+    finOpsApproveWithdrawal(world, wr.id, "finops-1", APPROVE_CTX);
 
     const partnerWalletLegs = world.ledger.filter(
       (e) => e.ledger_scope === "wallet" && e.user_id === PARTNER_ID,
