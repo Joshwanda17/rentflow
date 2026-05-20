@@ -1,20 +1,29 @@
 import { assert, assertEquals, assertExists } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? Deno.env.get("VITE_SUPABASE_URL")!;
-const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? Deno.env.get("VITE_SUPABASE_URL") ?? "";
+const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const HAS_ENV = !!SUPABASE_URL && !!SERVICE_ROLE;
 
-if (!SUPABASE_URL || !SERVICE_ROLE) {
-  console.warn("Skipping guardrail tests: missing SUPABASE_URL or SERVICE_ROLE key");
+let admin: SupabaseClient | null = null;
+function getAdmin(): SupabaseClient {
+  if (!admin) {
+    admin = createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persistSession: false } });
+  }
+  return admin;
 }
 
-const admin = createClient(SUPABASE_URL, SERVICE_ROLE, {
-  auth: { persistSession: false },
-});
+function skipIfNoEnv(name: string): boolean {
+  if (!HAS_ENV) {
+    console.warn(`[skip] ${name}: missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY`);
+    return true;
+  }
+  return false;
+}
 
 // Reuse an existing tenant profile so we don't violate FK / RLS constraints.
 async function pickTestUser(): Promise<string> {
-  const { data, error } = await admin
+  const { data, error } = await getAdmin()
     .from("profiles")
     .select("id")
     .limit(1)
@@ -24,15 +33,17 @@ async function pickTestUser(): Promise<string> {
 }
 
 async function cleanup(depositId: string) {
-  await admin.from("deposit_guardrail_audit").delete().eq("deposit_id", depositId);
-  await admin.from("deposit_requests").delete().eq("id", depositId);
+  const a = getAdmin();
+  await a.from("deposit_guardrail_audit").delete().eq("deposit_id", depositId);
+  await a.from("deposit_requests").delete().eq("id", depositId);
 }
 
 Deno.test("guardrail: auto MoMo SMS deposit inserts as pending", async () => {
+  if (skipIfNoEnv("auto MoMo SMS deposit inserts as pending")) return;
   const userId = await pickTestUser();
   const tid = "TEST_TID_" + crypto.randomUUID();
 
-  const { data, error } = await admin
+  const { data, error } = await getAdmin()
     .from("deposit_requests")
     .insert({
       user_id: userId,
@@ -55,10 +66,11 @@ Deno.test("guardrail: auto MoMo SMS deposit inserts as pending", async () => {
 });
 
 Deno.test("guardrail: blocks approval of auto deposit without general_ledger row", async () => {
+  if (skipIfNoEnv("blocks approval of auto deposit without general_ledger row")) return;
   const userId = await pickTestUser();
   const tid = "TEST_TID_" + crypto.randomUUID();
 
-  const { data: created, error: insErr } = await admin
+  const { data: created, error: insErr } = await getAdmin()
     .from("deposit_requests")
     .insert({
       user_id: userId,
@@ -75,7 +87,7 @@ Deno.test("guardrail: blocks approval of auto deposit without general_ledger row
 
   try {
     // Attempt illegal approval — guardrail trigger must raise.
-    const { error: updErr } = await admin
+    const { error: updErr } = await getAdmin()
       .from("deposit_requests")
       .update({ status: "approved", approved_at: new Date().toISOString() })
       .eq("id", depositId);
@@ -87,7 +99,7 @@ Deno.test("guardrail: blocks approval of auto deposit without general_ledger row
     );
 
     // Status must still be pending.
-    const { data: after } = await admin
+    const { data: after } = await getAdmin()
       .from("deposit_requests")
       .select("status")
       .eq("id", depositId)
@@ -95,7 +107,7 @@ Deno.test("guardrail: blocks approval of auto deposit without general_ledger row
     assertEquals(after?.status, "pending");
 
     // Audit row must have been written.
-    const { data: audit } = await admin
+    const { data: audit } = await getAdmin()
       .from("deposit_guardrail_audit")
       .select("action, source, missing_match_key, attempted_status")
       .eq("deposit_id", depositId)
@@ -117,10 +129,11 @@ Deno.test("guardrail: blocks approval of auto deposit without general_ledger row
 });
 
 Deno.test("guardrail: non-auto deposit can be approved manually (no guardrail trip)", async () => {
+  if (skipIfNoEnv("non-auto deposit can be approved manually")) return;
   const userId = await pickTestUser();
   const tid = "TEST_TID_" + crypto.randomUUID();
 
-  const { data: created } = await admin
+  const { data: created } = await getAdmin()
     .from("deposit_requests")
     .insert({
       user_id: userId,
@@ -135,7 +148,7 @@ Deno.test("guardrail: non-auto deposit can be approved manually (no guardrail tr
   const depositId = created!.id;
 
   try {
-    const { error: updErr } = await admin
+    const { error: updErr } = await getAdmin()
       .from("deposit_requests")
       .update({ status: "approved", approved_at: new Date().toISOString() })
       .eq("id", depositId);
