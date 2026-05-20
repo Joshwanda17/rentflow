@@ -2859,6 +2859,16 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       {/* Import Dialog */}
       <PartnerImportDialog open={importOpen} onOpenChange={setImportOpen} onSuccess={() => { refreshInBackground(); fetchPendingCount(); }} />
 
+      {/* Partner Payment Details Dialog */}
+      {detailPartner && (
+        <PartnerPaymentDetailsDialog
+          open={paymentDetailsOpen}
+          onOpenChange={setPaymentDetailsOpen}
+          partnerId={detailPartner.profile.id}
+          partnerName={detailPartner.profile.full_name || 'Partner'}
+        />
+      )}
+
       {/* Compound Preview Dialog */}
       <AlertDialog open={!!compoundPreview} onOpenChange={(open) => { if (!open) setCompoundPreview(null); }}>
         <AlertDialogContent>
