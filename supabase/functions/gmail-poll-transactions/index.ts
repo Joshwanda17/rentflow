@@ -500,7 +500,7 @@ async function tryAutoCreditOperationalFloat(
   // Look up the user by phone (service-role bypasses RLS).
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, phone, full_name')
+    .select('id, phone, full_name, email')
     .filter('phone', 'ilike', `%${last9}`)
     .limit(1)
     .maybeSingle();
