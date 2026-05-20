@@ -3,6 +3,7 @@ import { runShadowAudit } from "../_shared/shadowLogger.ts";
 import { shadowValidateCfoAdjustment } from "../_shared/shadowValidation.ts";
 import { fetchShadowConfig, shouldSample } from "../_shared/shadowConfig.ts";
 import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
+import { resolveManagedProxy } from "../_shared/partnership-emails.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -219,15 +220,25 @@ Deno.serve(async (req) => {
 
     if (!targetProfile) throw new Error("Target user not found");
 
+    const isRoiWalletCredit = op === "credit" && recipient_type === "user" &&
+      (walletCat === "roi_wallet_credit" || platformCat === "roi_expense");
+    const managedProxy = isRoiWalletCredit
+      ? await resolveManagedProxy(adminClient, target_user_id)
+      : null;
+    const walletUserId = managedProxy ? managedProxy.agentId : target_user_id;
+    const walletOwnerLabel = managedProxy
+      ? `${managedProxy.agentName || "Proxy Agent"} for ${targetProfile.full_name || "partner"}`
+      : targetProfile.full_name;
+
     // Ensure wallet exists
     const { data: existingWallet } = await adminClient
       .from("wallets")
       .select("id, balance, withdrawable_balance, float_balance")
-      .eq("user_id", target_user_id)
+      .eq("user_id", walletUserId)
       .single();
 
     if (!existingWallet) {
-      await adminClient.from("wallets").insert({ user_id: target_user_id, balance: 0 });
+      await adminClient.from("wallets").insert({ user_id: walletUserId, balance: 0 });
     }
 
     // CFO has authority to debit regardless of balance (corrections, clawbacks)
@@ -245,11 +256,11 @@ Deno.serve(async (req) => {
     const refId = `PAY-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 
     if (op === "credit") {
-      console.log("[cfo-direct-credit] Creating CREDIT ledger entries for", target_user_id, "amount:", amount);
+      console.log("[cfo-direct-credit] Creating CREDIT ledger entries for", walletUserId, "amount:", amount, "partner:", target_user_id, "managedProxy:", !!managedProxy);
       const { error: rpcErr } = await adminClient.rpc('create_ledger_transaction', {
         entries: [
           {
-            user_id: target_user_id,
+            user_id: walletUserId,
             amount,
             direction: 'cash_in',
             category: walletCat,
@@ -259,8 +270,11 @@ Deno.serve(async (req) => {
             routing_source: routingSource,
             source_table: 'cfo_direct_credit',
             reference_id: refId,
-            description: `Welile Technologies Finance [${category_label || walletCat}]${sub_category ? ' → ' + sub_category : ''}: ${reason}`,
+            description: managedProxy
+              ? `Welile Technologies Finance [${category_label || walletCat}] → proxy agent wallet for ${targetProfile.full_name || target_user_id}: ${reason}`
+              : `Welile Technologies Finance [${category_label || walletCat}]${sub_category ? ' → ' + sub_category : ''}: ${reason}`,
             currency: 'UGX',
+            linked_party: managedProxy ? target_user_id : undefined,
             transaction_date: new Date().toISOString(),
           },
           {
