@@ -191,7 +191,7 @@ export default function WithdrawalStatusTracker({
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">{stage.description}</p>
                   {active && i === 1 && (
-                    <p className="text-[10px] text-primary mt-1 font-medium">Usually within 2 hours during business hours.</p>
+                    <p className="text-[10px] text-primary mt-1 font-medium">May take up to 24 hours. Sometimes instant depending on volume.</p>
                   )}
                 </div>
               </div>
