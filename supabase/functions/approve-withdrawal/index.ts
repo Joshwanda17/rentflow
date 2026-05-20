@@ -260,19 +260,45 @@ Deno.serve(async (req) => {
       }
     };
 
-    // Proxy payouts are requested by the agent and funded from the agent wallet.
-    // Detection rules (any one is enough):
-    //   1. The withdrawal carries a `linked_party` distinct from the submitter
-    //      AND a "Proxy payout delivery for …" reason (the historical signal).
-    //   2. The submitter is a registered proxy agent (has at least one
-    //      active, approved row in `proxy_agent_assignments`) AND the reason
-    //      still starts with "Proxy payout delivery for". This catches older
-    //      proxy withdrawals that were created before `linked_party` was
-    //      reliably populated — they should still drain partner float, not
-    //      be blocked as personal withdrawals.
+    // Proxy payouts are requested by the agent and funded from the proxy
+    // agent's wallet. Newer rows are partner-owned for visibility
+    // (`user_id = partner`) but carry `agent_id` / `proxy_partner_id`, so
+    // detection must use those structural fields instead of only checking
+    // whether the reason starts with the legacy phrase.
     const reasonLooksProxy =
       typeof wr.reason === "string" &&
-      wr.reason.startsWith("Proxy payout delivery for");
+      wr.reason.includes("Proxy payout delivery for");
+
+    const proxyPartnerId =
+      (wr as any).proxy_partner_id ||
+      (wr.linked_party && wr.linked_party !== wr.user_id ? wr.linked_party : null) ||
+      ((wr as any).beneficiary_id && (wr as any).beneficiary_id !== (wr as any).agent_id
+        ? (wr as any).beneficiary_id
+        : null);
+
+    const proxyAgentCandidates = [
+      (wr as any).agent_id,
+      (wr as any).initiated_by,
+      wr.linked_party && wr.linked_party !== wr.user_id ? wr.user_id : null,
+    ].filter((id, index, arr): id is string =>
+      typeof id === "string" && id.length > 0 && id !== proxyPartnerId && arr.indexOf(id) === index
+    );
+
+    let managedProxyAgentId: string | null = null;
+    if (proxyPartnerId && proxyAgentCandidates.length > 0) {
+      const { data: managedAssignment } = await admin
+        .from("proxy_agent_assignments")
+        .select("agent_id")
+        .eq("beneficiary_id", proxyPartnerId)
+        .eq("is_active", true)
+        .eq("approval_status", "approved")
+        .eq("is_managed_account", true)
+        .in("agent_id", proxyAgentCandidates)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      managedProxyAgentId = managedAssignment?.agent_id ?? null;
+    }
 
     let isProxyAgent = false;
     if (reasonLooksProxy) {
@@ -286,87 +312,20 @@ Deno.serve(async (req) => {
     }
 
     const isProxyPayout =
-      reasonLooksProxy &&
-      ((wr.linked_party && wr.linked_party !== wr.user_id) || isProxyAgent);
+      Boolean(proxyPartnerId && (reasonLooksProxy || managedProxyAgentId || proxyAgentCandidates.length > 0)) ||
+      (reasonLooksProxy && ((wr.linked_party && wr.linked_party !== wr.user_id) || isProxyAgent));
 
     const amount = Number(wr.amount);
     const beneficiaryUserId =
-      isProxyPayout && wr.linked_party && wr.linked_party !== wr.user_id
-        ? wr.linked_party
-        : wr.user_id;
-    let fundingUserId = wr.user_id;
-    let directPartnerFundingAvailable: number | null = null;
-
-    // CUSTODY-V2: newer partner ROI/returns are credited directly to the
-    // partner wallet. Some pending proxy withdrawal rows were created by the
-    // legacy agent-custody UI (user_id=agent, linked_party=partner), so the
-    // approval path must detect when the selected partner is now the actual
-    // funding wallet and debit that wallet instead of looking for agent-held
-    // linked funds that no longer exist.
-    if (isProxyPayout && beneficiaryUserId && beneficiaryUserId !== wr.user_id) {
-      const { data: directAvailable, error: directErr } = await admin.rpc(
-        "get_user_available_balance",
-        { p_user_id: beneficiaryUserId },
-      );
-      if (directErr) {
-        console.warn(
-          "[approve-withdrawal] direct partner balance check failed:",
-          directErr.message,
-        );
-      } else {
-        directPartnerFundingAvailable = Math.max(0, Number(directAvailable ?? 0));
-        if (directPartnerFundingAvailable >= amount) {
-          fundingUserId = beneficiaryUserId;
-        }
-      }
-    }
-
-    // CUSTODY-V2 HARD GATE (2026-05-14):
-    // Proxy payouts MUST debit the partner's wallet. We previously fell
-    // back to debiting the agent (`fundingUserId = wr.user_id`) whenever
-    // the partner's strict available balance fell short of the request.
-    // That silently shifted the cost onto the agent and left the partner
-    // wallet UI untouched — exactly the bug the user reported (Atuhaire
-    // ate UGX 1.44M for NASSAKA's payout, partner balance never moved).
-    //
-    // Reject the approval here and surface a clear, actionable error so
-    // FinOps either tops up the partner directly (CFO Direct Credit) or
-    // reduces the request. The agent's wallet is never touched.
-    if (
-      isProxyPayout &&
-      beneficiaryUserId &&
-      beneficiaryUserId !== wr.user_id &&
-      fundingUserId !== beneficiaryUserId
-    ) {
-      const partnerAvail = directPartnerFundingAvailable ?? 0;
-      console.warn(
-        `[approve-withdrawal] BLOCKED proxy fallback to agent: ` +
-        `request=${withdrawal_id} partner=${beneficiaryUserId} ` +
-        `partner_available=${partnerAvail} amount=${amount}`,
-      );
-      await releaseClaim();
-      return new Response(
-        JSON.stringify({
-          error: "PARTNER_INSUFFICIENT_BALANCE",
-          message:
-            `Partner wallet has UGX ${partnerAvail.toLocaleString()} available — ` +
-            `request is for UGX ${amount.toLocaleString()}. ` +
-            `Top up the partner via CFO Direct Credit or reduce the amount. ` +
-            `Approval will NOT debit the agent.`,
-          partner_user_id: beneficiaryUserId,
-          partner_available: partnerAvail,
-          requested_amount: amount,
-          code: "partner_insufficient_balance",
-        }),
-        { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-    // (releaseClaim before the 422 return above)
+      isProxyPayout && proxyPartnerId ? proxyPartnerId : wr.user_id;
+    const fundingUserId = isProxyPayout
+      ? managedProxyAgentId || proxyAgentCandidates[0] || wr.user_id
+      : wr.user_id;
 
     console.log(
       `[approve-withdrawal] withdrawal ${withdrawal_id}: isProxyPayout=${isProxyPayout}, ` +
       `request_owner=${wr.user_id}, debiting=${fundingUserId}, beneficiary=${beneficiaryUserId}, ` +
-      `direct_partner_available=${directPartnerFundingAvailable ?? "n/a"}, amount=${amount}`
+      `managed_proxy_agent=${managedProxyAgentId ?? "n/a"}, amount=${amount}`
     );
 
     // Trust the ledger: reconcile the funding wallet from general_ledger before
@@ -424,11 +383,13 @@ Deno.serve(async (req) => {
     const walletAdvance = Number((wallet as any)?.advance_balance ?? 0);
 
     // Normal withdrawals can ONLY draw from withdrawable_balance.
-    // Proxy partner delivery is different: the partner owns the credited
-    // liability, but the assigned agent physically delivers it, so it may
-    // draw only from that partner-linked float — never from generic float.
+    // Managed proxy partner delivery is funded by the proxy agent wallet;
+    // the credited returns may sit in either withdrawable or legacy float,
+    // but must never draw from advance_balance.
     const withdrawable = walletWithdrawable;
-    const cachedSpendable = isProxyPayout ? walletFloat : withdrawable;
+    const cachedSpendable = isProxyPayout
+      ? Math.max(0, walletWithdrawable) + Math.max(0, walletFloat)
+      : withdrawable;
     let partnerLinkedFloatAvailable = 0;
 
     // STRICT LEDGER-BACKED GATE.
@@ -446,12 +407,7 @@ Deno.serve(async (req) => {
         return acc;
       }, 0);
 
-      if (isProxyPayout && fundingUserId === beneficiaryUserId) {
-        // Direct partner-funded proxy payout: the agent initiated the row, but
-        // the partner wallet now holds the ROI. Use the same strict available
-        // figure that user-facing wallets and withdrawal approval gates use.
-        ledgerAvailable = Math.max(0, Number(directPartnerFundingAvailable ?? 0));
-      } else if (isProxyPayout && wr.linked_party && wr.linked_party !== wr.user_id) {
+      if (isProxyPayout && wr.linked_party && wr.linked_party !== wr.user_id) {
         const { data: linkedRows, error: linkedErr } = await admin
           .from("general_ledger")
           .select("amount, direction, category, account")
@@ -523,12 +479,11 @@ Deno.serve(async (req) => {
           Math.max(0, partnerLinkedNet) - partnerPendingHolds,
         );
       } else if (isProxyPayout) {
-        // Proxy agent without a linked_party on the withdrawal row: gate
-        // against the agent's overall wallet ledger and allow draining
-        // EITHER float OR withdrawable (since this IS a proxy delivery —
-        // partner identity is recorded in the reason text, not the
-        // linked_party column, and partner-linked credits routinely land
-        // in the withdrawable bucket).
+        // Partner-owned managed-proxy rows have `user_id = partner` and no
+        // linked_party, but `fundingUserId` was resolved above to the proxy
+        // agent. Gate against that agent's wallet ledger and allow draining
+        // either float or withdrawable; the partner identity remains on the
+        // withdrawal row and settlement table.
         const { data: ledgerRows, error: ledgerErr } = await admin
           .from("general_ledger")
           .select("amount, direction")
