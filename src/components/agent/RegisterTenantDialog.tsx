@@ -44,6 +44,10 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
   const [createdRentRequestId, setCreatedRentRequestId] = useState<string | null>(null);
   const { capture: captureSmart, loading: capturingLocation } = useSmartLocation();
   const [nationalIdError, setNationalIdError] = useState('');
+  const jumpTo = (id: string) => {
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
   
   // Tenant info
   const [tenantEmail, setTenantEmail] = useState('');
@@ -286,6 +290,27 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
               onSubmit={handleSubmit}
               className="space-y-5"
             >
+              {/* Quick section nav */}
+              <div className="sticky -top-4 z-10 -mx-6 px-6 py-2 bg-background/95 backdrop-blur border-b border-border/40">
+                <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+                  {[
+                    { id: 'sec-tenant', label: '1. Tenant' },
+                    { id: 'sec-landlord', label: '2. Landlord' },
+                    { id: 'sec-location', label: '3. Location' },
+                    { id: 'sec-lc1', label: '4. LC1' },
+                  ].map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => jumpTo(s.id)}
+                      className="shrink-0 text-[11px] font-medium px-2.5 py-1 rounded-full border border-border bg-muted/40 hover:bg-primary/10 hover:border-primary/40 hover:text-primary transition-colors"
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Agent Commission Banner */}
               <div className="p-3 rounded-xl bg-gradient-to-r from-primary/10 via-emerald-500/10 to-primary/5 border border-primary/20">
                 <div className="flex items-start gap-2.5">
@@ -302,7 +327,7 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
               </div>
 
               {/* Tenant Section */}
-              <div className="space-y-3">
+              <div id="sec-tenant" className="space-y-3 scroll-mt-16">
                 <h4 className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
                   <User className="h-4 w-4 text-primary" />
                   Tenant Details
@@ -361,7 +386,7 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
               </div>
 
               {/* Landlord Section */}
-              <div className="space-y-3">
+              <div id="sec-landlord" className="space-y-3 scroll-mt-16">
                 <h4 className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
                   <Building2 className="h-4 w-4 text-primary" />
                   Landlord Details
@@ -462,7 +487,7 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
               </div>
 
               {/* Location Capture */}
-              <div className="space-y-3">
+              <div id="sec-location" className="space-y-3 scroll-mt-16">
                 <h4 className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
                   <Navigation className="h-4 w-4 text-primary" />
                   Property Location
@@ -512,7 +537,7 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
               </div>
 
               {/* LC1 Chairperson */}
-              <div className="space-y-3">
+              <div id="sec-lc1" className="space-y-3 scroll-mt-16">
                 <h4 className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
                   <Shield className="h-4 w-4 text-primary" />
                   LC1 Chairperson Details
