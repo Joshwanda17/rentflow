@@ -40,6 +40,7 @@ export default function ArchivedAccountsPage() {
   const [overridePhone, setOverridePhone] = useState('');
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [quickRestoringId, setQuickRestoringId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -135,6 +136,33 @@ export default function ArchivedAccountsPage() {
     }
   };
 
+  const quickRestore = async (row: ArchivedRow) => {
+    setQuickRestoringId(row.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('restore-archived-account', {
+        body: {
+          user_id: row.id,
+          reason: 'One-click restore from Archived Accounts admin page',
+        },
+      });
+      if (error) throw new Error(error.message);
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast({
+        title: 'Account restored',
+        description: `${(data as any)?.restored_name || row.full_name?.replace(/^\[ARCHIVED\]\s*/i, '') || 'User'} can sign in again.`,
+      });
+      await load();
+    } catch (e: any) {
+      toast({
+        title: 'Quick restore failed',
+        description: `${e?.message || 'Unknown error'}. Try "Resolve" for override options.`,
+        variant: 'destructive',
+      });
+    } finally {
+      setQuickRestoringId(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-5xl mx-auto space-y-6">
@@ -186,10 +214,24 @@ export default function ArchivedAccountsPage() {
                       </p>
                       <p className="text-[10px] text-muted-foreground font-mono mt-0.5">{row.id}</p>
                     </div>
-                    <Button size="sm" onClick={() => openRestore(row)}>
-                      <LifeBuoy className="h-4 w-4 mr-1.5" />
-                      Resolve
-                    </Button>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <Button
+                        size="sm"
+                        onClick={() => quickRestore(row)}
+                        disabled={quickRestoringId === row.id}
+                      >
+                        {quickRestoringId === row.id ? (
+                          <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                        ) : (
+                          <ArchiveRestore className="h-4 w-4 mr-1.5" />
+                        )}
+                        Restore
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => openRestore(row)}>
+                        <LifeBuoy className="h-4 w-4 mr-1.5" />
+                        Resolve
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
