@@ -318,9 +318,6 @@ Deno.serve(async (req) => {
     const amount = Number(wr.amount);
     const beneficiaryUserId =
       isProxyPayout && proxyPartnerId ? proxyPartnerId : wr.user_id;
-    const isManagedProxyAgentFunded = Boolean(
-      isProxyPayout && managedProxyAgentId && managedProxyAgentId !== beneficiaryUserId,
-    );
     const fundingUserId = isProxyPayout
       ? managedProxyAgentId || proxyAgentCandidates[0] || wr.user_id
       : wr.user_id;
