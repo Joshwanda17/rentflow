@@ -583,12 +583,87 @@ export function ProxyAgentManager() {
               </div>
               <Button
                 className="w-full"
-                onClick={() => bulkAssignMutation.mutate()}
+                onClick={() => setShowBulkConfirm(true)}
                 disabled={bulkAssignMutation.isPending || !bulkAgent || bulkBeneficiaries.length === 0}
               >
                 {bulkAssignMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                Link {bulkBeneficiaries.length || ''} Partner{bulkBeneficiaries.length === 1 ? '' : 's'}
+                Review &amp; Link {bulkBeneficiaries.length || ''} Partner{bulkBeneficiaries.length === 1 ? '' : 's'}
               </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+        {/* ── Bulk Assign Confirmation ───────────────────────────────── */}
+        <Dialog open={showBulkConfirm} onOpenChange={setShowBulkConfirm}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Confirm Bulk Assignment</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 text-sm">
+              <div className="rounded-lg border border-border p-3">
+                <p className="text-xs text-muted-foreground">Assigning to agent</p>
+                <p className="font-semibold">{bulkAgent?.full_name || '—'}</p>
+                {bulkAgent?.phone && <p className="text-xs text-muted-foreground">{bulkAgent.phone}</p>}
+                {bulkManaged && (
+                  <Badge variant="secondary" className="mt-1 gap-1">
+                    <ShieldCheck className="h-3 w-3" /> Managed Account
+                  </Badge>
+                )}
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="rounded-lg bg-muted/40 p-2">
+                  <p className="text-[10px] text-muted-foreground">New links</p>
+                  <p className="text-lg font-bold tabular-nums">{bulkBreakdown.newLinks.length}</p>
+                </div>
+                <div className="rounded-lg bg-muted/40 p-2">
+                  <p className="text-[10px] text-muted-foreground">Re-linked (same agent)</p>
+                  <p className="text-lg font-bold tabular-nums">{bulkBreakdown.reLinks.length}</p>
+                </div>
+                <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-2">
+                  <p className="text-[10px] text-amber-700 dark:text-amber-400">Moved from prior agent</p>
+                  <p className="text-lg font-bold tabular-nums text-amber-700 dark:text-amber-400">{bulkBreakdown.moves.length}</p>
+                </div>
+              </div>
+              {bulkBreakdown.byPriorAgent.length > 0 && (
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-2">
+                  <p className="text-xs font-semibold flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
+                    <ArrowRightLeft className="h-3.5 w-3.5" />
+                    Partners that will be moved
+                  </p>
+                  <div className="max-h-40 overflow-y-auto space-y-1.5">
+                    {bulkBreakdown.byPriorAgent.map(([priorId, slot]) => (
+                      <div key={priorId} className="text-xs">
+                        <p className="font-medium">
+                          {slot.partners.length} from <span className="text-amber-700 dark:text-amber-400">{slot.name}</span>
+                        </p>
+                        <p className="text-[10px] text-muted-foreground leading-snug pl-2">
+                          {slot.partners.slice(0, 5).map((p: any) => p.full_name || p.phone).join(', ')}
+                          {slot.partners.length > 5 && ` +${slot.partners.length - 5} more`}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    Their previous proxy assignment will be deactivated automatically.
+                  </p>
+                </div>
+              )}
+              <div className="flex gap-2 pt-1">
+                <Button variant="outline" className="flex-1" onClick={() => setShowBulkConfirm(false)} disabled={bulkAssignMutation.isPending}>
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1"
+                  disabled={bulkAssignMutation.isPending}
+                  onClick={() =>
+                    bulkAssignMutation.mutate(undefined, {
+                      onSuccess: () => setShowBulkConfirm(false),
+                    })
+                  }
+                >
+                  {bulkAssignMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                  Confirm &amp; Link {bulkBeneficiaries.length}
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>
