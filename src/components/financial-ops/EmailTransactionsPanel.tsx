@@ -800,8 +800,8 @@ export function EmailTransactionsPanel() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
+      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3">
+        <div className="min-w-0">
           <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2.5">
             <Mail className="h-6 w-6 text-primary" /> Email Transaction Extractor
           </h2>
@@ -809,34 +809,36 @@ export function EmailTransactionsPanel() {
             Live feed from the connected Gmail inbox. Polls every minute and parses MoMo, Airtel & bank confirmation emails.
           </p>
         </div>
-        <Button onClick={pollNow} disabled={polling} className="gap-2">
-          {polling ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-          Poll now
-        </Button>
-        <Button
-          variant="outline"
-          onClick={() => exportTotalsCsv({ rows: filteredRows, totalIn, totalOut, netAmount, channelBreakdown })}
-          disabled={filteredRows.length === 0}
-          className="gap-2"
-        >
-          <FileDown className="h-4 w-4" /> Export CSV
-        </Button>
-        <Button
-          variant="outline"
-          onClick={() => exportTotalsPdf({ rows: filteredRows, totalIn, totalOut, netAmount, channelBreakdown })}
-          disabled={filteredRows.length === 0}
-          className="gap-2"
-        >
-          <FileText className="h-4 w-4" /> Export PDF
-        </Button>
-        <ReconnectGmailDialog />
-        <DebugPollDialog />
-        <SmsSetupGuide />
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          <Button onClick={pollNow} disabled={polling} className="gap-2 flex-1 sm:flex-none min-w-[120px]">
+            {polling ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            Poll now
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => exportTotalsCsv({ rows: filteredRows, totalIn, totalOut, netAmount, channelBreakdown })}
+            disabled={filteredRows.length === 0}
+            className="gap-2 flex-1 sm:flex-none min-w-[120px]"
+          >
+            <FileDown className="h-4 w-4" /> Export CSV
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => exportTotalsPdf({ rows: filteredRows, totalIn, totalOut, netAmount, channelBreakdown })}
+            disabled={filteredRows.length === 0}
+            className="gap-2 flex-1 sm:flex-none min-w-[120px]"
+          >
+            <FileText className="h-4 w-4" /> Export PDF
+          </Button>
+          <ReconnectGmailDialog />
+          <DebugPollDialog />
+          <SmsSetupGuide />
+        </div>
       </div>
 
       {/* Date-range selector — recomputes totals/breakdown/exports for the chosen period. */}
-      <div className="rounded-xl border bg-card p-4 flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-4">
-        <div className="flex-1">
+      <div className="rounded-xl border bg-card p-3 sm:p-4 flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3 sm:gap-4">
+        <div className="flex-1 min-w-full sm:min-w-[200px]">
           <h3 className="font-semibold text-sm">Date range</h3>
           <p className="text-[11px] text-muted-foreground mt-0.5">
             {rangeActive
@@ -846,7 +848,7 @@ export function EmailTransactionsPanel() {
               : `No range selected — showing all ${rows.length} emails · timezone ${tz}`}
           </p>
         </div>
-        <div className="flex flex-col">
+        <div className="flex flex-col flex-1 sm:flex-none min-w-[140px]">
           <label
             className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1"
             title="Date boundaries and daily buckets are interpreted in this timezone."
@@ -867,7 +869,7 @@ export function EmailTransactionsPanel() {
             )}
           </select>
         </div>
-        <div className="flex flex-col">
+        <div className="flex flex-col flex-1 sm:flex-none min-w-[130px]">
           <label className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">From</label>
           <input
             type="date"
@@ -877,7 +879,7 @@ export function EmailTransactionsPanel() {
             className="h-9 rounded-md border border-input bg-background px-3 text-sm"
           />
         </div>
-        <div className="flex flex-col">
+        <div className="flex flex-col flex-1 sm:flex-none min-w-[130px]">
           <label className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">To</label>
           <input
             type="date"
@@ -887,7 +889,7 @@ export function EmailTransactionsPanel() {
             className="h-9 rounded-md border border-input bg-background px-3 text-sm"
           />
         </div>
-        <div className="flex flex-col flex-1 min-w-[200px]">
+        <div className="flex flex-col flex-1 min-w-full sm:min-w-[200px]">
           <label
             className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1"
             title="Match against transaction id, bank reference number, receipt number (RCT-…), subject, snippet and counterparty. Whitespace-separated tokens are AND-matched."
@@ -915,7 +917,7 @@ export function EmailTransactionsPanel() {
             )}
           </div>
         </div>
-        <div className="flex flex-col">
+        <div className="flex flex-col flex-1 sm:flex-none min-w-[160px]">
           <label
             className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1"
             title="Warn when the absolute Net (in − out) exceeds this amount — flags potentially unusual parsing."
@@ -933,11 +935,11 @@ export function EmailTransactionsPanel() {
                 const v = Number(e.target.value);
                 setNetThreshold(Number.isFinite(v) && v >= 0 ? v : 0);
               }}
-              className="h-9 w-36 rounded-md border border-input bg-background pl-10 pr-2 text-sm tabular-nums"
+              className="h-9 w-full sm:w-36 rounded-md border border-input bg-background pl-10 pr-2 text-sm tabular-nums"
             />
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
           {[
             { label: '7d', days: 7 },
             { label: '30d', days: 30 },
@@ -947,6 +949,7 @@ export function EmailTransactionsPanel() {
               key={p.label}
               variant="outline"
               size="sm"
+              className="flex-1 sm:flex-none"
               onClick={() => {
                 // Anchor presets to "today" as seen in the selected timezone.
                 const todayKey = dateKeyInTz(new Date(), tz);
@@ -967,6 +970,7 @@ export function EmailTransactionsPanel() {
           <Button
             variant="ghost"
             size="sm"
+            className="flex-1 sm:flex-none"
             onClick={() => { setFromDate(''); setToDate(''); }}
             disabled={!rangeActive}
           >
@@ -2387,7 +2391,40 @@ async function exportTotalsPdf({ rows, totalIn, totalOut, netAmount, channelBrea
     });
   }
 
-  doc.save(`email-transactions-totals_${format(new Date(), 'yyyy-MM-dd_HHmm')}.pdf`);
+  const filename = `email-transactions-totals_${format(new Date(), 'yyyy-MM-dd_HHmm')}.pdf`;
+  downloadPdfMobileSafe(doc, filename);
+}
+
+/**
+ * Trigger a PDF download in a way that works on mobile Safari / Chrome.
+ * `doc.save()` alone often opens a blank tab on iOS — we hand the user a
+ * proper blob URL via an anchor click, and fall back to opening in a new
+ * tab on iOS so they can use the share sheet.
+ */
+function downloadPdfMobileSafe(doc: any, filename: string) {
+  try {
+    const blob: Blob = doc.output('blob');
+    const url = URL.createObjectURL(blob);
+    const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
+    if (isIOS) {
+      // iOS Safari ignores the `download` attribute — opening the blob in a
+      // new tab lets the user save / share via the native share sheet.
+      window.open(url, '_blank');
+    } else {
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.rel = 'noopener';
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  } catch {
+    // Last-resort fallback to jsPDF's built-in saver.
+    try { doc.save(filename); } catch {}
+  }
 }
 
 function ReconnectGmailDialog() {
