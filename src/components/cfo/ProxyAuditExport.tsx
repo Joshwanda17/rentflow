@@ -73,6 +73,48 @@ export function ProxyAuditExport() {
   const [actionFilter, setActionFilter] = useState<ActionType>('all');
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
   const [exporting, setExporting] = useState(false);
+  // Column selection — restored from localStorage, falls back to `defaultOn` flags.
+  const [selectedCols, setSelectedCols] = useState<Set<ColKey>>(() => {
+    try {
+      const raw = typeof window !== 'undefined' ? window.localStorage.getItem(COLUMN_PREF_KEY) : null;
+      if (raw) {
+        const arr = JSON.parse(raw) as ColKey[];
+        const valid = arr.filter((k) => COLUMNS.some((c) => c.key === k));
+        if (valid.length) return new Set(valid);
+      }
+    } catch {/* ignore */}
+    return new Set(COLUMNS.filter((c) => c.defaultOn).map((c) => c.key));
+  });
+
+  const persistCols = (next: Set<ColKey>) => {
+    setSelectedCols(new Set(next));
+    try {
+      window.localStorage.setItem(COLUMN_PREF_KEY, JSON.stringify(Array.from(next)));
+    } catch {/* ignore */}
+  };
+  const toggleCol = (key: ColKey) => {
+    const next = new Set(selectedCols);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    persistCols(next);
+  };
+  const activeCols = useMemo(
+    () => COLUMNS.filter((c) => selectedCols.has(c.key)),
+    [selectedCols],
+  );
+
+  /** Format a cell for output. Keeps CSV raw, prettifies for PDF. */
+  const cellValue = (row: any, key: ColKey, mode: 'csv' | 'pdf'): string => {
+    const v = row[key];
+    if (key === 'timestamp') {
+      try {
+        return mode === 'pdf'
+          ? format(parseISO(v), 'dd MMM yy HH:mm')
+          : v;
+      } catch { return String(v ?? ''); }
+    }
+    if (key === 'action' && mode === 'pdf') return String(v ?? '').replace('proxy_bulk_', '');
+    return v === undefined || v === null ? '' : String(v);
+  };
 
   /** Pull bulk audit rows (preview window). Server-side date+action filter; client-side text filter. */
   const { data: rows = [], isFetching, refetch } = useQuery({
@@ -136,13 +178,10 @@ export function ProxyAuditExport() {
 
   const exportCsv = () => {
     if (flatRows.length === 0) { toast({ title: 'Nothing to export' }); return; }
-    const headers = ['Timestamp', 'Action', 'Partner', 'Phone', 'Role', 'From agent(s)', 'To agent', 'Managed', 'Reason', 'Actor ID', 'Record ID'];
-    const lines = [headers.map(csvEscape).join(',')];
+    if (activeCols.length === 0) { toast({ title: 'Pick at least one column' }); return; }
+    const lines = [activeCols.map((c) => csvEscape(c.label)).join(',')];
     flatRows.forEach((r) => {
-      lines.push([
-        r.timestamp, r.action, r.partner_name, r.partner_phone, r.role,
-        r.from_agent, r.to_agent, r.managed, r.reason, r.actor_id, r.record_id,
-      ].map(csvEscape).join(','));
+      lines.push(activeCols.map((c) => csvEscape(cellValue(r, c.key, 'csv'))).join(','));
     });
     const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
     downloadBlob(blob, `proxy-audit_${format(new Date(), 'yyyyMMdd_HHmm')}.csv`);
@@ -151,6 +190,7 @@ export function ProxyAuditExport() {
 
   const exportPdf = async () => {
     if (flatRows.length === 0) { toast({ title: 'Nothing to export' }); return; }
+    if (activeCols.length === 0) { toast({ title: 'Pick at least one column' }); return; }
     setExporting(true);
     try {
       const { default: jsPDF } = await import('jspdf');
@@ -189,33 +229,15 @@ export function ProxyAuditExport() {
       crit.forEach((c) => { doc.text(c, margin, y); y += 4; });
       y += 2;
 
+      const columnStyles: Record<number, any> = {};
+      activeCols.forEach((c, i) => { columnStyles[i] = { cellWidth: c.pdfWidth as any }; });
       autoTable(doc, {
         startY: y,
-        head: [['Timestamp', 'Action', 'Partner', 'Phone', 'Role', 'From agent(s)', 'To agent', 'Managed', 'Reason']],
-        body: flatRows.map((r) => [
-          format(parseISO(r.timestamp), 'dd MMM yy HH:mm'),
-          r.action.replace('proxy_bulk_', ''),
-          r.partner_name,
-          r.partner_phone,
-          r.role,
-          r.from_agent,
-          r.to_agent,
-          r.managed,
-          r.reason,
-        ]),
+        head: [activeCols.map((c) => c.label)],
+        body: flatRows.map((r) => activeCols.map((c) => cellValue(r, c.key, 'pdf'))),
         styles: { fontSize: 7, cellPadding: 1.2, overflow: 'linebreak' },
         headStyles: { fillColor: [15, 23, 42], textColor: 255 },
-        columnStyles: {
-          0: { cellWidth: 26 },
-          1: { cellWidth: 14 },
-          2: { cellWidth: 32 },
-          3: { cellWidth: 22 },
-          4: { cellWidth: 18 },
-          5: { cellWidth: 45 },
-          6: { cellWidth: 32 },
-          7: { cellWidth: 14 },
-          8: { cellWidth: 'auto' },
-        },
+        columnStyles,
         margin: { left: margin, right: margin },
       });
 
