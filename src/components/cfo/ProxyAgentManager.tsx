@@ -15,6 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Handshake, UserPlus, Loader2, Smartphone, ShieldCheck, Pencil, Trash2, Users, UserCheck, Building, Search, Layers, X, ArrowRightLeft } from 'lucide-react';
 import { UserSearchPicker } from './UserSearchPicker';
+import { ProxyAuditExport } from './ProxyAuditExport';
 import { format } from 'date-fns';
 
 /**
@@ -630,6 +631,7 @@ export function ProxyAgentManager() {
           Proxy Agents
         </h2>
         <div className="flex items-center gap-2">
+        <ProxyAuditExport />
         <Dialog open={showBulk} onOpenChange={v => { setShowBulk(v); if (!v) resetBulkForm(); }}>
           <DialogTrigger asChild>
             <Button size="sm" variant="outline" className="gap-1.5">
