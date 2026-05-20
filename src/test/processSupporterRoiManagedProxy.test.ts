@@ -297,6 +297,30 @@ describe("process-supporter-roi · managed-proxy routing (SSENKAALI PIUS / WIP26
     expect(platformLeg.user_id).toBe(PARTNER_ID);
   });
 
+  it("HARD GUARANTEE: zero wallet-scope ledger entries are ever attributed to the partner", async () => {
+    await runRoiPayout(
+      supabase,
+      { id: RR_ID, supporter_id: PARTNER_ID, rent_amount: 1_000_000 },
+      ROI_AMOUNT,
+      PAYMENT_NUMBER,
+      (req) => captured.emails.push(req),
+    );
+
+    const partnerWalletLegs = captured.ledgerEntries.filter(
+      (e) => e.ledger_scope === "wallet" && e.user_id === PARTNER_ID,
+    );
+    // ROI must NEVER reflect on the proxy partner's wallet — not as cash_in,
+    // cash_out, correction, or any other movement.
+    expect(partnerWalletLegs).toHaveLength(0);
+
+    const proxyWalletLegs = captured.ledgerEntries.filter(
+      (e) => e.ledger_scope === "wallet" && e.user_id === ACTIVE_PROXY_ID,
+    );
+    // Exactly one wallet leg, and it belongs to the proxy.
+    expect(proxyWalletLegs).toHaveLength(1);
+    expect(proxyWalletLegs[0].direction).toBe("cash_in");
+  });
+
   it("sends BOTH in-app notifications: partner sees proxy routing, proxy sees on_behalf_of_partner_id", async () => {
     await runRoiPayout(
       supabase,
