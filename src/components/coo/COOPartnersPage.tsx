@@ -248,6 +248,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   const [editRoiMode, setEditRoiMode] = useState('monthly_payout');
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
+
+  // Partner payment details dialog
+  const [paymentDetailsOpen, setPaymentDetailsOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // Suspend dialog
