@@ -269,12 +269,74 @@ Deno.serve(async (req) => {
     }
 
     if (!isManagerRole) {
+      // ── Auto-approve path (MoMo gmail match) ──────────────────────────
+      // A regular user (typically an agent) can self-approve their OWN
+      // pending deposit IF and ONLY IF:
+      //   • the request body carries `auto_approved:true` + action `approve`
+      //   • they are the deposit's `user_id` (owner)
+      //   • provider is MTN ('mtn') or Airtel ('airtel') — bank refs still
+      //     require a human reviewer
+      //   • server-side we can re-prove a parsed `gmail_transactions` row
+      //     exists, was linked to THIS deposit by `try_link_gmail_for_deposit`,
+      //     direction='in'/'credit', amount matches, normalized TID matches,
+      //     and the receipt is at most 7 days old.
+      // This bypass leans on `gmail_transactions` being service-role-write
+      // only — the client cannot fabricate a match.
+      const ownerOnly = depositRequests.every(
+        (d) => d.user_id === user.id || d.agent_id === user.id,
+      );
+      const eligibleAutoApprove =
+        action === 'approve' &&
+        !!auto_approved &&
+        ownerOnly &&
+        depositRequests.every(
+          (d) =>
+            d.user_id === user.id &&
+            ['mtn', 'airtel'].includes(String(d.provider || '').toLowerCase()) &&
+            String(d.status) === 'pending',
+        );
+
+      if (eligibleAutoApprove) {
+        // Re-verify each row has a real linked Gmail receipt that proves
+        // provider+TID+amount match. We never trust the client flag alone.
+        let allVerified = true;
+        for (const dep of depositRequests) {
+          const normDigits = String(dep.transaction_id || '').replace(/[^0-9]/g, '');
+          if (!normDigits) { allVerified = false; break; }
+          const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+          const { data: gmailMatch } = await supabaseAdmin
+            .from('gmail_transactions')
+            .select('id, amount, transaction_id, direction, internal_date')
+            .eq('linked_deposit_request_id', dep.id)
+            .eq('parsed', true)
+            .in('direction', ['in', 'credit'])
+            .gte('internal_date', sevenDaysAgo)
+            .limit(1)
+            .maybeSingle();
+          if (!gmailMatch) { allVerified = false; break; }
+          const gDigits = String(gmailMatch.transaction_id || '').replace(/[^0-9]/g, '');
+          if (gDigits !== normDigits) { allVerified = false; break; }
+          if (Number(gmailMatch.amount) !== Number(dep.amount)) { allVerified = false; break; }
+        }
+        if (!allVerified) {
+          return new Response(
+            JSON.stringify({
+              error: 'auto_approve_unverified',
+              message:
+                'No matching mobile-money receipt could be re-verified server-side. Submission still goes to Financial Ops review.',
+            }),
+            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          );
+        }
+        // ✅ Owner + verified gmail match. Allow the approval to proceed.
+      } else {
       const unauthorized = depositRequests.filter(d => d.agent_id !== user.id);
       if (unauthorized.length > 0) {
         return new Response(
           JSON.stringify({ error: "Not authorized to process some requests" }),
           { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
+      }
       }
     }
 
