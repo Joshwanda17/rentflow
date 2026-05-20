@@ -54,6 +54,8 @@ const fmtUgx = (n: number | null | undefined) =>
  * Operators filter by date range and by a specific deposit request
  * (ID, Transaction ID, depositor name, or phone) to triage faster.
  */
+const PAGE_SIZE = 10;
+
 export function EmailNeedsReviewPanel() {
   const { toast } = useToast();
   const [emails, setEmails] = useState<GmailTx[]>([]);
@@ -68,6 +70,10 @@ export function EmailNeedsReviewPanel() {
   });
   const [toDate, setToDate] = useState<Date | undefined>(undefined);
   const [depositFilter, setDepositFilter] = useState('');
+  const [unmatchedOpen, setUnmatchedOpen] = useState(true);
+  const [conflictingOpen, setConflictingOpen] = useState(true);
+  const [unmatchedPage, setUnmatchedPage] = useState(1);
+  const [conflictingPage, setConflictingPage] = useState(1);
 
   const load = useCallback(async (silent = false) => {
     if (silent) setRefreshing(true);
