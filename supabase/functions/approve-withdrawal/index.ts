@@ -497,8 +497,8 @@ Deno.serve(async (req) => {
         const { data: pendingRows, error: pendingErr } = await admin
           .from("withdrawal_requests")
           .select("amount")
-          .eq("user_id", fundingUserId)
           .neq("id", withdrawal_id)
+          .or(`user_id.eq.${fundingUserId},agent_id.eq.${fundingUserId},initiated_by.eq.${fundingUserId}`)
           .in("status", ["pending", "requested", "manager_approved", "processing"]);
         if (pendingErr) throw pendingErr;
 
