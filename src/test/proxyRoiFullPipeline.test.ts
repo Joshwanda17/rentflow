@@ -378,7 +378,7 @@ function finOpsApproveWithdrawal(
     recipientEmail: ctx.partnerEmail,
     templateData: {
       partner_name: ctx.partnerName,
-        partner_id: beneficiaryUserId,
+      partner_id: beneficiaryUserId,
       amount: wr.amount,
       transaction_id: wr.reference.toUpperCase(),
       portfolio_code: ctx.portfolioCode,
@@ -393,7 +393,7 @@ function finOpsApproveWithdrawal(
     recipientEmail: ctx.agentEmail,
     templateData: {
       partner_name: ctx.agentName,
-        partner_id: fundingUserId,
+      partner_id: fundingUserId,
       amount: wr.amount,
       transaction_id: wr.reference.toUpperCase(),
       portfolio_code: ctx.portfolioCode,
