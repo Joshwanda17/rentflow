@@ -153,11 +153,11 @@ export function OperationalFloatCredit({
                                   </td>
                                 </tr>
                                 <tr>
-                                  <td style={source ? ledgerRow : ledgerRowLast}>
+                                  <td style={ledgerRow}>
                                     <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation"><tbody><tr>
                                       <td className="td-block" width="40%" style={ledgerKey}>Destination</td>
                                       <td className="td-block" width="60%" align="right" style={ledgerVal}>
-                                        WALLET
+                                        OPERATIONAL FLOAT
                                         {walletMask ? (
                                           <>
                                             <br />
@@ -170,10 +170,20 @@ export function OperationalFloatCredit({
                                 </tr>
                                 {source ? (
                                   <tr>
-                                    <td style={ledgerRowLast}>
+                                    <td style={formattedNewBalance ? ledgerRow : ledgerRowLast}>
                                       <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation"><tbody><tr>
                                         <td className="td-block" width="40%" style={ledgerKey}>Source</td>
                                         <td className="td-block" width="60%" align="right" style={ledgerVal}>{source}</td>
+                                      </tr></tbody></table>
+                                    </td>
+                                  </tr>
+                                ) : null}
+                                {formattedNewBalance ? (
+                                  <tr>
+                                    <td style={ledgerRowLast}>
+                                      <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation"><tbody><tr>
+                                        <td className="td-block" width="40%" style={ledgerKey}>New Float Balance</td>
+                                        <td className="td-block" width="60%" align="right" style={ledgerValMono}>{formattedNewBalance}</td>
                                       </tr></tbody></table>
                                     </td>
                                   </tr>
