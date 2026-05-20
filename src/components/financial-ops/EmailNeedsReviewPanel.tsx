@@ -307,32 +307,63 @@ export function EmailNeedsReviewPanel() {
           Loading review queue…
         </div>
       ) : (
-        <Tabs defaultValue="unmatched" className="w-full">
-          <TabsList className="w-full justify-start rounded-none border-b bg-transparent h-auto p-0">
-            <TabsTrigger value="unmatched" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">
-              Unmatched <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-[10px]">{unmatched.length}</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="conflicting" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">
-              Conflicting <Badge variant="destructive" className="ml-2 h-5 px-1.5 text-[10px]">{conflicting.length}</Badge>
-            </TabsTrigger>
-          </TabsList>
+        <div className="divide-y">
+          {/* ── Unmatched ── */}
+          <Collapsible open={unmatchedOpen} onOpenChange={setUnmatchedOpen}>
+            <CollapsibleTrigger asChild>
+              <button className="w-full flex items-center justify-between p-4 text-left hover:bg-muted/30 transition-colors">
+                <div className="flex items-center gap-2.5">
+                  <Inbox className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-semibold text-sm">Unmatched</span>
+                  <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">{unmatched.length}</Badge>
+                </div>
+                {unmatchedOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              {unmatched.length === 0 ? (
+                <EmptyState text="Nothing to review — every parsed email is linked or has no candidate." />
+              ) : (
+                <>
+                  <ul className="divide-y">{paginate(unmatched, unmatchedPage).map((x) => renderRow(x, false))}</ul>
+                  <PaginationBar
+                    page={unmatchedPage}
+                    total={unmatched.length}
+                    onChange={setUnmatchedPage}
+                  />
+                </>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
 
-          <TabsContent value="unmatched" className="m-0">
-            {unmatched.length === 0 ? (
-              <EmptyState text="Nothing to review — every parsed email is linked or has no candidate." />
-            ) : (
-              <ul className="divide-y">{unmatched.map((x) => renderRow(x, false))}</ul>
-            )}
-          </TabsContent>
-
-          <TabsContent value="conflicting" className="m-0">
-            {conflicting.length === 0 ? (
-              <EmptyState text="No conflicting emails — no two pending deposits share an amount in this window." />
-            ) : (
-              <ul className="divide-y">{conflicting.map((x) => renderRow(x, true))}</ul>
-            )}
-          </TabsContent>
-        </Tabs>
+          {/* ── Conflicting ── */}
+          <Collapsible open={conflictingOpen} onOpenChange={setConflictingOpen}>
+            <CollapsibleTrigger asChild>
+              <button className="w-full flex items-center justify-between p-4 text-left hover:bg-muted/30 transition-colors">
+                <div className="flex items-center gap-2.5">
+                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                  <span className="font-semibold text-sm">Conflicting</span>
+                  <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">{conflicting.length}</Badge>
+                </div>
+                {conflictingOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              {conflicting.length === 0 ? (
+                <EmptyState text="No conflicting emails — no two pending deposits share an amount in this window." />
+              ) : (
+                <>
+                  <ul className="divide-y">{paginate(conflicting, conflictingPage).map((x) => renderRow(x, true))}</ul>
+                  <PaginationBar
+                    page={conflictingPage}
+                    total={conflicting.length}
+                    onChange={setConflictingPage}
+                  />
+                </>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
+        </div>
       )}
     </div>
   );
