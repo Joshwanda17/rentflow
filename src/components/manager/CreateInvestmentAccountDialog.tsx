@@ -56,6 +56,10 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
 
   const [partnerBalance, setPartnerBalance] = useState<number | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
+  // When the selected partner is managed by a proxy agent, the dialog shows
+  // the proxy agent's wallet balance instead — funding is debited from that
+  // wallet server-side (enforced in create-investor-portfolio edge fn).
+  const [managedProxy, setManagedProxy] = useState<{ agentId: string; agentName: string } | null>(null);
 
   const [form, setForm] = useState({
     account_name: '',
@@ -114,16 +118,39 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
     }
     setBalanceLoading(true);
     setPartnerBalance(null);
+    setManagedProxy(null);
     (async () => {
-      // Portfolios are funded from the partner's TOTAL wallet (withdrawable +
-      // float). Partner deposits land in `float_balance`, so the strict
-      // withdrawable RPC would always show 0. The backend
-      // (`create-investor-portfolio`, instant-deduct path) gates on
-      // `wallets.balance`, so mirror that here.
+      // Managed-proxy check: if the partner has an active+approved
+      // is_managed_account=true proxy assignment, funding MUST come from
+      // the proxy agent's wallet. Mirror that here so the displayed
+      // available balance matches the wallet that will actually be debited.
+      let walletOwnerId = selectedUser.id;
+      const { data: managed } = await supabase
+        .from('proxy_agent_assignments')
+        .select('agent_id')
+        .eq('beneficiary_id', selectedUser.id)
+        .eq('is_active', true)
+        .eq('is_managed_account', true)
+        .eq('approval_status', 'approved')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (managed?.agent_id) {
+        walletOwnerId = managed.agent_id;
+        const { data: ap } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', managed.agent_id)
+          .maybeSingle();
+        if (!cancelled) {
+          setManagedProxy({ agentId: managed.agent_id, agentName: ap?.full_name || 'Proxy Agent' });
+        }
+      }
+
       const { data, error } = await supabase
         .from('wallets')
         .select('balance')
-        .eq('user_id', selectedUser.id)
+        .eq('user_id', walletOwnerId)
         .maybeSingle();
       if (cancelled) return;
       const bal = !error && data ? Number(data.balance) || 0 : 0;
@@ -169,8 +196,12 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
     }
     if (amt > partnerBalance) {
       toast({
-        title: 'Insufficient partner wallet balance',
-        description: `${selectedUser.full_name} has UGX ${partnerBalance.toLocaleString()} available. Top up the partner wallet first.`,
+        title: managedProxy
+          ? 'Insufficient proxy agent wallet balance'
+          : 'Insufficient partner wallet balance',
+        description: managedProxy
+          ? `Proxy agent ${managedProxy.agentName} has UGX ${partnerBalance.toLocaleString()} available. Top up the proxy agent wallet first.`
+          : `${selectedUser.full_name} has UGX ${partnerBalance.toLocaleString()} available. Top up the partner wallet first.`,
         variant: 'destructive',
       });
       return;
@@ -314,8 +345,10 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
               {selectedUser && (
                 <p className="text-[10px] text-muted-foreground">
                   {balanceLoading
-                    ? 'Loading partner wallet…'
-                    : `Available: UGX ${(partnerBalance ?? 0).toLocaleString()}`}
+                    ? (managedProxy ? 'Loading proxy agent wallet…' : 'Loading partner wallet…')
+                    : managedProxy
+                      ? `Proxy agent (${managedProxy.agentName}) · Available: UGX ${(partnerBalance ?? 0).toLocaleString()}`
+                      : `Available: UGX ${(partnerBalance ?? 0).toLocaleString()}`}
                 </p>
               )}
             </div>
