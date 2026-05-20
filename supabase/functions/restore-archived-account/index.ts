@@ -122,6 +122,155 @@ Deno.serve(async (req) => {
       },
     });
 
+    // ---- 5. Verification: read back auth.users + profiles and compare ----
+    const verification: {
+      ok: boolean;
+      mismatches: Array<{ field: string; auth: unknown; profile: unknown; note?: string }>;
+      auth: { email: string | null; phone: string | null; deleted_at: string | null; banned_until: string | null };
+      profile: { full_name: string | null; email: string | null; phone: string | null };
+    } = {
+      ok: true,
+      mismatches: [],
+      auth: { email: null, phone: null, deleted_at: null, banned_until: null },
+      profile: { full_name: null, email: null, phone: null },
+    };
+
+    try {
+      const norm = (v: unknown) =>
+        v == null ? null : String(v).trim().toLowerCase().replace(/^\+/, "");
+
+      const { data: authRead, error: authReadErr } = await admin.auth.admin.getUserById(user_id);
+      const { data: profRead, error: profReadErr } = await admin
+        .from("profiles")
+        .select("full_name, email, phone")
+        .eq("id", user_id)
+        .maybeSingle();
+
+      if (authReadErr || !authRead?.user) {
+        verification.ok = false;
+        verification.mismatches.push({
+          field: "auth.user",
+          auth: null,
+          profile: profRead ?? null,
+          note: `Could not read back auth user: ${authReadErr?.message || "not found"}`,
+        });
+      } else {
+        const au = authRead.user as any;
+        verification.auth = {
+          email: au.email ?? null,
+          phone: au.phone ?? null,
+          deleted_at: au.deleted_at ?? null,
+          banned_until: au.banned_until ?? null,
+        };
+        verification.profile = {
+          full_name: profRead?.full_name ?? null,
+          email: profRead?.email ?? null,
+          phone: profRead?.phone ?? null,
+        };
+
+        // Still soft-deleted?
+        if (au.deleted_at) {
+          verification.ok = false;
+          verification.mismatches.push({
+            field: "deleted_at",
+            auth: au.deleted_at,
+            profile: null,
+            note: "auth.users.deleted_at is still set after restore",
+          });
+        }
+        // Still banned?
+        if (au.banned_until && new Date(au.banned_until).getTime() > Date.now()) {
+          verification.ok = false;
+          verification.mismatches.push({
+            field: "banned_until",
+            auth: au.banned_until,
+            profile: null,
+            note: "auth.users.banned_until is still in the future",
+          });
+        }
+        // Email mismatch (auth vs profile)
+        if (norm(au.email) !== norm(profRead?.email)) {
+          verification.ok = false;
+          verification.mismatches.push({
+            field: "email",
+            auth: au.email ?? null,
+            profile: profRead?.email ?? null,
+          });
+        }
+        // Phone mismatch
+        if (norm(au.phone) !== norm(profRead?.phone)) {
+          verification.ok = false;
+          verification.mismatches.push({
+            field: "phone",
+            auth: au.phone ?? null,
+            profile: profRead?.phone ?? null,
+          });
+        }
+        // Scrambled-token detection (archive scramble produced long base64-ish blobs)
+        const looksScrambled = (s: string | null | undefined) =>
+          !!s && /^[A-Za-z0-9_-]{20,}$/.test(s) && !s.includes("@");
+        if (looksScrambled(au.email)) {
+          verification.ok = false;
+          verification.mismatches.push({
+            field: "email",
+            auth: au.email,
+            profile: profRead?.email ?? null,
+            note: "auth.users.email still looks like an archive scramble token",
+          });
+        }
+        if (looksScrambled(au.phone)) {
+          verification.ok = false;
+          verification.mismatches.push({
+            field: "phone",
+            auth: au.phone,
+            profile: profRead?.phone ?? null,
+            note: "auth.users.phone still looks like an archive scramble token",
+          });
+        }
+        // Profile still flagged as archived
+        if ((profRead?.full_name || "").toUpperCase().startsWith("[ARCHIVED]")) {
+          verification.ok = false;
+          verification.mismatches.push({
+            field: "full_name",
+            auth: null,
+            profile: profRead?.full_name ?? null,
+            note: "profiles.full_name still carries [ARCHIVED] prefix",
+          });
+        }
+      }
+
+      if (profReadErr) {
+        verification.ok = false;
+        verification.mismatches.push({
+          field: "profile",
+          auth: verification.auth,
+          profile: null,
+          note: `Could not read profile: ${profReadErr.message}`,
+        });
+      }
+
+      // Persist verification result alongside the audit row for traceability
+      await admin.from("audit_logs").insert({
+        user_id: caller.id,
+        action_type: verification.ok ? "account_restore_verified" : "account_restore_verification_failed",
+        table_name: "auth.users",
+        record_id: user_id,
+        metadata: {
+          reason: `Auto-verification after restore (${reasonRaw.slice(0, 80)})`,
+          verification,
+        },
+      });
+    } catch (verr) {
+      console.warn("Post-restore verification crashed:", verr);
+      verification.ok = false;
+      verification.mismatches.push({
+        field: "_runner",
+        auth: null,
+        profile: null,
+        note: verr instanceof Error ? verr.message : "Verification step crashed",
+      });
+    }
+
     return json({
       success: true,
       user_id,
@@ -129,6 +278,7 @@ Deno.serve(async (req) => {
       restored_email: restoredEmail,
       restored_phone: restoredPhone,
       previous_deleted_at: (clearRes as any)?.previous_deleted_at,
+      verification,
     });
   } catch (e) {
     console.error("restore-archived-account error:", e);
