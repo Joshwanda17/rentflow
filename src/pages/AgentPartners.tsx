@@ -79,7 +79,10 @@ export default function AgentPartners() {
       const { data: proxyAssignments } = await supabase
         .from('proxy_agent_assignments')
         .select('id, beneficiary_id, created_at, is_active, approval_status')
-        .eq('agent_id', user.id);
+        .eq('agent_id', user.id)
+        // Stale (deactivated) rows must never surface to a proxy agent — when
+        // a funder is reassigned the prior row is flipped is_active=false.
+        .eq('is_active', true);
 
       // Fetch portfolio data for this agent's partners
       const { data: portfolios } = await supabase
