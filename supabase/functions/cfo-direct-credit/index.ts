@@ -380,6 +380,8 @@ Deno.serve(async (req) => {
       metadata: {
         target_user_id,
         target_name: targetProfile.full_name,
+        wallet_user_id: walletUserId,
+        managed_proxy_agent_id: managedProxy?.agentId ?? null,
         amount,
         reason,
         operation: op,
@@ -422,13 +424,13 @@ Deno.serve(async (req) => {
     // withdrawable bucket immediately (no drift between ledger and wallet columns).
     let newWithdrawableBalance: number | null = null;
     try {
-      await adminClient.rpc("reconcile_wallet_from_ledger", { p_user_id: target_user_id });
+      await adminClient.rpc("reconcile_wallet_from_ledger", { p_user_id: walletUserId });
       // Wallet Routing v2: enforce the operator's recipient_type choice on top
       // of the legacy category-based routing. This guarantees that, regardless
       // of category, money sent to a "user" lands in withdrawable_balance and
       // money sent to an "operational_wallet" lands in float_balance.
       const { error: enforceErr } = await adminClient.rpc("enforce_recipient_routing", {
-        p_user_id: target_user_id,
+        p_user_id: walletUserId,
         p_amount: amount,
         p_recipient_type: recipient_type,
       });
@@ -438,7 +440,7 @@ Deno.serve(async (req) => {
       const { data: refreshed } = await adminClient
         .from("wallets")
         .select("withdrawable_balance")
-        .eq("user_id", target_user_id)
+        .eq("user_id", walletUserId)
         .single();
       newWithdrawableBalance = Number(refreshed?.withdrawable_balance ?? 0);
     } catch (reconErr) {
