@@ -503,7 +503,10 @@ export function ProxyPartnerFunds() {
         supabase
           .from('v_user_wallet_strict')
           .select('user_id, withdrawable')
-          .in('user_id', uniquePartnerIds),
+          // Include the AGENT's own row so the managed-proxy clamp can use
+          // the agent's strict withdrawable (managed funds land in agent
+          // wallet, not partner wallet).
+          .in('user_id', [user.id, ...uniquePartnerIds]),
       ]);
 
       const profileMap: Record<string, { full_name: string; phone: string }> = {};
