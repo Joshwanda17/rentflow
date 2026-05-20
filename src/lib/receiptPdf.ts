@@ -128,7 +128,11 @@ export async function generateDepositReceiptPdf(data: DepositReceiptData): Promi
 
 export async function downloadDepositReceipt(data: DepositReceiptData) {
   const doc = await generateDepositReceiptPdf(data);
-  doc.save(`Welile_Deposit_Receipt_${format(new Date(), 'yyyyMMdd')}.pdf`);
+  const filename = `Welile_Deposit_Receipt_${format(new Date(), 'yyyyMMdd')}.pdf`;
+  savePdfWithVault(doc, filename, {
+    label: `Deposit Receipt · ${formatUGX(data.amount)}`,
+    category: 'withdrawal-receipt',
+  });
 }
 
 export function buildDepositReceiptWhatsApp(data: DepositReceiptData): string {
@@ -261,7 +265,11 @@ export async function generateRentStatementPdf(data: RentStatementData): Promise
 
 export async function downloadRentStatement(data: RentStatementData) {
   const doc = await generateRentStatementPdf(data);
-  doc.save(`Welile_Rent_Statement_${data.tenantName.replace(/\s+/g, '_')}_${format(new Date(), 'yyyyMMdd')}.pdf`);
+  const filename = `Welile_Rent_Statement_${data.tenantName.replace(/\s+/g, '_')}_${format(new Date(), 'yyyyMMdd')}.pdf`;
+  savePdfWithVault(doc, filename, {
+    label: `Rent Statement · ${data.tenantName}`,
+    category: 'tenant-ops',
+  });
 }
 
 export function buildRentStatementWhatsApp(data: RentStatementData): string {
