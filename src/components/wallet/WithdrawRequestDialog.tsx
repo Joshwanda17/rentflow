@@ -382,12 +382,10 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
       try {
         const isMomo = payoutMode === 'mtn' || payoutMode === 'airtel';
         // Proxy Partner Custody v2: when this dialog is opened on behalf of a
-        // partner (linkedParty set), the row MUST be owned by the partner
-        // (`user_id = partner`) so v_user_wallet_strict deducts the partner's
-        // bucket and post-cutoff ledger guards don't fire. The agent only
-        // appears as initiator (audit). NEVER set `linked_party` for new
-        // proxy rows — that's the legacy v1 shape that pins the hold to the
-        // agent's wallet.
+        // partner (linkedParty set), the row is partner-owned for visibility,
+        // but approval resolves `agent_id` as the funding wallet and debits
+        // the proxy agent only. NEVER set `linked_party` for new proxy rows —
+        // that's the legacy v1 shape that pins the hold to the agent's wallet.
         const isProxy = !!linkedParty;
         const { error } = await supabase.from('withdrawal_requests').insert({
           user_id: isProxy ? linkedParty! : user.id,
