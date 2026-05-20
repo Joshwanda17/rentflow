@@ -2410,6 +2410,17 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                 >
                                   <Pencil className="h-3.5 w-3.5" /> Edit
                                 </Button>
+                                {!readOnly && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-9 px-3 text-xs text-sky-600 hover:text-sky-700 hover:bg-sky-500/10 gap-1.5 min-h-[44px]"
+                                    onClick={() => setPaymentDetailsOpen(true)}
+                                    title="Add MoMo / bank details for this partner"
+                                  >
+                                    <Banknote className="h-3.5 w-3.5" /> Payment Details
+                                  </Button>
+                                )}
                                 {!readOnly && p.status === 'active' && (
                                   <Button
                                     variant="ghost"
