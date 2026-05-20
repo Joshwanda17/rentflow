@@ -666,9 +666,18 @@ export function ProxyAgentManager() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <div className="flex items-center justify-between gap-2">
+                <UserSearchPicker
+                  key={`bulk-user-picker-${bulkRole}-${bulkBeneficiaries.length}`}
+                  label="Search User to Assign"
+                  placeholder={`Search ${bulkRole === 'landlord' ? 'landlord' : 'partner/funder'} by name or phone...`}
+                  selectedUser={null}
+                  onSelect={(u) => { if (u) toggleBulkBeneficiary(u); }}
+                  roleFilter={bulkRole}
+                />
+
+                <div className="flex items-center justify-between gap-2 pt-1">
                   <Label className="text-sm">
-                    Partners ({bulkBeneficiaries.length} selected
+                    Selected ({bulkBeneficiaries.length}
                     {moveCount > 0 && (
                       <span className="ml-1 text-amber-600 dark:text-amber-400">
                         · {moveCount} will be moved
@@ -683,201 +692,17 @@ export function ProxyAgentManager() {
                       className="h-7 text-xs"
                       onClick={() => setBulkBeneficiaries([])}
                     >
-                      Clear
+                      Clear all
                     </Button>
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-[1fr_180px] gap-2">
-                  <div className="relative">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search by name or phone..."
-                      value={bulkSearch}
-                      onChange={(e) => setBulkSearch(e.target.value)}
-                      className="pl-9 h-9"
-                    />
+                {bulkBeneficiaries.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-border bg-muted/20 p-4 text-center text-xs text-muted-foreground">
+                    No users selected yet. Use the search above to add users.
                   </div>
-                  <Select value={bulkFilter} onValueChange={(v) => setBulkFilter(v as any)}>
-                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All partners ({filterCounts.all})</SelectItem>
-                      <SelectItem value="unassigned">Unassigned only ({filterCounts.unassigned})</SelectItem>
-                      <SelectItem value="assigned_other">On another agent ({filterCounts.assignedOther})</SelectItem>
-                      <SelectItem value="managed">Managed accounts ({filterCounts.managed})</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Secondary filters: pick a specific prior agent + require phone */}
-                <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
-                  <Select value={bulkFromAgent} onValueChange={setBulkFromAgent}>
-                    <SelectTrigger className="h-9">
-                      <SelectValue placeholder="From agent (any)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="any">From any agent</SelectItem>
-                      {priorAgentOptions.length === 0 ? (
-                        <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                          No prior assignments in this pool
-                        </div>
-                      ) : (
-                        priorAgentOptions.map((opt) => (
-                          <SelectItem key={opt.id} value={opt.id}>
-                            {opt.name} ({opt.count})
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                  <button
-                    type="button"
-                    onClick={() => setBulkRequirePhone((v) => !v)}
-                    className={`h-9 px-3 rounded-md border text-xs font-medium transition-colors ${
-                      bulkRequirePhone
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-border text-muted-foreground hover:bg-muted'
-                    }`}
-                  >
-                    {bulkRequirePhone ? '✓ Has phone' : 'Has phone'}
-                  </button>
-                </div>
-
-                {/* Deduplication toggle — collapses partners sharing phone / national id */}
-                <div className="flex items-center justify-between rounded-md border border-border bg-muted/20 px-3 py-2">
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium">Deduplicate by phone / ID</p>
-                    <p className="text-[10px] text-muted-foreground truncate">
-                      Prevent the same person from being linked twice when filters overlap.
-                      {bulkDedupe && dedupeHiddenCount > 0 && (
-                        <span className="ml-1 text-amber-600 dark:text-amber-400">
-                          {dedupeHiddenCount} duplicate{dedupeHiddenCount === 1 ? '' : 's'} hidden
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                  <Switch checked={bulkDedupe} onCheckedChange={setBulkDedupe} />
-                </div>
-
-                {(bulkFromAgent !== 'any' || bulkRequirePhone || bulkFilter !== 'all' || bulkSearch) && (
-                  <div className="flex items-center justify-between text-[10px] text-muted-foreground px-1">
-                    <span>Filters active</span>
-                    <button
-                      type="button"
-                      className="text-primary hover:underline"
-                      onClick={() => {
-                        setBulkFilter('all');
-                        setBulkFromAgent('any');
-                        setBulkRequirePhone(false);
-                        setBulkSearch('');
-                      }}
-                    >
-                      Clear all
-                    </button>
-                  </div>
-                )}
-
-                <div className="rounded-lg border border-border bg-muted/20">
-                  <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/40">
-                    <button
-                      type="button"
-                      onClick={toggleSelectAllFiltered}
-                      disabled={filteredBulkPool.length === 0}
-                      className="flex items-center gap-2 text-xs font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <Checkbox
-                        checked={allFilteredSelected}
-                        disabled={filteredBulkPool.length === 0}
-                        tabIndex={-1}
-                        className="pointer-events-none"
-                      />
-                      {allFilteredSelected ? 'Clear' : 'Select all'}
-                      {bulkSearch || bulkFilter !== 'all' ? ' filtered' : ''}
-                      <span className="text-muted-foreground font-normal">
-                        ({filteredBulkPool.length})
-                      </span>
-                    </button>
-                  </div>
-                  <div
-                    ref={scrollRef}
-                    className="max-h-72 overflow-y-auto divide-y divide-border"
-                    onScroll={(e) => {
-                      const el = e.currentTarget;
-                      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 80) {
-                        setVisibleCount((c) =>
-                          c < filteredBulkPool.length ? Math.min(c + PAGE, filteredBulkPool.length) : c,
-                        );
-                      }
-                    }}
-                  >
-                    {bulkPoolLoading ? (
-                      <div className="py-6 flex justify-center">
-                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                      </div>
-                    ) : filteredBulkPool.length === 0 ? (
-                      <div className="py-6 text-center text-xs text-muted-foreground">
-                        No partners match this filter.
-                      </div>
-                    ) : (
-                      filteredBulkPool.slice(0, visibleCount).map((p: any) => {
-                        const cur = assignmentByBeneficiary.get(p.id);
-                        const checked = selectedIds.has(p.id);
-                        const wouldMove = cur && bulkAgent && cur.agent_id !== bulkAgent.id;
-                        return (
-                          <label
-                            key={p.id}
-                            className="flex items-center gap-2 px-3 py-2 text-xs hover:bg-muted/40 cursor-pointer"
-                          >
-                            <Checkbox
-                              checked={checked}
-                              onCheckedChange={() => toggleBulkBeneficiary(p)}
-                            />
-                            <div className="min-w-0 flex-1">
-                              <p className="font-medium truncate">{p.full_name}</p>
-                              <p className="text-[10px] text-muted-foreground truncate">{p.phone}</p>
-                            </div>
-                            {cur ? (
-                              <Badge
-                                variant="outline"
-                                className={`text-[9px] gap-1 ${wouldMove && checked ? 'border-amber-500/40 text-amber-600 dark:text-amber-400' : ''}`}
-                              >
-                                {wouldMove && checked && <ArrowRightLeft className="h-2.5 w-2.5" />}
-                                {cur.agent?.full_name || 'Has proxy'}
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-[9px] text-muted-foreground">
-                                Unassigned
-                              </Badge>
-                            )}
-                          </label>
-                        );
-                      })
-                    )}
-                  </div>
-                  {!bulkPoolLoading && filteredBulkPool.length > 0 && (
-                    <div className="flex items-center justify-between px-3 py-1.5 text-[10px] text-muted-foreground border-t border-border">
-                      <span>
-                        Showing {Math.min(visibleCount, filteredBulkPool.length)} of {filteredBulkPool.length}
-                      </span>
-                      {visibleCount < filteredBulkPool.length ? (
-                        <button
-                          type="button"
-                          className="text-primary hover:underline font-medium"
-                          onClick={() =>
-                            setVisibleCount((c) => Math.min(c + PAGE, filteredBulkPool.length))
-                          }
-                        >
-                          Load more
-                        </button>
-                      ) : (
-                        <span>All loaded</span>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {bulkBeneficiaries.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 rounded-lg border border-border bg-muted/30 p-2 max-h-32 overflow-y-auto">
+                ) : (
+                  <div className="flex flex-wrap gap-1.5 rounded-lg border border-border bg-muted/30 p-2 max-h-40 overflow-y-auto">
                     {bulkBeneficiaries.map((b) => (
                       <Badge key={b.id} variant="secondary" className="gap-1 pl-2 pr-1 py-1">
                         <span className="text-[11px]">{b.full_name}</span>
