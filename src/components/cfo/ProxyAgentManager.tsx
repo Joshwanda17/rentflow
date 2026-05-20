@@ -17,6 +17,22 @@ import { Handshake, UserPlus, Loader2, Smartphone, ShieldCheck, Pencil, Trash2, 
 import { UserSearchPicker } from './UserSearchPicker';
 import { format } from 'date-fns';
 
+/**
+ * Build a normalized identity key for deduplication.
+ * Same human shouldn't be assigned twice when filters overlap (re-registered
+ * profiles often share a phone number or national ID).
+ * Returns null when no usable identifier exists — caller falls back to profile id only.
+ */
+function dedupeKey(p: any): string | null {
+  if (!p) return null;
+  const digits = (p.phone || '').toString().replace(/\D+/g, '');
+  // Last 9 digits handle MSISDN prefix variations (256xxx vs 0xxx).
+  const phoneKey = digits ? `p:${digits.slice(-9)}` : '';
+  const nid = (p.national_id || p.nida_no || p.reference_id || '').toString().trim().toLowerCase();
+  const nidKey = nid ? `n:${nid}` : '';
+  return phoneKey || nidKey || null;
+}
+
 export function ProxyAgentManager() {
   const { user } = useAuth();
   const { toast } = useToast();
