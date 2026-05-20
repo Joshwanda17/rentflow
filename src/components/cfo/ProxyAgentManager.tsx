@@ -227,8 +227,27 @@ export function ProxyAgentManager() {
     const reLinks: any[] = []; // already on the same agent (no-op / reactivation)
     const moves: Array<{ partner: any; priorAgentName: string; priorAgentId: string }> = [];
     const byPriorAgent = new Map<string, { name: string; partners: any[] }>();
+    // Extra preview dimensions
+    let withPhone = 0, withoutPhone = 0;
+    let currentlyManaged = 0, currentlyUnmanaged = 0, currentlyNone = 0;
+    let currentlyActive = 0, currentlyInactive = 0;
+    let managedFlip = 0;   // currently managed → batch is unmanaged
+    let unmanagedFlip = 0; // currently unmanaged → batch is managed
     bulkBeneficiaries.forEach((b) => {
       const cur = assignmentByBeneficiary.get(b.id);
+      if (b.phone) withPhone++; else withoutPhone++;
+      if (!cur) {
+        currentlyNone++;
+      } else {
+        if (cur.is_active === false) currentlyInactive++; else currentlyActive++;
+        if (cur.is_managed_account) {
+          currentlyManaged++;
+          if (!bulkManaged) managedFlip++;
+        } else {
+          currentlyUnmanaged++;
+          if (bulkManaged) unmanagedFlip++;
+        }
+      }
       if (!cur) {
         newLinks.push(b);
       } else if (bulkAgent && cur.agent_id === bulkAgent.id) {
@@ -241,8 +260,23 @@ export function ProxyAgentManager() {
         byPriorAgent.set(cur.agent_id, slot);
       }
     });
-    return { newLinks, reLinks, moves, byPriorAgent: Array.from(byPriorAgent.entries()) };
-  }, [bulkBeneficiaries, assignmentByBeneficiary, bulkAgent]);
+    return {
+      newLinks,
+      reLinks,
+      moves,
+      byPriorAgent: Array.from(byPriorAgent.entries()),
+      total: bulkBeneficiaries.length,
+      withPhone,
+      withoutPhone,
+      currentlyManaged,
+      currentlyUnmanaged,
+      currentlyNone,
+      currentlyActive,
+      currentlyInactive,
+      managedFlip,
+      unmanagedFlip,
+    };
+  }, [bulkBeneficiaries, assignmentByBeneficiary, bulkAgent, bulkManaged]);
 
   const [showBulkConfirm, setShowBulkConfirm] = useState(false);
 
