@@ -187,6 +187,10 @@ export function DepositReviewTimeline({ request }: Props) {
   const [copied, setCopied] = useState(false);
   const [auditEvents, setAuditEvents] = useState<TimelineEvent[]>([]);
   const [adminEvents, setAdminEvents] = useState<TimelineEvent[]>([]);
+  const [voidedRows, setVoidedRows] = useState<
+    Map<string, { id: string; amount: number | null; status: string | null; transaction_id: string | null; provider: string | null; created_at: string | null }>
+  >(new Map());
+  const [copiedVoid, setCopiedVoid] = useState<string | null>(null);
 
   const baseEvents = request ? buildEvents(request) : [];
   const events = [...baseEvents, ...auditEvents, ...adminEvents].sort(
@@ -291,6 +295,37 @@ export function DepositReviewTimeline({ request }: Props) {
     };
   }, [request?.id]);
 
+  // Resolve the linked voided duplicate row(s) referenced from any
+  // 'reopened' admin event so Fin Ops can inspect the Gmail/auto-imported
+  // deposit_request that was ignored to make room for this submission.
+  useEffect(() => {
+    const ids = Array.from(
+      new Set(
+        adminEvents
+          .map((e) => e.linkedVoidedId)
+          .filter((v): v is string => !!v),
+      ),
+    );
+    if (ids.length === 0) {
+      setVoidedRows(new Map());
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from('deposit_requests')
+        .select('id, amount, status, transaction_id, provider, created_at')
+        .in('id', ids);
+      if (cancelled || error || !data) return;
+      const map = new Map<string, any>();
+      for (const r of data) map.set(r.id, r);
+      setVoidedRows(map);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [adminEvents]);
+
   // Resolve actor names in a single round trip — covers both the
   // submitting user and any reviewer recorded in processed_by.
   useEffect(() => {
@@ -333,6 +368,13 @@ export function DepositReviewTimeline({ request }: Props) {
     const hit = actors.get(actorId);
     if (hit?.full_name) return hit.full_name;
     return `${actorId.slice(0, 8)}…`;
+  };
+
+  const copyVoidedId = (id: string) => {
+    navigator.clipboard.writeText(id);
+    setCopiedVoid(id);
+    setTimeout(() => setCopiedVoid(null), 1500);
+    toast.success('Voided request ID copied');
   };
 
   return (
@@ -384,6 +426,71 @@ export function DepositReviewTimeline({ request }: Props) {
                     "{e.detail}"
                   </p>
                 )}
+                {e.kind === 'reopened' && e.linkedVoidedId && (() => {
+                  const v = voidedRows.get(e.linkedVoidedId);
+                  const tid = v?.transaction_id || e.linkedVoidedTid || '—';
+                  return (
+                    <div className="mt-1 rounded-md border border-destructive/30 bg-destructive/5 px-2 py-1.5 space-y-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] font-semibold text-destructive flex items-center gap-1">
+                          <Ban className="h-3 w-3" />
+                          Voided duplicate (ignored)
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => copyVoidedId(e.linkedVoidedId!)}
+                          className="text-[10px] font-mono text-muted-foreground hover:text-foreground flex items-center gap-1"
+                          aria-label="Copy voided request ID"
+                        >
+                          {e.linkedVoidedId.slice(0, 8)}…
+                          {copiedVoid === e.linkedVoidedId ? (
+                            <CheckCheck className="h-3 w-3 text-emerald-600" />
+                          ) : (
+                            <Copy className="h-3 w-3" />
+                          )}
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground">
+                        <span>TID</span>
+                        <span className="font-mono text-right truncate">{tid}</span>
+                        {v?.amount != null && (
+                          <>
+                            <span>Amount</span>
+                            <span className="text-right font-semibold tabular-nums">
+                              UGX {Number(v.amount).toLocaleString()}
+                            </span>
+                          </>
+                        )}
+                        {v?.status && (
+                          <>
+                            <span>Status</span>
+                            <span className="text-right uppercase">{v.status}</span>
+                          </>
+                        )}
+                        {v?.provider && (
+                          <>
+                            <span>Provider</span>
+                            <span className="text-right uppercase">{v.provider}</span>
+                          </>
+                        )}
+                        {e.linkedVoidedSource && (
+                          <>
+                            <span>Source</span>
+                            <span className="text-right">{e.linkedVoidedSource.replace(/_/g, ' ')}</span>
+                          </>
+                        )}
+                        {v?.created_at && (
+                          <>
+                            <span>Created</span>
+                            <span className="text-right">
+                              {format(new Date(v.created_at), 'MMM d, HH:mm')}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </li>
           );
