@@ -341,24 +341,24 @@ function finOpsApproveWithdrawal(
 
   // Wallet debit on the AGENT (funder), tagged to the partner.
   world.ledger.push({
-    user_id: wr.user_id, // agent — NEVER partner
+    user_id: fundingUserId, // agent — NEVER partner
     direction: "cash_out",
     amount: wr.amount,
     category: "wallet_withdrawal",
     ledger_scope: "wallet",
-    linked_party: wr.linked_party, // partner
+    linked_party: beneficiaryUserId, // partner
     source_table: "withdrawal_requests",
     source_id: wr.id,
     description: `Proxy partner payout from withdrawable – ${wr.payment_method} ref: ${wr.reference.toUpperCase()}`,
   });
   // Platform offset — money has left the platform.
   world.ledger.push({
-    user_id: wr.user_id,
+    user_id: fundingUserId,
     direction: "cash_in",
     amount: wr.amount,
     category: "wallet_withdrawal_offset",
     ledger_scope: "platform",
-    linked_party: wr.linked_party,
+    linked_party: beneficiaryUserId,
     source_table: "withdrawal_requests",
     source_id: wr.id,
   });
