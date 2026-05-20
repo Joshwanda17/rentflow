@@ -37,6 +37,9 @@ const StaffAccessCard = lazy(() => import('@/components/settings/StaffAccessCard
 const ResidenceAddressForm = lazy(() => import('@/components/profile/ResidenceAddressForm'));
 const EmailEditor = lazy(() => import('@/components/profile/EmailEditor'));
 const ShareCardThemeSettings = lazy(() => import('@/components/agent/ShareCardThemeSettings'));
+const ArchivedPdfsCard = lazy(() =>
+  import('@/components/settings/ArchivedPdfsCard').then((m) => ({ default: m.ArchivedPdfsCard })),
+);
 const CurrencyConverter = lazy(() => import('@/components/CurrencyConverter').then(m => ({ default: m.CurrencyConverter })));
 
 class SectionBoundary extends Component<{ children: ReactNode; name: string }, { hasError: boolean }> {
@@ -314,6 +317,7 @@ export default function Settings() {
                   <LazySection name="ResidenceAddress"><ResidenceAddressForm userId={user.id} /></LazySection>
                 )}
                 <LazySection name="Wallet"><WalletCard /></LazySection>
+                <LazySection name="ArchivedPdfs"><ArchivedPdfsCard /></LazySection>
               </div>
             )}
 
