@@ -287,13 +287,23 @@ function proxyAgentSubmitWithdrawal(
  * STAGE 5 — Fin Ops approves the withdrawal. Mirrors `approve-withdrawal`
  * for an `isProxyPayout=true` row: debits the AGENT's withdrawable bucket,
  * tags the entry with `linked_party = partner`, flips status to approved,
- * and dispatches the agent's withdrawal-paid email.
+ * and — exactly like production — dispatches the
+ * `returns-disbursement-confirmation` email to BOTH:
+ *   • the proxy PARTNER (beneficiary) with is_managed_by_agent=true
+ *   • the proxy AGENT (funder) with a "Proxy payout for <partner>" payout_method
+ * See supabase/functions/approve-withdrawal/index.ts lines 1175–1213.
  */
 function finOpsApproveWithdrawal(
   world: World,
   withdrawalId: string,
   finOpsId: string,
-  agentEmail: string,
+  ctx: {
+    agentEmail: string;
+    agentName: string;
+    partnerEmail: string;
+    partnerName: string;
+    portfolioCode: string;
+  },
 ) {
   const wr = world.withdrawals.find((w) => w.id === withdrawalId);
   if (!wr) throw new Error("withdrawal not found");
@@ -340,10 +350,37 @@ function finOpsApproveWithdrawal(
     title: "✅ Withdrawal Paid",
     metadata: { withdrawal_id: wr.id, approved_by: finOpsId },
   });
+
+  // ── Disbursement Confirmed emails (real production behaviour) ──────────
+  // 1) PARTNER (beneficiary) — is_managed_by_agent flag set, agent named.
   world.emails.push({
-    templateName: "withdrawal-paid",
-    recipientEmail: agentEmail,
-    templateData: { amount: wr.amount, reference: wr.reference },
+    templateName: "returns-disbursement-confirmation",
+    recipientEmail: ctx.partnerEmail,
+    templateData: {
+      partner_name: ctx.partnerName,
+      partner_id: wr.linked_party,
+      amount: wr.amount,
+      transaction_id: wr.reference.toUpperCase(),
+      portfolio_code: ctx.portfolioCode,
+      payout_method: `${wr.payment_method} — via Proxy Agent`,
+      is_managed_by_agent: true,
+      agent_name: ctx.agentName,
+    },
+  });
+  // 2) PROXY AGENT (funder) — same template, payout_method names the partner.
+  world.emails.push({
+    templateName: "returns-disbursement-confirmation",
+    recipientEmail: ctx.agentEmail,
+    templateData: {
+      partner_name: ctx.agentName,
+      partner_id: wr.user_id,
+      amount: wr.amount,
+      transaction_id: wr.reference.toUpperCase(),
+      portfolio_code: ctx.portfolioCode,
+      payout_method: `${wr.payment_method} — Proxy payout for ${ctx.partnerName}`,
+      is_managed_by_agent: true,
+      agent_name: ctx.agentName,
+    },
   });
 }
 
