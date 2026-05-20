@@ -68,7 +68,7 @@ export function ProxyAgentManager() {
       const { data, error } = await supabase
         .from('user_roles')
         .select('user_id, profiles:user_id(id, full_name, phone)')
-        .eq('role', bulkRole)
+        .eq('role', bulkRole as any)
         .limit(5000);
       if (error) throw error;
       return (data || [])
