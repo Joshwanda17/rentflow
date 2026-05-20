@@ -73,6 +73,11 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
         .select('id, beneficiary_id, beneficiary_role, reason, created_at, approval_status, beneficiary:beneficiary_id(id, full_name, phone)')
         .eq('agent_id', user.id)
         .eq('beneficiary_role', 'supporter')
+        // Only show assignments that are still the live link to the funder.
+        // When a funder is reassigned to another proxy agent, the prior row
+        // is flipped is_active=false by `trg_deactivate_stale_proxy_assignments`,
+        // and the previous agent must immediately stop seeing them.
+        .eq('is_active', true)
         .in('approval_status', ['pending', 'approved'])
         .order('created_at', { ascending: false });
 
