@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Check, Clock, ShieldCheck, Banknote, X, Loader2, AlertTriangle, Timer } from 'lucide-react';
+import { Check, Clock, ShieldCheck, Banknote, X, Loader2, AlertTriangle, Timer, Info } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format, addMinutes } from 'date-fns';
@@ -144,6 +144,66 @@ export default function WithdrawalStatusTracker({
     return h % 1 === 0 ? `${h} hr` : `${h.toFixed(1)} hr`;
   };
 
+  /** Plain-English explanation for why a withdrawal is taking longer than
+   * the original ETA. Triggers when:
+   *   - submitted >2h ago and still in the queue (not yet picked up), OR
+   *   - in review for >1h (manual checks taking time).
+   * We pick the most likely reason from a small heuristic ladder so the
+   * user sees something specific (high volume / off-hours / manual checks)
+   * instead of a generic "please wait". */
+  const getDelayReason = (): { title: string; body: string } | null => {
+    if (isDisbursed || isRejected || isCancelled || !row?.created_at) return null;
+    const createdAt = new Date(row.created_at);
+    const ageMin = (Date.now() - createdAt.getTime()) / 60000;
+
+    const reviewStartedAt =
+      row.manager_approved_at ?? row.fin_ops_approved_at ?? row.cfo_approved_at;
+    const reviewAgeMin = reviewStartedAt
+      ? (Date.now() - new Date(reviewStartedAt).getTime()) / 60000
+      : 0;
+
+    const queueDelay = !inReview && ageMin > 120;
+    const reviewDelay = inReview && reviewAgeMin > 60;
+    if (!queueDelay && !reviewDelay) return null;
+
+    // EAT (UTC+3) hour-of-day for off-hours messaging.
+    const eatHour = (new Date().getUTCHours() + 3) % 24;
+    const isOffHours = eatHour < 8 || eatHour >= 18;
+    const isWeekend = [0, 6].includes(new Date().getDay());
+
+    if (reviewDelay) {
+      if (amount >= 1_000_000) {
+        return {
+          title: 'Extra verification on a large amount',
+          body: 'Withdrawals above UGX 1,000,000 get a second manual review for your safety. Funds release as soon as the reviewer signs off.',
+        };
+      }
+      return {
+        title: 'Manual review in progress',
+        body: 'A Financial Ops reviewer is verifying your destination details against our payout providers. This usually wraps up within an hour.',
+      };
+    }
+
+    // Queue delay
+    if (isOffHours || isWeekend) {
+      return {
+        title: 'Outside business hours',
+        body: 'Financial Ops runs reviews 08:00–18:00 EAT on weekdays. Your request will be picked up as soon as the next reviewer comes online.',
+      };
+    }
+    if (queueAhead != null && queueAhead >= 10) {
+      return {
+        title: 'High withdrawal volume',
+        body: `There are ${queueAhead} requests ahead of yours right now. Reviewers are working through the queue in order — yours will move up shortly.`,
+      };
+    }
+    return {
+      title: 'Taking a little longer than usual',
+      body: 'Reviewers are catching up on the queue. Your request stays in place — no need to resubmit.',
+    };
+  };
+  const delayReason = getDelayReason();
+
   const handleCancel = async () => {
     if (!confirm('Cancel this withdrawal request? You can submit a new one anytime.')) return;
     setCancelling(true);
@@ -194,6 +254,18 @@ export default function WithdrawalStatusTracker({
                 <> · {queueAhead === 0 ? 'You\'re next in the queue' : `${queueAhead} request${queueAhead === 1 ? '' : 's'} ahead of you`}</>
               )}
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Delay explanation — shown when the request is running past its ETA
+          so the user understands *why* without having to ask support. */}
+      {delayReason && (
+        <div className="flex items-start gap-3 p-3 rounded-lg border border-amber-500/30 bg-amber-500/5">
+          <Info className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+          <div className="flex-1 text-xs">
+            <p className="font-semibold text-foreground">{delayReason.title}</p>
+            <p className="text-muted-foreground mt-0.5">{delayReason.body}</p>
           </div>
         </div>
       )}
