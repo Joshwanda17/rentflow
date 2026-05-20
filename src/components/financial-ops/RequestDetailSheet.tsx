@@ -15,6 +15,7 @@ import {
 import { toast } from 'sonner';
 import { decodeAllocationsFromNote } from '@/components/payments/OperationalFloatTenantAllocator';
 import { DepositReviewTimeline } from '@/components/financial-ops/DepositReviewTimeline';
+import { DuplicateTidPanel } from '@/components/financial-ops/DuplicateTidPanel';
 
 interface RequestDetailSheetProps {
   open: boolean;
@@ -325,6 +326,14 @@ export function RequestDetailSheet({ open, onOpenChange, userId, requestType, re
                     TID/receipt so reviewers can follow what happened. */}
                 {requestType === 'deposits' && (
                   <DepositReviewTimeline request={requestData} />
+                )}
+
+                {/* Duplicate-TID detector — operational-float deposits only.
+                    Backed by the server-side flagging trigger; this surface
+                    just lists the conflicting live rows so Fin Ops can
+                    triage before approval. */}
+                {requestType === 'deposits' && (
+                  <DuplicateTidPanel request={requestData} />
                 )}
 
                 {/* Operational Float — per-tenant breakdown.
