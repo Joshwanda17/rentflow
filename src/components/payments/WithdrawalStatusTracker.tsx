@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Check, Clock, ShieldCheck, Banknote, X, Loader2, AlertTriangle } from 'lucide-react';
+import { Check, Clock, ShieldCheck, Banknote, X, Loader2, AlertTriangle, Timer } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
+import { format, addMinutes } from 'date-fns';
 import { formatCurrency } from '@/lib/paymentMethods';
 import { cn } from '@/lib/utils';
 
@@ -51,6 +51,7 @@ export default function WithdrawalStatusTracker({
   const [row, setRow] = useState<WithdrawalRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
+  const [queueAhead, setQueueAhead] = useState<number | null>(null);
 
   // Initial fetch + realtime subscription so the user sees Ops approve LIVE.
   useEffect(() => {
@@ -83,6 +84,30 @@ export default function WithdrawalStatusTracker({
     };
   }, [requestId]);
 
+  // Compute how many pending requests are ahead of this one in the queue.
+  // Refreshes whenever the row's created_at becomes available or status flips
+  // out of pending (we stop estimating once it's in review/disbursed).
+  useEffect(() => {
+    if (!row?.created_at) return;
+    if (row.status !== 'pending') {
+      setQueueAhead(null);
+      return;
+    }
+    let alive = true;
+    (async () => {
+      const { count } = await supabase
+        .from('withdrawal_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending')
+        .lt('created_at', row.created_at);
+      if (!alive) return;
+      setQueueAhead(count ?? 0);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [row?.created_at, row?.status]);
+
   const status = row?.status ?? 'pending';
   const isCancelled = status === 'cancelled';
   const isRejected = status === 'rejected';
@@ -93,6 +118,31 @@ export default function WithdrawalStatusTracker({
     !!row?.manager_approved_at || !!row?.fin_ops_approved_at || !!row?.cfo_approved_at;
 
   const stageIndex = isDisbursed ? 2 : inReview ? 1 : 0;
+
+  /** ETA heuristic (only while still pending — once Ops starts, real
+   * timestamps tell the story). Assumes a Financial Ops throughput of
+   * ~6–20 minutes per request including verification + disbursement, plus
+   * a small floor so we never promise "instant". Hard-capped at 24h to
+   * match the messaging in stage #2. */
+  const computeEta = () => {
+    if (queueAhead == null) return null;
+    const minMinutes = Math.min(15 + queueAhead * 6, 24 * 60);
+    const maxMinutes = Math.min(120 + queueAhead * 20, 24 * 60);
+    const base = row?.created_at ? new Date(row.created_at) : new Date();
+    return {
+      minMinutes,
+      maxMinutes,
+      from: addMinutes(base, minMinutes),
+      to: addMinutes(base, maxMinutes),
+    };
+  };
+  const eta = !isDisbursed && !isRejected && !isCancelled && !inReview ? computeEta() : null;
+
+  const fmtRange = (mins: number) => {
+    if (mins < 60) return `${mins} min`;
+    const h = mins / 60;
+    return h % 1 === 0 ? `${h} hr` : `${h.toFixed(1)} hr`;
+  };
 
   const handleCancel = async () => {
     if (!confirm('Cancel this withdrawal request? You can submit a new one anytime.')) return;
@@ -129,6 +179,24 @@ export default function WithdrawalStatusTracker({
         <p className="text-xs text-muted-foreground mt-2">to {recipientLabel}</p>
         <p className="text-[10px] font-mono text-muted-foreground mt-2">Ref: {reference}</p>
       </Card>
+
+      {/* Estimated payout window — queue-aware, only while still pending. */}
+      {eta && (
+        <div className="flex items-start gap-3 p-3 rounded-lg border border-primary/20 bg-primary/5">
+          <Timer className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+          <div className="flex-1 text-xs">
+            <p className="font-semibold text-foreground">
+              Estimated payout in {fmtRange(eta.minMinutes)} – {fmtRange(eta.maxMinutes)}
+            </p>
+            <p className="text-muted-foreground mt-0.5">
+              Around {format(eta.from, 'MMM d, HH:mm')} – {format(eta.to, 'MMM d, HH:mm')}
+              {queueAhead != null && (
+                <> · {queueAhead === 0 ? 'You\'re next in the queue' : `${queueAhead} request${queueAhead === 1 ? '' : 's'} ahead of you`}</>
+              )}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Rejected / cancelled banners */}
       {isRejected && (
