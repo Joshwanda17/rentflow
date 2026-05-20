@@ -391,7 +391,15 @@ Deno.serve(async (req) => {
       // the category. Wallet buckets are NEVER computed in the UI or written
       // directly — the routing trigger + apply_wallet_movement own that.
       const rawPurpose = (depositRequest.deposit_purpose || '').toString().trim().toLowerCase();
-      const isFloatDeposit = rawPurpose === 'operational_float';
+      // Auto-verified deposits (matched against MoMo email receipt by the
+      // system / Zero-Touch poller / EmailAutoMatchPanel) ALWAYS land in
+      // Operational Float — that's the platform default for agent-sourced
+      // mobile-money inflows. The user can still pick 'personal_deposit'
+      // explicitly in the UI, but if the deposit was auto-approved we
+      // override the bucket to float regardless of `deposit_purpose`.
+      const isFloatDeposit =
+        rawPurpose === 'operational_float' ||
+        (!!auto_approved && rawPurpose !== 'personal_deposit');
       const depositCategory: 'agent_float_deposit' | 'wallet_deposit' =
         isFloatDeposit ? 'agent_float_deposit' : 'wallet_deposit';
       const depositBucket: 'float' | 'withdrawable' =
