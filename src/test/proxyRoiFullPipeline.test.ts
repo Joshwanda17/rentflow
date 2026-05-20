@@ -47,6 +47,15 @@ const RR_ID = "rr-ssenkaali-1";
 const PAYMENT_NUMBER = 4;
 const ROI_AMOUNT = 200_000;
 const WITHDRAWAL_ID = "wr-proxy-1";
+const PORTFOLIO_CODE = "WIP2604226578";
+
+const APPROVE_CTX = {
+  agentEmail: PROXY_EMAIL,
+  agentName: PROXY_NAME,
+  partnerEmail: PARTNER_EMAIL,
+  partnerName: PARTNER_NAME,
+  portfolioCode: PORTFOLIO_CODE,
+};
 
 type LedgerEntry = {
   user_id: string;
@@ -287,13 +296,23 @@ function proxyAgentSubmitWithdrawal(
  * STAGE 5 — Fin Ops approves the withdrawal. Mirrors `approve-withdrawal`
  * for an `isProxyPayout=true` row: debits the AGENT's withdrawable bucket,
  * tags the entry with `linked_party = partner`, flips status to approved,
- * and dispatches the agent's withdrawal-paid email.
+ * and — exactly like production — dispatches the
+ * `returns-disbursement-confirmation` email to BOTH:
+ *   • the proxy PARTNER (beneficiary) with is_managed_by_agent=true
+ *   • the proxy AGENT (funder) with a "Proxy payout for <partner>" payout_method
+ * See supabase/functions/approve-withdrawal/index.ts lines 1175–1213.
  */
 function finOpsApproveWithdrawal(
   world: World,
   withdrawalId: string,
   finOpsId: string,
-  agentEmail: string,
+  ctx: {
+    agentEmail: string;
+    agentName: string;
+    partnerEmail: string;
+    partnerName: string;
+    portfolioCode: string;
+  },
 ) {
   const wr = world.withdrawals.find((w) => w.id === withdrawalId);
   if (!wr) throw new Error("withdrawal not found");
@@ -340,10 +359,37 @@ function finOpsApproveWithdrawal(
     title: "✅ Withdrawal Paid",
     metadata: { withdrawal_id: wr.id, approved_by: finOpsId },
   });
+
+  // ── Disbursement Confirmed emails (real production behaviour) ──────────
+  // 1) PARTNER (beneficiary) — is_managed_by_agent flag set, agent named.
   world.emails.push({
-    templateName: "withdrawal-paid",
-    recipientEmail: agentEmail,
-    templateData: { amount: wr.amount, reference: wr.reference },
+    templateName: "returns-disbursement-confirmation",
+    recipientEmail: ctx.partnerEmail,
+    templateData: {
+      partner_name: ctx.partnerName,
+      partner_id: wr.linked_party,
+      amount: wr.amount,
+      transaction_id: wr.reference.toUpperCase(),
+      portfolio_code: ctx.portfolioCode,
+      payout_method: `${wr.payment_method} — via Proxy Agent`,
+      is_managed_by_agent: true,
+      agent_name: ctx.agentName,
+    },
+  });
+  // 2) PROXY AGENT (funder) — same template, payout_method names the partner.
+  world.emails.push({
+    templateName: "returns-disbursement-confirmation",
+    recipientEmail: ctx.agentEmail,
+    templateData: {
+      partner_name: ctx.agentName,
+      partner_id: wr.user_id,
+      amount: wr.amount,
+      transaction_id: wr.reference.toUpperCase(),
+      portfolio_code: ctx.portfolioCode,
+      payout_method: `${wr.payment_method} — Proxy payout for ${ctx.partnerName}`,
+      is_managed_by_agent: true,
+      agent_name: ctx.agentName,
+    },
   });
 }
 
@@ -447,7 +493,7 @@ describe("ROI payout full pipeline · Partner Ops → COO → CFO → Proxy With
     expect(world.ledger.length).toBe(2);
 
     // ── STAGE 5: Fin Ops approves the withdrawal ────────────────────────
-    finOpsApproveWithdrawal(world, wr.id, "finops-1", PROXY_EMAIL);
+    finOpsApproveWithdrawal(world, wr.id, "finops-1", APPROVE_CTX);
     expect(wr.status).toBe("approved");
 
     // AIM #4 — money deducted from the AGENT's wallet, not the partner.
@@ -463,10 +509,33 @@ describe("ROI payout full pipeline · Partner Ops → COO → CFO → Proxy With
     expect(agentDebit!.user_id).toBe(PROXY_ID);
     expect(agentDebit!.linked_party).toBe(PARTNER_ID); // earmarked to partner
 
-    // Withdrawal email goes to the AGENT.
-    expect(
-      world.emails.find((e) => e.templateName === "withdrawal-paid"),
-    ).toMatchObject({ recipientEmail: PROXY_EMAIL });
+    // AIM #2 (Fin Ops stage) — the Disbursement Confirmed email is sent to
+    // BOTH the proxy PARTNER (beneficiary) and the proxy AGENT (funder).
+    // This mirrors approve-withdrawal/index.ts lines 1175–1213.
+    const disbursementEmails = world.emails.filter(
+      (e) => e.templateName === "returns-disbursement-confirmation",
+    );
+    // 1 from CFO send (partner) + 2 from Fin Ops approval (partner + agent) = 3.
+    expect(disbursementEmails).toHaveLength(3);
+
+    const finalPartnerEmail = disbursementEmails.at(-2)!;
+    const finalAgentEmail = disbursementEmails.at(-1)!;
+    expect(finalPartnerEmail).toMatchObject({
+      recipientEmail: PARTNER_EMAIL,
+      templateData: {
+        is_managed_by_agent: true,
+        agent_name: PROXY_NAME,
+        portfolio_code: PORTFOLIO_CODE,
+        amount: ROI_AMOUNT,
+      },
+    });
+    expect(finalPartnerEmail.templateData.payout_method).toMatch(/via Proxy Agent/);
+    expect(finalAgentEmail).toMatchObject({
+      recipientEmail: PROXY_EMAIL,
+      templateData: { is_managed_by_agent: true, agent_name: PROXY_NAME },
+    });
+    expect(finalAgentEmail.templateData.payout_method)
+      .toMatch(new RegExp(`Proxy payout for ${PARTNER_NAME}`));
 
     // AIM #3 again — financial statements still balance end-to-end.
     expect(isBalanced(world)).toBe(true);
@@ -494,7 +563,7 @@ describe("ROI payout full pipeline · Partner Ops → COO → CFO → Proxy With
       reference: "REF-X",
     });
     expect(() =>
-      finOpsApproveWithdrawal(world, wr.id, "finops-1", PROXY_EMAIL),
+      finOpsApproveWithdrawal(world, wr.id, "finops-1", APPROVE_CTX),
     ).toThrow(/Insufficient proxy partner balance/);
     expect(wr.status).toBe("pending");
     expect(world.ledger).toHaveLength(0);
@@ -515,7 +584,7 @@ describe("ROI payout full pipeline · Partner Ops → COO → CFO → Proxy With
       agentId: PROXY_ID, partnerId: PARTNER_ID, partnerName: PARTNER_NAME,
       amount: ROI_AMOUNT, paymentMethod: "MoMo", reference: "REF-Z",
     });
-    finOpsApproveWithdrawal(world, wr.id, "finops-1", PROXY_EMAIL);
+    finOpsApproveWithdrawal(world, wr.id, "finops-1", APPROVE_CTX);
 
     const partnerWalletLegs = world.ledger.filter(
       (e) => e.ledger_scope === "wallet" && e.user_id === PARTNER_ID,
@@ -544,5 +613,25 @@ describe("source guards · approve-withdrawal proxy debit contract", () => {
 
   it("tags the debit leg with linked_party = beneficiary partner", () => {
     expect(src).toMatch(/linked_party:\s*isProxyPayout\s*\?/);
+  });
+
+  it("dispatches Disbursement Confirmed (returns-disbursement-confirmation) to the PARTNER on Fin Ops approval", () => {
+    expect(src).toMatch(/buildReturnsDisbursementRequest\(\{[\s\S]*recipientEmail:\s*partnerProfile\.email/);
+    expect(src).toMatch(/isManagedByAgent:\s*isProxyPayout\s*&&\s*fundingUserId\s*!==\s*partnerId/);
+  });
+
+  it("ALSO dispatches Disbursement Confirmed to the PROXY AGENT in the same flow", () => {
+    // The second buildReturnsDisbursementRequest call recipients agentEmail
+    // and tags payout_method with "Proxy payout for".
+    const agentBlockRe =
+      /buildReturnsDisbursementRequest\(\{[\s\S]*?recipientEmail:\s*agentEmail[\s\S]*?payoutMethod:\s*`[^`]*Proxy payout for/;
+    expect(src).toMatch(agentBlockRe);
+  });
+
+  it("only sends the Disbursement Confirmed email for genuine proxy ROI payouts (guarded)", () => {
+    // The send is skipped for self-withdrawals and non-ROI-backed withdrawals.
+    expect(src).toMatch(/Skipping returns-disbursement email: not a proxy payout/);
+    expect(src).toMatch(/has no investor portfolio/);
+    expect(src).toMatch(/has no ROI ledger credits/);
   });
 });
