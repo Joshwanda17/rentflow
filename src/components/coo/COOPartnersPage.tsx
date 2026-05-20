@@ -3800,8 +3800,10 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
           cooUsers.map(c => ({
             user_id: c.user_id,
             title: 'ROI Payout Awaiting COO Approval',
-            message: hasProxy
-              ? `[Partner Wallet via Proxy ${managed.agentName}] ${p.name}: ${formatUGX(roiAmount)} pending COO approval. Ref: ${refId}`
+            message: isManagedProxy
+              ? `[Proxy Agent Wallet ${managed.agentName}] ${p.name}: ${formatUGX(roiAmount)} pending COO approval. Ref: ${refId}`
+              : hasProxy
+                ? `[Partner Wallet via Proxy ${managed.agentName}] ${p.name}: ${formatUGX(roiAmount)} pending COO approval. Ref: ${refId}`
               : `[${modeLabel}] ${p.name} has an ROI payout of ${formatUGX(roiAmount)} pending COO approval. Ref: ${refId}`,
             type: 'approval_required',
             metadata: { portfolio_id: p.portfolioId, partner_id: p.investorId, roi_amount: roiAmount, reference: refId, pay_mode: mode },
