@@ -228,7 +228,8 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[88vh] overflow-y-auto pb-[calc(env(safe-area-inset-bottom,0px)+96px)] sm:pb-6 overscroll-contain">
+      <DialogContent className="sm:max-w-lg max-h-[92vh] p-0 overflow-hidden flex flex-col overscroll-contain">
+        <div className="px-6 pt-6">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <User className="h-5 w-5 text-primary" />
@@ -238,7 +239,9 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
             Register a tenant under their landlord and earn 2% on every rent payment
           </DialogDescription>
         </DialogHeader>
+        </div>
 
+        <div className="flex-1 overflow-y-auto px-6 pt-4 pb-4">
         <AnimatePresence mode="wait">
           {success ? (
             <motion.div
@@ -277,6 +280,7 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
           ) : (
             <motion.form
               key="form"
+              id="register-tenant-form"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               onSubmit={handleSubmit}
@@ -550,20 +554,36 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
               </div>
 
               <GuarantorConsentCheckbox checked={guarantorConsent} onCheckedChange={setGuarantorConsent} />
-
-              <Button type="submit" className="w-full" disabled={loading || !guarantorConsent}>
-                {loading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Registering...
-                  </>
-                ) : (
-                  'Register Tenant Under Landlord'
-                )}
-              </Button>
             </motion.form>
           )}
         </AnimatePresence>
+        </div>
+
+        {!success && (
+          <div className="border-t bg-background/95 backdrop-blur px-6 py-3 pb-[calc(env(safe-area-inset-bottom,0px)+12px)] sticky bottom-0">
+            {!guarantorConsent && (
+              <p className="text-[11px] text-amber-600 dark:text-amber-400 mb-2 text-center">
+                Tick the guarantor consent above to enable submit
+              </p>
+            )}
+            <Button
+              type="submit"
+              form="register-tenant-form"
+              size="lg"
+              className="w-full h-12 text-base font-semibold shadow-lg"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Submitting rent request...
+                </>
+              ) : (
+                'Submit Rent Request'
+              )}
+            </Button>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
