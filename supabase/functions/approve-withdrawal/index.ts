@@ -1058,6 +1058,36 @@ Deno.serve(async (req) => {
       }),
     }).catch(() => {});
 
+    // ── User SMS alert (paid) ───────────────────────────────────────────
+    // Fire-and-forget so a telco hiccup never blocks the approval response.
+    if (profile?.phone) {
+      const refUpper = reference.trim().toUpperCase();
+      const smsMsg =
+        `WELILE: Your withdrawal of UGX ${amount.toLocaleString()} has been ` +
+        `APPROVED & PAID via ${payment_method}. Ref: ${refUpper}. ` +
+        `Thank you.`;
+      sendSMS(profile.phone, smsMsg).catch((e) =>
+        console.error("[approve-withdrawal] paid SMS failed:", e),
+      );
+    }
+
+    // ── User in-app notification (paid) ─────────────────────────────────
+    // notifications table writes may be suppressed by the lean-DB policy
+    // (notifications trigger) — wrap in try/catch so failures are silent.
+    try {
+      const notifyRows = notifyUserIds.map((uid) => ({
+        user_id: uid,
+        title: "✅ Withdrawal Paid",
+        message:
+          `Your withdrawal of UGX ${amount.toLocaleString()} has been ` +
+          `approved and paid via ${payment_method}. Ref: ${reference.trim().toUpperCase()}.`,
+        type: "financial",
+      }));
+      if (notifyRows.length > 0) {
+        await admin.from("notifications").insert(notifyRows);
+      }
+    } catch { /* suppressed */ }
+
     // ── Returns Disbursement Confirmation email ───────────────────────────
     // Sent ONLY now (after the merchant agent has actually confirmed payment
     // and the ledger has been written) so partners are never told their
