@@ -201,6 +201,64 @@ export default function ArchivedAccountsPage() {
           </Button>
         </div>
 
+        {lastVerification && (
+          <Card className={lastVerification.result.ok ? 'border-green-500/40' : 'border-destructive/50'}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                {lastVerification.result.ok ? (
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                ) : (
+                  <XCircle className="h-4 w-4 text-destructive" />
+                )}
+                Verification report — {lastVerification.name}
+                <button
+                  type="button"
+                  className="ml-auto text-xs text-muted-foreground hover:text-foreground"
+                  onClick={() => setLastVerification(null)}
+                >
+                  Dismiss
+                </button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="text-xs space-y-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div className="rounded border p-2 bg-muted/30">
+                  <div className="font-medium mb-1">auth.users</div>
+                  <div>email: <span className="font-mono">{lastVerification.result.auth.email ?? '—'}</span></div>
+                  <div>phone: <span className="font-mono">{lastVerification.result.auth.phone ?? '—'}</span></div>
+                  <div>deleted_at: <span className="font-mono">{lastVerification.result.auth.deleted_at ?? '—'}</span></div>
+                  <div>banned_until: <span className="font-mono">{lastVerification.result.auth.banned_until ?? '—'}</span></div>
+                </div>
+                <div className="rounded border p-2 bg-muted/30">
+                  <div className="font-medium mb-1">profiles</div>
+                  <div>full_name: <span className="font-mono">{lastVerification.result.profile.full_name ?? '—'}</span></div>
+                  <div>email: <span className="font-mono">{lastVerification.result.profile.email ?? '—'}</span></div>
+                  <div>phone: <span className="font-mono">{lastVerification.result.profile.phone ?? '—'}</span></div>
+                </div>
+              </div>
+              {lastVerification.result.ok ? (
+                <p className="text-green-700 dark:text-green-400">All fields match. Account is fully restored.</p>
+              ) : (
+                <div className="space-y-1">
+                  <p className="text-destructive font-medium">
+                    {lastVerification.result.mismatches.length} mismatch{lastVerification.result.mismatches.length === 1 ? '' : 'es'} detected:
+                  </p>
+                  <ul className="space-y-1">
+                    {lastVerification.result.mismatches.map((m, i) => (
+                      <li key={i} className="rounded border border-destructive/30 bg-destructive/5 p-2">
+                        <div className="font-medium">{m.field}</div>
+                        <div className="text-muted-foreground">auth: <span className="font-mono">{String(m.auth ?? '—')}</span></div>
+                        <div className="text-muted-foreground">profile: <span className="font-mono">{String(m.profile ?? '—')}</span></div>
+                        {m.note && <div className="text-destructive/80 mt-0.5">{m.note}</div>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between gap-3">
