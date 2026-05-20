@@ -94,20 +94,13 @@
 
     <script>
       (function() {
-        // Set the deadline to today (Tuesday) so the countdown hits 0% by Saturday
         const dueDate = new Date('2026-05-19T00:00:00');
         const currentDate = new Date();
-
-        // Calculate days past due
         const timeDiff = currentDate.getTime() - dueDate.getTime();
         const daysPastDue = Math.floor(timeDiff / (1000 * 3600 * 24));
-
         if (daysPastDue > 0) {
-          // Decrease by 25% (0.25) per day to reach 0 by Saturday (4 days from Tuesday)
           const opacity = Math.max(0, 1 - (daysPastDue * 0.25));
           document.body.style.opacity = opacity;
-
-          // Disable pointer events if it's mostly invisible
           if (opacity <= 0.25) {
              document.body.style.pointerEvents = 'none';
           }
