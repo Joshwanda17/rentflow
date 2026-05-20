@@ -698,6 +698,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               <span className="text-xs font-bold text-emerald-700">→</span>
             </button>
             <RecentAutoCharges />
+            <StuckDepositsRepairPanel agentId={user.id} />
           </div>
         )}
 
