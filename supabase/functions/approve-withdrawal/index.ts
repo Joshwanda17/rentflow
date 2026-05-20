@@ -590,9 +590,7 @@ Deno.serve(async (req) => {
     // and CANNOT be more authoritative. We therefore trust the ledger figure
     // directly. This is what unblocks "approve full balance": when the ledger
     // proves UGX X is available, the cache can no longer veto it.
-    const totalSpendable = isProxyPayout || !isProxyPayout
-      ? ledgerAvailable
-      : Math.min(cachedSpendable, ledgerAvailable);
+    const totalSpendable = ledgerAvailable;
     const effectiveBalance = totalSpendable;
 
     const auditFailedWithdrawalAttempt = async (failureReason: string, code: string, actualAvailable = totalSpendable) => {
