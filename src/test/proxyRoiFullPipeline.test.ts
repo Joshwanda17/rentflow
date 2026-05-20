@@ -515,8 +515,8 @@ describe("ROI payout full pipeline · Partner Ops → COO → CFO → Proxy With
     const disbursementEmails = world.emails.filter(
       (e) => e.templateName === "returns-disbursement-confirmation",
     );
-    // Two from CFO send (already there) + two from Fin Ops approval = 4.
-    expect(disbursementEmails).toHaveLength(4);
+    // 1 from CFO send (partner) + 2 from Fin Ops approval (partner + agent) = 3.
+    expect(disbursementEmails).toHaveLength(3);
 
     const finalPartnerEmail = disbursementEmails.at(-2)!;
     const finalAgentEmail = disbursementEmails.at(-1)!;
