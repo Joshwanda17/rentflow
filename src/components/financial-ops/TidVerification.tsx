@@ -52,6 +52,7 @@ import {
 } from '@/components/ui/tooltip';
 import { decodeAllocationsFromNote } from '@/components/payments/OperationalFloatTenantAllocator';
 import type { TenantAllocation } from '@/components/payments/OperationalFloatTenantAllocator';
+import { OpFloatReopenNotifier } from '@/components/financial-ops/OpFloatReopenNotifier';
 
 interface MatchResult {
   id: string;
@@ -1416,6 +1417,10 @@ export function TidVerification() {
         </p>
       </CardHeader>
       <CardContent className="space-y-5 px-4 sm:px-6 pb-24 sm:pb-5">
+        {/* Toasts when an operational-float request is moved back to the
+            pending queue (reopened) — so Fin Ops verifying in this screen
+            knows a new item just appeared without waiting for a refresh. */}
+        <OpFloatReopenNotifier />
         {/* Operator quality self-view — shows how many provider-mismatch
             attempts the current operator has triggered today. Helps build
             self-awareness without waiting for a CFO review. */}

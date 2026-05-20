@@ -180,7 +180,7 @@ Deno.serve(async (req) => {
       }
       const { data: rejected, error: rejErr } = await supabaseAdmin
         .from('deposit_requests')
-        .select('id, status, user_id, amount')
+        .select('id, status, user_id, amount, deposit_purpose, transaction_id')
         .in('id', idsToProcess)
         .eq('status', 'rejected');
       if (rejErr || !rejected || rejected.length === 0) {
@@ -208,11 +208,18 @@ Deno.serve(async (req) => {
         }
         await supabaseAdmin.from('audit_logs').insert({
           user_id: user.id,
-          action_type: 'reopen',
+          action_type: 'deposit_request_reopened',
           table_name: 'deposit_requests',
           record_id: r.id,
-          old_values: { status: 'rejected' },
-          new_values: { status: 'pending', reopen_note: reopenNote || 'Reopened for re-review' },
+          metadata: {
+            previous_status: 'rejected',
+            new_status: 'pending',
+            reason: reopenNote || 'Reopened for re-review',
+            deposit_purpose: (r as any).deposit_purpose ?? null,
+            amount: Number(r.amount),
+            tid: (r as any).transaction_id ?? null,
+            target_user_id: r.user_id,
+          },
         });
         reopened.push({ id: r.id, user_id: r.user_id, amount: Number(r.amount) });
       }
