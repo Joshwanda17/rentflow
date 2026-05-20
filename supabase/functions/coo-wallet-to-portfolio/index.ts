@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
     }
 
     // Validate payment method (default to wallet for backward compat)
-    const method = payment_method && VALID_METHODS.includes(payment_method) ? payment_method : "wallet";
+    let method = payment_method && VALID_METHODS.includes(payment_method) ? payment_method : "wallet";
 
     // Fetch portfolio
     const { data: portfolio, error: pErr } = await supabase
