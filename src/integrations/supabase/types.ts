@@ -8191,6 +8191,45 @@ export type Database = {
           },
         ]
       }
+      managed_proxy_roi_routing_violations: {
+        Row: {
+          amount: number
+          attempted_user_id: string
+          category: string
+          created_at: string
+          description: string | null
+          direction: string
+          expected_agent_id: string
+          id: string
+          linked_party: string
+          reference: string | null
+        }
+        Insert: {
+          amount: number
+          attempted_user_id: string
+          category: string
+          created_at?: string
+          description?: string | null
+          direction: string
+          expected_agent_id: string
+          id?: string
+          linked_party: string
+          reference?: string | null
+        }
+        Update: {
+          amount?: number
+          attempted_user_id?: string
+          category?: string
+          created_at?: string
+          description?: string | null
+          direction?: string
+          expected_agent_id?: string
+          id?: string
+          linked_party?: string
+          reference?: string | null
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string
