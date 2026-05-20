@@ -775,100 +775,109 @@ export default function DepositsManagement() {
                   <Card className={cn(
                     selectedIds.has(deposit.id) && deposit.status === 'pending' && 'ring-2 ring-primary'
                   )}>
-                    <CardContent className="p-4 space-y-3">
+                    <CardContent className="p-4 space-y-4">
                       {/* Transaction ID — top priority */}
-                      <div className="p-2.5 rounded-lg bg-warning/10 border border-warning/30">
-                        <p className="text-[10px] font-semibold text-warning uppercase tracking-wider mb-0.5">Transaction ID — Verify First</p>
-                        <p className="font-mono text-2xl font-black text-foreground break-all tracking-tight">
-                          {deposit.transaction_id || <span className="text-destructive text-sm italic font-sans font-medium">No Transaction ID provided</span>}
+                      <div className="p-3 rounded-lg bg-warning/10 border-2 border-warning/40">
+                        <p className="text-xs font-bold text-warning uppercase tracking-wider mb-1">Transaction ID — Verify First</p>
+                        <p className="font-mono text-3xl font-black text-foreground break-all tracking-tight leading-tight">
+                          {deposit.transaction_id || <span className="text-destructive text-base italic font-sans font-semibold">No Transaction ID provided</span>}
                         </p>
                       </div>
 
+                      {/* Amount — large, high-contrast headline */}
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Amount</p>
+                          <p className="text-3xl font-black text-primary tabular-nums leading-tight break-all">
+                            {formatUGX(deposit.amount)}
+                          </p>
+                        </div>
+                        <div className="shrink-0">{getStatusBadge(deposit.status)}</div>
+                      </div>
+
                       {/* User info + amount + status */}
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                      <div className="flex items-start gap-3">
                           {deposit.status === 'pending' && (
                             <Checkbox
                               checked={selectedIds.has(deposit.id)}
                               onCheckedChange={() => toggleSelect(deposit.id)}
-                              className="mt-1"
+                              className="mt-1 h-5 w-5"
                             />
                           )}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                              <span className="font-medium truncate">{deposit.user_name}</span>
+                          <div className="flex-1 min-w-0 space-y-1.5">
+                            <div className="flex items-center gap-2">
+                              <User className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                              <span className="text-base font-semibold truncate">{deposit.user_name}</span>
                             </div>
                             {deposit.user_phone && (
-                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <Phone className="h-3 w-3 flex-shrink-0" />
-                                <span>{deposit.user_phone}</span>
-                              </div>
+                              <a
+                                href={`tel:${deposit.user_phone}`}
+                                className="flex items-center gap-2 text-base text-foreground/80 hover:text-primary"
+                              >
+                                <Phone className="h-4 w-4 flex-shrink-0" />
+                                <span className="font-medium tabular-nums">{deposit.user_phone}</span>
+                              </a>
                             )}
                           </div>
-                        </div>
-                        <div className="text-right space-y-1">
-                          {getStatusBadge(deposit.status)}
-                          <p className="font-bold text-primary text-sm">{formatUGX(deposit.amount)}</p>
-                        </div>
+                          {deposit.provider && (
+                            <Badge variant="outline" className={`text-xs font-bold shrink-0 ${deposit.provider === 'mtn' ? 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/30' : 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/30'}`}>
+                              {deposit.provider.toUpperCase()}
+                            </Badge>
+                          )}
                       </div>
 
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <CalendarIcon className="h-3 w-3" />
-                        <span>{format(new Date(deposit.created_at), 'MMM d, yyyy h:mm a')}</span>
-                      </div>
-
-                      <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                      {/* Meta — clearer rows instead of dense inline text */}
+                      <div className="space-y-1.5 text-sm text-muted-foreground border-t border-border/50 pt-3">
+                        <div className="flex items-center gap-2">
+                          <CalendarIcon className="h-4 w-4 shrink-0" />
+                          <span className="font-medium text-foreground/80">{format(new Date(deposit.created_at), 'MMM d, yyyy • h:mm a')}</span>
+                        </div>
                         {deposit.agent_name && (
-                          <span>Agent: <strong>{deposit.agent_name}</strong></span>
+                          <p>Agent: <strong className="text-foreground/90">{deposit.agent_name}</strong></p>
                         )}
                         {deposit.processed_by_name && (
-                          <span>• Processed by: <strong>{deposit.processed_by_name}</strong></span>
-                        )}
-                        {deposit.provider && (
-                          <Badge variant="outline" className={`text-[10px] ${deposit.provider === 'mtn' ? 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20' : 'bg-red-500/10 text-red-600 border-red-500/20'}`}>
-                            {deposit.provider.toUpperCase()}
-                          </Badge>
+                          <p>Processed by: <strong className="text-foreground/90">{deposit.processed_by_name}</strong></p>
                         )}
                       </div>
 
                       {deposit.rejection_reason && (
-                        <p className="text-xs text-destructive">
-                          Reason: {deposit.rejection_reason}
-                        </p>
+                        <div className="p-2.5 rounded-md bg-destructive/10 border border-destructive/30">
+                          <p className="text-xs font-bold uppercase tracking-wider text-destructive mb-0.5">Rejection reason</p>
+                          <p className="text-sm text-destructive">{deposit.rejection_reason}</p>
+                        </div>
                       )}
 
                       {deposit.status === 'pending' && !selectedIds.has(deposit.id) && (
-                        <div className="flex gap-2 pt-1 border-t">
+                        <div className="flex gap-2 pt-2 border-t">
                         <Button
-                          size="sm"
-                          className="flex-1"
+                          size="lg"
+                          className="flex-1 h-12 text-base font-semibold"
                           onClick={() => openApproveDialog(deposit)}
                           disabled={processingIds.has(deposit.id) || bulkProcessing}
                         >
                             {processingIds.has(deposit.id) ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
+                              <Loader2 className="h-5 w-5 animate-spin" />
                             ) : (
                               <>
-                                <Check className="h-4 w-4 mr-1" />
+                                <Check className="h-5 w-5 mr-1.5" />
                                 Approve
                               </>
                             )}
                           </Button>
                           <Button
-                            size="sm"
+                            size="lg"
                             variant="destructive"
-                            className="flex-1"
+                            className="flex-1 h-12 text-base font-semibold"
                             onClick={() => setRejectDialog({ open: true, deposit, isBulk: false })}
                             disabled={processingIds.has(deposit.id) || bulkProcessing}
                           >
-                            <X className="h-4 w-4 mr-1" />
+                            <X className="h-5 w-5 mr-1.5" />
                             Reject
                           </Button>
                         </div>
                       )}
                       {deposit.status === 'pending' && selectedIds.has(deposit.id) && (
-                        <p className="text-xs text-primary text-center">
+                        <p className="text-sm font-medium text-primary text-center py-1">
                           Selected for bulk action
                         </p>
                       )}
