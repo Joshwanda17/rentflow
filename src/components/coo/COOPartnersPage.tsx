@@ -4347,7 +4347,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                      <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
                      <div className="min-w-0">
                        <p className="text-xs font-semibold text-primary">Managed Account</p>
-                       <p className="text-[10px] text-primary/70">Funds land in the <strong>partner's wallet</strong>. Proxy agent <strong>{selectedManaged.agentName}</strong> is recorded for audit.</p>
+                       <p className="text-[10px] text-primary/70">Funds are routed to proxy agent <strong>{selectedManaged.agentName}</strong>'s wallet for disbursement to the partner. Partner wallet is not credited.</p>
                      </div>
                    </div>
                    <Button
@@ -4356,7 +4356,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                      onClick={() => handlePay(selectedPayout, selectedReason, 'wallet')}
                    >
                      {selectedProcessing === 'pay' ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-                     Pay to Partner Wallet
+                     Pay to Proxy Agent Wallet
                    </Button>
                 </div>
               ) : (
