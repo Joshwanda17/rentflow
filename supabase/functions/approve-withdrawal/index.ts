@@ -741,6 +741,11 @@ Deno.serve(async (req) => {
         source_id: withdrawal_id,
         transaction_date: nowIso,
         linked_party: isProxyPayout ? (wr.linked_party || beneficiaryUserId) : user.id,
+        recipient_type: "user",
+        wallet_bucket: "withdrawable",
+        routing_source: isProxyPayout
+          ? "managed_proxy_withdrawal_agent_withdrawable_debit"
+          : "standard_withdrawal_withdrawable_debit",
       });
     }
     if (floatPortion > 0) {
