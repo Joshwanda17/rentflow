@@ -407,13 +407,14 @@ Deno.serve(async (req) => {
         return acc;
       }, 0);
 
-      if (isProxyPayout && wr.linked_party && wr.linked_party !== wr.user_id) {
+      const proxyLedgerPartnerId = isProxyPayout && proxyPartnerId ? String(proxyPartnerId) : null;
+      if (proxyLedgerPartnerId) {
         const { data: linkedRows, error: linkedErr } = await admin
           .from("general_ledger")
           .select("amount, direction, category, account")
           .eq("user_id", fundingUserId)
           .eq("ledger_scope", "wallet")
-          .eq("linked_party", wr.linked_party)
+          .eq("linked_party", proxyLedgerPartnerId)
           .or("classification.is.null,classification.eq.production");
         if (linkedErr) throw linkedErr;
 
@@ -436,9 +437,9 @@ Deno.serve(async (req) => {
         const { data: partnerPendingRows, error: partnerPendingErr } = await admin
           .from("withdrawal_requests")
           .select("amount")
-          .eq("user_id", fundingUserId)
-          .eq("linked_party", wr.linked_party)
           .neq("id", withdrawal_id)
+          .or(`user_id.eq.${fundingUserId},agent_id.eq.${fundingUserId},initiated_by.eq.${fundingUserId}`)
+          .or(`linked_party.eq.${proxyLedgerPartnerId},proxy_partner_id.eq.${proxyLedgerPartnerId},beneficiary_id.eq.${proxyLedgerPartnerId}`)
           .in("status", ["pending", "requested", "manager_approved", "processing"]);
         if (partnerPendingErr) throw partnerPendingErr;
 
@@ -497,8 +498,8 @@ Deno.serve(async (req) => {
         const { data: pendingRows, error: pendingErr } = await admin
           .from("withdrawal_requests")
           .select("amount")
-          .eq("user_id", fundingUserId)
           .neq("id", withdrawal_id)
+          .or(`user_id.eq.${fundingUserId},agent_id.eq.${fundingUserId},initiated_by.eq.${fundingUserId}`)
           .in("status", ["pending", "requested", "manager_approved", "processing"]);
         if (pendingErr) throw pendingErr;
 
@@ -579,9 +580,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    // For partner-linked proxy payouts, the partner-linked ledger is the
-    // authoritative figure (see ledgerAvailable computation above). The cached
-    // float bucket can lag — never let it veto a ledger-earmarked delivery.
+    // For every proxy payout, the resolved proxy agent ledger is authoritative
+    // (see ledgerAvailable computation above). The wallets view/cache can lag
+    // or show zero on partner-owned proxy rows, so never let it veto a
+    // ledger-earmarked delivery that will be debited from `fundingUserId`.
     //
     // For NORMAL (non-proxy) payouts the `wallets` table is now a read-only
     // view derived from the ledger (`v_user_wallet_strict`), so the legacy
@@ -589,11 +591,7 @@ Deno.serve(async (req) => {
     // and CANNOT be more authoritative. We therefore trust the ledger figure
     // directly. This is what unblocks "approve full balance": when the ledger
     // proves UGX X is available, the cache can no longer veto it.
-    const isPartnerLinkedProxy =
-      isProxyPayout && wr.linked_party && wr.linked_party !== wr.user_id;
-    const totalSpendable = isPartnerLinkedProxy || !isProxyPayout
-      ? ledgerAvailable
-      : Math.min(cachedSpendable, ledgerAvailable);
+    const totalSpendable = ledgerAvailable;
     const effectiveBalance = totalSpendable;
 
     const auditFailedWithdrawalAttempt = async (failureReason: string, code: string, actualAvailable = totalSpendable) => {
@@ -624,7 +622,7 @@ Deno.serve(async (req) => {
 
     if (!wallet || totalSpendable < amount) {
       const failureReason = isProxyPayout
-        ? `Insufficient proxy partner balance (ledger-checked). Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. This payout can only use funds linked to the selected partner.`
+        ? `Insufficient proxy agent wallet balance (ledger-checked). Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. This payout debits the assigned proxy agent wallet for the selected partner.`
         : `Insufficient withdrawable balance (ledger-checked). Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. Cached withdrawable UGX ${Math.round(cachedSpendable).toLocaleString()}, ledger-true UGX ${Math.round(ledgerAvailable).toLocaleString()}. Float and advance buckets cannot fund payouts.`;
       await auditFailedWithdrawalAttempt(failureReason, "INSUFFICIENT_WITHDRAWABLE");
       await releaseClaim();
@@ -772,7 +770,7 @@ Deno.serve(async (req) => {
         ledgerMessage.includes("Insufficient ledger balance");
       const failureReason = isInsufficientBalance
         ? isProxyPayout
-          ? `Insufficient proxy partner balance (ledger-checked). Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. This payout can only use funds linked to the selected partner.`
+          ? `Insufficient proxy agent wallet balance (ledger-checked). Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. This payout debits the assigned proxy agent wallet for the selected partner.`
           : `Insufficient withdrawable balance (ledger-checked). Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. Cached withdrawable UGX ${Math.round(cachedSpendable).toLocaleString()}, ledger-true UGX ${Math.round(ledgerAvailable).toLocaleString()}. Float and advance buckets cannot fund payouts.`
         : "Failed to record ledger entry: " + ledgerMessage;
       if (isInsufficientBalance) {

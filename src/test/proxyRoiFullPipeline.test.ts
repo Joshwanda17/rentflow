@@ -85,8 +85,12 @@ interface PayoutQueueRow {
 
 interface WithdrawalRequest {
   id: string;
-  user_id: string;        // submitter = proxy AGENT
-  linked_party: string;   // proxy PARTNER
+  user_id: string;        // owner = proxy PARTNER for v2 visibility/holds
+  agent_id?: string;      // funding proxy AGENT
+  initiated_by?: string;  // funding proxy AGENT audit trail
+  beneficiary_id?: string;
+  proxy_partner_id?: string;
+  linked_party?: string | null;
   amount: number;
   reason: string;
   status: "pending" | "approved" | "rejected";
@@ -280,10 +284,14 @@ function proxyAgentSubmitWithdrawal(
 ): WithdrawalRequest {
   const wr: WithdrawalRequest = {
     id: WITHDRAWAL_ID,
-    user_id: args.agentId,             // submitter
-    linked_party: args.partnerId,      // beneficiary partner
+    user_id: args.partnerId,
+    agent_id: args.agentId,
+    initiated_by: args.agentId,
+    beneficiary_id: args.partnerId,
+    proxy_partner_id: args.partnerId,
+    linked_party: null,
     amount: args.amount,
-    reason: `Proxy payout delivery for ${args.partnerName}`,
+    reason: `[Proxy initiated by agent ${args.agentId}] Proxy payout delivery for ${args.partnerName}`,
     status: "pending",
     payment_method: args.paymentMethod,
     reference: args.reference,
@@ -319,35 +327,38 @@ function finOpsApproveWithdrawal(
   if (wr.status !== "pending") {
     throw new Error(`already in status ${wr.status}`);
   }
+  const isProxyPayout = !!wr.proxy_partner_id || !!wr.agent_id || wr.reason.includes("Proxy payout delivery for");
+  const fundingUserId = isProxyPayout ? (wr.agent_id || wr.initiated_by || wr.user_id) : wr.user_id;
+  const beneficiaryUserId = isProxyPayout ? (wr.proxy_partner_id || wr.beneficiary_id || wr.user_id) : wr.user_id;
 
-  // Available withdrawable for the agent = sum of their wallet legs so far.
-  const agentAvailable = netWallet(world, wr.user_id);
+  // Available withdrawable for the funding wallet = sum of its wallet legs so far.
+  const agentAvailable = netWallet(world, fundingUserId);
   if (agentAvailable < wr.amount) {
     throw new Error(
-      `Insufficient proxy partner balance. Available UGX ${agentAvailable}, requested UGX ${wr.amount}`,
+      `Insufficient proxy agent wallet balance. Available UGX ${agentAvailable}, requested UGX ${wr.amount}`,
     );
   }
 
   // Wallet debit on the AGENT (funder), tagged to the partner.
   world.ledger.push({
-    user_id: wr.user_id, // agent — NEVER partner
+    user_id: fundingUserId, // agent — NEVER partner
     direction: "cash_out",
     amount: wr.amount,
     category: "wallet_withdrawal",
     ledger_scope: "wallet",
-    linked_party: wr.linked_party, // partner
+    linked_party: beneficiaryUserId, // partner
     source_table: "withdrawal_requests",
     source_id: wr.id,
     description: `Proxy partner payout from withdrawable – ${wr.payment_method} ref: ${wr.reference.toUpperCase()}`,
   });
   // Platform offset — money has left the platform.
   world.ledger.push({
-    user_id: wr.user_id,
+    user_id: fundingUserId,
     direction: "cash_in",
     amount: wr.amount,
     category: "wallet_withdrawal_offset",
     ledger_scope: "platform",
-    linked_party: wr.linked_party,
+    linked_party: beneficiaryUserId,
     source_table: "withdrawal_requests",
     source_id: wr.id,
   });
@@ -367,7 +378,7 @@ function finOpsApproveWithdrawal(
     recipientEmail: ctx.partnerEmail,
     templateData: {
       partner_name: ctx.partnerName,
-      partner_id: wr.linked_party,
+      partner_id: beneficiaryUserId,
       amount: wr.amount,
       transaction_id: wr.reference.toUpperCase(),
       portfolio_code: ctx.portfolioCode,
@@ -382,7 +393,7 @@ function finOpsApproveWithdrawal(
     recipientEmail: ctx.agentEmail,
     templateData: {
       partner_name: ctx.agentName,
-      partner_id: wr.user_id,
+      partner_id: fundingUserId,
       amount: wr.amount,
       transaction_id: wr.reference.toUpperCase(),
       portfolio_code: ctx.portfolioCode,
@@ -486,9 +497,11 @@ describe("ROI payout full pipeline · Partner Ops → COO → CFO → Proxy With
       reference: "REF-PIUS-001",
     });
     expect(wr.status).toBe("pending");
-    expect(wr.user_id).toBe(PROXY_ID);     // submitter = agent
-    expect(wr.linked_party).toBe(PARTNER_ID); // beneficiary = partner
-    expect(wr.reason).toMatch(/^Proxy payout delivery for /);
+    expect(wr.user_id).toBe(PARTNER_ID);     // owner/beneficiary = partner
+    expect(wr.agent_id).toBe(PROXY_ID);      // funding wallet = agent
+    expect(wr.proxy_partner_id).toBe(PARTNER_ID);
+    expect(wr.linked_party).toBeNull();
+    expect(wr.reason).toContain("Proxy payout delivery for");
     // No new ledger rows on submit.
     expect(world.ledger.length).toBe(2);
 
@@ -564,7 +577,7 @@ describe("ROI payout full pipeline · Partner Ops → COO → CFO → Proxy With
     });
     expect(() =>
       finOpsApproveWithdrawal(world, wr.id, "finops-1", APPROVE_CTX),
-    ).toThrow(/Insufficient proxy partner balance/);
+    ).toThrow(/Insufficient proxy agent wallet balance/);
     expect(wr.status).toBe("pending");
     expect(world.ledger).toHaveLength(0);
   });
@@ -609,6 +622,11 @@ describe("source guards · approve-withdrawal proxy debit contract", () => {
   it("debits the funding user (proxy agent) with wallet_withdrawal category", () => {
     expect(src).toMatch(/category:\s*['"]wallet_withdrawal['"]/);
     expect(src).toMatch(/user_id:\s*fundingUserId/);
+  });
+
+  it("does not let a stale cached wallet veto Fin Ops proxy approval", () => {
+    expect(src).toMatch(/const totalSpendable\s*=\s*ledgerAvailable/);
+    expect(src).not.toMatch(/isProxyPayout[\s\S]{0,120}Math\.min\(cachedSpendable, ledgerAvailable\)/);
   });
 
   it("tags the debit leg with linked_party = beneficiary partner", () => {
