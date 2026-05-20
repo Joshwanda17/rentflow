@@ -452,6 +452,19 @@ Deno.serve(async (req) => {
     if (op === "credit" && (walletCat === "roi_wallet_credit" || platformCat === "roi_expense")) {
       try {
         if (targetProfile.email) {
+          // Suppress this email for proxy partners — they receive the
+          // "Returns Disbursement Confirmation" email at withdrawal time
+          // instead. Sending both is redundant and confusing.
+          const { data: proxyAssignment } = await adminClient
+            .from("proxy_agent_assignments")
+            .select("id")
+            .eq("partner_id", target_user_id)
+            .eq("is_active", true)
+            .eq("approval_status", "approved")
+            .maybeSingle();
+          if (proxyAssignment) {
+            console.log(`[cfo-direct-credit] Skipping partner-wallet-deposit email — ${target_user_id} is a proxy partner (assignment=${proxyAssignment.id}); disbursement email will be sent on withdrawal.`);
+          } else {
           const { data: partnerWallet } = await adminClient
             .from("wallets")
             .select("id")
@@ -489,6 +502,7 @@ Deno.serve(async (req) => {
             }),
           });
           console.log(`[cfo-direct-credit] Partner wallet deposit email queued for ${target_user_id} ref=${refId}`);
+          }
         } else {
           console.warn(`[cfo-direct-credit] Skipping partner deposit email - no email for ${target_user_id}`);
         }
