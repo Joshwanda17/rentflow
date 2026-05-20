@@ -832,6 +832,7 @@ export function EmailTransactionsPanel() {
           >
             <FileText className="h-4 w-4" /> Export PDF
           </Button>
+          <ArchivedPdfsDrawer />
           <ReconnectGmailDialog />
           <DebugPollDialog />
           <SmsSetupGuide />
