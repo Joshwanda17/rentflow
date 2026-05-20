@@ -165,22 +165,56 @@ Deno.serve(async (req) => {
     // the partner's wallet. Skip the approval queue and deduct the wallet
     // immediately via ledger — same pattern as coo-wallet-to-portfolio.
     if (instantDeduct) {
-      // Verify partner wallet has the funds
+      // ── MANAGED-PROXY HARD GUARDRAIL ──
+      // If the partner is managed by a proxy agent (is_managed_account=true),
+      // funds MUST be debited from the proxy agent's wallet — not the
+      // partner's. Server-side override so no client path can bypass it.
+      let fundingUserId: string = investorId!;
+      let fundingLabel = "partner";
+      let managedAgentName: string | null = null;
+      {
+        const { data: managed } = await adminClient
+          .from("proxy_agent_assignments")
+          .select("agent_id")
+          .eq("beneficiary_id", investorId)
+          .eq("is_active", true)
+          .eq("is_managed_account", true)
+          .eq("approval_status", "approved")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (managed?.agent_id) {
+          fundingUserId = managed.agent_id;
+          fundingLabel = "proxy_agent";
+          const { data: ap } = await adminClient
+            .from("profiles").select("full_name").eq("id", managed.agent_id).maybeSingle();
+          managedAgentName = ap?.full_name ?? null;
+          console.warn(
+            `[create-investor-portfolio] Managed-proxy override: partner=${investorId} ` +
+            `funding from proxy agent=${managed.agent_id}`,
+          );
+        }
+      }
+
+      // Verify funding wallet has the funds
       const { data: wallet, error: wErr } = await adminClient
         .from("wallets")
         .select("balance")
-        .eq("user_id", investorId)
+        .eq("user_id", fundingUserId)
         .single();
 
       if (wErr || !wallet || Number(wallet.balance) < investmentAmount) {
         await adminClient.from("investor_portfolios").delete().eq("id", portfolio.id);
+        const who = fundingLabel === "proxy_agent"
+          ? `proxy agent (${managedAgentName || "linked agent"})`
+          : "partner";
         return new Response(JSON.stringify({
-          error: `Insufficient partner wallet balance. Available: UGX ${Number(wallet?.balance || 0).toLocaleString()}`,
+          error: `Insufficient ${who} wallet balance. Available: UGX ${Number(wallet?.balance || 0).toLocaleString()}`,
         }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
       // Double-entry ledger:
-      //  • Wallet leg  → partner cash_out (withdrawable bucket) — actually deducts the wallet
+      //  • Wallet leg  → funding user cash_out (withdrawable bucket) — actually deducts the wallet
       //  • Platform leg → actor cash_in, ledger_scope='platform' — does NOT touch the partner wallet
       // (Mirrors the cfo-direct-credit debit pattern.)
       const refId = `WPF-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
@@ -188,21 +222,25 @@ Deno.serve(async (req) => {
       const { error: ledgerErr } = await adminClient.rpc("create_ledger_transaction", {
         entries: [
           {
-            user_id: investorId,
+            user_id: fundingUserId,
             amount: investmentAmount,
             direction: "cash_out",
             category: "partner_funding",
             ledger_scope: "wallet",
             recipient_type: "user",
             wallet_bucket: "withdrawable",
-            routing_source: "create_investor_portfolio",
-            description: `Wallet deduction for portfolio ${codeData}`,
+            routing_source: fundingLabel === "proxy_agent"
+              ? "create_investor_portfolio_managed_proxy"
+              : "create_investor_portfolio",
+            description: fundingLabel === "proxy_agent"
+              ? `Proxy agent wallet deduction for partner portfolio ${codeData}`
+              : `Wallet deduction for portfolio ${codeData}`,
             source_table: "investor_portfolios",
             source_id: portfolio.id,
             reference_id: refId,
             currency: "UGX",
             transaction_date: nowIso,
-            linked_party: "platform",
+            linked_party: fundingLabel === "proxy_agent" ? investorId : "platform",
           },
           {
             user_id: user.id, // actor (COO/manager/etc) — platform leg, not a wallet credit
@@ -238,7 +276,9 @@ Deno.serve(async (req) => {
         source_table: "investor_portfolios",
         source_id: portfolio.id,
         transaction_group_id: txGroupId,
-        description: `Portfolio ${codeData} created by ${agentName} — instant wallet deduction`,
+        description: fundingLabel === "proxy_agent"
+          ? `Portfolio ${codeData} created by ${agentName} — funded from proxy agent (${managedAgentName || "linked"}) wallet`
+          : `Portfolio ${codeData} created by ${agentName} — instant wallet deduction`,
         reference_id: codeData,
         linked_party: "platform",
         status: "approved",
@@ -251,18 +291,26 @@ Deno.serve(async (req) => {
           roi_percentage: roiPercentage,
           duration_months: durationMonths,
           pre_approved: true,
-          source: "wallet",
+          source: fundingLabel === "proxy_agent" ? "proxy_agent_wallet" : "wallet",
+          funding_user_id: fundingUserId,
+          managed_proxy_agent_id: fundingLabel === "proxy_agent" ? fundingUserId : null,
+          managed_proxy_agent_name: managedAgentName,
           wallet_balance_before: Number(wallet.balance),
         },
       });
 
       await adminClient.from("audit_logs").insert({
         user_id: user.id,
-        action_type: "create_portfolio_instant_wallet_deduct",
+        action_type: fundingLabel === "proxy_agent"
+          ? "create_portfolio_instant_proxy_agent_deduct"
+          : "create_portfolio_instant_wallet_deduct",
         table_name: "investor_portfolios",
         record_id: portfolio.id,
         metadata: {
           partner_id: investorId,
+          funding_user_id: fundingUserId,
+          funding_source: fundingLabel,
+          managed_proxy_agent_name: managedAgentName,
           amount: investmentAmount,
           portfolio_code: codeData,
           wallet_balance_before: Number(wallet.balance),
@@ -270,7 +318,10 @@ Deno.serve(async (req) => {
         },
       });
 
-      console.log(`Portfolio ${codeData} created with INSTANT wallet deduction: ${investmentAmount} UGX from partner ${investorId}.`);
+      console.log(
+        `Portfolio ${codeData} created with INSTANT wallet deduction: ${investmentAmount} UGX ` +
+        `from ${fundingLabel}=${fundingUserId} (partner ${investorId}).`,
+      );
     } else {
       // Original path: agent-created or no partner — queue for approval
       const { error: pendingErr } = await adminClient.from("pending_wallet_operations").insert({
