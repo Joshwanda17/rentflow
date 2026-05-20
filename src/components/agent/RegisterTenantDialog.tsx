@@ -243,7 +243,10 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
       setCreatedRentRequestId(regData.rent_request_id ?? null);
 
       setSuccess(true);
-      toast.success('Tenant registered under landlord! You earn 2% on every rent payment.');
+      toast.success('✅ Rent request submitted successfully!', {
+        description: 'Tenant linked to landlord. You earn 2% on every rent payment.',
+        duration: 5000,
+      });
       onSuccess?.();
     } catch (err) {
       toast.error('An unexpected error occurred');
