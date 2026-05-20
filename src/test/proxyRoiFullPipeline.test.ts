@@ -284,10 +284,14 @@ function proxyAgentSubmitWithdrawal(
 ): WithdrawalRequest {
   const wr: WithdrawalRequest = {
     id: WITHDRAWAL_ID,
-    user_id: args.agentId,             // submitter
-    linked_party: args.partnerId,      // beneficiary partner
+    user_id: args.partnerId,
+    agent_id: args.agentId,
+    initiated_by: args.agentId,
+    beneficiary_id: args.partnerId,
+    proxy_partner_id: args.partnerId,
+    linked_party: null,
     amount: args.amount,
-    reason: `Proxy payout delivery for ${args.partnerName}`,
+    reason: `[Proxy initiated by agent ${args.agentId}] Proxy payout delivery for ${args.partnerName}`,
     status: "pending",
     payment_method: args.paymentMethod,
     reference: args.reference,
