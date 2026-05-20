@@ -146,6 +146,17 @@ export function ProxyAgentManager() {
 
   const [showBulkConfirm, setShowBulkConfirm] = useState(false);
 
+  /** Infinite-scroll window into filteredBulkPool. */
+  const PAGE = 100;
+  const [visibleCount, setVisibleCount] = useState(PAGE);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Reset window when the filter inputs or the dialog change.
+  useEffect(() => {
+    setVisibleCount(PAGE);
+    if (scrollRef.current) scrollRef.current.scrollTop = 0;
+  }, [bulkSearch, bulkFilter, bulkRole, showBulk]);
+
   const filteredAssignments = useMemo(() => {
     if (!searchTerm.trim()) return assignments;
     const q = searchTerm.toLowerCase();
