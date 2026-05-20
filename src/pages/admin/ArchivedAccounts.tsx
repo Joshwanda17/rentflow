@@ -161,9 +161,15 @@ export default function ArchivedAccountsPage() {
       });
       if (error) throw new Error(error.message);
       if ((data as any)?.error) throw new Error((data as any).error);
+      const v = (data as any)?.verification as VerificationResult | undefined;
+      const name = (data as any)?.restored_name || row.full_name?.replace(/^\[ARCHIVED\]\s*/i, '') || 'User';
+      if (v) setLastVerification({ name, result: v });
       toast({
-        title: 'Account restored',
-        description: `${(data as any)?.restored_name || row.full_name?.replace(/^\[ARCHIVED\]\s*/i, '') || 'User'} can sign in again.`,
+        title: v && !v.ok ? 'Restored with mismatches' : 'Account restored & verified',
+        description: v && !v.ok
+          ? `${name}: ${v.mismatches.length} field${v.mismatches.length === 1 ? '' : 's'} need review.`
+          : `${name} can sign in again.`,
+        variant: v && !v.ok ? 'destructive' : 'default',
       });
       await load();
     } catch (e: any) {
