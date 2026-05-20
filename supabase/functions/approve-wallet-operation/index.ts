@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
+import { resolveManagedProxy } from "../_shared/partnership-emails.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
