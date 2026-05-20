@@ -47,6 +47,7 @@ import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
 import PartnerImportDialog from './PartnerImportDialog';
 import UpdateContributionDatesDialog from './UpdateContributionDatesDialog';
+import PartnerPaymentDetailsDialog from './PartnerPaymentDetailsDialog';
 
 
 /** Roll a stale next_roi_date forward month-by-month until it's >= today */
@@ -247,6 +248,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   const [editRoiMode, setEditRoiMode] = useState('monthly_payout');
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
+
+  // Partner payment details dialog
+  const [paymentDetailsOpen, setPaymentDetailsOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // Suspend dialog
@@ -2406,6 +2410,17 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                 >
                                   <Pencil className="h-3.5 w-3.5" /> Edit
                                 </Button>
+                                {!readOnly && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-9 px-3 text-xs text-sky-600 hover:text-sky-700 hover:bg-sky-500/10 gap-1.5 min-h-[44px]"
+                                    onClick={() => setPaymentDetailsOpen(true)}
+                                    title="Add MoMo / bank details for this partner"
+                                  >
+                                    <Banknote className="h-3.5 w-3.5" /> Payment Details
+                                  </Button>
+                                )}
                                 {!readOnly && p.status === 'active' && (
                                   <Button
                                     variant="ghost"
@@ -2843,6 +2858,16 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
       {/* Import Dialog */}
       <PartnerImportDialog open={importOpen} onOpenChange={setImportOpen} onSuccess={() => { refreshInBackground(); fetchPendingCount(); }} />
+
+      {/* Partner Payment Details Dialog */}
+      {detailPartner && (
+        <PartnerPaymentDetailsDialog
+          open={paymentDetailsOpen}
+          onOpenChange={setPaymentDetailsOpen}
+          partnerId={detailPartner.profile.id}
+          partnerName={detailPartner.profile.full_name || 'Partner'}
+        />
+      )}
 
       {/* Compound Preview Dialog */}
       <AlertDialog open={!!compoundPreview} onOpenChange={(open) => { if (!open) setCompoundPreview(null); }}>
