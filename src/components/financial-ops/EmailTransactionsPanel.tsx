@@ -469,6 +469,20 @@ export function EmailTransactionsPanel() {
   });
   useEffect(() => { try { localStorage.setItem('gmail_filter_match', matchFilter); } catch {} }, [matchFilter]);
 
+  // Direction filter for the Recent emails list — lets Financial Ops slice
+  // the captured Gmail traffic into money-in vs money-out (sends + charges)
+  // without leaving the panel. Persisted so it survives reload.
+  //   all → no direction filter
+  //   in  → only credits (direction = 'in')
+  //   out → debits + fees (direction = 'out' or 'charge')
+  type DirectionFilter = 'all' | 'in' | 'out';
+  const [directionFilter, setDirectionFilter] = useState<DirectionFilter>(() => {
+    if (typeof window === 'undefined') return 'all';
+    const v = localStorage.getItem('gmail_filter_direction') as DirectionFilter | null;
+    return v && ['all', 'in', 'out'].includes(v) ? v : 'all';
+  });
+  useEffect(() => { try { localStorage.setItem('gmail_filter_direction', directionFilter); } catch {} }, [directionFilter]);
+
   // Persisted cache of derived channel classifications keyed by transaction id
   // / receipt number (with gmail_message_id as fallback). Loaded once on mount
   // and flushed back to localStorage whenever the heuristic learns a new key,
@@ -1142,6 +1156,48 @@ export function EmailTransactionsPanel() {
         <div className="p-4 border-b flex items-center justify-between gap-3 flex-wrap">
           <h3 className="font-semibold text-sm">Recent emails</h3>
           {(() => {
+            // Money-in vs money-out chips. Counts respect the active date /
+            // search filters so the numbers always match what's listed below.
+            const inCount = filteredRows.filter((r) => r.direction === 'in').length;
+            const outCount = filteredRows.filter(
+              (r) => r.direction === 'out' || r.direction === 'charge',
+            ).length;
+            const dirChips: Array<{ key: DirectionFilter; label: string; count: number }> = [
+              { key: 'all', label: 'All flows', count: filteredRows.length },
+              { key: 'in', label: 'Money in', count: inCount },
+              { key: 'out', label: 'Money out', count: outCount },
+            ];
+            return (
+              <div className="flex items-center gap-1 flex-wrap" role="group" aria-label="Filter by money direction">
+                {dirChips.map((c) => {
+                  const active = directionFilter === c.key;
+                  const tone =
+                    active && c.key === 'in'
+                      ? 'bg-emerald-600 text-white border-emerald-600'
+                      : active && c.key === 'out'
+                        ? 'bg-rose-600 text-white border-rose-600'
+                        : active
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-background hover:bg-muted text-muted-foreground border-border';
+                  return (
+                    <button
+                      key={c.key}
+                      type="button"
+                      onClick={() => setDirectionFilter(c.key)}
+                      aria-pressed={active}
+                      className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${tone}`}
+                    >
+                      {c.label}
+                      <span className={`ml-1.5 font-mono tabular-nums ${active ? 'opacity-90' : 'opacity-60'}`}>
+                        {c.count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })()}
+          {(() => {
             // Pre-compute counts so the user knows what each chip will narrow to.
             const refCount = filteredRows.filter((r) =>
               (userMatches[r.id] ?? []).some((u) => u.matched_on.startsWith('reference '))
@@ -1198,6 +1254,8 @@ export function EmailTransactionsPanel() {
           <div className="divide-y max-h-[600px] overflow-y-auto">
             {filteredRows
               .filter((r) => {
+                if (directionFilter === 'in' && r.direction !== 'in') return false;
+                if (directionFilter === 'out' && r.direction !== 'out' && r.direction !== 'charge') return false;
                 if (matchFilter === 'all') return true;
                 const list = userMatches[r.id] ?? [];
                 if (matchFilter === 'reference') return list.some((u) => u.matched_on.startsWith('reference '));
