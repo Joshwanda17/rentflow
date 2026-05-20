@@ -3,12 +3,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import {
-  AlertTriangle, CalendarIcon, Inbox, Loader2, RefreshCw, Search, X,
+  AlertTriangle, CalendarIcon, ChevronDown, ChevronUp, Inbox, Loader2, RefreshCw, Search, X,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
@@ -50,6 +54,8 @@ const fmtUgx = (n: number | null | undefined) =>
  * Operators filter by date range and by a specific deposit request
  * (ID, Transaction ID, depositor name, or phone) to triage faster.
  */
+const PAGE_SIZE = 10;
+
 export function EmailNeedsReviewPanel() {
   const { toast } = useToast();
   const [emails, setEmails] = useState<GmailTx[]>([]);
@@ -64,6 +70,10 @@ export function EmailNeedsReviewPanel() {
   });
   const [toDate, setToDate] = useState<Date | undefined>(undefined);
   const [depositFilter, setDepositFilter] = useState('');
+  const [unmatchedOpen, setUnmatchedOpen] = useState(true);
+  const [conflictingOpen, setConflictingOpen] = useState(true);
+  const [unmatchedPage, setUnmatchedPage] = useState(1);
+  const [conflictingPage, setConflictingPage] = useState(1);
 
   const load = useCallback(async (silent = false) => {
     if (silent) setRefreshing(true);
@@ -297,33 +307,105 @@ export function EmailNeedsReviewPanel() {
           Loading review queue…
         </div>
       ) : (
-        <Tabs defaultValue="unmatched" className="w-full">
-          <TabsList className="w-full justify-start rounded-none border-b bg-transparent h-auto p-0">
-            <TabsTrigger value="unmatched" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">
-              Unmatched <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-[10px]">{unmatched.length}</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="conflicting" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">
-              Conflicting <Badge variant="destructive" className="ml-2 h-5 px-1.5 text-[10px]">{conflicting.length}</Badge>
-            </TabsTrigger>
-          </TabsList>
+        <div className="divide-y">
+          {/* ── Unmatched ── */}
+          <Collapsible open={unmatchedOpen} onOpenChange={setUnmatchedOpen}>
+            <CollapsibleTrigger asChild>
+              <button className="w-full flex items-center justify-between p-4 text-left hover:bg-muted/30 transition-colors">
+                <div className="flex items-center gap-2.5">
+                  <Inbox className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-semibold text-sm">Unmatched</span>
+                  <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">{unmatched.length}</Badge>
+                </div>
+                {unmatchedOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              {unmatched.length === 0 ? (
+                <EmptyState text="Nothing to review — every parsed email is linked or has no candidate." />
+              ) : (
+                <>
+                  <ul className="divide-y">{paginate(unmatched, unmatchedPage).map((x) => renderRow(x, false))}</ul>
+                  <PaginationBar
+                    page={unmatchedPage}
+                    total={unmatched.length}
+                    onChange={setUnmatchedPage}
+                  />
+                </>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
 
-          <TabsContent value="unmatched" className="m-0">
-            {unmatched.length === 0 ? (
-              <EmptyState text="Nothing to review — every parsed email is linked or has no candidate." />
-            ) : (
-              <ul className="divide-y">{unmatched.map((x) => renderRow(x, false))}</ul>
-            )}
-          </TabsContent>
-
-          <TabsContent value="conflicting" className="m-0">
-            {conflicting.length === 0 ? (
-              <EmptyState text="No conflicting emails — no two pending deposits share an amount in this window." />
-            ) : (
-              <ul className="divide-y">{conflicting.map((x) => renderRow(x, true))}</ul>
-            )}
-          </TabsContent>
-        </Tabs>
+          {/* ── Conflicting ── */}
+          <Collapsible open={conflictingOpen} onOpenChange={setConflictingOpen}>
+            <CollapsibleTrigger asChild>
+              <button className="w-full flex items-center justify-between p-4 text-left hover:bg-muted/30 transition-colors">
+                <div className="flex items-center gap-2.5">
+                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                  <span className="font-semibold text-sm">Conflicting</span>
+                  <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">{conflicting.length}</Badge>
+                </div>
+                {conflictingOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              {conflicting.length === 0 ? (
+                <EmptyState text="No conflicting emails — no two pending deposits share an amount in this window." />
+              ) : (
+                <>
+                  <ul className="divide-y">{paginate(conflicting, conflictingPage).map((x) => renderRow(x, true))}</ul>
+                  <PaginationBar
+                    page={conflictingPage}
+                    total={conflicting.length}
+                    onChange={setConflictingPage}
+                  />
+                </>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
+        </div>
       )}
+    </div>
+  );
+}
+
+function paginate<T>(arr: T[], page: number): T[] {
+  const start = (page - 1) * PAGE_SIZE;
+  return arr.slice(start, start + PAGE_SIZE);
+}
+
+function PaginationBar({ page, total, onChange }: { page: number; total: number; onChange: (p: number) => void }) {
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const fromCount = (page - 1) * PAGE_SIZE + 1;
+  const toCount = Math.min(page * PAGE_SIZE, total);
+  return (
+    <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/20 text-xs">
+      <span className="text-muted-foreground">
+        {total === 0 ? 'No items' : `Showing ${fromCount}–${toCount} of ${total}`}
+      </span>
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 text-xs"
+          disabled={page <= 1}
+          onClick={() => onChange(page - 1)}
+        >
+          Previous
+        </Button>
+        <span className="font-medium tabular-nums">
+          {page} / {totalPages}
+        </span>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 text-xs"
+          disabled={page >= totalPages}
+          onClick={() => onChange(page + 1)}
+        >
+          Next
+        </Button>
+      </div>
     </div>
   );
 }
