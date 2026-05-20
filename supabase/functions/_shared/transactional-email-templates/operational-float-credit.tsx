@@ -11,7 +11,7 @@ import {
 } from 'npm:@react-email/components@0.0.22'
 import type { TemplateEntry } from './types.ts'
 
-interface PartnerWalletDepositProps {
+interface OperationalFloatCreditProps {
   partner_name?: string
   transaction_id?: string
   amount?: string | number
@@ -19,6 +19,7 @@ interface PartnerWalletDepositProps {
   date?: string
   wallet_id_last4?: string
   source?: string
+  new_float_balance?: string | number
   company_name?: string
   logo_url?: string
   unsubscribe_url?: string
@@ -32,7 +33,7 @@ const formatAmount = (amount: string | number | undefined, currency: string) => 
   return `${currency} ${num.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
 }
 
-export function PartnerWalletDeposit({
+export function OperationalFloatCredit({
   partner_name = 'Partner',
   transaction_id = 'TXN-XXXXXXXX',
   amount = 0,
@@ -43,14 +44,19 @@ export function PartnerWalletDeposit({
     year: 'numeric',
   }),
   wallet_id_last4 = '',
-  source = 'Platform',
+  source = 'MTN MoMo',
+  new_float_balance,
   company_name = 'Welile',
   logo_url = 'https://wirntoujqoyjobfhyelc.supabase.co/storage/v1/object/public/email-assets/welile-logo.png',
   unsubscribe_url = 'https://welile.com/unsubscribe',
   contact_url = 'https://welile.com/contact',
-}: PartnerWalletDepositProps) {
+}: OperationalFloatCreditProps) {
   const year = new Date().getFullYear()
   const formattedAmount = formatAmount(amount, currency)
+  const formattedNewBalance =
+    new_float_balance !== undefined && new_float_balance !== null && new_float_balance !== ''
+      ? formatAmount(new_float_balance, currency)
+      : ''
   const walletMask = wallet_id_last4 ? `•••• ${wallet_id_last4}` : ''
 
   return (
@@ -59,7 +65,7 @@ export function PartnerWalletDeposit({
         <style>{clientOverrides}</style>
       </Head>
       <Preview>
-        Wallet deposit of {formattedAmount} received — Reference {transaction_id}
+        Operational Float credited {formattedAmount} — Reference {transaction_id}
       </Preview>
       <Body style={main}>
         <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={bgTable}>
@@ -101,7 +107,7 @@ export function PartnerWalletDeposit({
                         </td>
                       </tr></tbody>
                     </table>
-                    <Heading style={heroH1}>Wallet Deposit Successful</Heading>
+                    <Heading style={heroH1}>Operational Float Credited</Heading>
                     <Text style={heroSub}>Dear {partner_name},</Text>
                   </td>
                 </tr>
@@ -109,7 +115,8 @@ export function PartnerWalletDeposit({
                 <tr>
                   <td align="center" className="padding-mobile" style={{ padding: '0 40px 35px 40px' }}>
                     <Text style={introText}>
-                      Great news! The funds have successfully credited to your wallet and are now available for use.
+                      Your mobile-money deposit was matched to your Welile account and auto-credited to your
+                      Operational Float wallet. The funds are available for use immediately — no action required.
                     </Text>
                   </td>
                 </tr>
