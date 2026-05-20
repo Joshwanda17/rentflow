@@ -115,6 +115,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { CreditAccessCard } from '@/components/CreditAccessCard';
 import { ApprovedRentRequestsWidget } from '@/components/rent/ApprovedRentRequestsWidget';
 import { RecentAutoCharges } from '@/components/wallet/RecentAutoCharges';
+import { StuckDepositsRepairPanel } from '@/components/wallet/StuckDepositsRepairPanel';
 import { AgentTenantRentRequestsList } from '@/components/agent/AgentTenantRentRequestsList';
 import { AgentVerificationOpportunitiesCard } from '@/components/agent/AgentVerificationOpportunitiesCard';
 import { ShareRentRecorderCard } from '@/components/agent/ShareRentRecorderCard';
@@ -697,6 +698,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               <span className="text-xs font-bold text-emerald-700">→</span>
             </button>
             <RecentAutoCharges />
+            <StuckDepositsRepairPanel agentId={user.id} />
           </div>
         )}
 
