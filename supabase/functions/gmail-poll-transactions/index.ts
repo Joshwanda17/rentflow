@@ -500,7 +500,7 @@ async function tryAutoCreditOperationalFloat(
   // Look up the user by phone (service-role bypasses RLS).
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, phone')
+    .select('id, phone, full_name')
     .filter('phone', 'ilike', `%${last9}`)
     .limit(1)
     .maybeSingle();
@@ -593,10 +593,82 @@ async function tryAutoCreditOperationalFloat(
     if (!res.ok) {
       const txt = await res.text();
       console.warn('[gmail-poll] approve-deposit non-200:', res.status, txt.slice(0, 300));
+      return;
     } else {
       console.log(`[gmail-poll] auto-credited float for user=${profile.id} dep=${newDep.id} amt=${parsed.amount}`);
     }
   } catch (e) {
     console.warn('[gmail-poll] approve-deposit invoke failed:', e);
+    return;
+  }
+
+  // ── Notify the user via SMS ────────────────────────────────────
+  // Tell them their Operational Float wallet was just topped up and what
+  // the new balance is, so they don't have to open the app to confirm.
+  try {
+    if (!profile.phone) return;
+    const { data: walletRow } = await supabase
+      .from('wallets')
+      .select('float_balance')
+      .eq('user_id', profile.id)
+      .maybeSingle();
+    const newFloat = Number(walletRow?.float_balance ?? 0);
+    const firstName = (profile.full_name ?? '').split(' ')[0] || 'there';
+    const fmt = (n: number) => `UGX ${Math.round(n).toLocaleString('en-UG')}`;
+    const msg =
+      `Welile: Hi ${firstName}, ${fmt(parsed.amount!)} from ${provider.toUpperCase()} ` +
+      `(TID ${parsed.transaction_id}) was auto-credited to your Operational Float. ` +
+      `New float balance: ${fmt(newFloat)}.`;
+    await sendSmsViaAfricasTalking(profile.phone, msg);
+  } catch (e) {
+    console.warn('[gmail-poll] auto-credit SMS failed (non-fatal):', e);
+  }
+}
+
+// ── SMS helper (Africa's Talking) ────────────────────────────────────
+function formatPhoneIntl(phone: string): string {
+  const d = phone.replace(/[^0-9]/g, '');
+  if (d.startsWith('256')) return `+${d}`;
+  if (d.startsWith('0')) return `+256${d.slice(1)}`;
+  if (d.length === 9) return `+256${d}`;
+  return `+${d}`;
+}
+
+async function sendSmsViaAfricasTalking(phone: string, message: string): Promise<boolean> {
+  const apiKey = Deno.env.get('AFRICASTALKING_API_KEY');
+  const username = Deno.env.get('AFRICASTALKING_USERNAME');
+  if (!apiKey || !username) {
+    console.warn('[gmail-poll] AT credentials missing — skipping SMS');
+    return false;
+  }
+  const isSandbox = username.toLowerCase() === 'sandbox';
+  const url = isSandbox
+    ? 'https://api.sandbox.africastalking.com/version1/messaging'
+    : 'https://api.africastalking.com/version1/messaging';
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        apiKey,
+        Accept: 'application/json',
+      },
+      body: new URLSearchParams({
+        username,
+        to: formatPhoneIntl(phone),
+        message,
+        from: 'WELILE',
+      }).toString(),
+    });
+    const txt = await res.text();
+    let data: any = null;
+    try { data = JSON.parse(txt); } catch { /* ignore */ }
+    const recipients = data?.SMSMessageData?.Recipients ?? [];
+    const ok = recipients.some((r: any) => r.statusCode === 101 || r.statusCode === 100);
+    console.log(`[gmail-poll] SMS ${ok ? 'sent' : 'failed'} to ${formatPhoneIntl(phone)} (status ${res.status})`);
+    return ok;
+  } catch (e) {
+    console.warn('[gmail-poll] SMS send error:', e);
+    return false;
   }
 }
