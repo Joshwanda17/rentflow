@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -65,13 +65,21 @@ export function ProxyAgentManager() {
     queryKey: ['bulk-proxy-pool', bulkRole],
     enabled: showBulk,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('user_id, profiles:user_id(id, full_name, phone)')
-        .eq('role', bulkRole as any)
-        .limit(5000);
-      if (error) throw error;
-      return (data || [])
+      // Paginate through ALL role members (PostgREST caps single requests at 1000).
+      const pageSize = 1000;
+      const all: any[] = [];
+      for (let from = 0; ; from += pageSize) {
+        const { data, error } = await supabase
+          .from('user_roles')
+          .select('user_id, profiles:user_id(id, full_name, phone)')
+          .eq('role', bulkRole as any)
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+        const batch = data || [];
+        all.push(...batch);
+        if (batch.length < pageSize) break;
+      }
+      return all
         .map((r: any) => r.profiles)
         .filter((p: any) => p && p.id && p.full_name);
     },
@@ -137,6 +145,17 @@ export function ProxyAgentManager() {
   }, [bulkBeneficiaries, assignmentByBeneficiary, bulkAgent]);
 
   const [showBulkConfirm, setShowBulkConfirm] = useState(false);
+
+  /** Infinite-scroll window into filteredBulkPool. */
+  const PAGE = 100;
+  const [visibleCount, setVisibleCount] = useState(PAGE);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Reset window when the filter inputs or the dialog change.
+  useEffect(() => {
+    setVisibleCount(PAGE);
+    if (scrollRef.current) scrollRef.current.scrollTop = 0;
+  }, [bulkSearch, bulkFilter, bulkRole, showBulk]);
 
   const filteredAssignments = useMemo(() => {
     if (!searchTerm.trim()) return assignments;
@@ -495,7 +514,18 @@ export function ProxyAgentManager() {
                       </span>
                     </label>
                   </div>
-                  <div className="max-h-72 overflow-y-auto divide-y divide-border">
+                  <div
+                    ref={scrollRef}
+                    className="max-h-72 overflow-y-auto divide-y divide-border"
+                    onScroll={(e) => {
+                      const el = e.currentTarget;
+                      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 80) {
+                        setVisibleCount((c) =>
+                          c < filteredBulkPool.length ? Math.min(c + PAGE, filteredBulkPool.length) : c,
+                        );
+                      }
+                    }}
+                  >
                     {bulkPoolLoading ? (
                       <div className="py-6 flex justify-center">
                         <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
@@ -505,7 +535,7 @@ export function ProxyAgentManager() {
                         No partners match this filter.
                       </div>
                     ) : (
-                      filteredBulkPool.slice(0, 500).map((p: any) => {
+                      filteredBulkPool.slice(0, visibleCount).map((p: any) => {
                         const cur = assignmentByBeneficiary.get(p.id);
                         const checked = selectedIds.has(p.id);
                         const wouldMove = cur && bulkAgent && cur.agent_id !== bulkAgent.id;
@@ -540,10 +570,25 @@ export function ProxyAgentManager() {
                       })
                     )}
                   </div>
-                  {filteredBulkPool.length > 500 && (
-                    <p className="px-3 py-1.5 text-[10px] text-muted-foreground border-t border-border">
-                      Showing first 500. Refine search to narrow further.
-                    </p>
+                  {!bulkPoolLoading && filteredBulkPool.length > 0 && (
+                    <div className="flex items-center justify-between px-3 py-1.5 text-[10px] text-muted-foreground border-t border-border">
+                      <span>
+                        Showing {Math.min(visibleCount, filteredBulkPool.length)} of {filteredBulkPool.length}
+                      </span>
+                      {visibleCount < filteredBulkPool.length ? (
+                        <button
+                          type="button"
+                          className="text-primary hover:underline font-medium"
+                          onClick={() =>
+                            setVisibleCount((c) => Math.min(c + PAGE, filteredBulkPool.length))
+                          }
+                        >
+                          Load more
+                        </button>
+                      ) : (
+                        <span>All loaded</span>
+                      )}
+                    </div>
                   )}
                 </div>
 
