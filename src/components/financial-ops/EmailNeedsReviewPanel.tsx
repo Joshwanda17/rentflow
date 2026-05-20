@@ -369,6 +369,47 @@ export function EmailNeedsReviewPanel() {
   );
 }
 
+function paginate<T>(arr: T[], page: number): T[] {
+  const start = (page - 1) * PAGE_SIZE;
+  return arr.slice(start, start + PAGE_SIZE);
+}
+
+function PaginationBar({ page, total, onChange }: { page: number; total: number; onChange: (p: number) => void }) {
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const fromCount = (page - 1) * PAGE_SIZE + 1;
+  const toCount = Math.min(page * PAGE_SIZE, total);
+  return (
+    <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/20 text-xs">
+      <span className="text-muted-foreground">
+        {total === 0 ? 'No items' : `Showing ${fromCount}–${toCount} of ${total}`}
+      </span>
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 text-xs"
+          disabled={page <= 1}
+          onClick={() => onChange(page - 1)}
+        >
+          Previous
+        </Button>
+        <span className="font-medium tabular-nums">
+          {page} / {totalPages}
+        </span>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 text-xs"
+          disabled={page >= totalPages}
+          onClick={() => onChange(page + 1)}
+        >
+          Next
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function DateField({ label, value, onChange }: { label: string; value: Date | undefined; onChange: (d: Date | undefined) => void }) {
   return (
     <Popover>
