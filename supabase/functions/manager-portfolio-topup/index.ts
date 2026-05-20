@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { buildPartnershipTopupRequest, dispatchTransactionalEmail } from "../_shared/partnership-emails.ts";
+import { buildPartnershipTopupRequest, dispatchTransactionalEmail, resolveManagedProxy } from "../_shared/partnership-emails.ts";
 import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
 
 const corsHeaders = {
@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { portfolio_id, amount, notes, payment_method, source_wallet_user_id } = body;
+    let { portfolio_id, amount, notes, payment_method, source_wallet_user_id } = body;
 
     // Validate portfolio_id
     if (!portfolio_id || !UUID_RE.test(portfolio_id)) {
@@ -92,6 +92,21 @@ Deno.serve(async (req) => {
     const partnerId = portfolio.investor_id || portfolio.agent_id;
     let txGroupId = crypto.randomUUID();
     const accountLabel = portfolio.account_name || portfolio.portfolio_code;
+
+    // ── MANAGED-PROXY HARD GUARDRAIL ──
+    // If the partner is managed by a proxy agent, force funds to come from
+    // the proxy agent's wallet — server-side override, no client bypass.
+    const managedProxyTopup = await resolveManagedProxy(supabase, partnerId);
+    if (managedProxyTopup) {
+      if (payment_method !== "proxy_agent" || source_wallet_user_id !== managedProxyTopup.agentId) {
+        console.warn(
+          `[manager-portfolio-topup] Managed-proxy override: partner=${partnerId} ` +
+          `forced source=${managedProxyTopup.agentId} (was method=${payment_method} source=${source_wallet_user_id})`,
+        );
+      }
+      payment_method = "proxy_agent";
+      source_wallet_user_id = managedProxyTopup.agentId;
+    }
 
     // ── Resolve source wallet ──
     let walletOwnerId = partnerId;
