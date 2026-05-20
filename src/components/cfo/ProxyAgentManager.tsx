@@ -514,7 +514,18 @@ export function ProxyAgentManager() {
                       </span>
                     </label>
                   </div>
-                  <div className="max-h-72 overflow-y-auto divide-y divide-border">
+                  <div
+                    ref={scrollRef}
+                    className="max-h-72 overflow-y-auto divide-y divide-border"
+                    onScroll={(e) => {
+                      const el = e.currentTarget;
+                      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 80) {
+                        setVisibleCount((c) =>
+                          c < filteredBulkPool.length ? Math.min(c + PAGE, filteredBulkPool.length) : c,
+                        );
+                      }
+                    }}
+                  >
                     {bulkPoolLoading ? (
                       <div className="py-6 flex justify-center">
                         <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
@@ -524,7 +535,7 @@ export function ProxyAgentManager() {
                         No partners match this filter.
                       </div>
                     ) : (
-                      filteredBulkPool.slice(0, 500).map((p: any) => {
+                      filteredBulkPool.slice(0, visibleCount).map((p: any) => {
                         const cur = assignmentByBeneficiary.get(p.id);
                         const checked = selectedIds.has(p.id);
                         const wouldMove = cur && bulkAgent && cur.agent_id !== bulkAgent.id;
@@ -559,10 +570,25 @@ export function ProxyAgentManager() {
                       })
                     )}
                   </div>
-                  {filteredBulkPool.length > 500 && (
-                    <p className="px-3 py-1.5 text-[10px] text-muted-foreground border-t border-border">
-                      Showing first 500. Refine search to narrow further.
-                    </p>
+                  {!bulkPoolLoading && filteredBulkPool.length > 0 && (
+                    <div className="flex items-center justify-between px-3 py-1.5 text-[10px] text-muted-foreground border-t border-border">
+                      <span>
+                        Showing {Math.min(visibleCount, filteredBulkPool.length)} of {filteredBulkPool.length}
+                      </span>
+                      {visibleCount < filteredBulkPool.length ? (
+                        <button
+                          type="button"
+                          className="text-primary hover:underline font-medium"
+                          onClick={() =>
+                            setVisibleCount((c) => Math.min(c + PAGE, filteredBulkPool.length))
+                          }
+                        >
+                          Load more
+                        </button>
+                      ) : (
+                        <span>All loaded</span>
+                      )}
+                    </div>
                   )}
                 </div>
 
