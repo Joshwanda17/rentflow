@@ -65,13 +65,21 @@ export function ProxyAgentManager() {
     queryKey: ['bulk-proxy-pool', bulkRole],
     enabled: showBulk,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('user_id, profiles:user_id(id, full_name, phone)')
-        .eq('role', bulkRole as any)
-        .limit(5000);
-      if (error) throw error;
-      return (data || [])
+      // Paginate through ALL role members (PostgREST caps single requests at 1000).
+      const pageSize = 1000;
+      const all: any[] = [];
+      for (let from = 0; ; from += pageSize) {
+        const { data, error } = await supabase
+          .from('user_roles')
+          .select('user_id, profiles:user_id(id, full_name, phone)')
+          .eq('role', bulkRole as any)
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+        const batch = data || [];
+        all.push(...batch);
+        if (batch.length < pageSize) break;
+      }
+      return all
         .map((r: any) => r.profiles)
         .filter((p: any) => p && p.id && p.full_name);
     },
