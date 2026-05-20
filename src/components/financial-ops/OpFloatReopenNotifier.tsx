@@ -25,7 +25,7 @@ export function OpFloatReopenNotifier() {
       const sinceIso = new Date(Date.now() - 30 * 60 * 1000).toISOString();
       const { data, error } = await supabase
         .from('audit_logs')
-        .select('id, record_id, new_values, created_at')
+        .select('id, record_id, metadata, created_at')
         .eq('table_name', 'deposit_requests')
         .eq('action_type', 'deposit_request_reopened')
         .gte('created_at', sinceIso)
@@ -34,8 +34,8 @@ export function OpFloatReopenNotifier() {
       if (cancelled || error || !data) return;
 
       const opFloatRows = data.filter((row) => {
-        const nv = row.new_values as Record<string, unknown> | null;
-        return nv && (nv as any).deposit_purpose === 'operational_float';
+        const meta = row.metadata as Record<string, unknown> | null;
+        return meta && (meta as any).deposit_purpose === 'operational_float';
       });
 
       if (!seededRef.current) {
@@ -48,10 +48,10 @@ export function OpFloatReopenNotifier() {
       const fresh = opFloatRows.filter((r) => !seenRef.current.has(r.id)).reverse();
       for (const row of fresh) {
         seenRef.current.add(row.id);
-        const nv = (row.new_values ?? {}) as Record<string, unknown>;
-        const amount = Number((nv as any).amount ?? 0);
-        const tid = (nv as any).transaction_id as string | null | undefined;
-        const reason = (nv as any).reopen_note as string | undefined;
+        const meta = (row.metadata ?? {}) as Record<string, unknown>;
+        const amount = Number((meta as any).amount ?? 0);
+        const tid = (meta as any).tid as string | null | undefined;
+        const reason = (meta as any).reason as string | undefined;
         toast.message('Operational-float request reopened', {
           icon: <RotateCcw className="h-4 w-4 text-primary" />,
           description: [
