@@ -11,6 +11,56 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+// ── SMS helper (Africa's Talking) ─────────────────────────────────────
+// Mirrors the pattern in approve-rent-request so users get an immediate
+// text alert when Financial Ops approves and pays out their withdrawal.
+function formatPhoneInternational(phone: string): string {
+  const digits = (phone || "").replace(/[^0-9]/g, "");
+  if (digits.startsWith("256")) return `+${digits}`;
+  if (digits.startsWith("0")) return `+256${digits.slice(1)}`;
+  if (digits.length === 9) return `+256${digits}`;
+  return digits ? `+${digits}` : "";
+}
+function isUgandanPhone(phone: string): boolean {
+  const f = formatPhoneInternational(phone);
+  return f.startsWith("+256") && f.length >= 13;
+}
+async function sendSMS(phone: string, message: string): Promise<boolean> {
+  const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
+  const username = Deno.env.get("AFRICASTALKING_USERNAME");
+  if (!apiKey || !username) return false;
+  if (!isUgandanPhone(phone)) return false;
+  const isSandbox = username.toLowerCase() === "sandbox";
+  const baseUrl = isSandbox
+    ? "https://api.sandbox.africastalking.com/version1/messaging"
+    : "https://api.africastalking.com/version1/messaging";
+  try {
+    const body = new URLSearchParams({
+      username,
+      to: formatPhoneInternational(phone),
+      message,
+      from: "WELILE",
+    });
+    const res = await fetch(baseUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        apiKey,
+        Accept: "application/json",
+      },
+      body: body.toString(),
+    });
+    const data = await res.json();
+    const recipients = data?.SMSMessageData?.Recipients || [];
+    return recipients.some(
+      (r: any) => r.statusCode === 101 || r.statusCode === 100,
+    );
+  } catch (err) {
+    console.error("[approve-withdrawal] SMS error:", err);
+    return false;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
