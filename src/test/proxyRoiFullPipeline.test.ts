@@ -614,4 +614,24 @@ describe("source guards · approve-withdrawal proxy debit contract", () => {
   it("tags the debit leg with linked_party = beneficiary partner", () => {
     expect(src).toMatch(/linked_party:\s*isProxyPayout\s*\?/);
   });
+
+  it("dispatches Disbursement Confirmed (returns-disbursement-confirmation) to the PARTNER on Fin Ops approval", () => {
+    expect(src).toMatch(/buildReturnsDisbursementRequest\(\{[\s\S]*recipientEmail:\s*partnerProfile\.email/);
+    expect(src).toMatch(/isManagedByAgent:\s*isProxyPayout\s*&&\s*fundingUserId\s*!==\s*partnerId/);
+  });
+
+  it("ALSO dispatches Disbursement Confirmed to the PROXY AGENT in the same flow", () => {
+    // The second buildReturnsDisbursementRequest call recipients agentEmail
+    // and tags payout_method with "Proxy payout for".
+    const agentBlockRe =
+      /buildReturnsDisbursementRequest\(\{[\s\S]*?recipientEmail:\s*agentEmail[\s\S]*?payoutMethod:\s*`[^`]*Proxy payout for/;
+    expect(src).toMatch(agentBlockRe);
+  });
+
+  it("only sends the Disbursement Confirmed email for genuine proxy ROI payouts (guarded)", () => {
+    // The send is skipped for self-withdrawals and non-ROI-backed withdrawals.
+    expect(src).toMatch(/Skipping returns-disbursement email: not a proxy payout/);
+    expect(src).toMatch(/has no investor portfolio/);
+    expect(src).toMatch(/has no ROI ledger credits/);
+  });
 });
