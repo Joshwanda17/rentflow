@@ -1379,3 +1379,60 @@ Deno.serve(async (req) => {
     );
   }
 });
+
+// ── SMS helper (Africa's Talking) ─────────────────────────────────────
+// Mirrors the helper in gmail-poll-transactions so auto-approved deposits
+// notify the user via SMS the moment funds land in their wallet bucket.
+function formatPhoneIntl(phone: string): string {
+  const d = String(phone || '').replace(/[^0-9]/g, '');
+  if (d.startsWith('256')) return `+${d}`;
+  if (d.startsWith('0')) return `+256${d.slice(1)}`;
+  if (d.length === 9) return `+256${d}`;
+  return `+${d}`;
+}
+
+async function sendSmsViaAfricasTalking(
+  phone: string,
+  message: string,
+): Promise<boolean> {
+  const apiKey = Deno.env.get('AFRICASTALKING_API_KEY');
+  const username = Deno.env.get('AFRICASTALKING_USERNAME');
+  if (!apiKey || !username) {
+    console.warn('[approve-deposit] AT credentials missing — skipping SMS');
+    return false;
+  }
+  const isSandbox = username.toLowerCase() === 'sandbox';
+  const url = isSandbox
+    ? 'https://api.sandbox.africastalking.com/version1/messaging'
+    : 'https://api.africastalking.com/version1/messaging';
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        apiKey,
+        Accept: 'application/json',
+      },
+      body: new URLSearchParams({
+        username,
+        to: formatPhoneIntl(phone),
+        message,
+        from: 'WELILE',
+      }).toString(),
+    });
+    const txt = await res.text();
+    let data: any = null;
+    try { data = JSON.parse(txt); } catch { /* ignore */ }
+    const recipients = data?.SMSMessageData?.Recipients ?? [];
+    const ok = recipients.some(
+      (r: any) => r.statusCode === 101 || r.statusCode === 100,
+    );
+    console.log(
+      `[approve-deposit] SMS ${ok ? 'sent' : 'failed'} to ${formatPhoneIntl(phone)} (status ${res.status})`,
+    );
+    return ok;
+  } catch (e) {
+    console.warn('[approve-deposit] SMS send error:', e);
+    return false;
+  }
+}
