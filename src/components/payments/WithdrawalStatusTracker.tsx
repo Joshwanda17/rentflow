@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Check, Clock, ShieldCheck, Banknote, X, Loader2, AlertTriangle, Timer, Info } from 'lucide-react';
+import { Check, Clock, ShieldCheck, Banknote, X, Loader2, AlertTriangle, Timer, Info, RotateCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format, addMinutes } from 'date-fns';
@@ -19,6 +19,10 @@ interface WithdrawalStatusTrackerProps {
   /** REQ-XXXX shortcode shown to the user. */
   reference: string;
   onClose: () => void;
+  /** Optional — when supplied, a "Retry" button appears once a withdrawal
+   * has been stuck >24h. The parent should cancel/clear the current request
+   * and route the user back to the amount/method step so they can resubmit. */
+  onRetry?: () => void;
 }
 
 type WithdrawalRow = {
@@ -47,6 +51,7 @@ export default function WithdrawalStatusTracker({
   recipientLabel,
   reference,
   onClose,
+  onRetry,
 }: WithdrawalStatusTrackerProps) {
   const [row, setRow] = useState<WithdrawalRow | null>(null);
   const [loading, setLoading] = useState(true);
@@ -204,20 +209,55 @@ export default function WithdrawalStatusTracker({
   };
   const delayReason = getDelayReason();
 
+  /** Stuck = still non-terminal after 24h. Unlocks both the cancel and
+   * retry escape hatches so the user is never trapped on a frozen request. */
+  const ageMinutes = row?.created_at
+    ? (Date.now() - new Date(row.created_at).getTime()) / 60000
+    : 0;
+  const isStuck =
+    !isDisbursed && !isRejected && !isCancelled && ageMinutes >= 24 * 60;
+
   const handleCancel = async () => {
-    if (!confirm('Cancel this withdrawal request? You can submit a new one anytime.')) return;
+    const msg = isStuck
+      ? 'Cancel this stuck withdrawal and unlock your funds? You can submit a fresh request right after.'
+      : 'Cancel this withdrawal request? You can submit a new one anytime.';
+    if (!confirm(msg)) return;
     setCancelling(true);
+    // For stuck (>24h) requests we also allow cancelling rows that have
+    // partially advanced through ops but never reached disbursement. The
+    // server-side RLS still ultimately decides whether the update lands.
+    const allowedStatuses = isStuck
+      ? ['pending', 'approved', 'processing']
+      : ['pending'];
     const { error } = await supabase
       .from('withdrawal_requests')
       .update({ status: 'cancelled' })
       .eq('id', requestId)
-      .eq('status', 'pending');
+      .in('status', allowedStatuses);
     setCancelling(false);
     if (error) {
-      toast.error('Could not cancel — Financial Ops may already be processing it.');
+      toast.error(
+        isStuck
+          ? 'Could not cancel automatically. Please contact support to release this request.'
+          : 'Could not cancel — Financial Ops may already be processing it.',
+      );
       return;
     }
     toast.success('Withdrawal cancelled.');
+  };
+
+  const handleRetry = async () => {
+    if (!onRetry) return;
+    if (!confirm('Cancel this stuck request and start a fresh withdrawal with the same details?')) return;
+    setCancelling(true);
+    // Best-effort cancel of the stuck row so we don't leave duplicates open.
+    await supabase
+      .from('withdrawal_requests')
+      .update({ status: 'cancelled' })
+      .eq('id', requestId)
+      .in('status', ['pending', 'approved', 'processing']);
+    setCancelling(false);
+    onRetry();
   };
 
   if (loading) {
@@ -348,9 +388,22 @@ export default function WithdrawalStatusTracker({
         </div>
       )}
 
+      {/* 24h-stuck escape hatch — explains the unlock before showing the buttons. */}
+      {isStuck && (
+        <div className="flex items-start gap-3 p-3 rounded-lg border border-destructive/30 bg-destructive/5">
+          <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+          <div className="flex-1 text-xs">
+            <p className="font-semibold text-foreground">Still processing after 24 hours</p>
+            <p className="text-muted-foreground mt-0.5">
+              You can cancel this request to free your balance, or retry to submit a fresh withdrawal with the same details.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Actions */}
-      <div className="flex gap-2">
-        {status === 'pending' && !inReview && (
+      <div className="flex gap-2 flex-wrap">
+        {(isStuck || (status === 'pending' && !inReview)) && (
           <Button
             variant="outline"
             className="flex-1 text-destructive hover:bg-destructive/5 border-destructive/30"
@@ -359,6 +412,17 @@ export default function WithdrawalStatusTracker({
           >
             {cancelling ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <X className="h-4 w-4 mr-2" />}
             Cancel request
+          </Button>
+        )}
+        {isStuck && onRetry && (
+          <Button
+            variant="outline"
+            className="flex-1"
+            onClick={handleRetry}
+            disabled={cancelling}
+          >
+            <RotateCw className="h-4 w-4 mr-2" />
+            Retry withdrawal
           </Button>
         )}
         <Button onClick={onClose} className="flex-1">Done</Button>
