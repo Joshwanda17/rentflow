@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Search, Loader2, ArchiveRestore, AlertTriangle, UserPlus, LifeBuoy } from 'lucide-react';
+import { ArrowLeft, Search, Loader2, ArchiveRestore, AlertTriangle, UserPlus, LifeBuoy, CheckCircle2, XCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,13 @@ interface ArchivedRow {
 
 type Mode = 'choose' | 'restore' | 'free';
 
+interface VerificationResult {
+  ok: boolean;
+  mismatches: Array<{ field: string; auth: unknown; profile: unknown; note?: string }>;
+  auth: { email: string | null; phone: string | null; deleted_at: string | null; banned_until: string | null };
+  profile: { full_name: string | null; email: string | null; phone: string | null };
+}
+
 export default function ArchivedAccountsPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -41,6 +48,7 @@ export default function ArchivedAccountsPage() {
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [quickRestoringId, setQuickRestoringId] = useState<string | null>(null);
+  const [lastVerification, setLastVerification] = useState<{ name: string; result: VerificationResult } | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -97,9 +105,15 @@ export default function ArchivedAccountsPage() {
       });
       if (error) throw new Error(error.message);
       if ((data as any)?.error) throw new Error((data as any).error);
+      const v = (data as any)?.verification as VerificationResult | undefined;
+      const name = (data as any)?.restored_name || 'User';
+      if (v) setLastVerification({ name, result: v });
       toast({
-        title: 'Account restored',
-        description: `${(data as any)?.restored_name || 'User'} can now sign in again.`,
+        title: v && !v.ok ? 'Restored with mismatches' : 'Account restored & verified',
+        description: v && !v.ok
+          ? `${name}: ${v.mismatches.length} field${v.mismatches.length === 1 ? '' : 's'} need review.`
+          : `${name} can now sign in again.`,
+        variant: v && !v.ok ? 'destructive' : 'default',
       });
       setActive(null);
       await load();
