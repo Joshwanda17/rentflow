@@ -318,28 +318,43 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
               onSubmit={handleSubmit}
               className="space-y-5"
             >
-              {/* Quick section nav */}
-              <div className="sticky -top-4 z-10 -mx-6 px-6 py-2 bg-background/95 backdrop-blur border-b border-border/40">
-                <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
-                  {[
-                    { id: 'sec-tenant', label: '1. Tenant' },
-                    { id: 'sec-landlord', label: '2. Landlord' },
-                    { id: 'sec-location', label: '3. Location' },
-                    { id: 'sec-lc1', label: '4. LC1' },
-                  ].map((s) => (
+              {/* Step indicator */}
+              <div className="flex items-center gap-2">
+                {stepLabels.map((lbl, i) => {
+                  const n = (i + 1) as 1 | 2 | 3 | 4;
+                  const active = step === n;
+                  const done = step > n;
+                  return (
                     <button
-                      key={s.id}
+                      key={lbl}
                       type="button"
-                      onClick={() => jumpTo(s.id)}
-                      className="shrink-0 text-[11px] font-medium px-2.5 py-1 rounded-full border border-border bg-muted/40 hover:bg-primary/10 hover:border-primary/40 hover:text-primary transition-colors"
+                      onClick={() => {
+                        if (n < step) setStep(n);
+                        else if (n > step) {
+                          for (let k = step; k < n; k++) {
+                            const err = validateStep(k);
+                            if (err) { toast.error(err); return; }
+                          }
+                          setStep(n);
+                        }
+                      }}
+                      className="flex-1 flex flex-col items-center gap-1 group"
                     >
-                      {s.label}
+                      <div className={`h-1.5 w-full rounded-full transition-colors ${
+                        active ? 'bg-primary' : done ? 'bg-emerald-500' : 'bg-muted'
+                      }`} />
+                      <span className={`text-[10px] font-medium ${
+                        active ? 'text-primary' : done ? 'text-emerald-600' : 'text-muted-foreground'
+                      }`}>
+                        {n}. {lbl}
+                      </span>
                     </button>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
 
-              {/* Agent Commission Banner */}
+              {/* Agent Commission Banner (step 1 only) */}
+              {step === 1 && (
               <div className="p-3 rounded-xl bg-gradient-to-r from-primary/10 via-emerald-500/10 to-primary/5 border border-primary/20">
                 <div className="flex items-start gap-2.5">
                   <div className="p-1.5 rounded-lg bg-emerald-500/15 shrink-0 mt-0.5">
@@ -353,8 +368,10 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                   </div>
                 </div>
               </div>
+              )}
 
               {/* Tenant Section */}
+              {step === 1 && (
               <div id="sec-tenant" className="space-y-3 scroll-mt-16">
                 <h4 className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
                   <User className="h-4 w-4 text-primary" />
@@ -368,7 +385,9 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                       value={tenantFullName}
                       onChange={(e) => setTenantFullName(e.target.value)}
                       placeholder="Names on National ID"
-                      className="h-9"
+                      className="h-11 text-base"
+                      autoComplete="name"
+                      autoCapitalize="words"
                       required
                     />
                   </div>
@@ -380,7 +399,10 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                       onChange={(e) => { setTenantNationalId(e.target.value.toUpperCase()); setNationalIdError(''); }}
                       onBlur={() => checkDuplicateNationalId(tenantNationalId)}
                       placeholder="CM12345678ABCD"
-                      className={`h-9 ${nationalIdError ? 'border-destructive' : ''}`}
+                      className={`h-11 text-base uppercase ${nationalIdError ? 'border-destructive' : ''}`}
+                      autoCapitalize="characters"
+                      autoCorrect="off"
+                      spellCheck={false}
                       required
                     />
                     {nationalIdError && (
@@ -397,23 +419,31 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                       value={tenantEmail}
                       onChange={(e) => setTenantEmail(e.target.value)}
                       placeholder="tenant@email.com"
-                      className="h-9"
+                      className="h-11 text-base"
+                      autoComplete="email"
+                      inputMode="email"
+                      autoCapitalize="none"
                     />
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="tenantPhone" className="text-xs">Phone</Label>
                     <Input
                       id="tenantPhone"
+                      type="tel"
+                      inputMode="tel"
+                      autoComplete="tel"
                       value={tenantPhone}
                       onChange={(e) => setTenantPhone(e.target.value)}
                       placeholder="0783..."
-                      className="h-9"
+                      className="h-11 text-base"
                     />
                   </div>
                 </div>
               </div>
+              )}
 
               {/* Landlord Section */}
+              {step === 2 && (
               <div id="sec-landlord" className="space-y-3 scroll-mt-16">
                 <h4 className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
                   <Building2 className="h-4 w-4 text-primary" />
@@ -428,7 +458,8 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                       value={landlordName}
                       onChange={(e) => setLandlordName(e.target.value)}
                       placeholder="Landlord name"
-                      className="h-9"
+                      className="h-11 text-base"
+                      autoCapitalize="words"
                       required
                     />
                   </div>
@@ -436,10 +467,13 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                     <Label htmlFor="landlordPhone" className="text-xs">Phone *</Label>
                     <Input
                       id="landlordPhone"
+                      type="tel"
+                      inputMode="tel"
+                      autoComplete="tel"
                       value={landlordPhone}
                       onChange={(e) => setLandlordPhone(e.target.value)}
                       placeholder="Phone number"
-                      className="h-9"
+                      className="h-11 text-base"
                       required
                     />
                     {landlordPhone.replace(/\s/g, '').length >= 9 &&
@@ -459,7 +493,8 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                     value={propertyAddress}
                     onChange={(e) => setPropertyAddress(e.target.value)}
                     placeholder="Full property address"
-                    className="h-9"
+                    className="h-11 text-base"
+                    autoCapitalize="words"
                     required
                   />
                 </div>
@@ -472,10 +507,11 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                     <Input
                       id="monthlyRent"
                       type="number"
+                      inputMode="numeric"
                       value={monthlyRent}
                       onChange={(e) => setMonthlyRent(e.target.value)}
                       placeholder="500000"
-                      className="h-9"
+                      className="h-11 text-base"
                       required
                     />
                   </div>
@@ -485,10 +521,12 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                     </Label>
                     <Input
                       id="mobileMoneyNumber"
+                      type="tel"
+                      inputMode="tel"
                       value={mobileMoneyNumber}
                       onChange={(e) => setMobileMoneyNumber(e.target.value)}
                       placeholder="MoMo number"
-                      className="h-9"
+                      className="h-11 text-base"
                     />
                   </div>
                 </div>
@@ -513,8 +551,10 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                   </motion.div>
                 )}
               </div>
+              )}
 
               {/* Location Capture */}
+              {step === 3 && (
               <div id="sec-location" className="space-y-3 scroll-mt-16">
                 <h4 className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
                   <Navigation className="h-4 w-4 text-primary" />
@@ -563,8 +603,11 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                   )}
                 </div>
               </div>
+              )}
 
-              {/* LC1 Chairperson */}
+              {/* LC1 Chairperson + Consent (final step) */}
+              {step === 4 && (
+              <>
               <div id="sec-lc1" className="space-y-3 scroll-mt-16">
                 <h4 className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
                   <Shield className="h-4 w-4 text-primary" />
@@ -600,13 +643,16 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                       value={lc1Village}
                       onChange={(e) => setLc1Village(e.target.value)}
                       placeholder="e.g. Bukoto Zone A"
-                      className="h-9"
+                      className="h-11 text-base"
+                      autoCapitalize="words"
                     />
                   </div>
                 </div>
               </div>
 
               <GuarantorConsentCheckbox checked={guarantorConsent} onCheckedChange={setGuarantorConsent} />
+              </>
+              )}
             </motion.form>
           )}
         </AnimatePresence>
