@@ -771,8 +771,8 @@ Deno.serve(async (req) => {
           .eq("id", op.id);
 
         // ── Send Partner Wallet Deposit email to PARTNER on ROI payouts ──
-        // The partner is always op.user_id (managed/proxy payouts route cash via a
-        // proxy agent, but the partner owns the credited liability).
+        // Suppressed for managed-proxy payouts because the ROI was credited to
+        // the proxy agent wallet and the partner receives disbursement notice at withdrawal.
         if (op.category === 'roi_payout' || op.category === 'supporter_platform_rewards') {
           try {
             const { data: partnerProfile } = await adminClient
@@ -866,15 +866,15 @@ Deno.serve(async (req) => {
           // Managed payout: notify both agent and partner
           await adminClient.from("notifications").insert({
             user_id: ledgerUserId,
-            title: "Managed Payout Received ✅",
-            message: `UGX ${op.amount.toLocaleString()} credited to your wallet on behalf of a managed partner. Ref: ${op.reference_id || 'N/A'}`,
+            title: "Proxy ROI Received ✅",
+            message: `UGX ${op.amount.toLocaleString()} credited to your wallet as ROI for ${op.metadata?.partner_name || 'your proxy partner'}. Ref: ${op.reference_id || 'N/A'}`,
             type: "success",
             metadata: { operation_id: op.id, amount: op.amount, on_behalf_of: op.user_id },
           });
           await adminClient.from("notifications").insert({
             user_id: op.user_id,
-            title: "Payout Processed via Agent ✅",
-            message: `Your ROI payout of UGX ${op.amount.toLocaleString()} has been sent to your assigned agent's wallet for collection.`,
+            title: "ROI Sent to Proxy Agent ✅",
+            message: `Your ROI payout of UGX ${op.amount.toLocaleString()} has been sent to your assigned proxy agent for collection.`,
             type: "success",
             metadata: { operation_id: op.id, amount: op.amount, agent_id: ledgerUserId },
           });
