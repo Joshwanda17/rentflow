@@ -260,17 +260,25 @@ export function ProxyAgentManager() {
       if (bulkBeneficiaries.length === 0) throw new Error('Add at least one partner');
       const nowIso = new Date().toISOString();
       const results = { inserted: 0, reactivated: 0, moved: 0, failed: 0 };
+      const auditRows: any[] = [];
 
       for (const b of bulkBeneficiaries) {
         try {
           // ── 1) Move: deactivate any OTHER active proxy holding this partner.
+          //    Fetch the prior agent (with name) so we can write a from/to audit row.
           const { data: others, error: othersErr } = await supabase
             .from('proxy_agent_assignments')
-            .select('id')
+            .select('id, agent_id, is_managed_account, agent:agent_id(full_name, phone)')
             .eq('beneficiary_id', b.id)
             .eq('is_active', true)
             .neq('agent_id', bulkAgent.id);
           if (othersErr) throw othersErr;
+          const priorAgents = (others || []).map((o: any) => ({
+            assignment_id: o.id,
+            agent_id: o.agent_id,
+            agent_name: o.agent?.full_name || o.agent?.phone || null,
+            was_managed: !!o.is_managed_account,
+          }));
           if (others && others.length > 0) {
             const { error: deactErr } = await supabase
               .from('proxy_agent_assignments')
@@ -320,11 +328,45 @@ export function ProxyAgentManager() {
             if (error) throw error;
             results.inserted++;
           }
+
+          // ── 3) Audit: one row per partner capturing from/to agent context.
+          auditRows.push({
+            user_id: user!.id,
+            action_type: priorAgents.length > 0 ? 'proxy_bulk_move' : 'proxy_bulk_link',
+            table_name: 'proxy_agent_assignments',
+            record_id: b.id,
+            metadata: {
+              reason: bulkReason,
+              beneficiary_id: b.id,
+              beneficiary_name: b.full_name || null,
+              beneficiary_phone: b.phone || null,
+              beneficiary_role: bulkRole,
+              to_agent_id: bulkAgent.id,
+              to_agent_name: bulkAgent.full_name || bulkAgent.phone || null,
+              to_is_managed_account: bulkManaged,
+              from_agents: priorAgents, // [] when this is a brand-new link
+              moved_from_prior: priorAgents.length > 0,
+              source: 'ProxyAgentManager.bulkAssign',
+              at: nowIso,
+            },
+          });
         } catch (e) {
           console.error('[bulkAssign] failed for', b, e);
           results.failed++;
         }
       }
+
+      // Fire-and-forget audit insert (chunked to stay under PostgREST payload limits).
+      if (auditRows.length > 0) {
+        const CHUNK = 200;
+        for (let i = 0; i < auditRows.length; i += CHUNK) {
+          const { error: auditErr } = await supabase
+            .from('audit_logs')
+            .insert(auditRows.slice(i, i + CHUNK));
+          if (auditErr) console.error('[bulkAssign] audit log insert failed', auditErr);
+        }
+      }
+
       return results;
     },
     onSuccess: (r) => {
