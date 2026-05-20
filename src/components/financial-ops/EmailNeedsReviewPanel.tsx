@@ -56,6 +56,36 @@ const fmtUgx = (n: number | null | undefined) =>
  */
 const PAGE_SIZE = 10;
 
+const STORAGE_KEY = 'welile.emailNeedsReview.uiState.v1';
+
+type PersistedState = {
+  unmatchedOpen: boolean;
+  conflictingOpen: boolean;
+  unmatchedPage: number;
+  conflictingPage: number;
+  unmatchedSearch: string;
+};
+
+const DEFAULT_STATE: PersistedState = {
+  unmatchedOpen: true,
+  conflictingOpen: true,
+  unmatchedPage: 1,
+  conflictingPage: 1,
+  unmatchedSearch: '',
+};
+
+function loadPersistedState(): PersistedState {
+  if (typeof window === 'undefined') return DEFAULT_STATE;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return DEFAULT_STATE;
+    const parsed = JSON.parse(raw);
+    return { ...DEFAULT_STATE, ...parsed };
+  } catch {
+    return DEFAULT_STATE;
+  }
+}
+
 export function EmailNeedsReviewPanel() {
   const { toast } = useToast();
   const [emails, setEmails] = useState<GmailTx[]>([]);
@@ -70,11 +100,31 @@ export function EmailNeedsReviewPanel() {
   });
   const [toDate, setToDate] = useState<Date | undefined>(undefined);
   const [depositFilter, setDepositFilter] = useState('');
-  const [unmatchedOpen, setUnmatchedOpen] = useState(true);
-  const [conflictingOpen, setConflictingOpen] = useState(true);
-  const [unmatchedPage, setUnmatchedPage] = useState(1);
-  const [conflictingPage, setConflictingPage] = useState(1);
-  const [unmatchedSearch, setUnmatchedSearch] = useState('');
+  // Persisted UI state — collapse open/closed, page positions, in-section search.
+  // Survives filter changes, refresh, and tab close (localStorage).
+  const initial = useMemo(loadPersistedState, []);
+  const [unmatchedOpen, setUnmatchedOpen] = useState(initial.unmatchedOpen);
+  const [conflictingOpen, setConflictingOpen] = useState(initial.conflictingOpen);
+  const [unmatchedPage, setUnmatchedPage] = useState(initial.unmatchedPage);
+  const [conflictingPage, setConflictingPage] = useState(initial.conflictingPage);
+  const [unmatchedSearch, setUnmatchedSearch] = useState(initial.unmatchedSearch);
+
+  // Persist whenever any of the tracked UI bits change.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          unmatchedOpen,
+          conflictingOpen,
+          unmatchedPage,
+          conflictingPage,
+          unmatchedSearch,
+        } satisfies PersistedState),
+      );
+    } catch { /* ignore quota / privacy-mode errors */ }
+  }, [unmatchedOpen, conflictingOpen, unmatchedPage, conflictingPage, unmatchedSearch]);
 
   const load = useCallback(async (silent = false) => {
     if (silent) setRefreshing(true);
@@ -193,8 +243,15 @@ export function EmailNeedsReviewPanel() {
     });
   }, [unmatched, unmatchedSearch]);
 
-  // Reset to page 1 whenever the unmatched search changes.
-  useEffect(() => { setUnmatchedPage(1); }, [unmatchedSearch]);
+  // Clamp persisted page if filtered list has shrunk since last visit.
+  useEffect(() => {
+    const max = Math.max(1, Math.ceil(unmatchedFiltered.length / PAGE_SIZE));
+    if (unmatchedPage > max) setUnmatchedPage(max);
+  }, [unmatchedFiltered.length, unmatchedPage]);
+  useEffect(() => {
+    const max = Math.max(1, Math.ceil(conflicting.length / PAGE_SIZE));
+    if (conflictingPage > max) setConflictingPage(max);
+  }, [conflicting.length, conflictingPage]);
 
   const linkEmail = async (emailId: string, depositId: string) => {
     const { error } = await (supabase.from('gmail_transactions') as any)
