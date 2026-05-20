@@ -171,8 +171,13 @@ export function useUserSnapshot(userId: string | undefined) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
-      const res = await supabase.functions.invoke(`user-snapshot?tier=${tier}`, {
+      // NOTE: `functions.invoke()` URL-encodes the entire first arg, so a
+      // querystring like `user-snapshot?tier=critical` resolves to a
+      // function literally named that → 404. Pass tier via body instead;
+      // the edge function reads either source.
+      const res = await supabase.functions.invoke('user-snapshot', {
         headers: { Authorization: `Bearer ${session.access_token}` },
+        body: { tier },
       });
       if (res.error) {
         const msg = res.error.message || `Failed to load ${tier} data`;
