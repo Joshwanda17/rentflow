@@ -2404,6 +2404,13 @@ async function exportTotalsPdf({ rows, totalIn, totalOut, netAmount, channelBrea
 function downloadPdfMobileSafe(doc: any, filename: string) {
   try {
     const blob: Blob = doc.output('blob');
+    // Archive a copy in the offline PDF vault so the record survives
+    // network loss, browser cache wipes, or a cleared Downloads folder.
+    archivePdfBlob(blob, {
+      label: filename.replace(/\.pdf$/i, '').replace(/_/g, ' '),
+      filename,
+      category: 'finops-emails',
+    }).catch(() => {});
     const url = URL.createObjectURL(blob);
     const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
     if (isIOS) {
