@@ -215,3 +215,51 @@ export async function pruneVault(): Promise<{ removed: number }> {
   }
   return { removed };
 }
+
+/**
+ * One-call replacement for `doc.save(filename)` — archives the PDF to the
+ * offline vault AND triggers a mobile-Safari-safe download.
+ *
+ * Usage:
+ *   savePdfWithVault(doc, 'my-report.pdf', { label: 'My Report', category: 'agent-report' });
+ */
+export function savePdfWithVault(
+  doc: { output: (type: 'blob') => Blob; save?: (name: string) => void },
+  filename: string,
+  meta: Omit<PdfVaultMeta, 'key' | 'sizeBytes' | 'generatedAt' | 'filename'>,
+): void {
+  let blob: Blob | null = null;
+  try {
+    blob = doc.output('blob');
+  } catch {
+    /* ignore */
+  }
+  if (blob) {
+    archivePdfBlob(blob, { ...meta, filename }).catch(() => {});
+    try {
+      const url = URL.createObjectURL(blob);
+      const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
+      if (isIOS) {
+        window.open(url, '_blank');
+      } else {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        link.rel = 'noopener';
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      return;
+    } catch {
+      /* fall back to doc.save */
+    }
+  }
+  try {
+    doc.save?.(filename);
+  } catch {
+    /* swallow */
+  }
+}
