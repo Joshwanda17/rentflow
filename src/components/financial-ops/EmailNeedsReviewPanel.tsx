@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Collapsible,
   CollapsibleContent,
@@ -12,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import {
-  AlertTriangle, CalendarIcon, ChevronDown, ChevronUp, Inbox, Loader2, RefreshCw, Search, X,
+  AlertTriangle, CalendarIcon, CheckCircle2, ChevronDown, ChevronUp, Inbox, Loader2, RefreshCw, Search, Trash2, X,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
@@ -120,6 +121,10 @@ export function EmailNeedsReviewPanel() {
   const [conflictingPageSize, setConflictingPageSize] = useState<PageSize>(
     PAGE_SIZE_OPTIONS.includes(initial.conflictingPageSize) ? initial.conflictingPageSize : DEFAULT_PAGE_SIZE,
   );
+
+  // Bulk selection (Unmatched section only). Not persisted — page-local.
+  const [selectedUnmatched, setSelectedUnmatched] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   // Persist whenever any of the tracked UI bits change.
   useEffect(() => {
@@ -267,6 +272,18 @@ export function EmailNeedsReviewPanel() {
     if (conflictingPage > max) setConflictingPage(max);
   }, [conflicting.length, conflictingPage, conflictingPageSize]);
 
+  // Drop selections that are no longer present (after refresh / filter change).
+  useEffect(() => {
+    setSelectedUnmatched((cur) => {
+      if (cur.size === 0) return cur;
+      const live = new Set(unmatchedFiltered.map((x) => x.email.id));
+      let changed = false;
+      const next = new Set<string>();
+      cur.forEach((id) => { if (live.has(id)) next.add(id); else changed = true; });
+      return changed ? next : cur;
+    });
+  }, [unmatchedFiltered]);
+
   const linkEmail = async (emailId: string, depositId: string) => {
     const { error } = await (supabase.from('gmail_transactions') as any)
       .update({
@@ -283,11 +300,32 @@ export function EmailNeedsReviewPanel() {
     setEmails((cur) => cur.filter((x) => x.id !== emailId));
   };
 
-  const renderRow = (item: { email: GmailTx; candidates: PendingDeposit[] }, conflict: boolean) => {
+  const toggleSelect = (id: string) => {
+    setSelectedUnmatched((cur) => {
+      const next = new Set(cur);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const renderRow = (
+    item: { email: GmailTx; candidates: PendingDeposit[] },
+    conflict: boolean,
+    selectable = false,
+  ) => {
     const e = item.email;
+    const checked = selectable && selectedUnmatched.has(e.id);
     return (
       <li key={e.id} className="p-3 sm:p-4 space-y-2">
-        <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="flex items-start gap-3 flex-wrap">
+          {selectable && (
+            <Checkbox
+              checked={checked}
+              onCheckedChange={() => toggleSelect(e.id)}
+              className="mt-1"
+              aria-label="Select email for bulk action"
+            />
+          )}
           <div className="flex-1 min-w-0 space-y-1">
             <div className="flex items-center gap-2 flex-wrap">
               <Badge variant={conflict ? 'destructive' : 'secondary'} className="text-[10px]">
