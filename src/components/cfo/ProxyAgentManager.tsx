@@ -385,12 +385,14 @@ export function ProxyAgentManager() {
               <Layers className="h-4 w-4" /> Bulk Assign
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Bulk Assign Partners to Agent</DialogTitle>
             </DialogHeader>
             <p className="text-xs text-muted-foreground">
-              Pick one agent, then add multiple partners. All assignments are auto-approved.
+              Pick one agent, search/filter the partner pool, multi-select, and link.
+              Partners already attached to a different proxy agent will be automatically
+              moved over.
             </p>
             <div className="space-y-3">
               <UserSearchPicker
@@ -411,15 +413,118 @@ export function ProxyAgentManager() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <UserSearchPicker
-                  label={`Add Partners (${bulkBeneficiaries.length} selected)`}
-                  placeholder="Search partner by name or phone..."
-                  selectedUser={bulkPicker}
-                  onSelect={addBulkBeneficiary}
-                />
+                <div className="flex items-center justify-between gap-2">
+                  <Label className="text-sm">
+                    Partners ({bulkBeneficiaries.length} selected
+                    {moveCount > 0 && (
+                      <span className="ml-1 text-amber-600 dark:text-amber-400">
+                        · {moveCount} will be moved
+                      </span>
+                    )})
+                  </Label>
+                  {bulkBeneficiaries.length > 0 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => setBulkBeneficiaries([])}
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-[1fr_180px] gap-2">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search by name or phone..."
+                      value={bulkSearch}
+                      onChange={(e) => setBulkSearch(e.target.value)}
+                      className="pl-9 h-9"
+                    />
+                  </div>
+                  <Select value={bulkFilter} onValueChange={(v) => setBulkFilter(v as any)}>
+                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All partners</SelectItem>
+                      <SelectItem value="unassigned">Unassigned only</SelectItem>
+                      <SelectItem value="assigned_other">On another agent</SelectItem>
+                      <SelectItem value="managed">Managed accounts</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="rounded-lg border border-border bg-muted/20">
+                  <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/40">
+                    <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
+                      <Checkbox
+                        checked={allFilteredSelected}
+                        onCheckedChange={toggleSelectAllFiltered}
+                        disabled={filteredBulkPool.length === 0}
+                      />
+                      Select all{bulkSearch || bulkFilter !== 'all' ? ' filtered' : ''}
+                      <span className="text-muted-foreground font-normal">
+                        ({filteredBulkPool.length})
+                      </span>
+                    </label>
+                  </div>
+                  <div className="max-h-72 overflow-y-auto divide-y divide-border">
+                    {bulkPoolLoading ? (
+                      <div className="py-6 flex justify-center">
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : filteredBulkPool.length === 0 ? (
+                      <div className="py-6 text-center text-xs text-muted-foreground">
+                        No partners match this filter.
+                      </div>
+                    ) : (
+                      filteredBulkPool.slice(0, 500).map((p: any) => {
+                        const cur = assignmentByBeneficiary.get(p.id);
+                        const checked = selectedIds.has(p.id);
+                        const wouldMove = cur && bulkAgent && cur.agent_id !== bulkAgent.id;
+                        return (
+                          <label
+                            key={p.id}
+                            className="flex items-center gap-2 px-3 py-2 text-xs hover:bg-muted/40 cursor-pointer"
+                          >
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={() => toggleBulkBeneficiary(p)}
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium truncate">{p.full_name}</p>
+                              <p className="text-[10px] text-muted-foreground truncate">{p.phone}</p>
+                            </div>
+                            {cur ? (
+                              <Badge
+                                variant="outline"
+                                className={`text-[9px] gap-1 ${wouldMove && checked ? 'border-amber-500/40 text-amber-600 dark:text-amber-400' : ''}`}
+                              >
+                                {wouldMove && checked && <ArrowRightLeft className="h-2.5 w-2.5" />}
+                                {cur.agent?.full_name || 'Has proxy'}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-[9px] text-muted-foreground">
+                                Unassigned
+                              </Badge>
+                            )}
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
+                  {filteredBulkPool.length > 500 && (
+                    <p className="px-3 py-1.5 text-[10px] text-muted-foreground border-t border-border">
+                      Showing first 500. Refine search to narrow further.
+                    </p>
+                  )}
+                </div>
+
                 {bulkBeneficiaries.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 rounded-lg border border-border bg-muted/30 p-2 max-h-40 overflow-y-auto">
-                    {bulkBeneficiaries.map(b => (
+                  <div className="flex flex-wrap gap-1.5 rounded-lg border border-border bg-muted/30 p-2 max-h-32 overflow-y-auto">
+                    {bulkBeneficiaries.map((b) => (
                       <Badge key={b.id} variant="secondary" className="gap-1 pl-2 pr-1 py-1">
                         <span className="text-[11px]">{b.full_name}</span>
                         <button
