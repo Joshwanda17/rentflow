@@ -11,6 +11,56 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+// ── SMS helper (Africa's Talking) ─────────────────────────────────────
+// Mirrors the pattern in approve-rent-request so users get an immediate
+// text alert when Financial Ops approves and pays out their withdrawal.
+function formatPhoneInternational(phone: string): string {
+  const digits = (phone || "").replace(/[^0-9]/g, "");
+  if (digits.startsWith("256")) return `+${digits}`;
+  if (digits.startsWith("0")) return `+256${digits.slice(1)}`;
+  if (digits.length === 9) return `+256${digits}`;
+  return digits ? `+${digits}` : "";
+}
+function isUgandanPhone(phone: string): boolean {
+  const f = formatPhoneInternational(phone);
+  return f.startsWith("+256") && f.length >= 13;
+}
+async function sendSMS(phone: string, message: string): Promise<boolean> {
+  const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
+  const username = Deno.env.get("AFRICASTALKING_USERNAME");
+  if (!apiKey || !username) return false;
+  if (!isUgandanPhone(phone)) return false;
+  const isSandbox = username.toLowerCase() === "sandbox";
+  const baseUrl = isSandbox
+    ? "https://api.sandbox.africastalking.com/version1/messaging"
+    : "https://api.africastalking.com/version1/messaging";
+  try {
+    const body = new URLSearchParams({
+      username,
+      to: formatPhoneInternational(phone),
+      message,
+      from: "WELILE",
+    });
+    const res = await fetch(baseUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        apiKey,
+        Accept: "application/json",
+      },
+      body: body.toString(),
+    });
+    const data = await res.json();
+    const recipients = data?.SMSMessageData?.Recipients || [];
+    return recipients.some(
+      (r: any) => r.statusCode === 101 || r.statusCode === 100,
+    );
+  } catch (err) {
+    console.error("[approve-withdrawal] SMS error:", err);
+    return false;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -1007,6 +1057,36 @@ Deno.serve(async (req) => {
         url: "/dashboard/manager",
       }),
     }).catch(() => {});
+
+    // ── User SMS alert (paid) ───────────────────────────────────────────
+    // Fire-and-forget so a telco hiccup never blocks the approval response.
+    if (profile?.phone) {
+      const refUpper = reference.trim().toUpperCase();
+      const smsMsg =
+        `WELILE: Your withdrawal of UGX ${amount.toLocaleString()} has been ` +
+        `APPROVED & PAID via ${payment_method}. Ref: ${refUpper}. ` +
+        `Thank you.`;
+      sendSMS(profile.phone, smsMsg).catch((e) =>
+        console.error("[approve-withdrawal] paid SMS failed:", e),
+      );
+    }
+
+    // ── User in-app notification (paid) ─────────────────────────────────
+    // notifications table writes may be suppressed by the lean-DB policy
+    // (notifications trigger) — wrap in try/catch so failures are silent.
+    try {
+      const notifyRows = notifyUserIds.map((uid) => ({
+        user_id: uid,
+        title: "✅ Withdrawal Paid",
+        message:
+          `Your withdrawal of UGX ${amount.toLocaleString()} has been ` +
+          `approved and paid via ${payment_method}. Ref: ${reference.trim().toUpperCase()}.`,
+        type: "financial",
+      }));
+      if (notifyRows.length > 0) {
+        await admin.from("notifications").insert(notifyRows);
+      }
+    } catch { /* suppressed */ }
 
     // ── Returns Disbursement Confirmation email ───────────────────────────
     // Sent ONLY now (after the merchant agent has actually confirmed payment
