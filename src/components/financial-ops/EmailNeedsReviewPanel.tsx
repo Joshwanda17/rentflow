@@ -54,7 +54,9 @@ const fmtUgx = (n: number | null | undefined) =>
  * Operators filter by date range and by a specific deposit request
  * (ID, Transaction ID, depositor name, or phone) to triage faster.
  */
-const PAGE_SIZE = 10;
+const PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
+type PageSize = (typeof PAGE_SIZE_OPTIONS)[number];
+const DEFAULT_PAGE_SIZE: PageSize = 10;
 
 const STORAGE_KEY = 'welile.emailNeedsReview.uiState.v1';
 
@@ -64,6 +66,8 @@ type PersistedState = {
   unmatchedPage: number;
   conflictingPage: number;
   unmatchedSearch: string;
+  unmatchedPageSize: PageSize;
+  conflictingPageSize: PageSize;
 };
 
 const DEFAULT_STATE: PersistedState = {
@@ -72,6 +76,8 @@ const DEFAULT_STATE: PersistedState = {
   unmatchedPage: 1,
   conflictingPage: 1,
   unmatchedSearch: '',
+  unmatchedPageSize: DEFAULT_PAGE_SIZE,
+  conflictingPageSize: DEFAULT_PAGE_SIZE,
 };
 
 function loadPersistedState(): PersistedState {
@@ -108,6 +114,12 @@ export function EmailNeedsReviewPanel() {
   const [unmatchedPage, setUnmatchedPage] = useState(initial.unmatchedPage);
   const [conflictingPage, setConflictingPage] = useState(initial.conflictingPage);
   const [unmatchedSearch, setUnmatchedSearch] = useState(initial.unmatchedSearch);
+  const [unmatchedPageSize, setUnmatchedPageSize] = useState<PageSize>(
+    PAGE_SIZE_OPTIONS.includes(initial.unmatchedPageSize) ? initial.unmatchedPageSize : DEFAULT_PAGE_SIZE,
+  );
+  const [conflictingPageSize, setConflictingPageSize] = useState<PageSize>(
+    PAGE_SIZE_OPTIONS.includes(initial.conflictingPageSize) ? initial.conflictingPageSize : DEFAULT_PAGE_SIZE,
+  );
 
   // Persist whenever any of the tracked UI bits change.
   useEffect(() => {
@@ -121,10 +133,12 @@ export function EmailNeedsReviewPanel() {
           unmatchedPage,
           conflictingPage,
           unmatchedSearch,
+          unmatchedPageSize,
+          conflictingPageSize,
         } satisfies PersistedState),
       );
     } catch { /* ignore quota / privacy-mode errors */ }
-  }, [unmatchedOpen, conflictingOpen, unmatchedPage, conflictingPage, unmatchedSearch]);
+  }, [unmatchedOpen, conflictingOpen, unmatchedPage, conflictingPage, unmatchedSearch, unmatchedPageSize, conflictingPageSize]);
 
   const load = useCallback(async (silent = false) => {
     if (silent) setRefreshing(true);
@@ -245,13 +259,13 @@ export function EmailNeedsReviewPanel() {
 
   // Clamp persisted page if filtered list has shrunk since last visit.
   useEffect(() => {
-    const max = Math.max(1, Math.ceil(unmatchedFiltered.length / PAGE_SIZE));
+    const max = Math.max(1, Math.ceil(unmatchedFiltered.length / unmatchedPageSize));
     if (unmatchedPage > max) setUnmatchedPage(max);
-  }, [unmatchedFiltered.length, unmatchedPage]);
+  }, [unmatchedFiltered.length, unmatchedPage, unmatchedPageSize]);
   useEffect(() => {
-    const max = Math.max(1, Math.ceil(conflicting.length / PAGE_SIZE));
+    const max = Math.max(1, Math.ceil(conflicting.length / conflictingPageSize));
     if (conflictingPage > max) setConflictingPage(max);
-  }, [conflicting.length, conflictingPage]);
+  }, [conflicting.length, conflictingPage, conflictingPageSize]);
 
   const linkEmail = async (emailId: string, depositId: string) => {
     const { error } = await (supabase.from('gmail_transactions') as any)
@@ -434,11 +448,13 @@ export function EmailNeedsReviewPanel() {
                     <EmptyState text={`No unmatched items match “${unmatchedSearch}”.`} />
                   ) : (
                     <>
-                      <ul className="divide-y">{paginate(unmatchedFiltered, unmatchedPage).map((x) => renderRow(x, false))}</ul>
+                      <ul className="divide-y">{paginate(unmatchedFiltered, unmatchedPage, unmatchedPageSize).map((x) => renderRow(x, false))}</ul>
                       <PaginationBar
                         page={unmatchedPage}
                         total={unmatchedFiltered.length}
                         onChange={setUnmatchedPage}
+                        pageSize={unmatchedPageSize}
+                        onPageSizeChange={(s) => { setUnmatchedPageSize(s); setUnmatchedPage(1); }}
                       />
                     </>
                   )}
@@ -464,11 +480,13 @@ export function EmailNeedsReviewPanel() {
                 <EmptyState text="No conflicting emails — no two pending deposits share an amount in this window." />
               ) : (
                 <>
-                  <ul className="divide-y">{paginate(conflicting, conflictingPage).map((x) => renderRow(x, true))}</ul>
+                  <ul className="divide-y">{paginate(conflicting, conflictingPage, conflictingPageSize).map((x) => renderRow(x, true))}</ul>
                   <PaginationBar
                     page={conflictingPage}
                     total={conflicting.length}
                     onChange={setConflictingPage}
+                    pageSize={conflictingPageSize}
+                    onPageSizeChange={(s) => { setConflictingPageSize(s); setConflictingPage(1); }}
                   />
                 </>
               )}
@@ -480,20 +498,43 @@ export function EmailNeedsReviewPanel() {
   );
 }
 
-function paginate<T>(arr: T[], page: number): T[] {
-  const start = (page - 1) * PAGE_SIZE;
-  return arr.slice(start, start + PAGE_SIZE);
+function paginate<T>(arr: T[], page: number, pageSize: number): T[] {
+  const start = (page - 1) * pageSize;
+  return arr.slice(start, start + pageSize);
 }
 
-function PaginationBar({ page, total, onChange }: { page: number; total: number; onChange: (p: number) => void }) {
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const fromCount = (page - 1) * PAGE_SIZE + 1;
-  const toCount = Math.min(page * PAGE_SIZE, total);
+function PaginationBar({
+  page, total, onChange, pageSize, onPageSizeChange,
+}: {
+  page: number;
+  total: number;
+  onChange: (p: number) => void;
+  pageSize: PageSize;
+  onPageSizeChange: (s: PageSize) => void;
+}) {
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const fromCount = (page - 1) * pageSize + 1;
+  const toCount = Math.min(page * pageSize, total);
   return (
-    <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/20 text-xs">
-      <span className="text-muted-foreground">
-        {total === 0 ? 'No items' : `Showing ${fromCount}–${toCount} of ${total}`}
-      </span>
+    <div className="flex items-center justify-between gap-2 px-4 py-3 border-t bg-muted/20 text-xs flex-wrap">
+      <div className="flex items-center gap-3 flex-wrap">
+        <span className="text-muted-foreground">
+          {total === 0 ? 'No items' : `Showing ${fromCount}–${toCount} of ${total}`}
+        </span>
+        <label className="flex items-center gap-1.5 text-muted-foreground">
+          <span>Rows</span>
+          <select
+            value={pageSize}
+            onChange={(ev) => onPageSizeChange(Number(ev.target.value) as PageSize)}
+            className="h-7 rounded-md border border-input bg-background px-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-ring"
+            aria-label="Rows per page"
+          >
+            {PAGE_SIZE_OPTIONS.map((n) => (
+              <option key={n} value={n}>{n}</option>
+            ))}
+          </select>
+        </label>
+      </div>
       <div className="flex items-center gap-2">
         <Button
           variant="outline"
