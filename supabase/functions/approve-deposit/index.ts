@@ -1132,10 +1132,57 @@ Deno.serve(async (req) => {
             try {
               const { data: depProfile } = await supabaseAdmin
                 .from('profiles')
-                .select('email, full_name')
+                .select('email, full_name, phone')
                 .eq('id', depositRequest.user_id)
                 .maybeSingle();
-              const recipientEmail = depProfile?.email;
+              // Treat placeholder emails (e.g. "0712345678@welile.user")
+              // as missing — they won't deliver and just clutter the queue.
+              const rawEmail = (depProfile?.email ?? '').trim();
+              const isPlaceholderEmail =
+                !rawEmail || /@welile\.user$/i.test(rawEmail);
+              const recipientEmail = isPlaceholderEmail ? null : rawEmail;
+
+              // Pull the freshly-credited bucket balance so the user sees
+              // it in both the SMS and email receipt.
+              const { data: walletRow } = await supabaseAdmin
+                .from('wallets')
+                .select('withdrawable_balance, float_balance')
+                .eq('user_id', depositRequest.user_id)
+                .maybeSingle();
+              const isFloat = depositBucket === 'float';
+              const newBucketBalance = Number(
+                isFloat
+                  ? walletRow?.float_balance ?? 0
+                  : walletRow?.withdrawable_balance ?? 0,
+              );
+              const firstName =
+                (depProfile?.full_name ?? '').split(' ')[0] || 'there';
+              const fmtUGX = (n: number) =>
+                `UGX ${Math.round(Number(n) || 0).toLocaleString('en-UG')}`;
+              const providerLabelShort = (depositRequest.provider || 'MOBILE MONEY')
+                .toString()
+                .toUpperCase();
+              const txRef =
+                depositRequest.transaction_id ||
+                `DEP-${String(depositRequest.id).slice(0, 8).toUpperCase()}`;
+
+              // ── SMS receipt (Africa's Talking) ─────────────────────
+              if (depProfile?.phone) {
+                const bucketLabel = isFloat
+                  ? 'Operational Float'
+                  : 'Wallet';
+                const smsMsg =
+                  `Welile: Hi ${firstName}, ${fmtUGX(depositRequest.amount)} from ` +
+                  `${providerLabelShort} (TID ${txRef}) was auto-credited to your ` +
+                  `${bucketLabel}. New ${isFloat ? 'float' : 'wallet'} balance: ` +
+                  `${fmtUGX(newBucketBalance)}.`;
+                await sendSmsViaAfricasTalking(depProfile.phone, smsMsg);
+              } else {
+                console.warn(
+                  `[approve-deposit] no phone for user ${depositRequest.user_id}; skipping auto-approval SMS`,
+                );
+              }
+
               if (recipientEmail) {
                 const txRef =
                   depositRequest.transaction_id ||
@@ -1143,25 +1190,41 @@ Deno.serve(async (req) => {
                 const sourceLabel = (depositRequest.provider || 'email_match')
                   .toString()
                   .toUpperCase();
+                // Use the float-specific receipt template when the deposit
+                // was credited to the Operational Float bucket; otherwise
+                // fall back to the generic wallet-deposit template.
+                const templateName = isFloat
+                  ? 'operational-float-credit'
+                  : 'partner-wallet-deposit';
+                const baseTemplateData: Record<string, unknown> = {
+                  partner_name: depProfile?.full_name || 'Customer',
+                  transaction_id: txRef,
+                  amount: Number(depositRequest.amount) || 0,
+                  currency: 'UGX',
+                  date: new Date().toLocaleDateString('en-GB', {
+                    day: '2-digit',
+                    month: 'long',
+                    year: 'numeric',
+                  }),
+                  source: isFloat
+                    ? providerLabelShort === 'MTN'
+                      ? 'MTN MoMo'
+                      : providerLabelShort === 'AIRTEL'
+                        ? 'Airtel Money'
+                        : `Auto-verified · ${sourceLabel}`
+                    : `Auto-verified · ${sourceLabel}`,
+                };
+                if (isFloat) {
+                  baseTemplateData.new_float_balance = newBucketBalance;
+                }
                 const { error: emailErr } = await supabaseAdmin.functions.invoke(
                   'send-transactional-email',
                   {
                     body: {
-                      templateName: 'partner-wallet-deposit',
+                      templateName,
                       recipientEmail,
                       idempotencyKey: `auto-deposit-${depositRequest.id}`,
-                      templateData: {
-                        partner_name: depProfile?.full_name || 'Customer',
-                        transaction_id: txRef,
-                        amount: Number(depositRequest.amount) || 0,
-                        currency: 'UGX',
-                        date: new Date().toLocaleDateString('en-GB', {
-                          day: '2-digit',
-                          month: 'long',
-                          year: 'numeric',
-                        }),
-                        source: `Auto-verified · ${sourceLabel}`,
-                      },
+                      templateData: baseTemplateData,
                     },
                   },
                 );
@@ -1173,7 +1236,7 @@ Deno.serve(async (req) => {
                 }
               } else {
                 console.warn(
-                  `[approve-deposit] no profile email for user ${depositRequest.user_id}; skipping auto-approval email`,
+                  `[approve-deposit] no deliverable email for user ${depositRequest.user_id} (raw="${rawEmail}"); skipping auto-approval email`,
                 );
               }
             } catch (mailErr) {
