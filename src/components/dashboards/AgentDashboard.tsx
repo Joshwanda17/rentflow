@@ -115,6 +115,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { CreditAccessCard } from '@/components/CreditAccessCard';
 import { ApprovedRentRequestsWidget } from '@/components/rent/ApprovedRentRequestsWidget';
 import { RecentAutoCharges } from '@/components/wallet/RecentAutoCharges';
+import { StuckDepositsRepairPanel } from '@/components/wallet/StuckDepositsRepairPanel';
 import { AgentTenantRentRequestsList } from '@/components/agent/AgentTenantRentRequestsList';
 import { AgentVerificationOpportunitiesCard } from '@/components/agent/AgentVerificationOpportunitiesCard';
 import { ShareRentRecorderCard } from '@/components/agent/ShareRentRecorderCard';
