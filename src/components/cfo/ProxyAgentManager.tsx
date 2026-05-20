@@ -12,7 +12,8 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Handshake, UserPlus, Loader2, Smartphone, ShieldCheck, Pencil, Trash2, Users, UserCheck, Building, Search, Layers, X } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Handshake, UserPlus, Loader2, Smartphone, ShieldCheck, Pencil, Trash2, Users, UserCheck, Building, Search, Layers, X, ArrowRightLeft } from 'lucide-react';
 import { UserSearchPicker } from './UserSearchPicker';
 import { format } from 'date-fns';
 
@@ -33,10 +34,11 @@ export function ProxyAgentManager() {
   const [showBulk, setShowBulk] = useState(false);
   const [bulkAgent, setBulkAgent] = useState<any>(null);
   const [bulkBeneficiaries, setBulkBeneficiaries] = useState<any[]>([]);
-  const [bulkPicker, setBulkPicker] = useState<any>(null);
   const [bulkRole, setBulkRole] = useState('supporter');
   const [bulkReason, setBulkReason] = useState('Bulk assignment by Partner Ops');
   const [bulkManaged, setBulkManaged] = useState(false);
+  const [bulkSearch, setBulkSearch] = useState('');
+  const [bulkFilter, setBulkFilter] = useState<'all' | 'assigned_other' | 'unassigned' | 'managed'>('all');
 
   const { data: assignments = [], isLoading } = useQuery({
     queryKey: ['proxy-assignments'],
@@ -50,6 +52,66 @@ export function ProxyAgentManager() {
       return data || [];
     },
   });
+
+  /** Map: beneficiary_id → active proxy assignment (one per partner is the contract). */
+  const assignmentByBeneficiary = useMemo(() => {
+    const m = new Map<string, any>();
+    assignments.forEach((a: any) => { m.set(a.beneficiary_id, a); });
+    return m;
+  }, [assignments]);
+
+  /** Pool of selectable partners, scoped to the role we are bulk-assigning. */
+  const { data: bulkPool = [], isLoading: bulkPoolLoading } = useQuery({
+    queryKey: ['bulk-proxy-pool', bulkRole],
+    enabled: showBulk,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('user_id, profiles:user_id(id, full_name, phone)')
+        .eq('role', bulkRole as any)
+        .limit(5000);
+      if (error) throw error;
+      return (data || [])
+        .map((r: any) => r.profiles)
+        .filter((p: any) => p && p.id && p.full_name);
+    },
+  });
+
+  const filteredBulkPool = useMemo(() => {
+    const q = bulkSearch.trim().toLowerCase();
+    return bulkPool.filter((p: any) => {
+      const current = assignmentByBeneficiary.get(p.id);
+      if (bulkFilter === 'assigned_other') {
+        if (!current) return false;
+        if (bulkAgent && current.agent_id === bulkAgent.id) return false;
+      } else if (bulkFilter === 'unassigned') {
+        if (current) return false;
+      } else if (bulkFilter === 'managed') {
+        if (!current?.is_managed_account) return false;
+      }
+      if (!q) return true;
+      return (
+        p.full_name?.toLowerCase().includes(q) ||
+        p.phone?.toLowerCase().includes(q)
+      );
+    });
+  }, [bulkPool, bulkSearch, bulkFilter, assignmentByBeneficiary, bulkAgent]);
+
+  const selectedIds = useMemo(
+    () => new Set(bulkBeneficiaries.map((b) => b.id)),
+    [bulkBeneficiaries],
+  );
+  const allFilteredSelected =
+    filteredBulkPool.length > 0 &&
+    filteredBulkPool.every((p: any) => selectedIds.has(p.id));
+  const moveCount = useMemo(
+    () =>
+      bulkBeneficiaries.filter((b) => {
+        const cur = assignmentByBeneficiary.get(b.id);
+        return cur && bulkAgent && cur.agent_id !== bulkAgent.id;
+      }).length,
+    [bulkBeneficiaries, assignmentByBeneficiary, bulkAgent],
+  );
 
   const filteredAssignments = useMemo(() => {
     if (!searchTerm.trim()) return assignments;
@@ -141,10 +203,11 @@ export function ProxyAgentManager() {
   const resetBulkForm = () => {
     setBulkAgent(null);
     setBulkBeneficiaries([]);
-    setBulkPicker(null);
     setBulkRole('supporter');
     setBulkReason('Bulk assignment by Partner Ops');
     setBulkManaged(false);
+    setBulkSearch('');
+    setBulkFilter('all');
   };
 
   const bulkAssignMutation = useMutation({
@@ -152,10 +215,28 @@ export function ProxyAgentManager() {
       if (!bulkAgent) throw new Error('Please select an agent');
       if (bulkBeneficiaries.length === 0) throw new Error('Add at least one partner');
       const nowIso = new Date().toISOString();
-      const results = { inserted: 0, reactivated: 0, failed: 0 };
+      const results = { inserted: 0, reactivated: 0, moved: 0, failed: 0 };
 
       for (const b of bulkBeneficiaries) {
         try {
+          // ── 1) Move: deactivate any OTHER active proxy holding this partner.
+          const { data: others, error: othersErr } = await supabase
+            .from('proxy_agent_assignments')
+            .select('id')
+            .eq('beneficiary_id', b.id)
+            .eq('is_active', true)
+            .neq('agent_id', bulkAgent.id);
+          if (othersErr) throw othersErr;
+          if (others && others.length > 0) {
+            const { error: deactErr } = await supabase
+              .from('proxy_agent_assignments')
+              .update({ is_active: false })
+              .in('id', others.map((o: any) => o.id));
+            if (deactErr) throw deactErr;
+            results.moved++;
+          }
+
+          // ── 2) Upsert assignment for (bulkAgent, beneficiary).
           const { data: existing } = await supabase
             .from('proxy_agent_assignments')
             .select('id')
@@ -206,11 +287,12 @@ export function ProxyAgentManager() {
       const parts: string[] = [];
       if (r.inserted) parts.push(`${r.inserted} linked`);
       if (r.reactivated) parts.push(`${r.reactivated} re-linked`);
+      if (r.moved) parts.push(`${r.moved} moved from prior agent`);
       if (r.failed) parts.push(`${r.failed} failed`);
       toast({
         title: '✅ Bulk assignment complete',
         description: parts.join(' • ') || 'No changes',
-        variant: r.failed && !r.inserted && !r.reactivated ? 'destructive' : 'default',
+        variant: r.failed && !r.inserted && !r.reactivated && !r.moved ? 'destructive' : 'default',
       });
       qc.invalidateQueries({ queryKey: ['proxy-assignments'] });
       setShowBulk(false);
@@ -219,17 +301,24 @@ export function ProxyAgentManager() {
     onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
 
-  const addBulkBeneficiary = (u: any) => {
-    if (!u) return;
-    if (bulkBeneficiaries.some(x => x.id === u.id)) {
-      toast({ title: 'Already added', description: u.full_name });
-    } else {
-      setBulkBeneficiaries(prev => [...prev, u]);
-    }
-    setBulkPicker(null);
-  };
+  const toggleBulkBeneficiary = (u: any) =>
+    setBulkBeneficiaries((prev) =>
+      prev.some((x) => x.id === u.id)
+        ? prev.filter((x) => x.id !== u.id)
+        : [...prev, u],
+    );
   const removeBulkBeneficiary = (id: string) =>
-    setBulkBeneficiaries(prev => prev.filter(b => b.id !== id));
+    setBulkBeneficiaries((prev) => prev.filter((b) => b.id !== id));
+  const toggleSelectAllFiltered = () => {
+    if (allFilteredSelected) {
+      const idsToRemove = new Set(filteredBulkPool.map((p: any) => p.id));
+      setBulkBeneficiaries((prev) => prev.filter((b) => !idsToRemove.has(b.id)));
+    } else {
+      const existing = new Map(bulkBeneficiaries.map((b) => [b.id, b]));
+      filteredBulkPool.forEach((p: any) => existing.set(p.id, p));
+      setBulkBeneficiaries(Array.from(existing.values()));
+    }
+  };
 
   const editMutation = useMutation({
     mutationFn: async () => {
@@ -296,12 +385,14 @@ export function ProxyAgentManager() {
               <Layers className="h-4 w-4" /> Bulk Assign
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Bulk Assign Partners to Agent</DialogTitle>
             </DialogHeader>
             <p className="text-xs text-muted-foreground">
-              Pick one agent, then add multiple partners. All assignments are auto-approved.
+              Pick one agent, search/filter the partner pool, multi-select, and link.
+              Partners already attached to a different proxy agent will be automatically
+              moved over.
             </p>
             <div className="space-y-3">
               <UserSearchPicker
@@ -322,15 +413,118 @@ export function ProxyAgentManager() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <UserSearchPicker
-                  label={`Add Partners (${bulkBeneficiaries.length} selected)`}
-                  placeholder="Search partner by name or phone..."
-                  selectedUser={bulkPicker}
-                  onSelect={addBulkBeneficiary}
-                />
+                <div className="flex items-center justify-between gap-2">
+                  <Label className="text-sm">
+                    Partners ({bulkBeneficiaries.length} selected
+                    {moveCount > 0 && (
+                      <span className="ml-1 text-amber-600 dark:text-amber-400">
+                        · {moveCount} will be moved
+                      </span>
+                    )})
+                  </Label>
+                  {bulkBeneficiaries.length > 0 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => setBulkBeneficiaries([])}
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-[1fr_180px] gap-2">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search by name or phone..."
+                      value={bulkSearch}
+                      onChange={(e) => setBulkSearch(e.target.value)}
+                      className="pl-9 h-9"
+                    />
+                  </div>
+                  <Select value={bulkFilter} onValueChange={(v) => setBulkFilter(v as any)}>
+                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All partners</SelectItem>
+                      <SelectItem value="unassigned">Unassigned only</SelectItem>
+                      <SelectItem value="assigned_other">On another agent</SelectItem>
+                      <SelectItem value="managed">Managed accounts</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="rounded-lg border border-border bg-muted/20">
+                  <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/40">
+                    <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
+                      <Checkbox
+                        checked={allFilteredSelected}
+                        onCheckedChange={toggleSelectAllFiltered}
+                        disabled={filteredBulkPool.length === 0}
+                      />
+                      Select all{bulkSearch || bulkFilter !== 'all' ? ' filtered' : ''}
+                      <span className="text-muted-foreground font-normal">
+                        ({filteredBulkPool.length})
+                      </span>
+                    </label>
+                  </div>
+                  <div className="max-h-72 overflow-y-auto divide-y divide-border">
+                    {bulkPoolLoading ? (
+                      <div className="py-6 flex justify-center">
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : filteredBulkPool.length === 0 ? (
+                      <div className="py-6 text-center text-xs text-muted-foreground">
+                        No partners match this filter.
+                      </div>
+                    ) : (
+                      filteredBulkPool.slice(0, 500).map((p: any) => {
+                        const cur = assignmentByBeneficiary.get(p.id);
+                        const checked = selectedIds.has(p.id);
+                        const wouldMove = cur && bulkAgent && cur.agent_id !== bulkAgent.id;
+                        return (
+                          <label
+                            key={p.id}
+                            className="flex items-center gap-2 px-3 py-2 text-xs hover:bg-muted/40 cursor-pointer"
+                          >
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={() => toggleBulkBeneficiary(p)}
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium truncate">{p.full_name}</p>
+                              <p className="text-[10px] text-muted-foreground truncate">{p.phone}</p>
+                            </div>
+                            {cur ? (
+                              <Badge
+                                variant="outline"
+                                className={`text-[9px] gap-1 ${wouldMove && checked ? 'border-amber-500/40 text-amber-600 dark:text-amber-400' : ''}`}
+                              >
+                                {wouldMove && checked && <ArrowRightLeft className="h-2.5 w-2.5" />}
+                                {cur.agent?.full_name || 'Has proxy'}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-[9px] text-muted-foreground">
+                                Unassigned
+                              </Badge>
+                            )}
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
+                  {filteredBulkPool.length > 500 && (
+                    <p className="px-3 py-1.5 text-[10px] text-muted-foreground border-t border-border">
+                      Showing first 500. Refine search to narrow further.
+                    </p>
+                  )}
+                </div>
+
                 {bulkBeneficiaries.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 rounded-lg border border-border bg-muted/30 p-2 max-h-40 overflow-y-auto">
-                    {bulkBeneficiaries.map(b => (
+                  <div className="flex flex-wrap gap-1.5 rounded-lg border border-border bg-muted/30 p-2 max-h-32 overflow-y-auto">
+                    {bulkBeneficiaries.map((b) => (
                       <Badge key={b.id} variant="secondary" className="gap-1 pl-2 pr-1 py-1">
                         <span className="text-[11px]">{b.full_name}</span>
                         <button
