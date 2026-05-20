@@ -1177,11 +1177,19 @@ export default function WithdrawFlow({
             <ConfirmSummaryCard
               title="Withdrawal Summary"
               items={[
-                { label: 'From', value: source === 'available' ? 'Available Balance' : 'ROI Earnings' },
-                { label: 'Amount', value: formatCurrency(amount, currency) },
+                { label: 'Wallet', value: source === 'available' ? '💼 Available Balance' : '📈 Returns Earnings' },
+                { label: 'Amount', value: formatCurrency(amount, currency), highlight: true },
                 { label: 'Payout Mode', value: payoutMode === 'mobile_money' ? '📱 Mobile Money' : payoutMode === 'bank_transfer' ? '🏦 Bank Transfer' : '💵 Cash Pickup' },
                 { label: 'To', value: getPayoutSummary() },
                 { label: 'Name', value: getPayoutName() },
+              ]}
+              fees={[
+                { label: 'Withdrawal fee', value: 'Free' },
+                { label: 'Available balance', value: formatCurrency(maxAmount, currency) },
+                {
+                  label: 'Balance after withdrawal',
+                  value: formatCurrency(Math.max(0, maxAmount - amount), currency),
+                },
               ]}
               total={{ label: "You'll Receive", value: formatCurrency(amount, currency) }}
               showSecurityNote={false}
