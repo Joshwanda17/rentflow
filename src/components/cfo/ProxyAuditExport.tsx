@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Download, FileText, FileSpreadsheet, Loader2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
@@ -22,6 +23,27 @@ type ActionType = 'all' | 'proxy_bulk_link' | 'proxy_bulk_move';
 type RoleFilter = 'all' | 'landlord' | 'supporter';
 
 const ACTIONS: ActionType[] = ['proxy_bulk_link', 'proxy_bulk_move'];
+
+/** Column registry — order here is the order used in CSV + PDF output. */
+type ColKey =
+  | 'timestamp' | 'action' | 'partner_name' | 'partner_phone' | 'role'
+  | 'from_agent' | 'to_agent' | 'managed' | 'reason' | 'actor_id' | 'record_id';
+
+const COLUMNS: { key: ColKey; label: string; pdfWidth: number | 'auto'; defaultOn: boolean }[] = [
+  { key: 'timestamp',     label: 'Timestamp',     pdfWidth: 26, defaultOn: true  },
+  { key: 'action',        label: 'Action',        pdfWidth: 14, defaultOn: true  },
+  { key: 'partner_name',  label: 'Partner',       pdfWidth: 32, defaultOn: true  },
+  { key: 'partner_phone', label: 'Phone',         pdfWidth: 22, defaultOn: true  },
+  { key: 'role',          label: 'Role',          pdfWidth: 18, defaultOn: true  },
+  { key: 'from_agent',    label: 'From agent(s)', pdfWidth: 45, defaultOn: true  },
+  { key: 'to_agent',      label: 'To agent',      pdfWidth: 32, defaultOn: true  },
+  { key: 'managed',       label: 'Managed',       pdfWidth: 14, defaultOn: true  },
+  { key: 'reason',        label: 'Reason',        pdfWidth: 'auto', defaultOn: true },
+  { key: 'actor_id',      label: 'Actor ID',      pdfWidth: 40, defaultOn: false },
+  { key: 'record_id',     label: 'Record ID',     pdfWidth: 40, defaultOn: false },
+];
+
+const COLUMN_PREF_KEY = 'welile.proxyAuditExport.columns.v1';
 
 function csvEscape(v: any): string {
   if (v === null || v === undefined) return '';
@@ -51,6 +73,48 @@ export function ProxyAuditExport() {
   const [actionFilter, setActionFilter] = useState<ActionType>('all');
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
   const [exporting, setExporting] = useState(false);
+  // Column selection — restored from localStorage, falls back to `defaultOn` flags.
+  const [selectedCols, setSelectedCols] = useState<Set<ColKey>>(() => {
+    try {
+      const raw = typeof window !== 'undefined' ? window.localStorage.getItem(COLUMN_PREF_KEY) : null;
+      if (raw) {
+        const arr = JSON.parse(raw) as ColKey[];
+        const valid = arr.filter((k) => COLUMNS.some((c) => c.key === k));
+        if (valid.length) return new Set(valid);
+      }
+    } catch {/* ignore */}
+    return new Set(COLUMNS.filter((c) => c.defaultOn).map((c) => c.key));
+  });
+
+  const persistCols = (next: Set<ColKey>) => {
+    setSelectedCols(new Set(next));
+    try {
+      window.localStorage.setItem(COLUMN_PREF_KEY, JSON.stringify(Array.from(next)));
+    } catch {/* ignore */}
+  };
+  const toggleCol = (key: ColKey) => {
+    const next = new Set(selectedCols);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    persistCols(next);
+  };
+  const activeCols = useMemo(
+    () => COLUMNS.filter((c) => selectedCols.has(c.key)),
+    [selectedCols],
+  );
+
+  /** Format a cell for output. Keeps CSV raw, prettifies for PDF. */
+  const cellValue = (row: any, key: ColKey, mode: 'csv' | 'pdf'): string => {
+    const v = row[key];
+    if (key === 'timestamp') {
+      try {
+        return mode === 'pdf'
+          ? format(parseISO(v), 'dd MMM yy HH:mm')
+          : v;
+      } catch { return String(v ?? ''); }
+    }
+    if (key === 'action' && mode === 'pdf') return String(v ?? '').replace('proxy_bulk_', '');
+    return v === undefined || v === null ? '' : String(v);
+  };
 
   /** Pull bulk audit rows (preview window). Server-side date+action filter; client-side text filter. */
   const { data: rows = [], isFetching, refetch } = useQuery({
@@ -114,13 +178,10 @@ export function ProxyAuditExport() {
 
   const exportCsv = () => {
     if (flatRows.length === 0) { toast({ title: 'Nothing to export' }); return; }
-    const headers = ['Timestamp', 'Action', 'Partner', 'Phone', 'Role', 'From agent(s)', 'To agent', 'Managed', 'Reason', 'Actor ID', 'Record ID'];
-    const lines = [headers.map(csvEscape).join(',')];
+    if (activeCols.length === 0) { toast({ title: 'Pick at least one column' }); return; }
+    const lines = [activeCols.map((c) => csvEscape(c.label)).join(',')];
     flatRows.forEach((r) => {
-      lines.push([
-        r.timestamp, r.action, r.partner_name, r.partner_phone, r.role,
-        r.from_agent, r.to_agent, r.managed, r.reason, r.actor_id, r.record_id,
-      ].map(csvEscape).join(','));
+      lines.push(activeCols.map((c) => csvEscape(cellValue(r, c.key, 'csv'))).join(','));
     });
     const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
     downloadBlob(blob, `proxy-audit_${format(new Date(), 'yyyyMMdd_HHmm')}.csv`);
@@ -129,6 +190,7 @@ export function ProxyAuditExport() {
 
   const exportPdf = async () => {
     if (flatRows.length === 0) { toast({ title: 'Nothing to export' }); return; }
+    if (activeCols.length === 0) { toast({ title: 'Pick at least one column' }); return; }
     setExporting(true);
     try {
       const { default: jsPDF } = await import('jspdf');
@@ -167,33 +229,15 @@ export function ProxyAuditExport() {
       crit.forEach((c) => { doc.text(c, margin, y); y += 4; });
       y += 2;
 
+      const columnStyles: Record<number, any> = {};
+      activeCols.forEach((c, i) => { columnStyles[i] = { cellWidth: c.pdfWidth as any }; });
       autoTable(doc, {
         startY: y,
-        head: [['Timestamp', 'Action', 'Partner', 'Phone', 'Role', 'From agent(s)', 'To agent', 'Managed', 'Reason']],
-        body: flatRows.map((r) => [
-          format(parseISO(r.timestamp), 'dd MMM yy HH:mm'),
-          r.action.replace('proxy_bulk_', ''),
-          r.partner_name,
-          r.partner_phone,
-          r.role,
-          r.from_agent,
-          r.to_agent,
-          r.managed,
-          r.reason,
-        ]),
+        head: [activeCols.map((c) => c.label)],
+        body: flatRows.map((r) => activeCols.map((c) => cellValue(r, c.key, 'pdf'))),
         styles: { fontSize: 7, cellPadding: 1.2, overflow: 'linebreak' },
         headStyles: { fillColor: [15, 23, 42], textColor: 255 },
-        columnStyles: {
-          0: { cellWidth: 26 },
-          1: { cellWidth: 14 },
-          2: { cellWidth: 32 },
-          3: { cellWidth: 22 },
-          4: { cellWidth: 18 },
-          5: { cellWidth: 45 },
-          6: { cellWidth: 32 },
-          7: { cellWidth: 14 },
-          8: { cellWidth: 'auto' },
-        },
+        columnStyles,
         margin: { left: margin, right: margin },
       });
 
@@ -293,11 +337,65 @@ export function ProxyAuditExport() {
           </Button>
         </div>
 
+        {/* Column picker — controls which fields land in the CSV / PDF */}
+        <div className="rounded-md border border-border bg-muted/20 p-3 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <p className="text-xs font-semibold">Columns to export</p>
+              <p className="text-[10px] text-muted-foreground">
+                Choose what appears in both CSV and PDF. Saved per browser.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 text-[10px]">
+              <Badge variant="secondary" className="tabular-nums">{activeCols.length}/{COLUMNS.length}</Badge>
+              <button
+                type="button"
+                className="text-primary hover:underline"
+                onClick={() => persistCols(new Set(COLUMNS.map((c) => c.key)))}
+              >
+                All
+              </button>
+              <button
+                type="button"
+                className="text-primary hover:underline"
+                onClick={() => persistCols(new Set(COLUMNS.filter((c) => c.defaultOn).map((c) => c.key)))}
+              >
+                Reset
+              </button>
+              <button
+                type="button"
+                className="text-muted-foreground hover:underline"
+                onClick={() => persistCols(new Set())}
+              >
+                None
+              </button>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+            {COLUMNS.map((c) => {
+              const on = selectedCols.has(c.key);
+              return (
+                <label
+                  key={c.key}
+                  className={`flex items-center gap-2 px-2 py-1.5 rounded border text-xs cursor-pointer transition-colors ${
+                    on
+                      ? 'border-primary/40 bg-primary/5'
+                      : 'border-border bg-background hover:bg-muted/40'
+                  }`}
+                >
+                  <Checkbox checked={on} onCheckedChange={() => toggleCol(c.key)} />
+                  <span className="truncate">{c.label}</span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="flex gap-2 pt-1">
           <Button
             variant="outline"
             className="flex-1 gap-1.5"
-            disabled={isFetching || flatRows.length === 0}
+            disabled={isFetching || flatRows.length === 0 || activeCols.length === 0}
             onClick={exportCsv}
           >
             <FileSpreadsheet className="h-4 w-4" />
@@ -305,7 +403,7 @@ export function ProxyAuditExport() {
           </Button>
           <Button
             className="flex-1 gap-1.5"
-            disabled={isFetching || exporting || flatRows.length === 0}
+            disabled={isFetching || exporting || flatRows.length === 0 || activeCols.length === 0}
             onClick={exportPdf}
           >
             {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
