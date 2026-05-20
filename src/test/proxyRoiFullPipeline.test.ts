@@ -624,6 +624,11 @@ describe("source guards · approve-withdrawal proxy debit contract", () => {
     expect(src).toMatch(/user_id:\s*fundingUserId/);
   });
 
+  it("does not let a stale cached wallet veto Fin Ops proxy approval", () => {
+    expect(src).toMatch(/const totalSpendable\s*=\s*ledgerAvailable/);
+    expect(src).not.toMatch(/isProxyPayout[\s\S]{0,120}Math\.min\(cachedSpendable, ledgerAvailable\)/);
+  });
+
   it("tags the debit leg with linked_party = beneficiary partner", () => {
     expect(src).toMatch(/linked_party:\s*isProxyPayout\s*\?/);
   });
