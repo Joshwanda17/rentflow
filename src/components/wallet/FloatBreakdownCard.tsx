@@ -216,22 +216,23 @@ export function FloatBreakdownCard({ floatBalance }: FloatBreakdownCardProps) {
 
   return (
     <Card className="border-border/50 shadow-sm">
-      <CardContent className="p-4">
+      <CardContent className="p-5">
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="w-full flex items-center gap-3 text-left"
+          className="w-full flex items-center gap-4 text-left"
           aria-expanded={expanded}
           aria-controls="float-breakdown-body"
         >
-          <div className="h-10 w-10 rounded-2xl bg-[hsl(195,80%,45%)]/10 flex items-center justify-center shrink-0">
-            <Wallet className="h-5 w-5 text-[hsl(195,80%,45%)]" />
+          <div className="h-11 w-11 rounded-full bg-muted flex items-center justify-center shrink-0">
+            <Wallet className="h-5 w-5 text-foreground/70" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-foreground">Float breakdown</p>
-            <p className="text-xs text-muted-foreground">
-              Float balance:{' '}
-              <CompactAmount value={floatBalance} className="border-0" />
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
+              Float balance
+            </p>
+            <p className="text-xl font-semibold text-foreground tabular-nums">
+              {formatUGX(floatBalance)}
             </p>
           </div>
           {expanded ? (
@@ -242,11 +243,14 @@ export function FloatBreakdownCard({ floatBalance }: FloatBreakdownCardProps) {
         </button>
 
         {expanded && (
-          <div id="float-breakdown-body" className="mt-4 space-y-3">
+          <div id="float-breakdown-body" className="mt-5 space-y-4">
             {/* Date-range filter */}
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-medium text-muted-foreground">
+                Activity
+              </p>
               <Select value={preset} onValueChange={(v) => setPreset(v as RangePreset)}>
-                <SelectTrigger className="h-8 w-[150px] text-xs">
+                <SelectTrigger className="h-8 w-[140px] text-xs border-border/60">
                   <SelectValue placeholder="Range" />
                 </SelectTrigger>
                 <SelectContent>
@@ -327,29 +331,21 @@ export function FloatBreakdownCard({ floatBalance }: FloatBreakdownCardProps) {
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div className="rounded-xl bg-emerald-500/10 px-3 py-2">
-                <p className="text-[10px] uppercase tracking-wider text-emerald-700 dark:text-emerald-400 font-semibold">
-                  Cash in
+            <div className="grid grid-cols-2 divide-x divide-border/60 rounded-xl border border-border/60 bg-muted/30">
+              <div className="px-3 py-2.5">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Money in
                 </p>
-                <CompactAmount
-                  value={totalIn}
-                  className="text-emerald-700 dark:text-emerald-400 font-bold border-0 p-0"
-                />
-                <p className="text-[10px] text-emerald-700/60 dark:text-emerald-400/60 mt-0.5">
-                  this page
+                <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400 tabular-nums mt-0.5">
+                  {formatUGX(totalIn)}
                 </p>
               </div>
-              <div className="rounded-xl bg-rose-500/10 px-3 py-2">
-                <p className="text-[10px] uppercase tracking-wider text-rose-700 dark:text-rose-400 font-semibold">
-                  Cash out
+              <div className="px-3 py-2.5">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Money out
                 </p>
-                <CompactAmount
-                  value={totalOut}
-                  className="text-rose-700 dark:text-rose-400 font-bold border-0 p-0"
-                />
-                <p className="text-[10px] text-rose-700/60 dark:text-rose-400/60 mt-0.5">
-                  this page
+                <p className="text-sm font-semibold text-rose-700 dark:text-rose-400 tabular-nums mt-0.5">
+                  {formatUGX(totalOut)}
                 </p>
               </div>
             </div>
@@ -359,21 +355,21 @@ export function FloatBreakdownCard({ floatBalance }: FloatBreakdownCardProps) {
                 Loading entries…
               </p>
             ) : entries.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-4 text-center">
-                No float entries yet.
+              <p className="text-xs text-muted-foreground py-6 text-center">
+                No activity in this period.
               </p>
             ) : (
               <>
-                <ul className="divide-y divide-border/60 rounded-xl border border-border/60 overflow-hidden">
+                <ul className="divide-y divide-border/50">
                   {entries.map((e) => {
                     const isIn = e.direction === 'cash_in';
                     return (
                       <li
                         key={e.id}
-                        className="flex items-start gap-3 px-3 py-2 bg-background"
+                        className="flex items-center gap-3 py-3"
                       >
                         <div
-                          className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 ${
+                          className={`h-9 w-9 rounded-full flex items-center justify-center shrink-0 ${
                             isIn ? 'bg-emerald-500/10' : 'bg-rose-500/10'
                           }`}
                         >
@@ -384,35 +380,23 @@ export function FloatBreakdownCard({ floatBalance }: FloatBreakdownCardProps) {
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="text-sm font-medium text-foreground truncate">
-                              {labelFor(e.category)}
-                            </p>
-                            <Badge
-                              variant="outline"
-                              className="text-[10px] py-0 h-4 px-1.5"
-                            >
-                              {isIn ? 'IN' : 'OUT'}
-                            </Badge>
-                          </div>
-                          <p className="text-[11px] text-muted-foreground truncate">
-                            {format(new Date(e.transaction_date), 'MMM d, yyyy · h:mm a')}
-                            {e.reference_id ? ` · Ref ${e.reference_id}` : ''}
+                          <p className="text-sm font-medium text-foreground truncate">
+                            {labelFor(e.category)}
                           </p>
-                          {e.description && (
-                            <p className="text-[11px] text-muted-foreground/80 truncate">
-                              {e.description}
-                            </p>
-                          )}
+                          <p className="text-[11px] text-muted-foreground truncate">
+                            {format(new Date(e.transaction_date), 'MMM d · h:mm a')}
+                          </p>
                         </div>
-                        <CompactAmount
-                          value={Number(e.amount)}
-                          className={`font-semibold border-0 p-0 ${
+                        <p
+                          className={`text-sm font-semibold tabular-nums shrink-0 ${
                             isIn
                               ? 'text-emerald-700 dark:text-emerald-400'
                               : 'text-rose-700 dark:text-rose-400'
                           }`}
-                        />
+                        >
+                          {isIn ? '+' : '−'}
+                          {formatUGX(Number(e.amount))}
+                        </p>
                       </li>
                     );
                   })}
@@ -420,7 +404,7 @@ export function FloatBreakdownCard({ floatBalance }: FloatBreakdownCardProps) {
 
                 {/* Pagination controls */}
                 {totalPages > 1 && (
-                  <div className="flex items-center justify-between pt-1">
+                  <div className="flex items-center justify-between pt-2 border-t border-border/50">
                     <Button
                       variant="ghost"
                       size="sm"
@@ -449,43 +433,36 @@ export function FloatBreakdownCard({ floatBalance }: FloatBreakdownCardProps) {
 
                 {/* Reconciliation row */}
                 <div
-                  className={`rounded-xl border px-3 py-2.5 space-y-1 ${
-                    isReconciled
-                      ? 'border-emerald-500/30 bg-emerald-500/5'
-                      : 'border-amber-500/30 bg-amber-500/5'
-                  }`}
+                  className="rounded-xl border border-border/60 bg-muted/30 px-4 py-3 space-y-1.5"
                 >
                   <div className="flex items-center justify-between">
-                    <p className="text-[11px] font-semibold text-foreground">
-                      Reconciliation
+                    <p className="text-xs font-semibold text-foreground">
+                      Summary
                     </p>
-                    <Badge
-                      variant="outline"
-                      className={`text-[10px] h-5 ${
+                    <span
+                      className={`text-[10px] font-medium ${
                         isReconciled
-                          ? 'border-emerald-500/40 text-emerald-700 dark:text-emerald-400'
-                          : 'border-amber-500/40 text-amber-700 dark:text-amber-400'
+                          ? 'text-emerald-700 dark:text-emerald-400'
+                          : 'text-amber-700 dark:text-amber-400'
                       }`}
                     >
-                      {isReconciled ? 'Reconciled' : 'Mismatch'}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="text-muted-foreground">
-                      Cash in − Cash out
+                      {isReconciled ? '✓ Matches' : 'Mismatch'}
                     </span>
-                    <span className="font-medium tabular-nums">
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Net activity</span>
+                    <span className="font-medium tabular-nums text-foreground">
                       {formatUGX(netCumulative)}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="text-muted-foreground">Float balance</span>
-                    <span className="font-medium tabular-nums">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Current balance</span>
+                    <span className="font-medium tabular-nums text-foreground">
                       {formatUGX(floatBalance)}
                     </span>
                   </div>
                   {!isReconciled && (
-                    <div className="flex items-center justify-between text-[11px]">
+                    <div className="flex items-center justify-between text-xs pt-1 border-t border-border/40">
                       <span className="text-muted-foreground">Difference</span>
                       <span
                         className={`font-semibold tabular-nums ${
@@ -499,16 +476,10 @@ export function FloatBreakdownCard({ floatBalance }: FloatBreakdownCardProps) {
                       </span>
                     </div>
                   )}
-                  <p className="text-[10px] text-muted-foreground/70 pt-0.5">
-                    Based on {seenIds.size.toLocaleString()} of{' '}
-                    {totalCount.toLocaleString()} entries
-                    {allReviewed ? ' (all reviewed)' : ''}
+                  <p className="text-[10px] text-muted-foreground pt-1">
+                    {seenIds.size.toLocaleString()} of {totalCount.toLocaleString()} entries reviewed
                   </p>
                 </div>
-
-                <p className="text-[10px] text-muted-foreground/70 text-center">
-                  Source: general ledger · wallet-side entries · {totalCount.toLocaleString()} total
-                </p>
               </>
             )}
           </div>
