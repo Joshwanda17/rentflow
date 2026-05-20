@@ -33,17 +33,17 @@ const FLOAT_OUT_CATEGORIES = [
 ] as const;
 
 const CATEGORY_LABEL: Record<string, string> = {
-  agent_float_deposit: 'Float deposit',
-  operational_float_deposit: 'Operational float deposit',
-  agent_float_topup: 'Float top-up',
-  float_received: 'Float received',
-  partner_float_transfer_in: 'Partner float in',
-  rent_payment_for_tenant: 'Rent paid for tenant',
-  agent_float_used_for_rent: 'Float used for rent',
-  agent_float_payout: 'Float payout',
-  float_withdrawal: 'Float withdrawal',
+  agent_float_deposit: 'Deposit',
+  operational_float_deposit: 'Deposit',
+  agent_float_topup: 'Top-up',
+  float_received: 'Received',
+  partner_float_transfer_in: 'Transfer in',
+  rent_payment_for_tenant: 'Rent paid',
+  agent_float_used_for_rent: 'Rent paid',
+  agent_float_payout: 'Payout',
+  float_withdrawal: 'Withdrawal',
   landlord_payout: 'Landlord payout',
-  partner_float_transfer_out: 'Partner float out',
+  partner_float_transfer_out: 'Transfer out',
 };
 
 interface Entry {
