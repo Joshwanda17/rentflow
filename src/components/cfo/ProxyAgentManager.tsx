@@ -39,6 +39,9 @@ export function ProxyAgentManager() {
   const [bulkManaged, setBulkManaged] = useState(false);
   const [bulkSearch, setBulkSearch] = useState('');
   const [bulkFilter, setBulkFilter] = useState<'all' | 'assigned_other' | 'unassigned' | 'managed'>('all');
+  // Extra filters
+  const [bulkFromAgent, setBulkFromAgent] = useState<string>('any'); // 'any' | prior agent id
+  const [bulkRequirePhone, setBulkRequirePhone] = useState(false);
 
   const { data: assignments = [], isLoading } = useQuery({
     queryKey: ['proxy-assignments'],
@@ -97,13 +100,46 @@ export function ProxyAgentManager() {
       } else if (bulkFilter === 'managed') {
         if (!current?.is_managed_account) return false;
       }
+      // "From agent" — partners currently held by this specific prior agent.
+      if (bulkFromAgent !== 'any') {
+        if (!current || current.agent_id !== bulkFromAgent) return false;
+      }
+      if (bulkRequirePhone && !p.phone) return false;
       if (!q) return true;
       return (
         p.full_name?.toLowerCase().includes(q) ||
         p.phone?.toLowerCase().includes(q)
       );
     });
-  }, [bulkPool, bulkSearch, bulkFilter, assignmentByBeneficiary, bulkAgent]);
+  }, [bulkPool, bulkSearch, bulkFilter, assignmentByBeneficiary, bulkAgent, bulkFromAgent, bulkRequirePhone]);
+
+  /** Counts for filter chips. Computed against the whole role-pool, ignoring the chip itself. */
+  const filterCounts = useMemo(() => {
+    let unassigned = 0, assignedOther = 0, managed = 0;
+    bulkPool.forEach((p: any) => {
+      const cur = assignmentByBeneficiary.get(p.id);
+      if (!cur) unassigned++;
+      else {
+        if (!bulkAgent || cur.agent_id !== bulkAgent.id) assignedOther++;
+        if (cur.is_managed_account) managed++;
+      }
+    });
+    return { all: bulkPool.length, unassigned, assignedOther, managed };
+  }, [bulkPool, assignmentByBeneficiary, bulkAgent]);
+
+  /** Prior agents represented in the pool, with counts — drives the "From agent" picker. */
+  const priorAgentOptions = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; count: number }>();
+    bulkPool.forEach((p: any) => {
+      const cur = assignmentByBeneficiary.get(p.id);
+      if (!cur) return;
+      const name = cur.agent?.full_name || cur.agent?.phone || 'Unknown agent';
+      const slot = map.get(cur.agent_id) || { id: cur.agent_id, name, count: 0 };
+      slot.count++;
+      map.set(cur.agent_id, slot);
+    });
+    return Array.from(map.values()).sort((a, b) => b.count - a.count);
+  }, [bulkPool, assignmentByBeneficiary]);
 
   const selectedIds = useMemo(
     () => new Set(bulkBeneficiaries.map((b) => b.id)),
@@ -155,7 +191,7 @@ export function ProxyAgentManager() {
   useEffect(() => {
     setVisibleCount(PAGE);
     if (scrollRef.current) scrollRef.current.scrollTop = 0;
-  }, [bulkSearch, bulkFilter, bulkRole, showBulk]);
+  }, [bulkSearch, bulkFilter, bulkRole, showBulk, bulkFromAgent, bulkRequirePhone]);
 
   const filteredAssignments = useMemo(() => {
     if (!searchTerm.trim()) return assignments;
@@ -252,6 +288,8 @@ export function ProxyAgentManager() {
     setBulkManaged(false);
     setBulkSearch('');
     setBulkFilter('all');
+    setBulkFromAgent('any');
+    setBulkRequirePhone(false);
   };
 
   const bulkAssignMutation = useMutation({
