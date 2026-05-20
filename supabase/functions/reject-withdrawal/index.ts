@@ -275,6 +275,31 @@ Deno.serve(async (req) => {
         });
       } catch { /* notification table may be suppressed by trigger */ }
 
+      // ── User SMS alert (rejected) ──────────────────────────────────────
+      // Fire-and-forget; the AT helper no-ops if creds are missing or the
+      // phone isn't a valid UG number. Pulls the phone via a single targeted
+      // profiles lookup so we don't depend on caller-supplied data.
+      try {
+        const { data: rejProfile } = await admin
+          .from('profiles')
+          .select('phone')
+          .eq('id', userId)
+          .maybeSingle();
+        const phone = rejProfile?.phone as string | undefined;
+        if (phone) {
+          const shortReason = String(reason).slice(0, 120);
+          const smsMsg =
+            `WELILE: Your withdrawal of UGX ${Number(wr.amount).toLocaleString()} ` +
+            `was REJECTED. Reason: ${shortReason}` +
+            (refunded ? '. Funds restored to your balance.' : '.');
+          sendSMS(phone, smsMsg).catch((e) =>
+            console.error('[reject-withdrawal] rejection SMS failed:', e),
+          );
+        }
+      } catch (e) {
+        console.error('[reject-withdrawal] phone lookup failed:', e);
+      }
+
       // Audit log
       await admin.from('audit_logs').insert({
         user_id: user.id,
