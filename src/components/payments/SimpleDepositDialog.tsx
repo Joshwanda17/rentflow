@@ -117,14 +117,42 @@ export default function SimpleDepositDialog({
 
       if (error) throw error;
 
-      // Best-effort instant auto-verify (matches DepositFlow behavior).
+      // Best-effort instant auto-verify (mirrors DepositFlow).
+      // If a parsed MTN/Airtel Gmail receipt matches digits+amount,
+      // `try_link_gmail_for_deposit` links it; we then invoke
+      // `approve-deposit` with auto_approved:true so the deposit is
+      // approved immediately without Financial Ops review.
+      let autoApproved = false;
       try {
-        await invokeEdgeFunction('try-link-gmail-for-deposit', {
-          body: { deposit_id: inserted.id },
-          silent: true,
-        });
+        const { data: linkRes } = await (supabase.rpc as any)(
+          'try_link_gmail_for_deposit',
+          { p_deposit_id: inserted.id },
+        );
+        const outcome = (linkRes as any)?.outcome;
+        if (outcome === 'linked') {
+          const { data: session } = await supabase.auth.getSession();
+          const token = session?.session?.access_token;
+          const { error: invErr } = await supabase.functions.invoke(
+            'approve-deposit',
+            {
+              body: {
+                deposit_request_id: inserted.id,
+                action: 'approve',
+                access_token: token,
+                auto_approved: true,
+                auto_match_method: 'tid',
+              },
+            },
+          );
+          if (!invErr) autoApproved = true;
+        }
       } catch {
         // Non-fatal — Financial Ops will still see the pending row.
+      }
+      if (autoApproved) {
+        toast.success('Deposit auto-verified ⚡', {
+          description: 'We matched your MoMo receipt instantly.',
+        });
       }
 
       setDone(true);
