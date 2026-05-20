@@ -15800,6 +15800,7 @@ export type Database = {
         Args: { p_code: string; p_referrer?: string; p_user_agent?: string }
         Returns: undefined
       }
+      redeem_staff_access_code: { Args: { p_code: string }; Returns: Json }
       refresh_financial_summaries: { Args: never; Returns: undefined }
       refund_agent_float_for_payout: {
         Args: { p_payout_id: string; p_reason: string }
