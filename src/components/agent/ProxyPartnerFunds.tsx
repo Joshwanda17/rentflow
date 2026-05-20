@@ -108,6 +108,12 @@ export function ProxyPartnerFunds() {
   const [partnerWithdrawalStatus, setPartnerWithdrawalStatus] = useState<Record<string, string>>({});
   const [partnerWithdrawalIds, setPartnerWithdrawalIds] = useState<Record<string, string>>({});
   const [strictWithdrawableByPartner, setStrictWithdrawableByPartner] = useState<Record<string, number>>({});
+  // Set of partner IDs whose proxy assignment to this agent is a MANAGED
+  // account. For managed accounts, ROI funds land in the AGENT's wallet on
+  // disbursement (not the partner's), per the Managed-Proxy Payout Routing
+  // contract. The partner's strict withdrawable will stay at 0 by design,
+  // so we must NOT clamp the card's open balance against it.
+  const [managedPartnerIds, setManagedPartnerIds] = useState<Set<string>>(() => new Set());
   // Sum of in-flight (pending/processing/manager_approved/cfo_approved/requested)
   // withdrawal amounts per partner. Treated as already-paid for display so the
   // card disappears from the default view the instant Caro initiates.
@@ -299,13 +305,19 @@ export function ProxyPartnerFunds() {
       // Resolve active proxy partners delegated to this agent (Custody v2).
       const { data: proxyAssignments } = await supabase
         .from('proxy_agent_assignments')
-        .select('beneficiary_id')
+        .select('beneficiary_id, is_managed_account')
         .eq('agent_id', user.id)
         .eq('is_active', true)
         .eq('approval_status', 'approved');
       const proxyPartnerIds = Array.from(
         new Set((proxyAssignments || []).map((r: any) => r.beneficiary_id).filter(Boolean)),
       ) as string[];
+      const managedSet = new Set<string>(
+        (proxyAssignments || [])
+          .filter((r: any) => r.is_managed_account && r.beneficiary_id)
+          .map((r: any) => r.beneficiary_id as string),
+      );
+      setManagedPartnerIds(managedSet);
 
       // Source IDs (portfolios) belonging to those proxy partners.
       let v2PortfolioIds: string[] = [];
@@ -491,7 +503,10 @@ export function ProxyPartnerFunds() {
         supabase
           .from('v_user_wallet_strict')
           .select('user_id, withdrawable')
-          .in('user_id', uniquePartnerIds),
+          // Include the AGENT's own row so the managed-proxy clamp can use
+          // the agent's strict withdrawable (managed funds land in agent
+          // wallet, not partner wallet).
+          .in('user_id', [user.id, ...uniquePartnerIds]),
       ]);
 
       const profileMap: Record<string, { full_name: string; phone: string }> = {};
@@ -702,9 +717,19 @@ export function ProxyPartnerFunds() {
       const totalApproved = rows.reduce((sum, row) => sum + row.amount, 0);
       const totalInFlight = activeWithdrawalsByPartner[partnerId] || 0;
       const historicalOpen = Math.max(0, totalApproved);
+      // For MANAGED proxy partners the disbursement lands in the agent's
+      // wallet (per Managed-Proxy Payout Routing) — the partner's strict
+      // withdrawable stays at 0 by design. Clamping against it would hide
+      // the card forever. Use the agent's strict withdrawable as the live
+      // ceiling in that case; for non-managed partners keep clamping
+      // against their own wallet (existing behaviour).
+      const isManaged = managedPartnerIds.has(partnerId);
+      const ceilingSource = isManaged
+        ? (strictWithdrawableByPartner[user?.id ?? ''] ?? historicalOpen)
+        : (strictWithdrawableByPartner[partnerId] ?? historicalOpen);
       const liveOpen = Math.max(
         0,
-        Math.min(historicalOpen, (strictWithdrawableByPartner[partnerId] ?? historicalOpen) + totalInFlight),
+        Math.min(historicalOpen, ceilingSource + totalInFlight),
       );
       if (liveOpen <= 50) return;
 
@@ -783,7 +808,7 @@ export function ProxyPartnerFunds() {
         if (b.totalReturns !== a.totalReturns) return b.totalReturns - a.totalReturns;
         return a.partnerName.localeCompare(b.partnerName);
       });
-  }, [approvedOps, completedWithdrawals, activeWithdrawalsByPartner, strictWithdrawableByPartner, profiles, portfolioMap, dismissalMap, user?.id]);
+  }, [approvedOps, completedWithdrawals, activeWithdrawalsByPartner, strictWithdrawableByPartner, managedPartnerIds, profiles, portfolioMap, dismissalMap, user?.id]);
 
   const handleWithdraw = async (partner: PartnerBalance) => {
     setSelectedPartnerId(partner.partnerId);
