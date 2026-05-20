@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Download, FileText, FileSpreadsheet, Loader2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
@@ -22,6 +23,27 @@ type ActionType = 'all' | 'proxy_bulk_link' | 'proxy_bulk_move';
 type RoleFilter = 'all' | 'landlord' | 'supporter';
 
 const ACTIONS: ActionType[] = ['proxy_bulk_link', 'proxy_bulk_move'];
+
+/** Column registry — order here is the order used in CSV + PDF output. */
+type ColKey =
+  | 'timestamp' | 'action' | 'partner_name' | 'partner_phone' | 'role'
+  | 'from_agent' | 'to_agent' | 'managed' | 'reason' | 'actor_id' | 'record_id';
+
+const COLUMNS: { key: ColKey; label: string; pdfWidth: number | 'auto'; defaultOn: boolean }[] = [
+  { key: 'timestamp',     label: 'Timestamp',     pdfWidth: 26, defaultOn: true  },
+  { key: 'action',        label: 'Action',        pdfWidth: 14, defaultOn: true  },
+  { key: 'partner_name',  label: 'Partner',       pdfWidth: 32, defaultOn: true  },
+  { key: 'partner_phone', label: 'Phone',         pdfWidth: 22, defaultOn: true  },
+  { key: 'role',          label: 'Role',          pdfWidth: 18, defaultOn: true  },
+  { key: 'from_agent',    label: 'From agent(s)', pdfWidth: 45, defaultOn: true  },
+  { key: 'to_agent',      label: 'To agent',      pdfWidth: 32, defaultOn: true  },
+  { key: 'managed',       label: 'Managed',       pdfWidth: 14, defaultOn: true  },
+  { key: 'reason',        label: 'Reason',        pdfWidth: 'auto', defaultOn: true },
+  { key: 'actor_id',      label: 'Actor ID',      pdfWidth: 40, defaultOn: false },
+  { key: 'record_id',     label: 'Record ID',     pdfWidth: 40, defaultOn: false },
+];
+
+const COLUMN_PREF_KEY = 'welile.proxyAuditExport.columns.v1';
 
 function csvEscape(v: any): string {
   if (v === null || v === undefined) return '';
