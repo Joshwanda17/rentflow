@@ -1,4 +1,5 @@
 // html-to-image and jsPDF loaded dynamically to reduce initial bundle size
+import { archivePdfBlob } from '@/lib/pdfVault';
 
 export interface ExportData {
   headers: string[];
@@ -121,6 +122,14 @@ export async function exportToPDF(
 
     // Generate PDF as blob first, then create a more compatible download
     const pdfBlob = pdf.output('blob');
+
+    // Archive a copy in the offline PDF vault so the record survives
+    // network loss, browser cache wipes, or a cleared Downloads folder.
+    archivePdfBlob(pdfBlob, {
+      label: title || filename,
+      filename: `${filename}_${new Date().toISOString().split('T')[0]}.pdf`,
+      category: 'other',
+    }).catch(() => {});
     
     // Create download link with better mobile support
     const blobUrl = URL.createObjectURL(pdfBlob);
