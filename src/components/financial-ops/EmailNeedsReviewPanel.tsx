@@ -300,6 +300,90 @@ export function EmailNeedsReviewPanel() {
     setEmails((cur) => cur.filter((x) => x.id !== emailId));
   };
 
+  // ── Bulk actions (current Unmatched page only) ─────────────────────
+  const unmatchedPageItems = useMemo(
+    () => paginate(unmatchedFiltered, unmatchedPage, unmatchedPageSize),
+    [unmatchedFiltered, unmatchedPage, unmatchedPageSize],
+  );
+  const pageIds = useMemo(() => unmatchedPageItems.map((x) => x.email.id), [unmatchedPageItems]);
+  const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedUnmatched.has(id));
+  const somePageSelected = pageIds.some((id) => selectedUnmatched.has(id));
+
+  const togglePageSelection = () => {
+    setSelectedUnmatched((cur) => {
+      const next = new Set(cur);
+      if (allPageSelected) pageIds.forEach((id) => next.delete(id));
+      else pageIds.forEach((id) => next.add(id));
+      return next;
+    });
+  };
+
+  // Items selected on the current page that have exactly one candidate (safe to auto-link).
+  const selectedAcceptable = useMemo(
+    () => unmatchedPageItems.filter((x) => selectedUnmatched.has(x.email.id) && x.candidates.length === 1),
+    [unmatchedPageItems, selectedUnmatched],
+  );
+  const selectedCount = useMemo(
+    () => unmatchedPageItems.filter((x) => selectedUnmatched.has(x.email.id)).length,
+    [unmatchedPageItems, selectedUnmatched],
+  );
+
+  const bulkAccept = async () => {
+    if (selectedAcceptable.length === 0) return;
+    setBulkBusy(true);
+    const now = new Date().toISOString();
+    let ok = 0, fail = 0;
+    for (const item of selectedAcceptable) {
+      const { error } = await (supabase.from('gmail_transactions') as any)
+        .update({
+          linked_deposit_request_id: item.candidates[0].id,
+          auto_matched_at: now,
+          auto_match_method: 'bulk_amount_strong',
+        })
+        .eq('id', item.email.id);
+      if (error) fail++; else ok++;
+    }
+    const okIds = new Set(selectedAcceptable.slice(0, ok).map((x) => x.email.id));
+    setEmails((cur) => cur.filter((x) => !okIds.has(x.id)));
+    setSelectedUnmatched((cur) => {
+      const next = new Set(cur);
+      okIds.forEach((id) => next.delete(id));
+      return next;
+    });
+    setBulkBusy(false);
+    toast({
+      title: `Linked ${ok} email${ok === 1 ? '' : 's'}`,
+      description: fail > 0 ? `${fail} failed — refresh and retry.` : 'Now visible in the auto-match panel for approval.',
+      variant: fail > 0 ? 'destructive' : undefined,
+    });
+  };
+
+  const bulkReject = async () => {
+    const ids = unmatchedPageItems
+      .filter((x) => selectedUnmatched.has(x.email.id))
+      .map((x) => x.email.id);
+    if (ids.length === 0) return;
+    setBulkBusy(true);
+    // "Reject" = mark parsed=false so the load query excludes them.
+    // They remain in gmail_transactions for audit but drop from the review queue.
+    const { error } = await (supabase.from('gmail_transactions') as any)
+      .update({ parsed: false })
+      .in('id', ids);
+    setBulkBusy(false);
+    if (error) {
+      toast({ title: 'Reject failed', description: error.message, variant: 'destructive' });
+      return;
+    }
+    const idSet = new Set(ids);
+    setEmails((cur) => cur.filter((x) => !idSet.has(x.id)));
+    setSelectedUnmatched((cur) => {
+      const next = new Set(cur);
+      idSet.forEach((id) => next.delete(id));
+      return next;
+    });
+    toast({ title: `Rejected ${ids.length} email${ids.length === 1 ? '' : 's'}`, description: 'Removed from the review queue.' });
+  };
+
   const toggleSelect = (id: string) => {
     setSelectedUnmatched((cur) => {
       const next = new Set(cur);
