@@ -108,6 +108,12 @@ export function ProxyPartnerFunds() {
   const [partnerWithdrawalStatus, setPartnerWithdrawalStatus] = useState<Record<string, string>>({});
   const [partnerWithdrawalIds, setPartnerWithdrawalIds] = useState<Record<string, string>>({});
   const [strictWithdrawableByPartner, setStrictWithdrawableByPartner] = useState<Record<string, number>>({});
+  // Set of partner IDs whose proxy assignment to this agent is a MANAGED
+  // account. For managed accounts, ROI funds land in the AGENT's wallet on
+  // disbursement (not the partner's), per the Managed-Proxy Payout Routing
+  // contract. The partner's strict withdrawable will stay at 0 by design,
+  // so we must NOT clamp the card's open balance against it.
+  const [managedPartnerIds, setManagedPartnerIds] = useState<Set<string>>(() => new Set());
   // Sum of in-flight (pending/processing/manager_approved/cfo_approved/requested)
   // withdrawal amounts per partner. Treated as already-paid for display so the
   // card disappears from the default view the instant Caro initiates.
