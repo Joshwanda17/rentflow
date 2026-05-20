@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Check, Clock, ShieldCheck, Banknote, X, Loader2, AlertTriangle, Timer, Info, RotateCw } from 'lucide-react';
+import { Check, Clock, ShieldCheck, Banknote, X, Loader2, AlertTriangle, Timer, Info, RotateCw, ScrollText, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format, addMinutes } from 'date-fns';
@@ -34,6 +34,11 @@ type WithdrawalRow = {
   processed_at: string | null;
   rejection_reason: string | null;
   transaction_id: string | null;
+  coo_approved_at?: string | null;
+  fin_ops_verified_at?: string | null;
+  dispatched_at?: string | null;
+  processing_started_at?: string | null;
+  updated_at?: string | null;
 };
 
 /** Maps the raw `status` text to a 3-stage UI tracker. Anything not in the
@@ -57,6 +62,7 @@ export default function WithdrawalStatusTracker({
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
   const [queueAhead, setQueueAhead] = useState<number | null>(null);
+  const [auditOpen, setAuditOpen] = useState(false);
 
   // Initial fetch + realtime subscription so the user sees Ops approve LIVE.
   useEffect(() => {
@@ -64,7 +70,7 @@ export default function WithdrawalStatusTracker({
     (async () => {
       const { data } = await supabase
         .from('withdrawal_requests')
-        .select('status, created_at, manager_approved_at, fin_ops_approved_at, cfo_approved_at, processed_at, rejection_reason, transaction_id')
+        .select('status, created_at, manager_approved_at, fin_ops_approved_at, cfo_approved_at, coo_approved_at, fin_ops_verified_at, dispatched_at, processing_started_at, processed_at, rejection_reason, transaction_id, updated_at')
         .eq('id', requestId)
         .maybeSingle();
       if (!alive) return;
@@ -208,6 +214,39 @@ export default function WithdrawalStatusTracker({
     };
   };
   const delayReason = getDelayReason();
+
+  /** Derives a chronological audit trail from the per-stage timestamp
+   * columns on `withdrawal_requests`. These columns ARE the backend
+   * audit trail — every approval gate stamps its own column when it
+   * mutates the row, so rendering them in time order gives the user
+   * the full lifecycle without exposing the (manager-only) audit_logs
+   * table. */
+  const auditTrail = (() => {
+    if (!row) return [];
+    const events: { at: string; label: string; tone: 'submit' | 'review' | 'pay' | 'terminal' }[] = [];
+    const push = (at: string | null | undefined, label: string, tone: typeof events[number]['tone']) => {
+      if (at) events.push({ at, label, tone });
+    };
+    push(row.created_at, 'Request submitted to Financial Ops', 'submit');
+    push(row.manager_approved_at ?? null, 'Manager approval recorded', 'review');
+    push(row.coo_approved_at ?? null, 'COO approval recorded', 'review');
+    push(row.cfo_approved_at ?? null, 'CFO approval recorded', 'review');
+    push(row.fin_ops_verified_at ?? null, 'Financial Ops verified destination', 'review');
+    push(row.fin_ops_approved_at ?? null, 'Financial Ops approved payout', 'review');
+    push(row.processing_started_at ?? null, 'Payout processing started', 'pay');
+    push(row.dispatched_at ?? null, 'Dispatched to payout provider', 'pay');
+    push(row.processed_at ?? null,
+      isRejected ? 'Request rejected' :
+      isCancelled ? 'Request cancelled' :
+      'Funds released to destination',
+      'terminal');
+    // Fallback terminal stamp if the row flipped state without a processed_at
+    // (e.g. user cancel). updated_at is the next-best signal.
+    if ((isRejected || isCancelled) && !row.processed_at && row.updated_at) {
+      push(row.updated_at, isRejected ? 'Request rejected' : 'Request cancelled', 'terminal');
+    }
+    return events.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+  })();
 
   /** Stuck = still non-terminal after 24h. Unlocks both the cancel and
    * retry escape hatches so the user is never trapped on a frozen request. */
@@ -431,6 +470,55 @@ export default function WithdrawalStatusTracker({
       <p className="text-[10px] text-center text-muted-foreground">
         🔔 We'll notify you the moment Financial Ops approves and funds are released.
       </p>
+
+      {/* Audit trail — collapsible chronological log of every backend
+          status update on this withdrawal request. */}
+      {auditTrail.length > 0 && (
+        <div className="rounded-lg border border-border bg-muted/20">
+          <button
+            type="button"
+            onClick={() => setAuditOpen((v) => !v)}
+            className="w-full flex items-center justify-between gap-2 px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted/40 transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <ScrollText className="h-3.5 w-3.5 text-muted-foreground" />
+              Audit trail ({auditTrail.length} {auditTrail.length === 1 ? 'event' : 'events'})
+            </span>
+            {auditOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          </button>
+          {auditOpen && (
+            <ol className="px-3 pb-3 pt-1 space-y-2">
+              {auditTrail.map((evt, i) => (
+                <li key={`${evt.at}-${i}`} className="flex gap-2 items-start text-[11px]">
+                  <span
+                    className={cn(
+                      'mt-1 h-1.5 w-1.5 rounded-full shrink-0',
+                      evt.tone === 'submit' && 'bg-primary',
+                      evt.tone === 'review' && 'bg-amber-500',
+                      evt.tone === 'pay' && 'bg-sky-500',
+                      evt.tone === 'terminal' && (isRejected || isCancelled ? 'bg-destructive' : 'bg-emerald-500'),
+                    )}
+                  />
+                  <div className="flex-1 flex items-baseline justify-between gap-2">
+                    <span className="text-foreground">{evt.label}</span>
+                    <span className="font-mono text-muted-foreground shrink-0">
+                      {format(new Date(evt.at), 'MMM d, HH:mm:ss')}
+                    </span>
+                  </div>
+                </li>
+              ))}
+              {row?.transaction_id && (
+                <li className="pt-1 mt-1 border-t border-border text-[10px] text-muted-foreground font-mono break-all">
+                  Provider TID: {row.transaction_id}
+                </li>
+              )}
+              <li className="pt-1 text-[10px] text-muted-foreground font-mono break-all">
+                Request ID: {requestId}
+              </li>
+            </ol>
+          )}
+        </div>
+      )}
     </div>
   );
 }
