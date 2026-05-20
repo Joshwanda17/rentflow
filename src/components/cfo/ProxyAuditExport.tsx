@@ -395,7 +395,7 @@ export function ProxyAuditExport() {
           <Button
             variant="outline"
             className="flex-1 gap-1.5"
-            disabled={isFetching || flatRows.length === 0}
+            disabled={isFetching || flatRows.length === 0 || activeCols.length === 0}
             onClick={exportCsv}
           >
             <FileSpreadsheet className="h-4 w-4" />
@@ -403,7 +403,7 @@ export function ProxyAuditExport() {
           </Button>
           <Button
             className="flex-1 gap-1.5"
-            disabled={isFetching || exporting || flatRows.length === 0}
+            disabled={isFetching || exporting || flatRows.length === 0 || activeCols.length === 0}
             onClick={exportPdf}
           >
             {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
