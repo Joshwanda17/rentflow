@@ -4667,6 +4667,48 @@ export type Database = {
           },
         ]
       }
+      deposit_guardrail_audit: {
+        Row: {
+          action: string
+          actor: string | null
+          attempted_status: string | null
+          created_at: string
+          deposit_id: string
+          id: string
+          metadata: Json
+          missing_match_key: string | null
+          prior_status: string | null
+          reason: string
+          source: string
+        }
+        Insert: {
+          action: string
+          actor?: string | null
+          attempted_status?: string | null
+          created_at?: string
+          deposit_id: string
+          id?: string
+          metadata?: Json
+          missing_match_key?: string | null
+          prior_status?: string | null
+          reason: string
+          source: string
+        }
+        Update: {
+          action?: string
+          actor?: string | null
+          attempted_status?: string | null
+          created_at?: string
+          deposit_id?: string
+          id?: string
+          metadata?: Json
+          missing_match_key?: string | null
+          prior_status?: string | null
+          reason?: string
+          source?: string
+        }
+        Relationships: []
+      }
       deposit_relink_attempts: {
         Row: {
           age_minutes: number | null
@@ -14841,6 +14883,12 @@ export type Database = {
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
+      }
+      derive_deposit_guardrail_source: {
+        Args: {
+          p_deposit: Database["public"]["Tables"]["deposit_requests"]["Row"]
+        }
+        Returns: string
       }
       derive_welile_ai_id: { Args: { p_user_id: string }; Returns: string }
       detect_velocity_abuse: {
