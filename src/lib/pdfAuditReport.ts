@@ -7,6 +7,8 @@
  * Loads jspdf + jspdf-autotable dynamically so the chunk only ships when an
  * operator actually clicks "PDF".
  */
+import { savePdfWithVault } from '@/lib/pdfVault';
+
 export interface PdfAuditMeta {
   /** Top-of-page heading (e.g. "Field Deposit Verification — Audit Report"). */
   title: string;
@@ -90,7 +92,10 @@ export async function downloadAuditPdf(
     },
   });
 
-  doc.save(filename);
+  savePdfWithVault(doc as any, filename, {
+    label: meta.title,
+    category: 'audit',
+  });
 }
 
 /** Format an ISO timestamp the same way CSV exports do, for filter summaries. */
