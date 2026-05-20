@@ -83,7 +83,6 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Cash-Out Agents', icon: Banknote, id: 'cashout-agents' },
         { label: 'Agent Activity', icon: Activity, id: 'agent-activity' },
         { label: 'Agent Rankings', icon: Crown, id: 'agent-rankings' },
-        { label: 'Proxy Agents', icon: UserCog, id: 'proxy-agents' },
         { label: 'Agent Float', icon: Building2, id: 'float-management' },
         { label: 'Delivery Tracking', icon: Truck, id: 'delivery-pipeline' },
         { label: 'Cash Check', icon: Scale, id: 'cash-reconciliation' },

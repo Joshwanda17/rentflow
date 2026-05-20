@@ -12,7 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Handshake, UserPlus, Loader2, Smartphone, ShieldCheck, Pencil, Trash2, Users, UserCheck, Building, Search } from 'lucide-react';
+import { Handshake, UserPlus, Loader2, Smartphone, ShieldCheck, Pencil, Trash2, Users, UserCheck, Building, Search, Layers, X } from 'lucide-react';
 import { UserSearchPicker } from './UserSearchPicker';
 import { format } from 'date-fns';
 
@@ -28,6 +28,15 @@ export function ProxyAgentManager() {
   const [reason, setReason] = useState('No smartphone access');
   const [isManagedAccount, setIsManagedAccount] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState<any>(null);
+
+  // ─── Bulk assign state ───
+  const [showBulk, setShowBulk] = useState(false);
+  const [bulkAgent, setBulkAgent] = useState<any>(null);
+  const [bulkBeneficiaries, setBulkBeneficiaries] = useState<any[]>([]);
+  const [bulkPicker, setBulkPicker] = useState<any>(null);
+  const [bulkRole, setBulkRole] = useState('supporter');
+  const [bulkReason, setBulkReason] = useState('Bulk assignment by Partner Ops');
+  const [bulkManaged, setBulkManaged] = useState(false);
 
   const { data: assignments = [], isLoading } = useQuery({
     queryKey: ['proxy-assignments'],
@@ -71,6 +80,7 @@ export function ProxyAgentManager() {
     mutationFn: async () => {
       if (!pickedAgent) throw new Error('Please select an agent');
       if (!pickedBeneficiary) throw new Error('Please select a beneficiary');
+      const nowIso = new Date().toISOString();
       const payload = {
         agent_id: pickedAgent.id,
         beneficiary_id: pickedBeneficiary.id,
@@ -78,6 +88,10 @@ export function ProxyAgentManager() {
         assigned_by: user!.id,
         reason,
         is_managed_account: isManagedAccount,
+        // Partner Ops owns this flow — assignments are auto-approved at source.
+        approval_status: 'approved',
+        approved_by: user!.id,
+        approved_at: nowIso,
       };
 
       const { data: existingAssignment, error: existingError } = await supabase
@@ -90,7 +104,6 @@ export function ProxyAgentManager() {
       if (existingError) throw existingError;
 
       if (existingAssignment) {
-        const shouldStayApproved = existingAssignment.approval_status === 'approved';
         const { error } = await supabase
           .from('proxy_agent_assignments')
           .update({
@@ -99,10 +112,10 @@ export function ProxyAgentManager() {
             reason,
             is_managed_account: isManagedAccount,
             is_active: true,
-            approval_status: shouldStayApproved ? 'approved' : 'pending',
+            approval_status: 'approved',
             rejection_reason: null,
-            approved_by: shouldStayApproved ? undefined : null,
-            approved_at: shouldStayApproved ? undefined : null,
+            approved_by: user!.id,
+            approved_at: nowIso,
           })
           .eq('id', existingAssignment.id);
 
@@ -123,6 +136,100 @@ export function ProxyAgentManager() {
     },
     onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
+
+  // ─── Bulk Assign: one agent ⇄ many beneficiaries ───
+  const resetBulkForm = () => {
+    setBulkAgent(null);
+    setBulkBeneficiaries([]);
+    setBulkPicker(null);
+    setBulkRole('supporter');
+    setBulkReason('Bulk assignment by Partner Ops');
+    setBulkManaged(false);
+  };
+
+  const bulkAssignMutation = useMutation({
+    mutationFn: async () => {
+      if (!bulkAgent) throw new Error('Please select an agent');
+      if (bulkBeneficiaries.length === 0) throw new Error('Add at least one partner');
+      const nowIso = new Date().toISOString();
+      const results = { inserted: 0, reactivated: 0, failed: 0 };
+
+      for (const b of bulkBeneficiaries) {
+        try {
+          const { data: existing } = await supabase
+            .from('proxy_agent_assignments')
+            .select('id')
+            .eq('agent_id', bulkAgent.id)
+            .eq('beneficiary_id', b.id)
+            .maybeSingle();
+
+          if (existing) {
+            const { error } = await supabase
+              .from('proxy_agent_assignments')
+              .update({
+                beneficiary_role: bulkRole,
+                assigned_by: user!.id,
+                reason: bulkReason,
+                is_managed_account: bulkManaged,
+                is_active: true,
+                approval_status: 'approved',
+                rejection_reason: null,
+                approved_by: user!.id,
+                approved_at: nowIso,
+              })
+              .eq('id', existing.id);
+            if (error) throw error;
+            results.reactivated++;
+          } else {
+            const { error } = await supabase.from('proxy_agent_assignments').insert({
+              agent_id: bulkAgent.id,
+              beneficiary_id: b.id,
+              beneficiary_role: bulkRole,
+              assigned_by: user!.id,
+              reason: bulkReason,
+              is_managed_account: bulkManaged,
+              approval_status: 'approved',
+              approved_by: user!.id,
+              approved_at: nowIso,
+            });
+            if (error) throw error;
+            results.inserted++;
+          }
+        } catch (e) {
+          console.error('[bulkAssign] failed for', b, e);
+          results.failed++;
+        }
+      }
+      return results;
+    },
+    onSuccess: (r) => {
+      const parts: string[] = [];
+      if (r.inserted) parts.push(`${r.inserted} linked`);
+      if (r.reactivated) parts.push(`${r.reactivated} re-linked`);
+      if (r.failed) parts.push(`${r.failed} failed`);
+      toast({
+        title: '✅ Bulk assignment complete',
+        description: parts.join(' • ') || 'No changes',
+        variant: r.failed && !r.inserted && !r.reactivated ? 'destructive' : 'default',
+      });
+      qc.invalidateQueries({ queryKey: ['proxy-assignments'] });
+      setShowBulk(false);
+      resetBulkForm();
+    },
+    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
+  const addBulkBeneficiary = (u: any) => {
+    if (!u) return;
+    if (bulkBeneficiaries.some(x => x.id === u.id)) {
+      toast({ title: 'Already added', description: u.full_name });
+    } else {
+      setBulkBeneficiaries(prev => [...prev, u]);
+    }
+    setBulkPicker(null);
+  };
+  const removeBulkBeneficiary = (id: string) =>
+    setBulkBeneficiaries(prev => prev.filter(b => b.id !== id));
 
   const editMutation = useMutation({
     mutationFn: async () => {
@@ -182,6 +289,90 @@ export function ProxyAgentManager() {
           <Handshake className="h-5 w-5 text-primary" />
           Proxy Agents
         </h2>
+        <div className="flex items-center gap-2">
+        <Dialog open={showBulk} onOpenChange={v => { setShowBulk(v); if (!v) resetBulkForm(); }}>
+          <DialogTrigger asChild>
+            <Button size="sm" variant="outline" className="gap-1.5">
+              <Layers className="h-4 w-4" /> Bulk Assign
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Bulk Assign Partners to Agent</DialogTitle>
+            </DialogHeader>
+            <p className="text-xs text-muted-foreground">
+              Pick one agent, then add multiple partners. All assignments are auto-approved.
+            </p>
+            <div className="space-y-3">
+              <UserSearchPicker
+                label="Agent"
+                placeholder="Search agent by name or phone..."
+                selectedUser={bulkAgent}
+                onSelect={setBulkAgent}
+                roleFilter="agent"
+              />
+              <div>
+                <Label>Beneficiary Role</Label>
+                <Select value={bulkRole} onValueChange={setBulkRole}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="landlord">🏠 Landlord</SelectItem>
+                    <SelectItem value="supporter">💼 Partner/Funder</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <UserSearchPicker
+                  label={`Add Partners (${bulkBeneficiaries.length} selected)`}
+                  placeholder="Search partner by name or phone..."
+                  selectedUser={bulkPicker}
+                  onSelect={addBulkBeneficiary}
+                />
+                {bulkBeneficiaries.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 rounded-lg border border-border bg-muted/30 p-2 max-h-40 overflow-y-auto">
+                    {bulkBeneficiaries.map(b => (
+                      <Badge key={b.id} variant="secondary" className="gap-1 pl-2 pr-1 py-1">
+                        <span className="text-[11px]">{b.full_name}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeBulkBeneficiary(b.id)}
+                          className="rounded hover:bg-destructive/20 p-0.5"
+                          aria-label={`Remove ${b.full_name}`}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center justify-between rounded-lg border border-border p-3">
+                <div className="space-y-0.5">
+                  <Label className="text-sm flex items-center gap-1.5">
+                    <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                    Managed Accounts
+                  </Label>
+                  <p className="text-[10px] text-muted-foreground leading-tight">
+                    Applies to every partner in this batch.
+                  </p>
+                </div>
+                <Switch checked={bulkManaged} onCheckedChange={setBulkManaged} />
+              </div>
+              <div>
+                <Label>Reason</Label>
+                <Input value={bulkReason} onChange={e => setBulkReason(e.target.value)} />
+              </div>
+              <Button
+                className="w-full"
+                onClick={() => bulkAssignMutation.mutate()}
+                disabled={bulkAssignMutation.isPending || !bulkAgent || bulkBeneficiaries.length === 0}
+              >
+                {bulkAssignMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                Link {bulkBeneficiaries.length || ''} Partner{bulkBeneficiaries.length === 1 ? '' : 's'}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
         <Dialog open={showAssign} onOpenChange={v => { setShowAssign(v); if (!v) resetForm(); }}>
           <DialogTrigger asChild>
             <Button size="sm" className="gap-1.5"><UserPlus className="h-4 w-4" /> Link Agent</Button>
@@ -246,6 +437,7 @@ export function ProxyAgentManager() {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* KPI Cards */}

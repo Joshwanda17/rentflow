@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Shield, Banknote, TrendingUp, Calendar, Wallet, PiggyBank, Pencil, PlusCircle, Plus, RefreshCw, CalendarClock, DollarSign, Receipt, ArrowLeft, FileText, UserPlus } from 'lucide-react';
+import { Shield, Banknote, TrendingUp, Calendar, Wallet, PiggyBank, Pencil, PlusCircle, Plus, RefreshCw, CalendarClock, DollarSign, Receipt, ArrowLeft, FileText, UserPlus, UserCog } from 'lucide-react';
 import { format, addMonths } from 'date-fns';
 
 import { ROIPaymentHistory } from './ROIPaymentHistory';
@@ -28,8 +28,9 @@ import { PendingFunderApprovals } from './PendingFunderApprovals';
 import { PromissoryNotesQueue } from './PromissoryNotesQueue';
 import { NewPartnersPanel } from './NewPartnersPanel';
 import { PendingPartnerRequests } from './PendingPartnerRequests';
+import { ProxyAgentManager } from '@/components/cfo/ProxyAgentManager';
 
-type Tab = 'portfolios' | 'capital' | 'roi' | 'topups' | 'activity' | 'promissory' | 'withdrawals';
+type Tab = 'portfolios' | 'capital' | 'roi' | 'topups' | 'activity' | 'promissory' | 'withdrawals' | 'proxy-agents';
 
 export function PartnersOpsDashboard() {
   const { toast } = useToast();
@@ -142,6 +143,7 @@ export function PartnersOpsDashboard() {
     { key: 'topups', label: 'Top-ups', icon: PlusCircle },
     { key: 'promissory', label: 'Promissory Notes', icon: FileText },
     { key: 'withdrawals', label: 'Withdrawals', icon: Banknote },
+    { key: 'proxy-agents', label: 'Proxy Agents', icon: UserCog },
   ];
 
   // ═══ RENDER TAB CONTENT ═══
@@ -168,6 +170,7 @@ export function PartnersOpsDashboard() {
           <ApprovedPartnerWithdrawals onBack={() => setTab('portfolios')} />
         </div>
       );
+      case 'proxy-agents': return <ProxyAgentManager />;
       default: return null;
     }
   };
