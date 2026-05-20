@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
 
     const { data: row, error: rowErr } = await adminClient
       .from('email_send_log')
-      .select('id, template_name, recipient_email, status, error_message, created_at, metadata')
+      .select('id, message_id, template_name, recipient_email, status, error_message, created_at, metadata')
       .eq('id', id)
       .maybeSingle()
     if (rowErr) return json({ error: rowErr.message }, 500)
