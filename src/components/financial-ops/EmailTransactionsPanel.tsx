@@ -1580,6 +1580,23 @@ export function EmailTransactionsPanel() {
             const matchedLabel = top.matched_on;
             const reason = `Auto-debit (score ${score}%, ${matchedLabel}) — outgoing payment email from ${row.from_name || row.from_email || 'provider'}${row.transaction_id ? ` TID ${row.transaction_id}` : ''} charged against ${top.full_name}'s wallet.`;
             try {
+              // Pre-check strict available balance. The ledger blocks
+              // negative wallets, so calling cfo-direct-credit when the
+              // user has < amt withdrawable just produces a NEGATIVE_WALLET
+              // 400. Skip cleanly with a clear console reason instead.
+              const { data: availRaw } = await (supabase.rpc as any)(
+                'get_user_available_balance',
+                { p_user_id: top.id },
+              );
+              const avail = Number(availRaw ?? 0);
+              if (!Number.isFinite(avail) || avail < amt) {
+                failCount++;
+                console.warn(
+                  `[auto-debit] skip ${row.id}: ${top.full_name} has UGX ${avail.toLocaleString()} available, needs UGX ${amt.toLocaleString()}`,
+                );
+                setAutoDebitProgress({ done: i + 1, total: highConf.length, ok: okCount, failed: failCount });
+                continue;
+              }
               const { data: debitData, error: debitErr } = await supabase.functions.invoke('cfo-direct-credit', {
                 body: {
                   target_user_id: top.id,
