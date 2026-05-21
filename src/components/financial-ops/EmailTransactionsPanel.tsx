@@ -1994,6 +1994,7 @@ export function EmailTransactionsPanel() {
                               s: u.matched_on.startsWith('reference ') ? 100
                                 : u.matched_on.startsWith('from ') ? 90
                                 : u.matched_on.startsWith('to ') ? 90
+                                : u.matched_on.startsWith('name-') ? 75
                                 : 60,
                             }))
                             .sort((a, b) => b.s - a.s)[0]?.u;
@@ -2046,6 +2047,7 @@ export function EmailTransactionsPanel() {
                               s: u.matched_on.startsWith('reference ') ? 100
                                 : u.matched_on.startsWith('to ') ? 90
                                 : u.matched_on.startsWith('from ') ? 90
+                                : u.matched_on.startsWith('name-') ? 75
                                 : 60,
                             }))
                             .sort((a, b) => b.s - a.s)[0]?.u;
