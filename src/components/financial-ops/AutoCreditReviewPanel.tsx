@@ -130,17 +130,34 @@ export function AutoCreditReviewPanel() {
       });
       if (error) return;
       const { data: auth } = await supabase.auth.getUser();
+      // 1. Mark the deposit row reversed + cancel its status so it no
+      //    longer counts as a live credit anywhere downstream.
       await supabase
         .from('deposit_requests')
         .update({
+          status: 'cancelled',
           auto_credit_review_status: 'reversed',
           auto_credit_reviewed_by: auth.user?.id ?? null,
           auto_credit_reviewed_at: new Date().toISOString(),
           auto_credit_review_notes: reason,
         })
         .eq('id', reverseTarget.id);
+
+      // 2. Free the original Gmail receipt so Email Transactions shows it
+      //    again as "unrouted" and ops can re-route to the correct user.
+      //    Partial unique index allows multiple NULLs, so unlink is safe.
+      await supabase
+        .from('gmail_transactions')
+        .update({
+          linked_deposit_request_id: null,
+          auto_matched_at: null,
+          auto_match_method: null,
+        })
+        .eq('linked_deposit_request_id', reverseTarget.id);
+
       toast.success('Credit reversed', {
-        description: 'Float debited. You can now re-route the receipt via Email Transactions.',
+        description:
+          'Float debited, deposit cancelled and email receipt unlinked — re-route it from Email Transactions.',
       });
       setReverseTarget(null);
       setReverseReason('');
