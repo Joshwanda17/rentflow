@@ -499,6 +499,24 @@ export function EmailTransactionsPanel() {
   // so the operator can see which app user likely made each deposit.
   const [userMatches, setUserMatches] = useState<Record<string, MatchedUser[]>>({});
 
+  // Routing history for visible rows. Keyed by `row.id`. Each entry is a
+  // single re-routing action (forward credit + any reversal legs against an
+  // earlier auto-credited user). Loaded in a background effect so routed
+  // rows render with a distinct violet marker and a compact inline history.
+  interface RoutingHistoryEntry {
+    id: string;
+    created_at: string;
+    route: string;
+    reason: string;
+    target_user_id: string;
+    target_user_name: string | null;
+    target_user_phone: string | null;
+    routed_by_name: string | null;
+    amount: number;
+    sms_sent: boolean;
+  }
+  const [routingHistory, setRoutingHistory] = useState<Record<string, RoutingHistoryEntry[]>>({});
+
   // Manual channel correction UI. `editingRow` controls the dialog; bumping
   // `rulesVersion` re-renders the list so newly-saved rules / cache overrides
   // take effect immediately on every visible row.
@@ -546,6 +564,47 @@ export function EmailTransactionsPanel() {
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, []);
+
+  // Background load of routing history for the currently visible rows.
+  // Also subscribes to inserts so a fresh re-route shows up instantly
+  // without requiring a refresh.
+  useEffect(() => {
+    if (!rows.length) { setRoutingHistory({}); return; }
+    let cancelled = false;
+    const rowIds = rows.map((r) => r.id);
+    const msgIds = rows.map((r) => r.gmail_message_id).filter(Boolean) as string[];
+    (async () => {
+      const { data, error } = await (supabase.from('email_routing_history') as any)
+        .select('id,created_at,route,reason,target_user_id,target_user_name,target_user_phone,routed_by_name,amount,sms_sent,gmail_transaction_id,gmail_message_id')
+        .or(
+          msgIds.length
+            ? `gmail_transaction_id.in.(${rowIds.join(',')}),gmail_message_id.in.(${msgIds.join(',')})`
+            : `gmail_transaction_id.in.(${rowIds.join(',')})`
+        )
+        .order('created_at', { ascending: false })
+        .limit(500);
+      if (cancelled || error) return;
+      const byMsg = new Map<string, string>(); // gmail_message_id → row.id
+      for (const r of rows) if (r.gmail_message_id) byMsg.set(r.gmail_message_id, r.id);
+      const next: Record<string, RoutingHistoryEntry[]> = {};
+      for (const h of (data ?? []) as Array<RoutingHistoryEntry & { gmail_transaction_id: string | null; gmail_message_id: string | null }>) {
+        const rid = h.gmail_transaction_id || (h.gmail_message_id ? byMsg.get(h.gmail_message_id) : null);
+        if (!rid) continue;
+        (next[rid] = next[rid] || []).push(h);
+      }
+      setRoutingHistory(next);
+    })();
+    const sub = supabase
+      .channel('email_routing_history_feed')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'email_routing_history' }, (payload) => {
+        const h = payload.new as RoutingHistoryEntry & { gmail_transaction_id: string | null; gmail_message_id: string | null };
+        const rid = h.gmail_transaction_id || rows.find((r) => r.gmail_message_id === h.gmail_message_id)?.id;
+        if (!rid) return;
+        setRoutingHistory((cur) => ({ ...cur, [rid]: [h, ...(cur[rid] ?? [])] }));
+      })
+      .subscribe();
+    return () => { cancelled = true; supabase.removeChannel(sub); };
+  }, [rows]);
 
   // Resolve phone numbers (and transaction ids) found in each email row to
   // app users in `profiles`. Runs whenever the visible row set changes;
@@ -1281,6 +1340,9 @@ export function EmailTransactionsPanel() {
                 const hasFrom = matches.some((u) => u.matched_on.startsWith('from '));
                 const isConfident = hasRef || hasFrom;
                 const isFlagged = r.parsed && !validity.get(r.id)!.valid;
+                const history = routingHistory[r.id] ?? [];
+                const isRouted = history.length > 0;
+                const isReversed = history.some((h) => /revers/i.test(h.reason || ''));
                 // Build a screen-reader description of the row's match status so
                 // assistive tech announces *why* this row is highlighted, not
                 // just that it's styled differently.
@@ -1307,7 +1369,12 @@ export function EmailTransactionsPanel() {
                 aria-label={matchAriaLabel}
                 data-match-status={isConfident ? 'confident' : isFlagged ? 'flagged' : 'none'}
                 className={`p-4 transition-colors ${
-                  isConfident
+                  isRouted
+                    // Routed rows get a distinct violet treatment so reviewers
+                    // can scan the list and immediately see which emails have
+                    // already been re-routed (and how many times).
+                    ? 'bg-violet-500/10 hover:bg-violet-500/15 border-l-4 border-l-violet-500 focus-within:ring-2 focus-within:ring-violet-500/40'
+                    : isConfident
                     // Stronger primary tint (10/20 vs 5/10) + 4px accent border for
                     // clear contrast against the surrounding card surface. Adds a
                     // visible focus-within ring so keyboard users see the row.
@@ -1402,6 +1469,27 @@ export function EmailTransactionsPanel() {
                         }`}>{r.direction === 'in' ? 'received' : r.direction === 'out' ? 'sent' : 'charge'}</Badge>
                       )}
                       {r.transaction_id && <Badge variant="outline" className="text-[10px] font-mono">{r.transaction_id}</Badge>}
+                      {isRouted && (
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] gap-1 ${
+                            isReversed
+                              ? 'bg-rose-500/10 text-rose-700 border-rose-500/30'
+                              : 'bg-violet-500/15 text-violet-700 border-violet-500/30'
+                          }`}
+                          title={
+                            isReversed
+                              ? 'Re-routed with a reversal against the original auto-credit'
+                              : 'Manually routed by Financial Ops'
+                          }
+                        >
+                          <ArrowRight className="h-3 w-3" />
+                          {isReversed ? 'rerouted · reversed' : 'routed'}
+                          {history.length > 1 && (
+                            <span className="font-mono tabular-nums opacity-80">×{history.length}</span>
+                          )}
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground truncate mt-0.5">{r.subject || '(no subject)'}</p>
                     {(r.counterparty || r.fee || r.balance !== null) && (
@@ -1514,6 +1602,49 @@ export function EmailTransactionsPanel() {
                         </TooltipProvider>
                       </div>
                     ) : null}
+                    {isRouted && (
+                      <div className="mt-2 rounded-md border border-violet-500/20 bg-violet-500/5 p-2">
+                        <p className="text-[10px] uppercase tracking-wider text-violet-700 font-semibold flex items-center gap-1 mb-1">
+                          <History className="h-3 w-3" /> Routing history ({history.length})
+                        </p>
+                        <ul className="space-y-1">
+                          {history.slice(0, 4).map((h) => {
+                            const reversal = /revers/i.test(h.reason || '');
+                            return (
+                              <li
+                                key={h.id}
+                                className="text-[11px] flex items-start gap-1.5 leading-snug"
+                              >
+                                <span
+                                  className={`mt-[3px] h-1.5 w-1.5 rounded-full shrink-0 ${
+                                    reversal ? 'bg-rose-500' : 'bg-violet-500'
+                                  }`}
+                                />
+                                <span className="flex-1 min-w-0">
+                                  <span className="font-medium text-foreground">
+                                    {reversal ? 'Reversed from' : '→'} {h.target_user_name || 'Unknown user'}
+                                  </span>
+                                  <span className="text-muted-foreground">
+                                    {' '}· {h.route === 'operational_float' ? 'Operational Float' : 'Personal Deposit'}
+                                    {' '}· UGX {Number(h.amount).toLocaleString()}
+                                  </span>
+                                  <span className="block text-muted-foreground/80 text-[10px]">
+                                    {h.routed_by_name ? `by ${h.routed_by_name} · ` : ''}
+                                    {format(new Date(h.created_at), 'MMM d, HH:mm')}
+                                    {h.sms_sent ? ' · SMS sent' : ''}
+                                  </span>
+                                </span>
+                              </li>
+                            );
+                          })}
+                          {history.length > 4 && (
+                            <li className="text-[10px] text-muted-foreground pl-3">
+                              + {history.length - 4} more
+                            </li>
+                          )}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                   <div className="text-right shrink-0">
                     <p className={`font-mono font-semibold text-sm ${r.amount ? 'text-emerald-600' : 'text-muted-foreground'}`}>{fmtUgx(r.amount)}</p>
