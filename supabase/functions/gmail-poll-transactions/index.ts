@@ -102,13 +102,27 @@ function parseTransaction(text: string): {
   const t = text.replace(/\s+/g, ' ').trim();
 
   if (/\bmomo\b|mtn mobile money|mtn momo|\bmtn\b/i.test(t)) out.channel = 'mtn_momo';
-  else if (/airtel money|\bairtel\b|\btid\b/i.test(t)) out.channel = 'airtel_money';
+  else if (/airtel\s?money|\bairtel\b|airtelmoney|\btid\b/i.test(t)) out.channel = 'airtel_money';
   else if (/\bbank\b|stanbic|centenary|dfcu|equity|absa|stanchart|standard chartered|housing finance|kcb|ncba|baroda|tropical|ecobank|orient|finance trust|opportunity bank|post bank|cairo bank/i.test(t)) out.channel = 'bank';
   else out.channel = 'other';
 
-  if (/\b(received|deposited|credited|you have received|payment received|recd from|cash in|deposit of)\b/i.test(t)) out.direction = 'in';
+  // Airtel Money agent terminology: "You have deposited UGX X ... Mobile
+  // Number: 07XX" means the AGENT pushed cash OUT to a customer mobile
+  // wallet — it's a payout, not an incoming credit. Match this BEFORE the
+  // generic "deposited" → 'in' rule so it wins.
+  const airtelAgentPayout = /you\s+have\s+deposited\s+ugx[\s\d,.]+.*\bmobile\s+number\s*[:\-]?\s*(?:\+?256|0)?\d{6,}/i.test(t);
+  if (airtelAgentPayout) out.direction = 'out';
+  else if (/\b(received|deposited|credited|you have received|payment received|recd from|cash in|deposit of)\b/i.test(t)) out.direction = 'in';
   else if (/\b(sent|paid|withdrawn|withdrew|debited|cash out|transferred to|payment to|purchase of|bought)\b/i.test(t)) out.direction = 'out';
   else if (/\b(charge|fee|fees|tax|levy)\b/i.test(t) && !/charge\s*[:\-]?\s*(?:ugx)?\s*0\b/i.test(t)) out.direction = 'charge';
+
+  // For the airtel agent payout shape, the "Mobile Number:" field is the
+  // recipient — surface it as the counterparty so the routing UI can match
+  // to a user/proxy wallet.
+  if (airtelAgentPayout) {
+    const mob = t.match(/mobile\s+number\s*[:\-]?\s*((?:\+?256|0)?\d{6,})/i);
+    if (mob) out.counterparty = mob[1];
+  }
 
   // Sum every fee/charge/tax/excise/commission/VAT/stamp-duty component
   // mentioned in the body so totals reflect the FULL cost the provider
