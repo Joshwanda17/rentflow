@@ -3576,6 +3576,57 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
 
   const generateRef = (prefix: string) => `${prefix}-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 
+  // Map the active range filter onto a human-readable label used in the PDF
+  // header so the exported document mirrors the on-screen filter context.
+  const rangeFilterLabel = (() => {
+    switch (rangeFilter) {
+      case 'overdue': return 'Overdue only';
+      case 'today':   return 'Due today';
+      case '7':       return 'Next 7 days (incl. overdue ≤ 30d)';
+      case '14':      return 'Next 14 days (incl. overdue ≤ 30d)';
+      case '30':      return 'Next 30 days (incl. overdue ≤ 30d)';
+      case 'all':     return 'All portfolios';
+      default:        return `Filter: ${rangeFilter}`;
+    }
+  })();
+
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const handleExportPdf = async () => {
+    if (exportingPdf) return;
+    if (filtered.length === 0) {
+      toast.info('Nothing to export', { description: 'The current filter has no matching portfolios.' });
+      return;
+    }
+    setExportingPdf(true);
+    try {
+      const blob = await generateNearingPayoutsPdf({
+        filterLabel: rangeFilterLabel,
+        searchQuery: search.trim() || undefined,
+        totalCount: localPortfolios.length,
+        rows: filtered.map((p) => ({
+          name: p.name,
+          portfolioName: p.portfolioName,
+          phone: p.phone,
+          email: p.email,
+          investmentAmount: p.investmentAmount,
+          roiPercentage: p.roiPercentage,
+          roiMode: p.roiMode,
+          daysUntil: p.daysUntil,
+          nextPayoutDate: p.nextPayoutDate,
+          createdAt: p.createdAt,
+        })),
+      });
+      const stamp = new Date().toISOString().slice(0, 10);
+      downloadNearingBlob(blob, `welile-nearing-payouts-${rangeFilter}-${stamp}.pdf`);
+      toast.success('PDF exported', { description: `${filtered.length} portfolio${filtered.length === 1 ? '' : 's'} included.` });
+    } catch (err: any) {
+      console.error('Nearing payouts PDF export error:', err);
+      toast.error('Export failed', { description: err?.message || 'Could not generate the PDF.' });
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
   const handleCompound = async (p: NearingPayoutPortfolio, reason: string) => {
     setProcessing(prev => ({ ...prev, [p.portfolioId]: 'compound' }));
     try {
