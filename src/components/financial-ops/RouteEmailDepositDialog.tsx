@@ -73,21 +73,21 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
     }
   }, [open, row, suggestedUser, mode]);
 
-  // ── Detect managed-proxy partner ─────────────────────────────────
-  // If the picked user is a partner with an active+approved+managed proxy
-  // assignment, the debit MUST hit the proxy agent's wallet (not the
-  // partner's). Mirrors the rule in `resolveManagedProxy` used server-side
-  // for credits.
+  // ── Detect proxy-agent assignment for the picked user ────────────
+  // Returns the most recent active+approved proxy assignment (managed OR
+  // unmanaged). When `is_managed_account=true`, debits auto-redirect to
+  // the proxy agent (the partner wallet must not be touched). When the
+  // assignment is unmanaged, the operator can still manually choose to
+  // debit the proxy agent's wallet via the "Proxy agent wallet" route.
   const proxy = useQuery({
-    queryKey: ['route-email-managed-proxy', user?.id, mode],
+    queryKey: ['route-email-proxy', user?.id, mode],
     enabled: open && mode === 'debit' && !!user?.id,
     queryFn: async () => {
       if (!user?.id) return null;
       const { data: assignment } = await (supabase.from('proxy_agent_assignments') as any)
-        .select('id, agent_id')
+        .select('id, agent_id, is_managed_account')
         .eq('beneficiary_id', user.id)
         .eq('is_active', true)
-        .eq('is_managed_account', true)
         .eq('approval_status', 'approved')
         .order('created_at', { ascending: false })
         .limit(1)
@@ -100,6 +100,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
       return {
         assignmentId: assignment.id as string,
         agentId: assignment.agent_id as string,
+        isManaged: !!assignment.is_managed_account,
         agentName: (prof?.full_name as string) ?? 'Proxy agent',
         agentPhone: (prof?.phone as string) ?? '',
       };
