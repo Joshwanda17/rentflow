@@ -66,7 +66,7 @@ export function AgentDailyOverviewReportButton() {
       const requests = await fetchAll<any>((from, to) =>
         supabase
           .from('rent_requests')
-          .select('agent_id, tenant_id, rent_amount, daily_repayment, total_repayment, amount_repaid, status')
+          .select('agent_id, tenant_id, rent_amount, daily_repayment, total_repayment, amount_repaid, status, registration_type, initial_outstanding_balance')
           .in('status', ACTIVE_STATUSES)
           .range(from, to),
       );
@@ -129,9 +129,20 @@ export function AgentDailyOverviewReportButton() {
 
       requests.forEach((r: any) => {
         const a = ensure(r.agent_id || UNASSIGNED_AGENT_KEY);
+        // Outstanding-balance plans are legacy carry-over debts, not new
+        // disbursements: principal = expected = initial_outstanding_balance,
+        // and the 1.33× formula does not apply. Normal plans use the
+        // canonical trigger-computed total_repayment.
+        const isOB = r.registration_type === 'outstanding_balance';
+        const principal = isOB
+          ? Number(r.initial_outstanding_balance || 0)
+          : Number(r.rent_amount || 0);
+        const expected = isOB
+          ? Number(r.initial_outstanding_balance || 0)
+          : Number(r.total_repayment || 0);
         a.expectedToday += Number(r.daily_repayment || 0);
-        a.principalPaid += Number(r.rent_amount || 0);
-        a.outstanding += Math.max(0, Number(r.total_repayment || 0) - Number(r.amount_repaid || 0));
+        a.principalPaid += principal;
+        a.outstanding += Math.max(0, expected - Number(r.amount_repaid || 0));
         if (r.tenant_id) a.tenantSet.add(r.tenant_id);
       });
 

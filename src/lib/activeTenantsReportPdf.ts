@@ -35,7 +35,7 @@ async function fetchAllRentRequests() {
   while (true) {
     const { data, error } = await supabase
       .from('rent_requests')
-      .select('id, tenant_id, landlord_id, agent_id, assigned_agent_id, rent_amount, total_repayment, amount_repaid, disbursed_at, duration_days, status')
+      .select('id, tenant_id, landlord_id, agent_id, assigned_agent_id, rent_amount, total_repayment, amount_repaid, disbursed_at, duration_days, status, registration_type, initial_outstanding_balance')
       .in('status', ACTIVE_STATUSES)
       .order('disbursed_at', { ascending: false, nullsFirst: false })
       .range(from, from + PAGE - 1);
@@ -84,9 +84,17 @@ export async function generateAndDownloadActiveTenantsPdf() {
     const agentId = r.assigned_agent_id || r.agent_id;
     const agent = (agentId && profiles.get(agentId)) || { name: 'Unassigned', phone: '—' };
 
-    // Unified math: stored values, no recompute. Matches Agent Daily report.
-    const principal = Number(r.rent_amount ?? 0);
-    const expected = Number(r.total_repayment ?? 0);
+    // Unified math (matches Agent Daily report):
+    //  • Outstanding-balance plans = legacy carry-over debt. Principal and
+    //    Expected both = initial_outstanding_balance (no 1.33× formula).
+    //  • Normal plans = trigger-canonical total_repayment (Rent × 1.33^(days/30) + reg fee).
+    const isOB = r.registration_type === 'outstanding_balance';
+    const principal = isOB
+      ? Number(r.initial_outstanding_balance ?? 0)
+      : Number(r.rent_amount ?? 0);
+    const expected = isOB
+      ? Number(r.initial_outstanding_balance ?? 0)
+      : Number(r.total_repayment ?? 0);
     const repaid = Number(r.amount_repaid ?? 0);
     const outstanding = Math.max(0, expected - repaid);
 
@@ -173,7 +181,7 @@ export async function generateAndDownloadActiveTenantsPdf() {
     ],
     rows: tableRows,
     totals: ['', 'TOTALS', '', '', '', '', '', '', totalPrincipal, totalExpected, totalOutstanding, '', ''],
-    footerNote: 'Active book only (status in funded, disbursed, repaying, active, approved). Principal = stored rent_amount. Expected = stored total_repayment. Outstanding = Expected − Repaid. Confidential — Welile internal report.',
+    footerNote: 'Active book only (status in funded, disbursed, repaying, active, approved). Normal plans: Principal = rent_amount, Expected = Rent × 1.33^(days/30) + reg fee (trigger-canonical). Outstanding-balance plans: Principal = Expected = initial_outstanding_balance (legacy carry-over debt, no 1.33× formula). Outstanding = Expected − Repaid. Confidential — Welile internal report.',
   });
 
   downloadPdfBlob(blob, `tenants-active-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
