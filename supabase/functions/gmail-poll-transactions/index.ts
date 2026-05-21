@@ -570,26 +570,24 @@ async function tryAutoCreditOperationalFloat(
           // Tie-breaker 2: pick the most recently active auth user (within 30d
           // and strictly newer than every other candidate by ≥ 24h).
           const pool = withPhone.length > 1 ? withPhone : nameMatches;
-          const lastSeen: { id: string; ts: number; phone: string | null }[] = [];
+          // Best-guess: pick the most recently active auth user among the
+          // same-named candidates. Ops can reverse via Email Transactions
+          // if it turns out to be the wrong user.
+          const lastSeen: { id: string; ts: number }[] = [];
           for (const p of pool) {
             try {
               const { data: u } = await (supabase as any).auth.admin.getUserById(p.id);
               const t = u?.user?.last_sign_in_at ? new Date(u.user.last_sign_in_at).getTime() : 0;
-              lastSeen.push({ id: p.id, ts: t, phone: p.phone ?? null });
+              lastSeen.push({ id: p.id, ts: t });
             } catch {
-              lastSeen.push({ id: p.id, ts: 0, phone: p.phone ?? null });
+              lastSeen.push({ id: p.id, ts: 0 });
             }
           }
           lastSeen.sort((a, b) => b.ts - a.ts);
           const top = lastSeen[0];
-          const second = lastSeen[1];
-          const THIRTY_D = 30 * 24 * 60 * 60 * 1000;
-          const ONE_D = 24 * 60 * 60 * 1000;
-          const recentEnough = top && top.ts > 0 && Date.now() - top.ts < THIRTY_D;
-          const clearWinner = top && (!second || top.ts - second.ts >= ONE_D);
-          if (recentEnough && clearWinner) {
+          if (top) {
             winner = pool.find((p: any) => p.id === top.id) ?? null;
-            tiebreaker = 'most-recent-active';
+            tiebreaker = top.ts > 0 ? 'most-recent-active' : 'first-candidate';
           }
         }
         if (winner?.id) {
