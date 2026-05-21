@@ -423,14 +423,25 @@ export function EmailTransactionsPanel() {
   );
   const [loading, setLoading] = useState(true);
   const [polling, setPolling] = useState(false);
-  // Date-range filter (inclusive). Empty string = unbounded on that side.
-  // Persisted in localStorage so the selection survives a page refresh.
-  const [fromDate, setFromDate] = useState<string>(() =>
-    typeof window === 'undefined' ? '' : (localStorage.getItem('gmail_filter_from') || '')
-  );
-  const [toDate, setToDate] = useState<string>(() =>
-    typeof window === 'undefined' ? '' : (localStorage.getItem('gmail_filter_to') || '')
-  );
+  // Date-range filter (inclusive). Defaults to "today" in the operator's
+  // timezone so the report opens scoped to today; users can pick any other
+  // period (yesterday, 7d, etc.) and the selection is persisted across reloads.
+  const initialTz = (() => {
+    if (typeof window === 'undefined') return 'Africa/Kampala';
+    const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return localStorage.getItem('gmail_filter_tz') || browserTz || 'Africa/Kampala';
+  })();
+  const todayKeyInitial = typeof window === 'undefined' ? '' : dateKeyInTz(new Date(), initialTz);
+  const [fromDate, setFromDate] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    const saved = localStorage.getItem('gmail_filter_from');
+    return saved === null ? todayKeyInitial : saved;
+  });
+  const [toDate, setToDate] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    const saved = localStorage.getItem('gmail_filter_to');
+    return saved === null ? todayKeyInitial : saved;
+  });
   useEffect(() => { try { localStorage.setItem('gmail_filter_from', fromDate); } catch {} }, [fromDate]);
   useEffect(() => { try { localStorage.setItem('gmail_filter_to', toDate); } catch {} }, [toDate]);
   // Timezone in which `fromDate`/`toDate` are interpreted and daily buckets are grouped.
@@ -1006,6 +1017,8 @@ export function EmailTransactionsPanel() {
         </div>
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
           {[
+            { label: 'Today', days: 1 },
+            { label: 'Yesterday', days: 1, offset: 1 },
             { label: '7d', days: 7 },
             { label: '30d', days: 30 },
             { label: '90d', days: 90 },
@@ -1019,7 +1032,8 @@ export function EmailTransactionsPanel() {
                 // Anchor presets to "today" as seen in the selected timezone.
                 const todayKey = dateKeyInTz(new Date(), tz);
                 const [y, m, d] = todayKey.split('-').map(Number);
-                const toUtc = Date.UTC(y, m - 1, d);
+                const offsetDays = (p as { offset?: number }).offset ?? 0;
+                const toUtc = Date.UTC(y, m - 1, d) - offsetDays * 86_400_000;
                 const fromUtc = toUtc - (p.days - 1) * 86_400_000;
                 const fmtKey = (ms: number) => {
                   const dt = new Date(ms);
