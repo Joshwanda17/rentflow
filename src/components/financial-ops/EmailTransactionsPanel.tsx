@@ -342,6 +342,25 @@ function extractFromPhones(r: GmailTx): string[] {
   return Array.from(out);
 }
 
+/**
+ * Pull the phone number(s) that appear immediately after the word "to"
+ * in the email body — e.g. "Sent UGX 50,000 to 256772123456 JOHN DOE".
+ * Mobile-money / bank send confirmations almost always print the recipient
+ * right after "to", so this is the highest-signal phone we can use to
+ * identify the app user who received the payout.
+ */
+function extractToPhones(r: GmailTx): string[] {
+  const hay = `${r.subject ?? ''} ${r.snippet ?? ''} ${r.counterparty ?? ''}`;
+  const out = new Set<string>();
+  const re = /\bto\s+(?:\+?256|0)\s*7\d{2}[\s-]?\d{3}[\s-]?\d{3}/gi;
+  const matches = hay.match(re) ?? [];
+  for (const m of matches) {
+    const norm = normalizeUgPhone(m);
+    if (norm) out.add(norm);
+  }
+  return Array.from(out);
+}
+
 /** Transaction id / reference normalised for an in-list query. */
 function extractReferences(r: GmailTx): string[] {
   const out = new Set<string>();
@@ -824,6 +843,7 @@ export function EmailTransactionsPanel() {
     let cancelled = false;
     const rowPhones = new Map<string, string[]>();
     const rowFromPhones = new Map<string, string[]>();
+    const rowToPhones = new Map<string, string[]>();
     const rowRefs = new Map<string, string[]>();
     const allPhones = new Set<string>();
     const allRefs = new Set<string>();
@@ -837,6 +857,11 @@ export function EmailTransactionsPanel() {
       if (fromPhones.length) {
         rowFromPhones.set(r.id, fromPhones);
         fromPhones.forEach((p) => allPhones.add(p));
+      }
+      const toPhones = extractToPhones(r);
+      if (toPhones.length) {
+        rowToPhones.set(r.id, toPhones);
+        toPhones.forEach((p) => allPhones.add(p));
       }
       const refs = extractReferences(r);
       if (refs.length) {
@@ -913,6 +938,9 @@ export function EmailTransactionsPanel() {
         }
         // 2. Phone right after the word "from" — strongest heuristic match.
         const fromSet = new Set(rowFromPhones.get(rowId) ?? []);
+        // 2b. Phone right after the word "to" — strongest heuristic match
+        //     for outgoing payouts (recipient identification).
+        const toSet = new Set(rowToPhones.get(rowId) ?? []);
         for (const ph of phones) {
           for (const p of byPhone.get(ph) ?? []) {
             if (seen.has(p.id)) continue;
@@ -922,7 +950,11 @@ export function EmailTransactionsPanel() {
               full_name: p.full_name,
               phone: p.phone,
               mobile_money_number: p.mobile_money_number,
-              matched_on: fromSet.has(ph) ? `from ${ph}` : `phone ${ph}`,
+              matched_on: fromSet.has(ph)
+                ? `from ${ph}`
+                : toSet.has(ph)
+                  ? `to ${ph}`
+                  : `phone ${ph}`,
             });
           }
         }
@@ -1741,31 +1773,39 @@ export function EmailTransactionsPanel() {
                       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                         <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold inline-flex items-center gap-1">
                           {userMatches[r.id].length > 1 ? <Users className="h-3 w-3" /> : null}
-                          {userMatches[r.id].length > 1
-                            ? `${userMatches[r.id].length} possible users:`
-                            : 'Possible user:'}
+                          {(() => {
+                            const isOut = r.direction === 'out' || r.direction === 'charge';
+                            const noun = isOut ? 'recipient' : 'user';
+                            return userMatches[r.id].length > 1
+                              ? `${userMatches[r.id].length} possible ${noun}s:`
+                              : `Possible ${noun}:`;
+                          })()}
                         </span>
                         <TooltipProvider delayDuration={150}>
                           {[...userMatches[r.id]]
                             .map((u) => {
                               const isRef = u.matched_on.startsWith('reference ');
                               const isFrom = u.matched_on.startsWith('from ');
-                              const score = isRef ? 100 : isFrom ? 90 : 60;
+                              const isTo = u.matched_on.startsWith('to ');
+                              const score = isRef ? 100 : isFrom || isTo ? 90 : 60;
                               return { u, score };
                             })
                             .sort((a, b) => b.score - a.score)
                             .map(({ u, score }, idx, arr) => {
                             const isRef = u.matched_on.startsWith('reference ');
                             const isFrom = u.matched_on.startsWith('from ');
-                            const strong = isRef || isFrom;
+                            const isTo = u.matched_on.startsWith('to ');
+                            const strong = isRef || isFrom || isTo;
                             const matchType = isRef
                               ? 'Reference (TID)'
                               : isFrom
                                 ? 'Phone after "from"'
-                                : 'Phone in email body';
-                            const confidenceLabel = isRef ? 'authoritative' : isFrom ? 'high' : 'medium';
-                            const matchedValue = u.matched_on.replace(/^(reference|from|phone)\s+/, '');
-                            const shortLabel = isRef ? 'ref' : isFrom ? 'from' : 'phone';
+                                : isTo
+                                  ? 'Phone after "to"'
+                                  : 'Phone in email body';
+                            const confidenceLabel = isRef ? 'authoritative' : isFrom || isTo ? 'high' : 'medium';
+                            const matchedValue = u.matched_on.replace(/^(reference|from|to|phone)\s+/, '');
+                            const shortLabel = isRef ? 'ref' : isFrom ? 'from' : isTo ? 'to' : 'phone';
                             const isPrimary = idx === 0 && arr.length > 1;
                             // Visual hierarchy:
                             //  - primary (top-scoring when there are multiple matches): filled + Star
