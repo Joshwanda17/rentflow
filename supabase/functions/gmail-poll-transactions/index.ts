@@ -480,6 +480,19 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── Recovery sweep: approve any deposits already linked to a Gmail row
+    // but still pending. This catches races where the email arrived after
+    // submit (linked by the late-link path above or the nightly relink job)
+    // but `approve-deposit` was never invoked — so the agent's float never
+    // showed up. Bounded to 25 rows per tick to keep the poll cheap.
+    if (!debug) {
+      try {
+        await sweepLinkedPendingDeposits(supabase);
+      } catch (e) {
+        console.warn('[gmail-poll] linked-pending sweep failed (non-fatal):', e);
+      }
+    }
+
     return new Response(JSON.stringify({
       ok: true, scanned: messages.length, inserted,
       query: GMAIL_QUERY,
