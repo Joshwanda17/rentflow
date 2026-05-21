@@ -1469,6 +1469,27 @@ export function EmailTransactionsPanel() {
                         }`}>{r.direction === 'in' ? 'received' : r.direction === 'out' ? 'sent' : 'charge'}</Badge>
                       )}
                       {r.transaction_id && <Badge variant="outline" className="text-[10px] font-mono">{r.transaction_id}</Badge>}
+                      {isRouted && (
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] gap-1 ${
+                            isReversed
+                              ? 'bg-rose-500/10 text-rose-700 border-rose-500/30'
+                              : 'bg-violet-500/15 text-violet-700 border-violet-500/30'
+                          }`}
+                          title={
+                            isReversed
+                              ? 'Re-routed with a reversal against the original auto-credit'
+                              : 'Manually routed by Financial Ops'
+                          }
+                        >
+                          <ArrowRight className="h-3 w-3" />
+                          {isReversed ? 'rerouted · reversed' : 'routed'}
+                          {history.length > 1 && (
+                            <span className="font-mono tabular-nums opacity-80">×{history.length}</span>
+                          )}
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground truncate mt-0.5">{r.subject || '(no subject)'}</p>
                     {(r.counterparty || r.fee || r.balance !== null) && (
