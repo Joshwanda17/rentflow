@@ -342,6 +342,25 @@ function extractFromPhones(r: GmailTx): string[] {
   return Array.from(out);
 }
 
+/**
+ * Pull the phone number(s) that appear immediately after the word "to"
+ * in the email body — e.g. "Sent UGX 50,000 to 256772123456 JOHN DOE".
+ * Mobile-money / bank send confirmations almost always print the recipient
+ * right after "to", so this is the highest-signal phone we can use to
+ * identify the app user who received the payout.
+ */
+function extractToPhones(r: GmailTx): string[] {
+  const hay = `${r.subject ?? ''} ${r.snippet ?? ''} ${r.counterparty ?? ''}`;
+  const out = new Set<string>();
+  const re = /\bto\s+(?:\+?256|0)\s*7\d{2}[\s-]?\d{3}[\s-]?\d{3}/gi;
+  const matches = hay.match(re) ?? [];
+  for (const m of matches) {
+    const norm = normalizeUgPhone(m);
+    if (norm) out.add(norm);
+  }
+  return Array.from(out);
+}
+
 /** Transaction id / reference normalised for an in-list query. */
 function extractReferences(r: GmailTx): string[] {
   const out = new Set<string>();
