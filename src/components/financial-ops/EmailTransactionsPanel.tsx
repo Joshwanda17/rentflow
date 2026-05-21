@@ -530,6 +530,31 @@ export function EmailTransactionsPanel() {
   }
   const [routingHistory, setRoutingHistory] = useState<Record<string, RoutingHistoryEntry[]>>({});
 
+  /**
+   * Auto-payout matcher: for outgoing money-out emails (MoMo payouts / bank
+   * disbursements), look up the pending `withdrawal_requests` row that the
+   * email is *settling*. Match is by normalized TID (strongest) or by
+   * counterparty/recipient phone + exact amount (fallback). One-click
+   * "Auto-approve withdrawal" calls the same `approve-withdrawal` edge
+   * function FinOps uses manually, with the email's TID as the
+   * `fin_ops_reference`.
+   */
+  interface WithdrawalMatch {
+    id: string;
+    user_id: string;
+    amount: number;
+    status: string;
+    mobile_money_number: string | null;
+    mobile_money_provider: string | null;
+    bank_name: string | null;
+    bank_account_number: string | null;
+    payout_method: string;
+    matched_on: 'reference' | 'phone+amount';
+    user_name?: string | null;
+  }
+  const [withdrawalMatches, setWithdrawalMatches] = useState<Record<string, WithdrawalMatch[]>>({});
+  const [autoApproving, setAutoApproving] = useState<Record<string, boolean>>({});
+
   // Manual channel correction UI. `editingRow` controls the dialog; bumping
   // `rulesVersion` re-renders the list so newly-saved rules / cache overrides
   // take effect immediately on every visible row.
