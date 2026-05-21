@@ -72,7 +72,10 @@ export async function generateAndDownloadActiveTenantsPdf() {
     const agentId = r.assigned_agent_id || r.agent_id;
     const agent = (agentId && profiles.get(agentId)) || { name: 'Unassigned', phone: '—' };
     const principal = Number(r.rent_amount ?? 0);
-    const expected = Number(r.total_repayment ?? 0);
+    // Expected can never be less than principal — if total_repayment is missing
+    // or zero (incomplete plan setup) fall back to principal so totals stay sane.
+    const rawExpected = Number(r.total_repayment ?? 0);
+    const expected = rawExpected > 0 ? Math.max(rawExpected, principal) : principal;
     const repaid = Number(r.amount_repaid ?? 0);
     const outstanding = Math.max(0, expected - repaid);
     let endDate: string | null = null;
