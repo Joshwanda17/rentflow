@@ -107,10 +107,11 @@ export function AgentDailyOverviewReportButton() {
       const ensure = (agentId: string): Agg => {
         let a = map.get(agentId);
         if (!a) {
-          const p = profileMap.get(agentId);
+          const isUnassigned = agentId === UNASSIGNED_AGENT_KEY;
+          const p = isUnassigned ? null : profileMap.get(agentId);
           a = {
-            agentName: p?.full_name || 'Unknown agent',
-            agentPhone: p?.phone || '',
+            agentName: isUnassigned ? 'Unassigned' : (p?.full_name || 'Unknown agent'),
+            agentPhone: isUnassigned ? '' : (p?.phone || ''),
             activeTenants: 0,
             expectedToday: 0,
             collectedToday: 0,
