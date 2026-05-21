@@ -480,6 +480,19 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── Recovery sweep: approve any deposits already linked to a Gmail row
+    // but still pending. This catches races where the email arrived after
+    // submit (linked by the late-link path above or the nightly relink job)
+    // but `approve-deposit` was never invoked — so the agent's float never
+    // showed up. Bounded to 25 rows per tick to keep the poll cheap.
+    if (!debug) {
+      try {
+        await sweepLinkedPendingDeposits(supabase);
+      } catch (e) {
+        console.warn('[gmail-poll] linked-pending sweep failed (non-fatal):', e);
+      }
+    }
+
     return new Response(JSON.stringify({
       ok: true, scanned: messages.length, inserted,
       query: GMAIL_QUERY,
@@ -704,19 +717,95 @@ async function tryAutoCreditOperationalFloat(
   if (!gmailRow?.id) return;
   if (gmailRow.linked_deposit_request_id) return; // already linked
 
-  // Idempotency: skip if this user already has a non-rejected deposit with
-  // the same TID digits (means we — or a manual flow — already handled it).
+  // Idempotency / late-arriving-email fix:
+  // If the user ALREADY submitted a deposit_request with this TID (typical
+  // flow: agent types the TID before the MoMo receipt has hit our Gmail
+  // inbox), there are two cases:
+  //   1) That deposit is already approved/processed → nothing to do, return.
+  //   2) That deposit is still `pending` because `try_link_gmail_for_deposit`
+  //      ran before this email row existed. The nightly relink cron would
+  //      eventually catch it, but the agent expects their float to appear
+  //      instantly. So: link this gmail row to that pending deposit and run
+  //      approve-deposit immediately (same path the relink job uses).
   const tidDigits = parsed.transaction_id.replace(/[^0-9]/g, '');
   if (tidDigits) {
     const { data: existingDep } = await supabase
       .from('deposit_requests')
-      .select('id, status')
+      .select('id, status, amount, user_id, provider')
       .eq('user_id', profile.id)
       .not('status', 'in', '(rejected,cancelled,failed)')
       .filter('transaction_id', 'ilike', `%${tidDigits}`)
       .limit(1)
       .maybeSingle();
-    if (existingDep?.id) return;
+    if (existingDep?.id) {
+      if (String(existingDep.status) !== 'pending') return;
+      if (Number(existingDep.amount) !== Number(parsed.amount)) {
+        console.warn(
+          `[gmail-poll] late-link skipped: amount mismatch dep=${existingDep.id} ` +
+          `dep_amount=${existingDep.amount} email_amount=${parsed.amount}`,
+        );
+        return;
+      }
+      // Link gmail row → existing pending deposit so approve-deposit re-verification passes.
+      await supabase
+        .from('gmail_transactions')
+        .update({
+          linked_deposit_request_id: existingDep.id,
+          auto_matched_at: new Date().toISOString(),
+          auto_match_method: 'late_email_tid_match',
+        })
+        .eq('id', gmailRow.id);
+
+      // Stamp the deposit's audit so the user-facing "Will auto-credit when
+      // your receipt arrives" panel flips to ✅ instead of staying pending.
+      await supabase
+        .from('deposit_requests')
+        .update({
+          auto_match_audit: {
+            checked_at: new Date().toISOString(),
+            normalized_tid: tidDigits,
+            raw_tid: parsed.transaction_id,
+            outcome: 'linked',
+            source: 'gmail_poll_late_link',
+            note: 'Mobile-money receipt arrived after deposit was submitted; matched and auto-credited.',
+          },
+        } as any)
+        .eq('id', existingDep.id)
+        .eq('status', 'pending'); // never overwrite a row a human already reviewed
+
+      // Fire approve-deposit (same system_auto_credit path used below).
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      try {
+        const res = await fetch(`${supabaseUrl}/functions/v1/approve-deposit`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${serviceKey}`,
+            'apikey': serviceKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            deposit_request_id: existingDep.id,
+            action: 'approve',
+            auto_approved: true,
+            auto_match_method: 'late_email_tid_match',
+            system_auto_credit: true,
+          }),
+        });
+        if (!res.ok) {
+          const txt = await res.text();
+          console.warn('[gmail-poll] late-link approve-deposit non-200:', res.status, txt.slice(0, 300));
+        } else {
+          console.log(
+            `[gmail-poll] late-link auto-credited existing pending deposit user=${profile.id} ` +
+            `dep=${existingDep.id} amt=${parsed.amount} tid=${parsed.transaction_id}`,
+          );
+        }
+      } catch (e) {
+        console.warn('[gmail-poll] late-link approve-deposit invoke failed:', e);
+      }
+      return;
+    }
   }
 
   const provider = parsed.channel === 'mtn_momo' ? 'mtn' : 'airtel';
@@ -905,5 +994,81 @@ async function sendSmsViaAfricasTalking(phone: string, message: string): Promise
   } catch (e) {
     console.warn('[gmail-poll] SMS send error:', e);
     return false;
+  }
+}
+
+// ── Recovery sweep: deposits already linked to a Gmail receipt but still
+// pending. Invokes approve-deposit (system_auto_credit path) which is the
+// only function allowed to flip status + credit the float wallet.
+async function sweepLinkedPendingDeposits(
+  supabase: ReturnType<typeof createClient>,
+): Promise<void> {
+  // Find up to 25 gmail rows that are linked to a still-pending deposit.
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+  const { data: rows, error } = await supabase
+    .from('gmail_transactions')
+    .select('id, linked_deposit_request_id, amount, transaction_id, internal_date, direction, parsed')
+    .not('linked_deposit_request_id', 'is', null)
+    .eq('parsed', true)
+    .in('direction', ['in', 'credit'])
+    .gte('internal_date', sevenDaysAgo)
+    .order('internal_date', { ascending: false })
+    .limit(100);
+  if (error || !rows?.length) return;
+
+  const depIds = Array.from(
+    new Set(rows.map((r: any) => r.linked_deposit_request_id).filter(Boolean)),
+  );
+  if (!depIds.length) return;
+
+  const { data: deps } = await supabase
+    .from('deposit_requests')
+    .select('id, status, amount, user_id, transaction_id, provider')
+    .in('id', depIds)
+    .eq('status', 'pending')
+    .limit(25);
+  if (!deps?.length) return;
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+  for (const dep of deps) {
+    // Re-verify amount + provider before kicking approve-deposit.
+    const match = rows.find(
+      (r: any) =>
+        r.linked_deposit_request_id === (dep as any).id &&
+        Number(r.amount) === Number((dep as any).amount),
+    );
+    if (!match) continue;
+    try {
+      const res = await fetch(`${supabaseUrl}/functions/v1/approve-deposit`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${serviceKey}`,
+          'apikey': serviceKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          deposit_request_id: (dep as any).id,
+          action: 'approve',
+          auto_approved: true,
+          auto_match_method: 'linked_pending_sweep',
+          system_auto_credit: true,
+        }),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        console.warn(
+          `[gmail-poll] sweep approve-deposit non-200 dep=${(dep as any).id} status=${res.status} body=${txt.slice(0, 200)}`,
+        );
+      } else {
+        console.log(
+          `[gmail-poll] sweep auto-credited linked-pending deposit dep=${(dep as any).id} ` +
+          `amt=${(dep as any).amount} user=${(dep as any).user_id}`,
+        );
+      }
+    } catch (e) {
+      console.warn('[gmail-poll] sweep approve-deposit invoke failed:', e);
+    }
   }
 }
