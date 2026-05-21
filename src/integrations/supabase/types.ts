@@ -5183,6 +5183,80 @@ export type Database = {
         }
         Relationships: []
       }
+      email_routing_history: {
+        Row: {
+          amount: number
+          created_at: string
+          from_email: string | null
+          from_name: string | null
+          gmail_message_id: string | null
+          gmail_transaction_id: string | null
+          id: string
+          ledger_reference_id: string | null
+          reason: string
+          route: string
+          routed_by: string
+          routed_by_name: string | null
+          sms_error: string | null
+          sms_sent: boolean
+          subject: string | null
+          target_user_id: string
+          target_user_name: string | null
+          target_user_phone: string | null
+          transaction_id: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          from_email?: string | null
+          from_name?: string | null
+          gmail_message_id?: string | null
+          gmail_transaction_id?: string | null
+          id?: string
+          ledger_reference_id?: string | null
+          reason: string
+          route: string
+          routed_by: string
+          routed_by_name?: string | null
+          sms_error?: string | null
+          sms_sent?: boolean
+          subject?: string | null
+          target_user_id: string
+          target_user_name?: string | null
+          target_user_phone?: string | null
+          transaction_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          from_email?: string | null
+          from_name?: string | null
+          gmail_message_id?: string | null
+          gmail_transaction_id?: string | null
+          id?: string
+          ledger_reference_id?: string | null
+          reason?: string
+          route?: string
+          routed_by?: string
+          routed_by_name?: string | null
+          sms_error?: string | null
+          sms_sent?: boolean
+          subject?: string | null
+          target_user_id?: string
+          target_user_name?: string | null
+          target_user_phone?: string | null
+          transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_routing_history_gmail_transaction_id_fkey"
+            columns: ["gmail_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "gmail_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_send_log: {
         Row: {
           created_at: string
