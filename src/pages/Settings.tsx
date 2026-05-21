@@ -24,6 +24,8 @@ import { Switch } from '@/components/ui/switch';
 import { useAppPreferences } from '@/hooks/useAppPreferences';
 import { playNotificationSound } from '@/lib/notificationSound';
 import { cn } from '@/lib/utils';
+import { useOtpVerification } from '@/hooks/useOtpVerification';
+import { OtpVerificationStep } from '@/components/auth/OtpVerificationStep';
 
 const WalletCard = lazy(() => import('@/components/wallet/WalletCard').then(m => ({ default: m.WalletCard })));
 const DiagnosticsSection = lazy(() => import('@/components/settings/DiagnosticsSection'));
@@ -105,6 +107,7 @@ export default function Settings() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
+  const otp = useOtpVerification();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -158,6 +161,11 @@ export default function Settings() {
     const trimmedName = fullName.trim();
     const trimmedPhone = phone.trim();
     const phoneChanged = trimmedPhone !== (profile.phone ?? '').trim();
+    if (phoneChanged && !otp.otpVerified) {
+      toast.error('Please verify the new phone number with the SMS code first');
+      setSaving(false);
+      return;
+    }
     try {
       // Always update full_name via profiles
       if (trimmedName !== (profile.full_name ?? '').trim()) {
@@ -174,6 +182,7 @@ export default function Settings() {
         }
         if ((data as any)?.error) throw new Error((data as any).error);
         savedPhone = (data as any)?.phone || trimmedPhone;
+        otp.resetOtp();
       }
       toast.success('Profile updated successfully');
       setProfile({ ...profile, full_name: trimmedName, phone: savedPhone });
