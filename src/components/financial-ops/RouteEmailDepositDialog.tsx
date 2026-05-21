@@ -507,13 +507,25 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
           </div>
         )}
 
-        {mode === 'debit' && proxy.data && (
+        {mode === 'debit' && proxy.data?.isManaged && (
           <div className="rounded-lg border border-violet-300 bg-violet-50 p-3 text-xs flex gap-2 dark:bg-violet-950/30 dark:border-violet-800">
             <UserCog className="h-4 w-4 text-violet-600 shrink-0 mt-0.5" />
             <div className="space-y-0.5">
               <p className="font-medium text-violet-900 dark:text-violet-200">Managed-proxy partner detected</p>
               <p className="text-violet-800 dark:text-violet-300">
                 <span className="font-semibold">{user?.full_name}</span> is managed by proxy agent <span className="font-semibold">{proxy.data.agentName}</span>. The debit will hit the <span className="font-semibold">proxy agent's wallet</span> — the partner's wallet will not be touched.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {mode === 'debit' && proxy.data && !proxy.data.isManaged && (
+          <div className="rounded-lg border bg-muted/30 p-3 text-xs flex gap-2">
+            <UserCog className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+            <div className="space-y-0.5">
+              <p className="font-medium">Proxy agent available</p>
+              <p className="text-muted-foreground">
+                <span className="font-semibold text-foreground">{user?.full_name}</span> has proxy agent <span className="font-semibold text-foreground">{proxy.data.agentName}</span>. Pick <span className="font-semibold">"Proxy agent wallet"</span> below to debit the agent instead of the partner.
               </p>
             </div>
           </div>
@@ -585,6 +597,18 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
                   <p className="text-[11px] text-muted-foreground">Reduces the agent's float balance. Use when a landlord was paid out of the agent's collected rent float.</p>
                 </div>
               </label>
+              {proxy.data && (
+                <label className="flex items-start gap-2 rounded-lg border p-3 cursor-pointer hover:bg-muted/40">
+                  <RadioGroupItem value="proxy_agent_wallet" id="debit-proxy-agent" className="mt-0.5" />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-1.5 text-sm font-medium">
+                      <UserCog className="h-3.5 w-3.5 text-primary" /> Proxy agent wallet
+                      <span className="ml-1 text-[10px] text-muted-foreground font-normal">({proxy.data.agentName})</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">Reduces the proxy agent's withdrawable balance instead of the partner's. Use when the payout was funded out of the proxy agent's wallet on behalf of this partner.</p>
+                  </div>
+                </label>
+              )}
             </RadioGroup>
           </div>
           )}
