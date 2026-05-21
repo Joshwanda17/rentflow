@@ -57,7 +57,7 @@ export function AgentDailyReportButton({ agentId, agentName, agentPhone }: Props
       // Collections logged on report date
       const { data: collections, error: cErr } = await supabase
         .from('agent_collections')
-        .select('id, tenant_id, amount, payment_method, reference, transaction_id, created_at')
+        .select('id, tenant_id, amount, payment_method, tracking_id, momo_transaction_id, created_at')
         .eq('agent_id', agentId)
         .gte('created_at', dayStart)
         .lte('created_at', dayEnd)
@@ -107,7 +107,7 @@ export function AgentDailyReportButton({ agentId, agentName, agentPhone }: Props
           tenantName: p?.full_name || 'Tenant',
           amount: Number(c.amount || 0),
           method: c.payment_method || '—',
-          reference: c.transaction_id || c.reference || '—',
+          reference: c.momo_transaction_id || c.tracking_id || '—',
         };
       });
 
