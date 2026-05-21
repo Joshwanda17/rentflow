@@ -499,6 +499,24 @@ export function EmailTransactionsPanel() {
   // so the operator can see which app user likely made each deposit.
   const [userMatches, setUserMatches] = useState<Record<string, MatchedUser[]>>({});
 
+  // Routing history for visible rows. Keyed by `row.id`. Each entry is a
+  // single re-routing action (forward credit + any reversal legs against an
+  // earlier auto-credited user). Loaded in a background effect so routed
+  // rows render with a distinct violet marker and a compact inline history.
+  interface RoutingHistoryEntry {
+    id: string;
+    created_at: string;
+    route: string;
+    reason: string;
+    target_user_id: string;
+    target_user_name: string | null;
+    target_user_phone: string | null;
+    routed_by_name: string | null;
+    amount: number;
+    sms_sent: boolean;
+  }
+  const [routingHistory, setRoutingHistory] = useState<Record<string, RoutingHistoryEntry[]>>({});
+
   // Manual channel correction UI. `editingRow` controls the dialog; bumping
   // `rulesVersion` re-renders the list so newly-saved rules / cache overrides
   // take effect immediately on every visible row.
@@ -546,6 +564,47 @@ export function EmailTransactionsPanel() {
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, []);
+
+  // Background load of routing history for the currently visible rows.
+  // Also subscribes to inserts so a fresh re-route shows up instantly
+  // without requiring a refresh.
+  useEffect(() => {
+    if (!rows.length) { setRoutingHistory({}); return; }
+    let cancelled = false;
+    const rowIds = rows.map((r) => r.id);
+    const msgIds = rows.map((r) => r.gmail_message_id).filter(Boolean) as string[];
+    (async () => {
+      const { data, error } = await (supabase.from('email_routing_history') as any)
+        .select('id,created_at,route,reason,target_user_id,target_user_name,target_user_phone,routed_by_name,amount,sms_sent,gmail_transaction_id,gmail_message_id')
+        .or(
+          msgIds.length
+            ? `gmail_transaction_id.in.(${rowIds.join(',')}),gmail_message_id.in.(${msgIds.join(',')})`
+            : `gmail_transaction_id.in.(${rowIds.join(',')})`
+        )
+        .order('created_at', { ascending: false })
+        .limit(500);
+      if (cancelled || error) return;
+      const byMsg = new Map<string, string>(); // gmail_message_id → row.id
+      for (const r of rows) if (r.gmail_message_id) byMsg.set(r.gmail_message_id, r.id);
+      const next: Record<string, RoutingHistoryEntry[]> = {};
+      for (const h of (data ?? []) as Array<RoutingHistoryEntry & { gmail_transaction_id: string | null; gmail_message_id: string | null }>) {
+        const rid = h.gmail_transaction_id || (h.gmail_message_id ? byMsg.get(h.gmail_message_id) : null);
+        if (!rid) continue;
+        (next[rid] = next[rid] || []).push(h);
+      }
+      setRoutingHistory(next);
+    })();
+    const sub = supabase
+      .channel('email_routing_history_feed')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'email_routing_history' }, (payload) => {
+        const h = payload.new as RoutingHistoryEntry & { gmail_transaction_id: string | null; gmail_message_id: string | null };
+        const rid = h.gmail_transaction_id || rows.find((r) => r.gmail_message_id === h.gmail_message_id)?.id;
+        if (!rid) return;
+        setRoutingHistory((cur) => ({ ...cur, [rid]: [h, ...(cur[rid] ?? [])] }));
+      })
+      .subscribe();
+    return () => { cancelled = true; supabase.removeChannel(sub); };
+  }, [rows]);
 
   // Resolve phone numbers (and transaction ids) found in each email row to
   // app users in `profiles`. Runs whenever the visible row set changes;
