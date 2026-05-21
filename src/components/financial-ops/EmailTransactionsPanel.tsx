@@ -1602,6 +1602,49 @@ export function EmailTransactionsPanel() {
                         </TooltipProvider>
                       </div>
                     ) : null}
+                    {isRouted && (
+                      <div className="mt-2 rounded-md border border-violet-500/20 bg-violet-500/5 p-2">
+                        <p className="text-[10px] uppercase tracking-wider text-violet-700 font-semibold flex items-center gap-1 mb-1">
+                          <History className="h-3 w-3" /> Routing history ({history.length})
+                        </p>
+                        <ul className="space-y-1">
+                          {history.slice(0, 4).map((h) => {
+                            const reversal = /revers/i.test(h.reason || '');
+                            return (
+                              <li
+                                key={h.id}
+                                className="text-[11px] flex items-start gap-1.5 leading-snug"
+                              >
+                                <span
+                                  className={`mt-[3px] h-1.5 w-1.5 rounded-full shrink-0 ${
+                                    reversal ? 'bg-rose-500' : 'bg-violet-500'
+                                  }`}
+                                />
+                                <span className="flex-1 min-w-0">
+                                  <span className="font-medium text-foreground">
+                                    {reversal ? 'Reversed from' : '→'} {h.target_user_name || 'Unknown user'}
+                                  </span>
+                                  <span className="text-muted-foreground">
+                                    {' '}· {h.route === 'operational_float' ? 'Operational Float' : 'Personal Deposit'}
+                                    {' '}· UGX {Number(h.amount).toLocaleString()}
+                                  </span>
+                                  <span className="block text-muted-foreground/80 text-[10px]">
+                                    {h.routed_by_name ? `by ${h.routed_by_name} · ` : ''}
+                                    {format(new Date(h.created_at), 'MMM d, HH:mm')}
+                                    {h.sms_sent ? ' · SMS sent' : ''}
+                                  </span>
+                                </span>
+                              </li>
+                            );
+                          })}
+                          {history.length > 4 && (
+                            <li className="text-[10px] text-muted-foreground pl-3">
+                              + {history.length - 4} more
+                            </li>
+                          )}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                   <div className="text-right shrink-0">
                     <p className={`font-mono font-semibold text-sm ${r.amount ? 'text-emerald-600' : 'text-muted-foreground'}`}>{fmtUgx(r.amount)}</p>
