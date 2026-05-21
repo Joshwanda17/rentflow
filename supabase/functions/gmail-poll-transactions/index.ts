@@ -553,13 +553,52 @@ async function tryAutoCreditOperationalFloat(
         .from('profiles')
         .select('id, phone, full_name, email')
         .ilike('full_name', rawName)
-        .limit(2);
+        .limit(10);
       if (nameMatches && nameMatches.length === 1 && nameMatches[0]?.id) {
         profile = nameMatches[0] as any;
         matchMethod = 'name';
         console.log(`[gmail-poll] MTN name-fallback matched "${rawName}" → user=${profile.id}`);
       } else if (nameMatches && nameMatches.length > 1) {
-        console.log(`[gmail-poll] MTN name-fallback ambiguous for "${rawName}" (${nameMatches.length} matches) — skipping auto-credit`);
+        // Tie-breaker 1: prefer profiles that actually have a phone on file.
+        const withPhone = nameMatches.filter((p: any) => (p.phone ?? '').replace(/\D/g, '').length >= 9);
+        let winner: any = null;
+        let tiebreaker = '';
+        if (withPhone.length === 1) {
+          winner = withPhone[0];
+          tiebreaker = 'only-profile-with-phone';
+        } else {
+          // Tie-breaker 2: pick the most recently active auth user (within 30d
+          // and strictly newer than every other candidate by ≥ 24h).
+          const pool = withPhone.length > 1 ? withPhone : nameMatches;
+          const lastSeen: { id: string; ts: number; phone: string | null }[] = [];
+          for (const p of pool) {
+            try {
+              const { data: u } = await (supabase as any).auth.admin.getUserById(p.id);
+              const t = u?.user?.last_sign_in_at ? new Date(u.user.last_sign_in_at).getTime() : 0;
+              lastSeen.push({ id: p.id, ts: t, phone: p.phone ?? null });
+            } catch {
+              lastSeen.push({ id: p.id, ts: 0, phone: p.phone ?? null });
+            }
+          }
+          lastSeen.sort((a, b) => b.ts - a.ts);
+          const top = lastSeen[0];
+          const second = lastSeen[1];
+          const THIRTY_D = 30 * 24 * 60 * 60 * 1000;
+          const ONE_D = 24 * 60 * 60 * 1000;
+          const recentEnough = top && top.ts > 0 && Date.now() - top.ts < THIRTY_D;
+          const clearWinner = top && (!second || top.ts - second.ts >= ONE_D);
+          if (recentEnough && clearWinner) {
+            winner = pool.find((p: any) => p.id === top.id) ?? null;
+            tiebreaker = 'most-recent-active';
+          }
+        }
+        if (winner?.id) {
+          profile = winner;
+          matchMethod = 'name';
+          console.log(`[gmail-poll] MTN name-fallback resolved "${rawName}" (${nameMatches.length} matches) via ${tiebreaker} → user=${winner.id}`);
+        } else {
+          console.log(`[gmail-poll] MTN name-fallback ambiguous for "${rawName}" (${nameMatches.length} matches, no clear winner) — skipping auto-credit`);
+        }
       }
     }
   }
