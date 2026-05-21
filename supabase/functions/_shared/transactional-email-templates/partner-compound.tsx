@@ -119,70 +119,57 @@ export function PartnerCompound({
   }
   let timeline: TimelineRow[] = []
 
-  if (Array.isArray(compound_history) && compound_history.length > 0) {
-    timeline = compound_history.map((h, idx) => {
-      const before = Number(String(h.balance_before ?? '').replace(/,/g, '')) || 0
-      const earned = Number(String(h.return_amount ?? '').replace(/,/g, '')) || 0
-      const after = Number(String(h.balance_after ?? '').replace(/,/g, '')) || (before + earned)
-      return {
-        cycleLabel: `Month ${h.cycle ?? idx + 1}`,
-        dateLabel: h.date,
-        before, earned, after,
-        isCurrent: idx === compound_history.length - 1,
-      }
-    })
-  } else if (cyclesDone >= 2 && r > 0 && newTotalNum > 0) {
-    // Walk backwards: this cycle ended at newTotalNum, prior cycle ended at newTotalNum/(1+r), etc.
-    const endings: number[] = []
-    let bal = newTotalNum
-    for (let i = 0; i < cyclesDone; i++) {
-      endings.unshift(bal)
-      bal = bal / (1 + r)
-    }
-    // bal now ≈ original principal before any compounding
-    timeline = endings.map((after, idx) => {
-      const before = idx === 0 ? bal : endings[idx - 1]
-      return {
-        cycleLabel: `Month ${idx + 1}`,
-        dateLabel: idx === endings.length - 1 ? compound_date : undefined,
+  // Forward-looking 12-month projection starting from the newly compounded
+  // principal. The breakdown now shows how the New Principal will grow over
+  // the next year if the partner keeps compounding at the same monthly rate.
+  //   Month 1 starts at newPrincipal, earns newPrincipal × r, ends at × (1+r)
+  //   Month 2 starts at the prior ending balance, and so on for 12 months.
+  const startingPrincipal = newTotalNum > 0 ? newTotalNum : (initNum + retNum)
+  const startDate = (() => {
+    if (!compound_date) return null
+    const d = new Date(compound_date)
+    return Number.isNaN(d.getTime()) ? null : d
+  })()
+  const addMonths = (base: Date, n: number) => {
+    const d = new Date(base.getTime())
+    d.setMonth(d.getMonth() + n)
+    return d
+  }
+  const fmtDate = (d: Date) =>
+    d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+
+  const PROJECTION_MONTHS = 12
+  if (startingPrincipal > 0 && r > 0) {
+    let bal = startingPrincipal
+    for (let i = 0; i < PROJECTION_MONTHS; i++) {
+      const before = bal
+      const earned = before * r
+      const after = before + earned
+      timeline.push({
+        cycleLabel: `Month ${i + 1}`,
+        dateLabel: startDate ? fmtDate(addMonths(startDate, i + 1)) : undefined,
         before,
-        earned: after - before,
+        earned,
         after,
-        isCurrent: idx === endings.length - 1,
-      }
-    })
+        isCurrent: i === 0,
+      })
+      bal = after
+    }
   } else {
-    // Single-cycle fallback
+    // Fallback: just show the current compounding cycle.
     timeline = [{
-      cycleLabel: cyclesDone > 0 ? `Month ${cyclesDone}` : 'This month',
+      cycleLabel: 'This month',
       dateLabel: compound_date,
       before: initNum,
       earned: retNum,
-      after: newTotalNum || (initNum + retNum),
+      after: startingPrincipal,
       isCurrent: true,
     }]
   }
 
-  // ---- Highlight "New Total Partnership Value" ----
-  // Per partner agreement, the headline value must equal:
-  //   Original Principal + Cumulative Returns Earned (simple, non-compounded)
-  // and NOT the rolling compounded balance. The breakdown timeline below still
-  // visualises how compounding produced the cycle-by-cycle balances — only
-  // this headline figure is restated as the linear principal + returns total.
-  //
-  // Derivation (when payment_number & ROI% are known):
-  //   originalPrincipal = newTotal / (1 + r)^cyclesDone
-  //   linearTotal       = originalPrincipal × (1 + r × cyclesDone)
-  // Fallbacks (in order):
-  //   1. initial_partnership_amount + return_amount (single-cycle / first cycle)
-  //   2. newTotalNum (legacy behaviour, when we have no rate or cycle index)
-  let highlightTotalNum = newTotalNum
-  if (r > 0 && cyclesDone >= 1 && newTotalNum > 0) {
-    const originalPrincipal = newTotalNum / Math.pow(1 + r, cyclesDone)
-    highlightTotalNum = originalPrincipal * (1 + r * cyclesDone)
-  } else if (initNum > 0 || retNum > 0) {
-    highlightTotalNum = initNum + retNum
-  }
+  // Headline "New Total Partnership Value" — Principal + Returns Earned
+  // (this cycle). Matches the in-app Confirm Compound dialog exactly.
+  const highlightTotalNum = (initNum + retNum) > 0 ? (initNum + retNum) : newTotalNum
   const formattedHighlightTotal = formatAmount(Math.round(highlightTotalNum), currency)
 
   return (
