@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { archivePdfBlob } from '@/lib/pdfVault';
 import { ArchivedPdfsDrawer } from '@/components/financial-ops/ArchivedPdfsDrawer';
 import { Badge } from '@/components/ui/badge';
-import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert, Copy, Check, Wifi, WifiOff, ShieldCheck, History, LinkIcon, ChevronDown, ChevronUp, FileDown, FileText, AlertTriangle, Search, X, Pencil, Trash2, Star, Users } from 'lucide-react';
+import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert, Copy, Check, Wifi, WifiOff, ShieldCheck, History, LinkIcon, ChevronDown, ChevronUp, FileDown, FileText, AlertTriangle, Search, X, Pencil, Trash2, Star, Users, ArrowRight } from 'lucide-react';
+import { RouteEmailDepositDialog, type EmailRowForRouting, type PrefilledUser } from '@/components/financial-ops/RouteEmailDepositDialog';
 import { Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
@@ -502,6 +503,8 @@ export function EmailTransactionsPanel() {
   // `rulesVersion` re-renders the list so newly-saved rules / cache overrides
   // take effect immediately on every visible row.
   const [editingRow, setEditingRow] = useState<GmailTx | null>(null);
+  const [routingRow, setRoutingRow] = useState<GmailTx | null>(null);
+  const [routingSuggestedUser, setRoutingSuggestedUser] = useState<PrefilledUser | null>(null);
   const [rulesVersion, setRulesVersion] = useState(0);
   const [storedUserRules, setStoredUserRules] = useState<StoredUserRule[]>(() => readStoredUserRules());
   const persistUserRules = (next: StoredUserRule[]) => {
@@ -1517,6 +1520,23 @@ export function EmailTransactionsPanel() {
                     <p className="text-[10px] text-muted-foreground mt-0.5">
                       {r.internal_date ? format(new Date(r.internal_date), 'MMM d, HH:mm') : '—'}
                     </p>
+                    {r.amount && r.amount > 0 && r.direction !== 'out' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="mt-1.5 h-7 text-[11px] gap-1"
+                        onClick={() => {
+                          const matches = userMatches[r.id] ?? [];
+                          const top = matches
+                            .map((u) => ({ u, s: u.matched_on.startsWith('reference ') ? 100 : u.matched_on.startsWith('from ') ? 90 : 60 }))
+                            .sort((a, b) => b.s - a.s)[0]?.u;
+                          setRoutingSuggestedUser(top ? { id: top.id, full_name: top.full_name, phone: top.phone ?? '' } : null);
+                          setRoutingRow(r);
+                        }}
+                      >
+                        Route to user <ArrowRight className="h-3 w-3" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1527,6 +1547,13 @@ export function EmailTransactionsPanel() {
       </div>
 
       <DedupAuditPanel />
+
+      <RouteEmailDepositDialog
+        open={!!routingRow}
+        onOpenChange={(o) => { if (!o) { setRoutingRow(null); setRoutingSuggestedUser(null); } }}
+        row={routingRow as EmailRowForRouting | null}
+        suggestedUser={routingSuggestedUser}
+      />
 
       <FixChannelDialog
         row={editingRow}
