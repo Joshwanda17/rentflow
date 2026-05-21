@@ -294,3 +294,26 @@ export function TenantOverviewList({ data, loading, initialCategory, onSelectTen
     </div>
   );
 }
+
+function ExportActiveTenantsButton() {
+  const [exporting, setExporting] = useState(false);
+  const handle = async () => {
+    if (exporting) return;
+    setExporting(true);
+    const t = toast.loading('Generating active tenants report...');
+    try {
+      await generateAndDownloadActiveTenantsPdf();
+      toast.success('Report downloaded', { id: t });
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to generate report', { id: t });
+    } finally {
+      setExporting(false);
+    }
+  };
+  return (
+    <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" onClick={handle} disabled={exporting}>
+      {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+      <span className="ml-1">Active Tenants PDF</span>
+    </Button>
+  );
+}
