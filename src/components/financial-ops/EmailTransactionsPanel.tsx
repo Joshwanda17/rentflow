@@ -1936,9 +1936,18 @@ export function EmailTransactionsPanel() {
                         onClick={() => {
                           const matches = userMatches[r.id] ?? [];
                           const top = matches
-                            .map((u) => ({ u, s: u.matched_on.startsWith('reference ') ? 100 : u.matched_on.startsWith('from ') ? 90 : 60 }))
+                            .map((u) => ({
+                              u,
+                              s: u.matched_on.startsWith('reference ') ? 100
+                                : u.matched_on.startsWith('from ') ? 90
+                                : u.matched_on.startsWith('to ') ? 90
+                                : 60,
+                            }))
                             .sort((a, b) => b.s - a.s)[0]?.u;
-                          setRoutingSuggestedUser(top ? { id: top.id, full_name: top.full_name, phone: top.phone ?? '' } : null);
+                          const matchedPhone = top?.matched_on.startsWith('from ') || top?.matched_on.startsWith('to ') || top?.matched_on.startsWith('phone ')
+                            ? top.matched_on.replace(/^(from|to|phone)\s+/, '')
+                            : null;
+                          setRoutingSuggestedUser(top ? { id: top.id, full_name: top.full_name, phone: top.phone ?? '', matched_phone: matchedPhone } : null);
                           setRoutingMode('credit');
                           setRoutingRow(r);
                         }}
@@ -1979,9 +1988,18 @@ export function EmailTransactionsPanel() {
                         onClick={() => {
                           const matches = userMatches[r.id] ?? [];
                           const top = matches
-                            .map((u) => ({ u, s: u.matched_on.startsWith('reference ') ? 100 : u.matched_on.startsWith('from ') ? 90 : 60 }))
+                            .map((u) => ({
+                              u,
+                              s: u.matched_on.startsWith('reference ') ? 100
+                                : u.matched_on.startsWith('to ') ? 90
+                                : u.matched_on.startsWith('from ') ? 90
+                                : 60,
+                            }))
                             .sort((a, b) => b.s - a.s)[0]?.u;
-                          setRoutingSuggestedUser(top ? { id: top.id, full_name: top.full_name, phone: top.phone ?? '' } : null);
+                          const matchedPhone = top?.matched_on.startsWith('to ') || top?.matched_on.startsWith('from ') || top?.matched_on.startsWith('phone ')
+                            ? top.matched_on.replace(/^(to|from|phone)\s+/, '')
+                            : null;
+                          setRoutingSuggestedUser(top ? { id: top.id, full_name: top.full_name, phone: top.phone ?? '', matched_phone: matchedPhone } : null);
                           setRoutingMode('debit');
                           setRoutingRow(r);
                         }}
