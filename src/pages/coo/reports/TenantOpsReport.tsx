@@ -42,7 +42,7 @@ export default function TenantOpsReportPage() {
       <div className="flex justify-end mb-3">
         <Button onClick={handleExport} disabled={exporting} className="gap-2">
           {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-          Download Active Tenants (PDF)
+          Tenants Report — since Jan 2026 (PDF)
         </Button>
       </div>
       <COOReportPage
