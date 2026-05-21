@@ -130,7 +130,6 @@ import LendingAgentPortal from '@/components/vouch/agent/LendingAgentPortal';
 
 // New Phase 1 components
 import { AgentDailyOpsCard } from '@/components/agent/AgentDailyOpsCard';
-import { AgentDailyReportButton } from '@/components/agent/AgentDailyReportButton';
 import { AgentVisitPaymentWizard } from '@/components/agent/AgentVisitPaymentWizard';
 import { GeneratePaymentTokenDialog } from '@/components/agent/GeneratePaymentTokenDialog';
 import { RecordAgentCollectionDialog } from '@/components/agent/RecordAgentCollectionDialog';
@@ -602,13 +601,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
             {/* Today's collected total — single most useful at-a-glance number */}
             <FieldCollectDailyTotals live />
-
-            {/* Daily performance PDF — per-tenant expected vs collected for this agent */}
-            <AgentDailyReportButton
-              agentId={user.id}
-              agentName={profile?.full_name || user.email || 'Agent'}
-              agentPhone={profile?.phone || ''}
-            />
 
             {/* Urgent: duplicates that need reconciliation */}
             {duplicateCount > 0 && (
