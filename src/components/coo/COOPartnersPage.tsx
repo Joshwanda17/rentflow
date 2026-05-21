@@ -4253,6 +4253,22 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                     <SelectItem value="all">All</SelectItem>
                   </SelectContent>
                 </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportPdf}
+                  disabled={exportingPdf || filtered.length === 0}
+                  className="h-9 gap-1.5 text-xs whitespace-nowrap"
+                  title={`Export ${filtered.length} filtered portfolio${filtered.length === 1 ? '' : 's'} as PDF`}
+                >
+                  {exportingPdf ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Download className="h-3.5 w-3.5" />
+                  )}
+                  PDF
+                </Button>
               </div>
             </div>
             <div className="overflow-y-auto max-h-[calc(90vh-160px)] px-4 pb-4 sm:px-5 sm:pb-5 space-y-2">
