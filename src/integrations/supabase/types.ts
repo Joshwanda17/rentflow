@@ -4812,6 +4812,10 @@ export type Database = {
           approved_at: string | null
           audit_flagged: boolean | null
           auto_approved: boolean | null
+          auto_credit_review_notes: string | null
+          auto_credit_review_status: string | null
+          auto_credit_reviewed_at: string | null
+          auto_credit_reviewed_by: string | null
           auto_match_audit: Json | null
           batch_run_id: string | null
           created_at: string
@@ -4835,6 +4839,10 @@ export type Database = {
           approved_at?: string | null
           audit_flagged?: boolean | null
           auto_approved?: boolean | null
+          auto_credit_review_notes?: string | null
+          auto_credit_review_status?: string | null
+          auto_credit_reviewed_at?: string | null
+          auto_credit_reviewed_by?: string | null
           auto_match_audit?: Json | null
           batch_run_id?: string | null
           created_at?: string
@@ -4858,6 +4866,10 @@ export type Database = {
           approved_at?: string | null
           audit_flagged?: boolean | null
           auto_approved?: boolean | null
+          auto_credit_review_notes?: string | null
+          auto_credit_review_status?: string | null
+          auto_credit_reviewed_at?: string | null
+          auto_credit_reviewed_by?: string | null
           auto_match_audit?: Json | null
           batch_run_id?: string | null
           created_at?: string

@@ -19,6 +19,7 @@ import { PortfolioTopUpVerification } from './PortfolioTopUpVerification';
 import { WalletBreakdownReadOnly } from './WalletBreakdownReadOnly';
 import { EmailTransactionsPanel } from './EmailTransactionsPanel';
 import { FundedTenantsList } from './FundedTenantsList';
+import { AutoCreditReviewPanel } from './AutoCreditReviewPanel';
 
 
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
@@ -36,7 +37,7 @@ type Tool =
   | 'ops' | 'queue' | 'search' | 'recon' | 'ledgers' | 'audit'
   | 'withdrawals' | 'opportunities' | 'requisitions'
   | 'mismatch_metrics' | 'recon_review' | 'withdrawal_history' | 'wallet_breakdown'
-  | 'email_tx' | 'funded_tenants';
+  | 'email_tx' | 'funded_tenants' | 'auto_credit_review';
 
 /**
  * Items hidden behind the "More" button. Per CFO mandate the dashboard
@@ -49,6 +50,7 @@ type MoreAction =
 
 const moreActions: MoreAction[] = [
   { kind: 'tool', id: 'email_tx', label: 'Email Transactions', desc: 'Live transactions extracted from connected Gmail', icon: Mail },
+  { kind: 'tool', id: 'auto_credit_review', label: 'Auto-Credit Review', desc: 'Confirm or reverse best-guess auto-credited deposits', icon: AlertTriangle },
   { kind: 'view', id: 'offline_collections', label: 'Offline Collections', desc: 'Drafts agents submitted with proof', icon: WifiOff },
   { kind: 'tool', id: 'funded_tenants', label: 'Funded Landlords & Tenants', desc: 'Tenants whose landlords have been paid — share to agent on WhatsApp', icon: HomeIcon },
   { kind: 'tool', id: 'withdrawal_history', label: 'Withdrawal History', desc: 'Statement of every withdrawal — balance before & after', icon: Receipt },
@@ -121,6 +123,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         <SubBack onClick={() => setActiveTool(null)} />
         {activeTool === 'ops' && <ScaleDashboard />}
         {activeTool === 'email_tx' && <EmailTransactionsPanel />}
+        {activeTool === 'auto_credit_review' && <AutoCreditReviewPanel />}
         {activeTool === 'queue' && <ApprovalQueue />}
         {activeTool === 'search' && <TransactionSearch />}
         {activeTool === 'recon' && (
