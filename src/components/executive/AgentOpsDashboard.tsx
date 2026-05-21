@@ -31,6 +31,7 @@ import { AgentPerformanceReport } from './AgentPerformanceReport';
 import { AgentAllocationReport } from './AgentAllocationReport';
 import { AgentFeatureFlagsPanel } from './AgentFeatureFlagsPanel';
 import { AgentBulkOpsConsole } from './AgentBulkOpsConsole';
+import { AgentDailyOverviewReportButton } from './AgentDailyOverviewReportButton';
 import { 
   Users, Banknote, DollarSign, Search, UserPlus, Trophy, BarChart3, 
   ClipboardList, AlertTriangle, Building2, Wallet, Bell, ArrowLeftRight,
@@ -336,6 +337,7 @@ export function AgentOpsDashboard() {
           <p className="text-xs text-muted-foreground">Agent Operations Manager</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <AgentDailyOverviewReportButton />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
