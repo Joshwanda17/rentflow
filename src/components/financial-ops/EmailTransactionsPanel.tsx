@@ -534,6 +534,7 @@ export function EmailTransactionsPanel() {
   const [editingRow, setEditingRow] = useState<GmailTx | null>(null);
   const [routingRow, setRoutingRow] = useState<GmailTx | null>(null);
   const [routingSuggestedUser, setRoutingSuggestedUser] = useState<PrefilledUser | null>(null);
+  const [routingMode, setRoutingMode] = useState<'credit' | 'debit'>('credit');
   const [rulesVersion, setRulesVersion] = useState(0);
   const [storedUserRules, setStoredUserRules] = useState<StoredUserRule[]>(() => readStoredUserRules());
   const persistUserRules = (next: StoredUserRule[]) => {
@@ -1676,10 +1677,29 @@ export function EmailTransactionsPanel() {
                             .map((u) => ({ u, s: u.matched_on.startsWith('reference ') ? 100 : u.matched_on.startsWith('from ') ? 90 : 60 }))
                             .sort((a, b) => b.s - a.s)[0]?.u;
                           setRoutingSuggestedUser(top ? { id: top.id, full_name: top.full_name, phone: top.phone ?? '' } : null);
+                          setRoutingMode('credit');
                           setRoutingRow(r);
                         }}
                       >
                         Route to user <ArrowRight className="h-3 w-3" />
+                      </Button>
+                    )}
+                    {r.amount && r.amount > 0 && (r.direction === 'out' || r.direction === 'charge') && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="mt-1.5 h-7 text-[11px] gap-1 border-rose-300 text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                        onClick={() => {
+                          const matches = userMatches[r.id] ?? [];
+                          const top = matches
+                            .map((u) => ({ u, s: u.matched_on.startsWith('reference ') ? 100 : u.matched_on.startsWith('from ') ? 90 : 60 }))
+                            .sort((a, b) => b.s - a.s)[0]?.u;
+                          setRoutingSuggestedUser(top ? { id: top.id, full_name: top.full_name, phone: top.phone ?? '' } : null);
+                          setRoutingMode('debit');
+                          setRoutingRow(r);
+                        }}
+                      >
+                        Debit user wallet <ArrowRight className="h-3 w-3" />
                       </Button>
                     )}
                   </div>
@@ -1698,6 +1718,7 @@ export function EmailTransactionsPanel() {
         onOpenChange={(o) => { if (!o) { setRoutingRow(null); setRoutingSuggestedUser(null); } }}
         row={routingRow as EmailRowForRouting | null}
         suggestedUser={routingSuggestedUser}
+        mode={routingMode}
       />
 
       <FixChannelDialog
