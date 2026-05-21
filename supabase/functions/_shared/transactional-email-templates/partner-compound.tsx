@@ -124,7 +124,10 @@ export function PartnerCompound({
   // the next year if the partner keeps compounding at the same monthly rate.
   //   Month 1 starts at newPrincipal, earns newPrincipal × r, ends at × (1+r)
   //   Month 2 starts at the prior ending balance, and so on for 12 months.
-  const startingPrincipal = newTotalNum > 0 ? newTotalNum : (initNum + retNum)
+  // The breakdown must start from the NEW principal = Principal + Returns Earned
+  // (linear, matches the in-app Confirm Compound dialog and the highlight card),
+  // NOT the compounded `new_total_partnership_value` figure.
+  const startingPrincipal = (initNum + retNum) > 0 ? (initNum + retNum) : newTotalNum
   const startDate = (() => {
     if (!compound_date) return null
     const d = new Date(compound_date)
@@ -177,7 +180,7 @@ export function PartnerCompound({
       <Head>
         <style>{clientOverrides}</style>
       </Head>
-      <Preview>Portfolio Compounded — New Value {formattedNewTotal}</Preview>
+      <Preview>Portfolio Compounded — New Value {formattedHighlightTotal}</Preview>
       <Body style={main}>
         <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={bgTable}>
           <tbody><tr><td align="center" style={{ padding: '40px 10px' }}>
@@ -215,7 +218,7 @@ export function PartnerCompound({
                       We are pleased to confirm the successful compounding of your portfolio (<span style={{ color: '#a855f7' }}>{portfolio_id}</span>) with {company_name} Technologies Limited.
                     </Text>
                     <Text style={{ ...introText, margin: 0 }}>
-                      On the <strong>{compound_date}</strong>, in accordance with your existing agreement, your portfolio of <strong>{formattedInitial}</strong> earned a {roiLabel} return (<strong>{formattedReturn}</strong>). This brings your new total portfolio value to <strong>{formattedNewTotal}</strong>.
+                      On the <strong>{compound_date}</strong>, in accordance with your existing agreement, your portfolio of <strong>{formattedInitial}</strong> earned a {roiLabel} return (<strong>{formattedReturn}</strong>). This brings your new total portfolio value to <strong>{formattedHighlightTotal}</strong>.
                     </Text>
                   </td>
                 </tr>
@@ -550,8 +553,15 @@ const footerCopyText: React.CSSProperties = { margin: 0, color: '#cbd5e1', fontS
 export const template = {
   component: PartnerCompound,
   subject: (data: Record<string, any>) => {
-    const formatted = formatAmount(data?.new_total_partnership_value, data?.currency || 'UGX')
-    return `Portfolio Compounded — New Value ${formatted}`
+    const currency = data?.currency || 'UGX'
+    const initNum = Number(String(data?.initial_partnership_amount ?? 0).replace(/,/g, '')) || 0
+    const retNum = Number(String(data?.return_amount ?? 0).replace(/,/g, '')) || 0
+    const newTotalNum = Number(String(data?.new_total_partnership_value ?? 0).replace(/,/g, '')) || 0
+    // Subject uses the NEW principal (Principal + Returns Earned), matching the
+    // highlight card and the in-app Confirm Compound dialog — not the compounded
+    // projection value.
+    const headline = (initNum + retNum) > 0 ? (initNum + retNum) : newTotalNum
+    return `Portfolio Compounded — New Value ${formatAmount(headline, currency)}`
   },
   displayName: 'Partner Portfolio Compounding Confirmation',
   previewData: {
