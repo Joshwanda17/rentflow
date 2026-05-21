@@ -1035,12 +1035,12 @@ export function EmailTransactionsPanel() {
   const channelBreakdown = (() => {
     const map = new Map<
       string,
-      { inCount: number; inTotal: number; outCount: number; outTotal: number }
+      { inCount: number; inTotal: number; outCount: number; outTotal: number; feeCount: number; feeTotal: number }
     >();
     for (const r of filteredRows) {
       if (!isCountable(r)) continue;
       const key = ch(r).channel.replace(/_/g, ' ');
-      const cur = map.get(key) ?? { inCount: 0, inTotal: 0, outCount: 0, outTotal: 0 };
+      const cur = map.get(key) ?? { inCount: 0, inTotal: 0, outCount: 0, outTotal: 0, feeCount: 0, feeTotal: 0 };
       const amt = r.amount ?? 0;
       if (r.direction === 'in') {
         cur.inCount += 1;
@@ -1049,12 +1049,25 @@ export function EmailTransactionsPanel() {
         cur.outCount += 1;
         cur.outTotal += amt;
       }
+      // Provider-deducted fee/charge/tax/excise lives on the row regardless
+      // of direction (MTN/Airtel attach it to the same send confirmation;
+      // banks send a separate "charge" row). Aggregate whenever present.
+      if (r.fee && Number(r.fee) > 0) {
+        cur.feeCount += 1;
+        cur.feeTotal += Number(r.fee);
+      }
       map.set(key, cur);
     }
     return Array.from(map.entries())
       .map(([channel, v]) => ({ channel, ...v, net: v.inTotal - v.outTotal }))
       .sort((a, b) => b.inTotal + b.outTotal - (a.inTotal + a.outTotal));
   })();
+
+  // Total provider fees across every parsed row (any direction).
+  const totalFees = filteredRows
+    .filter((r) => r.parsed && r.fee && Number(r.fee) > 0)
+    .reduce((s, r) => s + Number(r.fee ?? 0), 0);
+  const feeCount = filteredRows.filter((r) => r.parsed && r.fee && Number(r.fee) > 0).length;
 
   // Daily in vs out series for the selected timeframe.
   const dailySeries = (() => {
