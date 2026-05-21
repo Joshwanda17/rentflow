@@ -525,6 +525,10 @@ export function EmailTransactionsPanel() {
   const [autoDebitProgress, setAutoDebitProgress] = useState<{ done: number; total: number; ok: number; failed: number } | null>(null);
   const [rulesVersion, setRulesVersion] = useState(0);
   const [storedUserRules, setStoredUserRules] = useState<StoredUserRule[]>(() => readStoredUserRules());
+  // Mobile-only collapsibles: keep filters & stats hidden by default on small screens
+  // so the actual email list lands above the fold. On sm+ they're always expanded.
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [mobileStatsOpen, setMobileStatsOpen] = useState(false);
   const persistUserRules = (next: StoredUserRule[]) => {
     writeStoredUserRules(next);
     refreshUserRules();
@@ -1190,7 +1194,21 @@ export function EmailTransactionsPanel() {
       </div>
 
       {/* Date-range selector — recomputes totals/breakdown/exports for the chosen period. */}
-      <div className="rounded-xl border bg-card p-3 sm:p-4 flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3 sm:gap-4">
+      <div className="sm:hidden flex items-center justify-between gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex-1 gap-2"
+          onClick={() => setMobileFiltersOpen((v) => !v)}
+        >
+          {mobileFiltersOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          {mobileFiltersOpen ? 'Hide filters' : 'Filters & date range'}
+          {(rangeActive || searchActive) && (
+            <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">active</Badge>
+          )}
+        </Button>
+      </div>
+      <div className={`rounded-xl border bg-card p-3 sm:p-4 flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3 sm:gap-4 ${mobileFiltersOpen ? 'flex' : 'hidden sm:flex'}`}>
         <div className="flex-1 min-w-full sm:min-w-[200px]">
           <h3 className="font-semibold text-sm">Date range</h3>
           <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -1344,7 +1362,18 @@ export function EmailTransactionsPanel() {
 
       <GmailReconnectAuditPanel />
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-8 gap-3">
+      <div className="sm:hidden">
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full gap-2"
+          onClick={() => setMobileStatsOpen((v) => !v)}
+        >
+          {mobileStatsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          {mobileStatsOpen ? 'Hide summary' : `Summary · ${rows.length} emails · net ${netAmount < 0 ? '-' : ''}${fmtUgx(Math.abs(netAmount))}`}
+        </Button>
+      </div>
+      <div className={`grid-cols-2 sm:grid-cols-3 lg:grid-cols-8 gap-3 ${mobileStatsOpen ? 'grid' : 'hidden sm:grid'}`}>
         <StatCard label="Emails captured" value={rows.length.toString()} />
         <StatCard label="Parsed transactions" value={parsedCount.toString()} />
         <StatCard label="Total amount (parsed)" value={fmtUgx(totalAmount)} />
@@ -2169,7 +2198,7 @@ export function EmailTransactionsPanel() {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="mt-1.5 h-7 text-[11px] gap-1"
+                        className="mt-1.5 h-8 sm:h-7 text-[11px] gap-1"
                         onClick={() => {
                           const matches = userMatches[r.id] ?? [];
                           const top = matches
@@ -2203,7 +2232,7 @@ export function EmailTransactionsPanel() {
                           <Button
                             size="sm"
                             variant="default"
-                            className="mt-1.5 h-7 text-[11px] gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                            className="mt-1.5 h-8 sm:h-7 text-[11px] gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
                             disabled={busy}
                             title={`Match: withdrawal ${m.id.slice(0,8)}… for ${m.user_name || 'user'} (${m.mobile_money_number || m.bank_account_number || '—'}) · ${m.matched_on}`}
                             onClick={() => autoApproveWithdrawal(r, m)}
@@ -2222,7 +2251,7 @@ export function EmailTransactionsPanel() {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="mt-1.5 h-7 text-[11px] gap-1 border-rose-300 text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                        className="mt-1.5 h-8 sm:h-7 text-[11px] gap-1 border-rose-300 text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30"
                         onClick={() => {
                           const matches = userMatches[r.id] ?? [];
                           const top = matches
