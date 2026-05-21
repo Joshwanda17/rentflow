@@ -1035,12 +1035,12 @@ export function EmailTransactionsPanel() {
   const channelBreakdown = (() => {
     const map = new Map<
       string,
-      { inCount: number; inTotal: number; outCount: number; outTotal: number }
+      { inCount: number; inTotal: number; outCount: number; outTotal: number; feeCount: number; feeTotal: number }
     >();
     for (const r of filteredRows) {
       if (!isCountable(r)) continue;
       const key = ch(r).channel.replace(/_/g, ' ');
-      const cur = map.get(key) ?? { inCount: 0, inTotal: 0, outCount: 0, outTotal: 0 };
+      const cur = map.get(key) ?? { inCount: 0, inTotal: 0, outCount: 0, outTotal: 0, feeCount: 0, feeTotal: 0 };
       const amt = r.amount ?? 0;
       if (r.direction === 'in') {
         cur.inCount += 1;
@@ -1049,12 +1049,25 @@ export function EmailTransactionsPanel() {
         cur.outCount += 1;
         cur.outTotal += amt;
       }
+      // Provider-deducted fee/charge/tax/excise lives on the row regardless
+      // of direction (MTN/Airtel attach it to the same send confirmation;
+      // banks send a separate "charge" row). Aggregate whenever present.
+      if (r.fee && Number(r.fee) > 0) {
+        cur.feeCount += 1;
+        cur.feeTotal += Number(r.fee);
+      }
       map.set(key, cur);
     }
     return Array.from(map.entries())
       .map(([channel, v]) => ({ channel, ...v, net: v.inTotal - v.outTotal }))
       .sort((a, b) => b.inTotal + b.outTotal - (a.inTotal + a.outTotal));
   })();
+
+  // Total provider fees across every parsed row (any direction).
+  const totalFees = filteredRows
+    .filter((r) => r.parsed && r.fee && Number(r.fee) > 0)
+    .reduce((s, r) => s + Number(r.fee ?? 0), 0);
+  const feeCount = filteredRows.filter((r) => r.parsed && r.fee && Number(r.fee) > 0).length;
 
   // Daily in vs out series for the selected timeframe.
   const dailySeries = (() => {
@@ -1281,6 +1294,11 @@ export function EmailTransactionsPanel() {
           sub={<span className="text-[10px] text-rose-600">↑ money sent</span>}
         />
         <StatCard
+          label="Total provider fees"
+          value={fmtUgx(totalFees)}
+          sub={<span className="text-[10px] text-amber-600">{feeCount} row{feeCount === 1 ? '' : 's'} · MTN / Airtel / banks</span>}
+        />
+        <StatCard
           label="Net (in − out)"
           value={`${netAmount < 0 ? '-' : ''}${fmtUgx(Math.abs(netAmount))}`}
           info={
@@ -1357,6 +1375,8 @@ export function EmailTransactionsPanel() {
                   <th className="text-right px-4 py-2 font-semibold text-emerald-700">Total in</th>
                   <th className="text-right px-4 py-2 font-semibold">Out (count)</th>
                   <th className="text-right px-4 py-2 font-semibold text-rose-700">Total out</th>
+                  <th className="text-right px-4 py-2 font-semibold">Fees (count)</th>
+                  <th className="text-right px-4 py-2 font-semibold text-amber-700">Total fees</th>
                   <th className="text-right px-4 py-2 font-semibold">Net</th>
                 </tr>
               </thead>
@@ -1368,6 +1388,8 @@ export function EmailTransactionsPanel() {
                     <td className="px-4 py-2 text-right tabular-nums font-mono text-emerald-700">{fmtUgx(b.inTotal)}</td>
                     <td className="px-4 py-2 text-right tabular-nums text-muted-foreground">{b.outCount}</td>
                     <td className="px-4 py-2 text-right tabular-nums font-mono text-rose-700">{fmtUgx(b.outTotal)}</td>
+                    <td className="px-4 py-2 text-right tabular-nums text-muted-foreground">{b.feeCount}</td>
+                    <td className="px-4 py-2 text-right tabular-nums font-mono text-amber-700">{fmtUgx(b.feeTotal)}</td>
                     <td className={`px-4 py-2 text-right tabular-nums font-mono font-semibold ${b.net >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
                       {b.net < 0 ? '-' : ''}{fmtUgx(Math.abs(b.net))}
                     </td>
@@ -1381,6 +1403,8 @@ export function EmailTransactionsPanel() {
                   <td className="px-4 py-2 text-right tabular-nums font-mono text-emerald-700">{fmtUgx(totalIn)}</td>
                   <td className="px-4 py-2 text-right tabular-nums">{channelBreakdown.reduce((s, b) => s + b.outCount, 0)}</td>
                   <td className="px-4 py-2 text-right tabular-nums font-mono text-rose-700">{fmtUgx(totalOut)}</td>
+                  <td className="px-4 py-2 text-right tabular-nums">{channelBreakdown.reduce((s, b) => s + b.feeCount, 0)}</td>
+                  <td className="px-4 py-2 text-right tabular-nums font-mono text-amber-700">{fmtUgx(totalFees)}</td>
                   <td className={`px-4 py-2 text-right tabular-nums font-mono ${netAmount >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
                     {netAmount < 0 ? '-' : ''}{fmtUgx(Math.abs(netAmount))}
                   </td>
@@ -2700,6 +2724,8 @@ type ChannelBreakdownRow = {
   inTotal: number;
   outCount: number;
   outTotal: number;
+  feeCount: number;
+  feeTotal: number;
   net: number;
 };
 
@@ -2732,16 +2758,21 @@ function exportTotalsCsv({ rows, totalIn, totalOut, netAmount, channelBreakdown 
   const stamp = format(new Date(), 'yyyy-MM-dd_HHmm');
 
   const allRows: (string | number)[][] = [];
-  allRows.push(['Section', 'Key', 'In count', 'Total in (UGX)', 'Out count', 'Total out (UGX)', 'Net (UGX)']);
+  const totalFeesAll = rows
+    .filter((r) => r.parsed && r.fee && Number(r.fee) > 0)
+    .reduce((s, r) => s + Number(r.fee ?? 0), 0);
+  const feeCountAll = rows.filter((r) => r.parsed && r.fee && Number(r.fee) > 0).length;
+  allRows.push(['Section', 'Key', 'In count', 'Total in (UGX)', 'Out count', 'Total out (UGX)', 'Fee count', 'Total fees (UGX)', 'Net (UGX)']);
   allRows.push(['Summary', 'All parsed', rows.filter(r => r.parsed && r.direction === 'in').length, Math.round(totalIn),
-    rows.filter(r => r.parsed && (r.direction === 'out' || r.direction === 'charge')).length, Math.round(totalOut), Math.round(netAmount)]);
-  allRows.push(['', '', '', '', '', '', '']);
+    rows.filter(r => r.parsed && (r.direction === 'out' || r.direction === 'charge')).length, Math.round(totalOut),
+    feeCountAll, Math.round(totalFeesAll), Math.round(netAmount)]);
+  allRows.push(['', '', '', '', '', '', '', '', '']);
   for (const c of channelBreakdown) {
-    allRows.push(['Channel', c.channel, c.inCount, Math.round(c.inTotal), c.outCount, Math.round(c.outTotal), Math.round(c.net)]);
+    allRows.push(['Channel', c.channel, c.inCount, Math.round(c.inTotal), c.outCount, Math.round(c.outTotal), c.feeCount, Math.round(c.feeTotal), Math.round(c.net)]);
   }
-  allRows.push(['', '', '', '', '', '', '']);
+  allRows.push(['', '', '', '', '', '', '', '', '']);
   for (const d of perDay) {
-    allRows.push(['Day', d.day, d.inCount, Math.round(d.inTotal), d.outCount, Math.round(d.outTotal), Math.round(d.net)]);
+    allRows.push(['Day', d.day, d.inCount, Math.round(d.inTotal), d.outCount, Math.round(d.outTotal), '', '', Math.round(d.net)]);
   }
   downloadCsv(`email-transactions-totals_${stamp}.csv`, allRows[0] as string[], allRows.slice(1));
 }
@@ -2780,13 +2811,15 @@ async function exportTotalsPdf({ rows, totalIn, totalOut, netAmount, channelBrea
 
   if (channelBreakdown.length > 0) {
     autoTable(doc, {
-      head: [['Channel', 'In #', 'Total in', 'Out #', 'Total out', 'Net']],
+      head: [['Channel', 'In #', 'Total in', 'Out #', 'Total out', 'Fee #', 'Total fees', 'Net']],
       body: channelBreakdown.map(c => [
         c.channel,
         c.inCount,
         `UGX ${Math.round(c.inTotal).toLocaleString()}`,
         c.outCount,
         `UGX ${Math.round(c.outTotal).toLocaleString()}`,
+        c.feeCount,
+        `UGX ${Math.round(c.feeTotal).toLocaleString()}`,
         `UGX ${Math.round(c.net).toLocaleString()}`,
       ]),
       styles: { fontSize: 9 },
