@@ -334,7 +334,7 @@ export function LandlordsWithTenantsView() {
         ),
         paginate<any>(
           'rent_requests',
-          'id, tenant_id, landlord_id, registration_type, rent_amount, total_repayment, amount_repaid, daily_repayment, duration_days, status, created_at, funded_at, disbursed_at, completed_at, initial_outstanding_balance',
+          'id, tenant_id, landlord_id, registration_type, rent_amount, total_repayment, amount_repaid, daily_repayment, duration_days, status, created_at, funded_at, disbursed_at, tenancy_ended_at, initial_outstanding_balance',
         ),
         paginate<any>(
           'house_listings',
@@ -420,7 +420,7 @@ export function LandlordsWithTenantsView() {
           principal, expected, collected, outstanding,
           Number(r.daily_repayment || 0), Number(r.duration_days || 0),
           Number(r.initial_outstanding_balance || 0),
-          r.created_at, r.funded_at, r.disbursed_at, r.completed_at,
+          r.created_at, r.funded_at, r.disbursed_at, r.tenancy_ended_at,
           disbursed, collRate,
         ]);
       }
@@ -514,7 +514,7 @@ export function LandlordsWithTenantsView() {
         'Request ID', 'Registration Type', 'Status',
         'Principal / Rent Amount (UGX)', 'Total Expected (UGX)', 'Collected (UGX)', 'Outstanding (UGX)',
         'Daily Repayment (UGX)', 'Duration (days)', 'Initial Outstanding Balance (UGX)',
-        'Created At', 'Funded At', 'Disbursed At', 'Completed At',
+        'Created At', 'Funded At', 'Disbursed At', 'Tenancy Ended At',
         'Rent Disbursed (UGX)', 'Collection Rate %',
       ];
 
