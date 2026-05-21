@@ -1340,6 +1340,9 @@ export function EmailTransactionsPanel() {
                 const hasFrom = matches.some((u) => u.matched_on.startsWith('from '));
                 const isConfident = hasRef || hasFrom;
                 const isFlagged = r.parsed && !validity.get(r.id)!.valid;
+                const history = routingHistory[r.id] ?? [];
+                const isRouted = history.length > 0;
+                const isReversed = history.some((h) => /revers/i.test(h.reason || ''));
                 // Build a screen-reader description of the row's match status so
                 // assistive tech announces *why* this row is highlighted, not
                 // just that it's styled differently.
@@ -1366,7 +1369,12 @@ export function EmailTransactionsPanel() {
                 aria-label={matchAriaLabel}
                 data-match-status={isConfident ? 'confident' : isFlagged ? 'flagged' : 'none'}
                 className={`p-4 transition-colors ${
-                  isConfident
+                  isRouted
+                    // Routed rows get a distinct violet treatment so reviewers
+                    // can scan the list and immediately see which emails have
+                    // already been re-routed (and how many times).
+                    ? 'bg-violet-500/10 hover:bg-violet-500/15 border-l-4 border-l-violet-500 focus-within:ring-2 focus-within:ring-violet-500/40'
+                    : isConfident
                     // Stronger primary tint (10/20 vs 5/10) + 4px accent border for
                     // clear contrast against the surrounding card surface. Adds a
                     // visible focus-within ring so keyboard users see the row.
