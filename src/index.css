@@ -858,6 +858,17 @@ input[type="checkbox"], input[type="radio"] {
   }
 }
 
+/* GPU backdrop-filter corruption fix (Android Mali/Adreno tearing).
+   Set via runtime detector in main.tsx (.no-backdrop-blur on <html>).
+   Replaces translucent blurred surfaces with an opaque surface so the
+   compositor doesn't smear previous frames across the layer. */
+html.no-backdrop-blur .glass-card,
+html.no-backdrop-blur [class*="backdrop-blur"] {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background-color: hsl(var(--card)) !important;
+}
+
 /* Data-saver: hide decorative elements */
 @media (prefers-reduced-data: reduce) {
   [data-decorative], .decorative, [save-data-hidden] {
