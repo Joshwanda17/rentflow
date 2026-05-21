@@ -302,6 +302,8 @@ import {
   extractFromPhones,
   extractToPhones,
   extractReferences,
+  extractToNames,
+  extractFromNames,
 } from '@/components/financial-ops/emailExtraction';
 
 /** Canonical channel options shown in the correction dialog. */
