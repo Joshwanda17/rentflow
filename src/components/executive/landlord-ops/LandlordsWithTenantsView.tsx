@@ -306,6 +306,229 @@ export function LandlordsWithTenantsView() {
     return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
   }
 
+  async function paginate<T>(table: string, columns: string, extra?: (q: any) => any): Promise<T[]> {
+    const PAGE = 1000;
+    const out: T[] = [];
+    let offset = 0;
+    while (true) {
+      let q: any = supabase.from(table as any).select(columns).range(offset, offset + PAGE - 1);
+      if (extra) q = extra(q);
+      const { data: rows, error } = await q;
+      if (error) throw error;
+      if (!rows || rows.length === 0) break;
+      out.push(...(rows as any));
+      if (rows.length < PAGE) break;
+      offset += PAGE;
+    }
+    return out;
+  }
+
+  async function handleExport() {
+    setExporting(true);
+    try {
+      // Pull comprehensive datasets in parallel
+      const [landlords, requests, houseLinks] = await Promise.all([
+        paginate<any>(
+          'landlords',
+          'id, name, phone, verified, mobile_money_name, mobile_money_number, bank_name, account_number, village, district, region, number_of_houses, monthly_rent, caretaker_name, caretaker_phone, tin, tenant_id',
+        ),
+        paginate<any>(
+          'rent_requests',
+          'id, tenant_id, landlord_id, registration_type, rent_amount, total_repayment, amount_repaid, daily_repayment, duration_days, status, created_at, funded_at, disbursed_at, completed_at, initial_outstanding_balance',
+        ),
+        paginate<any>(
+          'house_listings',
+          'landlord_id, tenant_id, title, address, monthly_rent',
+          (q) => q.not('tenant_id', 'is', null),
+        ),
+      ]);
+
+      // Tenant profiles
+      const tenantIds = new Set<string>();
+      requests.forEach(r => r.tenant_id && tenantIds.add(r.tenant_id));
+      houseLinks.forEach(h => h.tenant_id && tenantIds.add(h.tenant_id));
+      landlords.forEach(l => l.tenant_id && tenantIds.add(l.tenant_id));
+      const tenantMap = new Map<string, any>();
+      const tIdArr = [...tenantIds];
+      for (let i = 0; i < tIdArr.length; i += 200) {
+        const { data: tt } = await supabase
+          .from('profiles')
+          .select('id, full_name, phone, national_id')
+          .in('id', tIdArr.slice(i, i + 200));
+        for (const t of tt || []) tenantMap.set(t.id, t);
+      }
+
+      const landlordMap = new Map<string, any>();
+      landlords.forEach(l => landlordMap.set(l.id, l));
+
+      // House links keyed by landlord+tenant
+      const linkMap = new Map<string, any>();
+      houseLinks.forEach(h => {
+        if (h.landlord_id && h.tenant_id) linkMap.set(`${h.landlord_id}::${h.tenant_id}`, h);
+      });
+
+      const q = search.trim().toLowerCase();
+      const matchSearch = (l: any, t: any | null) => {
+        if (!q) return true;
+        const hay = [
+          l?.name, l?.phone,
+          t?.full_name, t?.phone, t?.national_id,
+        ].filter(Boolean).join(' ').toLowerCase();
+        return hay.includes(q);
+      };
+
+      const isPaid = (s: string) => PAID_STATUSES.has(s);
+      const isPending = (s: string) => PENDING_STATUSES.has(s);
+      const matchStatus = (linkSource: string, status: string | null) => {
+        if (statusFilter === 'all') return true;
+        if (statusFilter === 'empty') return linkSource === 'none';
+        if (statusFilter === 'paid') return !!status && isPaid(status);
+        if (statusFilter === 'pending') return !status || isPending(status) || linkSource !== 'rent_request';
+        return true;
+      };
+
+      type Row = (string | number | null)[];
+      const rows: Row[] = [];
+      const seenPair = new Set<string>(); // landlord_id::tenant_id pairs covered by a rent_request
+
+      // 1. One row per rent_request
+      for (const r of requests) {
+        const l = r.landlord_id ? landlordMap.get(r.landlord_id) : null;
+        const t = r.tenant_id ? tenantMap.get(r.tenant_id) : null;
+        const link = r.landlord_id && r.tenant_id ? linkMap.get(`${r.landlord_id}::${r.tenant_id}`) : null;
+        if (r.landlord_id && r.tenant_id) seenPair.add(`${r.landlord_id}::${r.tenant_id}`);
+        if (!matchSearch(l, t)) continue;
+        if (!matchStatus('rent_request', r.status)) continue;
+        const principal = Number(r.rent_amount || 0);
+        const expected = Number(r.total_repayment || 0);
+        const collected = Number(r.amount_repaid || 0);
+        const outstanding = Math.max(0, expected - collected);
+        const disbursed = r.disbursed_at ? principal : 0;
+        const collRate = expected > 0 ? Number((collected / expected * 100).toFixed(2)) : 0;
+        rows.push([
+          l?.id ?? null, l?.name ?? (r.landlord_id ? 'Unknown Landlord' : 'No Landlord'),
+          l?.phone ?? null, l?.verified ? 'Yes' : 'No',
+          l?.mobile_money_name ?? null, l?.mobile_money_number ?? null,
+          l?.bank_name ?? null, l?.account_number ?? null,
+          l?.village ?? null, l?.district ?? null, l?.region ?? null,
+          l?.number_of_houses ?? null, l?.tin ?? null,
+          l?.caretaker_name ?? null, l?.caretaker_phone ?? null,
+          Number(l?.monthly_rent || 0),
+          t?.id ?? null, t?.full_name ?? null, t?.phone ?? null, t?.national_id ?? null,
+          'rent_request', link?.title ?? null, link?.address ?? null,
+          r.id, r.registration_type ?? 'normal', r.status,
+          principal, expected, collected, outstanding,
+          Number(r.daily_repayment || 0), Number(r.duration_days || 0),
+          Number(r.initial_outstanding_balance || 0),
+          r.created_at, r.funded_at, r.disbursed_at, r.completed_at,
+          disbursed, collRate,
+        ]);
+      }
+
+      // 2. House_listing links with no rent_request
+      for (const h of houseLinks) {
+        if (!h.landlord_id || !h.tenant_id) continue;
+        const key = `${h.landlord_id}::${h.tenant_id}`;
+        if (seenPair.has(key)) continue;
+        seenPair.add(key);
+        const l = landlordMap.get(h.landlord_id);
+        const t = tenantMap.get(h.tenant_id);
+        if (!matchSearch(l, t)) continue;
+        if (!matchStatus('house_listing', null)) continue;
+        rows.push([
+          l?.id ?? null, l?.name ?? 'Unknown Landlord', l?.phone ?? null, l?.verified ? 'Yes' : 'No',
+          l?.mobile_money_name ?? null, l?.mobile_money_number ?? null,
+          l?.bank_name ?? null, l?.account_number ?? null,
+          l?.village ?? null, l?.district ?? null, l?.region ?? null,
+          l?.number_of_houses ?? null, l?.tin ?? null,
+          l?.caretaker_name ?? null, l?.caretaker_phone ?? null,
+          Number(l?.monthly_rent || 0),
+          t?.id ?? null, t?.full_name ?? null, t?.phone ?? null, t?.national_id ?? null,
+          'house_listing', h.title ?? null, h.address ?? null,
+          null, null, null,
+          0, 0, 0, 0, 0, 0, 0,
+          null, null, null, null,
+          0, 0,
+        ]);
+      }
+
+      // 3. landlords.tenant_id direct links not yet covered
+      for (const l of landlords) {
+        if (!l.tenant_id) continue;
+        const key = `${l.id}::${l.tenant_id}`;
+        if (seenPair.has(key)) continue;
+        seenPair.add(key);
+        const t = tenantMap.get(l.tenant_id);
+        if (!matchSearch(l, t)) continue;
+        if (!matchStatus('landlord_link', null)) continue;
+        rows.push([
+          l.id, l.name, l.phone ?? null, l.verified ? 'Yes' : 'No',
+          l.mobile_money_name ?? null, l.mobile_money_number ?? null,
+          l.bank_name ?? null, l.account_number ?? null,
+          l.village ?? null, l.district ?? null, l.region ?? null,
+          l.number_of_houses ?? null, l.tin ?? null,
+          l.caretaker_name ?? null, l.caretaker_phone ?? null,
+          Number(l.monthly_rent || 0),
+          t?.id ?? null, t?.full_name ?? null, t?.phone ?? null, t?.national_id ?? null,
+          'landlord_link', null, null,
+          null, null, null,
+          0, 0, 0, 0, 0, 0, 0,
+          null, null, null, null,
+          0, 0,
+        ]);
+      }
+
+      // 4. Landlords with no tenants at all (so all landlords appear in the extract)
+      const landlordsWithAny = new Set<string>();
+      for (const r of requests) if (r.landlord_id) landlordsWithAny.add(r.landlord_id);
+      for (const h of houseLinks) if (h.landlord_id) landlordsWithAny.add(h.landlord_id);
+      for (const l of landlords) if (l.tenant_id) landlordsWithAny.add(l.id);
+      for (const l of landlords) {
+        if (landlordsWithAny.has(l.id)) continue;
+        if (!matchSearch(l, null)) continue;
+        if (!matchStatus('none', null)) continue;
+        rows.push([
+          l.id, l.name, l.phone ?? null, l.verified ? 'Yes' : 'No',
+          l.mobile_money_name ?? null, l.mobile_money_number ?? null,
+          l.bank_name ?? null, l.account_number ?? null,
+          l.village ?? null, l.district ?? null, l.region ?? null,
+          l.number_of_houses ?? null, l.tin ?? null,
+          l.caretaker_name ?? null, l.caretaker_phone ?? null,
+          Number(l.monthly_rent || 0),
+          null, null, null, null,
+          'none', null, null,
+          null, null, null,
+          0, 0, 0, 0, 0, 0, 0,
+          null, null, null, null,
+          0, 0,
+        ]);
+      }
+
+      const headers = [
+        'Landlord ID', 'Landlord Name', 'Landlord Phone', 'Verified',
+        'MoMo Name', 'MoMo Number', 'Bank', 'Account #',
+        'Village', 'District', 'Region', '# Houses', 'TIN',
+        'Caretaker Name', 'Caretaker Phone', 'Listed Monthly Rent (UGX)',
+        'Tenant ID', 'Tenant Name', 'Tenant Phone', 'National ID',
+        'Link Source', 'House Title', 'House Address',
+        'Request ID', 'Registration Type', 'Status',
+        'Principal / Rent Amount (UGX)', 'Total Expected (UGX)', 'Collected (UGX)', 'Outstanding (UGX)',
+        'Daily Repayment (UGX)', 'Duration (days)', 'Initial Outstanding Balance (UGX)',
+        'Created At', 'Funded At', 'Disbursed At', 'Completed At',
+        'Rent Disbursed (UGX)', 'Collection Rate %',
+      ];
+
+      const stamp = new Date().toISOString().slice(0, 10);
+      await downloadXlsx(`landlord-ops-extract-${stamp}.xlsx`, headers, rows, 'Landlords & Tenants');
+      toast.success(`Downloaded ${rows.length.toLocaleString()} rows`);
+    } catch (e: any) {
+      console.error('Extract export failed', e);
+      toast.error(e?.message || 'Failed to build extract');
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <div className="space-y-3">
       <h2 className="text-lg font-bold flex items-center gap-2">
