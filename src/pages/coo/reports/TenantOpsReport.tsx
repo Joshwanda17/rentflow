@@ -3,6 +3,11 @@ import COOReportPage from '@/components/coo/COOReportPage';
 import { useTenantOpsReportData } from '@/components/coo/useCOOReportData';
 import { usePersistedActiveTab } from '@/hooks/usePersistedActiveTab';
 import { Home, UserPlus, Clock, ShieldCheck, FileWarning, HeartHandshake, AlertTriangle, Banknote } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Download, Loader2 } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { generateAndDownloadActiveTenantsPdf } from '@/lib/activeTenantsReportPdf';
 
 const ugx = (n: number) => `UGX ${new Intl.NumberFormat('en-UG').format(Math.round(n || 0))}`;
 
@@ -13,6 +18,19 @@ const ugx = (n: number) => `UGX ${new Intl.NumberFormat('en-UG').format(Math.rou
 export default function TenantOpsReportPage() {
   const [, setActiveTab] = usePersistedActiveTab('coo');
   const { data, isLoading, refetch } = useTenantOpsReportData();
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const count = await generateAndDownloadActiveTenantsPdf();
+      toast.success(`Active tenants report ready (${count} tenants)`);
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to generate report');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const k = data?.kpis ?? { total: 0, pending: 0, approved: 0, funded: 0, disbursed: 0, rejected: 0, totalRent: 0 };
   const activities = data?.activities ?? [];
@@ -21,6 +39,12 @@ export default function TenantOpsReportPage() {
 
   return (
     <ExecutiveDashboardLayout role="coo" activeTab="reports-tenant-ops" onTabChange={setActiveTab}>
+      <div className="flex justify-end mb-3">
+        <Button onClick={handleExport} disabled={exporting} className="gap-2">
+          {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+          Download Active Tenants (PDF)
+        </Button>
+      </div>
       <COOReportPage
         title="Tenant Ops Report"
         description="Live Rent Plan pipeline — submissions, approvals, funding, and disbursements across the last 30 days."
