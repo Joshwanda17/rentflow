@@ -15,7 +15,7 @@ import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
 import { formatUGX } from '@/lib/rentCalculations';
 
 type Route = 'personal_deposit' | 'operational_float';
-type DebitRoute = 'withdrawable' | 'landlord_float';
+type DebitRoute = 'withdrawable' | 'landlord_float' | 'proxy_agent_wallet';
 export type RouteDialogMode = 'credit' | 'debit';
 
 export interface EmailRowForRouting {
@@ -73,21 +73,21 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
     }
   }, [open, row, suggestedUser, mode]);
 
-  // ── Detect managed-proxy partner ─────────────────────────────────
-  // If the picked user is a partner with an active+approved+managed proxy
-  // assignment, the debit MUST hit the proxy agent's wallet (not the
-  // partner's). Mirrors the rule in `resolveManagedProxy` used server-side
-  // for credits.
+  // ── Detect proxy-agent assignment for the picked user ────────────
+  // Returns the most recent active+approved proxy assignment (managed OR
+  // unmanaged). When `is_managed_account=true`, debits auto-redirect to
+  // the proxy agent (the partner wallet must not be touched). When the
+  // assignment is unmanaged, the operator can still manually choose to
+  // debit the proxy agent's wallet via the "Proxy agent wallet" route.
   const proxy = useQuery({
-    queryKey: ['route-email-managed-proxy', user?.id, mode],
+    queryKey: ['route-email-proxy', user?.id, mode],
     enabled: open && mode === 'debit' && !!user?.id,
     queryFn: async () => {
       if (!user?.id) return null;
       const { data: assignment } = await (supabase.from('proxy_agent_assignments') as any)
-        .select('id, agent_id')
+        .select('id, agent_id, is_managed_account')
         .eq('beneficiary_id', user.id)
         .eq('is_active', true)
-        .eq('is_managed_account', true)
         .eq('approval_status', 'approved')
         .order('created_at', { ascending: false })
         .limit(1)
@@ -100,6 +100,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
       return {
         assignmentId: assignment.id as string,
         agentId: assignment.agent_id as string,
+        isManaged: !!assignment.is_managed_account,
         agentName: (prof?.full_name as string) ?? 'Proxy agent',
         agentPhone: (prof?.phone as string) ?? '',
       };
@@ -170,18 +171,28 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
 
       // ─── DEBIT MODE (money-out) ────────────────────────────────
       if (mode === 'debit') {
-        const managed = proxy.data;
-        // Hard rule: when the picked user is a managed-proxy partner, the
-        // debit redirects to the proxy agent's wallet. The partner's wallet
-        // is never touched (mirrors managed-proxy payout routing).
-        const debitTargetId = managed ? managed.agentId : user.id;
-        const debitTargetName = managed ? managed.agentName : user.full_name;
-        const debitTargetPhone = managed ? managed.agentPhone : user.phone;
-        const isFloat = debitRoute === 'landlord_float';
+        const proxyInfo = proxy.data;
+        // Routing rules:
+        // 1. Managed-proxy partner → ALWAYS debits proxy agent wallet
+        //    (mirrors managed-proxy payout routing; partner wallet untouched).
+        // 2. Operator explicitly picked "Proxy agent wallet" → debit proxy
+        //    agent's withdrawable (requires a proxy assignment to exist).
+        // 3. Otherwise → debit the picked user as normal.
+        const useProxyAgent =
+          (proxyInfo?.isManaged === true) || (debitRoute === 'proxy_agent_wallet' && !!proxyInfo);
+        if (debitRoute === 'proxy_agent_wallet' && !proxyInfo) {
+          throw new Error('No active proxy agent found for this user');
+        }
+        const debitTargetId = useProxyAgent ? proxyInfo!.agentId : user.id;
+        const debitTargetName = useProxyAgent ? proxyInfo!.agentName : user.full_name;
+        const debitTargetPhone = useProxyAgent ? proxyInfo!.agentPhone : user.phone;
+        // Proxy-agent route always lands on the agent's withdrawable bucket.
+        const isFloat = debitRoute === 'landlord_float' && !useProxyAgent;
+        const isProxyAgentRoute = useProxyAgent;
         const debitBody = {
           target_user_id: debitTargetId,
           amount: amt,
-          reason: managed
+          reason: useProxyAgent
             ? `Outgoing email charged to proxy agent wallet (on behalf of partner ${user.full_name}): ${reason.trim()}`
             : reason.trim(),
           operation: 'debit' as const,
@@ -190,7 +201,11 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
           wallet_category: isFloat ? 'agent_float_deposit' : 'wallet_transfer',
           platform_category: isFloat ? 'agent_float_deposit' : 'wallet_transfer',
           financial_impact: 'neutral' as const,
-          category_label: isFloat ? 'Email charge → Landlord-Payout Float' : 'Email charge → Withdrawable',
+          category_label: isFloat
+            ? 'Email charge → Landlord-Payout Float'
+            : isProxyAgentRoute
+              ? `Email charge → Proxy agent wallet (for ${user.full_name})`
+              : 'Email charge → Withdrawable',
           recipient_type: isFloat ? 'operational_wallet' : 'user',
           sub_category: row.transaction_id ?? null,
         };
@@ -209,12 +224,16 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
               phone: debitTargetPhone,
               target_user_name: debitTargetName,
               amount: amt,
-              route: isFloat ? 'landlord_float_debit' : 'withdrawable_debit',
+              route: isFloat
+                ? 'landlord_float_debit'
+                : isProxyAgentRoute
+                  ? 'proxy_agent_wallet_debit'
+                  : 'withdrawable_debit',
               reference_id: referenceId,
               from_label: fromLabel,
               transaction_id: row.transaction_id,
               debit: true,
-              on_behalf_of_partner: managed ? user.full_name : null,
+              on_behalf_of_partner: useProxyAgent ? user.full_name : null,
             },
           });
           if (smsErr) smsError = (smsErr as any)?.message || 'SMS dispatch failed';
@@ -241,12 +260,16 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
               from_name: row.from_name,
               subject: row.subject,
               amount: amt,
-              route: isFloat ? 'landlord_float_debit' : 'withdrawable_debit',
+              route: isFloat
+                ? 'landlord_float_debit'
+                : isProxyAgentRoute
+                  ? 'proxy_agent_wallet_debit'
+                  : 'withdrawable_debit',
               target_user_id: debitTargetId,
               target_user_name: debitTargetName,
               target_user_phone: debitTargetPhone,
-              reason: managed
-                ? `DEBIT (proxy redirect from partner ${user.full_name}): ${reason.trim()}`
+              reason: useProxyAgent
+                ? `DEBIT (proxy${proxyInfo?.isManaged ? ' redirect' : ' route'} from partner ${user.full_name}): ${reason.trim()}`
                 : `DEBIT: ${reason.trim()}`,
               ledger_reference_id: referenceId,
               routed_by: me.user.id,
@@ -257,7 +280,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
           }
         } catch (e) { console.warn('[RouteEmailDeposit] debit history insert failed', e); }
 
-        return { ...(debitData as any), smsSent, smsError, debit: true, proxyRedirected: !!managed, debitTargetName };
+        return { ...(debitData as any), smsSent, smsError, debit: true, proxyRedirected: useProxyAgent, proxyManaged: !!proxyInfo?.isManaged, debitTargetName };
       }
 
       const isFloat = route === 'operational_float';
@@ -484,13 +507,25 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
           </div>
         )}
 
-        {mode === 'debit' && proxy.data && (
+        {mode === 'debit' && proxy.data?.isManaged && (
           <div className="rounded-lg border border-violet-300 bg-violet-50 p-3 text-xs flex gap-2 dark:bg-violet-950/30 dark:border-violet-800">
             <UserCog className="h-4 w-4 text-violet-600 shrink-0 mt-0.5" />
             <div className="space-y-0.5">
               <p className="font-medium text-violet-900 dark:text-violet-200">Managed-proxy partner detected</p>
               <p className="text-violet-800 dark:text-violet-300">
                 <span className="font-semibold">{user?.full_name}</span> is managed by proxy agent <span className="font-semibold">{proxy.data.agentName}</span>. The debit will hit the <span className="font-semibold">proxy agent's wallet</span> — the partner's wallet will not be touched.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {mode === 'debit' && proxy.data && !proxy.data.isManaged && (
+          <div className="rounded-lg border bg-muted/30 p-3 text-xs flex gap-2">
+            <UserCog className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+            <div className="space-y-0.5">
+              <p className="font-medium">Proxy agent available</p>
+              <p className="text-muted-foreground">
+                <span className="font-semibold text-foreground">{user?.full_name}</span> has proxy agent <span className="font-semibold text-foreground">{proxy.data.agentName}</span>. Pick <span className="font-semibold">"Proxy agent wallet"</span> below to debit the agent instead of the partner.
               </p>
             </div>
           </div>
@@ -562,6 +597,18 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
                   <p className="text-[11px] text-muted-foreground">Reduces the agent's float balance. Use when a landlord was paid out of the agent's collected rent float.</p>
                 </div>
               </label>
+              {proxy.data && (
+                <label className="flex items-start gap-2 rounded-lg border p-3 cursor-pointer hover:bg-muted/40">
+                  <RadioGroupItem value="proxy_agent_wallet" id="debit-proxy-agent" className="mt-0.5" />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-1.5 text-sm font-medium">
+                      <UserCog className="h-3.5 w-3.5 text-primary" /> Proxy agent wallet
+                      <span className="ml-1 text-[10px] text-muted-foreground font-normal">({proxy.data.agentName})</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">Reduces the proxy agent's withdrawable balance instead of the partner's. Use when the payout was funded out of the proxy agent's wallet on behalf of this partner.</p>
+                  </div>
+                </label>
+              )}
             </RadioGroup>
           </div>
           )}
