@@ -171,18 +171,28 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
 
       // ─── DEBIT MODE (money-out) ────────────────────────────────
       if (mode === 'debit') {
-        const managed = proxy.data;
-        // Hard rule: when the picked user is a managed-proxy partner, the
-        // debit redirects to the proxy agent's wallet. The partner's wallet
-        // is never touched (mirrors managed-proxy payout routing).
-        const debitTargetId = managed ? managed.agentId : user.id;
-        const debitTargetName = managed ? managed.agentName : user.full_name;
-        const debitTargetPhone = managed ? managed.agentPhone : user.phone;
-        const isFloat = debitRoute === 'landlord_float';
+        const proxyInfo = proxy.data;
+        // Routing rules:
+        // 1. Managed-proxy partner → ALWAYS debits proxy agent wallet
+        //    (mirrors managed-proxy payout routing; partner wallet untouched).
+        // 2. Operator explicitly picked "Proxy agent wallet" → debit proxy
+        //    agent's withdrawable (requires a proxy assignment to exist).
+        // 3. Otherwise → debit the picked user as normal.
+        const useProxyAgent =
+          (proxyInfo?.isManaged === true) || (debitRoute === 'proxy_agent_wallet' && !!proxyInfo);
+        if (debitRoute === 'proxy_agent_wallet' && !proxyInfo) {
+          throw new Error('No active proxy agent found for this user');
+        }
+        const debitTargetId = useProxyAgent ? proxyInfo!.agentId : user.id;
+        const debitTargetName = useProxyAgent ? proxyInfo!.agentName : user.full_name;
+        const debitTargetPhone = useProxyAgent ? proxyInfo!.agentPhone : user.phone;
+        // Proxy-agent route always lands on the agent's withdrawable bucket.
+        const isFloat = debitRoute === 'landlord_float' && !useProxyAgent;
+        const isProxyAgentRoute = useProxyAgent;
         const debitBody = {
           target_user_id: debitTargetId,
           amount: amt,
-          reason: managed
+          reason: useProxyAgent
             ? `Outgoing email charged to proxy agent wallet (on behalf of partner ${user.full_name}): ${reason.trim()}`
             : reason.trim(),
           operation: 'debit' as const,
@@ -191,7 +201,11 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
           wallet_category: isFloat ? 'agent_float_deposit' : 'wallet_transfer',
           platform_category: isFloat ? 'agent_float_deposit' : 'wallet_transfer',
           financial_impact: 'neutral' as const,
-          category_label: isFloat ? 'Email charge → Landlord-Payout Float' : 'Email charge → Withdrawable',
+          category_label: isFloat
+            ? 'Email charge → Landlord-Payout Float'
+            : isProxyAgentRoute
+              ? `Email charge → Proxy agent wallet (for ${user.full_name})`
+              : 'Email charge → Withdrawable',
           recipient_type: isFloat ? 'operational_wallet' : 'user',
           sub_category: row.transaction_id ?? null,
         };
@@ -210,12 +224,16 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
               phone: debitTargetPhone,
               target_user_name: debitTargetName,
               amount: amt,
-              route: isFloat ? 'landlord_float_debit' : 'withdrawable_debit',
+              route: isFloat
+                ? 'landlord_float_debit'
+                : isProxyAgentRoute
+                  ? 'proxy_agent_wallet_debit'
+                  : 'withdrawable_debit',
               reference_id: referenceId,
               from_label: fromLabel,
               transaction_id: row.transaction_id,
               debit: true,
-              on_behalf_of_partner: managed ? user.full_name : null,
+              on_behalf_of_partner: useProxyAgent ? user.full_name : null,
             },
           });
           if (smsErr) smsError = (smsErr as any)?.message || 'SMS dispatch failed';
@@ -242,12 +260,16 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
               from_name: row.from_name,
               subject: row.subject,
               amount: amt,
-              route: isFloat ? 'landlord_float_debit' : 'withdrawable_debit',
+              route: isFloat
+                ? 'landlord_float_debit'
+                : isProxyAgentRoute
+                  ? 'proxy_agent_wallet_debit'
+                  : 'withdrawable_debit',
               target_user_id: debitTargetId,
               target_user_name: debitTargetName,
               target_user_phone: debitTargetPhone,
-              reason: managed
-                ? `DEBIT (proxy redirect from partner ${user.full_name}): ${reason.trim()}`
+              reason: useProxyAgent
+                ? `DEBIT (proxy${proxyInfo?.isManaged ? ' redirect' : ' route'} from partner ${user.full_name}): ${reason.trim()}`
                 : `DEBIT: ${reason.trim()}`,
               ledger_reference_id: referenceId,
               routed_by: me.user.id,
@@ -258,7 +280,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
           }
         } catch (e) { console.warn('[RouteEmailDeposit] debit history insert failed', e); }
 
-        return { ...(debitData as any), smsSent, smsError, debit: true, proxyRedirected: !!managed, debitTargetName };
+        return { ...(debitData as any), smsSent, smsError, debit: true, proxyRedirected: useProxyAgent, proxyManaged: !!proxyInfo?.isManaged, debitTargetName };
       }
 
       const isFloat = route === 'operational_float';
