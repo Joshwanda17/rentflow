@@ -163,6 +163,28 @@ export function PartnerCompound({
     }]
   }
 
+  // ---- Highlight "New Total Partnership Value" ----
+  // Per partner agreement, the headline value must equal:
+  //   Original Principal + Cumulative Returns Earned (simple, non-compounded)
+  // and NOT the rolling compounded balance. The breakdown timeline below still
+  // visualises how compounding produced the cycle-by-cycle balances — only
+  // this headline figure is restated as the linear principal + returns total.
+  //
+  // Derivation (when payment_number & ROI% are known):
+  //   originalPrincipal = newTotal / (1 + r)^cyclesDone
+  //   linearTotal       = originalPrincipal × (1 + r × cyclesDone)
+  // Fallbacks (in order):
+  //   1. initial_partnership_amount + return_amount (single-cycle / first cycle)
+  //   2. newTotalNum (legacy behaviour, when we have no rate or cycle index)
+  let highlightTotalNum = newTotalNum
+  if (r > 0 && cyclesDone >= 1 && newTotalNum > 0) {
+    const originalPrincipal = newTotalNum / Math.pow(1 + r, cyclesDone)
+    highlightTotalNum = originalPrincipal * (1 + r * cyclesDone)
+  } else if (initNum > 0 || retNum > 0) {
+    highlightTotalNum = initNum + retNum
+  }
+  const formattedHighlightTotal = formatAmount(Math.round(highlightTotalNum), currency)
+
   return (
     <Html>
       <Head>
@@ -224,8 +246,8 @@ export function PartnerCompound({
                         <tr>
                           <td align="center" style={highlightInner}>
                             <Text style={highlightEyebrow}>New Total Partnership Value</Text>
-                            <Text style={highlightValue}>{formattedNewTotal}</Text>
-                            <Text style={highlightSub}>Your portfolio has been compounded accordingly.</Text>
+                            <Text style={highlightValue}>{formattedHighlightTotal}</Text>
+                            <Text style={highlightSub}>Principal plus returns earned to date.</Text>
                           </td>
                         </tr>
                       </tbody>
