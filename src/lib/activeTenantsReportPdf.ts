@@ -124,7 +124,7 @@ export async function generateAndDownloadActiveTenantsPdf() {
   const totalRepaid = rows.reduce((s, r) => s + r.repaid, 0);
   const totalOutstanding = rows.reduce((s, r) => s + r.outstanding, 0);
   const collectionRate = totalExpected > 0 ? Math.round((totalRepaid / totalExpected) * 100) : 0;
-  const defaulterCount = rows.filter((r) => r.status_label === 'Defaulted').length;
+  const clearedCount = rows.filter((r) => r.status_label === 'Cleared').length;
   const repayingCount = rows.filter((r) => r.status_label === 'Repaying').length;
 
   const tableRows = rows.map((r, i) => [
@@ -144,12 +144,12 @@ export async function generateAndDownloadActiveTenantsPdf() {
   ]);
 
   const blob = generateTenantOpsExtractPdf({
-    title: 'Tenants Report — Rent Plan Repayments (since Jan 2026)',
-    subtitle: 'All tenants with a disbursed rent plan since 1 Jan 2026, including defaulters. Landlord and agent contacts included.',
+    title: 'Tenants Report — Active Rent Plans',
+    subtitle: 'Every tenant on a currently active rent plan. Principal, expected and outstanding use stored ledger values so totals reconcile with the Agent Daily Performance report.',
     kpis: [
       { label: 'Tenants', value: String(rows.length) },
       { label: 'Repaying', value: String(repayingCount) },
-      { label: 'Defaulters', value: String(defaulterCount), color: [180, 60, 50] },
+      { label: 'Cleared', value: String(clearedCount), color: [22, 130, 80] },
       { label: 'Principal Disbursed', value: `UGX ${Math.round(totalPrincipal).toLocaleString()}` },
       { label: 'Total Expected', value: `UGX ${Math.round(totalExpected).toLocaleString()}` },
       { label: 'Collected', value: `UGX ${Math.round(totalRepaid).toLocaleString()}`, color: [22, 130, 80] },
@@ -173,9 +173,9 @@ export async function generateAndDownloadActiveTenantsPdf() {
     ],
     rows: tableRows,
     totals: ['', 'TOTALS', '', '', '', '', '', '', totalPrincipal, totalExpected, totalOutstanding, '', ''],
-    footerNote: 'Expected = Principal × 1.33^(days/30) + registration fee (UGX 10,000 if rent ≤ 200,000, else 20,000). Outstanding = Expected − Repaid. Defaulted = outstanding > 0 past end + 7d grace, or tenancy ended due to default/eviction/abandonment/arrears. Confidential — Welile internal report.',
+    footerNote: 'Active book only (status in funded, disbursed, repaying, active, approved). Principal = stored rent_amount. Expected = stored total_repayment. Outstanding = Expected − Repaid. Confidential — Welile internal report.',
   });
 
-  downloadPdfBlob(blob, `tenants-since-jan2026-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+  downloadPdfBlob(blob, `tenants-active-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
   return rows.length;
 }
