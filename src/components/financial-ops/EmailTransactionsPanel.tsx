@@ -783,8 +783,11 @@ export function EmailTransactionsPanel() {
     const rowFromPhones = new Map<string, string[]>();
     const rowToPhones = new Map<string, string[]>();
     const rowRefs = new Map<string, string[]>();
+    const rowToNames = new Map<string, string[]>();
+    const rowFromNames = new Map<string, string[]>();
     const allPhones = new Set<string>();
     const allRefs = new Set<string>();
+    const allNames = new Set<string>();
     for (const r of rows) {
       const phones = extractPhones(r);
       if (phones.length) {
@@ -806,13 +809,24 @@ export function EmailTransactionsPanel() {
         rowRefs.set(r.id, refs);
         refs.forEach((x) => allRefs.add(x));
       }
+      const toNames = extractToNames(r);
+      if (toNames.length) {
+        rowToNames.set(r.id, toNames);
+        toNames.forEach((n) => allNames.add(n));
+      }
+      const fromNames = extractFromNames(r);
+      if (fromNames.length) {
+        rowFromNames.set(r.id, fromNames);
+        fromNames.forEach((n) => allNames.add(n));
+      }
     }
-    if (allPhones.size === 0 && allRefs.size === 0) {
+    if (allPhones.size === 0 && allRefs.size === 0 && allNames.size === 0) {
       setUserMatches({});
       return;
     }
     const phoneList = Array.from(allPhones);
     const refList = Array.from(allRefs);
+    const nameList = Array.from(allNames);
     (async () => {
       // Build the in-list once and query both phone columns.
       const profileQ = phoneList.length
@@ -829,7 +843,21 @@ export function EmailTransactionsPanel() {
             .in('transaction_id', refList)
             .limit(500)
         : Promise.resolve({ data: [], error: null });
-      const [{ data, error }, { data: deps }] = await Promise.all([profileQ, depQ]);
+      // Name-based lookup: match every extracted "to NAME" / "from NAME"
+      // against profiles.full_name with case-insensitive substring. Cap the
+      // OR-list to avoid PostgREST URL bloat on huge inboxes.
+      const cappedNames = nameList.slice(0, 40);
+      const nameQ = cappedNames.length
+        ? (supabase.from('profiles') as any)
+            .select('id, full_name, phone, mobile_money_number, verified')
+            .or(cappedNames.map((n) => `full_name.ilike.%${n.replace(/[,()]/g, ' ')}%`).join(','))
+            .limit(500)
+        : Promise.resolve({ data: [], error: null });
+      const [{ data, error }, { data: deps }, { data: nameData }] = await Promise.all([
+        profileQ,
+        depQ,
+        nameQ,
+      ]);
       if (cancelled || error) return;
       type P = { id: string; full_name: string; phone: string | null; mobile_money_number: string | null };
       const byPhone = new Map<string, P[]>();
@@ -841,6 +869,21 @@ export function EmailTransactionsPanel() {
           if (!list.find((x) => x.id === p.id)) list.push(p);
           byPhone.set(n, list);
         }
+      }
+      // Build a name → matching profiles index. A profile matches a name when
+      // every non-trivial token in the extracted name appears in full_name
+      // (case-insensitive). Guards against "JAMES" matching every James in DB.
+      const nameProfiles = (nameData ?? []) as P[];
+      const byName = new Map<string, P[]>();
+      for (const candidate of nameList) {
+        const tokens = candidate.split(/\s+/).filter((t) => t.length > 1);
+        if (tokens.length < 2) continue;
+        const hits: P[] = [];
+        for (const p of nameProfiles) {
+          const haystack = (p.full_name ?? '').toUpperCase();
+          if (tokens.every((t) => haystack.includes(t))) hits.push(p);
+        }
+        if (hits.length) byName.set(candidate, hits);
       }
       // Resolve deposit_requests.user_id → profile in a second roundtrip so
       // we don't depend on a specific FK alias being declared on the table.
@@ -896,6 +939,26 @@ export function EmailTransactionsPanel() {
             });
           }
         }
+        // 3. Name match (recipient/sender by full_name). Lower priority than
+        //    phone/reference but surfaces names like "JAMES KATONGOLE" when
+        //    the provider email omits a phone number entirely.
+        const rowNames = [
+          ...(rowToNames.get(rowId) ?? []).map((n) => ({ n, kw: 'to' as const })),
+          ...(rowFromNames.get(rowId) ?? []).map((n) => ({ n, kw: 'from' as const })),
+        ];
+        for (const { n, kw } of rowNames) {
+          for (const p of byName.get(n) ?? []) {
+            if (seen.has(p.id)) continue;
+            seen.add(p.id);
+            list.push({
+              id: p.id,
+              full_name: p.full_name,
+              phone: p.phone,
+              mobile_money_number: p.mobile_money_number,
+              matched_on: `name-${kw} ${n}`,
+            });
+          }
+        }
         if (list.length) next[rowId] = list;
       }
       // Rows that had no extracted phone but did match by reference id.
@@ -911,6 +974,34 @@ export function EmailTransactionsPanel() {
               id: p.id, full_name: p.full_name,
               phone: p.phone, mobile_money_number: p.mobile_money_number,
               matched_on: `reference ${ref}`,
+            });
+          }
+        }
+        if (list.length) next[rowId] = list;
+      }
+      // Rows whose only signal was a name (no phone, no TID). Critical for
+      // money-out emails like Equity Bank that print only the recipient name.
+      for (const rowId of new Set([
+        ...Array.from(rowToNames.keys()),
+        ...Array.from(rowFromNames.keys()),
+      ])) {
+        if (next[rowId]) continue;
+        const list: MatchedUser[] = [];
+        const seen = new Set<string>();
+        const rowNames = [
+          ...(rowToNames.get(rowId) ?? []).map((n) => ({ n, kw: 'to' as const })),
+          ...(rowFromNames.get(rowId) ?? []).map((n) => ({ n, kw: 'from' as const })),
+        ];
+        for (const { n, kw } of rowNames) {
+          for (const p of byName.get(n) ?? []) {
+            if (seen.has(p.id)) continue;
+            seen.add(p.id);
+            list.push({
+              id: p.id,
+              full_name: p.full_name,
+              phone: p.phone,
+              mobile_money_number: p.mobile_money_number,
+              matched_on: `name-${kw} ${n}`,
             });
           }
         }
