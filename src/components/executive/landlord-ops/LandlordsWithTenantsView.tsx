@@ -7,10 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
   Loader2, Users, Search, CheckCircle2, Clock, ChevronDown, ChevronRight,
-  Phone, Building2, AlertTriangle, UserX,
+  Phone, Building2, AlertTriangle, UserX, Download,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
+import { downloadXlsx } from '@/lib/xlsxExport';
+import { toast } from 'sonner';
 
 type StatusFilter = 'all' | 'paid' | 'pending' | 'empty';
 
@@ -58,6 +60,7 @@ export function LandlordsWithTenantsView() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [exporting, setExporting] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['landlord-ops-landlords-tenants'],
