@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { phone, target_user_name, amount, route, reference_id, from_label, transaction_id } = await req.json();
+    const { phone, target_user_name, amount, route, reference_id, from_label, transaction_id, reversal } = await req.json();
     if (!phone || !amount || !route) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -98,10 +98,15 @@ Deno.serve(async (req) => {
     const routeLabel = route === "operational_float" ? "Operational Float" : "Personal Deposit";
     const formattedAmount = `UGX ${Number(amount).toLocaleString()}`;
     const greeting = target_user_name ? `Hi ${String(target_user_name).split(" ")[0]},` : "Hi,";
-    const msgLines = [
-      `WELILE: ${greeting}`,
-      `${formattedAmount} has been routed to your wallet as ${routeLabel}.`,
-    ];
+    const msgLines = [`WELILE: ${greeting}`];
+    if (reversal) {
+      msgLines.push(
+        `${formattedAmount} previously credited to your ${routeLabel} has been REVERSED and re-routed to the correct user.`,
+      );
+      msgLines.push("If this was unexpected, please contact support immediately.");
+    } else {
+      msgLines.push(`${formattedAmount} has been routed to your wallet as ${routeLabel}.`);
+    }
     if (from_label) msgLines.push(`From: ${from_label}`);
     if (transaction_id) msgLines.push(`TID: ${transaction_id}`);
     if (reference_id) msgLines.push(`Ref: ${reference_id}`);
