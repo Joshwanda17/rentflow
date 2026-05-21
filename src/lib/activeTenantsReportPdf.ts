@@ -1,8 +1,6 @@
 import { format } from 'date-fns';
 import { generateTenantOpsExtractPdf, downloadPdfBlob } from './generateTenantOpsExtractPdf';
 import { supabase } from '@/integrations/supabase/client';
-import { calculateRentRepayment } from './rentCalculations';
-import { getEffectiveRentRequestAmounts } from './rentRequestAmounts';
 
 interface ActiveTenantRow {
   tenant_name: string;
@@ -20,8 +18,15 @@ interface ActiveTenantRow {
   end_date: string | null;
 }
 
-const ACTIVE_STATUSES = new Set(['funded', 'disbursed', 'repaying', 'active', 'approved']);
-const CUTOFF_ISO = '2026-01-01';
+// Unified active-book definition shared across:
+//   • Tenants Report (this file)
+//   • Agent Daily Performance (AgentDailyOverviewReportButton.tsx)
+// Row set: every rent_request whose status is in ACTIVE_STATUSES, no date
+// cutoff, regardless of whether an agent is assigned. Principal uses the
+// stored rent_amount; Outstanding uses the stored
+// total_repayment − amount_repaid. Do not recompute these locally — keeping
+// the math identical is what makes the three reports reconcile.
+const ACTIVE_STATUSES = ['funded', 'disbursed', 'repaying', 'active', 'approved'];
 
 async function fetchAllRentRequests() {
   const PAGE = 1000;
@@ -30,10 +35,9 @@ async function fetchAllRentRequests() {
   while (true) {
     const { data, error } = await supabase
       .from('rent_requests')
-      .select('id, tenant_id, landlord_id, agent_id, assigned_agent_id, rent_amount, total_repayment, amount_repaid, disbursed_at, duration_days, status, tenancy_status, tenancy_ended_at, tenancy_end_reason, registration_type, initial_outstanding_balance')
-      .gte('disbursed_at', CUTOFF_ISO)
-      .not('disbursed_at', 'is', null)
-      .order('disbursed_at', { ascending: false })
+      .select('id, tenant_id, landlord_id, agent_id, assigned_agent_id, rent_amount, total_repayment, amount_repaid, disbursed_at, duration_days, status')
+      .in('status', ACTIVE_STATUSES)
+      .order('disbursed_at', { ascending: false, nullsFirst: false })
       .range(from, from + PAGE - 1);
     if (error) throw error;
     if (!data || data.length === 0) break;
