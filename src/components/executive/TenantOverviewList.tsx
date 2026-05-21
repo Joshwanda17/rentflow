@@ -313,7 +313,7 @@ function ExportActiveTenantsButton() {
   return (
     <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" onClick={handle} disabled={exporting}>
       {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-      <span className="ml-1">Active Tenants PDF</span>
+      <span className="ml-1">Tenants Report PDF</span>
     </Button>
   );
 }
