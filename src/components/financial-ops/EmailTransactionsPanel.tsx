@@ -1548,6 +1548,13 @@ export function EmailTransactionsPanel() {
 
       <DedupAuditPanel />
 
+      <RouteEmailDepositDialog
+        open={!!routingRow}
+        onOpenChange={(o) => { if (!o) { setRoutingRow(null); setRoutingSuggestedUser(null); } }}
+        row={routingRow as EmailRowForRouting | null}
+        suggestedUser={routingSuggestedUser}
+      />
+
       <FixChannelDialog
         row={editingRow}
         onClose={() => setEditingRow(null)}
