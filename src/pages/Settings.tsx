@@ -307,7 +307,22 @@ export default function Settings() {
                     {/* Email is now editable via dedicated EmailEditor below */}
                     <div className="space-y-1.5">
                       <Label htmlFor="phone" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Phone</Label>
-                      <div className="relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g. 0783673998" className="pl-10 h-12 rounded-xl" /></div>
+                      <div className="relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="phone" type="tel" value={phone} onChange={(e) => { setPhone(e.target.value); if (otp.otpVerified || otp.otpSent) otp.resetOtp(); }} placeholder="e.g. 0783673998" className="pl-10 h-12 rounded-xl" /></div>
+                      {profile && phone.trim() !== (profile.phone ?? '').trim() && phone.trim() && (
+                        <div className="pt-2">
+                          <OtpVerificationStep
+                            phone={phone.trim()}
+                            otpSent={otp.otpSent}
+                            otpVerified={otp.otpVerified}
+                            otpLoading={otp.otpLoading}
+                            otpError={otp.otpError}
+                            onSendOtp={() => otp.sendOtp(phone.trim())}
+                            onVerifyOtp={(code) => otp.verifyOtp(phone.trim(), code)}
+                            onResendOtp={() => otp.sendOtp(phone.trim())}
+                          />
+                          <p className="text-[11px] text-muted-foreground mt-2">We'll send a 6-digit code to confirm this number before it replaces your current login phone.</p>
+                        </div>
+                      )}
                     </div>
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
@@ -337,7 +352,13 @@ export default function Settings() {
                         </div>
                       )}
                     </div>
-                    <Button onClick={handleSave} disabled={saving} className="w-full gap-2 h-12 rounded-xl text-sm font-bold">{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save Changes</Button>
+                    {(() => {
+                      const phoneChanged = !!profile && phone.trim() !== (profile.phone ?? '').trim();
+                      const blocked = phoneChanged && !otp.otpVerified;
+                      return (
+                        <Button onClick={handleSave} disabled={saving || blocked} className="w-full gap-2 h-12 rounded-xl text-sm font-bold">{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {blocked ? 'Verify phone to save' : 'Save Changes'}</Button>
+                      );
+                    })()}
                   </CardContent>
                 </Card>
                 {user && profile && (
