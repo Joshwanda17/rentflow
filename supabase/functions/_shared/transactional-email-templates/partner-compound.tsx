@@ -246,8 +246,8 @@ export function PartnerCompound({
                         <tr>
                           <td align="center" style={highlightInner}>
                             <Text style={highlightEyebrow}>New Total Partnership Value</Text>
-                            <Text style={highlightValue}>{formattedNewTotal}</Text>
-                            <Text style={highlightSub}>Your portfolio has been compounded accordingly.</Text>
+                            <Text style={highlightValue}>{formattedHighlightTotal}</Text>
+                            <Text style={highlightSub}>Principal plus returns earned to date.</Text>
                           </td>
                         </tr>
                       </tbody>
