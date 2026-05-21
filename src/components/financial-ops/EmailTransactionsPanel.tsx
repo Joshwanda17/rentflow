@@ -1194,7 +1194,21 @@ export function EmailTransactionsPanel() {
       </div>
 
       {/* Date-range selector — recomputes totals/breakdown/exports for the chosen period. */}
-      <div className="rounded-xl border bg-card p-3 sm:p-4 flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3 sm:gap-4">
+      <div className="sm:hidden flex items-center justify-between gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex-1 gap-2"
+          onClick={() => setMobileFiltersOpen((v) => !v)}
+        >
+          {mobileFiltersOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          {mobileFiltersOpen ? 'Hide filters' : 'Filters & date range'}
+          {(rangeActive || searchActive) && (
+            <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">active</Badge>
+          )}
+        </Button>
+      </div>
+      <div className={`rounded-xl border bg-card p-3 sm:p-4 flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3 sm:gap-4 ${mobileFiltersOpen ? 'flex' : 'hidden sm:flex'}`}>
         <div className="flex-1 min-w-full sm:min-w-[200px]">
           <h3 className="font-semibold text-sm">Date range</h3>
           <p className="text-[11px] text-muted-foreground mt-0.5">
