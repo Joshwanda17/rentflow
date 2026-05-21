@@ -110,8 +110,25 @@ function parseTransaction(text: string): {
   else if (/\b(sent|paid|withdrawn|withdrew|debited|cash out|transferred to|payment to|purchase of|bought)\b/i.test(t)) out.direction = 'out';
   else if (/\b(charge|fee|fees|tax|levy)\b/i.test(t) && !/charge\s*[:\-]?\s*(?:ugx)?\s*0\b/i.test(t)) out.direction = 'charge';
 
-  const feeM = t.match(new RegExp(String.raw`(?:Charge|Fee|Fees|Tax|Levy)\s*[:.\-]?\s*` + AMT, 'i'));
-  if (feeM) out.fee = toInt(feeM[1]);
+  // Sum every fee/charge/tax/excise/commission/VAT/stamp-duty component
+  // mentioned in the body so totals reflect the FULL cost the provider
+  // (MTN / Airtel / Equity Bank / etc.) deducted, not just the first label.
+  // Each unique (label, value, position) match contributes once.
+  {
+    const feeLabel = String.raw`(?:Transaction\s+Fee|Service\s+Fee|Bank\s+Fee|Bank\s+Charge|Withdraw(?:al)?\s+Fee|Charges?|Fees?|Excise(?:\s+Duty)?|VAT|Tax(?:es)?|Levy|Levies|Commission|Stamp\s+Duty)`;
+    const feeRe = new RegExp(feeLabel + String.raw`\s*[:.\-]?\s*` + AMT, 'gi');
+    let feeSum = 0;
+    const seen = new Set<number>();
+    for (const m of t.matchAll(feeRe)) {
+      const n = toInt(m[1]);
+      if (n === undefined || n <= 0) continue;
+      const idx = m.index ?? -1;
+      if (seen.has(idx)) continue;
+      seen.add(idx);
+      feeSum += n;
+    }
+    if (feeSum > 0) out.fee = feeSum;
+  }
   const balM = t.match(new RegExp(String.raw`(?:New\s+balance|Balance|Bal)\s*[:.\-]?\s*` + AMT, 'i'));
   if (balM) out.balance = toInt(balM[1]);
 
