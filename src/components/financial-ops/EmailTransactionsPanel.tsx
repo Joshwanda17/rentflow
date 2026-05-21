@@ -1375,6 +1375,8 @@ export function EmailTransactionsPanel() {
                   <th className="text-right px-4 py-2 font-semibold text-emerald-700">Total in</th>
                   <th className="text-right px-4 py-2 font-semibold">Out (count)</th>
                   <th className="text-right px-4 py-2 font-semibold text-rose-700">Total out</th>
+                  <th className="text-right px-4 py-2 font-semibold">Fees (count)</th>
+                  <th className="text-right px-4 py-2 font-semibold text-amber-700">Total fees</th>
                   <th className="text-right px-4 py-2 font-semibold">Net</th>
                 </tr>
               </thead>
@@ -1386,6 +1388,8 @@ export function EmailTransactionsPanel() {
                     <td className="px-4 py-2 text-right tabular-nums font-mono text-emerald-700">{fmtUgx(b.inTotal)}</td>
                     <td className="px-4 py-2 text-right tabular-nums text-muted-foreground">{b.outCount}</td>
                     <td className="px-4 py-2 text-right tabular-nums font-mono text-rose-700">{fmtUgx(b.outTotal)}</td>
+                    <td className="px-4 py-2 text-right tabular-nums text-muted-foreground">{b.feeCount}</td>
+                    <td className="px-4 py-2 text-right tabular-nums font-mono text-amber-700">{fmtUgx(b.feeTotal)}</td>
                     <td className={`px-4 py-2 text-right tabular-nums font-mono font-semibold ${b.net >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
                       {b.net < 0 ? '-' : ''}{fmtUgx(Math.abs(b.net))}
                     </td>
@@ -1399,6 +1403,8 @@ export function EmailTransactionsPanel() {
                   <td className="px-4 py-2 text-right tabular-nums font-mono text-emerald-700">{fmtUgx(totalIn)}</td>
                   <td className="px-4 py-2 text-right tabular-nums">{channelBreakdown.reduce((s, b) => s + b.outCount, 0)}</td>
                   <td className="px-4 py-2 text-right tabular-nums font-mono text-rose-700">{fmtUgx(totalOut)}</td>
+                  <td className="px-4 py-2 text-right tabular-nums">{channelBreakdown.reduce((s, b) => s + b.feeCount, 0)}</td>
+                  <td className="px-4 py-2 text-right tabular-nums font-mono text-amber-700">{fmtUgx(totalFees)}</td>
                   <td className={`px-4 py-2 text-right tabular-nums font-mono ${netAmount >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
                     {netAmount < 0 ? '-' : ''}{fmtUgx(Math.abs(netAmount))}
                   </td>
