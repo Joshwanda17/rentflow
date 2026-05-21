@@ -1520,6 +1520,23 @@ export function EmailTransactionsPanel() {
                     <p className="text-[10px] text-muted-foreground mt-0.5">
                       {r.internal_date ? format(new Date(r.internal_date), 'MMM d, HH:mm') : '—'}
                     </p>
+                    {r.amount && r.amount > 0 && r.direction !== 'out' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="mt-1.5 h-7 text-[11px] gap-1"
+                        onClick={() => {
+                          const matches = userMatches[r.id] ?? [];
+                          const top = matches
+                            .map((u) => ({ u, s: u.matched_on.startsWith('reference ') ? 100 : u.matched_on.startsWith('from ') ? 90 : 60 }))
+                            .sort((a, b) => b.s - a.s)[0]?.u;
+                          setRoutingSuggestedUser(top ? { id: top.id, full_name: top.full_name, phone: top.phone ?? '' } : null);
+                          setRoutingRow(r);
+                        }}
+                      >
+                        Route to user <ArrowRight className="h-3 w-3" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>
