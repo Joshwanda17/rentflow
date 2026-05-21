@@ -1883,6 +1883,31 @@ export function EmailTransactionsPanel() {
                       </Button>
                     )}
                     {r.amount && r.amount > 0 && (r.direction === 'out' || r.direction === 'charge') && (
+                      (() => {
+                        const wMatches = withdrawalMatches[r.id] ?? [];
+                        if (wMatches.length !== 1) return null;
+                        const m = wMatches[0];
+                        const busy = !!autoApproving[r.id];
+                        return (
+                          <Button
+                            size="sm"
+                            variant="default"
+                            className="mt-1.5 h-7 text-[11px] gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                            disabled={busy}
+                            title={`Match: withdrawal ${m.id.slice(0,8)}… for ${m.user_name || 'user'} (${m.mobile_money_number || m.bank_account_number || '—'}) · ${m.matched_on}`}
+                            onClick={() => autoApproveWithdrawal(r, m)}
+                          >
+                            {busy ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <CheckCircle2 className="h-3 w-3" />
+                            )}
+                            Auto-approve payout
+                          </Button>
+                        );
+                      })()
+                    )}
+                    {r.amount && r.amount > 0 && (r.direction === 'out' || r.direction === 'charge') && (
                       <Button
                         size="sm"
                         variant="outline"
