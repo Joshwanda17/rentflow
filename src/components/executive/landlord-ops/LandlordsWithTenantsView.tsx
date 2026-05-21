@@ -572,14 +572,27 @@ export function LandlordsWithTenantsView() {
 
       {/* Filters */}
       <div className="space-y-2">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search landlord or tenant..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search landlord or tenant..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleExport}
+            disabled={exporting}
+            className="shrink-0 h-10 gap-1.5"
+            title="Download full extract (.xlsx) — respects current search and status filter"
+          >
+            {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            <span className="hidden sm:inline">{exporting ? 'Building…' : 'Download Report'}</span>
+          </Button>
         </div>
         <div className="flex gap-1 overflow-x-auto pb-1">
           {(['all', 'paid', 'pending', 'empty'] as StatusFilter[]).map(s => (
