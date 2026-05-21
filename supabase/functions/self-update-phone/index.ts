@@ -48,6 +48,23 @@ serve(async (req) => {
     }
     const authPhone = normalized.replace(/^\+/, "");
 
+    // Require recent OTP verification for the new phone (last 10 minutes).
+    // The sms-otp function stores rows keyed by the last 9 digits of the phone.
+    const last9 = authPhone.slice(-9);
+    const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    const { data: otpRow } = await adminClient
+      .from("otp_verifications")
+      .select("verified, verified_at")
+      .eq("phone", last9)
+      .eq("verified", true)
+      .gte("verified_at", tenMinAgo)
+      .order("verified_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!otpRow) {
+      return json({ error: "Please verify this phone number with an SMS code before saving." }, 403);
+    }
+
     // Duplicate check (other users)
     const { data: dup } = await adminClient
       .from("profiles")
