@@ -1,35 +1,40 @@
-## Add "Download Daily Report" button to Agent Dashboard
+## Active Tenants Report (PDF) — Tenant Ops
 
-Add a button on the agent dashboard that generates a PDF showing **that agent's** daily performance — same shape as the company-wide report just delivered, but scoped to the logged-in agent and broken down **per active tenant** (row-per-tenant), since a single agent's report makes more sense as a tenant-level breakdown than a single summary row.
+Add a one-click PDF export on the **COO → Reports → Tenant Ops** page that lists every currently-repaying tenant (with their assigned agent) as one row per tenant.
 
-### Where
-- `src/components/dashboards/AgentDashboard.tsx` — place the button next to `AgentDailyOpsCard` (top of dashboard) as a compact action button: "Download Today's Report (PDF)".
+### Where it lives
+- New button "Download Active Tenants (PDF)" placed in the header area of `src/pages/coo/reports/TenantOpsReport.tsx`, next to the existing "Generate / Refresh" action exposed by `COOReportPage`.
+- Same visual treatment as the existing nearing-payouts export so it feels native.
 
-### What the PDF contains
-**Header**
-- Agent name + phone, report date (default = today), generation timestamp.
-- Summary line: Active tenants · Expected today · Collected today · Collection rate % · Principal company has paid · Outstanding.
+### Data source (read-only, no schema changes)
+Pulled client-side from existing tables (RLS already permits COO):
 
-**Table — one row per active tenant**
-| # | Tenant Name | Phone | Rent (Principal) | Daily Expected | Collected Today | Status (Paid/Pending) | Total Repaid | Outstanding |
+- `rent_requests` — filter `status IN ('funded','disbursed','repaying','active','approved')` AND `disbursed_at IS NOT NULL` (i.e. money has gone out and tenant is repaying). Fields: `tenant_id`, `agent_id`, `rent_amount` (principal), `total_repayment` (expected), `disbursed_at` (start), `due_date` / `repayment_end_date` (end), `id`.
+- `profiles` — for tenant name + phone, and for agent name + phone (joined by `tenant_id`, `agent_id`).
+- `agent_collections` (or `general_ledger` repayment legs, whichever the existing daily report uses) — sum of `amount` per `rent_request_id` to get **Total Repaid**, then **Outstanding = total_repayment − total_repaid**.
 
-Totals row at the bottom.
+Fetched in a single hook `useActiveTenantsReport()` placed under `src/components/coo/`. Pagination via `range()` loop (1000-row Supabase limit) to be safe at scale.
 
-Plus an optional "Collections today" sub-table listing each `agent_collections` row (time, tenant, amount, method, TID).
+### PDF
+- New helper `src/lib/activeTenantsReportPdf.ts` built on the existing `generateTenantOpsExtractPdf` (landscape A4, branded header, KPI strip, striped table, page footer) — no new PDF engine.
+- KPI strip: Active tenants · Total principal disbursed · Total expected · Total collected · Total outstanding · Collection rate %.
+- Table — one row per active tenant:
 
-### How (frontend only)
-1. New helper `src/lib/agentDailyReportPdf.ts` using `jspdf` (already used by `agentPerformanceReportPdf.ts`) — generate landscape A4, save via `pdf.save()`.
-2. New hook/loader that fetches for the logged-in agent on click:
-   - `rent_requests` where `agent_id = me` and `status IN (funded, disbursed, repaying, active, approved)` joined to tenant `profiles`
-   - `agent_collections` where `agent_id = me` and `created_at` within selected date
-3. Button component `AgentDailyReportButton.tsx` in `src/components/agent/`. Shows a small date picker (defaults to today, last 7 days selectable) + Download button with loading state and toast on success/error.
-4. Wire into `AgentDashboard.tsx` near the daily ops card.
+  | # | Tenant Name | Phone | Agent | Principal Paid | Expected (Total Repayment) | Outstanding | Start Date | End Date |
+
+  Totals row at the bottom (Principal / Expected / Outstanding).
+- File name: `active-tenants-YYYY-MM-DD.pdf`.
+
+### UX
+- Button shows spinner while fetching + generating; toast on success/error (matches the nearing-payouts export pattern).
+- No date picker in v1 — the report is a snapshot of currently-active tenants as of "now". (Easy to add a date filter later if needed.)
 
 ### Out of scope
-- No backend / edge function changes.
-- No new tables, no RLS changes (existing RLS already lets agents read their own rent_requests + collections).
-- No changes to the company-wide PDF already delivered.
+- No backend / edge function / RLS / schema changes.
+- No CSV variant (PDF only, per the established pattern for COO exports).
+- No changes to the existing dashboard KPIs/charts on the Tenant Ops page.
 
 ### Confirm before I build
-- **Row granularity**: per-tenant breakdown (recommended) — agree?
-- **Date picker**: today + last 7 days, or just today?
+1. **"Company principal paid"** = `rent_requests.rent_amount` (the rent the platform disbursed to the landlord on the tenant's behalf). Correct interpretation?
+2. **"Agent assigned"** = `rent_requests.agent_id` (the agent on the rent plan). If a tenant has multiple active rent plans, should they appear as multiple rows (one per plan) or be collapsed into one row with the latest plan? Default plan: **one row per active rent plan** (clearer and matches how outstanding is tracked).
+3. Include agent **phone** alongside agent **name** in the Agent column, or name only?
