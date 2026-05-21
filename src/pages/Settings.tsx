@@ -331,6 +331,15 @@ export default function Settings() {
                     <div className="space-y-1.5">
                       <Label htmlFor="phone" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Phone</Label>
                       <div className="relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="phone" type="tel" value={phone} onChange={(e) => { setPhone(e.target.value); if (otp.otpVerified || otp.otpSent) otp.resetOtp(); }} placeholder="e.g. 0783673998" className="pl-10 h-12 rounded-xl" /></div>
+                      {normalizedPreview && (
+                        <div className="flex items-center gap-2 mt-1">
+                          <Check className="h-3 w-3 text-success" />
+                          <span className="text-[11px] text-muted-foreground">Will be saved as</span>
+                          <code className="text-[11px] font-semibold text-foreground bg-primary/10 px-1.5 py-0.5 rounded-md font-mono tracking-tight">
+                            {formatPhonePreview(normalizedPreview)}
+                          </code>
+                        </div>
+                      )}
                       {profile && phone.trim() !== (profile.phone ?? '').trim() && phone.trim() && (
                         <div className="pt-2">
                           <OtpVerificationStep
