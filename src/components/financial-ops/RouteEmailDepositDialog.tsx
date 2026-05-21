@@ -539,6 +539,22 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
             onSelect={setUser}
           />
 
+          {user && proxy.data && (
+            <div className="flex items-center gap-2 -mt-1 text-xs text-muted-foreground">
+              <UserCog className="h-3.5 w-3.5 text-violet-600" />
+              <span>
+                Proxy agent:{' '}
+                <span className="font-semibold text-foreground">{proxy.data.agentName}</span>
+                {proxy.data.agentPhone ? ` · ${proxy.data.agentPhone}` : ''}
+                {proxy.data.isManaged && (
+                  <span className="ml-1 rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-medium text-violet-800 dark:bg-violet-950/40 dark:text-violet-300">
+                    managed
+                  </span>
+                )}
+              </span>
+            </div>
+          )}
+
           <div>
             <Label className="text-xs">Amount (UGX)</Label>
             <Input
