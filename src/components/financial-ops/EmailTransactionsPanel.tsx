@@ -525,6 +525,10 @@ export function EmailTransactionsPanel() {
   const [autoDebitProgress, setAutoDebitProgress] = useState<{ done: number; total: number; ok: number; failed: number } | null>(null);
   const [rulesVersion, setRulesVersion] = useState(0);
   const [storedUserRules, setStoredUserRules] = useState<StoredUserRule[]>(() => readStoredUserRules());
+  // Mobile-only collapsibles: keep filters & stats hidden by default on small screens
+  // so the actual email list lands above the fold. On sm+ they're always expanded.
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [mobileStatsOpen, setMobileStatsOpen] = useState(false);
   const persistUserRules = (next: StoredUserRule[]) => {
     writeStoredUserRules(next);
     refreshUserRules();
