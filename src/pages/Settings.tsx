@@ -109,6 +109,29 @@ export default function Settings() {
   const [phone, setPhone] = useState('');
   const otp = useOtpVerification();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  /** Mirrors the edge-function normalizePhone exactly for client-side preview */
+  const previewNormalizePhone = (raw: string): string => {
+    const trimmed = raw.trim().replace(/[\s-]/g, '');
+    if (trimmed.startsWith('+')) return trimmed;
+    if (trimmed.startsWith('0')) return '+256' + trimmed.slice(1);
+    if (/^\d{9,15}$/.test(trimmed)) return '+' + trimmed;
+    return trimmed;
+  };
+
+  /** Pretty-print E.164 like +256 783 673 998 when possible */
+  const formatPhonePreview = (e164: string): string => {
+    const ug = e164.match(/^\+(256)(\d{3})(\d{3})(\d{3})$/);
+    if (ug) return `+${ug[1]} ${ug[2]} ${ug[3]} ${ug[4]}`;
+    const gen = e164.match(/^(\+\d{1,4})(\d{3})(\d{3})(\d+)$/);
+    if (gen) return `${gen[1]} ${gen[2]} ${gen[3]} ${gen[4]}`;
+    return e164;
+  };
+
+  const normalizedPreview = useMemo(() => {
+    const n = previewNormalizePhone(phone);
+    return /\+\d{9,15}/.test(n) ? n : '';
+  }, [phone]);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
