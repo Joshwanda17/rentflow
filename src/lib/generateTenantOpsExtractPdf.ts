@@ -100,25 +100,34 @@ export function generateTenantOpsExtractPdf(opts: ExtractPdfOptions): Blob {
   if (opts.kpis && opts.kpis.length > 0) {
     const n = opts.kpis.length;
     const gap = 3;
-    const cardW = (contentWidth - gap * (n - 1)) / n;
     const cardH = 16;
-    opts.kpis.forEach((kpi, i) => {
-      const x = margin + i * (cardW + gap);
+    const itemsPerRow = n > 6 ? 4 : n;
+    const rowCount = Math.ceil(n / itemsPerRow);
+    const rowGap = 4;
+
+    for (let idx = 0; idx < n; idx++) {
+      const row = Math.floor(idx / itemsPerRow);
+      const col = idx % itemsPerRow;
+      const itemsInThisRow = Math.min(itemsPerRow, n - row * itemsPerRow);
+      const cardW = (contentWidth - gap * (itemsInThisRow - 1)) / itemsInThisRow;
+      const x = margin + col * (cardW + gap);
+      const cardY = y + row * (cardH + rowGap);
+
       doc.setFillColor(248, 249, 252);
       doc.setDrawColor(225, 227, 232);
       doc.setLineWidth(0.2);
-      (doc as any).roundedRect(x, y, cardW, cardH, 2, 2, 'FD');
+      (doc as any).roundedRect(x, cardY, cardW, cardH, 2, 2, 'FD');
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(7);
       doc.setTextColor(120, 122, 135);
-      doc.text(kpi.label.toUpperCase(), x + 4, y + 5.5);
+      doc.text(opts.kpis[idx].label.toUpperCase(), x + 4, cardY + 5.5);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(12);
-      const c = kpi.color ?? [15, 23, 42];
+      const c = opts.kpis[idx].color ?? [15, 23, 42];
       doc.setTextColor(c[0], c[1], c[2]);
-      doc.text(kpi.value, x + 4, y + 12.5);
-    });
-    y += cardH + 6;
+      doc.text(opts.kpis[idx].value, x + 4, cardY + 12.5);
+    }
+    y += rowCount * (cardH + rowGap) + 2;
   }
 
   // ===== Table =====
