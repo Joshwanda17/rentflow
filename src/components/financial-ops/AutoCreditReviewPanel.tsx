@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { CheckCircle2, Undo2, ShieldAlert, Loader2, Mail, Phone, User } from 'lucide-react';
-import { formatUgx } from '@/lib/currencyFormat';
+import { formatDynamic } from '@/lib/currencyFormat';
 
 /**
  * Auto-Credit Review Queue
@@ -187,7 +187,7 @@ export function AutoCreditReviewPanel() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <CardTitle className="text-base flex items-center gap-2">
-                        {formatUgx(r.amount)}
+                        {formatDynamic(r.amount)}
                         <Badge variant="outline" className="text-[10px] uppercase">
                           {r.provider ?? '—'}
                         </Badge>
@@ -262,7 +262,7 @@ export function AutoCreditReviewPanel() {
           <DialogHeader>
             <DialogTitle>Reverse auto-credit</DialogTitle>
             <DialogDescription>
-              This will debit {reverseTarget ? formatUgx(reverseTarget.amount) : ''} from{' '}
+              This will debit {reverseTarget ? formatDynamic(reverseTarget.amount) : ''} from{' '}
               <span className="font-medium">{reverseTarget?.profile?.full_name ?? 'this user'}</span>'s
               Operational Float. After this, re-route the receipt to the correct user
               from Email Transactions.
