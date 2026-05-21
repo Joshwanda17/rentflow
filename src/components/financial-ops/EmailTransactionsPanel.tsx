@@ -810,7 +810,7 @@ export function EmailTransactionsPanel() {
     if (error || !data || data.error) return;
     toast({
       title: 'Withdrawal auto-approved',
-      description: `Matched email TID ${ref} → withdrawal ${match.id.slice(0, 8)}… (${formatPhoneLike(match.mobile_money_number)}). Wallet debited.`,
+      description: `Matched email TID ${ref} → withdrawal ${match.id.slice(0, 8)}… (${match.mobile_money_number ?? match.bank_account_number ?? 'beneficiary'}). Wallet debited.`,
     });
     // Drop this match locally so the button disappears immediately.
     setWithdrawalMatches((cur) => ({ ...cur, [row.id]: [] }));
