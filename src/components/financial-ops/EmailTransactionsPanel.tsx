@@ -938,6 +938,9 @@ export function EmailTransactionsPanel() {
         }
         // 2. Phone right after the word "from" — strongest heuristic match.
         const fromSet = new Set(rowFromPhones.get(rowId) ?? []);
+        // 2b. Phone right after the word "to" — strongest heuristic match
+        //     for outgoing payouts (recipient identification).
+        const toSet = new Set(rowToPhones.get(rowId) ?? []);
         for (const ph of phones) {
           for (const p of byPhone.get(ph) ?? []) {
             if (seen.has(p.id)) continue;
@@ -947,7 +950,11 @@ export function EmailTransactionsPanel() {
               full_name: p.full_name,
               phone: p.phone,
               mobile_money_number: p.mobile_money_number,
-              matched_on: fromSet.has(ph) ? `from ${ph}` : `phone ${ph}`,
+              matched_on: fromSet.has(ph)
+                ? `from ${ph}`
+                : toSet.has(ph)
+                  ? `to ${ph}`
+                  : `phone ${ph}`,
             });
           }
         }
