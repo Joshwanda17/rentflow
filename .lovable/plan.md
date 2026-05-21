@@ -1,40 +1,35 @@
-## Daily Agent Performance Report
+## Add "Download Daily Report" button to Agent Dashboard
 
-Generate a per-agent daily report showing how much each agent collected vs. expected, plus the principal the company has paid out for their tenants. One row per agent.
+Add a button on the agent dashboard that generates a PDF showing **that agent's** daily performance — same shape as the company-wide report just delivered, but scoped to the logged-in agent and broken down **per active tenant** (row-per-tenant), since a single agent's report makes more sense as a tenant-level breakdown than a single summary row.
 
-### Output
-- PDF: `/mnt/documents/agent_daily_performance_YYYY-MM-DD.pdf` (landscape A4)
-- Companion CSV: `/mnt/documents/agent_daily_performance_YYYY-MM-DD.csv`
-- Default report date = yesterday (full closed day); can be overridden
+### Where
+- `src/components/dashboards/AgentDashboard.tsx` — place the button next to `AgentDailyOpsCard` (top of dashboard) as a compact action button: "Download Today's Report (PDF)".
 
-### Columns (one row per agent)
-1. Agent name
-2. Phone
-3. Active tenants (rent_requests in funded/disbursed/repaying/active)
-4. Expected today (sum of `daily_repayment` for active tenants)
-5. Collected today (sum of `agent_collections.amount` where `created_at` is on report date)
-6. Collection rate % (Collected / Expected)
-7. # tenants who paid today (distinct `tenant_id` in collections)
-8. Principal paid by company (sum of `rent_amount` on active rent_requests — same exposure figure as previous report)
-9. Outstanding balance (Principal + fees − amount_repaid, clamped ≥ 0)
-10. Status badge (Critical <25%, Low 25–49%, Moderate 50–74%, Good 75–94%, Excellent ≥95%)
+### What the PDF contains
+**Header**
+- Agent name + phone, report date (default = today), generation timestamp.
+- Summary line: Active tenants · Expected today · Collected today · Collection rate % · Principal company has paid · Outstanding.
+
+**Table — one row per active tenant**
+| # | Tenant Name | Phone | Rent (Principal) | Daily Expected | Collected Today | Status (Paid/Pending) | Total Repaid | Outstanding |
 
 Totals row at the bottom.
 
-### Data sources
-- `rent_requests` — active tenants, `daily_repayment`, `rent_amount`, `total_repayment`, `amount_repaid`
-- `agent_collections` — actual collections on the report date
-- `profiles` — agent name + phone
+Plus an optional "Collections today" sub-table listing each `agent_collections` row (time, tenant, amount, method, TID).
 
-### How to run
-Direct script execution (no app code changes):
-1. SQL query joining the three tables, grouped by `agent_id`, parameterised by date
-2. Python + reportlab generates the PDF (reuse the layout from `agent_company_exposure.pdf`)
-3. QA each page via `pdftoppm` before delivering
+### How (frontend only)
+1. New helper `src/lib/agentDailyReportPdf.ts` using `jspdf` (already used by `agentPerformanceReportPdf.ts`) — generate landscape A4, save via `pdf.save()`.
+2. New hook/loader that fetches for the logged-in agent on click:
+   - `rent_requests` where `agent_id = me` and `status IN (funded, disbursed, repaying, active, approved)` joined to tenant `profiles`
+   - `agent_collections` where `agent_id = me` and `created_at` within selected date
+3. Button component `AgentDailyReportButton.tsx` in `src/components/agent/`. Shows a small date picker (defaults to today, last 7 days selectable) + Download button with loading state and toast on success/error.
+4. Wire into `AgentDashboard.tsx` near the daily ops card.
 
-### Options to confirm
-- **Report date**: yesterday (default) or a specific date you'll provide
-- **Include zero-collection agents?** Yes by default (so you can see who didn't collect)
-- **Sort order**: by collection rate ascending (worst performers first), or by collected amount descending
+### Out of scope
+- No backend / edge function changes.
+- No new tables, no RLS changes (existing RLS already lets agents read their own rent_requests + collections).
+- No changes to the company-wide PDF already delivered.
 
-Once you approve, I'll generate the PDF for the chosen date.
+### Confirm before I build
+- **Row granularity**: per-tenant breakdown (recommended) — agree?
+- **Date picker**: today + last 7 days, or just today?
