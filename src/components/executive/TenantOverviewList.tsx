@@ -1,11 +1,13 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Search, Phone, ChevronRight, User, ChevronLeft } from 'lucide-react';
+import { Search, Phone, ChevronRight, User, ChevronLeft, Download, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { generateAndDownloadActiveTenantsPdf } from '@/lib/activeTenantsReportPdf';
+import { toast } from 'sonner';
 
 interface TenantRow {
   id: string;
@@ -173,7 +175,10 @@ export function TenantOverviewList({ data, loading, initialCategory, onSelectTen
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-bold text-foreground">All Tenants</h3>
-        <span className="text-xs text-muted-foreground">{filtered.length} tenants</span>
+        <div className="flex items-center gap-2">
+          <ExportActiveTenantsButton />
+          <span className="text-xs text-muted-foreground">{filtered.length} tenants</span>
+        </div>
       </div>
 
       {/* Search */}
