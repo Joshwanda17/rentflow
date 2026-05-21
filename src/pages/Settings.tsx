@@ -155,11 +155,34 @@ export default function Settings() {
     if (!fullName.trim()) { toast.error('Full name is required'); return; }
     if (!phone.trim()) { toast.error('Phone number is required'); return; }
     setSaving(true);
-    const { error } = await supabase.from('profiles').update({ full_name: fullName.trim(), phone: phone.trim() }).eq('id', user.id);
-    setSaving(false);
-    if (error) { toast.error('Failed to update profile'); return; }
-    toast.success('Profile updated successfully');
-    setProfile({ ...profile, full_name: fullName.trim(), phone: phone.trim() });
+    const trimmedName = fullName.trim();
+    const trimmedPhone = phone.trim();
+    const phoneChanged = trimmedPhone !== (profile.phone ?? '').trim();
+    try {
+      // Always update full_name via profiles
+      if (trimmedName !== (profile.full_name ?? '').trim()) {
+        const { error } = await supabase.from('profiles').update({ full_name: trimmedName }).eq('id', user.id);
+        if (error) throw error;
+      }
+      // Phone changes go through edge function to keep auth.users + profiles in sync
+      let savedPhone = trimmedPhone;
+      if (phoneChanged) {
+        const { data, error } = await supabase.functions.invoke('self-update-phone', { body: { phone: trimmedPhone } });
+        if (error) {
+          const msg = (data as any)?.error || error.message || 'Failed to update phone';
+          throw new Error(msg);
+        }
+        if ((data as any)?.error) throw new Error((data as any).error);
+        savedPhone = (data as any)?.phone || trimmedPhone;
+      }
+      toast.success('Profile updated successfully');
+      setProfile({ ...profile, full_name: trimmedName, phone: savedPhone });
+      setPhone(savedPhone);
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to update profile');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
