@@ -399,6 +399,22 @@ export default function Settings() {
                     )}
                   </div>
                   <SettingsRow label="Stay Logged In" description="Don't ask to sign in every time" icon={LogIn}><Switch checked={preferences.rememberLogin} onCheckedChange={(c) => { updatePreference('rememberLogin', c); toast.success(c ? 'Login remembered' : 'Login not remembered'); }} /></SettingsRow>
+                  <SettingsRow label="Reduce Graphics" description="Fix screen tearing on older phones" icon={Zap}>
+                    <Switch
+                      checked={typeof window !== 'undefined' && localStorage.getItem('welile-no-blur') === '1'}
+                      onCheckedChange={(c) => {
+                        if (c) {
+                          localStorage.setItem('welile-no-blur', '1');
+                          document.documentElement.classList.add('no-backdrop-blur');
+                          toast.success('Reduced graphics on');
+                        } else {
+                          localStorage.removeItem('welile-no-blur');
+                          document.documentElement.classList.remove('no-backdrop-blur');
+                          toast.success('Full graphics restored');
+                        }
+                      }}
+                    />
+                  </SettingsRow>
                   <SettingsRow label="Skip Welcome Screen" description={preferences.skipSplash ? 'Goes straight to dashboard' : 'Shows welcome first'} icon={RotateCcw}><Switch checked={preferences.skipSplash} onCheckedChange={(c) => { updatePreference('skipSplash', c); toast.success(c ? 'Splash skipped' : 'Splash enabled'); }} /></SettingsRow>
                   </CardContent>
                 </Card>
