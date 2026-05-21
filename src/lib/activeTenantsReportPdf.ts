@@ -1,12 +1,17 @@
 import { format } from 'date-fns';
 import { generateTenantOpsExtractPdf, downloadPdfBlob } from './generateTenantOpsExtractPdf';
 import { supabase } from '@/integrations/supabase/client';
+import { calculateRentRepayment } from './rentCalculations';
+import { getEffectiveRentRequestAmounts } from './rentRequestAmounts';
 
 interface ActiveTenantRow {
   tenant_name: string;
   tenant_phone: string;
+  landlord_name: string;
+  landlord_phone: string;
   agent_name: string;
   agent_phone: string;
+  status_label: string;
   principal: number;
   expected: number;
   repaid: number;
@@ -15,7 +20,8 @@ interface ActiveTenantRow {
   end_date: string | null;
 }
 
-const ACTIVE_STATUSES = ['funded', 'disbursed', 'repaying', 'active', 'approved'];
+const ACTIVE_STATUSES = new Set(['funded', 'disbursed', 'repaying', 'active', 'approved']);
+const CUTOFF_ISO = '2026-01-01';
 
 async function fetchAllRentRequests() {
   const PAGE = 1000;
@@ -24,8 +30,8 @@ async function fetchAllRentRequests() {
   while (true) {
     const { data, error } = await supabase
       .from('rent_requests')
-      .select('id, tenant_id, agent_id, assigned_agent_id, rent_amount, total_repayment, amount_repaid, disbursed_at, duration_days, status')
-      .in('status', ACTIVE_STATUSES)
+      .select('id, tenant_id, landlord_id, agent_id, assigned_agent_id, rent_amount, total_repayment, amount_repaid, disbursed_at, duration_days, status, tenancy_status, tenancy_ended_at, tenancy_end_reason, registration_type, initial_outstanding_balance')
+      .gte('disbursed_at', CUTOFF_ISO)
       .not('disbursed_at', 'is', null)
       .order('disbursed_at', { ascending: false })
       .range(from, from + PAGE - 1);
@@ -62,33 +68,75 @@ export async function generateAndDownloadActiveTenantsPdf() {
   const personIds: string[] = [];
   requests.forEach((r) => {
     if (r.tenant_id) personIds.push(r.tenant_id);
+    if (r.landlord_id) personIds.push(r.landlord_id);
     const aid = r.assigned_agent_id || r.agent_id;
     if (aid) personIds.push(aid);
   });
   const profiles = await fetchProfilesMap(personIds);
 
+  const now = Date.now();
+  const GRACE_MS = 7 * 24 * 60 * 60 * 1000;
+
   const rows: ActiveTenantRow[] = requests.map((r) => {
     const tenant = profiles.get(r.tenant_id) ?? { name: '—', phone: '—' };
+    const landlord = (r.landlord_id && profiles.get(r.landlord_id)) || { name: '—', phone: '—' };
     const agentId = r.assigned_agent_id || r.agent_id;
     const agent = (agentId && profiles.get(agentId)) || { name: 'Unassigned', phone: '—' };
-    const principal = Number(r.rent_amount ?? 0);
-    // Expected can never be less than principal — if total_repayment is missing
-    // or zero (incomplete plan setup) fall back to principal so totals stay sane.
-    const rawExpected = Number(r.total_repayment ?? 0);
-    const expected = rawExpected > 0 ? Math.max(rawExpected, principal) : principal;
+
+    const durationDays = Math.max(Number(r.duration_days || 30), 1);
+    let principal = 0;
+    let expected = 0;
+
+    if (r.registration_type === 'outstanding_balance') {
+      const eff = getEffectiveRentRequestAmounts(r);
+      principal = Number(r.initial_outstanding_balance ?? 0);
+      expected = eff.totalRepayment;
+    } else {
+      principal = Number(r.rent_amount ?? 0);
+      const stored = Number(r.total_repayment ?? 0);
+      const computed = principal > 0
+        ? calculateRentRepayment(principal, durationDays).totalRepayment
+        : 0;
+      expected = Math.max(stored, computed);
+    }
+
     const repaid = Number(r.amount_repaid ?? 0);
     const outstanding = Math.max(0, expected - repaid);
+
     let endDate: string | null = null;
     if (r.disbursed_at && r.duration_days) {
       const d = new Date(r.disbursed_at);
       d.setDate(d.getDate() + Number(r.duration_days));
       endDate = d.toISOString();
     }
+
+    // Status label
+    let status_label = 'Other';
+    const endMs = endDate ? new Date(endDate).getTime() : 0;
+    const endReason = String(r.tenancy_end_reason || '').toLowerCase();
+    if (outstanding <= 0) {
+      status_label = r.tenancy_status === 'ended' ? 'Ended' : 'Cleared';
+    } else if (
+      r.tenancy_status === 'ended' &&
+      /default|evict|abandon|arrears/.test(endReason)
+    ) {
+      status_label = 'Defaulted';
+    } else if (endMs && now > endMs + GRACE_MS) {
+      status_label = 'Defaulted';
+    } else if (ACTIVE_STATUSES.has(r.status)) {
+      status_label = 'Repaying';
+    } else if (r.tenancy_status === 'ended') {
+      status_label = 'Ended';
+    }
+
     return {
       tenant_name: tenant.name,
       tenant_phone: tenant.phone,
+      landlord_name: landlord.name,
+      landlord_phone: landlord.phone,
       agent_name: agent.name,
       agent_phone: agent.phone,
+      status_label,
       principal,
       expected,
       repaid,
@@ -105,13 +153,18 @@ export async function generateAndDownloadActiveTenantsPdf() {
   const totalRepaid = rows.reduce((s, r) => s + r.repaid, 0);
   const totalOutstanding = rows.reduce((s, r) => s + r.outstanding, 0);
   const collectionRate = totalExpected > 0 ? Math.round((totalRepaid / totalExpected) * 100) : 0;
+  const defaulterCount = rows.filter((r) => r.status_label === 'Defaulted').length;
+  const repayingCount = rows.filter((r) => r.status_label === 'Repaying').length;
 
   const tableRows = rows.map((r, i) => [
     i + 1,
     r.tenant_name,
     r.tenant_phone,
+    r.landlord_name,
+    r.landlord_phone,
     r.agent_name,
     r.agent_phone,
+    r.status_label,
     r.principal,
     r.expected,
     r.outstanding,
@@ -120,10 +173,12 @@ export async function generateAndDownloadActiveTenantsPdf() {
   ]);
 
   const blob = generateTenantOpsExtractPdf({
-    title: 'Active Tenants — Rent Plan Repayments',
-    subtitle: 'Snapshot of all tenants currently repaying a rent plan, with their assigned agent and outstanding balance.',
+    title: 'Tenants Report — Rent Plan Repayments (since Jan 2026)',
+    subtitle: 'All tenants with a disbursed rent plan since 1 Jan 2026, including defaulters. Landlord and agent contacts included.',
     kpis: [
-      { label: 'Active Tenants', value: String(rows.length) },
+      { label: 'Tenants', value: String(rows.length) },
+      { label: 'Repaying', value: String(repayingCount) },
+      { label: 'Defaulters', value: String(defaulterCount), color: [180, 60, 50] },
       { label: 'Principal Disbursed', value: `UGX ${Math.round(totalPrincipal).toLocaleString()}` },
       { label: 'Total Expected', value: `UGX ${Math.round(totalExpected).toLocaleString()}` },
       { label: 'Collected', value: `UGX ${Math.round(totalRepaid).toLocaleString()}`, color: [22, 130, 80] },
@@ -132,21 +187,24 @@ export async function generateAndDownloadActiveTenantsPdf() {
     ],
     columns: [
       { label: '#', width: 8, align: 'right', format: 'number' },
-      { label: 'Tenant Name', width: 40 },
-      { label: 'Tenant Phone', width: 24 },
-      { label: 'Agent Name', width: 32 },
-      { label: 'Agent Phone', width: 24 },
-      { label: 'Principal Paid', width: 26, format: 'ugx' },
-      { label: 'Expected', width: 26, format: 'ugx' },
-      { label: 'Outstanding', width: 26, format: 'ugx' },
-      { label: 'Start', width: 20, format: 'date' },
-      { label: 'End', width: 20, format: 'date' },
+      { label: 'Tenant Name', width: 32 },
+      { label: 'Tenant Phone', width: 22 },
+      { label: 'Landlord Name', width: 30 },
+      { label: 'Landlord Phone', width: 22 },
+      { label: 'Agent Name', width: 28 },
+      { label: 'Agent Phone', width: 22 },
+      { label: 'Status', width: 16 },
+      { label: 'Principal Paid', width: 24, format: 'ugx' },
+      { label: 'Expected', width: 24, format: 'ugx' },
+      { label: 'Outstanding', width: 24, format: 'ugx' },
+      { label: 'Start', width: 18, format: 'date' },
+      { label: 'End', width: 18, format: 'date' },
     ],
     rows: tableRows,
-    totals: ['', 'TOTALS', '', '', '', totalPrincipal, totalExpected, totalOutstanding, '', ''],
-    footerNote: 'Outstanding = Expected (total repayment) − Amount repaid. End date = Start + duration. Confidential — Welile internal report.',
+    totals: ['', 'TOTALS', '', '', '', '', '', '', totalPrincipal, totalExpected, totalOutstanding, '', ''],
+    footerNote: 'Expected = Principal × 1.33^(days/30) + registration fee (UGX 10,000 if rent ≤ 200,000, else 20,000). Outstanding = Expected − Repaid. Defaulted = outstanding > 0 past end + 7d grace, or tenancy ended due to default/eviction/abandonment/arrears. Confidential — Welile internal report.',
   });
 
-  downloadPdfBlob(blob, `active-tenants-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+  downloadPdfBlob(blob, `tenants-since-jan2026-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
   return rows.length;
 }

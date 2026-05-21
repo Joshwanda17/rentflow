@@ -1,40 +1,84 @@
-## Active Tenants Report (PDF) — Tenant Ops
+## Goal
 
-Add a one-click PDF export on the **COO → Reports → Tenant Ops** page that lists every currently-repaying tenant (with their assigned agent) as one row per tenant.
+Upgrade the **Active Tenants — Rent Plan Repayments** PDF (Tenant Ops → "Download Active Tenants (PDF)") so it:
 
-### Where it lives
-- New button "Download Active Tenants (PDF)" placed in the header area of `src/pages/coo/reports/TenantOpsReport.tsx`, next to the existing "Generate / Refresh" action exposed by `COOReportPage`.
-- Same visual treatment as the existing nearing-payouts export so it feels native.
+1. Includes **defaulters** from **1 Jan 2026** onward (not just currently-active tenants).
+2. Computes **Expected** correctly so Principal can never sit unrealistically close to Outstanding — Expected must always reflect the locked rent formula (Principal × 1.33^(days/30) + registration fee).
+3. Adds **Landlord Name** and **Landlord Phone** columns.
 
-### Data source (read-only, no schema changes)
-Pulled client-side from existing tables (RLS already permits COO):
+All work is confined to the report generator. No DB/business‑logic changes.
 
-- `rent_requests` — filter `status IN ('funded','disbursed','repaying','active','approved')` AND `disbursed_at IS NOT NULL` (i.e. money has gone out and tenant is repaying). Fields: `tenant_id`, `agent_id`, `rent_amount` (principal), `total_repayment` (expected), `disbursed_at` (start), `due_date` / `repayment_end_date` (end), `id`.
-- `profiles` — for tenant name + phone, and for agent name + phone (joined by `tenant_id`, `agent_id`).
-- `agent_collections` (or `general_ledger` repayment legs, whichever the existing daily report uses) — sum of `amount` per `rent_request_id` to get **Total Repaid**, then **Outstanding = total_repayment − total_repaid**.
+---
 
-Fetched in a single hook `useActiveTenantsReport()` placed under `src/components/coo/`. Pagination via `range()` loop (1000-row Supabase limit) to be safe at scale.
+## 1. Widen the dataset (defaulters since Jan 2026)
 
-### PDF
-- New helper `src/lib/activeTenantsReportPdf.ts` built on the existing `generateTenantOpsExtractPdf` (landscape A4, branded header, KPI strip, striped table, page footer) — no new PDF engine.
-- KPI strip: Active tenants · Total principal disbursed · Total expected · Total collected · Total outstanding · Collection rate %.
-- Table — one row per active tenant:
+In `src/lib/activeTenantsReportPdf.ts → fetchAllRentRequests()`:
 
-  | # | Tenant Name | Phone | Agent | Principal Paid | Expected (Total Repayment) | Outstanding | Start Date | End Date |
+- Drop the `ACTIVE_STATUSES` `.in(...)` filter.
+- Replace with: `disbursed_at >= '2026-01-01'` (so we only ever look at the production cutoff window already in memory, and only at rent_requests that actually moved money).
+- Keep `.not('disbursed_at','is',null)` and the paged `range()` loop.
+- Add `landlord_id`, `status`, `tenancy_status`, `tenancy_ended_at`, `outstanding_at_end`, `duration_days`, `access_fee`, `request_fee`, `registration_type`, `initial_outstanding_balance` to the SELECT.
 
-  Totals row at the bottom (Principal / Expected / Outstanding).
-- File name: `active-tenants-YYYY-MM-DD.pdf`.
+Derive a per‑row **Status** label for the PDF:
 
-### UX
-- Button shows spinner while fetching + generating; toast on success/error (matches the nearing-payouts export pattern).
-- No date picker in v1 — the report is a snapshot of currently-active tenants as of "now". (Easy to add a date filter later if needed.)
+- `Repaying` — `status in (funded, disbursed, repaying, active, approved)` and outstanding > 0 and not past end.
+- `Defaulted` — outstanding > 0 AND (`tenancy_status='ended'` with reason indicating default, OR today > end_date + 7d grace).
+- `Cleared` — outstanding ≤ 0.
+- `Ended` — `tenancy_status='ended'` with outstanding = 0.
 
-### Out of scope
-- No backend / edge function / RLS / schema changes.
-- No CSV variant (PDF only, per the established pattern for COO exports).
-- No changes to the existing dashboard KPIs/charts on the Tenant Ops page.
+(Exact label set will be finalised in code; the point is one extra column so defaulters are visible.)
 
-### Confirm before I build
-1. **"Company principal paid"** = `rent_requests.rent_amount` (the rent the platform disbursed to the landlord on the tenant's behalf). Correct interpretation?
-2. **"Agent assigned"** = `rent_requests.agent_id` (the agent on the rent plan). If a tenant has multiple active rent plans, should they appear as multiple rows (one per plan) or be collapsed into one row with the latest plan? Default plan: **one row per active rent plan** (clearer and matches how outstanding is tracked).
-3. Include agent **phone** alongside agent **name** in the Agent column, or name only?
+## 2. Fix the Expected calculation
+
+The current fallback `expected = max(total_repayment, principal)` is what makes Principal ≈ Outstanding when `total_repayment` is missing. Replace with a true formula recompute:
+
+- Import `calculateRentRepayment` from `src/lib/rentCalculations.ts` (the locked 33% monthly compound + reg-fee formula — already the constitution per `mem://business-model/rent-formula`).
+- Also import `getEffectiveRentRequestAmounts` from `src/lib/rentRequestAmounts.ts` to handle `outstanding_balance` rent_requests (which intentionally skip the formula — see `mem://business-model/outstanding-balance-instant-active`).
+
+Per-row logic:
+
+```
+if registration_type === 'outstanding_balance':
+   principal  = initial_outstanding_balance
+   expected   = getEffectiveRentRequestAmounts(r).totalRepayment
+else:
+   principal  = rent_amount
+   stored     = total_repayment
+   computed   = calculateRentRepayment(rent_amount, duration_days).totalRepayment
+   expected   = max(stored, computed)   // never below formula, never below stored
+outstanding  = max(0, expected - amount_repaid)
+```
+
+This guarantees Expected ≥ Principal × 1.33 + reg fee for every standard rent plan, so the Principal column will be visibly smaller than Expected, and Outstanding will reflect real arrears.
+
+## 3. Add Landlord columns
+
+- After collecting `tenant_id` and agent ids, also push `landlord_id` into the profile-fetch batch (single `profiles` query already exists — just add the ids, no extra round trip).
+- Resolve `landlord = profiles.get(r.landlord_id) ?? { name: '—', phone: '—' }`.
+- New columns inserted **between Tenant Phone and Agent Name**:
+  - `Landlord Name` (width 32)
+  - `Landlord Phone` (width 24)
+- Trim other column widths slightly so the table still fits A4 landscape (≈ 800pt usable). Proposed widths:
+  `# 8 / Tenant 32 / T.Phone 22 / Landlord 30 / L.Phone 22 / Agent 28 / A.Phone 22 / Status 16 / Principal 24 / Expected 24 / Outstanding 24 / Start 18 / End 18`.
+- Update the totals row to match the new column count.
+
+## 4. Cosmetic / metadata updates
+
+- Title stays "Active Tenants — Rent Plan Repayments".
+- Subtitle → "All tenants with a disbursed rent plan since 1 Jan 2026, including defaulters."
+- Add a KPI: **Defaulters** (count where status label = Defaulted).
+- Filename → `tenants-since-jan2026-YYYY-MM-DD.pdf`.
+- Footer note → clarify: "Expected = Principal × 1.33^(days/30) + registration fee. Outstanding = Expected − Repaid."
+
+---
+
+## Files touched
+
+- `src/lib/activeTenantsReportPdf.ts` — only this file.
+- Button label in `src/pages/coo/reports/TenantOpsReport.tsx` (and the duplicate in `TenantOverviewList.tsx`) updated from "Active Tenants" → "Tenants Report (since Jan 2026)".
+
+No DB migrations, no edge functions, no business‑logic changes.
+
+## Open question
+
+"Defaulter" today isn't a single DB flag. The proposal above infers it from `outstanding > 0` + past end date / ended tenancy. If you'd rather use a stricter rule (e.g. only `tenancy_end_reason IN ('default','evicted','abandoned')`), tell me and I'll lock that in before coding.
