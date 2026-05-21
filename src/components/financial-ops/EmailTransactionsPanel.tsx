@@ -645,6 +645,177 @@ export function EmailTransactionsPanel() {
     return () => { cancelled = true; supabase.removeChannel(sub); };
   }, [rows]);
 
+  // ── Auto-payout matcher ─────────────────────────────────────────────
+  // For every visible outgoing email (MoMo payout / bank disbursement),
+  // look up open `withdrawal_requests` rows that this email plausibly
+  // settles. Strongest signal is a normalized-TID hit; phone+amount is
+  // a fallback when the cashier didn't include the exact reference yet.
+  useEffect(() => {
+    const outRows = rows.filter(
+      (r) => (r.direction === 'out' || r.direction === 'charge') && r.amount && r.amount > 0,
+    );
+    if (outRows.length === 0) { setWithdrawalMatches({}); return; }
+
+    let cancelled = false;
+    (async () => {
+      // Collect normalized TIDs + (phone, amount) pairs from outgoing rows.
+      const normTids = new Set<string>();
+      const phones = new Set<string>();
+      for (const r of outRows) {
+        const n = normalizeMomoTid(r.transaction_id);
+        if (n.length >= 6) normTids.add(n);
+        for (const p of extractPhones(r)) phones.add(p);
+      }
+
+      // Pull all open withdrawals once and match in-memory — production
+      // queue depth is small enough that this is cheaper than building
+      // per-TID OR clauses.
+      const openStatuses = ['pending', 'requested', 'manager_approved', 'rejected'];
+      const { data, error } = await (supabase.from('withdrawal_requests') as any)
+        .select(
+          'id,user_id,amount,status,mobile_money_number,mobile_money_provider,bank_name,bank_account_number,payout_method,transaction_id,fin_ops_reference',
+        )
+        .in('status', openStatuses)
+        .order('created_at', { ascending: false })
+        .limit(500);
+      if (cancelled || error || !data) return;
+
+      type WR = {
+        id: string;
+        user_id: string;
+        amount: number;
+        status: string;
+        mobile_money_number: string | null;
+        mobile_money_provider: string | null;
+        bank_name: string | null;
+        bank_account_number: string | null;
+        payout_method: string;
+        transaction_id: string | null;
+        fin_ops_reference: string | null;
+      };
+      const wrs = data as WR[];
+
+      // Index for fast lookup.
+      const byTid = new Map<string, WR[]>();
+      for (const w of wrs) {
+        for (const t of [w.transaction_id, w.fin_ops_reference]) {
+          const n = normalizeMomoTid(t);
+          if (n.length >= 6) {
+            const list = byTid.get(n) ?? [];
+            list.push(w);
+            byTid.set(n, list);
+          }
+        }
+      }
+      const byPhone = new Map<string, WR[]>();
+      for (const w of wrs) {
+        const n = normalizeUgPhone(w.mobile_money_number ?? '');
+        if (!n) continue;
+        const list = byPhone.get(n) ?? [];
+        list.push(w);
+        byPhone.set(n, list);
+      }
+
+      // Resolve user names in one round-trip.
+      const userIds = Array.from(new Set(wrs.map((w) => w.user_id)));
+      let names: Record<string, string> = {};
+      if (userIds.length) {
+        const { data: profs } = await (supabase.from('profiles') as any)
+          .select('id, full_name')
+          .in('id', userIds);
+        for (const p of (profs ?? []) as Array<{ id: string; full_name: string | null }>) {
+          names[p.id] = p.full_name ?? '';
+        }
+      }
+
+      const matches: Record<string, WithdrawalMatch[]> = {};
+      const seen = new Set<string>(); // wr.id already attached to some row
+      for (const r of outRows) {
+        const list: WithdrawalMatch[] = [];
+        // 1. TID match — authoritative.
+        const n = normalizeMomoTid(r.transaction_id);
+        if (n.length >= 6) {
+          for (const w of byTid.get(n) ?? []) {
+            if (seen.has(w.id)) continue;
+            list.push({
+              id: w.id, user_id: w.user_id, amount: Number(w.amount), status: w.status,
+              mobile_money_number: w.mobile_money_number, mobile_money_provider: w.mobile_money_provider,
+              bank_name: w.bank_name, bank_account_number: w.bank_account_number,
+              payout_method: w.payout_method, matched_on: 'reference',
+              user_name: names[w.user_id] ?? null,
+            });
+          }
+        }
+        // 2. Fallback: phone + exact amount.
+        if (list.length === 0 && r.amount) {
+          const targetAmt = Math.round(r.amount);
+          for (const ph of extractPhones(r)) {
+            for (const w of byPhone.get(ph) ?? []) {
+              if (seen.has(w.id)) continue;
+              if (Math.round(Number(w.amount)) !== targetAmt) continue;
+              list.push({
+                id: w.id, user_id: w.user_id, amount: Number(w.amount), status: w.status,
+                mobile_money_number: w.mobile_money_number, mobile_money_provider: w.mobile_money_provider,
+                bank_name: w.bank_name, bank_account_number: w.bank_account_number,
+                payout_method: w.payout_method, matched_on: 'phone+amount',
+                user_name: names[w.user_id] ?? null,
+              });
+            }
+          }
+        }
+        if (list.length === 1) seen.add(list[0].id); // only single-match rows are auto-approvable
+        matches[r.id] = list;
+      }
+      if (!cancelled) setWithdrawalMatches(matches);
+    })();
+    return () => { cancelled = true; };
+  }, [rows]);
+
+  // Map an extracted channel to the approve-withdrawal `payment_method`
+  // payload value (mobile_money | bank_transfer | cash).
+  const channelToPaymentMethod = (channel: string | null, fallback: string): string => {
+    if (channel === 'mtn_momo' || channel === 'airtel_money') return 'mobile_money';
+    if (channel === 'bank_transfer') return 'bank_transfer';
+    if (channel === 'cash_receipt') return 'cash';
+    return fallback || 'mobile_money';
+  };
+
+  const autoApproveWithdrawal = async (row: GmailTx, match: WithdrawalMatch) => {
+    const ref = (row.transaction_id ?? '').trim();
+    if (!ref || ref.length < 3) {
+      toast({
+        title: 'Cannot auto-approve',
+        description: 'Email is missing a usable TID / bank reference.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setAutoApproving((cur) => ({ ...cur, [row.id]: true }));
+    const paymentMethod = channelToPaymentMethod(row.channel, match.payout_method);
+    const { data, error } = await invokeEdgeFunction<{ success?: boolean; error?: string }>(
+      'approve-withdrawal',
+      {
+        body: {
+          withdrawal_id: match.id,
+          reference: ref,
+          payment_method: paymentMethod,
+        },
+        errorTitle: 'Auto-approve failed',
+      },
+    );
+    setAutoApproving((cur) => {
+      const { [row.id]: _, ...rest } = cur;
+      return rest;
+    });
+    if (error || !data || data.error) return;
+    toast({
+      title: 'Withdrawal auto-approved',
+      description: `Matched email TID ${ref} → withdrawal ${match.id.slice(0, 8)}… (${formatPhoneLike(match.mobile_money_number)}). Wallet debited.`,
+    });
+    // Drop this match locally so the button disappears immediately.
+    setWithdrawalMatches((cur) => ({ ...cur, [row.id]: [] }));
+  };
+
   // Resolve phone numbers (and transaction ids) found in each email row to
   // app users in `profiles`. Runs whenever the visible row set changes;
   // matches are highlighted inline so the operator can confirm at a glance
