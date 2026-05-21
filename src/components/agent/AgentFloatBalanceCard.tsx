@@ -19,19 +19,36 @@ export function AgentFloatBalanceCard() {
 
   if (withdrawableBalance === 0 && floatBalance === 0 && advanceBalance === 0 && pendingHolds === 0) return null;
 
+  // When the agent only has float (no withdrawable commission), surface
+  // the float prominently as the headline so deposited operational money
+  // is visible at a glance. Otherwise keep withdrawable as the headline.
+  const floatIsHeadline = withdrawableBalance === 0 && floatBalance > 0;
+
   return (
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
-          <Wallet className="h-4 w-4 text-emerald-600" /> Available Balance
+          <Wallet className="h-4 w-4 text-emerald-600" />
+          {floatIsHeadline ? 'Operational Float' : 'Available Balance'}
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {/* PRIMARY: withdrawable */}
-        <p className={`font-bold text-2xl ${withdrawableBalance > 0 ? 'text-emerald-600' : 'text-muted-foreground'}`}>
-          {formatUGX(withdrawableBalance)}
-        </p>
-        <p className="text-[11px] text-muted-foreground mt-0.5">Available to withdraw</p>
+        {floatIsHeadline ? (
+          <>
+            <p className="font-bold text-2xl text-foreground">{formatUGX(floatBalance)}</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5 inline-flex items-center gap-1">
+              <Lock className="h-3 w-3" />
+              Company float — for paying tenants & landlords (not withdrawable)
+            </p>
+          </>
+        ) : (
+          <>
+            <p className={`font-bold text-2xl ${withdrawableBalance > 0 ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+              {formatUGX(withdrawableBalance)}
+            </p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Available to withdraw</p>
+          </>
+        )}
 
         {/* Pending withdrawal hold (already subtracted from withdrawable) */}
         {pendingHolds > 0 && (
@@ -75,8 +92,9 @@ export function AgentFloatBalanceCard() {
           </div>
         )}
 
-        {/* Locked float (company money) */}
-        {floatBalance > 0 && (
+        {/* Locked float (company money) — only as a secondary row when
+            withdrawable is already shown as the headline. */}
+        {floatBalance > 0 && !floatIsHeadline && (
           <div className="mt-3 pt-3 border-t border-dashed flex items-center justify-between gap-2">
             <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
               <Lock className="h-3 w-3" />
