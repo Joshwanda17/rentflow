@@ -1816,7 +1816,8 @@ export function EmailTransactionsPanel() {
                               const isRef = u.matched_on.startsWith('reference ');
                               const isFrom = u.matched_on.startsWith('from ');
                               const isTo = u.matched_on.startsWith('to ');
-                              const score = isRef ? 100 : isFrom || isTo ? 90 : 60;
+                              const isName = u.matched_on.startsWith('name-');
+                              const score = isRef ? 100 : isFrom || isTo ? 90 : isName ? 75 : 60;
                               return { u, score };
                             })
                             .sort((a, b) => b.score - a.score)
@@ -1824,17 +1825,40 @@ export function EmailTransactionsPanel() {
                             const isRef = u.matched_on.startsWith('reference ');
                             const isFrom = u.matched_on.startsWith('from ');
                             const isTo = u.matched_on.startsWith('to ');
-                            const strong = isRef || isFrom || isTo;
+                            const isNameTo = u.matched_on.startsWith('name-to ');
+                            const isNameFrom = u.matched_on.startsWith('name-from ');
+                            const isName = isNameTo || isNameFrom;
+                            const strong = isRef || isFrom || isTo || isName;
                             const matchType = isRef
                               ? 'Reference (TID)'
                               : isFrom
                                 ? 'Phone after "from"'
                                 : isTo
                                   ? 'Phone after "to"'
-                                  : 'Phone in email body';
-                            const confidenceLabel = isRef ? 'authoritative' : isFrom || isTo ? 'high' : 'medium';
-                            const matchedValue = u.matched_on.replace(/^(reference|from|to|phone)\s+/, '');
-                            const shortLabel = isRef ? 'ref' : isFrom ? 'from' : isTo ? 'to' : 'phone';
+                                  : isNameTo
+                                    ? 'Name after "to"'
+                                    : isNameFrom
+                                      ? 'Name after "from"'
+                                      : 'Phone in email body';
+                            const confidenceLabel = isRef
+                              ? 'authoritative'
+                              : isFrom || isTo
+                                ? 'high'
+                                : isName
+                                  ? 'medium-high'
+                                  : 'medium';
+                            const matchedValue = u.matched_on.replace(/^(reference|from|to|phone|name-to|name-from)\s+/, '');
+                            const shortLabel = isRef
+                              ? 'ref'
+                              : isFrom
+                                ? 'from'
+                                : isTo
+                                  ? 'to'
+                                  : isNameTo
+                                    ? 'name→'
+                                    : isNameFrom
+                                      ? 'name←'
+                                      : 'phone';
                             const isPrimary = idx === 0 && arr.length > 1;
                             // Visual hierarchy:
                             //  - primary (top-scoring when there are multiple matches): filled + Star
