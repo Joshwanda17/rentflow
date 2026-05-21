@@ -78,32 +78,15 @@ export async function generateAndDownloadActiveTenantsPdf() {
   });
   const profiles = await fetchProfilesMap(personIds);
 
-  const now = Date.now();
-  const GRACE_MS = 7 * 24 * 60 * 60 * 1000;
-
   const rows: ActiveTenantRow[] = requests.map((r) => {
     const tenant = profiles.get(r.tenant_id) ?? { name: '—', phone: '—' };
     const landlord = (r.landlord_id && profiles.get(r.landlord_id)) || { name: '—', phone: '—' };
     const agentId = r.assigned_agent_id || r.agent_id;
     const agent = (agentId && profiles.get(agentId)) || { name: 'Unassigned', phone: '—' };
 
-    const durationDays = Math.max(Number(r.duration_days || 30), 1);
-    let principal = 0;
-    let expected = 0;
-
-    if (r.registration_type === 'outstanding_balance') {
-      const eff = getEffectiveRentRequestAmounts(r);
-      principal = Number(r.initial_outstanding_balance ?? 0);
-      expected = eff.totalRepayment;
-    } else {
-      principal = Number(r.rent_amount ?? 0);
-      const stored = Number(r.total_repayment ?? 0);
-      const computed = principal > 0
-        ? calculateRentRepayment(principal, durationDays).totalRepayment
-        : 0;
-      expected = Math.max(stored, computed);
-    }
-
+    // Unified math: stored values, no recompute. Matches Agent Daily report.
+    const principal = Number(r.rent_amount ?? 0);
+    const expected = Number(r.total_repayment ?? 0);
     const repaid = Number(r.amount_repaid ?? 0);
     const outstanding = Math.max(0, expected - repaid);
 
@@ -114,24 +97,8 @@ export async function generateAndDownloadActiveTenantsPdf() {
       endDate = d.toISOString();
     }
 
-    // Status label
-    let status_label = 'Other';
-    const endMs = endDate ? new Date(endDate).getTime() : 0;
-    const endReason = String(r.tenancy_end_reason || '').toLowerCase();
-    if (outstanding <= 0) {
-      status_label = r.tenancy_status === 'ended' ? 'Ended' : 'Cleared';
-    } else if (
-      r.tenancy_status === 'ended' &&
-      /default|evict|abandon|arrears/.test(endReason)
-    ) {
-      status_label = 'Defaulted';
-    } else if (endMs && now > endMs + GRACE_MS) {
-      status_label = 'Defaulted';
-    } else if (ACTIVE_STATUSES.has(r.status)) {
-      status_label = 'Repaying';
-    } else if (r.tenancy_status === 'ended') {
-      status_label = 'Ended';
-    }
+    // Active book only → every row is currently repaying.
+    const status_label = outstanding <= 0 ? 'Cleared' : 'Repaying';
 
     return {
       tenant_name: tenant.name,
