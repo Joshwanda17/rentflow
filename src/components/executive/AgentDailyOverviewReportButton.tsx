@@ -24,8 +24,10 @@ const PRESETS: { label: string; offset: number }[] = [
   { label: '7 days ago', offset: 7 },
 ];
 
-// Active rent plans considered "live" for expected-today calculations.
+// Unified active-book definition shared with activeTenantsReportPdf.ts.
+// Keep these in sync so the two reports reconcile on Principal/Outstanding.
 const ACTIVE_STATUSES = ['approved', 'disbursed', 'active', 'repaying', 'funded'];
+const UNASSIGNED_AGENT_KEY = '__unassigned__';
 
 /**
  * Paged select helper — Supabase caps single requests at 1000 rows. The
@@ -66,7 +68,6 @@ export function AgentDailyOverviewReportButton() {
           .from('rent_requests')
           .select('agent_id, tenant_id, rent_amount, daily_repayment, total_repayment, amount_repaid, status')
           .in('status', ACTIVE_STATUSES)
-          .not('agent_id', 'is', null)
           .range(from, to),
       );
 
@@ -106,10 +107,11 @@ export function AgentDailyOverviewReportButton() {
       const ensure = (agentId: string): Agg => {
         let a = map.get(agentId);
         if (!a) {
-          const p = profileMap.get(agentId);
+          const isUnassigned = agentId === UNASSIGNED_AGENT_KEY;
+          const p = isUnassigned ? null : profileMap.get(agentId);
           a = {
-            agentName: p?.full_name || 'Unknown agent',
-            agentPhone: p?.phone || '',
+            agentName: isUnassigned ? 'Unassigned' : (p?.full_name || 'Unknown agent'),
+            agentPhone: isUnassigned ? '' : (p?.phone || ''),
             activeTenants: 0,
             expectedToday: 0,
             collectedToday: 0,
@@ -126,7 +128,7 @@ export function AgentDailyOverviewReportButton() {
       };
 
       requests.forEach((r: any) => {
-        const a = ensure(r.agent_id);
+        const a = ensure(r.agent_id || UNASSIGNED_AGENT_KEY);
         a.expectedToday += Number(r.daily_repayment || 0);
         a.principalPaid += Number(r.rent_amount || 0);
         a.outstanding += Math.max(0, Number(r.total_repayment || 0) - Number(r.amount_repaid || 0));
@@ -134,7 +136,7 @@ export function AgentDailyOverviewReportButton() {
       });
 
       collections.forEach((c: any) => {
-        const a = ensure(c.agent_id);
+        const a = ensure(c.agent_id || UNASSIGNED_AGENT_KEY);
         a.collectedToday += Number(c.amount || 0);
         a.paymentsToday += 1;
         if (c.tenant_id) a.paidSet.add(c.tenant_id);
