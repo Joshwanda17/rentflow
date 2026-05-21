@@ -181,7 +181,7 @@ export async function generateAndDownloadActiveTenantsPdf() {
     ],
     rows: tableRows,
     totals: ['', 'TOTALS', '', '', '', '', '', '', totalPrincipal, totalExpected, totalOutstanding, '', ''],
-    footerNote: 'Active book only (status in funded, disbursed, repaying, active, approved). Principal = stored rent_amount. Expected = stored total_repayment. Outstanding = Expected − Repaid. Confidential — Welile internal report.',
+    footerNote: 'Active book only (status in funded, disbursed, repaying, active, approved). Normal plans: Principal = rent_amount, Expected = Rent × 1.33^(days/30) + reg fee (trigger-canonical). Outstanding-balance plans: Principal = Expected = initial_outstanding_balance (legacy carry-over debt, no 1.33× formula). Outstanding = Expected − Repaid. Confidential — Welile internal report.',
   });
 
   downloadPdfBlob(blob, `tenants-active-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
