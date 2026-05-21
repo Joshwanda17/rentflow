@@ -996,3 +996,79 @@ async function sendSmsViaAfricasTalking(phone: string, message: string): Promise
     return false;
   }
 }
+
+// ── Recovery sweep: deposits already linked to a Gmail receipt but still
+// pending. Invokes approve-deposit (system_auto_credit path) which is the
+// only function allowed to flip status + credit the float wallet.
+async function sweepLinkedPendingDeposits(
+  supabase: ReturnType<typeof createClient>,
+): Promise<void> {
+  // Find up to 25 gmail rows that are linked to a still-pending deposit.
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+  const { data: rows, error } = await supabase
+    .from('gmail_transactions')
+    .select('id, linked_deposit_request_id, amount, transaction_id, internal_date, direction, parsed')
+    .not('linked_deposit_request_id', 'is', null)
+    .eq('parsed', true)
+    .in('direction', ['in', 'credit'])
+    .gte('internal_date', sevenDaysAgo)
+    .order('internal_date', { ascending: false })
+    .limit(100);
+  if (error || !rows?.length) return;
+
+  const depIds = Array.from(
+    new Set(rows.map((r: any) => r.linked_deposit_request_id).filter(Boolean)),
+  );
+  if (!depIds.length) return;
+
+  const { data: deps } = await supabase
+    .from('deposit_requests')
+    .select('id, status, amount, user_id, transaction_id, provider')
+    .in('id', depIds)
+    .eq('status', 'pending')
+    .limit(25);
+  if (!deps?.length) return;
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+  for (const dep of deps) {
+    // Re-verify amount + provider before kicking approve-deposit.
+    const match = rows.find(
+      (r: any) =>
+        r.linked_deposit_request_id === (dep as any).id &&
+        Number(r.amount) === Number((dep as any).amount),
+    );
+    if (!match) continue;
+    try {
+      const res = await fetch(`${supabaseUrl}/functions/v1/approve-deposit`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${serviceKey}`,
+          'apikey': serviceKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          deposit_request_id: (dep as any).id,
+          action: 'approve',
+          auto_approved: true,
+          auto_match_method: 'linked_pending_sweep',
+          system_auto_credit: true,
+        }),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        console.warn(
+          `[gmail-poll] sweep approve-deposit non-200 dep=${(dep as any).id} status=${res.status} body=${txt.slice(0, 200)}`,
+        );
+      } else {
+        console.log(
+          `[gmail-poll] sweep auto-credited linked-pending deposit dep=${(dep as any).id} ` +
+          `amt=${(dep as any).amount} user=${(dep as any).user_id}`,
+        );
+      }
+    } catch (e) {
+      console.warn('[gmail-poll] sweep approve-deposit invoke failed:', e);
+    }
+  }
+}
