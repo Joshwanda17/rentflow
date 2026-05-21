@@ -553,8 +553,15 @@ const footerCopyText: React.CSSProperties = { margin: 0, color: '#cbd5e1', fontS
 export const template = {
   component: PartnerCompound,
   subject: (data: Record<string, any>) => {
-    const formatted = formatAmount(data?.new_total_partnership_value, data?.currency || 'UGX')
-    return `Portfolio Compounded — New Value ${formatted}`
+    const currency = data?.currency || 'UGX'
+    const initNum = Number(String(data?.initial_partnership_amount ?? 0).replace(/,/g, '')) || 0
+    const retNum = Number(String(data?.return_amount ?? 0).replace(/,/g, '')) || 0
+    const newTotalNum = Number(String(data?.new_total_partnership_value ?? 0).replace(/,/g, '')) || 0
+    // Subject uses the NEW principal (Principal + Returns Earned), matching the
+    // highlight card and the in-app Confirm Compound dialog — not the compounded
+    // projection value.
+    const headline = (initNum + retNum) > 0 ? (initNum + retNum) : newTotalNum
+    return `Portfolio Compounded — New Value ${formatAmount(headline, currency)}`
   },
   displayName: 'Partner Portfolio Compounding Confirmation',
   previewData: {
