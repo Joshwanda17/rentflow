@@ -2198,7 +2198,7 @@ export function EmailTransactionsPanel() {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="mt-1.5 h-7 text-[11px] gap-1"
+                        className="mt-1.5 h-8 sm:h-7 text-[11px] gap-1"
                         onClick={() => {
                           const matches = userMatches[r.id] ?? [];
                           const top = matches
@@ -2232,7 +2232,7 @@ export function EmailTransactionsPanel() {
                           <Button
                             size="sm"
                             variant="default"
-                            className="mt-1.5 h-7 text-[11px] gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                            className="mt-1.5 h-8 sm:h-7 text-[11px] gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
                             disabled={busy}
                             title={`Match: withdrawal ${m.id.slice(0,8)}… for ${m.user_name || 'user'} (${m.mobile_money_number || m.bank_account_number || '—'}) · ${m.matched_on}`}
                             onClick={() => autoApproveWithdrawal(r, m)}
@@ -2251,7 +2251,7 @@ export function EmailTransactionsPanel() {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="mt-1.5 h-7 text-[11px] gap-1 border-rose-300 text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                        className="mt-1.5 h-8 sm:h-7 text-[11px] gap-1 border-rose-300 text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30"
                         onClick={() => {
                           const matches = userMatches[r.id] ?? [];
                           const top = matches
