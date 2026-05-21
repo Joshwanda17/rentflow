@@ -26,9 +26,22 @@ export interface EmailRowForRouting {
   from_name: string | null;
   from_email: string | null;
   subject: string | null;
+  /** Recipient / counterparty extracted by the email parser. Used by the
+   *  debit flow to compose a reason that names who actually received the
+   *  money rather than the bank/MNO that sent the confirmation email. */
+  counterparty?: string | null;
 }
 
-export interface PrefilledUser { id: string; full_name: string; phone: string }
+export interface PrefilledUser {
+  id: string;
+  full_name: string;
+  phone: string;
+  /** Phone number actually seen in the email body (e.g. after "to …").
+   *  Optional — when present, surfaced in the auto-filled reason so the
+   *  audit trail records the matched contact, not just the user's stored
+   *  account phone. */
+  matched_phone?: string | null;
+}
 
 interface Props {
   open: boolean;
@@ -67,8 +80,17 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
       setDebitRoute('withdrawable');
       const tid = row.transaction_id ? ` TID ${row.transaction_id}` : '';
       const from = row.from_name || row.from_email || 'email';
+      // Outgoing emails (MTN/Airtel/bank send confirmations) carry the
+      // beneficiary in `counterparty` — surface it so the auto-filled
+      // reason names who actually received the money. Phone preference:
+      // matched-in-body phone first, then the user's stored account phone.
+      const recipientName = row.counterparty || (suggestedUser?.full_name ?? '');
+      const recipientPhone = suggestedUser?.matched_phone || suggestedUser?.phone || '';
+      const toClause = recipientName || recipientPhone
+        ? ` to ${[recipientName, recipientPhone].filter(Boolean).join(' ')}`
+        : '';
       setReason(mode === 'debit'
-        ? `Charged outgoing payment email from ${from}${tid} against user wallet.`
+        ? `Charged outgoing payment email from ${from}${tid}${toClause} against user wallet.`
         : `Routed inbound deposit email from ${from}${tid}.`);
     }
   }, [open, row, suggestedUser, mode]);
