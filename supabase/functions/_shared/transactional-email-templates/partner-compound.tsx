@@ -245,9 +245,9 @@ export function PartnerCompound({
                 {/* Compounding timeline — breakdown of how we arrived at the New Total */}
                 <tr>
                   <td className="padding-mobile" style={{ padding: '0 40px 30px 40px' }}>
-                    <Text style={timelineTitle}>How your New Total was built</Text>
+                    <Text style={timelineTitle}>Your next 12 months, compounded</Text>
                     <Text style={timelineSubtitle}>
-                      A month-by-month breakdown of the compounding that produced {formattedNewTotal}.
+                      Starting from your new principal of {formattedHighlightTotal} on {compound_date || 'today'}, here is how it grows month-by-month at {roiLabel} per month if you keep compounding.
                     </Text>
                     <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={timelineCard}>
                       <tbody>
@@ -290,11 +290,9 @@ export function PartnerCompound({
                         })}
                       </tbody>
                     </table>
-                    {cyclesDone >= 2 && !(Array.isArray(compound_history) && compound_history.length > 0) && (
-                      <Text style={timelineFootnote}>
-                        Monthly balances are reconstructed from your portfolio's compounding rate ({roiLabel} per month).
-                      </Text>
-                    )}
+                    <Text style={timelineFootnote}>
+                      Projection based on your portfolio's compounding rate ({roiLabel} per month). Actual returns may vary if you withdraw or top up.
+                    </Text>
                   </td>
                 </tr>
 
