@@ -1017,6 +1017,8 @@ export function EmailTransactionsPanel() {
         </div>
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
           {[
+            { label: 'Today', days: 1 },
+            { label: 'Yesterday', days: 1, offset: 1 },
             { label: '7d', days: 7 },
             { label: '30d', days: 30 },
             { label: '90d', days: 90 },
@@ -1030,7 +1032,8 @@ export function EmailTransactionsPanel() {
                 // Anchor presets to "today" as seen in the selected timezone.
                 const todayKey = dateKeyInTz(new Date(), tz);
                 const [y, m, d] = todayKey.split('-').map(Number);
-                const toUtc = Date.UTC(y, m - 1, d);
+                const offsetDays = (p as { offset?: number }).offset ?? 0;
+                const toUtc = Date.UTC(y, m - 1, d) - offsetDays * 86_400_000;
                 const fromUtc = toUtc - (p.days - 1) * 86_400_000;
                 const fmtKey = (ms: number) => {
                   const dt = new Date(ms);
