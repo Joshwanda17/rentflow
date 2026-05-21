@@ -1718,6 +1718,7 @@ export function EmailTransactionsPanel() {
         onOpenChange={(o) => { if (!o) { setRoutingRow(null); setRoutingSuggestedUser(null); } }}
         row={routingRow as EmailRowForRouting | null}
         suggestedUser={routingSuggestedUser}
+        mode={routingMode}
       />
 
       <FixChannelDialog
