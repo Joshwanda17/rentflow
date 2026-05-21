@@ -526,6 +526,27 @@ async function tryAutoCreditOperationalFloat(
 
   let profile: { id: string; phone: string | null; full_name: string | null; email?: string | null } | null = null;
   let matchMethod: 'phone' | 'name' = 'phone';
+  // Audit detail for name-fallback matching: candidate pool, chosen
+  // tie-breaker, last-seen timestamps, and confidence breakdown. Surfaced
+  // in the Auto-Credit Review queue so ops can judge each best-guess.
+  let nameMatchAudit: {
+    raw_name: string;
+    total_candidates: number;
+    candidates: Array<{
+      id: string;
+      full_name: string | null;
+      phone_last4: string | null;
+      has_phone: boolean;
+      last_sign_in_at: string | null;
+      last_sign_in_ms: number;
+      selected: boolean;
+    }>;
+    tiebreaker: string;
+    tiebreaker_pool: 'with-phone' | 'all' | 'single' | null;
+    confidence: 'high' | 'medium' | 'low';
+    confidence_score: number;
+    confidence_reasons: string[];
+  } | null = null;
 
   if (phoneMatch) {
     const digits = phoneMatch[0].replace(/[^0-9]/g, '');
@@ -557,30 +578,53 @@ async function tryAutoCreditOperationalFloat(
       if (nameMatches && nameMatches.length === 1 && nameMatches[0]?.id) {
         profile = nameMatches[0] as any;
         matchMethod = 'name';
+        const only = nameMatches[0] as any;
+        const onlyDigits = (only.phone ?? '').replace(/\D/g, '');
+        nameMatchAudit = {
+          raw_name: rawName,
+          total_candidates: 1,
+          candidates: [{
+            id: only.id,
+            full_name: only.full_name ?? null,
+            phone_last4: onlyDigits.length >= 4 ? onlyDigits.slice(-4) : null,
+            has_phone: onlyDigits.length >= 9,
+            last_sign_in_at: null,
+            last_sign_in_ms: 0,
+            selected: true,
+          }],
+          tiebreaker: 'unique-name-match',
+          tiebreaker_pool: 'single',
+          confidence: 'high',
+          confidence_score: 0.95,
+          confidence_reasons: ['exactly one profile matched the sender name'],
+        };
         console.log(`[gmail-poll] MTN name-fallback matched "${rawName}" → user=${profile.id}`);
       } else if (nameMatches && nameMatches.length > 1) {
         // Tie-breaker 1: prefer profiles that actually have a phone on file.
         const withPhone = nameMatches.filter((p: any) => (p.phone ?? '').replace(/\D/g, '').length >= 9);
         let winner: any = null;
         let tiebreaker = '';
+        let tiebreakerPool: 'with-phone' | 'all' | 'single' | null = null;
+        const lastSeen: { id: string; ts: number; iso: string | null }[] = [];
         if (withPhone.length === 1) {
           winner = withPhone[0];
           tiebreaker = 'only-profile-with-phone';
+          tiebreakerPool = 'with-phone';
         } else {
           // Tie-breaker 2: pick the most recently active auth user (within 30d
           // and strictly newer than every other candidate by ≥ 24h).
           const pool = withPhone.length > 1 ? withPhone : nameMatches;
+          tiebreakerPool = withPhone.length > 1 ? 'with-phone' : 'all';
           // Best-guess: pick the most recently active auth user among the
           // same-named candidates. Ops can reverse via Email Transactions
           // if it turns out to be the wrong user.
-          const lastSeen: { id: string; ts: number }[] = [];
           for (const p of pool) {
             try {
               const { data: u } = await (supabase as any).auth.admin.getUserById(p.id);
               const t = u?.user?.last_sign_in_at ? new Date(u.user.last_sign_in_at).getTime() : 0;
-              lastSeen.push({ id: p.id, ts: t });
+              lastSeen.push({ id: p.id, ts: t, iso: u?.user?.last_sign_in_at ?? null });
             } catch {
-              lastSeen.push({ id: p.id, ts: 0 });
+              lastSeen.push({ id: p.id, ts: 0, iso: null });
             }
           }
           lastSeen.sort((a, b) => b.ts - a.ts);
@@ -593,6 +637,54 @@ async function tryAutoCreditOperationalFloat(
         if (winner?.id) {
           profile = winner;
           matchMethod = 'name';
+          // Confidence: 'low' for first-candidate (no signal), 'medium' for
+          // most-recent-active, 'high' for only-profile-with-phone.
+          let confidence: 'high' | 'medium' | 'low' = 'low';
+          let confidenceScore = 0.3;
+          const reasons: string[] = [];
+          if (tiebreaker === 'only-profile-with-phone') {
+            confidence = 'high';
+            confidenceScore = 0.85;
+            reasons.push('only one of the same-named profiles has a phone on file');
+          } else if (tiebreaker === 'most-recent-active') {
+            const top = lastSeen[0];
+            const second = lastSeen[1];
+            const gapDays = top && second ? (top.ts - second.ts) / 86400000 : 0;
+            if (gapDays >= 7) {
+              confidence = 'medium';
+              confidenceScore = 0.65;
+              reasons.push(`winner active ${gapDays.toFixed(1)}d more recently than runner-up`);
+            } else {
+              confidence = 'low';
+              confidenceScore = 0.4;
+              reasons.push(`winner active only ${gapDays.toFixed(1)}d more recently than runner-up`);
+            }
+          } else {
+            reasons.push('no last-sign-in signal — picked first candidate');
+          }
+          const lsMap = new Map(lastSeen.map(l => [l.id, l]));
+          nameMatchAudit = {
+            raw_name: rawName,
+            total_candidates: nameMatches.length,
+            candidates: nameMatches.map((p: any) => {
+              const digits = (p.phone ?? '').replace(/\D/g, '');
+              const ls = lsMap.get(p.id);
+              return {
+                id: p.id,
+                full_name: p.full_name ?? null,
+                phone_last4: digits.length >= 4 ? digits.slice(-4) : null,
+                has_phone: digits.length >= 9,
+                last_sign_in_at: ls?.iso ?? null,
+                last_sign_in_ms: ls?.ts ?? 0,
+                selected: p.id === winner.id,
+              };
+            }),
+            tiebreaker,
+            tiebreaker_pool: tiebreakerPool,
+            confidence,
+            confidence_score: confidenceScore,
+            confidence_reasons: reasons,
+          };
           console.log(`[gmail-poll] MTN name-fallback resolved "${rawName}" (${nameMatches.length} matches) via ${tiebreaker} → user=${winner.id}`);
         } else {
           console.log(`[gmail-poll] MTN name-fallback ambiguous for "${rawName}" (${nameMatches.length} matches, no clear winner) — skipping auto-credit`);
@@ -639,6 +731,12 @@ async function tryAutoCreditOperationalFloat(
     parsed_tid: parsed.transaction_id,
     internal_date: internalMs ? new Date(internalMs).toISOString() : null,
     created_at: new Date().toISOString(),
+    // Enhanced audit: candidate pool + tie-breaker + confidence for the
+    // name-fallback path. Null when matched on phone (deterministic).
+    name_match: nameMatchAudit,
+    tiebreaker: nameMatchAudit?.tiebreaker ?? null,
+    confidence: nameMatchAudit?.confidence ?? (matchMethod === 'phone' ? 'high' : null),
+    confidence_score: nameMatchAudit?.confidence_score ?? (matchMethod === 'phone' ? 1 : null),
   };
 
   // Create the deposit as pending — approve-deposit will flip it.
