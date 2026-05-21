@@ -1179,10 +1179,15 @@ Deno.serve(async (req) => {
                 const bucketLabel = isFloat
                   ? 'Operational Float'
                   : 'Wallet';
+                // Last 4 digits of the credited phone so the user can verify
+                // the deposit landed on the right MoMo number (important
+                // when an account has multiple SIMs / proxy phones).
+                const phoneDigits = String(depProfile.phone).replace(/\D/g, '');
+                const phoneTail = phoneDigits.slice(-4) || '----';
                 const smsMsg =
                   `Welile: Hi ${firstName}, ${fmtUGX(depositRequest.amount)} from ` +
                   `${providerLabelShort} (TID ${txRef}) was auto-credited to your ` +
-                  `${bucketLabel}. New ${isFloat ? 'float' : 'wallet'} balance: ` +
+                  `${bucketLabel} on phone •••${phoneTail}. New ${isFloat ? 'float' : 'wallet'} balance: ` +
                   `${fmtUGX(newBucketBalance)}.`;
                 await sendSmsViaAfricasTalking(depProfile.phone, smsMsg);
               } else {
