@@ -141,7 +141,15 @@ export function PartnerCompound({
   const fmtDate = (d: Date) =>
     d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 
-  const PROJECTION_MONTHS = 12
+  // Count only the months remaining in the contribution year (inclusive of
+  // the months AFTER the compound date, up to and including December of that
+  // same year). E.g. compounding in July → project Aug..Dec = 5 months.
+  // Falls back to 12 months if we can't parse the compound date.
+  const PROJECTION_MONTHS = (() => {
+    if (!startDate) return 12
+    const remaining = 12 - (startDate.getMonth() + 1)
+    return Math.max(1, remaining)
+  })()
   if (startingPrincipal > 0 && r > 0) {
     let bal = startingPrincipal
     for (let i = 0; i < PROJECTION_MONTHS; i++) {
@@ -248,9 +256,11 @@ export function PartnerCompound({
                 {/* Compounding timeline — breakdown of how we arrived at the New Total */}
                 <tr>
                   <td className="padding-mobile" style={{ padding: '0 40px 30px 40px' }}>
-                    <Text style={timelineTitle}>Your next 12 months, compounded</Text>
+                    <Text style={timelineTitle}>
+                      {`Your remaining ${PROJECTION_MONTHS} month${PROJECTION_MONTHS === 1 ? '' : 's'} of ${startDate ? startDate.getFullYear() : new Date().getFullYear()}, compounded`}
+                    </Text>
                     <Text style={timelineSubtitle}>
-                      Starting from your new principal of {formattedHighlightTotal} on {compound_date || 'today'}, here is how it grows month-by-month at {roiLabel} per month if you keep compounding.
+                      Starting from your new principal of {formattedHighlightTotal} on {compound_date || 'today'}, here is how it grows month-by-month at {roiLabel} per month through the end of {startDate ? startDate.getFullYear() : new Date().getFullYear()} if you keep compounding.
                     </Text>
                     <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={timelineCard}>
                       <tbody>
