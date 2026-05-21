@@ -843,6 +843,7 @@ export function EmailTransactionsPanel() {
     let cancelled = false;
     const rowPhones = new Map<string, string[]>();
     const rowFromPhones = new Map<string, string[]>();
+    const rowToPhones = new Map<string, string[]>();
     const rowRefs = new Map<string, string[]>();
     const allPhones = new Set<string>();
     const allRefs = new Set<string>();
@@ -856,6 +857,11 @@ export function EmailTransactionsPanel() {
       if (fromPhones.length) {
         rowFromPhones.set(r.id, fromPhones);
         fromPhones.forEach((p) => allPhones.add(p));
+      }
+      const toPhones = extractToPhones(r);
+      if (toPhones.length) {
+        rowToPhones.set(r.id, toPhones);
+        toPhones.forEach((p) => allPhones.add(p));
       }
       const refs = extractReferences(r);
       if (refs.length) {
