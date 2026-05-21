@@ -245,6 +245,78 @@ export function AutoCreditReviewPanel() {
                       Email sender name: <span className="font-mono">{String(audit.matched_name)}</span>
                     </div>
                   )}
+                  {audit.name_match && (
+                    <div className="rounded-lg border border-border/60 bg-background/60 p-2.5 space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          Match audit
+                        </div>
+                        {audit.confidence && (
+                          <Badge
+                            variant={
+                              audit.confidence === 'high'
+                                ? 'secondary'
+                                : audit.confidence === 'medium'
+                                ? 'outline'
+                                : 'destructive'
+                            }
+                            className="text-[10px]"
+                          >
+                            {audit.confidence} confidence
+                            {typeof audit.confidence_score === 'number'
+                              ? ` · ${(audit.confidence_score * 100).toFixed(0)}%`
+                              : ''}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        Tie-breaker: <span className="font-mono">{tieKey || '—'}</span>
+                        {audit.name_match.tiebreaker_pool && (
+                          <> · pool: <span className="font-mono">{audit.name_match.tiebreaker_pool}</span></>
+                        )}
+                        {' · '}
+                        {audit.name_match.total_candidates} candidate
+                        {audit.name_match.total_candidates === 1 ? '' : 's'}
+                      </div>
+                      {Array.isArray(audit.confidence_reasons) && audit.confidence_reasons.length > 0 && (
+                        <ul className="text-[11px] text-muted-foreground list-disc list-inside space-y-0.5">
+                          {audit.confidence_reasons.map((reason: string, i: number) => (
+                            <li key={i}>{reason}</li>
+                          ))}
+                        </ul>
+                      )}
+                      {Array.isArray(audit.name_match.candidates) && audit.name_match.candidates.length > 0 && (
+                        <div className="space-y-1 pt-1">
+                          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                            Candidate pool
+                          </div>
+                          {audit.name_match.candidates.map((c: any) => (
+                            <div
+                              key={c.id}
+                              className={`flex items-center justify-between gap-2 text-[11px] rounded px-2 py-1 ${
+                                c.selected ? 'bg-amber-500/10 border border-amber-500/30' : 'bg-muted/30'
+                              }`}
+                            >
+                              <div className="min-w-0 truncate">
+                                {c.selected && <span className="font-semibold">✓ </span>}
+                                <span className="font-medium">{c.full_name ?? '(unnamed)'}</span>
+                                {c.phone_last4 ? (
+                                  <span className="text-muted-foreground"> · •••{c.phone_last4}</span>
+                                ) : (
+                                  <span className="text-muted-foreground"> · no phone</span>
+                                )}
+                              </div>
+                              <span className="text-muted-foreground shrink-0">
+                                {c.last_sign_in_at
+                                  ? `seen ${new Date(c.last_sign_in_at).toLocaleDateString()}`
+                                  : 'never signed in'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <div className="flex flex-col sm:flex-row gap-2 pt-1">
                     <Button
                       size="sm"
