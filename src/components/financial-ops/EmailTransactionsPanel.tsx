@@ -1294,6 +1294,11 @@ export function EmailTransactionsPanel() {
           sub={<span className="text-[10px] text-rose-600">↑ money sent</span>}
         />
         <StatCard
+          label="Total provider fees"
+          value={fmtUgx(totalFees)}
+          sub={<span className="text-[10px] text-amber-600">{feeCount} row{feeCount === 1 ? '' : 's'} · MTN / Airtel / banks</span>}
+        />
+        <StatCard
           label="Net (in − out)"
           value={`${netAmount < 0 ? '-' : ''}${fmtUgx(Math.abs(netAmount))}`}
           info={
