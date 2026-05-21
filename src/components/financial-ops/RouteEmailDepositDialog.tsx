@@ -15,7 +15,7 @@ import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
 import { formatUGX } from '@/lib/rentCalculations';
 
 type Route = 'personal_deposit' | 'operational_float';
-type DebitRoute = 'withdrawable' | 'landlord_float';
+type DebitRoute = 'withdrawable' | 'landlord_float' | 'proxy_agent_wallet';
 export type RouteDialogMode = 'credit' | 'debit';
 
 export interface EmailRowForRouting {
