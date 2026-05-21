@@ -423,14 +423,25 @@ export function EmailTransactionsPanel() {
   );
   const [loading, setLoading] = useState(true);
   const [polling, setPolling] = useState(false);
-  // Date-range filter (inclusive). Empty string = unbounded on that side.
-  // Persisted in localStorage so the selection survives a page refresh.
-  const [fromDate, setFromDate] = useState<string>(() =>
-    typeof window === 'undefined' ? '' : (localStorage.getItem('gmail_filter_from') || '')
-  );
-  const [toDate, setToDate] = useState<string>(() =>
-    typeof window === 'undefined' ? '' : (localStorage.getItem('gmail_filter_to') || '')
-  );
+  // Date-range filter (inclusive). Defaults to "today" in the operator's
+  // timezone so the report opens scoped to today; users can pick any other
+  // period (yesterday, 7d, etc.) and the selection is persisted across reloads.
+  const initialTz = (() => {
+    if (typeof window === 'undefined') return 'Africa/Kampala';
+    const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return localStorage.getItem('gmail_filter_tz') || browserTz || 'Africa/Kampala';
+  })();
+  const todayKeyInitial = typeof window === 'undefined' ? '' : dateKeyInTz(new Date(), initialTz);
+  const [fromDate, setFromDate] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    const saved = localStorage.getItem('gmail_filter_from');
+    return saved === null ? todayKeyInitial : saved;
+  });
+  const [toDate, setToDate] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    const saved = localStorage.getItem('gmail_filter_to');
+    return saved === null ? todayKeyInitial : saved;
+  });
   useEffect(() => { try { localStorage.setItem('gmail_filter_from', fromDate); } catch {} }, [fromDate]);
   useEffect(() => { try { localStorage.setItem('gmail_filter_to', toDate); } catch {} }, [toDate]);
   // Timezone in which `fromDate`/`toDate` are interpreted and daily buckets are grouped.
