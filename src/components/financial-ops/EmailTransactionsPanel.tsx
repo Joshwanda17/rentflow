@@ -1523,6 +1523,169 @@ export function EmailTransactionsPanel() {
         </div>
       )}
 
+      {(() => {
+        // Unrouted money-out banner. Counts every payable outgoing row in the
+        // active date/search window that has NOT yet been routed to a wallet.
+        // The "Auto-debit" button only acts on rows whose top recipient match
+        // is high-confidence (TID = 100, or "to/from <phone>" = 90).
+        const outRows = filteredRows.filter(
+          (r) => isCountable(r) && (r.direction === 'out' || r.direction === 'charge'),
+        );
+        const unrouted = outRows.filter((r) => !(routingHistory[r.id]?.length));
+        type HighConfRow = { row: GmailTx; top: MatchedUser; score: number };
+        const highConf: HighConfRow[] = [];
+        for (const r of unrouted) {
+          const matches = userMatches[r.id] ?? [];
+          const ranked = matches
+            .map((u) => ({
+              u,
+              s: u.matched_on.startsWith('reference ') ? 100
+                : u.matched_on.startsWith('to ') ? 90
+                : u.matched_on.startsWith('from ') ? 90
+                : u.matched_on.startsWith('name-') ? 75
+                : 60,
+            }))
+            .sort((a, b) => b.s - a.s);
+          const top = ranked[0];
+          if (top && top.s >= 90) highConf.push({ row: r, top: top.u, score: top.s });
+        }
+        if (outRows.length === 0) return null;
+        const unroutedAmt = unrouted.reduce((s, r) => s + (r.amount ?? 0), 0);
+        const highConfAmt = highConf.reduce((s, x) => s + (x.row.amount ?? 0), 0);
+
+        const runAutoDebit = async () => {
+          if (!highConf.length) return;
+          const ok = window.confirm(
+            `Auto-debit ${highConf.length} payout${highConf.length === 1 ? '' : 's'} totalling ${fmtUgx(highConfAmt)} from the matched user wallets?\n\nOnly rows with a TID or "to <phone>" match (score ≥ 90%) will run. Each posts a withdrawable debit via CFO Direct Debit. This cannot be undone in bulk.`,
+          );
+          if (!ok) return;
+          setAutoDebitBusy(true);
+          setAutoDebitProgress({ done: 0, total: highConf.length, ok: 0, failed: 0 });
+          let okCount = 0;
+          let failCount = 0;
+          let me: { id: string } | null = null;
+          let routedByName: string | null = null;
+          try {
+            const { data: meRes } = await supabase.auth.getUser();
+            if (meRes?.user?.id) {
+              me = { id: meRes.user.id };
+              const { data: rp } = await (supabase.from('profiles') as any)
+                .select('full_name').eq('id', meRes.user.id).maybeSingle();
+              routedByName = rp?.full_name ?? null;
+            }
+          } catch { /* ignore */ }
+          for (let i = 0; i < highConf.length; i++) {
+            const { row, top, score } = highConf[i];
+            const amt = row.amount ?? 0;
+            const matchedLabel = top.matched_on;
+            const reason = `Auto-debit (score ${score}%, ${matchedLabel}) — outgoing payment email from ${row.from_name || row.from_email || 'provider'}${row.transaction_id ? ` TID ${row.transaction_id}` : ''} charged against ${top.full_name}'s wallet.`;
+            try {
+              const { data: debitData, error: debitErr } = await supabase.functions.invoke('cfo-direct-credit', {
+                body: {
+                  target_user_id: top.id,
+                  amount: amt,
+                  reason,
+                  operation: 'debit' as const,
+                  wallet_category: 'wallet_transfer',
+                  platform_category: 'wallet_transfer',
+                  financial_impact: 'neutral' as const,
+                  category_label: 'Email charge → Withdrawable (auto)',
+                  recipient_type: 'user',
+                  sub_category: row.transaction_id ?? null,
+                },
+              });
+              if (debitErr) throw new Error((debitErr as any)?.message || 'Debit failed');
+              if ((debitData as any)?.error) throw new Error((debitData as any).error);
+              const referenceId = (debitData as any)?.reference_id ?? null;
+              // Best-effort history insert so the row immediately shows as routed.
+              if (me?.id) {
+                try {
+                  await (supabase.from('email_routing_history') as any).insert({
+                    gmail_transaction_id: row.id,
+                    gmail_message_id: row.gmail_message_id ?? null,
+                    transaction_id: row.transaction_id,
+                    from_email: row.from_email,
+                    from_name: row.from_name,
+                    subject: row.subject,
+                    amount: amt,
+                    route: 'withdrawable_debit',
+                    target_user_id: top.id,
+                    target_user_name: top.full_name,
+                    target_user_phone: top.phone,
+                    reason: `DEBIT (auto, ${matchedLabel}): ${reason}`,
+                    ledger_reference_id: referenceId,
+                    routed_by: me.id,
+                    routed_by_name: routedByName,
+                    sms_sent: false,
+                    sms_error: null,
+                  });
+                } catch (e) {
+                  console.warn('[auto-debit] history insert failed', e);
+                }
+              }
+              okCount++;
+            } catch (e: any) {
+              failCount++;
+              console.error('[auto-debit] row failed', row.id, e?.message);
+            }
+            setAutoDebitProgress({ done: i + 1, total: highConf.length, ok: okCount, failed: failCount });
+          }
+          setAutoDebitBusy(false);
+          toast({
+            title: `Auto-debit complete`,
+            description: `${okCount} succeeded, ${failCount} failed of ${highConf.length}.`,
+            variant: failCount > 0 ? 'destructive' : 'default',
+          });
+        };
+
+        return (
+          <div className={`rounded-xl border p-3 flex items-start gap-3 ${unrouted.length > 0 ? 'border-rose-300 bg-rose-50/60 dark:border-rose-900/60 dark:bg-rose-950/30' : 'border-emerald-300 bg-emerald-50/60 dark:border-emerald-900/60 dark:bg-emerald-950/30'}`}>
+            <div className={`mt-0.5 h-8 w-8 rounded-full flex items-center justify-center shrink-0 ${unrouted.length > 0 ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-200' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-200'}`}>
+              {unrouted.length > 0 ? <AlertTriangle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold">
+                {unrouted.length > 0
+                  ? `${unrouted.length} money-out email${unrouted.length === 1 ? '' : 's'} not yet charged to any wallet`
+                  : `All ${outRows.length} money-out email${outRows.length === 1 ? '' : 's'} routed to wallets`}
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {unrouted.length > 0 ? (
+                  <>
+                    Unrouted total <strong className="font-mono text-foreground/80">{fmtUgx(unroutedAmt)}</strong>
+                    {' '}· {highConf.length} of them have a high-confidence recipient
+                    {highConf.length > 0 && <> ({fmtUgx(highConfAmt)})</>}.
+                    {' '}Until they're routed, no user wallet is reduced for these payouts.
+                  </>
+                ) : (
+                  <>Every outgoing email in this window has a matching wallet debit on the ledger.</>
+                )}
+              </p>
+              {autoDebitProgress && (
+                <p className="text-[11px] mt-1 font-mono">
+                  Progress: {autoDebitProgress.done}/{autoDebitProgress.total}
+                  {' '}· <span className="text-emerald-700">{autoDebitProgress.ok} ok</span>
+                  {autoDebitProgress.failed > 0 && <> · <span className="text-rose-700">{autoDebitProgress.failed} failed</span></>}
+                </p>
+              )}
+            </div>
+            {highConf.length > 0 && (
+              <Button
+                size="sm"
+                variant="default"
+                className="shrink-0 bg-rose-600 hover:bg-rose-700 text-white gap-1.5"
+                disabled={autoDebitBusy}
+                onClick={runAutoDebit}
+                title={`Posts a withdrawable debit via CFO Direct Debit for each of the ${highConf.length} high-confidence payout(s).`}
+              >
+                {autoDebitBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
+                Auto-debit {highConf.length} high-confidence
+              </Button>
+            )}
+          </div>
+        );
+      })()}
+
       <div className="rounded-xl border bg-card overflow-hidden">
         <div className="p-4 border-b flex items-center justify-between gap-3 flex-wrap">
           <h3 className="font-semibold text-sm">Recent emails</h3>
