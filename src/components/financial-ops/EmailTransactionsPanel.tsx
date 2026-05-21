@@ -519,6 +519,10 @@ export function EmailTransactionsPanel() {
   const [routingRow, setRoutingRow] = useState<GmailTx | null>(null);
   const [routingSuggestedUser, setRoutingSuggestedUser] = useState<PrefilledUser | null>(null);
   const [routingMode, setRoutingMode] = useState<'credit' | 'debit'>('credit');
+  // Batch auto-debit state. `autoDebitBusy` disables the banner button while
+  // a batch run is in flight; `autoDebitProgress` drives the inline counter.
+  const [autoDebitBusy, setAutoDebitBusy] = useState(false);
+  const [autoDebitProgress, setAutoDebitProgress] = useState<{ done: number; total: number; ok: number; failed: number } | null>(null);
   const [rulesVersion, setRulesVersion] = useState(0);
   const [storedUserRules, setStoredUserRules] = useState<StoredUserRule[]>(() => readStoredUserRules());
   const persistUserRules = (next: StoredUserRule[]) => {
