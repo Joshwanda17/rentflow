@@ -109,6 +109,29 @@ export default function Settings() {
   const [phone, setPhone] = useState('');
   const otp = useOtpVerification();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  /** Mirrors the edge-function normalizePhone exactly for client-side preview */
+  const previewNormalizePhone = (raw: string): string => {
+    const trimmed = raw.trim().replace(/[\s-]/g, '');
+    if (trimmed.startsWith('+')) return trimmed;
+    if (trimmed.startsWith('0')) return '+256' + trimmed.slice(1);
+    if (/^\d{9,15}$/.test(trimmed)) return '+' + trimmed;
+    return trimmed;
+  };
+
+  /** Pretty-print E.164 like +256 783 673 998 when possible */
+  const formatPhonePreview = (e164: string): string => {
+    const ug = e164.match(/^\+(256)(\d{3})(\d{3})(\d{3})$/);
+    if (ug) return `+${ug[1]} ${ug[2]} ${ug[3]} ${ug[4]}`;
+    const gen = e164.match(/^(\+\d{1,4})(\d{3})(\d{3})(\d+)$/);
+    if (gen) return `${gen[1]} ${gen[2]} ${gen[3]} ${gen[4]}`;
+    return e164;
+  };
+
+  const normalizedPreview = useMemo(() => {
+    const n = previewNormalizePhone(phone);
+    return /\+\d{9,15}/.test(n) ? n : '';
+  }, [phone]);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
@@ -308,6 +331,15 @@ export default function Settings() {
                     <div className="space-y-1.5">
                       <Label htmlFor="phone" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Phone</Label>
                       <div className="relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="phone" type="tel" value={phone} onChange={(e) => { setPhone(e.target.value); if (otp.otpVerified || otp.otpSent) otp.resetOtp(); }} placeholder="e.g. 0783673998" className="pl-10 h-12 rounded-xl" /></div>
+                      {normalizedPreview && (
+                        <div className="flex items-center gap-2 mt-1">
+                          <Check className="h-3 w-3 text-success" />
+                          <span className="text-[11px] text-muted-foreground">Will be saved as</span>
+                          <code className="text-[11px] font-semibold text-foreground bg-primary/10 px-1.5 py-0.5 rounded-md font-mono tracking-tight">
+                            {formatPhonePreview(normalizedPreview)}
+                          </code>
+                        </div>
+                      )}
                       {profile && phone.trim() !== (profile.phone ?? '').trim() && phone.trim() && (
                         <div className="pt-2">
                           <OtpVerificationStep
