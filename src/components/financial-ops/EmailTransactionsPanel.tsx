@@ -534,6 +534,7 @@ export function EmailTransactionsPanel() {
   const [editingRow, setEditingRow] = useState<GmailTx | null>(null);
   const [routingRow, setRoutingRow] = useState<GmailTx | null>(null);
   const [routingSuggestedUser, setRoutingSuggestedUser] = useState<PrefilledUser | null>(null);
+  const [routingMode, setRoutingMode] = useState<'credit' | 'debit'>('credit');
   const [rulesVersion, setRulesVersion] = useState(0);
   const [storedUserRules, setStoredUserRules] = useState<StoredUserRule[]>(() => readStoredUserRules());
   const persistUserRules = (next: StoredUserRule[]) => {
