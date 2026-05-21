@@ -81,7 +81,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
   // debit the proxy agent's wallet via the "Proxy agent wallet" route.
   const proxy = useQuery({
     queryKey: ['route-email-proxy', user?.id, mode],
-    enabled: open && mode === 'debit' && !!user?.id,
+    enabled: open && !!user?.id,
     queryFn: async () => {
       if (!user?.id) return null;
       const { data: assignment } = await (supabase.from('proxy_agent_assignments') as any)
