@@ -2724,6 +2724,8 @@ type ChannelBreakdownRow = {
   inTotal: number;
   outCount: number;
   outTotal: number;
+  feeCount: number;
+  feeTotal: number;
   net: number;
 };
 
@@ -2756,16 +2758,21 @@ function exportTotalsCsv({ rows, totalIn, totalOut, netAmount, channelBreakdown 
   const stamp = format(new Date(), 'yyyy-MM-dd_HHmm');
 
   const allRows: (string | number)[][] = [];
-  allRows.push(['Section', 'Key', 'In count', 'Total in (UGX)', 'Out count', 'Total out (UGX)', 'Net (UGX)']);
+  const totalFeesAll = rows
+    .filter((r) => r.parsed && r.fee && Number(r.fee) > 0)
+    .reduce((s, r) => s + Number(r.fee ?? 0), 0);
+  const feeCountAll = rows.filter((r) => r.parsed && r.fee && Number(r.fee) > 0).length;
+  allRows.push(['Section', 'Key', 'In count', 'Total in (UGX)', 'Out count', 'Total out (UGX)', 'Fee count', 'Total fees (UGX)', 'Net (UGX)']);
   allRows.push(['Summary', 'All parsed', rows.filter(r => r.parsed && r.direction === 'in').length, Math.round(totalIn),
-    rows.filter(r => r.parsed && (r.direction === 'out' || r.direction === 'charge')).length, Math.round(totalOut), Math.round(netAmount)]);
-  allRows.push(['', '', '', '', '', '', '']);
+    rows.filter(r => r.parsed && (r.direction === 'out' || r.direction === 'charge')).length, Math.round(totalOut),
+    feeCountAll, Math.round(totalFeesAll), Math.round(netAmount)]);
+  allRows.push(['', '', '', '', '', '', '', '', '']);
   for (const c of channelBreakdown) {
-    allRows.push(['Channel', c.channel, c.inCount, Math.round(c.inTotal), c.outCount, Math.round(c.outTotal), Math.round(c.net)]);
+    allRows.push(['Channel', c.channel, c.inCount, Math.round(c.inTotal), c.outCount, Math.round(c.outTotal), c.feeCount, Math.round(c.feeTotal), Math.round(c.net)]);
   }
-  allRows.push(['', '', '', '', '', '', '']);
+  allRows.push(['', '', '', '', '', '', '', '', '']);
   for (const d of perDay) {
-    allRows.push(['Day', d.day, d.inCount, Math.round(d.inTotal), d.outCount, Math.round(d.outTotal), Math.round(d.net)]);
+    allRows.push(['Day', d.day, d.inCount, Math.round(d.inTotal), d.outCount, Math.round(d.outTotal), '', '', Math.round(d.net)]);
   }
   downloadCsv(`email-transactions-totals_${stamp}.csv`, allRows[0] as string[], allRows.slice(1));
 }
@@ -2804,13 +2811,15 @@ async function exportTotalsPdf({ rows, totalIn, totalOut, netAmount, channelBrea
 
   if (channelBreakdown.length > 0) {
     autoTable(doc, {
-      head: [['Channel', 'In #', 'Total in', 'Out #', 'Total out', 'Net']],
+      head: [['Channel', 'In #', 'Total in', 'Out #', 'Total out', 'Fee #', 'Total fees', 'Net']],
       body: channelBreakdown.map(c => [
         c.channel,
         c.inCount,
         `UGX ${Math.round(c.inTotal).toLocaleString()}`,
         c.outCount,
         `UGX ${Math.round(c.outTotal).toLocaleString()}`,
+        c.feeCount,
+        `UGX ${Math.round(c.feeTotal).toLocaleString()}`,
         `UGX ${Math.round(c.net).toLocaleString()}`,
       ]),
       styles: { fontSize: 9 },
