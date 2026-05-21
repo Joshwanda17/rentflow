@@ -523,18 +523,47 @@ async function tryAutoCreditOperationalFloat(
   // Extract a phone from counterparty (parser already captures phone shape).
   const cp = (parsed.counterparty ?? '').toString();
   const phoneMatch = cp.match(/(?:\+?256|0)?\d{9,12}/);
-  if (!phoneMatch) return;
-  const digits = phoneMatch[0].replace(/[^0-9]/g, '');
-  if (digits.length < 9) return;
-  const last9 = digits.slice(-9);
 
-  // Look up the user by phone (service-role bypasses RLS).
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('id, phone, full_name, email')
-    .filter('phone', 'ilike', `%${last9}`)
-    .limit(1)
-    .maybeSingle();
+  let profile: { id: string; phone: string | null; full_name: string | null; email?: string | null } | null = null;
+  let matchMethod: 'phone' | 'name' = 'phone';
+
+  if (phoneMatch) {
+    const digits = phoneMatch[0].replace(/[^0-9]/g, '');
+    if (digits.length >= 9) {
+      const last9 = digits.slice(-9);
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, phone, full_name, email')
+        .filter('phone', 'ilike', `%${last9}`)
+        .limit(1)
+        .maybeSingle();
+      if (data?.id) profile = data as any;
+    }
+  }
+
+  // ── MTN MoMo fallback ────────────────────────────────────────────
+  // MTN "received" notification emails only include the sender's NAME,
+  // never the phone. Try a strict name match — only accept when EXACTLY
+  // one profile matches, to avoid mis-crediting on common names.
+  if (!profile && parsed.channel === 'mtn_momo') {
+    const rawName = cp.replace(/\s+/g, ' ').trim();
+    // Must look like a real human name (≥ 2 words, ≥ 4 chars total, letters)
+    if (rawName && /[A-Za-z]/.test(rawName) && rawName.split(' ').filter(Boolean).length >= 2 && rawName.length >= 4) {
+      const { data: nameMatches } = await supabase
+        .from('profiles')
+        .select('id, phone, full_name, email')
+        .ilike('full_name', rawName)
+        .limit(2);
+      if (nameMatches && nameMatches.length === 1 && nameMatches[0]?.id) {
+        profile = nameMatches[0] as any;
+        matchMethod = 'name';
+        console.log(`[gmail-poll] MTN name-fallback matched "${rawName}" → user=${profile.id}`);
+      } else if (nameMatches && nameMatches.length > 1) {
+        console.log(`[gmail-poll] MTN name-fallback ambiguous for "${rawName}" (${nameMatches.length} matches) — skipping auto-credit`);
+      }
+    }
+  }
+
   if (!profile?.id) return;
 
   // Find the gmail_transactions row we just wrote so we can link it.
@@ -565,7 +594,9 @@ async function tryAutoCreditOperationalFloat(
   const auditMeta = {
     source: 'gmail_auto_credit',
     gmail_message_id: gmailMessageId,
-    matched_phone_last9: last9,
+    match_method: matchMethod,
+    matched_phone_last9: phoneMatch ? phoneMatch[0].replace(/[^0-9]/g, '').slice(-9) : null,
+    matched_name: matchMethod === 'name' ? cp : null,
     provider,
     parsed_amount: parsed.amount,
     parsed_tid: parsed.transaction_id,
