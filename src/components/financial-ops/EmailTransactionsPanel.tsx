@@ -1773,31 +1773,39 @@ export function EmailTransactionsPanel() {
                       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                         <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold inline-flex items-center gap-1">
                           {userMatches[r.id].length > 1 ? <Users className="h-3 w-3" /> : null}
-                          {userMatches[r.id].length > 1
-                            ? `${userMatches[r.id].length} possible users:`
-                            : 'Possible user:'}
+                          {(() => {
+                            const isOut = r.direction === 'out' || r.direction === 'charge';
+                            const noun = isOut ? 'recipient' : 'user';
+                            return userMatches[r.id].length > 1
+                              ? `${userMatches[r.id].length} possible ${noun}s:`
+                              : `Possible ${noun}:`;
+                          })()}
                         </span>
                         <TooltipProvider delayDuration={150}>
                           {[...userMatches[r.id]]
                             .map((u) => {
                               const isRef = u.matched_on.startsWith('reference ');
                               const isFrom = u.matched_on.startsWith('from ');
-                              const score = isRef ? 100 : isFrom ? 90 : 60;
+                              const isTo = u.matched_on.startsWith('to ');
+                              const score = isRef ? 100 : isFrom || isTo ? 90 : 60;
                               return { u, score };
                             })
                             .sort((a, b) => b.score - a.score)
                             .map(({ u, score }, idx, arr) => {
                             const isRef = u.matched_on.startsWith('reference ');
                             const isFrom = u.matched_on.startsWith('from ');
-                            const strong = isRef || isFrom;
+                            const isTo = u.matched_on.startsWith('to ');
+                            const strong = isRef || isFrom || isTo;
                             const matchType = isRef
                               ? 'Reference (TID)'
                               : isFrom
                                 ? 'Phone after "from"'
-                                : 'Phone in email body';
-                            const confidenceLabel = isRef ? 'authoritative' : isFrom ? 'high' : 'medium';
-                            const matchedValue = u.matched_on.replace(/^(reference|from|phone)\s+/, '');
-                            const shortLabel = isRef ? 'ref' : isFrom ? 'from' : 'phone';
+                                : isTo
+                                  ? 'Phone after "to"'
+                                  : 'Phone in email body';
+                            const confidenceLabel = isRef ? 'authoritative' : isFrom || isTo ? 'high' : 'medium';
+                            const matchedValue = u.matched_on.replace(/^(reference|from|to|phone)\s+/, '');
+                            const shortLabel = isRef ? 'ref' : isFrom ? 'from' : isTo ? 'to' : 'phone';
                             const isPrimary = idx === 0 && arr.length > 1;
                             // Visual hierarchy:
                             //  - primary (top-scoring when there are multiple matches): filled + Star
