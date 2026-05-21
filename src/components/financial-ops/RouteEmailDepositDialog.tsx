@@ -18,6 +18,7 @@ type Route = 'personal_deposit' | 'operational_float';
 
 export interface EmailRowForRouting {
   id: string;
+  gmail_message_id?: string | null;
   amount: number | null;
   transaction_id: string | null;
   from_name: string | null;
@@ -85,12 +86,78 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
         throw new Error(msg);
       }
       if ((data as any)?.error) throw new Error((data as any).error);
-      return data;
+      const referenceId = (data as any)?.reference_id ?? null;
+
+      // 2) Fire SMS notification to the routed user (best-effort).
+      let smsSent = false;
+      let smsError: string | null = null;
+      try {
+        const fromLabel = row.from_name || row.from_email || null;
+        const { data: smsRes, error: smsErr } = await supabase.functions.invoke('notify-email-routing', {
+          body: {
+            phone: user.phone,
+            target_user_name: user.full_name,
+            amount: amt,
+            route,
+            reference_id: referenceId,
+            from_label: fromLabel,
+            transaction_id: row.transaction_id,
+          },
+        });
+        if (smsErr) smsError = (smsErr as any)?.message || 'SMS dispatch failed';
+        else if ((smsRes as any)?.success) smsSent = true;
+        else smsError = (smsRes as any)?.error || 'SMS not delivered';
+      } catch (e: any) {
+        smsError = e?.message || 'SMS dispatch threw';
+      }
+
+      // 3) Record routing history (best-effort — never block the credit).
+      try {
+        const { data: me } = await supabase.auth.getUser();
+        const routedBy = me?.user?.id;
+        if (routedBy) {
+          let routedByName: string | null = null;
+          try {
+            const { data: rp } = await (supabase.from('profiles') as any)
+              .select('full_name')
+              .eq('id', routedBy)
+              .maybeSingle();
+            routedByName = rp?.full_name ?? null;
+          } catch { /* ignore */ }
+
+          await (supabase.from('email_routing_history') as any).insert({
+            gmail_transaction_id: row.id,
+            gmail_message_id: row.gmail_message_id ?? null,
+            transaction_id: row.transaction_id,
+            from_email: row.from_email,
+            from_name: row.from_name,
+            subject: row.subject,
+            amount: amt,
+            route,
+            target_user_id: user.id,
+            target_user_name: user.full_name,
+            target_user_phone: user.phone,
+            reason: reason.trim(),
+            ledger_reference_id: referenceId,
+            routed_by: routedBy,
+            routed_by_name: routedByName,
+            sms_sent: smsSent,
+            sms_error: smsError,
+          });
+        }
+      } catch (e) {
+        console.warn('[RouteEmailDeposit] history insert failed', e);
+      }
+
+      return { ...(data as any), smsSent, smsError };
     },
-    onSuccess: () => {
+    onSuccess: (res: any) => {
+      const routeLabel = route === 'operational_float' ? 'Operational Float' : 'Personal Deposit';
       toast({
         title: 'Deposit routed',
-        description: `${formatUGX(Number(amount))} credited to ${user?.full_name} as ${route === 'operational_float' ? 'Operational Float' : 'Personal Deposit'}.`,
+        description: res?.smsSent
+          ? `${formatUGX(Number(amount))} credited to ${user?.full_name} as ${routeLabel}. SMS sent.`
+          : `${formatUGX(Number(amount))} credited to ${user?.full_name} as ${routeLabel}. SMS could not be sent${res?.smsError ? ` (${res.smsError})` : ''}.`,
       });
       onOpenChange(false);
     },
