@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useProfile } from '@/hooks/useProfile';
 import { Loader2, CheckCircle2, ArrowDownCircle, AlertCircle, Smartphone, Building2, Banknote, CreditCard, Phone, Wallet } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
+import { safeDepositPurpose } from '@/lib/depositPurposeGuard';
 
 interface AgentDepositCashDialogProps {
   open: boolean;
@@ -67,7 +68,7 @@ export function AgentDepositCashDialog({ open, onOpenChange, onSuccess }: AgentD
         transaction_id: transactionId.trim().toUpperCase(),
         notes: `Agent cash deposit for: ${depositType}`,
         status: 'pending',
-        deposit_purpose: 'other' // Maps safely using DB enum
+        deposit_purpose: safeDepositPurpose('other'),
       });
 
     setLoading(false);
