@@ -7,9 +7,10 @@ import {
   type AgentCapacity,
 } from '@/hooks/useAgentCapacityMap';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Gauge, CalendarCheck2, Users, Info, Printer, Loader2 } from 'lucide-react';
+import { Gauge, CalendarCheck2, Users, Info, Printer, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { hapticTap } from '@/lib/haptics';
 import {
   fetchAgentCapacityTenants,
   generateAgentCapacityPdf,
@@ -35,6 +36,7 @@ export function AgentRentCapacitySelfCard() {
   const { data, isLoading } = useAgentCapacityMap(ids);
   const cap = user?.id ? data?.get(user.id) : undefined;
   const [printing, setPrinting] = useState(false);
+  const [open, setOpen] = useState(false);
 
   const handlePrint = async () => {
     if (!user?.id || !cap) return;
@@ -68,84 +70,108 @@ export function AgentRentCapacitySelfCard() {
 
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden">
-      <div className="p-3 sm:p-4 bg-gradient-to-br from-primary/10 via-violet-500/5 to-transparent border-b border-border">
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-xl bg-primary/15 flex items-center justify-center">
-            <Gauge className="h-4 w-4 text-primary" />
+      <button
+        type="button"
+        onClick={() => { hapticTap(); setOpen(o => !o); }}
+        aria-expanded={open}
+        aria-controls="agent-rent-capacity-body"
+        className="w-full text-left p-4 bg-gradient-to-br from-primary/10 via-violet-500/5 to-transparent border-b border-border hover:bg-primary/5 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+            <Gauge className="h-5 w-5 text-primary" />
           </div>
           <div className="min-w-0 flex-1">
-            <h3 className="text-sm font-bold text-foreground">My Rent-Request Capacity</h3>
-            <p className="text-[11px] text-muted-foreground">
-              How many of your tenants paid in the last 7 days?
+            <h3 className="text-base font-bold text-foreground">My Rent-Request Capacity</h3>
+            <p className="text-xs text-muted-foreground">
+              {open ? 'Tap to hide details' : 'Tap to see how much rent you can post'}
             </p>
           </div>
           {cap && (
-            <div className="flex items-center gap-1.5 shrink-0">
-              <span
-                className={`px-2 py-1 rounded-full text-xs font-extrabold border ${TIER_TONE[cap.tier]}`}
-              >
-                {cap.tier} · {ratePct}%
-              </span>
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 gap-1 px-2"
-                onClick={handlePrint}
-                disabled={printing}
-                title="Download per-tenant capacity PDF"
-              >
-                {printing
-                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  : <Printer className="h-3.5 w-3.5" />}
-                <span className="text-[11px] font-semibold">Print</span>
-              </Button>
-            </div>
+            <span
+              className={`px-2.5 py-1 rounded-full text-xs font-extrabold border ${TIER_TONE[cap.tier]} shrink-0`}
+            >
+              {cap.tier} · {ratePct}%
+            </span>
           )}
+          {open
+            ? <ChevronUp className="h-5 w-5 text-muted-foreground shrink-0" />
+            : <ChevronDown className="h-5 w-5 text-muted-foreground shrink-0" />}
         </div>
-      </div>
+        {!open && cap && (
+          <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+            <div className="rounded-lg bg-background/70 border border-border p-2.5">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Headroom left</div>
+              <div className="mt-0.5 font-extrabold tabular-nums text-foreground">{formatUGX(cap.headroom)}</div>
+            </div>
+            <div className="rounded-lg bg-background/70 border border-border p-2.5">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Per-tenant max</div>
+              <div className="mt-0.5 font-extrabold tabular-nums text-foreground">{formatUGX(cap.per_tenant_max)}</div>
+            </div>
+          </div>
+        )}
+      </button>
 
-      <div className="p-3 sm:p-4 space-y-3">
+      {open && (
+      <div id="agent-rent-capacity-body" className="p-4 space-y-4">
+        {cap && (
+          <div className="flex justify-end">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 gap-1.5 px-3"
+              onClick={handlePrint}
+              disabled={printing}
+              title="Download per-tenant capacity PDF"
+            >
+              {printing
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : <Printer className="h-4 w-4" />}
+              <span className="text-xs font-semibold">Print report</span>
+            </Button>
+          </div>
+        )}
         {isLoading ? (
-          <p className="text-xs text-muted-foreground">Loading capacity…</p>
+          <p className="text-sm text-muted-foreground">Loading capacity…</p>
         ) : !cap ? (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-sm text-muted-foreground leading-relaxed">
             You have no active rent requests yet. Once you post one, your tier will start at{' '}
             <strong>Starter</strong> with a UGX 500,000 per-tenant limit.
           </p>
         ) : (
           <>
-            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3">
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                  <div className="text-xs font-bold uppercase tracking-wide text-emerald-700">
                     Last 7 days · Tenants who paid
                   </div>
-                  <div className="mt-1 text-2xl font-extrabold tabular-nums text-foreground">
+                  <div className="mt-1 text-3xl font-extrabold tabular-nums text-foreground">
                     {cap.paying_tenants_last_week}
-                    <span className="text-base font-bold text-muted-foreground">
+                    <span className="text-lg font-bold text-muted-foreground">
                       {' '}/ {cap.active_tenant_count} tenants
                     </span>
                   </div>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-sm text-muted-foreground mt-0.5">
                     Daily response rate: <strong>{ratePct}%</strong> ·{' '}
                     {cap.responding_tenant_days}/{cap.expected_tenant_days} tenant-day responses
                   </p>
                   {cap.unfunded_tenant_count > 1 && (
-                    <p className="mt-1 text-[11px] font-bold text-destructive">
+                    <p className="mt-1 text-sm font-bold text-destructive">
                       {cap.unfunded_tenant_count} tenants marked <span className="underline">Not Funded</span> — removed from your expected list
                     </p>
                   )}
                   {cap.unfunded_tenant_count === 1 && (
-                    <p className="mt-1 text-[11px] font-bold text-destructive">
+                    <p className="mt-1 text-sm font-bold text-destructive">
                       1 tenant marked <span className="underline">Not Funded</span> — removed from your expected list
                     </p>
                   )}
                 </div>
-                <div className="h-12 w-12 rounded-full border-2 border-emerald-500/30 flex items-center justify-center">
-                  <CalendarCheck2 className="h-6 w-6 text-emerald-600" />
+                <div className="h-14 w-14 rounded-full border-2 border-emerald-500/30 flex items-center justify-center shrink-0">
+                  <CalendarCheck2 className="h-7 w-7 text-emerald-600" />
                 </div>
               </div>
-              <div className="mt-2 h-1.5 w-full rounded-full bg-muted overflow-hidden">
+              <div className="mt-3 h-2.5 w-full rounded-full bg-muted overflow-hidden">
                 <div
                   className="h-full bg-emerald-500 transition-all"
                   style={{ width: `${ratePct}%` }}
@@ -154,7 +180,7 @@ export function AgentRentCapacitySelfCard() {
             </div>
 
             {/* Paid vs Expected — today + this week */}
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {(() => {
                 const expectedWeek = cap.expected_daily * 7;
                 const todayPct = cap.expected_daily > 0
@@ -169,27 +195,27 @@ export function AgentRentCapacitySelfCard() {
                 const weekBar = weekPct >= 100 ? 'bg-emerald-500' : weekPct >= 50 ? 'bg-amber-500' : 'bg-destructive';
                 return (
                   <>
-                    <div className="rounded-xl border border-border bg-background/70 p-2.5">
-                      <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Today · Paid vs Expected</div>
-                      <div className={`mt-0.5 text-sm font-extrabold tabular-nums ${todayTone}`}>
+                    <div className="rounded-xl border border-border bg-background/70 p-3">
+                      <div className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Today · Paid vs Expected</div>
+                      <div className={`mt-1 text-base font-extrabold tabular-nums ${todayTone}`}>
                         {formatUGX(cap.paid_today)}
                         <span className="text-muted-foreground font-semibold"> / {formatUGX(cap.expected_daily)}</span>
                       </div>
-                      <div className="mt-1 h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                      <div className="mt-1.5 h-2 w-full rounded-full bg-muted overflow-hidden">
                         <div className={`h-full ${todayBar}`} style={{ width: `${todayPct}%` }} />
                       </div>
-                      <div className="text-[10px] text-muted-foreground mt-0.5">{todayPct}% of daily target</div>
+                      <div className="text-xs text-muted-foreground mt-1">{todayPct}% of daily target</div>
                     </div>
-                    <div className="rounded-xl border border-border bg-background/70 p-2.5">
-                      <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">This week (7d) · Paid vs Expected</div>
-                      <div className={`mt-0.5 text-sm font-extrabold tabular-nums ${weekTone}`}>
+                    <div className="rounded-xl border border-border bg-background/70 p-3">
+                      <div className="text-xs font-bold uppercase tracking-wide text-muted-foreground">This week (7d) · Paid vs Expected</div>
+                      <div className={`mt-1 text-base font-extrabold tabular-nums ${weekTone}`}>
                         {formatUGX(cap.paid_last_week)}
                         <span className="text-muted-foreground font-semibold"> / {formatUGX(expectedWeek)}</span>
                       </div>
-                      <div className="mt-1 h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                      <div className="mt-1.5 h-2 w-full rounded-full bg-muted overflow-hidden">
                         <div className={`h-full ${weekBar}`} style={{ width: `${weekPct}%` }} />
                       </div>
-                      <div className="text-[10px] text-muted-foreground mt-0.5">{weekPct}% of weekly target</div>
+                      <div className="text-xs text-muted-foreground mt-1">{weekPct}% of weekly target</div>
                     </div>
                   </>
                 );
@@ -197,7 +223,7 @@ export function AgentRentCapacitySelfCard() {
             </div>
 
             <div>
-              <div className="flex items-center justify-between text-[11px] font-semibold tabular-nums mb-1">
+              <div className="flex items-center justify-between text-sm font-semibold tabular-nums mb-1.5">
                 <span className="text-muted-foreground">
                   Exposure{' '}
                   <span className="text-foreground">{formatUGX(cap.used)}</span> /{' '}
@@ -205,10 +231,10 @@ export function AgentRentCapacitySelfCard() {
                 </span>
                 <span className="text-muted-foreground">{pct}%</span>
               </div>
-              <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+              <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden">
                 <div className={`h-full ${bar} transition-all`} style={{ width: `${pct}%` }} />
               </div>
-              <div className="flex items-center justify-between text-[11px] mt-1.5 text-muted-foreground">
+              <div className="flex items-center justify-between text-sm mt-2 text-muted-foreground">
                 <span>
                   Headroom <strong className="text-foreground font-mono">{formatUGX(cap.headroom)}</strong>
                 </span>
@@ -219,28 +245,28 @@ export function AgentRentCapacitySelfCard() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div className="rounded-xl border border-border bg-background/70 p-2.5">
-                <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-primary">
-                  <Users className="h-3.5 w-3.5" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="rounded-xl border border-border bg-background/70 p-3">
+                <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-primary">
+                  <Users className="h-4 w-4" />
                   Active Tenants
                 </div>
-                <div className="mt-0.5 text-sm font-extrabold tabular-nums text-foreground">
+                <div className="mt-1 text-lg font-extrabold tabular-nums text-foreground">
                   {cap.active_count}
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-0.5">
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                   Each tenant × 7 days = {cap.expected_tenant_days} chances to respond
                 </p>
               </div>
-              <div className="rounded-xl border border-border bg-background/70 p-2.5">
-                <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-600">
-                  <CalendarCheck2 className="h-3.5 w-3.5" />
+              <div className="rounded-xl border border-border bg-background/70 p-3">
+                <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-emerald-600">
+                  <CalendarCheck2 className="h-4 w-4" />
                   Responses · Last 7 days
                 </div>
-                <div className="mt-0.5 text-sm font-extrabold tabular-nums text-foreground">
+                <div className="mt-1 text-lg font-extrabold tabular-nums text-foreground">
                   {cap.responding_tenant_days}
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-0.5">
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                   Tenant-days with any payment · {formatUGX(cap.paid_last_week)} total
                 </p>
               </div>
@@ -248,21 +274,21 @@ export function AgentRentCapacitySelfCard() {
           </>
         )}
 
-        <div className="rounded-xl border border-border bg-muted/40 p-3">
-          <div className="flex items-center gap-1.5 text-[11px] font-bold text-foreground mb-1.5">
-            <Info className="h-3.5 w-3.5 text-primary" />
+        <div className="rounded-xl border border-border bg-muted/40 p-4">
+          <div className="flex items-center gap-2 text-sm font-bold text-foreground mb-2">
+            <Info className="h-4 w-4 text-primary" />
             How your tier is calculated
           </div>
-          <p className="text-[11px] text-muted-foreground leading-relaxed">
+          <p className="text-sm text-muted-foreground leading-relaxed">
             We measure <strong>responsiveness</strong>, not the size of payments. For each of your
             active tenants over the last 7 days, we check: <em>did they pay anything that day?</em>
             {' '}Even UGX 1,000 counts as a response. Your tier rewards agents who keep tenants
             paying every single day.
           </p>
-          <ul className="mt-2 space-y-1 text-[11px]">
+          <ul className="mt-3 space-y-2 text-sm">
             <li className="flex items-center justify-between gap-2">
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              <span className="inline-flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
                 <strong className="text-foreground">Positive</strong>
                 <span className="text-muted-foreground">
                   ≥ {Math.round(AGENT_TIER_THRESHOLDS.positive * 100)}% daily response
@@ -271,8 +297,8 @@ export function AgentRentCapacitySelfCard() {
               <span className="font-mono text-foreground">UGX 6,000,000 / tenant</span>
             </li>
             <li className="flex items-center justify-between gap-2">
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-amber-500" />
+              <span className="inline-flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
                 <strong className="text-foreground">Fair</strong>
                 <span className="text-muted-foreground">
                   {Math.round(AGENT_TIER_THRESHOLDS.fair * 100)}–
@@ -282,8 +308,8 @@ export function AgentRentCapacitySelfCard() {
               <span className="font-mono text-foreground">UGX 3,000,000 / tenant</span>
             </li>
             <li className="flex items-center justify-between gap-2">
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-orange-500" />
+              <span className="inline-flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full bg-orange-500" />
                 <strong className="text-foreground">Bad</strong>
                 <span className="text-muted-foreground">
                   {Math.round(AGENT_TIER_THRESHOLDS.bad * 100)}–
@@ -293,8 +319,8 @@ export function AgentRentCapacitySelfCard() {
               <span className="font-mono text-foreground">UGX 1,000,000 / tenant</span>
             </li>
             <li className="flex items-center justify-between gap-2">
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-destructive" />
+              <span className="inline-flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full bg-destructive" />
                 <strong className="text-foreground">Very Bad</strong>
                 <span className="text-muted-foreground">
                   ≤ {Math.round(AGENT_TIER_THRESHOLDS.bad * 100) - 1}%
@@ -303,13 +329,14 @@ export function AgentRentCapacitySelfCard() {
               <span className="font-mono text-destructive">Blocked from new requests</span>
             </li>
           </ul>
-          <p className="mt-2 text-[10px] text-muted-foreground">
+          <p className="mt-3 text-xs text-muted-foreground leading-relaxed">
             New agents start at <strong>Starter</strong> (UGX 500,000 / tenant) until they have
             active rent collections to measure. Your tier refreshes daily based on the most recent
             7-day window — so a strong week immediately moves you up.
           </p>
         </div>
       </div>
+      )}
     </div>
   );
 }
