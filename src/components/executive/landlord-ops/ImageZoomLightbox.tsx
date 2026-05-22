@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 
 interface Props {
@@ -10,23 +10,18 @@ interface Props {
 }
 
 export function ImageZoomLightbox({ images, startIndex, open, onClose, altPrefix = 'Photo' }: Props) {
-  const current = startIndex ?? 0;
-  const total = images.length;
+  const [current, setCurrent] = useState(startIndex ?? 0);
 
-  const goNext = useCallback(() => {
-    if (total <= 1) return;
-    // parent manages index via startIndex prop; we can't mutate it directly here
-    // but we can dispatch a synthetic event or just let the parent drive this.
-    // For simplicity, we rely on parent state management — but this component
-    // is purely presentational. We'll pass back navigation via callbacks.
-  }, [total]);
+  useEffect(() => {
+    if (open && startIndex !== null) setCurrent(startIndex);
+  }, [open, startIndex]);
 
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
-      if (e.key === 'ArrowLeft') goPrevGlobal();
-      if (e.key === 'ArrowRight') goNextGlobal();
+      if (e.key === 'ArrowLeft') setCurrent(c => (c > 0 ? c - 1 : images.length - 1));
+      if (e.key === 'ArrowRight') setCurrent(c => (c < images.length - 1 ? c + 1 : 0));
     };
     document.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
@@ -34,16 +29,15 @@ export function ImageZoomLightbox({ images, startIndex, open, onClose, altPrefix
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = '';
     };
-  }, [open, onClose]);
+  }, [open, onClose, images.length]);
 
-  if (!open || startIndex === null) return null;
+  if (!open || startIndex === null || images.length === 1) return null;
 
   return (
     <div
-      className="fixed inset-1 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm"
       onClick={onClose}
     >
-      {/* Close */}
       <button
         onClick={onClose}
         className="absolute top-3 right-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition"
@@ -52,15 +46,13 @@ export function ImageZoomLightbox({ images, startIndex, open, onClose, altPrefix
         <X className="h-5 w-5" />
       </button>
 
-      {/* Counter */}
       <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 rounded-full bg-white/10 px-3 py-1 text-xs text-white">
-        {current + 1} / {total}
+        {current + 1} / {images.length}
       </div>
 
-      {/* Prev */}
-      {total > 1 && (
+      {images.length > 1 && (
         <button
-          onClick={(e) => { e.stopPropagation(); goPrevGlobal(); }}
+          onClick={(e) => { e.stopPropagation(); setCurrent(c => (c > 0 ? c - 1 : images.length - 1)); }}
           className="absolute left-2 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition"
           aria-label="Previous photo"
         >
@@ -68,7 +60,6 @@ export function ImageZoomLightbox({ images, startIndex, open, onClose, altPrefix
         </button>
       )}
 
-      {/* Image */}
       <img
         src={images[current]}
         alt={`${altPrefix} photo ${current + 1}`}
@@ -76,10 +67,9 @@ export function ImageZoomLightbox({ images, startIndex, open, onClose, altPrefix
         onClick={(e) => e.stopPropagation()}
       />
 
-      {/* Next */}
-      {total > 1 && (
+      {images.length > 1 && (
         <button
-          onClick={(e) => { e.stopPropagation(); goNextGlobal(); }}
+          onClick={(e) => { e.stopPropagation(); setCurrent(c => (c < images.length - 1 ? c + 1 : 0)); }}
           className="absolute right-2 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition"
           aria-label="Next photo"
         >
@@ -88,11 +78,4 @@ export function ImageZoomLightbox({ images, startIndex, open, onClose, altPrefix
       )}
     </div>
   );
-
-  function goNextGlobal() {
-    window.dispatchEvent(new CustomEvent('house-zoom-nav', { detail: { dir: 1 } }));
-  }
-  function goPrevGlobal() {
-    window.dispatchEvent(new CustomEvent('house-zoom-nav', { detail: { dir: -1 } }));
-  }
 }
