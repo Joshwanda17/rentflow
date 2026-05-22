@@ -1264,6 +1264,42 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   )}
                 </div>
 
+                {/* Tenant passport photo (required) */}
+                <div className="space-y-1">
+                  <Label className="text-xs flex items-center gap-1">
+                    🪪 Tenant Passport Photo *
+                  </Label>
+                  <div className="flex items-start gap-3">
+                    {tenantPhoto ? (
+                      <div className="relative h-24 w-20 rounded-lg overflow-hidden border border-border shrink-0">
+                        <img src={tenantPhoto.preview} alt="Tenant" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={removeTenantPhoto}
+                          className="absolute top-1 right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs font-bold"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="h-24 w-20 rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors shrink-0">
+                        <span className="text-xl text-muted-foreground/60">📷</span>
+                        <span className="text-[10px] text-muted-foreground/60 mt-0.5">Capture</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="user"
+                          className="hidden"
+                          onChange={handleTenantPhoto}
+                        />
+                      </label>
+                    )}
+                    <p className="text-[10px] text-muted-foreground leading-relaxed">
+                      Take a clear, well-lit photo of the tenant's face (passport-style). Landlord Ops uses this to verify the tenant during review.
+                    </p>
+                  </div>
+                </div>
+
                 <div className="space-y-1">
                   <Label className="text-xs">Preferred Language *</Label>
                   <Select value={preferredLanguage} onValueChange={setPreferredLanguage}>
