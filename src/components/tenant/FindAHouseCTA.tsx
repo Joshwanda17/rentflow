@@ -17,11 +17,13 @@ export function FindAHouseCTA({ onClick }: FindAHouseCTAProps) {
         supabase
           .from('house_listings')
           .select('id', { count: 'exact', head: true })
-          .in('status', ['available', 'pending']),
+          .in('status', ['available', 'pending'])
+          .eq('is_hidden', false),
         supabase
           .from('house_listings')
           .select('id', { count: 'exact', head: true })
           .in('status', ['available', 'pending'])
+          .eq('is_hidden', false)
           .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
       ]);
       if (totalRes.count !== null) setTotalCount(totalRes.count);
