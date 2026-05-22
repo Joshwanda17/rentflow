@@ -468,91 +468,95 @@ export function LandlordHousesPanel() {
                             </div>
                           </div>
 
-                          <div className="rounded-md bg-muted/40 p-2 text-[11px] space-y-1">
-                            <p className="flex items-center gap-1">
-                              <User className="h-3 w-3" />
-                              <span className="font-medium">Tenant:</span>
-                              <span className="truncate">{tenant ? (
-                                <>
-                                  <HighlightText text={tenant.name} query={search} />
-                                  {tenant.phone ? <> · <HighlightText text={tenant.phone} query={search} /></> : null}
-                                </>
-                              ) : '—'}</span>
-                            </p>
-                            <p className="flex items-center gap-1">
-                              <UserCog className="h-3 w-3" />
-                              <span className="font-medium">Agent:</span>
-                              <span className="truncate">{agent ? (
-                                <>
-                                  <HighlightText text={agent.name} query={search} />
-                                  {agent.phone ? <> · <HighlightText text={agent.phone} query={search} /></> : null}
-                                </>
-                              ) : '—'}</span>
-                            </p>
-                          </div>
+                          {!houseCollapsed[h.id] && (
+                            <>
+                              <div className="rounded-md bg-muted/40 p-2 text-[11px] space-y-1">
+                                <p className="flex items-center gap-1">
+                                  <User className="h-3 w-3" />
+                                  <span className="font-medium">Tenant:</span>
+                                  <span className="truncate">{tenant ? (
+                                    <>
+                                      <HighlightText text={tenant.name} query={search} />
+                                      {tenant.phone ? <> · <HighlightText text={tenant.phone} query={search} /></> : null}
+                                    </>
+                                  ) : '—'}</span>
+                                </p>
+                                <p className="flex items-center gap-1">
+                                  <UserCog className="h-3 w-3" />
+                                  <span className="font-medium">Agent:</span>
+                                  <span className="truncate">{agent ? (
+                                    <>
+                                      <HighlightText text={agent.name} query={search} />
+                                      {agent.phone ? <> · <HighlightText text={agent.phone} query={search} /></> : null}
+                                    </>
+                                  ) : '—'}</span>
+                                </p>
+                              </div>
 
-                          <div className="flex flex-wrap gap-1.5">
-                            <Button
-                              size="sm" variant="outline" className="h-8 text-xs gap-1"
-                              onClick={() => setBindFor({
-                                landlordId: g.landlord_id, landlordName: g.landlord_name,
-                                houseId: h.id, currentTenantId: h.tenant_id,
-                              })}
-                            >
-                              <UserPlus className="h-3 w-3" />
-                              {h.tenant_id ? 'Swap tenant' : 'Bind tenant'}
-                            </Button>
-                            {h.tenant_id && (
-                              <Button
-                                size="sm" variant="outline" className="h-8 text-xs gap-1 border-destructive/40 text-destructive hover:bg-destructive/10"
-                                onClick={() => setRemoveFor({ houseId: h.id, houseTitle: h.title })}
-                              >
-                                <UserX className="h-3 w-3" />
-                                Remove (absconded)
-                              </Button>
-                            )}
-                            <Button
-                              size="sm" variant="outline" className="h-8 text-xs gap-1"
-                              onClick={() => setReassignFor({ houseId: h.id, houseTitle: h.title, currentAgentId: h.agent_id })}
-                            >
-                              <UserCog className="h-3 w-3" />
-                              Reassign agent
-                            </Button>
-                            <Button
-                              size="sm" variant="outline" className="h-8 text-xs gap-1"
-                              onClick={() => toggleHidden(h)}
-                              disabled={!!togglingHide[h.id]}
-                              title={h.is_hidden ? 'Show this house to tenants again' : 'Hide this house from tenant browse'}
-                            >
-                              {togglingHide[h.id] ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : h.is_hidden ? (
-                                <Eye className="h-3 w-3" />
-                              ) : (
-                                <EyeOff className="h-3 w-3" />
+                              <div className="flex flex-wrap gap-1.5">
+                                <Button
+                                  size="sm" variant="outline" className="h-8 text-xs gap-1"
+                                  onClick={() => setBindFor({
+                                    landlordId: g.landlord_id, landlordName: g.landlord_name,
+                                    houseId: h.id, currentTenantId: h.tenant_id,
+                                  })}
+                                >
+                                  <UserPlus className="h-3 w-3" />
+                                  {h.tenant_id ? 'Swap tenant' : 'Bind tenant'}
+                                </Button>
+                                {h.tenant_id && (
+                                  <Button
+                                    size="sm" variant="outline" className="h-8 text-xs gap-1 border-destructive/40 text-destructive hover:bg-destructive/10"
+                                    onClick={() => setRemoveFor({ houseId: h.id, houseTitle: h.title })}
+                                  >
+                                    <UserX className="h-3 w-3" />
+                                    Remove (absconded)
+                                  </Button>
+                                )}
+                                <Button
+                                  size="sm" variant="outline" className="h-8 text-xs gap-1"
+                                  onClick={() => setReassignFor({ houseId: h.id, houseTitle: h.title, currentAgentId: h.agent_id })}
+                                >
+                                  <UserCog className="h-3 w-3" />
+                                  Reassign agent
+                                </Button>
+                                <Button
+                                  size="sm" variant="outline" className="h-8 text-xs gap-1"
+                                  onClick={() => toggleHidden(h)}
+                                  disabled={!!togglingHide[h.id]}
+                                  title={h.is_hidden ? 'Show this house to tenants again' : 'Hide this house from tenant browse'}
+                                >
+                                  {togglingHide[h.id] ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : h.is_hidden ? (
+                                    <Eye className="h-3 w-3" />
+                                  ) : (
+                                    <EyeOff className="h-3 w-3" />
+                                  )}
+                                  {h.is_hidden ? 'Unhide' : 'Hide'}
+                                </Button>
+                                <Button
+                                  size="sm" variant="ghost" className="h-8 text-xs gap-1"
+                                  onClick={() => setTimelineOpen(s => ({ ...s, [h.id]: !s[h.id] }))}
+                                  aria-expanded={!!timelineOpen[h.id]}
+                                >
+                                  {timelineOpen[h.id] ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                                  Timeline
+                                </Button>
+                                <Button
+                                  size="sm" variant="outline" className="h-8 text-xs gap-1 border-primary/40 text-primary hover:bg-primary/10"
+                                  onClick={() => setDetailsHouseId(h.id)}
+                                  title="See every detail the agent registered for this house"
+                                >
+                                  <Info className="h-3 w-3" /> Full details
+                                </Button>
+                              </div>
+                              {timelineOpen[h.id] && (
+                                <div className="rounded-md border bg-muted/10 p-2">
+                                  <HouseActivityTimeline houseId={h.id} />
+                                </div>
                               )}
-                              {h.is_hidden ? 'Unhide' : 'Hide'}
-                            </Button>
-                            <Button
-                              size="sm" variant="ghost" className="h-8 text-xs gap-1"
-                              onClick={() => setTimelineOpen(s => ({ ...s, [h.id]: !s[h.id] }))}
-                              aria-expanded={!!timelineOpen[h.id]}
-                            >
-                              {timelineOpen[h.id] ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                              Timeline
-                            </Button>
-                            <Button
-                              size="sm" variant="outline" className="h-8 text-xs gap-1 border-primary/40 text-primary hover:bg-primary/10"
-                              onClick={() => setDetailsHouseId(h.id)}
-                              title="See every detail the agent registered for this house"
-                            >
-                              <Info className="h-3 w-3" /> Full details
-                            </Button>
-                          </div>
-                          {timelineOpen[h.id] && (
-                            <div className="rounded-md border bg-muted/10 p-2">
-                              <HouseActivityTimeline houseId={h.id} />
-                            </div>
+                            </>
                           )}
                         </div>
                       );
