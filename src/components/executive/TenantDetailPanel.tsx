@@ -6,12 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Phone, MessageCircle, User, ArrowLeft, MapPin, FileSearch, Pencil, Save, X, Loader2 } from 'lucide-react';
+import { Phone, MessageCircle, User, ArrowLeft, MapPin, FileSearch, Pencil, Save, X, Loader2, ArrowRightLeft } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { calculateRentRepayment } from '@/lib/rentCalculations';
 import { Textarea } from '@/components/ui/textarea';
+import TenantAssignAgentDialog from '@/components/shared/TenantAssignAgentDialog';
 
 const statusColor = (s: string) => {
   const m: Record<string, string> = {
@@ -52,6 +53,9 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
   const [editingOutstanding, setEditingOutstanding] = useState(false);
   const [savingOutstanding, setSavingOutstanding] = useState(false);
   const [outstandingEdit, setOutstandingEdit] = useState({ amount: '', reason: '' });
+
+  // Transfer agent dialog state
+  const [transferReq, setTransferReq] = useState<{ id: string; agent_id: string | null } | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['tenant-detail', tenantId],
