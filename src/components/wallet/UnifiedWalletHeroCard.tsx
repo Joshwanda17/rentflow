@@ -174,7 +174,7 @@ export function UnifiedWalletHeroCard({
                   </span>
                 </div>
               )}
-              {pendingHold > 1 && (
+              {pendingHold > 0 && (
                 <p className="text-[10px] text-primary-foreground/50 mt-1.5">
                   Wallet total: <span className="font-semibold text-primary-foreground/80">{formatAmount(balance)}</span>
                 </p>
