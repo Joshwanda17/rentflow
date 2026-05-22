@@ -25,6 +25,7 @@ import { TenantProfileView } from './TenantProfileView';
 import { TenantFieldCollectDialog } from './TenantFieldCollectDialog';
 import { AgentRequestPipelineView } from './AgentRequestPipelineView';
 import { MarkNotFundedDialog } from './MarkNotFundedDialog';
+import { AgentRentCapacitySelfCard } from './AgentRentCapacitySelfCard';
 
 interface Tenant {
   id: string;
