@@ -3604,6 +3604,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         searchQuery: search.trim() || undefined,
         totalCount: localPortfolios.length,
         rows: filtered.map((p) => ({
+          investorId: p.investorId,
           name: p.name,
           portfolioName: p.portfolioName,
           phone: p.phone,
