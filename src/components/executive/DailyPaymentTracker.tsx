@@ -395,10 +395,7 @@ export function DailyPaymentTracker() {
         </CardContent>
       </Card>
 
-      {/* Tenant List */}
-      <Card className="border shadow-sm">
-        {/* Latest Allocations By Agents */}
-      </Card>
+      {/* Latest Allocations By Agents */}
       <Card className="border-2 border-primary/30 bg-gradient-to-br from-primary/5 to-transparent shadow-sm">
         <CardHeader className="pb-2 px-3 sm:px-4">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
