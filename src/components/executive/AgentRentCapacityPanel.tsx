@@ -475,6 +475,25 @@ function CapacityRow({ row }: { row: AgentRow }) {
           <> · <span className="text-muted-foreground">{formatUGX(row.paid_last_week)} total</span></>
         )}
       </div>
+
+      <div className="grid grid-cols-2 gap-1.5 mt-2">
+        <div className="rounded-lg border border-border bg-background/70 p-2">
+          <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Today</div>
+          <div className={`text-[12px] font-extrabold tabular-nums ${todayTone}`}>
+            {formatUGX(row.paid_today)}
+            <span className="text-muted-foreground font-semibold"> / {formatUGX(row.expected_daily)}</span>
+          </div>
+          <div className="text-[10px] text-muted-foreground">{todayPct}% of daily target</div>
+        </div>
+        <div className="rounded-lg border border-border bg-background/70 p-2">
+          <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">This week (7d)</div>
+          <div className={`text-[12px] font-extrabold tabular-nums ${weekTone}`}>
+            {formatUGX(row.paid_last_week)}
+            <span className="text-muted-foreground font-semibold"> / {formatUGX(expectedWeek)}</span>
+          </div>
+          <div className="text-[10px] text-muted-foreground">{weekPct}% of weekly target</div>
+        </div>
+      </div>
     </li>
   );
 }
