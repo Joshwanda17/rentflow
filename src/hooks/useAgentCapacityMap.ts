@@ -93,12 +93,32 @@ export function useAgentCapacityMap(agentIds: string[]) {
         .in('agent_id', agentIds)
         .in('status', ACTIVE_RENT_STATUSES);
 
+      // 1a) Drop rent_requests the agent has fully "Marked not funded"
+      //     (a reversal record exists AND there's no remaining net repayment).
+      //     Such tenants should not count toward the agent's expected
+      //     response denominator.
+      const allActiveIds = (active || []).map((r: any) => r.id);
+      const unfundedIds = new Set<string>();
+      if (allActiveIds.length > 0) {
+        const { data: revs } = await supabase
+          .from('agent_tenant_float_reversals')
+          .select('rent_request_id')
+          .in('rent_request_id', allActiveIds);
+        const reversedSet = new Set((revs || []).map((r: any) => r.rent_request_id));
+        (active || []).forEach((r: any) => {
+          if (reversedSet.has(r.id) && (Number(r.amount_repaid) || 0) <= 0) {
+            unfundedIds.add(r.id);
+          }
+        });
+      }
+
       const exposure = new Map<string, { used: number; count: number }>();
       const expectedDaily = new Map<string, number>();
       const activeIdToAgent = new Map<string, string>();
       const activeIdToTenant = new Map<string, string>();
       const activeTenantsByAgent = new Map<string, Set<string>>();
       (active || []).forEach((r: any) => {
+        if (unfundedIds.has(r.id)) return; // agent marked not funded → excluded from expected
         const owed = Math.max((Number(r.total_repayment) || 0) - (Number(r.amount_repaid) || 0), 0);
         const prev = exposure.get(r.agent_id) || { used: 0, count: 0 };
         exposure.set(r.agent_id, { used: prev.used + owed, count: prev.count + 1 });
