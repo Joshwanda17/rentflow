@@ -11,6 +11,7 @@ import {
   ChevronLeft, ChevronRight, X,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
+import { ImageZoomLightbox } from './ImageZoomLightbox';
 
 interface Props {
   houseId: string | null;
