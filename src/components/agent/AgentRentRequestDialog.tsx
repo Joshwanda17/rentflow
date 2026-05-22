@@ -128,6 +128,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [lc1Name, setLc1Name] = useState('');
   const [lc1Phone, setLc1Phone] = useState('');
   const [lc1Village, setLc1Village] = useState('');
+  // Town/City + District for the property location. City is required so the
+  // tenant rolls up under a real location in ops dashboards instead of
+  // landing in the "needs verification" bucket.
+  const [propertyCity, setPropertyCity] = useState('');
+  const [propertyDistrict, setPropertyDistrict] = useState('');
   const [houseCategory, setHouseCategory] = useState('');
   const [noSmartphone, setNoSmartphone] = useState(false);
   const [gpsLocation, setGpsLocation] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
