@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  Building2, Home, Search, User, UserPlus, UserX, UserCog, ChevronDown, ChevronRight, Loader2, X, Eye, EyeOff,
+  Building2, Home, Search, User, UserPlus, UserX, UserCog, ChevronDown, ChevronRight, Loader2, X, Eye, EyeOff, Info, MapPin,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { BindTenantToHouseDialog } from './BindTenantToHouseDialog';
@@ -19,6 +19,7 @@ import { useFilterKeyboardShortcuts } from '@/hooks/useFilterKeyboardShortcuts';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
 import { LocationBrowser } from './LocationBrowser';
+import { HouseDetailsDialog } from './HouseDetailsDialog';
 
 interface HouseRow {
   id: string;
@@ -83,7 +84,8 @@ export function LandlordHousesPanel() {
     hydratedKeyRef.current = storageKey;
   }, [storageKey]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const [viewMode, setViewMode] = useState<'landlord' | 'location'>('landlord');
+  const [viewMode, setViewMode] = useState<'landlord' | 'location'>('location');
+  const [detailsHouseId, setDetailsHouseId] = useState<string | null>(null);
 
   useEffect(() => {
     // Only persist after we have hydrated for this user — prevents writing
@@ -275,18 +277,34 @@ export function LandlordHousesPanel() {
         {viewMode === 'landlord' ? 'Houses by Landlord' : 'Houses by Location'}
       </h2>
 
-      <div className="inline-flex rounded-md border bg-muted/30 p-0.5">
-        <button
-          onClick={() => setViewMode('landlord')}
-          className={`px-3 h-8 text-xs rounded ${viewMode === 'landlord' ? 'bg-background shadow-sm font-semibold' : 'text-muted-foreground'}`}
-        >
-          By Landlord
-        </button>
+      <div className="grid grid-cols-2 gap-2">
         <button
           onClick={() => setViewMode('location')}
-          className={`px-3 h-8 text-xs rounded ${viewMode === 'location' ? 'bg-background shadow-sm font-semibold' : 'text-muted-foreground'}`}
+          className={`flex items-center gap-2 rounded-lg border p-3 text-left transition ${
+            viewMode === 'location'
+              ? 'border-primary bg-primary/5 shadow-sm'
+              : 'border-border bg-muted/20 hover:bg-muted/40'
+          }`}
         >
-          By Location
+          <MapPin className={`h-5 w-5 ${viewMode === 'location' ? 'text-primary' : 'text-muted-foreground'}`} />
+          <div>
+            <p className="text-sm font-semibold">Browse by Location</p>
+            <p className="text-[11px] text-muted-foreground">Country → Region → District → Agent → Landlord</p>
+          </div>
+        </button>
+        <button
+          onClick={() => setViewMode('landlord')}
+          className={`flex items-center gap-2 rounded-lg border p-3 text-left transition ${
+            viewMode === 'landlord'
+              ? 'border-primary bg-primary/5 shadow-sm'
+              : 'border-border bg-muted/20 hover:bg-muted/40'
+          }`}
+        >
+          <Building2 className={`h-5 w-5 ${viewMode === 'landlord' ? 'text-primary' : 'text-muted-foreground'}`} />
+          <div>
+            <p className="text-sm font-semibold">Group by Landlord</p>
+            <p className="text-[11px] text-muted-foreground">Each landlord and the houses they own</p>
+          </div>
         </button>
       </div>
 
@@ -487,6 +505,13 @@ export function LandlordHousesPanel() {
                               {timelineOpen[h.id] ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                               Timeline
                             </Button>
+                            <Button
+                              size="sm" variant="outline" className="h-8 text-xs gap-1 border-primary/40 text-primary hover:bg-primary/10"
+                              onClick={() => setDetailsHouseId(h.id)}
+                              title="See every detail the agent registered for this house"
+                            >
+                              <Info className="h-3 w-3" /> Full details
+                            </Button>
                           </div>
                           {timelineOpen[h.id] && (
                             <div className="rounded-md border bg-muted/10 p-2">
@@ -534,6 +559,10 @@ export function LandlordHousesPanel() {
           onComplete={refetch}
         />
       )}
+      <HouseDetailsDialog
+        houseId={detailsHouseId}
+        onOpenChange={(o) => !o && setDetailsHouseId(null)}
+      />
     </div>
   );
 }
