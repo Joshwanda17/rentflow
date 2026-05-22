@@ -198,6 +198,8 @@ export function AgentTenantCollectDialog({
                 tenant_phone: tenant.phone,
                 share_url: shareUrl,
                 allocation_amount: amount,
+                paid_amount: amount,
+                remaining_balance: Math.max(0, outstandingBalance - amount),
                 mode: 'allocation',
               },
             })
