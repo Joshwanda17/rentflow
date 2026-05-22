@@ -352,7 +352,7 @@ export function TenantOverviewList({ data, loading, initialCategory, onSelectTen
     const byCity = new Map<string, (TenantRow & { requestCount: number })[]>();
     for (const t of inCountry) {
       const e = enrichment.get(t.tenant_id);
-      const city = e?.city?.trim() || e?.district?.trim() || 'Unknown city';
+      const city = e?.city?.trim() || e?.district?.trim() || UNVERIFIED_CITY_LABEL;
       if (!byCity.has(city)) byCity.set(city, []);
       byCity.get(city)!.push(t);
     }
