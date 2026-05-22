@@ -475,23 +475,23 @@ export function ImageLightbox({
               >
                 <motion.img
                   src={(() => {
-                    const img = images[currentIndex];
+                    const img = currentImage;
                     const t = retryTokens[img.id];
                     if (!t) return img.image_url;
                     const sep = img.image_url.includes('?') ? '&' : '?';
                     return `${img.image_url}${sep}retry=${t}`;
                   })()}
-                  alt={`${productName} - Image ${currentIndex + 1}`}
+                  alt={`${productName} - Image ${safeIndex + 1}`}
                   className={cn(
                     'max-h-full max-w-full object-contain select-none',
                     'transition-[filter,transform,opacity] duration-700 ease-out will-change-[filter,transform]',
-                    erroredIds.has(images[currentIndex].id) && 'opacity-0'
+                    erroredIds.has(currentImage.id) && 'opacity-0'
                   )}
                   style={{
-                    transform: loadedIds.has(images[currentIndex].id)
+                    transform: loadedIds.has(currentImage.id)
                       ? `scale(${scale}) translate(${translate.x / scale}px, ${translate.y / scale}px)`
                       : `scale(${scale * 1.06}) translate(${translate.x / scale}px, ${translate.y / scale}px)`,
-                    filter: loadedIds.has(images[currentIndex].id)
+                    filter: loadedIds.has(currentImage.id)
                       ? 'blur(0px)'
                       : 'blur(24px)',
                     transition: isZoomed
@@ -501,13 +501,13 @@ export function ImageLightbox({
                   draggable={false}
                   decoding="async"
                   loading="eager"
-                  onLoad={() => markLoaded(images[currentIndex].id)}
-                  onError={() => markErrored(images[currentIndex].id)}
+                  onLoad={() => markLoaded(currentImage.id)}
+                  onError={() => markErrored(currentImage.id)}
                   onDoubleClick={handleToggleZoom}
                   onClick={() => { if (!isZoomed) handleToggleZoom(); }}
                 />
                 {/* Skeleton + spinner */}
-                {!loadedIds.has(images[currentIndex].id) && !erroredIds.has(images[currentIndex].id) && (
+                {!loadedIds.has(currentImage.id) && !erroredIds.has(currentImage.id) && (
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none" aria-hidden="true">
                     <div className="relative w-[min(80vw,640px)] h-[min(60vh,480px)] rounded-2xl overflow-hidden bg-white/5">
                       <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.4s_infinite] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
@@ -515,7 +515,7 @@ export function ImageLightbox({
                   </div>
                 )}
                 {/* Error fallback */}
-                {erroredIds.has(images[currentIndex].id) && (
+                {erroredIds.has(currentImage.id) && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-white/70">
                     <ImageOff className="h-10 w-10" aria-hidden="true" />
                     <span className="text-sm">Image failed to load</span>
@@ -523,7 +523,7 @@ export function ImageLightbox({
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        retryImage(images[currentIndex].id, images[currentIndex].image_url);
+                        retryImage(currentImage.id, currentImage.image_url);
                       }}
                       className="inline-flex items-center gap-2 rounded-full bg-white/15 hover:bg-white/25 active:bg-white/30 px-4 py-2 text-sm font-medium text-white transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
                       aria-label="Retry loading image"
