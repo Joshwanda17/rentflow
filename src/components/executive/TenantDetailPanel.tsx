@@ -688,6 +688,18 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
           )}
         </>
       )}
+      <TenantAssignAgentDialog
+        open={!!transferReq}
+        onOpenChange={(v) => { if (!v) setTransferReq(null); }}
+        rentRequestId={transferReq?.id ?? null}
+        tenantId={tenantId}
+        tenantName={tenantName}
+        currentAgentId={transferReq?.agent_id ?? null}
+        onSaved={() => {
+          setTransferReq(null);
+          queryClient.invalidateQueries({ queryKey: ['tenant-detail', tenantId] });
+        }}
+      />
     </div>
   );
 }
