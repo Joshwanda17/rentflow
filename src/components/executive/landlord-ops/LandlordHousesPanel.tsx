@@ -405,7 +405,27 @@ export function LandlordHousesPanel() {
                         <span className="text-amber-600">· {g.vacant} vacant</span>
                       </div>
                     </div>
-                    {isOpen ? <ChevronDown className="h-4 w-4 mt-1 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 mt-1 text-muted-foreground" />}
+                    <div className="flex items-center gap-1 shrink-1">
+                      {isOpen && g.houses.length > 1 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const allCollapsed = g.houses.every(h => houseCollapsed[h.id]);
+                            setHouseCollapsed(s => {
+                              const next = { ...s };
+                              g.houses.forEach(h => { next[h.id] = !allCollapsed; });
+                              return next;
+                            });
+                          }}
+                          className="flex items-center gap-1 rounded-md bg-muted/60 px-2 py-1 text-[10px] font-medium text-muted-foreground hover:bg-muted transition"
+                          title={g.houses.every(h => houseCollapsed[h.id]) ? 'Expand all houses' : 'Collapse all houses'}
+                        >
+                          {g.houses.every(h => houseCollapsed[h.id]) ? <Plus className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
+                          {g.houses.every(h => houseCollapsed[h.id]) ? 'Expand all' : 'Collapse all'}
+                        </button>
+                      )}
+                      {isOpen ? <ChevronDown className="h-4 w-4 mt-1 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 mt-1 text-muted-foreground" />}
+                    </div>
                   </div>
                 </button>
 
