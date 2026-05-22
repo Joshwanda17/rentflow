@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import {
   useAgentCapacityMap,
@@ -7,7 +7,15 @@ import {
   type AgentCapacity,
 } from '@/hooks/useAgentCapacityMap';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Gauge, CalendarCheck2, Users, Info } from 'lucide-react';
+import { Gauge, CalendarCheck2, Users, Info, Printer, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
+import {
+  fetchAgentCapacityTenants,
+  generateAgentCapacityPdf,
+  downloadCapacityPdf,
+} from '@/lib/generateAgentCapacityPdf';
+import { supabase } from '@/integrations/supabase/client';
 
 const TIER_TONE: Record<AgentCapacity['tier'], string> = {
   Positive:   'bg-emerald-500/15 text-emerald-700 border-emerald-500/30',
@@ -26,6 +34,31 @@ export function AgentRentCapacitySelfCard() {
   const ids = useMemo(() => (user?.id ? [user.id] : []), [user?.id]);
   const { data, isLoading } = useAgentCapacityMap(ids);
   const cap = user?.id ? data?.get(user.id) : undefined;
+  const [printing, setPrinting] = useState(false);
+
+  const handlePrint = async () => {
+    if (!user?.id || !cap) return;
+    setPrinting(true);
+    try {
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('full_name, phone')
+        .eq('id', user.id)
+        .maybeSingle();
+      const tenants = await fetchAgentCapacityTenants(user.id, cap);
+      const blob = generateAgentCapacityPdf(
+        { full_name: prof?.full_name || 'Agent', phone: prof?.phone || null },
+        cap,
+        tenants,
+      );
+      downloadCapacityPdf(blob, prof?.full_name || 'agent');
+      toast.success('Capacity report downloaded');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to generate report');
+    } finally {
+      setPrinting(false);
+    }
+  };
 
   if (!user?.id) return null;
 
@@ -47,11 +80,26 @@ export function AgentRentCapacitySelfCard() {
             </p>
           </div>
           {cap && (
-            <span
-              className={`shrink-0 px-2 py-1 rounded-full text-xs font-extrabold border ${TIER_TONE[cap.tier]}`}
-            >
-              {cap.tier} · {ratePct}%
-            </span>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span
+                className={`px-2 py-1 rounded-full text-xs font-extrabold border ${TIER_TONE[cap.tier]}`}
+              >
+                {cap.tier} · {ratePct}%
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 gap-1 px-2"
+                onClick={handlePrint}
+                disabled={printing}
+                title="Download per-tenant capacity PDF"
+              >
+                {printing
+                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  : <Printer className="h-3.5 w-3.5" />}
+                <span className="text-[11px] font-semibold">Print</span>
+              </Button>
+            </div>
           )}
         </div>
       </div>
