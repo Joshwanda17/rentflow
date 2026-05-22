@@ -1429,6 +1429,33 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     />
                   </div>
                 </div>
+
+                {/* Town/City + District — keeps tenant rolled up under a real
+                    location in Tenant Ops drill-down instead of the
+                    "Entebbe (please verify)" placeholder. */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs flex items-center gap-1">
+                      <MapPin className="h-3 w-3" /> Town / City *
+                    </Label>
+                    <Input
+                      value={propertyCity}
+                      onChange={(e) => setPropertyCity(e.target.value)}
+                      placeholder="e.g. Entebbe, Kampala, Jinja"
+                      className={`h-10 ${hasFieldError('city') ? 'border-destructive border-2' : ''}`}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">District</Label>
+                    <Input
+                      value={propertyDistrict}
+                      onChange={(e) => setPropertyDistrict(e.target.value)}
+                      placeholder="e.g. Wakiso"
+                      className="h-10"
+                    />
+                  </div>
+                </div>
               </div>
 
               <GuarantorConsentCheckbox checked={guarantorConsent} onCheckedChange={setGuarantorConsent} />
