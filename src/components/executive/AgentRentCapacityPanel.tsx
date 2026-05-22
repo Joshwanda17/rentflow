@@ -490,6 +490,16 @@ function CapacityRow({
           </span>
           <button
             type="button"
+            onClick={onToggle}
+            className="inline-flex items-center justify-center h-6 w-6 rounded-md border border-border hover:bg-muted"
+            title={collapsed ? 'Expand row' : 'Collapse row'}
+          >
+            {collapsed
+              ? <ChevronDown className="h-3.5 w-3.5" />
+              : <ChevronUp className="h-3.5 w-3.5" />}
+          </button>
+          <button
+            type="button"
             onClick={handlePrint}
             disabled={printing}
             title={`Print per-tenant capacity for ${row.name}`}
