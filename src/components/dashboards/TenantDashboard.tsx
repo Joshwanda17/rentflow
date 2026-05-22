@@ -12,6 +12,7 @@ import {
   BadgeCheck,
 } from 'lucide-react';
 import { FindAHouseCTA } from '@/components/tenant/FindAHouseCTA';
+import { WidgetErrorBoundary } from '@/components/shared/WidgetErrorBoundary';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
 import { AppRole } from '@/hooks/useAuth';
