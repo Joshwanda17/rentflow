@@ -161,6 +161,15 @@ export function ImageLightbox({
     }
   }, [currentIndex, resetZoom]);
 
+  // Self-heal: if the images list shrinks (or memory restored a stale index),
+  // pull currentIndex back into range BEFORE any render reads it.
+  useEffect(() => {
+    if (images.length === 0) return;
+    if (currentIndex < 0 || currentIndex >= images.length) {
+      setCurrentIndex(Math.min(Math.max(currentIndex, 0), images.length - 1));
+    }
+  }, [images.length, currentIndex]);
+
   // Persist to sessionStorage whenever index or zoom changes while open
   useEffect(() => {
     if (!open || !storageKey || typeof window === 'undefined') return;
