@@ -161,18 +161,9 @@ export function DailyPaymentTracker() {
     return [...new Set((activeRequests || []).map((r: any) => r.landlord_id).filter(Boolean))];
   }, [activeRequests]);
 
-  const allocationUserIds = useMemo(() => {
-    const ids: string[] = [];
-    (latestAllocations || []).forEach((a: any) => {
-      if (a.tenant_id) ids.push(a.tenant_id);
-      if (a.agent_id) ids.push(a.agent_id);
-    });
-    return ids;
-  }, [latestAllocations]);
-
   const allUserIds = useMemo(
-    () => [...new Set([...tenantIds, ...agentIds, ...landlordIds, ...allocationUserIds])],
-    [tenantIds, agentIds, landlordIds, allocationUserIds]
+    () => [...new Set([...tenantIds, ...agentIds, ...landlordIds])],
+    [tenantIds, agentIds, landlordIds]
   );
 
   const { data: profiles } = useQuery({
