@@ -42,6 +42,7 @@ export function AgentRentCapacityPanel({
 }: { defaultLimit?: number; compact?: boolean }) {
   const [search, setSearch] = useState('');
   const [showAll, setShowAll] = useState(false);
+  const [rowCollapsed, setRowCollapsed] = useState<Record<string, boolean>>({});
 
   const { data, isLoading } = useQuery({
     queryKey: ['agent-rent-capacity-fleet'],
