@@ -48,6 +48,8 @@ import { EditLC1Dialog } from './landlord-ops/EditLC1Dialog';
 import { BulkImportLC1Dialog } from './landlord-ops/BulkImportLC1Dialog';
 import { BulkImportLandlordsDialog } from './landlord-ops/BulkImportLandlordsDialog';
 import { AssignPersonDialog } from './landlord-ops/AssignPersonDialog';
+import { StorageImage } from '@/components/ui/StorageImage';
+import { ChevronLeft } from 'lucide-react';
 import { LandlordsPaidView } from './landlord-ops/LandlordsPaidView';
 import { LandlordsWithTenantsView } from './landlord-ops/LandlordsWithTenantsView';
 import { LandlordHousesPanel } from './landlord-ops/LandlordHousesPanel';
@@ -171,22 +173,40 @@ function ListPropertyCTA({ phone, name, role }: { phone: string; name?: string; 
 function ImagePreviewDialog({ images, open, onClose, title }: { images: string[]; open: boolean; onClose: () => void; title: string }) {
   const [current, setCurrent] = useState(0);
   if (!images.length) return null;
+  const prev = () => setCurrent(c => (c - 1 + images.length) % images.length);
+  const next = () => setCurrent(c => (c + 1) % images.length);
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg p-2">
+      <DialogContent className="max-w-4xl p-2">
         <DialogHeader className="px-2 pt-2">
           <DialogTitle className="text-sm">{title} ({current + 1}/{images.length})</DialogTitle>
         </DialogHeader>
-        <div className="relative">
-          <img src={images[current]} alt={title} className="w-full rounded-lg max-h-[60vh] object-cover" />
+        <div className="relative bg-black/90 rounded-lg flex items-center justify-center" style={{ minHeight: '60vh' }}>
+          <StorageImage src={images[current]} alt={title} className="w-full rounded-lg max-h-[80vh] object-contain" />
           {images.length > 1 && (
-            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
-              {images.map((_, i) => (
-                <button key={i} onClick={() => setCurrent(i)} className={`h-2 w-2 rounded-full transition-colors ${i === current ? 'bg-primary' : 'bg-white/60'}`} />
-              ))}
-            </div>
+            <>
+              <button onClick={prev} aria-label="Previous" className="absolute left-2 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80">
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <button onClick={next} aria-label="Next" className="absolute right-2 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80">
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </>
           )}
         </div>
+        {images.length > 1 && (
+          <div className="flex gap-2 overflow-x-auto px-2 pb-2 pt-2">
+            {images.map((url, i) => (
+              <button
+                key={i}
+                onClick={() => setCurrent(i)}
+                className={`shrink-0 h-16 w-16 rounded-md overflow-hidden border-2 transition-colors ${i === current ? 'border-primary' : 'border-transparent opacity-70 hover:opacity-100'}`}
+              >
+                <StorageImage src={url} alt={`${title} ${i + 1}`} className="w-full h-full object-cover" />
+              </button>
+            ))}
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -2191,7 +2211,7 @@ function HouseCardInner({ house, onImages, onAssign }: { house: ListingWithLandl
         <div className="shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-muted">
           {house.image_urls?.[0] ? (
             <button onClick={() => onImages({ images: house.image_urls!, title: house.title })} className="w-full h-full">
-              <img src={house.image_urls[0]} alt="" className="w-full h-full object-cover" />
+              <StorageImage src={house.image_urls[0]} alt={house.title} className="w-full h-full object-cover" />
             </button>
           ) : (
             <div className="w-full h-full flex items-center justify-center">
