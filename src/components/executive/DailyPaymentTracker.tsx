@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Progress } from '@/components/ui/progress';
 import { KPICard } from './KPICard';
 import { UserProfileSheet } from './UserProfileSheet';
 import { DeleteRentRequestDialog } from './DeleteRentRequestDialog';
@@ -60,6 +61,10 @@ export function DailyPaymentTracker() {
   const [collectingId, setCollectingId] = useState<string | null>(null);
   const [collectTarget, setCollectTarget] = useState<{ id: string; name: string; amount: number } | null>(null);
   const [collectReason, setCollectReason] = useState('');
+  const [flashId, setFlashId] = useState<string | null>(null);
+  const [pulseTotal, setPulseTotal] = useState(false);
+  const prevTotalRef = useRef<number>(0);
+  const seenIdsRef = useRef<Set<string>>(new Set());
 
   const collectMutation = useMutation({
     mutationFn: async ({ rentRequestId, collectionReason }: { rentRequestId: string; collectionReason: string }) => {
@@ -222,6 +227,49 @@ export function DailyPaymentTracker() {
   });
 
   const isLoading = reqLoading || colLoading;
+
+  // Realtime: listen for new agent_collections today and refresh live
+  useEffect(() => {
+    const channel = supabase
+      .channel('daily-tracker-live-allocations')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'agent_collections' },
+        (payload: any) => {
+          const row = payload?.new;
+          if (!row?.created_at) return;
+          // Only react to TODAY's allocations
+          const created = new Date(row.created_at);
+          const now = new Date();
+          if (created.toDateString() !== now.toDateString()) return;
+          if (row.id) setFlashId(String(row.id));
+          setPulseTotal(true);
+          setTimeout(() => setPulseTotal(false), 1200);
+          queryClient.invalidateQueries({ queryKey: ['daily-tracker-collections', todayStr] });
+          queryClient.invalidateQueries({ queryKey: ['daily-tracker-latest-allocations', todayStr] });
+          queryClient.invalidateQueries({ queryKey: ['repayment-trend-7d'] });
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [queryClient, todayStr]);
+
+  // Detect new IDs arriving via query refresh and pulse total
+  useEffect(() => {
+    if (!latestAllocations) return;
+    const ids = new Set(latestAllocations.map(a => a.id));
+    let newOne: string | null = null;
+    for (const id of ids) {
+      if (!seenIdsRef.current.has(id)) { newOne = id; break; }
+    }
+    if (newOne && seenIdsRef.current.size > 0) {
+      setFlashId(newOne);
+      setPulseTotal(true);
+      setTimeout(() => setPulseTotal(false), 1200);
+    }
+    seenIdsRef.current = ids;
+  }, [latestAllocations]);
+
   const profileMap = useMemo(() => {
     const m = new Map<string, { name: string; phone: string }>();
     (profiles || []).forEach(p => m.set(p.id, { name: p.full_name || 'Unknown', phone: p.phone || '' }));
@@ -296,6 +344,16 @@ export function DailyPaymentTracker() {
   const totalCollectedToday = tenantList.reduce((s, t) => s + t.paidToday, 0);
   const totalExpectedToday = tenantList.reduce((s, t) => s + t.daily_repayment, 0);
   const collectionRate = totalExpectedToday > 0 ? Math.round((totalCollectedToday / totalExpectedToday) * 100) : 0;
+
+  // Pulse the headline total whenever collected actually grows
+  useEffect(() => {
+    if (totalCollectedToday > prevTotalRef.current && prevTotalRef.current > 0) {
+      setPulseTotal(true);
+      const t = setTimeout(() => setPulseTotal(false), 1200);
+      return () => clearTimeout(t);
+    }
+    prevTotalRef.current = totalCollectedToday;
+  }, [totalCollectedToday]);
 
   return (
     <div className="space-y-3 sm:space-y-4">
@@ -405,6 +463,30 @@ export function DailyPaymentTracker() {
               {latestAllocations?.length || 0}
             </Badge>
           </CardTitle>
+          {/* Live vs Expected progress */}
+          <div className="mt-2 space-y-1.5">
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="inline-flex items-center gap-1.5 font-semibold text-muted-foreground">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                </span>
+                LIVE · Allocated vs Expected Today
+              </span>
+              <span className={`font-bold tabular-nums transition-all ${pulseTotal ? 'text-emerald-600 scale-110' : 'text-foreground'}`}>
+                {formatUGX(totalCollectedToday)} <span className="text-muted-foreground font-normal">/ {formatUGX(totalExpectedToday)}</span>
+              </span>
+            </div>
+            <Progress
+              value={Math.min(100, collectionRate)}
+              size="sm"
+              variant={collectionRate >= 70 ? 'success' : collectionRate >= 40 ? 'warning' : 'destructive'}
+            />
+            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+              <span>{collectionRate}% of today's target</span>
+              <span>Updates live as agents allocate</span>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="px-0 pb-2">
           {!latestAllocations || latestAllocations.length === 0 ? (
@@ -418,7 +500,12 @@ export function DailyPaymentTracker() {
                 const tenant = profileMap.get(c.tenant_id);
                 const agent = c.agent_id ? profileMap.get(c.agent_id) : undefined;
                 return (
-                  <div key={c.id} className="px-3 sm:px-4 py-2.5 flex items-center gap-3">
+                  <div
+                    key={c.id}
+                    className={`px-3 sm:px-4 py-2.5 flex items-center gap-3 transition-colors duration-700 ${
+                      flashId === c.id ? 'bg-emerald-500/15 ring-1 ring-emerald-500/40' : ''
+                    }`}
+                  >
                     <div className="w-7 h-7 rounded-full bg-emerald-500/15 flex items-center justify-center shrink-0 text-[10px] font-bold text-emerald-600">
                       {i + 1}
                     </div>
