@@ -344,7 +344,12 @@ export function AgentRentCapacityPanel({
         ) : (
           <ul className="space-y-2">
             {visible.map((row) => (
-              <CapacityRow key={row.agent_id} row={row} />
+              <CapacityRow
+                key={row.agent_id}
+                row={row}
+                collapsed={!!rowCollapsed[row.agent_id]}
+                onToggle={() => toggleRow(row.agent_id)}
+              />
             ))}
           </ul>
         )}
