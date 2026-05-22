@@ -925,11 +925,11 @@ export function TenantOpsDashboard() {
       const agentMap = new Map(agents.map((a: any) => [a.id, a]));
 
       return items
-        .filter(r => profileMap.get(r.tenant_id)?.tenant_status !== 'inactive')
         .map(r => ({
           ...r,
           tenant_name: profileMap.get(r.tenant_id)?.full_name || '—',
           tenant_phone: profileMap.get(r.tenant_id)?.phone || '—',
+          tenant_status: profileMap.get(r.tenant_id)?.tenant_status || 'active',
           landlord_name: landlordMap.get(r.landlord_id)?.name || '—',
           landlord_phone: landlordMap.get(r.landlord_id)?.phone || '—',
           agent_name: r.agent_id ? (agentMap.get(r.agent_id)?.full_name || '—') : 'Unassigned',
@@ -1067,7 +1067,23 @@ export function TenantOpsDashboard() {
 
   const columns: Column<any>[] = [
     { key: 'created_at', label: 'Date', render: (v) => v ? format(new Date(v as string), 'dd MMM yy') : '—' },
-    { key: 'tenant_name', label: 'Tenant' },
+    { key: 'tenant_name', label: 'Tenant', render: (v, row: any) => (
+      <span className="flex items-center gap-1.5 flex-wrap">
+        <span className={row?.tenant_status === 'inactive' ? 'line-through text-muted-foreground' : ''}>
+          {String(v ?? '—')}
+        </span>
+        {row?.tenant_status === 'inactive' && (
+          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-700 border border-amber-300">
+            Not active
+          </span>
+        )}
+        {row?.tenant_status === 'evicted' && (
+          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-destructive/10 text-destructive border border-destructive/30">
+            Evicted
+          </span>
+        )}
+      </span>
+    )},
     { key: 'tenant_phone', label: 'Phone' },
     { key: 'status', label: 'Status', render: (v) => {
       const colors: Record<string, string> = {

@@ -47,6 +47,7 @@ interface TenantProfile {
   verified: boolean;
   national_id: string | null;
   avatar_url: string | null;
+  tenant_status?: string | null;
 }
 
 interface RentRequestRow {
@@ -220,7 +221,7 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
       const [profileRes, rentRes, repaymentRes, walletRes, portfolioRes, ledgerRes, rolesRes] = await Promise.all([
         supabase
           .from('profiles')
-          .select('id, full_name, phone, email, created_at, monthly_rent, verified, national_id, avatar_url')
+          .select('id, full_name, phone, email, created_at, monthly_rent, verified, national_id, avatar_url, tenant_status')
           .eq('id', tenantId)
           .single(),
         supabase
@@ -666,6 +667,7 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
           phone: profile.phone,
           email: profile.email,
           national_id: profile.national_id,
+          tenant_status: profile.tenant_status,
         }}
         onSaved={(updated) => {
           setProfile(prev => prev ? { ...prev, ...updated } : prev);
