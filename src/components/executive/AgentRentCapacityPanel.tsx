@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Search, Gauge, TrendingUp, AlertTriangle, ShieldCheck, Printer, Loader2 } from 'lucide-react';
+import { Search, Gauge, TrendingUp, AlertTriangle, ShieldCheck, Printer, Loader2, ChevronDown, ChevronUp, Minus, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import {
   ACTIVE_RENT_STATUSES,
@@ -42,6 +42,10 @@ export function AgentRentCapacityPanel({
 }: { defaultLimit?: number; compact?: boolean }) {
   const [search, setSearch] = useState('');
   const [showAll, setShowAll] = useState(false);
+  const [rowCollapsed, setRowCollapsed] = useState<Record<string, boolean>>({});
+
+  const toggleRow = (agentId: string) =>
+    setRowCollapsed((prev) => ({ ...prev, [agentId]: !prev[agentId] }));
 
   const { data, isLoading } = useQuery({
     queryKey: ['agent-rent-capacity-fleet'],
@@ -235,6 +239,17 @@ export function AgentRentCapacityPanel({
     (r) => r.used / AGENT_RENT_CAP_UGX >= 0.85,
   ).length;
 
+  const expandAll = () => {
+    const next: Record<string, boolean> = {};
+    (filtered || []).forEach((r) => { next[r.agent_id] = false; });
+    setRowCollapsed(next);
+  };
+  const collapseAll = () => {
+    const next: Record<string, boolean> = {};
+    (filtered || []).forEach((r) => { next[r.agent_id] = true; });
+    setRowCollapsed(next);
+  };
+
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden">
       <div className="p-3 sm:p-4 bg-gradient-to-br from-primary/10 via-violet-500/5 to-transparent border-b border-border">
@@ -284,14 +299,38 @@ export function AgentRentCapacityPanel({
       </div>
 
       <div className="p-3 sm:p-4 space-y-3">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search agent name or phone…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-9"
-          />
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search agent name or phone…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9 h-9"
+            />
+          </div>
+          {visible.length > 0 && (
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={expandAll}
+                className="inline-flex items-center gap-1 h-9 px-2.5 rounded-lg border border-border bg-background hover:bg-muted text-xs font-semibold"
+                title="Expand all"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Expand</span>
+              </button>
+              <button
+                type="button"
+                onClick={collapseAll}
+                className="inline-flex items-center gap-1 h-9 px-2.5 rounded-lg border border-border bg-background hover:bg-muted text-xs font-semibold"
+                title="Collapse all"
+              >
+                <Minus className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Collapse</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {isLoading ? (
@@ -305,7 +344,12 @@ export function AgentRentCapacityPanel({
         ) : (
           <ul className="space-y-2">
             {visible.map((row) => (
-              <CapacityRow key={row.agent_id} row={row} />
+              <CapacityRow
+                key={row.agent_id}
+                row={row}
+                collapsed={!!rowCollapsed[row.agent_id]}
+                onToggle={() => toggleRow(row.agent_id)}
+              />
             ))}
           </ul>
         )}
@@ -350,7 +394,15 @@ function Kpi({
   );
 }
 
-function CapacityRow({ row }: { row: AgentRow }) {
+function CapacityRow({
+  row,
+  collapsed,
+  onToggle,
+}: {
+  row: AgentRow;
+  collapsed: boolean;
+  onToggle: () => void;
+}) {
   const pct = Math.min(100, Math.round((row.used / AGENT_RENT_CAP_UGX) * 100));
   const headroom = Math.max(AGENT_RENT_CAP_UGX - row.used, 0);
   const rateLabel = `${Math.round(row.response_rate * 100)}%`;
@@ -438,6 +490,16 @@ function CapacityRow({ row }: { row: AgentRow }) {
           </span>
           <button
             type="button"
+            onClick={onToggle}
+            className="inline-flex items-center justify-center h-6 w-6 rounded-md border border-border hover:bg-muted"
+            title={collapsed ? 'Expand row' : 'Collapse row'}
+          >
+            {collapsed
+              ? <ChevronDown className="h-3.5 w-3.5" />
+              : <ChevronUp className="h-3.5 w-3.5" />}
+          </button>
+          <button
+            type="button"
             onClick={handlePrint}
             disabled={printing}
             title={`Print per-tenant capacity for ${row.name}`}
@@ -450,50 +512,54 @@ function CapacityRow({ row }: { row: AgentRow }) {
         </div>
       </div>
 
-      <div className="flex items-center justify-between text-[11px] font-semibold tabular-nums mb-1">
-        <span className="text-muted-foreground">
-          Used <span className="text-foreground">{formatUGX(row.used)}</span> / {formatUGX(AGENT_RENT_CAP_UGX)}
-        </span>
-        <span className="text-muted-foreground">{pct}%</span>
-      </div>
-      <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-        <div className={`h-full ${bar} transition-all`} style={{ width: `${pct}%` }} />
-      </div>
-      <div className="flex items-center justify-between text-[11px] mt-1.5">
-        <span className="text-muted-foreground">
-          Headroom <strong className="text-foreground font-mono">{formatUGX(headroom)}</strong>
-        </span>
-        <span className="text-muted-foreground">
-          Response <strong className="text-foreground">{rateLabel}</strong> · Per-tenant max{' '}
-          <strong className="text-foreground font-mono">{formatUGX(tier.max)}</strong>
-        </span>
-      </div>
-      <div className="text-[10px] text-muted-foreground mt-1 tabular-nums">
-        Last 7d: <strong className="text-foreground">{row.responding_tenant_days}</strong> /{' '}
-        <strong className="text-foreground">{row.expected_tenant_days}</strong> tenant-day responses
-        {row.paid_last_week > 0 && (
-          <> · <span className="text-muted-foreground">{formatUGX(row.paid_last_week)} total</span></>
-        )}
-      </div>
+      {!collapsed && (
+        <>
+          <div className="flex items-center justify-between text-[11px] font-semibold tabular-nums mb-1">
+            <span className="text-muted-foreground">
+              Used <span className="text-foreground">{formatUGX(row.used)}</span> / {formatUGX(AGENT_RENT_CAP_UGX)}
+            </span>
+            <span className="text-muted-foreground">{pct}%</span>
+          </div>
+          <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+            <div className={`h-full ${bar} transition-all`} style={{ width: `${pct}%` }} />
+          </div>
+          <div className="flex items-center justify-between text-[11px] mt-1.5">
+            <span className="text-muted-foreground">
+              Headroom <strong className="text-foreground font-mono">{formatUGX(headroom)}</strong>
+            </span>
+            <span className="text-muted-foreground">
+              Response <strong className="text-foreground">{rateLabel}</strong> · Per-tenant max{' '}
+              <strong className="text-foreground font-mono">{formatUGX(tier.max)}</strong>
+            </span>
+          </div>
+          <div className="text-[10px] text-muted-foreground mt-1 tabular-nums">
+            Last 7d: <strong className="text-foreground">{row.responding_tenant_days}</strong> /{' '}
+            <strong className="text-foreground">{row.expected_tenant_days}</strong> tenant-day responses
+            {row.paid_last_week > 0 && (
+              <> · <span className="text-muted-foreground">{formatUGX(row.paid_last_week)} total</span></>
+            )}
+          </div>
 
-      <div className="grid grid-cols-2 gap-1.5 mt-2">
-        <div className="rounded-lg border border-border bg-background/70 p-2">
-          <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Today</div>
-          <div className={`text-[12px] font-extrabold tabular-nums ${todayTone}`}>
-            {formatUGX(row.paid_today)}
-            <span className="text-muted-foreground font-semibold"> / {formatUGX(row.expected_daily)}</span>
+          <div className="grid grid-cols-2 gap-1.5 mt-2">
+            <div className="rounded-lg border border-border bg-background/70 p-2">
+              <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Today</div>
+              <div className={`text-[12px] font-extrabold tabular-nums ${todayTone}`}>
+                {formatUGX(row.paid_today)}
+                <span className="text-muted-foreground font-semibold"> / {formatUGX(row.expected_daily)}</span>
+              </div>
+              <div className="text-[10px] text-muted-foreground">{todayPct}% of daily target</div>
+            </div>
+            <div className="rounded-lg border border-border bg-background/70 p-2">
+              <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">This week (7d)</div>
+              <div className={`text-[12px] font-extrabold tabular-nums ${weekTone}`}>
+                {formatUGX(row.paid_last_week)}
+                <span className="text-muted-foreground font-semibold"> / {formatUGX(expectedWeek)}</span>
+              </div>
+              <div className="text-[10px] text-muted-foreground">{weekPct}% of weekly target</div>
+            </div>
           </div>
-          <div className="text-[10px] text-muted-foreground">{todayPct}% of daily target</div>
-        </div>
-        <div className="rounded-lg border border-border bg-background/70 p-2">
-          <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">This week (7d)</div>
-          <div className={`text-[12px] font-extrabold tabular-nums ${weekTone}`}>
-            {formatUGX(row.paid_last_week)}
-            <span className="text-muted-foreground font-semibold"> / {formatUGX(expectedWeek)}</span>
-          </div>
-          <div className="text-[10px] text-muted-foreground">{weekPct}% of weekly target</div>
-        </div>
-      </div>
+        </>
+      )}
     </li>
   );
 }
