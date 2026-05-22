@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  Building2, Home, Search, User, UserPlus, UserX, UserCog, ChevronDown, ChevronRight, Loader2, X, Eye, EyeOff, Info, MapPin,
+  Building2, Home, Search, User, UserPlus, UserX, UserCog, ChevronDown, ChevronRight, ChevronUp, Loader2, X, Eye, EyeOff, Info, MapPin, Minus, Plus,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { BindTenantToHouseDialog } from './BindTenantToHouseDialog';
@@ -84,6 +84,7 @@ export function LandlordHousesPanel() {
     hydratedKeyRef.current = storageKey;
   }, [storageKey]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [houseCollapsed, setHouseCollapsed] = useState<Record<string, boolean>>({});
   const [viewMode, setViewMode] = useState<'landlord' | 'location'>('location');
   const [detailsHouseId, setDetailsHouseId] = useState<string | null>(null);
 
@@ -404,7 +405,27 @@ export function LandlordHousesPanel() {
                         <span className="text-amber-600">· {g.vacant} vacant</span>
                       </div>
                     </div>
-                    {isOpen ? <ChevronDown className="h-4 w-4 mt-1 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 mt-1 text-muted-foreground" />}
+                    <div className="flex items-center gap-1 shrink-1">
+                      {isOpen && g.houses.length > 1 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const allCollapsed = g.houses.every(h => houseCollapsed[h.id]);
+                            setHouseCollapsed(s => {
+                              const next = { ...s };
+                              g.houses.forEach(h => { next[h.id] = !allCollapsed; });
+                              return next;
+                            });
+                          }}
+                          className="flex items-center gap-1 rounded-md bg-muted/60 px-2 py-1 text-[10px] font-medium text-muted-foreground hover:bg-muted transition"
+                          title={g.houses.every(h => houseCollapsed[h.id]) ? 'Expand all houses' : 'Collapse all houses'}
+                        >
+                          {g.houses.every(h => houseCollapsed[h.id]) ? <Plus className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
+                          {g.houses.every(h => houseCollapsed[h.id]) ? 'Expand all' : 'Collapse all'}
+                        </button>
+                      )}
+                      {isOpen ? <ChevronDown className="h-4 w-4 mt-1 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 mt-1 text-muted-foreground" />}
+                    </div>
                   </div>
                 </button>
 
@@ -426,10 +447,19 @@ export function LandlordHousesPanel() {
                                 {formatUGX(h.monthly_rent)}/mo · {formatUGX(h.daily_rate)}/day
                               </p>
                             </div>
-                            <div className="flex flex-col items-end gap-1 shrink-0">
-                              <Badge variant={h.tenant_id ? 'default' : 'outline'} className="text-[10px]">
-                                {h.tenant_id ? 'Occupied' : 'Vacant'}
-                              </Badge>
+                            <div className="flex flex-col items-end gap-1 shrink-1">
+                              <div className="flex items-center gap-1">
+                                <Badge variant={h.tenant_id ? 'default' : 'outline'} className="text-[10px]">
+                                  {h.tenant_id ? 'Occupied' : 'Vacant'}
+                                </Badge>
+                                <button
+                                  onClick={() => setHouseCollapsed(s => ({ ...s, [h.id]: !s[h.id] }))}
+                                  className="p-1 rounded hover:bg-muted text-muted-foreground transition"
+                                  title={houseCollapsed[h.id] ? 'Expand house details' : 'Collapse house details'}
+                                >
+                                  {houseCollapsed[h.id] ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
+                                </button>
+                              </div>
                               {h.is_hidden && (
                                 <Badge variant="secondary" className="text-[10px] gap-1 bg-amber-100 text-amber-800 border-amber-200">
                                   <EyeOff className="h-3 w-3" /> Hidden
@@ -438,91 +468,95 @@ export function LandlordHousesPanel() {
                             </div>
                           </div>
 
-                          <div className="rounded-md bg-muted/40 p-2 text-[11px] space-y-1">
-                            <p className="flex items-center gap-1">
-                              <User className="h-3 w-3" />
-                              <span className="font-medium">Tenant:</span>
-                              <span className="truncate">{tenant ? (
-                                <>
-                                  <HighlightText text={tenant.name} query={search} />
-                                  {tenant.phone ? <> · <HighlightText text={tenant.phone} query={search} /></> : null}
-                                </>
-                              ) : '—'}</span>
-                            </p>
-                            <p className="flex items-center gap-1">
-                              <UserCog className="h-3 w-3" />
-                              <span className="font-medium">Agent:</span>
-                              <span className="truncate">{agent ? (
-                                <>
-                                  <HighlightText text={agent.name} query={search} />
-                                  {agent.phone ? <> · <HighlightText text={agent.phone} query={search} /></> : null}
-                                </>
-                              ) : '—'}</span>
-                            </p>
-                          </div>
+                          {!houseCollapsed[h.id] && (
+                            <>
+                              <div className="rounded-md bg-muted/40 p-2 text-[11px] space-y-1">
+                                <p className="flex items-center gap-1">
+                                  <User className="h-3 w-3" />
+                                  <span className="font-medium">Tenant:</span>
+                                  <span className="truncate">{tenant ? (
+                                    <>
+                                      <HighlightText text={tenant.name} query={search} />
+                                      {tenant.phone ? <> · <HighlightText text={tenant.phone} query={search} /></> : null}
+                                    </>
+                                  ) : '—'}</span>
+                                </p>
+                                <p className="flex items-center gap-1">
+                                  <UserCog className="h-3 w-3" />
+                                  <span className="font-medium">Agent:</span>
+                                  <span className="truncate">{agent ? (
+                                    <>
+                                      <HighlightText text={agent.name} query={search} />
+                                      {agent.phone ? <> · <HighlightText text={agent.phone} query={search} /></> : null}
+                                    </>
+                                  ) : '—'}</span>
+                                </p>
+                              </div>
 
-                          <div className="flex flex-wrap gap-1.5">
-                            <Button
-                              size="sm" variant="outline" className="h-8 text-xs gap-1"
-                              onClick={() => setBindFor({
-                                landlordId: g.landlord_id, landlordName: g.landlord_name,
-                                houseId: h.id, currentTenantId: h.tenant_id,
-                              })}
-                            >
-                              <UserPlus className="h-3 w-3" />
-                              {h.tenant_id ? 'Swap tenant' : 'Bind tenant'}
-                            </Button>
-                            {h.tenant_id && (
-                              <Button
-                                size="sm" variant="outline" className="h-8 text-xs gap-1 border-destructive/40 text-destructive hover:bg-destructive/10"
-                                onClick={() => setRemoveFor({ houseId: h.id, houseTitle: h.title })}
-                              >
-                                <UserX className="h-3 w-3" />
-                                Remove (absconded)
-                              </Button>
-                            )}
-                            <Button
-                              size="sm" variant="outline" className="h-8 text-xs gap-1"
-                              onClick={() => setReassignFor({ houseId: h.id, houseTitle: h.title, currentAgentId: h.agent_id })}
-                            >
-                              <UserCog className="h-3 w-3" />
-                              Reassign agent
-                            </Button>
-                            <Button
-                              size="sm" variant="outline" className="h-8 text-xs gap-1"
-                              onClick={() => toggleHidden(h)}
-                              disabled={!!togglingHide[h.id]}
-                              title={h.is_hidden ? 'Show this house to tenants again' : 'Hide this house from tenant browse'}
-                            >
-                              {togglingHide[h.id] ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : h.is_hidden ? (
-                                <Eye className="h-3 w-3" />
-                              ) : (
-                                <EyeOff className="h-3 w-3" />
+                              <div className="flex flex-wrap gap-1.5">
+                                <Button
+                                  size="sm" variant="outline" className="h-8 text-xs gap-1"
+                                  onClick={() => setBindFor({
+                                    landlordId: g.landlord_id, landlordName: g.landlord_name,
+                                    houseId: h.id, currentTenantId: h.tenant_id,
+                                  })}
+                                >
+                                  <UserPlus className="h-3 w-3" />
+                                  {h.tenant_id ? 'Swap tenant' : 'Bind tenant'}
+                                </Button>
+                                {h.tenant_id && (
+                                  <Button
+                                    size="sm" variant="outline" className="h-8 text-xs gap-1 border-destructive/40 text-destructive hover:bg-destructive/10"
+                                    onClick={() => setRemoveFor({ houseId: h.id, houseTitle: h.title })}
+                                  >
+                                    <UserX className="h-3 w-3" />
+                                    Remove (absconded)
+                                  </Button>
+                                )}
+                                <Button
+                                  size="sm" variant="outline" className="h-8 text-xs gap-1"
+                                  onClick={() => setReassignFor({ houseId: h.id, houseTitle: h.title, currentAgentId: h.agent_id })}
+                                >
+                                  <UserCog className="h-3 w-3" />
+                                  Reassign agent
+                                </Button>
+                                <Button
+                                  size="sm" variant="outline" className="h-8 text-xs gap-1"
+                                  onClick={() => toggleHidden(h)}
+                                  disabled={!!togglingHide[h.id]}
+                                  title={h.is_hidden ? 'Show this house to tenants again' : 'Hide this house from tenant browse'}
+                                >
+                                  {togglingHide[h.id] ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : h.is_hidden ? (
+                                    <Eye className="h-3 w-3" />
+                                  ) : (
+                                    <EyeOff className="h-3 w-3" />
+                                  )}
+                                  {h.is_hidden ? 'Unhide' : 'Hide'}
+                                </Button>
+                                <Button
+                                  size="sm" variant="ghost" className="h-8 text-xs gap-1"
+                                  onClick={() => setTimelineOpen(s => ({ ...s, [h.id]: !s[h.id] }))}
+                                  aria-expanded={!!timelineOpen[h.id]}
+                                >
+                                  {timelineOpen[h.id] ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                                  Timeline
+                                </Button>
+                                <Button
+                                  size="sm" variant="outline" className="h-8 text-xs gap-1 border-primary/40 text-primary hover:bg-primary/10"
+                                  onClick={() => setDetailsHouseId(h.id)}
+                                  title="See every detail the agent registered for this house"
+                                >
+                                  <Info className="h-3 w-3" /> Full details
+                                </Button>
+                              </div>
+                              {timelineOpen[h.id] && (
+                                <div className="rounded-md border bg-muted/10 p-2">
+                                  <HouseActivityTimeline houseId={h.id} />
+                                </div>
                               )}
-                              {h.is_hidden ? 'Unhide' : 'Hide'}
-                            </Button>
-                            <Button
-                              size="sm" variant="ghost" className="h-8 text-xs gap-1"
-                              onClick={() => setTimelineOpen(s => ({ ...s, [h.id]: !s[h.id] }))}
-                              aria-expanded={!!timelineOpen[h.id]}
-                            >
-                              {timelineOpen[h.id] ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                              Timeline
-                            </Button>
-                            <Button
-                              size="sm" variant="outline" className="h-8 text-xs gap-1 border-primary/40 text-primary hover:bg-primary/10"
-                              onClick={() => setDetailsHouseId(h.id)}
-                              title="See every detail the agent registered for this house"
-                            >
-                              <Info className="h-3 w-3" /> Full details
-                            </Button>
-                          </div>
-                          {timelineOpen[h.id] && (
-                            <div className="rounded-md border bg-muted/10 p-2">
-                              <HouseActivityTimeline houseId={h.id} />
-                            </div>
+                            </>
                           )}
                         </div>
                       );
