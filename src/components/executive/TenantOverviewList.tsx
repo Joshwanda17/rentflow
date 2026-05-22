@@ -77,6 +77,14 @@ interface TenantOverviewListProps {
 
 type GroupBy = 'none' | 'drilldown' | 'agent' | 'region' | 'village' | 'district' | 'city' | 'country';
 
+// Tenants without a recorded city default to Entebbe so they roll up into a
+// real location instead of an unhelpful "Unknown city" bucket. The label is
+// suffixed so agents are visibly prompted to confirm/edit the city.
+const DEFAULT_UNVERIFIED_CITY = 'Entebbe';
+const UNVERIFIED_CITY_LABEL = `${DEFAULT_UNVERIFIED_CITY} (please verify)`;
+const isUnverifiedCity = (city: string) =>
+  city === UNVERIFIED_CITY_LABEL || city === 'Unknown city';
+
 const GROUP_OPTIONS: { value: GroupBy; label: string }[] = [
   { value: 'none', label: 'No grouping' },
   { value: 'drilldown', label: 'Drill-down: Country → City → Agent' },
