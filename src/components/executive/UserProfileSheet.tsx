@@ -20,7 +20,7 @@ interface UserProfileSheetProps {
   userId: string;
   userName: string;
   userPhone?: string;
-  userType: 'tenant' | 'agent';
+  userType: 'tenant' | 'agent' | 'landlord';
 }
 
 export function UserProfileSheet({ open, onClose, userId, userName, userPhone, userType }: UserProfileSheetProps) {
@@ -46,10 +46,10 @@ export function UserProfileSheet({ open, onClose, userId, userName, userPhone, u
     queryKey: ['profile-rent-requests', userId, userType],
     enabled: open,
     queryFn: async () => {
-      const col = userType === 'tenant' ? 'tenant_id' : 'agent_id';
+      const col = userType === 'tenant' ? 'tenant_id' : userType === 'landlord' ? 'landlord_id' : 'agent_id';
       const { data } = await supabase
         .from('rent_requests')
-        .select('id, status, tenant_id, agent_id, rent_amount, amount_repaid, total_repayment, daily_repayment, created_at')
+        .select('id, status, tenant_id, agent_id, landlord_id, rent_amount, amount_repaid, total_repayment, daily_repayment, created_at')
         .eq(col, userId)
         .in('status', ['funded', 'disbursed', 'repaying', 'approved'])
         .order('created_at', { ascending: false })
@@ -58,7 +58,7 @@ export function UserProfileSheet({ open, onClose, userId, userName, userPhone, u
       if (!data?.length) return [];
 
       // Fetch related profiles
-      const relatedIds = [...new Set(data.map(r => userType === 'tenant' ? r.agent_id : r.tenant_id).filter(Boolean))];
+      const relatedIds = [...new Set(data.map(r => userType === 'tenant' ? r.agent_id : r.tenant_id).filter(Boolean))] as string[];
       let profileMap = new Map<string, string>();
       if (relatedIds.length) {
         const { data: profiles } = await supabase.from('profiles').select('id, full_name').in('id', relatedIds);
