@@ -30,6 +30,8 @@ type AgentRow = {
   responding_tenant_days: number;
   expected_tenant_days: number;
   paid_last_week: number;
+  paid_today: number;
+  expected_daily: number;
   tier: AgentCapacity['tier'];
   per_tenant_max: number;
 };
@@ -80,6 +82,7 @@ export function AgentRentCapacityPanel({
       }
 
       const exposureMap = new Map<string, { used: number; count: number }>();
+      const expectedDailyMap = new Map<string, number>();
       const activeIdToAgent = new Map<string, string>();
       const activeIdToTenant = new Map<string, string>();
       const activeTenantsByAgent = new Map<string, Set<string>>();
@@ -92,6 +95,10 @@ export function AgentRentCapacityPanel({
         );
         const prev = exposureMap.get(r.agent_id) || { used: 0, count: 0 };
         exposureMap.set(r.agent_id, { used: prev.used + owed, count: prev.count + 1 });
+        expectedDailyMap.set(
+          r.agent_id,
+          (expectedDailyMap.get(r.agent_id) || 0) + (Number(r.daily_repayment) || 0),
+        );
         activeIdToAgent.set(r.id, r.agent_id);
         if (r.tenant_id) {
           activeIdToTenant.set(r.id, r.tenant_id);
@@ -105,7 +112,11 @@ export function AgentRentCapacityPanel({
       //    last 7 days where the tenant paid at least UGX 1. Also keep
       //    the UGX total as a secondary stat.
       const weekAgoISO = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todayStartMs = todayStart.getTime();
       const paidByAgent = new Map<string, number>();
+      const paidTodayByAgent = new Map<string, number>();
       const respondingDaysByAgent = new Map<string, number>();
       const payingTenantsByAgent = new Map<string, Set<string>>();
       const activeIds = Array.from(activeIdToAgent.keys());
@@ -123,6 +134,9 @@ export function AgentRentCapacityPanel({
           const agentId = activeIdToAgent.get(p.rent_request_id);
           if (!agentId) return;
           paidByAgent.set(agentId, (paidByAgent.get(agentId) || 0) + amt);
+          if (new Date(p.created_at).getTime() >= todayStartMs) {
+            paidTodayByAgent.set(agentId, (paidTodayByAgent.get(agentId) || 0) + amt);
+          }
           if (amt <= 0) return;
           const tenantId = p.tenant_id || activeIdToTenant.get(p.rent_request_id);
           if (tenantId) {
@@ -188,6 +202,8 @@ export function AgentRentCapacityPanel({
           responding_tenant_days,
           expected_tenant_days,
           paid_last_week,
+          paid_today: paidTodayByAgent.get(id) || 0,
+          expected_daily: expectedDailyMap.get(id) || 0,
           tier,
           per_tenant_max,
         };
@@ -365,6 +381,8 @@ function CapacityRow({ row }: { row: AgentRow }) {
         responding_tenant_days: row.responding_tenant_days,
         expected_tenant_days: row.expected_tenant_days,
         paid_last_week: row.paid_last_week,
+        paid_today: row.paid_today,
+        expected_daily: row.expected_daily,
         repayment_rate: row.response_rate,
         expected_weekly: 0,
         headroom,
