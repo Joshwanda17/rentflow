@@ -394,10 +394,9 @@ function CapacityRow({ row }: { row: AgentRow }) {
           <p className="text-sm font-semibold text-foreground truncate">{row.name}</p>
           <p className="text-[11px] text-muted-foreground truncate">
             {row.phone || '—'} · {row.active_count} active rent{row.active_count === 1 ? '' : 's'}
-            {row.unfunded_tenant_count > 1 ? ' · ' : ''}
             {row.unfunded_tenant_count > 0 && (
               <span className="text-destructive font-bold">
-                {row.unfunded_tenant_count} marked Not Funded
+                {' · '}{row.unfunded_tenant_count} marked Not Funded
               </span>
             )}
           </p>
