@@ -724,6 +724,18 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
               ? Math.max(0, parseInt(outstandingDaysRemaining, 10))
               : null,
           } : {}),
+          // Welile auto-pays the landlord wallet on this day of the month
+          landlord_payout_day: Math.min(28, Math.max(1, parseInt(landlordPayoutDay, 10) || 1)),
+          landlord_payout_next_run_at: (() => {
+            const day = Math.min(28, Math.max(1, parseInt(landlordPayoutDay, 10) || 1));
+            const d = new Date();
+            d.setUTCDate(1);
+            if (new Date().getUTCDate() >= day) d.setUTCMonth(d.getUTCMonth() + 1);
+            d.setUTCDate(day);
+            d.setUTCHours(7, 0, 0, 0);
+            return d.toISOString();
+          })(),
+          landlord_payout_enabled: true,
         } as any)
         .select('id')
         .single();
