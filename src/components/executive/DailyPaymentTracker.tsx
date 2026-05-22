@@ -686,36 +686,82 @@ export function DailyPaymentTracker() {
 
                     {/* Agent + Wallet + Delete row */}
                     <div className="ml-12 flex items-start justify-between gap-2">
-                      <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground flex-1">
-                        <span>Agent: {t.agent_id ? (
-                          <button
-                            onClick={() => setProfileSheet({ userId: t.agent_id, userName: t.agent_name, userPhone: t.agent_phone, userType: 'agent' })}
-                            className="font-semibold text-primary underline underline-offset-2 decoration-primary/30 hover:decoration-primary"
-                          >
-                            {t.agent_name}
-                          </button>
-                        ) : <strong className="text-foreground">{t.agent_name}</strong>}</span>
-                        <span>Tenant Wallet: <strong className={t.tenant_wallet > 0 ? 'text-emerald-600' : 'text-destructive'}>{formatUGX(t.tenant_wallet)}</strong></span>
-                        {t.agent_phone && (
-                          <a href={`tel:${t.agent_phone}`} className="underline">{t.agent_phone}</a>
-                        )}
-                        <span>Agent Wallet: <strong className={t.agent_wallet > 0 ? 'text-emerald-600' : 'text-destructive'}>{formatUGX(t.agent_wallet)}</strong></span>
-                        <span className="col-span-2 inline-flex items-center gap-1.5 flex-wrap text-[11px] mt-0.5 px-2 py-1 rounded-md bg-amber-500/10 border border-amber-500/20">
+                      <div className="flex flex-col gap-1 text-[11px] flex-1">
+                        {/* Agent contact row */}
+                        <div className="inline-flex items-center gap-1.5 flex-wrap px-2 py-1 rounded-md bg-primary/5 border border-primary/15">
+                          <span className="font-semibold text-primary">👤 Agent:</span>
+                          {t.agent_id ? (
+                            <button
+                              onClick={() => setProfileSheet({ userId: t.agent_id, userName: t.agent_name, userPhone: t.agent_phone, userType: 'agent' })}
+                              className="font-bold text-foreground underline underline-offset-2 decoration-primary/40 hover:decoration-primary"
+                            >
+                              {t.agent_name}
+                            </button>
+                          ) : <strong className="text-foreground">{t.agent_name}</strong>}
+                          {t.agent_phone && (
+                            <span className="inline-flex items-center gap-1 ml-auto">
+                              <span className="text-muted-foreground tabular-nums">{t.agent_phone}</span>
+                              <a
+                                href={getWhatsAppLink(t.agent_phone)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={e => e.stopPropagation()}
+                                className="p-1 rounded-full bg-[hsl(142,70%,45%)]/10 hover:bg-[hsl(142,70%,45%)]/20"
+                                title="WhatsApp"
+                              >
+                                <MessageCircle className="h-3 w-3 text-[hsl(142,70%,45%)]" />
+                              </a>
+                              <a
+                                href={`tel:${t.agent_phone}`}
+                                onClick={e => e.stopPropagation()}
+                                className="p-1 rounded-full bg-primary/10 hover:bg-primary/20"
+                                title="Call"
+                              >
+                                <Phone className="h-3 w-3 text-primary" />
+                              </a>
+                            </span>
+                          )}
+                        </div>
+                        {/* Landlord contact row */}
+                        <div className="inline-flex items-center gap-1.5 flex-wrap px-2 py-1 rounded-md bg-amber-500/10 border border-amber-500/20">
                           <span className="font-semibold text-amber-700 dark:text-amber-400">🏠 Landlord:</span>
                           {t.landlord_id ? (
                             <button
                               onClick={() => setProfileSheet({ userId: t.landlord_id, userName: t.landlord_name, userPhone: t.landlord_phone, userType: 'landlord' })}
-                              className="font-bold text-foreground underline underline-offset-2 decoration-primary/40 hover:decoration-primary"
+                              className="font-bold text-foreground underline underline-offset-2 decoration-amber-500/40 hover:decoration-amber-500"
                             >
                               {t.landlord_name}
                             </button>
                           ) : <strong className="text-foreground">—</strong>}
                           {t.landlord_phone && (
-                            <a href={`tel:${t.landlord_phone}`} className="inline-flex items-center gap-0.5 font-medium text-primary underline">
-                              <Phone className="h-2.5 w-2.5" />{t.landlord_phone}
-                            </a>
+                            <span className="inline-flex items-center gap-1 ml-auto">
+                              <span className="text-muted-foreground tabular-nums">{t.landlord_phone}</span>
+                              <a
+                                href={getWhatsAppLink(t.landlord_phone)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={e => e.stopPropagation()}
+                                className="p-1 rounded-full bg-[hsl(142,70%,45%)]/10 hover:bg-[hsl(142,70%,45%)]/20"
+                                title="WhatsApp"
+                              >
+                                <MessageCircle className="h-3 w-3 text-[hsl(142,70%,45%)]" />
+                              </a>
+                              <a
+                                href={`tel:${t.landlord_phone}`}
+                                onClick={e => e.stopPropagation()}
+                                className="p-1 rounded-full bg-primary/10 hover:bg-primary/20"
+                                title="Call"
+                              >
+                                <Phone className="h-3 w-3 text-primary" />
+                              </a>
+                            </span>
                           )}
-                        </span>
+                        </div>
+                        {/* Wallets row */}
+                        <div className="grid grid-cols-2 gap-x-3 text-[10px] text-muted-foreground px-1">
+                          <span>Tenant Wallet: <strong className={t.tenant_wallet > 0 ? 'text-emerald-600' : 'text-destructive'}>{formatUGX(t.tenant_wallet)}</strong></span>
+                          <span>Agent Wallet: <strong className={t.agent_wallet > 0 ? 'text-emerald-600' : 'text-destructive'}>{formatUGX(t.agent_wallet)}</strong></span>
+                        </div>
                       </div>
                       {/* Collect + Delete buttons */}
                       <div className="flex items-center gap-1 shrink-0">
