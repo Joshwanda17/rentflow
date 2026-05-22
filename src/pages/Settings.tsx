@@ -198,13 +198,12 @@ export default function Settings() {
       // Phone changes go through edge function to keep auth.users + profiles in sync
       let savedPhone = trimmedPhone;
       if (phoneChanged) {
-        const { data, error } = await supabase.functions.invoke('self-update-phone', { body: { phone: trimmedPhone } });
-        if (error) {
-          const msg = (data as any)?.error || error.message || 'Failed to update phone';
-          throw new Error(msg);
-        }
-        if ((data as any)?.error) throw new Error((data as any).error);
-        savedPhone = (data as any)?.phone || trimmedPhone;
+        const { data, error } = await invokeEdgeFunction<{ phone?: string; error?: string }>(
+          'self-update-phone',
+          { body: { phone: trimmedPhone }, silent: true, fallbackMessage: 'Failed to update phone' },
+        );
+        if (error) throw error;
+        savedPhone = data?.phone || trimmedPhone;
         otp.resetOtp();
       }
       toast.success('Profile updated successfully');
