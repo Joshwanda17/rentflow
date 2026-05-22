@@ -1,11 +1,14 @@
+import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Home, EyeOff } from 'lucide-react';
+import { Loader2, Home, EyeOff, Info } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { usePropertiesAtLeaf, type BreadcrumbPath } from '@/hooks/useLocationBreakdown';
+import { HouseDetailsDialog } from './HouseDetailsDialog';
 
 export function PropertyLeafList({ path }: { path: BreadcrumbPath }) {
   const { data, isLoading } = usePropertiesAtLeaf(path);
+  const [detailsId, setDetailsId] = useState<string | null>(null);
   if (isLoading) return <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
   if (!data || data.length === 0) {
     return <Card className="py-10 text-center text-sm text-muted-foreground">No properties here yet.</Card>;
@@ -14,7 +17,11 @@ export function PropertyLeafList({ path }: { path: BreadcrumbPath }) {
     <div className="space-y-2">
       <p className="text-xs text-muted-foreground">{data.length} propert{data.length === 1 ? 'y' : 'ies'}</p>
       {data.map(h => (
-        <Card key={h.id} className="p-3">
+        <Card
+          key={h.id}
+          className="p-3 cursor-pointer hover:border-primary hover:shadow-md transition"
+          onClick={() => setDetailsId(h.id)}
+        >
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
               <p className="font-semibold text-sm flex items-center gap-1.5">
@@ -28,12 +35,21 @@ export function PropertyLeafList({ path }: { path: BreadcrumbPath }) {
                 <span className="text-muted-foreground">· {formatUGX(h.daily_rate)}/day</span>
               </div>
             </div>
-            <Badge variant={h.tenant_id ? 'default' : 'secondary'} className="text-[10px]">
-              {h.tenant_id ? 'Occupied' : 'Vacant'}
-            </Badge>
+            <div className="flex flex-col items-end gap-1 shrink-0">
+              <Badge variant={h.tenant_id ? 'default' : 'secondary'} className="text-[10px]">
+                {h.tenant_id ? 'Occupied' : 'Vacant'}
+              </Badge>
+              <span className="text-[10px] text-primary flex items-center gap-0.5">
+                <Info className="h-3 w-3" /> Tap for details
+              </span>
+            </div>
           </div>
         </Card>
       ))}
+      <HouseDetailsDialog
+        houseId={detailsId}
+        onOpenChange={(o) => !o && setDetailsId(null)}
+      />
     </div>
   );
 }
