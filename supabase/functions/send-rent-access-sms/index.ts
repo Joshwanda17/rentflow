@@ -121,6 +121,8 @@ Deno.serve(async (req) => {
       share_url,
       limit_amount,
       allocation_amount,
+      paid_amount,
+      remaining_balance,
       mode, // 'manual' | 'allocation'
     } = body || {};
 
@@ -137,26 +139,44 @@ Deno.serve(async (req) => {
     const firstName = String(tenant_name).split(" ")[0];
     const limitText =
       Number(limit_amount) > 0 ? formatUGX(Number(limit_amount)) : null;
-    const allocText =
-      Number(allocation_amount) > 0
-        ? formatUGX(Number(allocation_amount))
-        : null;
+    const paidNum = Number(paid_amount ?? allocation_amount) || 0;
+    const remainingNum = Number(remaining_balance);
+    const hasRemaining = Number.isFinite(remainingNum) && remainingNum >= 0;
 
-    // SMS body — kept under 320 chars to fit 2 segments.
-    const lines: string[] = ["WELILE — Rent Money You Can Get"];
-    if (mode === "allocation" && allocText) {
-      lines.push(`Hi ${firstName}, we just paid ${allocText} toward your rent.`);
+    let message: string;
+    if (mode === "allocation" && paidNum > 0) {
+      // New branded copy for agent float allocations / tenant payments.
+      const lines = [
+        "WELILE — Rent Money You Can Get",
+        "",
+        `Hello ${firstName},`,
+        "",
+        hasRemaining
+          ? `You have paid ${formatUGX(paidNum)} toward your rent. Your remaining balance is ${formatUGX(remainingNum)}.`
+          : `You have paid ${formatUGX(paidNum)} toward your rent.`,
+        "",
+        "Continue paying your rent on time to qualify for future rent support of up to UGX 3,000,000.",
+      ];
+      if (share_url) {
+        lines.push("", "View your rent card here:", share_url);
+      }
+      lines.push("", "Pay on time, your rent limit increases daily!");
+      message = lines.join("\n");
     } else {
-      lines.push(`Hi ${firstName},`);
+      // Manual share — keep the original short card-link copy.
+      const lines: string[] = [
+        "WELILE — Rent Money You Can Get",
+        `Hi ${firstName},`,
+      ];
+      if (limitText) {
+        lines.push(`You can get up to ${limitText} for rent today.`);
+      } else {
+        lines.push("See how much rent money you can get today.");
+      }
+      if (share_url) lines.push(`View your card: ${share_url}`);
+      lines.push("Pay on time — your limit grows daily.");
+      message = lines.join("\n");
     }
-    if (limitText) {
-      lines.push(`You can get up to ${limitText} for rent today.`);
-    } else {
-      lines.push("See how much rent money you can get today.");
-    }
-    if (share_url) lines.push(`View your card: ${share_url}`);
-    lines.push("Pay on time — your limit grows daily.");
-    const message = lines.join("\n");
 
     const ok = await sendSMS(tenant_phone, message);
 
@@ -172,6 +192,8 @@ Deno.serve(async (req) => {
             success: ok,
             limit_amount: Number(limit_amount) || null,
             allocation_amount: Number(allocation_amount) || null,
+            paid_amount: paidNum || null,
+            remaining_balance: hasRemaining ? remainingNum : null,
             share_url: share_url || null,
           },
         });
