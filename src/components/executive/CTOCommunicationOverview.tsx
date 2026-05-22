@@ -92,8 +92,9 @@ export function CTOCommunicationOverview() {
   const { smsOnly, emailReachable } = useMemo(() => {
     const list = partners || [];
     return {
-      // SMS tab: partners with an invalid/fallback email AND a usable phone number
-      smsOnly: list.filter((p) => isInvalidEmail(p.email) && isValidPhone(p.phone)),
+      // SMS tab: every partner reachable by phone (regardless of email).
+      // Email tab handles the inbox-reachable subset separately.
+      smsOnly: list.filter((p) => isValidPhone(p.phone)),
       // Email tab: partners with a real, deliverable email
       emailReachable: list.filter((p) => !isInvalidEmail(p.email)),
     };
@@ -175,7 +176,7 @@ export function CTOCommunicationOverview() {
           value={smsCount.toLocaleString()}
           icon={MessageSquare}
           color="bg-amber-500/10 text-amber-600"
-          subtitle="No valid email"
+          subtitle="Reachable by phone"
           loading={isLoading}
         />
         <KPICard
@@ -227,14 +228,14 @@ export function CTOCommunicationOverview() {
             </div>
             <span className="text-xs text-muted-foreground flex items-center gap-1">
               <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
-              Reach via SMS — emails are fallback (<code className="font-mono">@noapp.welile.user</code>) and phone is on file.
+              Partners with a phone number on file — reachable via SMS.
             </span>
           </div>
           <ExecutiveDataTable
             data={filtered(smsOnly)}
             columns={baseColumns}
             loading={isLoading}
-            title={`Partners without a valid email (${smsCount.toLocaleString()})`}
+            title={`Partners reachable by SMS (${smsCount.toLocaleString()})`}
           />
         </TabsContent>
 
