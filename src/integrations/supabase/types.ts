@@ -15773,6 +15773,14 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: Json
       }
+      list_assignable_agents: {
+        Args: never
+        Returns: {
+          full_name: string
+          id: string
+          phone: string
+        }[]
+      }
       list_joined_partners: {
         Args: { p_limit?: number; p_offset?: number }
         Returns: Json
