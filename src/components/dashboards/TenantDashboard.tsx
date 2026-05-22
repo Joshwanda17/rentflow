@@ -832,6 +832,12 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             </div>
           )}
 
+          {/* Available houses — surfaced directly on home so tenants don't have to dig through the menu */}
+          <div className="space-y-3">
+            <FindAHouseCTA onClick={() => { hapticTap(); openHousesSheet(); }} />
+            <SuggestedHousesCard userId={user.id} onViewAll={() => { openHousesSheet(); }} />
+          </div>
+
           {/* Single Menu button */}
           <button
             onClick={handleOpenMenu}
@@ -840,7 +846,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             <Menu className="h-5 w-5 text-foreground/70 shrink-0" />
             <div className="flex-1 text-left">
               <p className="font-medium text-sm">Menu</p>
-              <p className="text-xs text-muted-foreground">Payments, houses, tools & more</p>
+              <p className="text-xs text-muted-foreground">Payments, tools & more</p>
             </div>
             <span className="text-xs text-muted-foreground">→</span>
           </button>
