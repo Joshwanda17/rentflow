@@ -6339,6 +6339,7 @@ export type Database = {
           image_urls: string[] | null
           is_agent_caretaker: boolean | null
           is_furnished: boolean | null
+          is_hidden: boolean
           landlord_accepted: boolean | null
           landlord_has_smartphone: boolean | null
           landlord_id: string | null
@@ -6389,6 +6390,7 @@ export type Database = {
           image_urls?: string[] | null
           is_agent_caretaker?: boolean | null
           is_furnished?: boolean | null
+          is_hidden?: boolean
           landlord_accepted?: boolean | null
           landlord_has_smartphone?: boolean | null
           landlord_id?: string | null
@@ -6439,6 +6441,7 @@ export type Database = {
           image_urls?: string[] | null
           is_agent_caretaker?: boolean | null
           is_furnished?: boolean | null
+          is_hidden?: boolean
           landlord_accepted?: boolean | null
           landlord_has_smartphone?: boolean | null
           landlord_id?: string | null
