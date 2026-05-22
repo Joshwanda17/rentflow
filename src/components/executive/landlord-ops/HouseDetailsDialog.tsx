@@ -107,14 +107,21 @@ export function HouseDetailsDialog({ houseId, onOpenChange }: Props) {
             {Array.isArray(house.image_urls) && house.image_urls.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {house.image_urls.map((u: string, i: number) => (
-                  <a key={i} href={u} target="_blank" rel="noreferrer">
+                  <button
+                    key={i}
+                    onClick={() => setZoomIndex(i)}
+                    className="relative group overflow-hidden rounded-md border"
+                  >
                     <img
                       src={u}
                       alt={`${house.title} photo ${i + 1}`}
                       loading="lazy"
-                      className="h-24 w-full object-cover rounded-md border"
+                      className="h-28 w-full object-cover transition group-hover:scale-105"
                     />
-                  </a>
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition">
+                      <ZoomIn className="h-6 w-6 text-white opacity-1 group-hover:opacity-100" />
+                    </div>
+                  </button>
                 ))}
               </div>
             ) : (
@@ -122,6 +129,15 @@ export function HouseDetailsDialog({ houseId, onOpenChange }: Props) {
                 <ImageIcon className="h-4 w-4" /> No photos uploaded by agent
               </div>
             )}
+
+            {/* Zoom lightbox */}
+            <ImageZoomLightbox
+              images={house.image_urls || []}
+              startIndex={zoomIndex}
+              open={zoomIndex !== null}
+              onClose={() => setZoomIndex(null)}
+              altPrefix={house.title}
+            />
 
             {/* Description */}
             {house.description && (

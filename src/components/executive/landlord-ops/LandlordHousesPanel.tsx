@@ -277,19 +277,25 @@ export function LandlordHousesPanel() {
         {viewMode === 'landlord' ? 'Houses by Landlord' : 'Houses by Location'}
       </h2>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-[1.6fr_1fr] gap-2">
         <button
           onClick={() => setViewMode('location')}
-          className={`flex items-center gap-2 rounded-lg border p-3 text-left transition ${
+          className={`flex items-center gap-3 rounded-xl border p-4 text-left transition ${
             viewMode === 'location'
-              ? 'border-primary bg-primary/5 shadow-sm'
+              ? 'border-primary bg-gradient-to-br from-primary/10 to-primary/5 shadow-md ring-1 ring-primary/20'
               : 'border-border bg-muted/20 hover:bg-muted/40'
           }`}
         >
-          <MapPin className={`h-5 w-5 ${viewMode === 'location' ? 'text-primary' : 'text-muted-foreground'}`} />
-          <div>
-            <p className="text-sm font-semibold">Browse by Location</p>
+          <div className={`flex h-10 w-10 items-center justify-center rounded-full ${viewMode === 'location' ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'}`}>
+            <MapPin className="h-5 w-5" />
+          </div>
+          <div className="flex-1 min-w-1">
+            <p className="text-sm font-bold">Browse by Location</p>
             <p className="text-[11px] text-muted-foreground">Country → Region → District → Agent → Landlord</p>
+            <div className="flex items-center gap-1 mt-1">
+              <Badge variant="default" className="text-[9px] h-4">Recommended</Badge>
+              <span className="text-[10px] text-muted-foreground">Best for ops at scale</span>
+            </div>
           </div>
         </button>
         <button
@@ -303,7 +309,7 @@ export function LandlordHousesPanel() {
           <Building2 className={`h-5 w-5 ${viewMode === 'landlord' ? 'text-primary' : 'text-muted-foreground'}`} />
           <div>
             <p className="text-sm font-semibold">Group by Landlord</p>
-            <p className="text-[11px] text-muted-foreground">Each landlord and the houses they own</p>
+            <p className="text-[11px] text-muted-foreground">Each landlord and their houses</p>
           </div>
         </button>
       </div>
