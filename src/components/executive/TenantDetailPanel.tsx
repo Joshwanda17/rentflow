@@ -562,6 +562,18 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                                 <Pencil className="h-3 w-3" />
                               </Button>
                             )}
+                            {!isEditing && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-6 px-2 text-[10px] gap-1"
+                                onClick={() => setTransferReq({ id: req.id, agent_id: (req.assigned_agent_id || req.agent_id) ?? null })}
+                                title="Transfer to another agent"
+                              >
+                                <ArrowRightLeft className="h-3 w-3" />
+                                Transfer
+                              </Button>
+                            )}
                           </div>
                         </div>
 
