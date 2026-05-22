@@ -6,6 +6,7 @@ import { hapticTap } from '@/lib/haptics';
 import { motion, AnimatePresence } from 'framer-motion';
 import welileLogo from '@/assets/welile-logo.png';
 import { globalDeferredPrompt, clearGlobalPrompt } from '@/hooks/usePWAInstall';
+import { PublicHousesPreview } from '@/components/landing/PublicHousesPreview';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -234,6 +235,9 @@ export default function Landing() {
 
       {/* Intent Selection */}
       <main className="flex-1 px-5 pb-8 flex flex-col justify-center max-w-lg mx-auto w-full">
+        {/* Live preview of real listed houses — visible to new visitors before signup */}
+        <PublicHousesPreview />
+
         <motion.p
           className="text-center text-foreground font-semibold text-lg mb-5"
           initial={{ opacity: 0 }}
