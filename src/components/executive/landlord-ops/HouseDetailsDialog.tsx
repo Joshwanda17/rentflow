@@ -1,3 +1,4 @@
+import { useState }  from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -6,7 +7,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 import {
   Loader2, Home, MapPin, User, UserCog, Building2, Droplet, Zap, Shield, Car, Sofa,
-  Calendar, Hash, EyeOff, CheckCircle2, Image as ImageIcon, Phone, Tag,
+  Calendar, Hash, EyeOff, CheckCircle2, Image as ImageIcon, Phone, Tag, ZoomIn,
+  ChevronLeft, ChevronRight, X,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 
@@ -17,6 +19,7 @@ interface Props {
 
 export function HouseDetailsDialog({ houseId, onOpenChange }: Props) {
   const open = !!houseId;
+  const [zoomIndex, setZoomIndex] = useState<number | null>(null);
 
   const { data, isLoading } = useQuery({
     enabled: open,
