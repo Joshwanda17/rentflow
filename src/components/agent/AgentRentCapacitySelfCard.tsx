@@ -76,7 +76,7 @@ export function AgentRentCapacitySelfCard() {
           <div className="min-w-0 flex-1">
             <h3 className="text-sm font-bold text-foreground">My Rent-Request Capacity</h3>
             <p className="text-[11px] text-muted-foreground">
-              Rated on <strong>daily tenant response</strong> — keep them paying every day, even small amounts
+              How many of your tenants paid in the last 7 days?
             </p>
           </div>
           {cap && (
@@ -118,14 +118,17 @@ export function AgentRentCapacitySelfCard() {
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-[10px] font-bold uppercase tracking-wide text-emerald-700">
-                    Last 7 days · Daily Tenant Response
+                    Last 7 days · Tenants who paid
                   </div>
                   <div className="mt-0.5 text-2xl font-extrabold tabular-nums text-foreground">
-                    {ratePct}%
+                    {cap.paying_tenants_last_week}
+                    <span className="text-base font-bold text-muted-foreground">
+                      {' '}/ {cap.active_tenant_count} tenants
+                    </span>
                   </div>
                   <p className="text-[11px] text-muted-foreground">
-                    {cap.responding_tenant_days} of {cap.expected_tenant_days} possible
-                    tenant-day responses
+                    Daily response rate: <strong>{ratePct}%</strong> ·{' '}
+                    {cap.responding_tenant_days}/{cap.expected_tenant_days} tenant-day responses
                   </p>
                 </div>
                 <div className="h-12 w-12 rounded-full border-2 border-emerald-500/30 flex items-center justify-center">

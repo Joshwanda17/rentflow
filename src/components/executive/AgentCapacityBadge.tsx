@@ -46,13 +46,18 @@ export function AgentCapacityBadge({
   }
   if (!capacity) return null;
 
-  const { tier, used, pct, headroom, per_tenant_max, response_rate, responding_tenant_days, expected_tenant_days } = capacity;
+  const {
+    tier, used, pct, headroom, per_tenant_max, response_rate,
+    responding_tenant_days, expected_tenant_days,
+    paying_tenants_last_week, active_tenant_count,
+  } = capacity;
   const tone = TIER_TONE[tier];
   const barTone =
     pct >= 95 ? 'bg-destructive' : pct >= 75 ? 'bg-amber-500' : 'bg-emerald-500';
 
   const title =
     `Tier: ${tier}\n` +
+    `Last 7 days: ${paying_tenants_last_week} of ${active_tenant_count} tenants paid\n` +
     `Active exposure: UGX ${formatUGX(used)} / ${formatUGX(AGENT_RENT_CAP_UGX)} (${pct}%)\n` +
     `Headroom: UGX ${formatUGX(headroom)}\n` +
     `Last 7d tenant response: ${Math.round(response_rate * 100)}% ` +
@@ -74,7 +79,7 @@ export function AgentCapacityBadge({
           <div className={cn('h-full transition-all', barTone)} style={{ width: `${pct}%` }} />
         </div>
         <span className="text-[10px] text-muted-foreground tabular-nums leading-3">
-          {responding_tenant_days}/{expected_tenant_days} resp · {fmtShort(headroom)} room
+          {paying_tenants_last_week}/{active_tenant_count} paid 7d · {fmtShort(headroom)} room
         </span>
       </div>
     );
@@ -90,7 +95,9 @@ export function AgentCapacityBadge({
       )}
     >
       {tier}
-      <span className="opacity-70 font-semibold">· {Math.round(response_rate * 100)}% resp</span>
+      <span className="opacity-70 font-semibold">
+        · {paying_tenants_last_week}/{active_tenant_count} paid 7d
+      </span>
     </span>
   );
 }

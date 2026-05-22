@@ -35,6 +35,10 @@ export const AGENT_TIER_THRESHOLDS = {
 export type AgentCapacity = {
   used: number;
   active_count: number;
+  /** Distinct tenants the agent is currently collecting from (active rent_requests). */
+  active_tenant_count: number;
+  /** Distinct tenants who made at least one payment in the last 7 days. Plain-English KPI. */
+  paying_tenants_last_week: number;
   /** Last 7-day Daily Response Rate (0..1). Primary tier metric. */
   response_rate: number;
   /** Count of (tenant × day) cells in last 7d where the tenant paid ≥ UGX 1. */
@@ -85,13 +89,15 @@ export function useAgentCapacityMap(agentIds: string[]) {
       // 1) Active rent_requests drive both exposure AND expected daily collections
       const { data: active } = await supabase
         .from('rent_requests')
-        .select('id, agent_id, total_repayment, amount_repaid, daily_repayment')
+        .select('id, agent_id, tenant_id, total_repayment, amount_repaid, daily_repayment')
         .in('agent_id', agentIds)
         .in('status', ACTIVE_RENT_STATUSES);
 
       const exposure = new Map<string, { used: number; count: number }>();
       const expectedDaily = new Map<string, number>();
       const activeIdToAgent = new Map<string, string>();
+      const activeIdToTenant = new Map<string, string>();
+      const activeTenantsByAgent = new Map<string, Set<string>>();
       (active || []).forEach((r: any) => {
         const owed = Math.max((Number(r.total_repayment) || 0) - (Number(r.amount_repaid) || 0), 0);
         const prev = exposure.get(r.agent_id) || { used: 0, count: 0 };
@@ -101,6 +107,12 @@ export function useAgentCapacityMap(agentIds: string[]) {
           (expectedDaily.get(r.agent_id) || 0) + (Number(r.daily_repayment) || 0),
         );
         activeIdToAgent.set(r.id, r.agent_id);
+        if (r.tenant_id) {
+          activeIdToTenant.set(r.id, r.tenant_id);
+          let s = activeTenantsByAgent.get(r.agent_id);
+          if (!s) { s = new Set(); activeTenantsByAgent.set(r.agent_id, s); }
+          s.add(r.tenant_id);
+        }
       });
 
       // 2) For each active rent_request, find DISTINCT calendar days in
@@ -108,6 +120,7 @@ export function useAgentCapacityMap(agentIds: string[]) {
       //    those (rent × day) cells per agent — that's the DRR numerator.
       const paidByAgent = new Map<string, number>();
       const respondingDaysByAgent = new Map<string, number>();
+      const payingTenantsByAgent = new Map<string, Set<string>>();
       const activeIds = Array.from(activeIdToAgent.keys());
       if (activeIds.length > 0) {
         const BATCH = 200;
@@ -115,7 +128,7 @@ export function useAgentCapacityMap(agentIds: string[]) {
           const slice = activeIds.slice(i, i + BATCH);
           const { data: pays } = await supabase
             .from('repayments')
-            .select('rent_request_id, amount, created_at')
+            .select('rent_request_id, amount, created_at, tenant_id')
             .in('rent_request_id', slice)
             .gte('created_at', weekAgoISO);
           // Per-rent unique paying-day sets
@@ -126,6 +139,12 @@ export function useAgentCapacityMap(agentIds: string[]) {
             if (!agentId) return;
             paidByAgent.set(agentId, (paidByAgent.get(agentId) || 0) + amt);
             if (amt <= 0) return;
+            const tenantId = p.tenant_id || activeIdToTenant.get(p.rent_request_id);
+            if (tenantId) {
+              let pt = payingTenantsByAgent.get(agentId);
+              if (!pt) { pt = new Set(); payingTenantsByAgent.set(agentId, pt); }
+              pt.add(tenantId);
+            }
             const day = (p.created_at as string).slice(0, 10);
             let set = dayKeyByRent.get(p.rent_request_id);
             if (!set) { set = new Set(); dayKeyByRent.set(p.rent_request_id, set); }
@@ -164,6 +183,8 @@ export function useAgentCapacityMap(agentIds: string[]) {
         out.set(id, {
           used: exp.used,
           active_count: exp.count,
+          active_tenant_count: activeTenantsByAgent.get(id)?.size || 0,
+          paying_tenants_last_week: payingTenantsByAgent.get(id)?.size || 0,
           response_rate,
           responding_tenant_days,
           expected_tenant_days,

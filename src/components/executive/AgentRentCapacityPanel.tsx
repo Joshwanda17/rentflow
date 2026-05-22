@@ -23,6 +23,8 @@ type AgentRow = {
   phone: string | null;
   used: number;
   active_count: number;
+  active_tenant_count: number;
+  paying_tenants_last_week: number;
   response_rate: number;          // 0..1 — last 7 days DRR
   responding_tenant_days: number;
   expected_tenant_days: number;
@@ -44,12 +46,14 @@ export function AgentRentCapacityPanel({
       // 1) Pull all active rent requests (drives exposure + expected daily collections)
       const { data: active } = await supabase
         .from('rent_requests')
-        .select('id, agent_id, total_repayment, amount_repaid, daily_repayment')
+        .select('id, agent_id, tenant_id, total_repayment, amount_repaid, daily_repayment')
         .in('status', ACTIVE_RENT_STATUSES)
         .not('agent_id', 'is', null);
 
       const exposureMap = new Map<string, { used: number; count: number }>();
       const activeIdToAgent = new Map<string, string>();
+      const activeIdToTenant = new Map<string, string>();
+      const activeTenantsByAgent = new Map<string, Set<string>>();
       (active || []).forEach((r: any) => {
         if (!r.agent_id) return;
         const owed = Math.max(
@@ -59,6 +63,12 @@ export function AgentRentCapacityPanel({
         const prev = exposureMap.get(r.agent_id) || { used: 0, count: 0 };
         exposureMap.set(r.agent_id, { used: prev.used + owed, count: prev.count + 1 });
         activeIdToAgent.set(r.id, r.agent_id);
+        if (r.tenant_id) {
+          activeIdToTenant.set(r.id, r.tenant_id);
+          let s = activeTenantsByAgent.get(r.agent_id);
+          if (!s) { s = new Set(); activeTenantsByAgent.set(r.agent_id, s); }
+          s.add(r.tenant_id);
+        }
       });
 
       // 2) Daily Response Rate — count distinct (rent × day) cells in the
@@ -67,13 +77,14 @@ export function AgentRentCapacityPanel({
       const weekAgoISO = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
       const paidByAgent = new Map<string, number>();
       const respondingDaysByAgent = new Map<string, number>();
+      const payingTenantsByAgent = new Map<string, Set<string>>();
       const activeIds = Array.from(activeIdToAgent.keys());
       const BATCH_PAY = 200;
       for (let i = 0; i < activeIds.length; i += BATCH_PAY) {
         const slice = activeIds.slice(i, i + BATCH_PAY);
         const { data: pays } = await supabase
           .from('repayments')
-          .select('rent_request_id, amount, created_at')
+          .select('rent_request_id, amount, created_at, tenant_id')
           .in('rent_request_id', slice)
           .gte('created_at', weekAgoISO);
         const dayKeyByRent = new Map<string, Set<string>>();
@@ -83,6 +94,12 @@ export function AgentRentCapacityPanel({
           if (!agentId) return;
           paidByAgent.set(agentId, (paidByAgent.get(agentId) || 0) + amt);
           if (amt <= 0) return;
+          const tenantId = p.tenant_id || activeIdToTenant.get(p.rent_request_id);
+          if (tenantId) {
+            let pt = payingTenantsByAgent.get(agentId);
+            if (!pt) { pt = new Set(); payingTenantsByAgent.set(agentId, pt); }
+            pt.add(tenantId);
+          }
           const day = (p.created_at as string).slice(0, 10);
           let set = dayKeyByRent.get(p.rent_request_id);
           if (!set) { set = new Set(); dayKeyByRent.set(p.rent_request_id, set); }
@@ -134,6 +151,8 @@ export function AgentRentCapacityPanel({
           phone: prof.phone,
           used: exp.used,
           active_count: exp.count,
+          active_tenant_count: activeTenantsByAgent.get(id)?.size || 0,
+          paying_tenants_last_week: payingTenantsByAgent.get(id)?.size || 0,
           response_rate,
           responding_tenant_days,
           expected_tenant_days,
@@ -308,6 +327,8 @@ function CapacityRow({ row }: { row: AgentRow }) {
       const cap: AgentCapacity = {
         used: row.used,
         active_count: row.active_count,
+        active_tenant_count: row.active_tenant_count,
+        paying_tenants_last_week: row.paying_tenants_last_week,
         response_rate: row.response_rate,
         responding_tenant_days: row.responding_tenant_days,
         expected_tenant_days: row.expected_tenant_days,
@@ -341,6 +362,10 @@ function CapacityRow({ row }: { row: AgentRow }) {
           <p className="text-sm font-semibold text-foreground truncate">{row.name}</p>
           <p className="text-[11px] text-muted-foreground truncate">
             {row.phone || '—'} · {row.active_count} active rent{row.active_count === 1 ? '' : 's'}
+          </p>
+          <p className="text-[11px] font-semibold text-emerald-700 truncate">
+            Last 7 days: <span className="tabular-nums">{row.paying_tenants_last_week}</span> of{' '}
+            <span className="tabular-nums">{row.active_tenant_count}</span> tenants paid
           </p>
         </div>
         <div className="flex items-center gap-1 shrink-0">
