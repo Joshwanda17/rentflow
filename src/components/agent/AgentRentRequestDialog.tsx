@@ -378,6 +378,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
     if (!preferredLanguage) errors.push('Preferred language is required');
 
+    if (!tenantPhoto) errors.push('Tenant passport photo is required');
+
     // Outstanding flow uses a searchable landlord picker (LC already linked).
     // Other flows still collect landlord + LC1 inline.
     if (isOutstanding) {
