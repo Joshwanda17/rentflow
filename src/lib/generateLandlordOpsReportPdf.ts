@@ -142,7 +142,7 @@ export function generateLandlordOpsReportPdf(
   ];
 
   const drawTableHeader = () => {
-    doc.setFillColor(20, 33, 72);
+    doc.setFillColor(146, 52, 234);
     doc.rect(margin, y, contentWidth, 8, 'F');
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8.5);

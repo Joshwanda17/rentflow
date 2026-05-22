@@ -77,7 +77,7 @@ export async function generateAgentAllocationPdf(opts: {
   const margin = 8;
 
   const drawHeaderBand = (title: string, subtitle: string) => {
-    pdf.setFillColor(30, 64, 175);
+    pdf.setFillColor(146, 52, 234);
     pdf.rect(0, 0, pw, 22, 'F');
     pdf.setTextColor(255, 255, 255);
     pdf.setFont('helvetica', 'bold');

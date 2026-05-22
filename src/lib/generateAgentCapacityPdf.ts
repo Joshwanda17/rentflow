@@ -162,7 +162,7 @@ export function generateAgentCapacityPdf(
     { label: 'Can Request Today', x: margin + 151, w: 35 },
   ];
   const drawHeader = () => {
-    doc.setFillColor(30, 30, 60);
+    doc.setFillColor(146, 52, 234);
     doc.rect(margin, y - 4, contentWidth, 6, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(7);
@@ -217,7 +217,7 @@ export function generateAgentCapacityPdf(
 
     // Totals row
     y += 1;
-    doc.setFillColor(30, 30, 60);
+    doc.setFillColor(146, 52, 234);
     doc.rect(margin, y - 4, contentWidth, 7, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(8);

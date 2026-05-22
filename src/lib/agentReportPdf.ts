@@ -27,7 +27,7 @@ export async function generateAgentReportPdf(data: AgentReportData): Promise<Blo
   let y = margin;
 
   // Header
-  pdf.setFillColor(88, 28, 135); // purple-900
+  pdf.setFillColor(146, 52, 234); // purple-900
   pdf.rect(0, 0, pw, 28, 'F');
   pdf.setTextColor(255, 255, 255);
   pdf.setFontSize(16);

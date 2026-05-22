@@ -61,7 +61,7 @@ export function generateAgentTenantPdf(agent: AgentInfo, tenants: TenantRow[]): 
   ];
 
   const drawHeader = () => {
-    doc.setFillColor(30, 30, 60);
+    doc.setFillColor(146, 52, 234);
     doc.rect(margin, y - 4, contentWidth, 6, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(7);
@@ -118,7 +118,7 @@ export function generateAgentTenantPdf(agent: AgentInfo, tenants: TenantRow[]): 
 
   // Summary row
   y += 3;
-  doc.setFillColor(30, 30, 60);
+  doc.setFillColor(146, 52, 234);
   doc.rect(margin, y - 4, contentWidth, 7, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(8);

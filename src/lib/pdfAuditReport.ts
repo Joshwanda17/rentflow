@@ -77,7 +77,7 @@ export async function downloadAuditPdf(
     head: [headers],
     body: rows.map((r) => r.map((c) => (c === null || c === undefined ? '' : String(c)))),
     styles: { fontSize: 7, cellPadding: 3, overflow: 'linebreak', valign: 'top' },
-    headStyles: { fillColor: [241, 245, 249], textColor: 30, fontStyle: 'bold', fontSize: 7 },
+    headStyles: { fillColor: [146, 52, 234], textColor: 255, textColor: 30, fontStyle: 'bold', fontSize: 7 },
     alternateRowStyles: { fillColor: [250, 250, 252] },
     margin: { left: 24, right: 24, bottom: 36 },
     didDrawPage: () => {

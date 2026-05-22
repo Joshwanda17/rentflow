@@ -25,7 +25,7 @@ export async function generateAgentWalletReportPdf(data: AgentWalletReportData):
   };
 
   // ── Header ──
-  pdf.setFillColor(88, 28, 135);
+  pdf.setFillColor(146, 52, 234);
   pdf.rect(0, 0, pw, 30, 'F');
   pdf.setTextColor(255, 255, 255);
   pdf.setFontSize(16);
@@ -70,7 +70,7 @@ export async function generateAgentWalletReportPdf(data: AgentWalletReportData):
     y += 10;
   } else {
     // Table header
-    pdf.setFillColor(88, 28, 135);
+    pdf.setFillColor(146, 52, 234);
     pdf.rect(margin, y, pw - margin * 2, 6, 'F');
     pdf.setTextColor(255, 255, 255);
     pdf.setFontSize(8);
@@ -108,7 +108,7 @@ export async function generateAgentWalletReportPdf(data: AgentWalletReportData):
   y += 5;
 
   // Table header
-  pdf.setFillColor(88, 28, 135);
+  pdf.setFillColor(146, 52, 234);
   pdf.rect(margin, y, pw - margin * 2, 6, 'F');
   pdf.setTextColor(255, 255, 255);
   pdf.setFontSize(8);

@@ -42,8 +42,8 @@ const dueLabel = (d: number) => {
 };
 
 // Welile theme primary (HSL 271 100% 40% → RGB ≈ 102, 0, 204)
-const THEME_PRIMARY: [number, number, number] = [102, 0, 204];
-const THEME_PRIMARY_DARK: [number, number, number] = [60, 0, 130];
+const THEME_PRIMARY: [number, number, number] = [146, 52, 234];
+const THEME_PRIMARY_DARK: [number, number, number] = [108, 33, 196];
 const THEME_STRIPE: [number, number, number] = [245, 240, 252];
 
 const COMPANY_NAME = 'Welile Technologies Limited';
