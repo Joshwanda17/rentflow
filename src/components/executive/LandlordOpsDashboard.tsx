@@ -7,6 +7,7 @@ import { AdvanceRequestsQueue } from '@/components/ops/AdvanceRequestsQueue';
 import { BusinessAdvanceQueue } from '@/components/ops/BusinessAdvanceQueue';
 import { RentHistoryVerificationQueue } from '@/components/ops/RentHistoryVerificationQueue';
 import { LandlordOpsPayoutReview } from '@/components/cfo/LandlordOpsPayoutReview';
+import { AgentRentCapacityPanel } from './AgentRentCapacityPanel';
 import { KPICard } from './KPICard';
 import {
   Home, Banknote, CheckCircle2, MapPin, AlertTriangle, ShieldCheck,
@@ -1878,6 +1879,9 @@ export function LandlordOpsDashboard() {
       <RentPipelineQueue stage="tenant_ops_approved" />
       <RejectedRequestsQueue stageFilter="tenant_ops_approved" title="Rejected at Landlord Ops" />
       <LandlordOpsPayoutReview reviewRole="landlord_ops" />
+
+      {/* Agent Rent-Request Capacity (fleet-wide) */}
+      <AgentRentCapacityPanel />
 
       {/* KPIs - compact grid */}
       <div className="grid grid-cols-2 gap-2">
