@@ -965,6 +965,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
               animate={{ opacity: 1 }}
               className="space-y-4"
             >
+              {/* Agent rent exposure capacity (100M UGX cap) */}
+              <AgentCapacityBanner agentId={user?.id} />
+
               {/* ===== 1. RENT DETAILS — PRIMARY SECTION ===== */}
               {incomeType === 'outstanding' ? (
                 <>
