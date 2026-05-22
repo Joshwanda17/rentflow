@@ -14,7 +14,7 @@ import {
   Phone, MessageCircle, Image, MapPinned, DoorOpen, TrendingDown, Users,
   Building2, UserCheck, Smartphone, Handshake, GitBranch, Link2,
   ArrowLeft, ChevronRight, Search, X, Globe, UserX, UserPlus,
-  Table2, Printer, CalendarIcon, Loader2, Upload, ChevronDown, ChevronUp,
+  Table2, Printer, CalendarIcon, Loader2, Upload,
 } from 'lucide-react';
 import { ChainHealthTab } from './landlord-ops/ChainHealthTab';
 import { Badge } from '@/components/ui/badge';
@@ -259,7 +259,6 @@ export function LandlordOpsDashboard() {
   const [deleteReason, setDeleteReason] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [assignPerson, setAssignPerson] = useState<{ listingId: string; title: string; type: 'landlord' | 'agent' } | null>(null);
-  const [locCollapsed, setLocCollapsed] = useState(true);
 
   // ─── All Requests delete state (mirrors Tenant Ops UX) ───
   const [allReqSelectedIds, setAllReqSelectedIds] = useState<string[]>([]);
@@ -1876,51 +1875,6 @@ export function LandlordOpsDashboard() {
   // ─── HOME: Mobile-first card navigation ───
   return (
     <div className="space-y-4">
-      {/* Houses by Location — collapsible summary at top */}
-      <div className="rounded-xl border border-border bg-card">
-        <button
-          onClick={() => setLocCollapsed(c => !c)}
-          className="w-full flex items-center justify-between p-3 text-left"
-        >
-          <div className="flex items-center gap-2">
-            <MapPin className="h-4 w-4 text-purple-600" />
-            <span className="font-bold text-sm">Houses by Location</span>
-            <Badge variant="outline" className="text-[10px] font-bold">{locationGroups.length} areas</Badge>
-          </div>
-          {locCollapsed ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronUp className="h-4 w-4 text-muted-foreground" />}
-        </button>
-        {!locCollapsed && (
-          <div className="px-3 pb-3 space-y-2">
-            {locationGroups.slice(0, 8).map((loc, i) => (
-              <div key={i} className="rounded-lg border border-border bg-background p-3 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="h-8 w-8 rounded-lg bg-purple-500/10 flex items-center justify-center shrink-0">
-                    <MapPin className="h-4 w-4 text-purple-600" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-bold text-sm truncate">{loc.region}</p>
-                    {loc.district && <p className="text-xs text-muted-foreground truncate">{loc.district}</p>}
-                  </div>
-                </div>
-                <div className="flex flex-col items-end gap-0.5 shrink-0">
-                  <Badge variant="outline" className="text-[10px] font-bold">{loc.count} houses</Badge>
-                  <div className="flex gap-1">
-                    <Badge className="bg-green-500/20 text-green-700 border-0 text-[9px]">{loc.occupied} occupied</Badge>
-                    {loc.empty > 0 && <Badge className="bg-red-500/20 text-red-700 border-0 text-[9px]">{loc.empty} empty</Badge>}
-                  </div>
-                </div>
-              </div>
-            ))}
-            {locationGroups.length > 8 && (
-              <button onClick={() => setView('locations')} className="w-full text-center text-xs text-primary font-medium py-1 hover:underline">
-                View all {locationGroups.length} locations →
-              </button>
-            )}
-            {locationGroups.length === 0 && <p className="text-center text-muted-foreground text-xs py-2">No locations found</p>}
-          </div>
-        )}
-      </div>
-
       {/* Priority actions */}
       <RentPipelineQueue stage="tenant_ops_approved" />
       <RejectedRequestsQueue stageFilter="tenant_ops_approved" title="Rejected at Landlord Ops" collapsible />
