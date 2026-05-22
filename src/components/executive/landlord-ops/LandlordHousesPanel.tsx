@@ -509,6 +509,8 @@ export function LandlordHousesPanel() {
           })}
         </div>
       )}
+      </>
+      )}
 
       {bindFor && (
         <BindTenantToHouseDialog
