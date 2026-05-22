@@ -16,7 +16,7 @@ import {
   MessageCircle, Pencil, UsersRound, Zap, Bot, RefreshCw,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useGeoLocation } from '@/hooks/useGeoLocation';
+import { useCaptureLocation } from '@/hooks/useCaptureLocation';
 import { createShortLink } from '@/lib/createShortLink';
 import { AgentTenantCollectDialog } from './AgentTenantCollectDialog';
 import { ReverseAllocationDialog } from './ReverseAllocationDialog';
@@ -168,7 +168,7 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
 
   const [collectDialogOpen, setCollectDialogOpen] = useState(false);
 
-  const { location: gpsLocation, loading: gpsLoading, error: gpsError, captureLocation } = useGeoLocation();
+  const { location: gpsLocation, loading: gpsLoading, error: gpsError, captureLocation } = useCaptureLocation();
 
   const [sharingLink, setSharingLink] = useState(false);
   const [sharingProfile, setSharingProfile] = useState(false);

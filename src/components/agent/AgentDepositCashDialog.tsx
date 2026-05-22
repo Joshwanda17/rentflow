@@ -56,22 +56,31 @@ export function AgentDepositCashDialog({ open, onOpenChange, onSuccess }: AgentD
 
     setLoading(true);
 
-    // Reset float capacity: reduce collected_today by deposit amount (or set to 0)
-    const { data: floatData } = await supabase
-      .from('agent_float_limits')
-      .select('collected_today')
-      .eq('agent_id', profile.id)
-      .maybeSingle();
-
-    if (floatData) {
-      const newCollected = Math.max(0, floatData.collected_today - amountNum);
-      await supabase
-        .from('agent_float_limits')
-        .update({ collected_today: newCollected, updated_at: new Date().toISOString() })
-        .eq('agent_id', profile.id);
-    }
+    // Create a deposit request for manager verification
+    const { error: insertError } = await supabase
+      .from('deposit_requests')
+      .insert({
+        user_id: profile.id, // Agent is depositing their own collected cash
+        agent_id: profile.id,
+        amount: amountNum,
+        provider: method,
+        transaction_id: transactionId.trim().toUpperCase(),
+        notes: `Agent cash deposit for: ${depositType}`,
+        status: 'pending',
+        deposit_purpose: 'other' // Maps safely using DB enum
+      });
 
     setLoading(false);
+
+    if (insertError) {
+      if (insertError.code === '23505') {
+        toast({ title: 'This transaction ID has already been submitted', variant: 'destructive' });
+      } else {
+        toast({ title: 'Failed to submit deposit', description: insertError.message, variant: 'destructive' });
+      }
+      return;
+    }
+
     setSuccess(true);
     // STRICT LEDGER REFRESH: never trust local state — invalidate every wallet-derived query
     // so the UI re-reads from `wallets` (which is now the ledger-backed view). No optimistic
@@ -85,11 +94,8 @@ export function AgentDepositCashDialog({ open, onOpenChange, onSuccess }: AgentD
       queryClient.invalidateQueries({ queryKey: ['agent_float_limits'] }),
     ]);
     toast({ 
-      title: depositType === 'float' 
-        ? 'Float deposit recorded! Float capacity restored.' 
-        : depositType === 'operations_float'
-          ? 'Operations float deposit recorded! You can now pay tenant rent from your float.'
-          : 'Rent repayment deposit recorded!'
+      title: 'Deposit submitted for verification!',
+      description: 'Once a manager approves this, your float will be updated.'
     });
     onSuccess?.();
   };

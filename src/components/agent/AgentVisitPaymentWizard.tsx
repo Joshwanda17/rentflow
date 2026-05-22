@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useGeoLocation } from '@/hooks/useGeoLocation';
+import { useCaptureLocation } from '@/hooks/useCaptureLocation';
 import { useProfile } from '@/hooks/useProfile';
 import { hapticTap } from '@/lib/haptics';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -58,7 +58,7 @@ function getDistanceMeters(lat1: number, lon1: number, lat2: number, lon2: numbe
 export function AgentVisitPaymentWizard({ open, onOpenChange, onSuccess, preselectedTenant }: AgentVisitPaymentWizardProps) {
   const { profile } = useProfile();
   const { toast } = useToast();
-  const { loading: gpsLoading, captureLocation } = useGeoLocation();
+  const { loading: gpsLoading, captureLocation } = useCaptureLocation();
 
   // Wizard state
   const [step, setStep] = useState<WizardStep>('search');

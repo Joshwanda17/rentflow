@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { useGeoLocation } from '@/hooks/useGeoLocation';
+import { useCaptureLocation } from '@/hooks/useCaptureLocation';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Send, MapPin, LocateFixed, Navigation, FileText } from 'lucide-react';
@@ -32,7 +32,7 @@ function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 
 export default function WriteHouseReviewForm({ houseId, houseTitle, existingReview, houseLat, houseLng, onSuccess }: WriteHouseReviewFormProps) {
   const { user } = useAuth();
-  const { location, loading: geoLoading, error: geoError, captureLocation } = useGeoLocation();
+  const { location, loading: geoLoading, error: geoError, captureLocation } = useCaptureLocation();
   const [rating, setRating] = useState(existingReview?.rating || 0);
   const [reviewText, setReviewText] = useState(existingReview?.review_text || '');
   const [saving, setSaving] = useState(false);
