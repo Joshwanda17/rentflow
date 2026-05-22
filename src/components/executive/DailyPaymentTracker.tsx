@@ -302,6 +302,14 @@ export function DailyPaymentTracker() {
     return m;
   }, [profiles]);
 
+  const landlordMap = useMemo(() => {
+    const m = new Map<string, { name: string; phone: string }>();
+    (landlordRecords || []).forEach((l: any) =>
+      m.set(l.id, { name: (l.name || '').trim() || 'Unnamed Landlord', phone: l.phone || '' })
+    );
+    return m;
+  }, [landlordRecords]);
+
   const walletMap = useMemo(() => {
     const m = new Map<string, number>();
     (wallets || []).forEach(w => m.set(w.user_id, Number(w.balance || 0)));
@@ -318,7 +326,7 @@ export function DailyPaymentTracker() {
       const existing = tenantMap.get(r.tenant_id);
       const profile = profileMap.get(r.tenant_id);
       const agentProfile = r.agent_id ? profileMap.get(r.agent_id) : undefined;
-      const landlordProfile = (r as any).landlord_id ? profileMap.get((r as any).landlord_id) : undefined;
+      const landlordProfile = (r as any).landlord_id ? landlordMap.get((r as any).landlord_id) : undefined;
       const entry: ActiveTenant = {
         tenant_id: r.tenant_id,
         tenant_name: profile?.name || profile?.phone || `Tenant ${r.tenant_id.slice(0, 6)}`,
@@ -333,7 +341,7 @@ export function DailyPaymentTracker() {
         agent_name: agentProfile?.name || '—',
         agent_phone: agentProfile?.phone || '',
         landlord_id: (r as any).landlord_id || '',
-        landlord_name: landlordProfile?.name || landlordProfile?.phone || '—',
+        landlord_name: landlordProfile?.name || landlordProfile?.phone || 'Unnamed Landlord',
         landlord_phone: landlordProfile?.phone || '',
         tenant_wallet: walletMap.get(r.tenant_id) || 0,
         agent_wallet: r.agent_id ? (walletMap.get(r.agent_id) || 0) : 0,
@@ -349,7 +357,7 @@ export function DailyPaymentTracker() {
       const hasPaid = paidToday >= t.daily_repayment * 0.5;
       return { ...t, paidToday, hasPaid };
     });
-  }, [activeRequests, todayCollections, profileMap, walletMap]);
+  }, [activeRequests, todayCollections, profileMap, landlordMap, walletMap]);
 
   // Apply filters
   const filtered = useMemo(() => {
