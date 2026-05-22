@@ -24,8 +24,18 @@ const isInvalidEmail = (email: string | null | undefined) => {
   const e = email.trim().toLowerCase();
   if (!e) return true;
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) return true;
-  if (e.endsWith('@welile.user') || e.endsWith('@welile.local') || e.endsWith('@placeholder.welile')) return true;
+  // Fallback / system-generated emails are not real inboxes
+  if (e.includes('@noapp.welile.user')) return true;
   return false;
+};
+
+const isValidPhone = (phone: string | null | undefined) => {
+  if (!phone) return false;
+  const p = phone.trim();
+  if (!p || p === '-') return false;
+  // require at least 7 digits anywhere in the string
+  const digits = p.replace(/\D/g, '');
+  return digits.length >= 7;
 };
 
 export function CTOCommunicationOverview() {
@@ -34,13 +44,29 @@ export function CTOCommunicationOverview() {
   const { data: partners, isLoading } = useQuery({
     queryKey: ['cto-communication-partners'],
     queryFn: async () => {
-      // Get all supporter (partner) user ids
-      const { data: roles, error: rolesErr } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', 'supporter');
-      if (rolesErr) throw rolesErr;
-      const ids = Array.from(new Set((roles || []).map((r: any) => r.user_id)));
+      // A "partner" = a user who owns one or more investor portfolios.
+      // Paginate to bypass the 1000-row default.
+      const portfolioOwners = new Set<string>();
+      const portfolioCount: Record<string, number> = {};
+      const pageSize = 1000;
+      let from = 0;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { data, error } = await supabase
+          .from('investor_portfolios')
+          .select('investor_id')
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        for (const r of data as any[]) {
+          if (!r.investor_id) continue;
+          portfolioOwners.add(r.investor_id);
+          portfolioCount[r.investor_id] = (portfolioCount[r.investor_id] || 0) + 1;
+        }
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
+      const ids = Array.from(portfolioOwners);
       if (ids.length === 0) return [] as Partner[];
 
       // Batch fetch profiles (chunks of 500 to be safe)
@@ -53,7 +79,9 @@ export function CTOCommunicationOverview() {
           .select('id, full_name, phone, email, created_at, last_active_at')
           .in('id', slice);
         if (error) throw error;
-        all.push(...((data || []) as Partner[]));
+        for (const p of (data || []) as Partner[]) {
+          all.push({ ...p, portfolios: portfolioCount[p.id] || 0 } as Partner);
+        }
       }
       return all;
     },
@@ -63,7 +91,9 @@ export function CTOCommunicationOverview() {
   const { smsOnly, emailReachable } = useMemo(() => {
     const list = partners || [];
     return {
-      smsOnly: list.filter((p) => isInvalidEmail(p.email) && !!p.phone),
+      // SMS tab: partners with an invalid/fallback email AND a usable phone number
+      smsOnly: list.filter((p) => isInvalidEmail(p.email) && isValidPhone(p.phone)),
+      // Email tab: partners with a real, deliverable email
       emailReachable: list.filter((p) => !isInvalidEmail(p.email)),
     };
   }, [partners]);
