@@ -512,50 +512,54 @@ function CapacityRow({
         </div>
       </div>
 
-      <div className="flex items-center justify-between text-[11px] font-semibold tabular-nums mb-1">
-        <span className="text-muted-foreground">
-          Used <span className="text-foreground">{formatUGX(row.used)}</span> / {formatUGX(AGENT_RENT_CAP_UGX)}
-        </span>
-        <span className="text-muted-foreground">{pct}%</span>
-      </div>
-      <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-        <div className={`h-full ${bar} transition-all`} style={{ width: `${pct}%` }} />
-      </div>
-      <div className="flex items-center justify-between text-[11px] mt-1.5">
-        <span className="text-muted-foreground">
-          Headroom <strong className="text-foreground font-mono">{formatUGX(headroom)}</strong>
-        </span>
-        <span className="text-muted-foreground">
-          Response <strong className="text-foreground">{rateLabel}</strong> · Per-tenant max{' '}
-          <strong className="text-foreground font-mono">{formatUGX(tier.max)}</strong>
-        </span>
-      </div>
-      <div className="text-[10px] text-muted-foreground mt-1 tabular-nums">
-        Last 7d: <strong className="text-foreground">{row.responding_tenant_days}</strong> /{' '}
-        <strong className="text-foreground">{row.expected_tenant_days}</strong> tenant-day responses
-        {row.paid_last_week > 0 && (
-          <> · <span className="text-muted-foreground">{formatUGX(row.paid_last_week)} total</span></>
-        )}
-      </div>
+      {!collapsed && (
+        <>
+          <div className="flex items-center justify-between text-[11px] font-semibold tabular-nums mb-1">
+            <span className="text-muted-foreground">
+              Used <span className="text-foreground">{formatUGX(row.used)}</span> / {formatUGX(AGENT_RENT_CAP_UGX)}
+            </span>
+            <span className="text-muted-foreground">{pct}%</span>
+          </div>
+          <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+            <div className={`h-full ${bar} transition-all`} style={{ width: `${pct}%` }} />
+          </div>
+          <div className="flex items-center justify-between text-[11px] mt-1.5">
+            <span className="text-muted-foreground">
+              Headroom <strong className="text-foreground font-mono">{formatUGX(headroom)}</strong>
+            </span>
+            <span className="text-muted-foreground">
+              Response <strong className="text-foreground">{rateLabel}</strong> · Per-tenant max{' '}
+              <strong className="text-foreground font-mono">{formatUGX(tier.max)}</strong>
+            </span>
+          </div>
+          <div className="text-[10px] text-muted-foreground mt-1 tabular-nums">
+            Last 7d: <strong className="text-foreground">{row.responding_tenant_days}</strong> /{' '}
+            <strong className="text-foreground">{row.expected_tenant_days}</strong> tenant-day responses
+            {row.paid_last_week > 0 && (
+              <> · <span className="text-muted-foreground">{formatUGX(row.paid_last_week)} total</span></>
+            )}
+          </div>
 
-      <div className="grid grid-cols-2 gap-1.5 mt-2">
-        <div className="rounded-lg border border-border bg-background/70 p-2">
-          <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Today</div>
-          <div className={`text-[12px] font-extrabold tabular-nums ${todayTone}`}>
-            {formatUGX(row.paid_today)}
-            <span className="text-muted-foreground font-semibold"> / {formatUGX(row.expected_daily)}</span>
+          <div className="grid grid-cols-2 gap-1.5 mt-2">
+            <div className="rounded-lg border border-border bg-background/70 p-2">
+              <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Today</div>
+              <div className={`text-[12px] font-extrabold tabular-nums ${todayTone}`}>
+                {formatUGX(row.paid_today)}
+                <span className="text-muted-foreground font-semibold"> / {formatUGX(row.expected_daily)}</span>
+              </div>
+              <div className="text-[10px] text-muted-foreground">{todayPct}% of daily target</div>
+            </div>
+            <div className="rounded-lg border border-border bg-background/70 p-2">
+              <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">This week (7d)</div>
+              <div className={`text-[12px] font-extrabold tabular-nums ${weekTone}`}>
+                {formatUGX(row.paid_last_week)}
+                <span className="text-muted-foreground font-semibold"> / {formatUGX(expectedWeek)}</span>
+              </div>
+              <div className="text-[10px] text-muted-foreground">{weekPct}% of weekly target</div>
+            </div>
           </div>
-          <div className="text-[10px] text-muted-foreground">{todayPct}% of daily target</div>
-        </div>
-        <div className="rounded-lg border border-border bg-background/70 p-2">
-          <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">This week (7d)</div>
-          <div className={`text-[12px] font-extrabold tabular-nums ${weekTone}`}>
-            {formatUGX(row.paid_last_week)}
-            <span className="text-muted-foreground font-semibold"> / {formatUGX(expectedWeek)}</span>
-          </div>
-          <div className="text-[10px] text-muted-foreground">{weekPct}% of weekly target</div>
-        </div>
-      </div>
+        </>
+      )}
     </li>
   );
 }
