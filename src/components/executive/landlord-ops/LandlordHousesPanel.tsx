@@ -447,10 +447,19 @@ export function LandlordHousesPanel() {
                                 {formatUGX(h.monthly_rent)}/mo · {formatUGX(h.daily_rate)}/day
                               </p>
                             </div>
-                            <div className="flex flex-col items-end gap-1 shrink-0">
-                              <Badge variant={h.tenant_id ? 'default' : 'outline'} className="text-[10px]">
-                                {h.tenant_id ? 'Occupied' : 'Vacant'}
-                              </Badge>
+                            <div className="flex flex-col items-end gap-1 shrink-1">
+                              <div className="flex items-center gap-1">
+                                <Badge variant={h.tenant_id ? 'default' : 'outline'} className="text-[10px]">
+                                  {h.tenant_id ? 'Occupied' : 'Vacant'}
+                                </Badge>
+                                <button
+                                  onClick={() => setHouseCollapsed(s => ({ ...s, [h.id]: !s[h.id] }))}
+                                  className="p-1 rounded hover:bg-muted text-muted-foreground transition"
+                                  title={houseCollapsed[h.id] ? 'Expand house details' : 'Collapse house details'}
+                                >
+                                  {houseCollapsed[h.id] ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
+                                </button>
+                              </div>
                               {h.is_hidden && (
                                 <Badge variant="secondary" className="text-[10px] gap-1 bg-amber-100 text-amber-800 border-amber-200">
                                   <EyeOff className="h-3 w-3" /> Hidden
