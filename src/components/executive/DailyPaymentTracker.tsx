@@ -162,8 +162,8 @@ export function DailyPaymentTracker() {
   }, [activeRequests]);
 
   const allUserIds = useMemo(
-    () => [...new Set([...tenantIds, ...agentIds, ...landlordIds])],
-    [tenantIds, agentIds, landlordIds]
+    () => [...new Set([...tenantIds, ...agentIds])],
+    [tenantIds, agentIds]
   );
 
   const { data: profiles } = useQuery({
@@ -177,6 +177,22 @@ export function DailyPaymentTracker() {
       return data || [];
     },
     enabled: allUserIds.length > 0,
+    staleTime: 300000,
+  });
+
+  // Landlord names come from the `landlords` table (entered by agents at registration),
+  // NOT from `profiles` (landlord_id in rent_requests points to landlords.id).
+  const { data: landlordRecords } = useQuery({
+    queryKey: ['daily-tracker-landlords', landlordIds],
+    queryFn: async () => {
+      if (!landlordIds.length) return [];
+      const { data } = await supabase
+        .from('landlords')
+        .select('id, name, phone')
+        .in('id', landlordIds.slice(0, 500));
+      return data || [];
+    },
+    enabled: landlordIds.length > 0,
     staleTime: 300000,
   });
 
@@ -286,6 +302,14 @@ export function DailyPaymentTracker() {
     return m;
   }, [profiles]);
 
+  const landlordMap = useMemo(() => {
+    const m = new Map<string, { name: string; phone: string }>();
+    (landlordRecords || []).forEach((l: any) =>
+      m.set(l.id, { name: (l.name || '').trim() || 'Unnamed Landlord', phone: l.phone || '' })
+    );
+    return m;
+  }, [landlordRecords]);
+
   const walletMap = useMemo(() => {
     const m = new Map<string, number>();
     (wallets || []).forEach(w => m.set(w.user_id, Number(w.balance || 0)));
@@ -302,7 +326,7 @@ export function DailyPaymentTracker() {
       const existing = tenantMap.get(r.tenant_id);
       const profile = profileMap.get(r.tenant_id);
       const agentProfile = r.agent_id ? profileMap.get(r.agent_id) : undefined;
-      const landlordProfile = (r as any).landlord_id ? profileMap.get((r as any).landlord_id) : undefined;
+      const landlordProfile = (r as any).landlord_id ? landlordMap.get((r as any).landlord_id) : undefined;
       const entry: ActiveTenant = {
         tenant_id: r.tenant_id,
         tenant_name: profile?.name || profile?.phone || `Tenant ${r.tenant_id.slice(0, 6)}`,
@@ -317,7 +341,7 @@ export function DailyPaymentTracker() {
         agent_name: agentProfile?.name || '—',
         agent_phone: agentProfile?.phone || '',
         landlord_id: (r as any).landlord_id || '',
-        landlord_name: landlordProfile?.name || landlordProfile?.phone || '—',
+        landlord_name: landlordProfile?.name || landlordProfile?.phone || 'Unnamed Landlord',
         landlord_phone: landlordProfile?.phone || '',
         tenant_wallet: walletMap.get(r.tenant_id) || 0,
         agent_wallet: r.agent_id ? (walletMap.get(r.agent_id) || 0) : 0,
@@ -333,7 +357,7 @@ export function DailyPaymentTracker() {
       const hasPaid = paidToday >= t.daily_repayment * 0.5;
       return { ...t, paidToday, hasPaid };
     });
-  }, [activeRequests, todayCollections, profileMap, walletMap]);
+  }, [activeRequests, todayCollections, profileMap, landlordMap, walletMap]);
 
   // Apply filters
   const filtered = useMemo(() => {
@@ -676,15 +700,22 @@ export function DailyPaymentTracker() {
                           <a href={`tel:${t.agent_phone}`} className="underline">{t.agent_phone}</a>
                         )}
                         <span>Agent Wallet: <strong className={t.agent_wallet > 0 ? 'text-emerald-600' : 'text-destructive'}>{formatUGX(t.agent_wallet)}</strong></span>
-                        <span className="col-span-2">Landlord: {t.landlord_id ? (
-                          <button
-                            onClick={() => setProfileSheet({ userId: t.landlord_id, userName: t.landlord_name, userPhone: t.landlord_phone, userType: 'landlord' })}
-                            className="font-semibold text-primary underline underline-offset-2 decoration-primary/30 hover:decoration-primary"
-                          >
-                            {t.landlord_name}
-                          </button>
-                        ) : <strong className="text-foreground">—</strong>}
-                        {t.landlord_phone && <a href={`tel:${t.landlord_phone}`} className="ml-2 underline">{t.landlord_phone}</a>}</span>
+                        <span className="col-span-2 inline-flex items-center gap-1.5 flex-wrap text-[11px] mt-0.5 px-2 py-1 rounded-md bg-amber-500/10 border border-amber-500/20">
+                          <span className="font-semibold text-amber-700 dark:text-amber-400">🏠 Landlord:</span>
+                          {t.landlord_id ? (
+                            <button
+                              onClick={() => setProfileSheet({ userId: t.landlord_id, userName: t.landlord_name, userPhone: t.landlord_phone, userType: 'landlord' })}
+                              className="font-bold text-foreground underline underline-offset-2 decoration-primary/40 hover:decoration-primary"
+                            >
+                              {t.landlord_name}
+                            </button>
+                          ) : <strong className="text-foreground">—</strong>}
+                          {t.landlord_phone && (
+                            <a href={`tel:${t.landlord_phone}`} className="inline-flex items-center gap-0.5 font-medium text-primary underline">
+                              <Phone className="h-2.5 w-2.5" />{t.landlord_phone}
+                            </a>
+                          )}
+                        </span>
                       </div>
                       {/* Collect + Delete buttons */}
                       <div className="flex items-center gap-1 shrink-0">
