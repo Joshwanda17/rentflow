@@ -1125,6 +1125,19 @@ export function TenantOpsDashboard() {
     { key: 'landlord_name', label: 'Landlord' },
     { key: 'landlord_phone', label: 'L. Phone' },
     { key: 'tenant_id', label: 'Action', render: (_v, row) => (
+      <div className="flex items-center gap-1">
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-8 px-2 text-primary hover:bg-primary/10"
+        onClick={(e) => {
+          e.stopPropagation();
+          setLocationDialog({ open: true, tenantId: row.tenant_id, tenantName: row.tenant_name || 'Tenant' });
+        }}
+      >
+        <MapPin className="h-3.5 w-3.5 mr-1" />
+        Location
+      </Button>
       <Button
         variant="ghost"
         size="sm"
@@ -1137,6 +1150,7 @@ export function TenantOpsDashboard() {
         <Trash2 className="h-3.5 w-3.5 mr-1" />
         Delete
       </Button>
+      </div>
     )},
   ];
 
