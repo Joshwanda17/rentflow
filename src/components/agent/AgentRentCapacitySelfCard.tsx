@@ -120,7 +120,7 @@ export function AgentRentCapacitySelfCard() {
                   <div className="text-[10px] font-bold uppercase tracking-wide text-emerald-700">
                     Last 7 days · Tenants who paid
                   </div>
-                  <div className="mt-0.5 text-2xl font-extrabold tabular-nums text-foreground">
+                  <div className="mt-1 text-2xl font-extrabold tabular-nums text-foreground">
                     {cap.paying_tenants_last_week}
                     <span className="text-base font-bold text-muted-foreground">
                       {' '}/ {cap.active_tenant_count} tenants
@@ -130,6 +130,16 @@ export function AgentRentCapacitySelfCard() {
                     Daily response rate: <strong>{ratePct}%</strong> ·{' '}
                     {cap.responding_tenant_days}/{cap.expected_tenant_days} tenant-day responses
                   </p>
+                  {cap.unfunded_tenant_count > 1 && (
+                    <p className="mt-1 text-[11px] font-bold text-destructive">
+                      {cap.unfunded_tenant_count} tenants marked <span className="underline">Not Funded</span> — removed from your expected list
+                    </p>
+                  )}
+                  {cap.unfunded_tenant_count === 1 && (
+                    <p className="mt-1 text-[11px] font-bold text-destructive">
+                      1 tenant marked <span className="underline">Not Funded</span> — removed from your expected list
+                    </p>
+                  )}
                 </div>
                 <div className="h-12 w-12 rounded-full border-2 border-emerald-500/30 flex items-center justify-center">
                   <CalendarCheck2 className="h-6 w-6 text-emerald-600" />
