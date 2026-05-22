@@ -925,11 +925,11 @@ export function TenantOpsDashboard() {
       const agentMap = new Map(agents.map((a: any) => [a.id, a]));
 
       return items
-        .filter(r => profileMap.get(r.tenant_id)?.tenant_status !== 'inactive')
         .map(r => ({
           ...r,
           tenant_name: profileMap.get(r.tenant_id)?.full_name || '—',
           tenant_phone: profileMap.get(r.tenant_id)?.phone || '—',
+          tenant_status: profileMap.get(r.tenant_id)?.tenant_status || 'active',
           landlord_name: landlordMap.get(r.landlord_id)?.name || '—',
           landlord_phone: landlordMap.get(r.landlord_id)?.phone || '—',
           agent_name: r.agent_id ? (agentMap.get(r.agent_id)?.full_name || '—') : 'Unassigned',
