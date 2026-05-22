@@ -131,6 +131,7 @@ export function generateAgentCapacityPdf(
   doc.setFontSize(8);
   const kpis: [string, string][] = [
     ['Active tenants', String(capacity.active_count)],
+    ['Not Funded', String(capacity.unfunded_tenant_count)],
     ['Active exposure', ugx(capacity.used)],
     ['Fleet headroom', ugx(capacity.headroom)],
     ['Hard cap', ugx(AGENT_RENT_CAP_UGX)],

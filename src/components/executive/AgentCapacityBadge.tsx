@@ -50,6 +50,7 @@ export function AgentCapacityBadge({
     tier, used, pct, headroom, per_tenant_max, response_rate,
     responding_tenant_days, expected_tenant_days,
     paying_tenants_last_week, active_tenant_count,
+    unfunded_tenant_count,
   } = capacity;
   const tone = TIER_TONE[tier];
   const barTone =
@@ -58,6 +59,7 @@ export function AgentCapacityBadge({
   const title =
     `Tier: ${tier}\n` +
     `Last 7 days: ${paying_tenants_last_week} of ${active_tenant_count} tenants paid\n` +
+    `Not Funded: ${unfunded_tenant_count} tenant${unfunded_tenant_count === 1 ? '' : 's'}\n` +
     `Active exposure: UGX ${formatUGX(used)} / ${formatUGX(AGENT_RENT_CAP_UGX)} (${pct}%)\n` +
     `Headroom: UGX ${formatUGX(headroom)}\n` +
     `Last 7d tenant response: ${Math.round(response_rate * 100)}% ` +

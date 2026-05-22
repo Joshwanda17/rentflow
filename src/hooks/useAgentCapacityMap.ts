@@ -39,6 +39,8 @@ export type AgentCapacity = {
   active_tenant_count: number;
   /** Distinct tenants who made at least one payment in the last 7 days. Plain-English KPI. */
   paying_tenants_last_week: number;
+  /** Distinct tenants the agent has fully marked "Not Funded" (reversed + zero net repayment). */
+  unfunded_tenant_count: number;
   /** Last 7-day Daily Response Rate (0..1). Primary tier metric. */
   response_rate: number;
   /** Count of (tenant × day) cells in last 7d where the tenant paid ≥ UGX 1. */
@@ -99,6 +101,7 @@ export function useAgentCapacityMap(agentIds: string[]) {
       //     response denominator.
       const allActiveIds = (active || []).map((r: any) => r.id);
       const unfundedIds = new Set<string>();
+      const unfundedTenantsByAgent = new Map<string, Set<string>>();
       if (allActiveIds.length > 0) {
         const { data: revs } = await supabase
           .from('agent_tenant_float_reversals')
@@ -108,6 +111,9 @@ export function useAgentCapacityMap(agentIds: string[]) {
         (active || []).forEach((r: any) => {
           if (reversedSet.has(r.id) && (Number(r.amount_repaid) || 0) <= 0) {
             unfundedIds.add(r.id);
+            let s = unfundedTenantsByAgent.get(r.agent_id);
+            if (!s) { s = new Set(); unfundedTenantsByAgent.set(r.agent_id, s); }
+            if (r.tenant_id) s.add(r.tenant_id);
           }
         });
       }
@@ -205,6 +211,7 @@ export function useAgentCapacityMap(agentIds: string[]) {
           active_count: exp.count,
           active_tenant_count: activeTenantsByAgent.get(id)?.size || 0,
           paying_tenants_last_week: payingTenantsByAgent.get(id)?.size || 0,
+          unfunded_tenant_count: unfundedTenantsByAgent.get(id)?.size || 0,
           response_rate,
           responding_tenant_days,
           expected_tenant_days,

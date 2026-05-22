@@ -25,6 +25,7 @@ type AgentRow = {
   active_count: number;
   active_tenant_count: number;
   paying_tenants_last_week: number;
+  unfunded_tenant_count: number;
   response_rate: number;          // 0..1 — last 7 days DRR
   responding_tenant_days: number;
   expected_tenant_days: number;
@@ -55,6 +56,7 @@ export function AgentRentCapacityPanel({
       // don't count toward the agent's expected response denominator.
       const allActiveIds = (active || []).map((r: any) => r.id);
       const unfundedIds = new Set<string>();
+      const unfundedTenantsByAgent = new Map<string, Set<string>>();
       if (allActiveIds.length > 0) {
         const BATCH_REV = 200;
         for (let i = 0; i < allActiveIds.length; i += BATCH_REV) {
@@ -69,6 +71,9 @@ export function AgentRentCapacityPanel({
             .forEach((r: any) => {
               if (reversedSet.has(r.id) && (Number(r.amount_repaid) || 0) <= 0) {
                 unfundedIds.add(r.id);
+                let s = unfundedTenantsByAgent.get(r.agent_id);
+                if (!s) { s = new Set(); unfundedTenantsByAgent.set(r.agent_id, s); }
+                if (r.tenant_id) s.add(r.tenant_id);
               }
             });
         }
@@ -178,6 +183,7 @@ export function AgentRentCapacityPanel({
           active_count: exp.count,
           active_tenant_count: activeTenantsByAgent.get(id)?.size || 0,
           paying_tenants_last_week: payingTenantsByAgent.get(id)?.size || 0,
+          unfunded_tenant_count: unfundedTenantsByAgent.get(id)?.size || 0,
           response_rate,
           responding_tenant_days,
           expected_tenant_days,
@@ -354,6 +360,7 @@ function CapacityRow({ row }: { row: AgentRow }) {
         active_count: row.active_count,
         active_tenant_count: row.active_tenant_count,
         paying_tenants_last_week: row.paying_tenants_last_week,
+        unfunded_tenant_count: row.unfunded_tenant_count,
         response_rate: row.response_rate,
         responding_tenant_days: row.responding_tenant_days,
         expected_tenant_days: row.expected_tenant_days,
@@ -387,6 +394,11 @@ function CapacityRow({ row }: { row: AgentRow }) {
           <p className="text-sm font-semibold text-foreground truncate">{row.name}</p>
           <p className="text-[11px] text-muted-foreground truncate">
             {row.phone || '—'} · {row.active_count} active rent{row.active_count === 1 ? '' : 's'}
+            {row.unfunded_tenant_count > 0 && (
+              <span className="text-destructive font-bold">
+                {' · '}{row.unfunded_tenant_count} marked Not Funded
+              </span>
+            )}
           </p>
           <p className="text-[11px] font-semibold text-emerald-700 truncate">
             Last 7 days: <span className="tabular-nums">{row.paying_tenants_last_week}</span> of{' '}
