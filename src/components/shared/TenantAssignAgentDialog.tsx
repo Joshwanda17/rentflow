@@ -50,38 +50,11 @@ export default function TenantAssignAgentDialog({
     queryKey: ['tenant-assign-agents'],
     enabled: open,
     queryFn: async () => {
-      // Page through every enabled agent role row (table has 6k+)
-      const PAGE = 1000;
-      let from = 0;
-      const ids: string[] = [];
-      // eslint-disable-next-line no-constant-condition
-      while (true) {
-        const { data, error } = await supabase
-          .from('user_roles')
-          .select('user_id')
-          .eq('role', 'agent')
-          .eq('enabled', true)
-          .range(from, from + PAGE - 1);
-        if (error) throw error;
-        const batch = (data || []).map((r: any) => r.user_id);
-        ids.push(...batch);
-        if (batch.length < PAGE) break;
-        from += PAGE;
-      }
-      if (ids.length === 0) return [];
-      // Batch profile lookups — `.in()` URL has a length cap, so chunk to 200
-      const CHUNK = 200;
-      const profiles: { id: string; full_name: string; phone: string }[] = [];
-      for (let i = 0; i < ids.length; i += CHUNK) {
-        const slice = ids.slice(i, i + CHUNK);
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('id, full_name, phone')
-          .in('id', slice);
-        if (error) throw error;
-        if (data) profiles.push(...(data as any));
-      }
-      return profiles
+      // Security-definer RPC — works for operators / agents / funders
+      // who otherwise cannot SELECT public.user_roles directly.
+      const { data, error } = await supabase.rpc('list_assignable_agents');
+      if (error) throw error;
+      return ((data || []) as Array<{ id: string; full_name: string | null; phone: string | null }>)
         .filter(p => p.full_name || p.phone)
         .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''));
     },
