@@ -158,25 +158,28 @@ export function UnifiedWalletHeroCard({
             onClick={handleOpenWallet}
             className="w-full text-left active:scale-[0.98] transition-transform"
           >
-            <p className="text-[10px] uppercase tracking-[0.15em] font-semibold text-primary-foreground/50 mb-2">
-              Withdrawable Balance
-            </p>
-            <p className="text-[clamp(1.6rem,6vw,2.5rem)] font-black tracking-tight leading-none text-primary-foreground">
-              {formatAmount(headlineBalance)}
-            </p>
-            {pendingHold > 0 && (
-              <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-300/20">
-                <Clock className="h-3 w-3 text-amber-300" />
-                <span className="text-[10px] font-semibold text-amber-200">
-                  {formatAmount(pendingHold)} pending withdrawal
-                </span>
-              </div>
-            )}
-            {pendingHold > 0 && (
-              <p className="text-[10px] text-primary-foreground/40 mt-1.5">
-                Wallet total: <span className="font-semibold text-primary-foreground/60">{formatAmount(balance)}</span>
+            <div className="bg-primary-foreground/[0.10] rounded-2xl p-4 border border-primary-foreground/[0.06]">
+              <p className="text-[10px] uppercase tracking-[0.15em] font-bold text-primary-foreground/75 mb-2 flex items-center gap-1.5">
+                <Wallet className="h-3 w-3" />
+                Withdrawable Balance
               </p>
-            )}
+              <p className="text-[clamp(1.75rem,6.5vw,2.75rem)] font-black tracking-tight leading-none text-primary-foreground drop-shadow-sm">
+                {formatAmount(headlineBalance)}
+              </p>
+              {pendingHold > 0 && (
+                <div className="mt-2.5 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-300/20">
+                  <Clock className="h-3 w-3 text-amber-300" />
+                  <span className="text-[10px] font-semibold text-amber-200">
+                    {formatAmount(pendingHold)} pending withdrawal
+                  </span>
+                </div>
+              )}
+              {pendingHold > 1 && (
+                <p className="text-[10px] text-primary-foreground/50 mt-1.5">
+                  Wallet total: <span className="font-semibold text-primary-foreground/80">{formatAmount(balance)}</span>
+                </p>
+              )}
+            </div>
           </button>
         )}
 
