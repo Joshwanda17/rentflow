@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import {
   useAgentCapacityMap,
   AGENT_RENT_CAP_UGX,
