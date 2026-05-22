@@ -3,11 +3,11 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
 
 const TIER_TONE: Record<AgentCapacity['tier'], string> = {
-  Premium: 'bg-emerald-500/15 text-emerald-700 border-emerald-500/30',
-  Reliable: 'bg-sky-500/15 text-sky-700 border-sky-500/30',
-  Building: 'bg-amber-500/15 text-amber-700 border-amber-500/30',
-  Starter: 'bg-violet-500/15 text-violet-700 border-violet-500/30',
-  Defaulting: 'bg-destructive/15 text-destructive border-destructive/30',
+  Positive:   'bg-emerald-500/15 text-emerald-700 border-emerald-500/30',
+  Fair:       'bg-amber-500/15 text-amber-700 border-amber-500/30',
+  Bad:        'bg-orange-500/15 text-orange-700 border-orange-500/30',
+  'Very Bad': 'bg-destructive/15 text-destructive border-destructive/30',
+  Starter:    'bg-violet-500/15 text-violet-700 border-violet-500/30',
 };
 
 function fmtShort(n: number) {
@@ -55,7 +55,7 @@ export function AgentCapacityBadge({
     `Tier: ${tier}\n` +
     `Active exposure: UGX ${formatUGX(used)} / ${formatUGX(AGENT_RENT_CAP_UGX)} (${pct}%)\n` +
     `Headroom: UGX ${formatUGX(headroom)}\n` +
-    `Repayment rate (180d): ${Math.round(repayment_rate * 100)}%\n` +
+    `Last week's collection rate: ${Math.round(repayment_rate * 100)}%\n` +
     `Per-tenant rent limit: UGX ${formatUGX(per_tenant_max)}`;
 
   if (variant === 'stack') {
