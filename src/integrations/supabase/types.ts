@@ -14504,6 +14504,30 @@ export type Database = {
         }
         Relationships: []
       }
+      mv_house_location_rollup: {
+        Row: {
+          agent_id: string | null
+          country: string | null
+          district: string | null
+          hidden: number | null
+          landlord_id: string | null
+          occupied: number | null
+          region: string | null
+          revenue_ugx: number | null
+          total: number | null
+          vacant: number | null
+          ward: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "house_listings_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: false
+            referencedRelation: "landlords"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       platform_stats: {
         Row: {
           active_disbursements: number | null
@@ -15482,6 +15506,29 @@ export type Database = {
           total_debits: number
         }[]
       }
+      get_location_breakdown: {
+        Args: {
+          p_agent_id?: string
+          p_country?: string
+          p_district?: string
+          p_level: string
+          p_region?: string
+          p_ward?: string
+        }
+        Returns: {
+          agent_id: string
+          agent_name: string
+          hidden: number
+          key: string
+          label: string
+          landlord_id: string
+          landlord_name: string
+          occupied: number
+          revenue_ugx: number
+          total: number
+          vacant: number
+        }[]
+      }
       get_manager_daily_report: { Args: never; Returns: Json }
       get_manager_dashboard_stats: { Args: never; Returns: Json }
       get_manager_productivity:
@@ -16049,6 +16096,7 @@ export type Database = {
       }
       redeem_staff_access_code: { Args: { p_code: string }; Returns: Json }
       refresh_financial_summaries: { Args: never; Returns: undefined }
+      refresh_house_location_rollup: { Args: never; Returns: undefined }
       refund_agent_float_for_payout: {
         Args: { p_payout_id: string; p_reason: string }
         Returns: Json
@@ -16154,6 +16202,20 @@ export type Database = {
         Returns: {
           full_name: string
           id: string
+        }[]
+      }
+      search_locations: {
+        Args: { p_limit?: number; p_query: string }
+        Returns: {
+          agent_id: string
+          country: string
+          district: string
+          kind: string
+          label: string
+          landlord_id: string
+          region: string
+          total: number
+          ward: string
         }[]
       }
       search_supporters: {
