@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Search, Gauge, TrendingUp, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Search, Gauge, TrendingUp, AlertTriangle, ShieldCheck, Printer, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import {
   ACTIVE_RENT_STATUSES,
@@ -10,6 +10,12 @@ import {
   classifyAgent,
   type AgentCapacity,
 } from '@/hooks/useAgentCapacityMap';
+import { toast } from 'sonner';
+import {
+  fetchAgentCapacityTenants,
+  generateAgentCapacityPdf,
+  downloadCapacityPdf,
+} from '@/lib/generateAgentCapacityPdf';
 
 type AgentRow = {
   agent_id: string;
@@ -282,6 +288,7 @@ function CapacityRow({ row }: { row: AgentRow }) {
   const pct = Math.min(100, Math.round((row.used / AGENT_RENT_CAP_UGX) * 100));
   const headroom = Math.max(AGENT_RENT_CAP_UGX - row.used, 0);
   const rateLabel = `${Math.round(row.response_rate * 100)}%`;
+  const [printing, setPrinting] = useState(false);
   const tierTone: Record<AgentCapacity['tier'], string> = {
     Positive:   'bg-emerald-500/15 text-emerald-700 border-emerald-500/30',
     Fair:       'bg-amber-500/15 text-amber-700 border-amber-500/30',
@@ -294,6 +301,39 @@ function CapacityRow({ row }: { row: AgentRow }) {
   const bar =
     pct >= 95 ? 'bg-destructive' : pct >= 75 ? 'bg-amber-500' : 'bg-emerald-500';
 
+  const handlePrint = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setPrinting(true);
+    try {
+      const cap: AgentCapacity = {
+        used: row.used,
+        active_count: row.active_count,
+        response_rate: row.response_rate,
+        responding_tenant_days: row.responding_tenant_days,
+        expected_tenant_days: row.expected_tenant_days,
+        paid_last_week: row.paid_last_week,
+        repayment_rate: row.response_rate,
+        expected_weekly: 0,
+        headroom,
+        pct,
+        tier: row.tier,
+        per_tenant_max: row.per_tenant_max,
+      };
+      const tenants = await fetchAgentCapacityTenants(row.agent_id, cap);
+      const blob = generateAgentCapacityPdf(
+        { full_name: row.name, phone: row.phone },
+        cap,
+        tenants,
+      );
+      downloadCapacityPdf(blob, row.name);
+      toast.success(`Capacity report for ${row.name} downloaded`);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to generate report');
+    } finally {
+      setPrinting(false);
+    }
+  };
+
   return (
     <li className="rounded-xl border border-border bg-background p-2.5 sm:p-3">
       <div className="flex items-start justify-between gap-2 mb-1.5">
@@ -303,9 +343,22 @@ function CapacityRow({ row }: { row: AgentRow }) {
             {row.phone || '—'} · {row.active_count} active rent{row.active_count === 1 ? '' : 's'}
           </p>
         </div>
-        <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold border ${tier.tone}`}>
-          {tier.label}
-        </span>
+        <div className="flex items-center gap-1 shrink-0">
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${tier.tone}`}>
+            {tier.label}
+          </span>
+          <button
+            type="button"
+            onClick={handlePrint}
+            disabled={printing}
+            title={`Print per-tenant capacity for ${row.name}`}
+            className="inline-flex items-center justify-center h-6 w-6 rounded-md border border-border hover:bg-muted disabled:opacity-50"
+          >
+            {printing
+              ? <Loader2 className="h-3 w-3 animate-spin" />
+              : <Printer className="h-3 w-3" />}
+          </button>
+        </div>
       </div>
 
       <div className="flex items-center justify-between text-[11px] font-semibold tabular-nums mb-1">
