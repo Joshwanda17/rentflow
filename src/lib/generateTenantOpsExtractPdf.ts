@@ -145,7 +145,7 @@ export function generateTenantOpsExtractPdf(opts: ExtractPdfOptions): Blob {
   });
 
   const drawTableHeader = () => {
-    doc.setFillColor(20, 33, 72);
+    doc.setFillColor(146, 52, 234);
     doc.rect(margin, y, contentWidth, 7.5, 'F');
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);

@@ -31,7 +31,7 @@ async function generateAdvancePdf(
   const margin = 14;
 
   // Header
-  doc.setFillColor(15, 23, 42);
+  doc.setFillColor(146, 52, 234);
   doc.rect(0, 0, pageWidth, 22, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(14);
@@ -230,7 +230,7 @@ export async function exportConsolidatedPayments(
   const margin = 14;
 
   // Header
-  doc.setFillColor(15, 23, 42);
+  doc.setFillColor(146, 52, 234);
   doc.rect(0, 0, pageWidth, 22, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(14);

@@ -267,7 +267,7 @@ export async function generatePromissoryNotePDF(data: PromissoryNoteData): Promi
   const btnW = 60;
   const btnH = 12;
   const btnX = (pageWidth - btnW) / 2;
-  doc.setFillColor(107, 33, 168);
+  doc.setFillColor(146, 52, 234);
   doc.roundedRect(btnX, y, btnW, btnH, 3, 3, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(10);
@@ -299,7 +299,7 @@ export async function generatePromissoryNotePDF(data: PromissoryNoteData): Promi
 
   // ═══ FOOTER ═══
   const footerY = doc.internal.pageSize.getHeight() - 10;
-  doc.setFillColor(107, 33, 168);
+  doc.setFillColor(146, 52, 234);
   doc.rect(0, footerY - 5, pageWidth, 15, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(8);

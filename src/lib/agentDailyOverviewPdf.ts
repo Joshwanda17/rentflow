@@ -25,7 +25,7 @@ const COL = {
   muted: [100, 116, 139] as [number, number, number],
   border: [225, 227, 232] as [number, number, number],
   zebra: [248, 249, 252] as [number, number, number],
-  head: [20, 33, 72] as [number, number, number],
+  head: [146, 52, 234] as [number, number, number],
   green: [22, 163, 74] as [number, number, number],
   red: [220, 38, 38] as [number, number, number],
   amber: [245, 158, 11] as [number, number, number],

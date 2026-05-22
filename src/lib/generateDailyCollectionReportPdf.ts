@@ -75,7 +75,7 @@ export function generateDailyCollectionReportPdf(input: DailyCollectionReportInp
   let y = 10;
 
   // ===== Header =====
-  doc.setFillColor(15, 23, 42);
+  doc.setFillColor(146, 52, 234);
   doc.rect(margin, y, contentWidth, 18, 'F');
 
   // Logo block
@@ -500,7 +500,7 @@ export function generateDailyCollectionReportPdf(input: DailyCollectionReportInp
   const trendH = 38;
   if (ty + trendH > bottomLimit) { doc.addPage(); ty = 10; }
 
-  doc.setFillColor(76, 29, 149);
+  doc.setFillColor(146, 52, 234);
   doc.rect(margin, ty, contentWidth, 6.5, 'F');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
