@@ -369,6 +369,14 @@ export function ImageLightbox({
 
   if (images.length === 0) return null;
 
+  // Clamp currentIndex against the (possibly newly-shrunk) `images` array.
+  // sessionStorage memory or rapid prop changes could leave currentIndex
+  // pointing past the end, which previously caused `images[currentIndex].id`
+  // / `.image_url` to throw and crash the whole tenant dashboard.
+  const safeIndex = Math.min(Math.max(currentIndex, 0), images.length - 1);
+  const currentImage = images[safeIndex];
+  if (!currentImage) return null;
+
   return (
     <AnimatePresence>
       {open && (
