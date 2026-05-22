@@ -77,6 +77,14 @@ interface TenantOverviewListProps {
 
 type GroupBy = 'none' | 'drilldown' | 'agent' | 'region' | 'village' | 'district' | 'city' | 'country';
 
+// Tenants without a recorded city default to Entebbe so they roll up into a
+// real location instead of an unhelpful "Unknown city" bucket. The label is
+// suffixed so agents are visibly prompted to confirm/edit the city.
+const DEFAULT_UNVERIFIED_CITY = 'Entebbe';
+const UNVERIFIED_CITY_LABEL = `${DEFAULT_UNVERIFIED_CITY} (please verify)`;
+const isUnverifiedCity = (city: string) =>
+  city === UNVERIFIED_CITY_LABEL || city === 'Unknown city';
+
 const GROUP_OPTIONS: { value: GroupBy; label: string }[] = [
   { value: 'none', label: 'No grouping' },
   { value: 'drilldown', label: 'Drill-down: Country → City → Agent' },
@@ -272,7 +280,7 @@ export function TenantOverviewList({ data, loading, initialCategory, onSelectTen
       case 'district':
         return e?.district?.trim() || 'Unknown district';
       case 'city':
-        return e?.city?.trim() || 'Unknown city';
+        return e?.city?.trim() || UNVERIFIED_CITY_LABEL;
       case 'country':
         return e?.country?.trim() || 'Unknown country';
       default:
@@ -344,7 +352,7 @@ export function TenantOverviewList({ data, loading, initialCategory, onSelectTen
     const byCity = new Map<string, (TenantRow & { requestCount: number })[]>();
     for (const t of inCountry) {
       const e = enrichment.get(t.tenant_id);
-      const city = e?.city?.trim() || e?.district?.trim() || 'Unknown city';
+      const city = e?.city?.trim() || e?.district?.trim() || UNVERIFIED_CITY_LABEL;
       if (!byCity.has(city)) byCity.set(city, []);
       byCity.get(city)!.push(t);
     }
@@ -772,6 +780,14 @@ function DrillDownView({
         {headerLabel}
       </div>
 
+      {drillCity && isUnverifiedCity(drillCity) && (
+        <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200">
+          <strong className="font-semibold">City not recorded.</strong>{' '}
+          These tenants were auto-grouped under <strong>{DEFAULT_UNVERIFIED_CITY}</strong> as a placeholder.
+          Assigned agents should open each tenant and update the city, district and village so they roll up correctly.
+        </div>
+      )}
+
       {drill.level !== 'tenants' ? (
         drill.tiles.length === 0 ? (
           <Card>
@@ -824,6 +840,11 @@ function DrillDownView({
                   {drill.level !== 'country' && (
                     <p className="text-[11px] text-muted-foreground mt-0.5">
                       {tile.count} tenant{tile.count === 1 ? '' : 's'}
+                    </p>
+                  )}
+                  {drill.level === 'city' && isUnverifiedCity(tile.key) && (
+                    <p className="text-[10px] mt-1 font-semibold text-amber-700 dark:text-amber-300">
+                      ⚠ Needs agent verification
                     </p>
                   )}
                 </button>
