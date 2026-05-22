@@ -44,6 +44,20 @@ export function AgentRentCapacityPanel({
   const [showAll, setShowAll] = useState(false);
   const [rowCollapsed, setRowCollapsed] = useState<Record<string, boolean>>({});
 
+  const toggleRow = (agentId: string) =>
+    setRowCollapsed((prev) => ({ ...prev, [agentId]: !prev[agentId] }));
+
+  const expandAll = () => {
+    const next: Record<string, boolean> = {};
+    (filtered || []).forEach((r) => { next[r.agent_id] = false; });
+    setRowCollapsed(next);
+  };
+  const collapseAll = () => {
+    const next: Record<string, boolean> = {};
+    (filtered || []).forEach((r) => { next[r.agent_id] = true; });
+    setRowCollapsed(next);
+  };
+
   const { data, isLoading } = useQuery({
     queryKey: ['agent-rent-capacity-fleet'],
     queryFn: async (): Promise<AgentRow[]> => {
