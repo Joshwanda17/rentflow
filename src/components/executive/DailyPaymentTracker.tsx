@@ -162,8 +162,8 @@ export function DailyPaymentTracker() {
   }, [activeRequests]);
 
   const allUserIds = useMemo(
-    () => [...new Set([...tenantIds, ...agentIds, ...landlordIds])],
-    [tenantIds, agentIds, landlordIds]
+    () => [...new Set([...tenantIds, ...agentIds])],
+    [tenantIds, agentIds]
   );
 
   const { data: profiles } = useQuery({
@@ -177,6 +177,22 @@ export function DailyPaymentTracker() {
       return data || [];
     },
     enabled: allUserIds.length > 0,
+    staleTime: 300000,
+  });
+
+  // Landlord names come from the `landlords` table (entered by agents at registration),
+  // NOT from `profiles` (landlord_id in rent_requests points to landlords.id).
+  const { data: landlordRecords } = useQuery({
+    queryKey: ['daily-tracker-landlords', landlordIds],
+    queryFn: async () => {
+      if (!landlordIds.length) return [];
+      const { data } = await supabase
+        .from('landlords')
+        .select('id, name, phone')
+        .in('id', landlordIds.slice(0, 500));
+      return data || [];
+    },
+    enabled: landlordIds.length > 0,
     staleTime: 300000,
   });
 
