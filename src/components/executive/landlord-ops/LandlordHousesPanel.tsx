@@ -210,9 +210,55 @@ export function LandlordHousesPanel() {
   const [removeFor, setRemoveFor] = useState<{ houseId: string; houseTitle: string } | null>(null);
   const [reassignFor, setReassignFor] = useState<{ houseId: string; houseTitle: string; currentAgentId: string } | null>(null);
   const [timelineOpen, setTimelineOpen] = useState<Record<string, boolean>>({});
+  const [togglingHide, setTogglingHide] = useState<Record<string, boolean>>({});
 
   const refetch = () => {
     housesQuery.refetch();
+  };
+
+  const toggleHidden = async (h: HouseRow) => {
+    const nextHidden = !h.is_hidden;
+    const action = nextHidden ? 'hide' : 'unhide';
+    const reason = window.prompt(
+      `Reason to ${action} "${h.title}" (min 10 characters) — visible only to landlord ops & audit logs:`,
+      nextHidden ? 'Hidden from tenant browse' : 'Restored to tenant browse'
+    );
+    if (reason === null) return;
+    const trimmed = reason.trim();
+    if (trimmed.length < 10) {
+      toast({ title: 'Reason too short', description: 'Please enter at least 10 characters.', variant: 'destructive' });
+      return;
+    }
+    setTogglingHide(s => ({ ...s, [h.id]: true }));
+    try {
+      const { error } = await supabase
+        .from('house_listings')
+        .update({ is_hidden: nextHidden })
+        .eq('id', h.id);
+      if (error) throw error;
+      await supabase.from('audit_logs').insert({
+        user_id: user?.id,
+        action_type: nextHidden ? 'listing_hidden' : 'listing_unhidden',
+        table_name: 'house_listings',
+        record_id: h.id,
+        metadata: { reason: trimmed, listing_title: h.title },
+      });
+      toast({
+        title: nextHidden ? 'House hidden' : 'House visible',
+        description: nextHidden
+          ? `${h.title} is hidden from tenant browse.`
+          : `${h.title} is back in tenant browse.`,
+      });
+      refetch();
+    } catch (err: any) {
+      toast({
+        title: `Failed to ${action} house`,
+        description: err?.message || 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setTogglingHide(s => ({ ...s, [h.id]: false }));
+    }
   };
 
   if (housesQuery.isLoading) {
