@@ -329,7 +329,7 @@ export function ImageLightbox({
   }, [isZoomed, resetZoom]);
 
   const handleShare = useCallback(async () => {
-    const url = images[currentIndex]?.image_url;
+    const url = images[Math.min(Math.max(currentIndex, 0), Math.max(images.length - 1, 0))]?.image_url;
     if (!url) return;
     const shareData = {
       title: `${productName} — Photo ${currentIndex + 1}`,
@@ -345,7 +345,7 @@ export function ImageLightbox({
   }, [images, currentIndex, productName]);
 
   const handleDownload = useCallback(async () => {
-    const url = images[currentIndex]?.image_url;
+    const url = images[Math.min(Math.max(currentIndex, 0), Math.max(images.length - 1, 0))]?.image_url;
     if (!url) return;
     try {
       const res = await fetch(url);
