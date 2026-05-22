@@ -362,6 +362,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         if (!isValidUgPhone(cleanLc1)) errors.push('LC1 phone must be a valid Ugandan number');
       }
       if (!lc1Village.trim()) errors.push('LC1 village is required');
+      if (!propertyCity.trim()) errors.push('City / Town is required');
       if (!houseCategory) errors.push('House category is required');
     }
 
