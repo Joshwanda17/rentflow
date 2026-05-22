@@ -1659,7 +1659,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
               {/* Landlord auto-payout day */}
               <div className="space-y-1 rounded-xl border border-primary/30 bg-primary/5 p-3">
                 <Label className="text-xs flex items-center gap-1 font-semibold">
-                  <CalendarIcon className="h-3 w-3" /> Landlord payout day (1–28) *
+                  <Calendar className="h-3 w-3" /> Landlord payout day (1–28) *
                 </Label>
                 <Input
                   type="number"
