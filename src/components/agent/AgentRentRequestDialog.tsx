@@ -138,6 +138,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [gpsLocation, setGpsLocation] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [housePhotos, setHousePhotos] = useState<{ file: File; preview: string }[]>([]);
+  const [tenantPhoto, setTenantPhoto] = useState<{ file: File; preview: string } | null>(null);
   const [guarantorConsent, setGuarantorConsent] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
@@ -202,6 +203,47 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     });
   }, []);
 
+  const handleTenantPhoto = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setTenantPhoto(prev => {
+      if (prev) URL.revokeObjectURL(prev.preview);
+      return { file, preview: URL.createObjectURL(file) };
+    });
+    if (e.target) e.target.value = '';
+  }, []);
+
+  const removeTenantPhoto = useCallback(() => {
+    setTenantPhoto(prev => {
+      if (prev) URL.revokeObjectURL(prev.preview);
+      return null;
+    });
+  }, []);
+
+  const uploadTenantPhoto = async (requestId: string, tenantUserId?: string | null): Promise<string | null> => {
+    if (!user || !tenantPhoto) return null;
+    try {
+      const optimized = await optimizeImage(tenantPhoto.file, { maxWidth: 1200, quality: 0.85 });
+      const ext = optimized.file.name.split('.').pop() || 'webp';
+      const path = `${user.id}/${requestId}/tenant_passport.${ext}`;
+      const { error } = await supabase.storage
+        .from('house-images')
+        .upload(path, optimized.file, { cacheControl: '86400', upsert: true });
+      if (error) throw error;
+      const { data } = supabase.storage.from('house-images').getPublicUrl(path);
+      // Best-effort: also set on tenant profile avatar if missing
+      if (tenantUserId) {
+        try {
+          await supabase.from('profiles').update({ avatar_url: data.publicUrl }).eq('id', tenantUserId).is('avatar_url', null);
+        } catch { /* non-fatal */ }
+      }
+      return data.publicUrl;
+    } catch (err) {
+      console.warn('Tenant photo upload failed:', err);
+      return null;
+    }
+  };
+
   const uploadHousePhotos = async (requestId: string): Promise<string[]> => {
     if (!user || housePhotos.length === 0) return [];
     const urls: string[] = [];
@@ -250,6 +292,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setGpsLoading(false);
     housePhotos.forEach(p => URL.revokeObjectURL(p.preview));
     setHousePhotos([]);
+    if (tenantPhoto) URL.revokeObjectURL(tenantPhoto.preview);
+    setTenantPhoto(null);
     setGuarantorConsent(false);
     setValidationErrors([]);
     setSubmissionError(null);
