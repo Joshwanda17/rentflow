@@ -14,7 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { CheckCircle2, XCircle, Clock, MapPin, User, UserCheck, Home, Banknote, ArrowRight, Loader2, Search, MessageCircle, Phone, Pencil, Check, X, PhoneCall, ShieldCheck, AlertCircle } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, MapPin, User, UserCheck, Home, Banknote, ArrowRight, Loader2, Search, MessageCircle, Phone, Pencil, Check, X, PhoneCall, ShieldCheck, AlertCircle, Image as ImageIcon, Camera } from 'lucide-react';
 import { calculateRentRepayment } from '@/lib/rentCalculations';
 import { toast as sonnerToast } from 'sonner';
 import { format } from 'date-fns';
@@ -382,7 +382,7 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
     queryFn: async () => {
       const { data } = await supabase
         .from('rent_requests')
-        .select('id, tenant_id, agent_id, landlord_id, lc1_id, rent_amount, duration_days, access_fee, request_fee, total_repayment, daily_repayment, status, created_at, house_category, request_city, request_latitude, request_longitude, assigned_agent_id, payout_method, payout_transaction_reference, approval_comment, agent_ops_comment, tenant_ops_comment, landlord_ops_comment, registration_type, initial_outstanding_balance')
+        .select('id, tenant_id, agent_id, landlord_id, lc1_id, rent_amount, duration_days, access_fee, request_fee, total_repayment, daily_repayment, status, created_at, house_category, request_city, request_latitude, request_longitude, assigned_agent_id, payout_method, payout_transaction_reference, approval_comment, agent_ops_comment, tenant_ops_comment, landlord_ops_comment, registration_type, initial_outstanding_balance, tenant_photo_url, house_image_urls')
         .eq('status', stage)
         .order('created_at', { ascending: true })
         .limit(100);
@@ -879,6 +879,54 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
                   </div>
                 )}
               </div>
+
+              {/* Tenant passport + house photos — visible verification evidence */}
+              {(selectedRequest.tenant_photo_url || (selectedRequest.house_image_urls && selectedRequest.house_image_urls.length > 0)) && (
+                <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-3">
+                  <h4 className="text-sm font-semibold flex items-center gap-1.5">
+                    <Camera className="h-4 w-4 text-primary" />
+                    Verification Photos
+                  </h4>
+                  <div className="flex flex-wrap gap-3">
+                    {selectedRequest.tenant_photo_url && (
+                      <div className="space-y-1">
+                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">Tenant Passport</p>
+                        <a href={selectedRequest.tenant_photo_url} target="_blank" rel="noopener noreferrer" className="block">
+                          <img
+                            src={selectedRequest.tenant_photo_url}
+                            alt={`Tenant ${selectedRequest.tenant_name}`}
+                            className="h-32 w-24 rounded-lg object-cover border-2 border-primary/30 hover:ring-2 hover:ring-primary transition-all bg-background"
+                            loading="lazy"
+                          />
+                        </a>
+                      </div>
+                    )}
+                    {selectedRequest.house_image_urls && selectedRequest.house_image_urls.length > 0 && (
+                      <div className="space-y-1 flex-1 min-w-0">
+                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold flex items-center gap-1">
+                          <ImageIcon className="h-3 w-3" />
+                          House Photos ({selectedRequest.house_image_urls.length})
+                        </p>
+                        <div className="flex gap-2 overflow-x-auto pb-1">
+                          {selectedRequest.house_image_urls.map((url: string, i: number) => (
+                            <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                              <img
+                                src={url}
+                                alt={`House ${i + 1}`}
+                                className="h-32 w-32 rounded-lg object-cover border border-border hover:ring-2 hover:ring-primary/50 transition-all"
+                                loading="lazy"
+                              />
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    Captured by the agent at registration. Click any photo to enlarge.
+                  </p>
+                </div>
+              )}
 
               {/* LC1 & GPS Details — hidden for outstanding-balance (no fresh property to verify) */}
               {selectedRequest.registration_type !== 'outstanding_balance' && (
