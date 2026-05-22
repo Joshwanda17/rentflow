@@ -32,6 +32,7 @@ import { AgentAllocationReport } from './AgentAllocationReport';
 import { AgentFeatureFlagsPanel } from './AgentFeatureFlagsPanel';
 import { AgentBulkOpsConsole } from './AgentBulkOpsConsole';
 import { AgentDailyOverviewReportButton } from './AgentDailyOverviewReportButton';
+import { AgentRentCapacityPanel } from './AgentRentCapacityPanel';
 import { 
   Users, Banknote, DollarSign, Search, UserPlus, Trophy, BarChart3, 
   ClipboardList, AlertTriangle, Building2, Wallet, Bell, ArrowLeftRight,
@@ -393,6 +394,7 @@ export function AgentOpsDashboard() {
       {bottomTab !== 'more' ? (
         <>
           <BulkOpsHeroCard onOpen={() => setActiveView('bulk-ops')} onOpenFlags={() => setActiveView('feature-flags')} />
+          <AgentRentCapacityPanel />
           <AgentOpsHomeView
             range={dateRange}
             onRangeChange={setDateRange}
