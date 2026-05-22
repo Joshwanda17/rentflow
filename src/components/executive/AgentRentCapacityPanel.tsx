@@ -394,7 +394,15 @@ function Kpi({
   );
 }
 
-function CapacityRow({ row }: { row: AgentRow }) {
+function CapacityRow({
+  row,
+  collapsed,
+  onToggle,
+}: {
+  row: AgentRow;
+  collapsed: boolean;
+  onToggle: () => void;
+}) {
   const pct = Math.min(100, Math.round((row.used / AGENT_RENT_CAP_UGX) * 100));
   const headroom = Math.max(AGENT_RENT_CAP_UGX - row.used, 0);
   const rateLabel = `${Math.round(row.response_rate * 100)}%`;
