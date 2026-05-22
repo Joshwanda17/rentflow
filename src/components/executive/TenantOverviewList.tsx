@@ -780,6 +780,14 @@ function DrillDownView({
         {headerLabel}
       </div>
 
+      {drillCity && isUnverifiedCity(drillCity) && (
+        <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200">
+          <strong className="font-semibold">City not recorded.</strong>{' '}
+          These tenants were auto-grouped under <strong>{DEFAULT_UNVERIFIED_CITY}</strong> as a placeholder.
+          Assigned agents should open each tenant and update the city, district and village so they roll up correctly.
+        </div>
+      )}
+
       {drill.level !== 'tenants' ? (
         drill.tiles.length === 0 ? (
           <Card>
