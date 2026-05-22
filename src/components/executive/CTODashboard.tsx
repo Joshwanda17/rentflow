@@ -8,6 +8,7 @@ import { format, subDays, startOfDay } from 'date-fns';
 import { SystemLogsViewer } from './SystemLogsViewer';
 import { InfrastructureHealthMonitor } from './InfrastructureHealthMonitor';
 import { CTOEmailsOverview } from './CTOEmailsOverview';
+import { CTOCommunicationOverview } from './CTOCommunicationOverview';
 import RunBackupNowButton from '@/components/admin/RunBackupNowButton';
 import { CTOLedgerExport } from './CTOLedgerExport';
 import MaintenanceToggleCard from '@/components/cto/MaintenanceToggleCard';
@@ -16,8 +17,8 @@ export function CTODashboard({ activeTab }: { activeTab?: string }) {
   if (activeTab === 'system-logs') {
     return <SystemLogsViewer />;
   }
-  if (activeTab === 'emails') {
-    return <CTOEmailsOverview />;
+  if (activeTab === 'emails' || activeTab === 'communication') {
+    return <CTOCommunicationOverview />;
   }
 
   // Real: active users in last 7 days
