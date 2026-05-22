@@ -128,6 +128,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [lc1Name, setLc1Name] = useState('');
   const [lc1Phone, setLc1Phone] = useState('');
   const [lc1Village, setLc1Village] = useState('');
+  // Town/City + District for the property location. City is required so the
+  // tenant rolls up under a real location in ops dashboards instead of
+  // landing in the "needs verification" bucket.
+  const [propertyCity, setPropertyCity] = useState('');
+  const [propertyDistrict, setPropertyDistrict] = useState('');
   const [houseCategory, setHouseCategory] = useState('');
   const [noSmartphone, setNoSmartphone] = useState(false);
   const [gpsLocation, setGpsLocation] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
@@ -233,6 +238,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setLc1Name('');
     setLc1Phone('');
     setLc1Village('');
+    setPropertyCity('');
+    setPropertyDistrict('');
     setHouseCategory('');
     setOutstandingHouseCategory('');
     setSelectedLandlord(null);
@@ -355,6 +362,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         if (!isValidUgPhone(cleanLc1)) errors.push('LC1 phone must be a valid Ugandan number');
       }
       if (!lc1Village.trim()) errors.push('LC1 village is required');
+      if (!propertyCity.trim()) errors.push('City / Town is required');
       if (!houseCategory) errors.push('House category is required');
     }
 
@@ -525,6 +533,27 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       }
 
       const tenantId = tenantResult.user_id;
+
+      // Persist the property's town/city/district/village on the tenant's
+      // profile so they roll up under a real location in the Tenant Ops
+      // drill-down. Best-effort — never block submission on this.
+      if (!isOutstanding) {
+        const profileLocation: Record<string, string> = {};
+        if (propertyCity.trim()) profileLocation.city = propertyCity.trim();
+        if (propertyDistrict.trim()) profileLocation.district = propertyDistrict.trim();
+        if (lc1Village.trim()) profileLocation.village = lc1Village.trim();
+        if (Object.keys(profileLocation).length > 0) {
+          profileLocation.country = 'Uganda';
+          try {
+            await supabase
+              .from('profiles')
+              .update(profileLocation)
+              .eq('id', tenantId);
+          } catch (e) {
+            console.warn('Failed to update tenant profile location', e);
+          }
+        }
+      }
 
       // FIX #9: Use selected house category or null for outstanding
       const resolvedHouseCategory = isOutstanding
@@ -1397,6 +1426,33 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       placeholder="Village"
                       className="h-10"
                       required
+                    />
+                  </div>
+                </div>
+
+                {/* Town/City + District — keeps tenant rolled up under a real
+                    location in Tenant Ops drill-down instead of the
+                    "Entebbe (please verify)" placeholder. */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs flex items-center gap-1">
+                      <MapPin className="h-3 w-3" /> Town / City *
+                    </Label>
+                    <Input
+                      value={propertyCity}
+                      onChange={(e) => setPropertyCity(e.target.value)}
+                      placeholder="e.g. Entebbe, Kampala, Jinja"
+                      className={`h-10 ${hasFieldError('city') ? 'border-destructive border-2' : ''}`}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">District</Label>
+                    <Input
+                      value={propertyDistrict}
+                      onChange={(e) => setPropertyDistrict(e.target.value)}
+                      placeholder="e.g. Wakiso"
+                      className="h-10"
                     />
                   </div>
                 </div>
