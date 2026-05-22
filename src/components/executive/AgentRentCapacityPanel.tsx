@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Search, Gauge, TrendingUp, AlertTriangle, ShieldCheck, Printer, Loader2 } from 'lucide-react';
+import { Search, Gauge, TrendingUp, AlertTriangle, ShieldCheck, Printer, Loader2, ChevronDown, ChevronUp, Minus, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import {
   ACTIVE_RENT_STATUSES,
