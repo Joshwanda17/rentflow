@@ -3,11 +3,19 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Search, Phone, ChevronRight, User, ChevronLeft, Download, Loader2 } from 'lucide-react';
+import { Search, Phone, ChevronRight, User, ChevronLeft, ChevronDown, Download, Loader2, Users, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { generateAndDownloadActiveTenantsPdf } from '@/lib/activeTenantsReportPdf';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface TenantRow {
   id: string;
@@ -67,10 +75,36 @@ interface TenantOverviewListProps {
   onSelectTenant: (tenantId: string, tenantName: string) => void;
 }
 
+type GroupBy = 'none' | 'agent' | 'region' | 'village' | 'district' | 'city' | 'country';
+
+const GROUP_OPTIONS: { value: GroupBy; label: string }[] = [
+  { value: 'none', label: 'No grouping' },
+  { value: 'agent', label: 'Agent' },
+  { value: 'region', label: 'Region' },
+  { value: 'village', label: 'LC1 / Village' },
+  { value: 'district', label: 'District' },
+  { value: 'city', label: 'City' },
+  { value: 'country', label: 'Country' },
+];
+
+interface TenantEnrichment {
+  agent_id: string | null;
+  agent_name: string | null;
+  region: string | null;
+  village: string | null;
+  district: string | null;
+  city: string | null;
+  country: string | null;
+}
+
 export function TenantOverviewList({ data, loading, initialCategory, onSelectTenant }: TenantOverviewListProps) {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<Category>((initialCategory as Category) || 'all');
   const [page, setPage] = useState(1);
+  const [groupBy, setGroupBy] = useState<GroupBy>('none');
+  const [enrichment, setEnrichment] = useState<Map<string, TenantEnrichment>>(new Map());
+  const [enriching, setEnriching] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const PAGE_SIZE = 25;
 
   // Sync when parent changes the filter
@@ -98,6 +132,94 @@ export function TenantOverviewList({ data, loading, initialCategory, onSelectTen
     return Array.from(map.values());
   }, [data]);
 
+  // Fetch agent + location enrichment for the current tenant set.
+  // We resolve the agent via the most recent rent_request assignment,
+  // falling back to profiles.referrer_id when that referrer holds the
+  // agent role. Location comes straight from the tenant profile.
+  useEffect(() => {
+    let cancelled = false;
+    const tenantIds = tenants.map((t) => t.tenant_id).filter(Boolean);
+    if (tenantIds.length === 0) {
+      setEnrichment(new Map());
+      return;
+    }
+    setEnriching(true);
+    (async () => {
+      try {
+        const [{ data: profiles }, { data: rentReqs }] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select('id, referrer_id, region, village, district, city, country')
+            .in('id', tenantIds),
+          supabase
+            .from('rent_requests')
+            .select('tenant_id, agent_id, created_at')
+            .in('tenant_id', tenantIds)
+            .not('agent_id', 'is', null)
+            .order('created_at', { ascending: false }),
+        ]);
+
+        const assignedAgentByTenant = new Map<string, string>();
+        for (const r of rentReqs || []) {
+          if (r.agent_id && !assignedAgentByTenant.has(r.tenant_id)) {
+            assignedAgentByTenant.set(r.tenant_id, r.agent_id);
+          }
+        }
+
+        const referrerIds = Array.from(
+          new Set((profiles || []).map((p: any) => p.referrer_id).filter(Boolean) as string[]),
+        );
+        const { data: agentRoleRows } = referrerIds.length
+          ? await supabase
+              .from('user_roles')
+              .select('user_id')
+              .in('user_id', referrerIds)
+              .eq('role', 'agent')
+          : { data: [] as any[] };
+        const agentReferrerSet = new Set((agentRoleRows || []).map((r: any) => r.user_id));
+
+        const allAgentIds = Array.from(
+          new Set([
+            ...Array.from(assignedAgentByTenant.values()),
+            ...referrerIds.filter((id) => agentReferrerSet.has(id)),
+          ]),
+        );
+        const { data: agentProfiles } = allAgentIds.length
+          ? await supabase.from('profiles').select('id, full_name').in('id', allAgentIds)
+          : { data: [] as any[] };
+        const agentNameMap = new Map<string, string>(
+          (agentProfiles || []).map((p: any) => [p.id, p.full_name || 'Unnamed agent']),
+        );
+
+        const next = new Map<string, TenantEnrichment>();
+        for (const p of profiles || []) {
+          const agentId =
+            assignedAgentByTenant.get(p.id) ||
+            (p.referrer_id && agentReferrerSet.has(p.referrer_id) ? p.referrer_id : null);
+          next.set(p.id, {
+            agent_id: agentId,
+            agent_name: agentId ? agentNameMap.get(agentId) ?? null : null,
+            region: p.region ?? null,
+            village: p.village ?? null,
+            district: p.district ?? null,
+            city: p.city ?? null,
+            country: p.country ?? null,
+          });
+        }
+        if (!cancelled) setEnrichment(next);
+      } catch (err) {
+        console.warn('[TenantOverviewList] enrichment failed:', err);
+      } finally {
+        if (!cancelled) setEnriching(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // Re-fetch only when the set of tenant ids actually changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenants.map((t) => t.tenant_id).join('|')]);
+
   const filtered = useMemo(() => {
     let result = tenants;
 
@@ -122,6 +244,47 @@ export function TenantOverviewList({ data, loading, initialCategory, onSelectTen
 
     return result;
   }, [tenants, category, search, data]);
+
+  // Resolve the group key (and display label) for a tenant given groupBy.
+  const groupKeyFor = (tenant: TenantRow & { requestCount: number }): string => {
+    const e = enrichment.get(tenant.tenant_id);
+    switch (groupBy) {
+      case 'agent':
+        return e?.agent_name?.trim() || 'Unassigned';
+      case 'region':
+        return e?.region?.trim() || 'Unknown region';
+      case 'village':
+        return e?.village?.trim() || 'Unknown LC1 / village';
+      case 'district':
+        return e?.district?.trim() || 'Unknown district';
+      case 'city':
+        return e?.city?.trim() || 'Unknown city';
+      case 'country':
+        return e?.country?.trim() || 'Unknown country';
+      default:
+        return '';
+    }
+  };
+
+  const grouped = useMemo(() => {
+    if (groupBy === 'none') return null;
+    const map = new Map<string, (TenantRow & { requestCount: number })[]>();
+    for (const t of filtered) {
+      const key = groupKeyFor(t);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(t);
+    }
+    return Array.from(map.entries())
+      .map(([key, rows]) => ({ key, rows }))
+      .sort((a, b) => {
+        // Unknown / Unassigned always last, otherwise by descending size.
+        const aUnknown = /^Unknown |^Unassigned$/.test(a.key);
+        const bUnknown = /^Unknown |^Unassigned$/.test(b.key);
+        if (aUnknown !== bUnknown) return aUnknown ? 1 : -1;
+        if (b.rows.length !== a.rows.length) return b.rows.length - a.rows.length;
+        return a.key.localeCompare(b.key);
+      });
+  }, [filtered, groupBy, enrichment]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -192,6 +355,26 @@ export function TenantOverviewList({ data, loading, initialCategory, onSelectTen
         />
       </div>
 
+      {/* Group-by selector */}
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] font-semibold text-muted-foreground shrink-0">Group by</span>
+        <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupBy)}>
+          <SelectTrigger className="h-8 text-xs flex-1 max-w-[220px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {GROUP_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {enriching && groupBy !== 'none' && (
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+        )}
+      </div>
+
       {/* Category filter chips */}
       <div className="flex gap-1.5 flex-wrap">
         {CATEGORIES.map((cat) => (
@@ -211,7 +394,8 @@ export function TenantOverviewList({ data, loading, initialCategory, onSelectTen
         ))}
       </div>
 
-      {/* Tenant list */}
+      {/* Tenant list — flat (when grouping is off) or grouped sections */}
+      {groupBy === 'none' ? (
       <div className="space-y-1.5">
         {filtered.length === 0 ? (
           <Card>
@@ -221,47 +405,72 @@ export function TenantOverviewList({ data, loading, initialCategory, onSelectTen
           </Card>
         ) : (
           paginated.map((tenant) => (
-            <button
+            <TenantRowCard
               key={tenant.tenant_id}
-              onClick={() => onSelectTenant(tenant.tenant_id, tenant.tenant_name)}
-              className="w-full text-left"
-            >
-              <Card className="border hover:shadow-md hover:border-primary/30 transition-all cursor-pointer">
-                <CardContent className="p-3 flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <User className="h-4 w-4 text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-foreground truncate">{tenant.tenant_name}</p>
-                      <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 shrink-0', statusBadgeColor(tenant.status))}>
-                        {tenant.status.replace(/_/g, ' ')}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-3 mt-0.5">
-                      <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                        <Phone className="h-3 w-3" />{tenant.tenant_phone}
-                      </span>
-                      <span className="text-[11px] text-muted-foreground">
-                        UGX {Number(tenant.rent_amount || 0).toLocaleString()}
-                      </span>
-                      {tenant.requestCount > 1 && (
-                        <span className="text-[10px] text-muted-foreground">
-                          {tenant.requestCount} requests
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                </CardContent>
-              </Card>
-            </button>
+              tenant={tenant}
+              onSelect={() => onSelectTenant(tenant.tenant_id, tenant.tenant_name)}
+            />
           ))
         )}
       </div>
+      ) : (
+        <div className="space-y-3">
+          {!grouped || grouped.length === 0 ? (
+            <Card>
+              <CardContent className="p-6 text-center text-muted-foreground text-sm">
+                No tenants found
+              </CardContent>
+            </Card>
+          ) : (
+            grouped.map(({ key, rows }) => {
+              const collapsed = collapsedGroups.has(key);
+              const Icon = groupBy === 'agent' ? Users : MapPin;
+              return (
+                <div key={key} className="rounded-xl border bg-card overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCollapsedGroups((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(key)) next.delete(key);
+                        else next.add(key);
+                        return next;
+                      });
+                    }}
+                    className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-muted/40 hover:bg-muted/60 transition-colors"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Icon className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <span className="text-xs font-semibold text-foreground truncate">{key}</span>
+                      <Badge variant="secondary" className="text-[10px] shrink-0">{rows.length}</Badge>
+                    </div>
+                    <ChevronDown
+                      className={cn(
+                        'h-4 w-4 text-muted-foreground transition-transform',
+                        collapsed && '-rotate-90',
+                      )}
+                    />
+                  </button>
+                  {!collapsed && (
+                    <div className="p-2 space-y-1.5">
+                      {rows.map((tenant) => (
+                        <TenantRowCard
+                          key={tenant.tenant_id}
+                          tenant={tenant}
+                          onSelect={() => onSelectTenant(tenant.tenant_id, tenant.tenant_name)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
 
       {/* Pagination */}
-      {filtered.length > PAGE_SIZE && (
+      {groupBy === 'none' && filtered.length > PAGE_SIZE && (
         <div className="flex items-center justify-between pt-2 border-t">
           <span className="text-[11px] text-muted-foreground">
             Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} of {filtered.length}
@@ -292,6 +501,48 @@ export function TenantOverviewList({ data, loading, initialCategory, onSelectTen
         </div>
       )}
     </div>
+  );
+}
+
+function TenantRowCard({
+  tenant,
+  onSelect,
+}: {
+  tenant: TenantRow & { requestCount: number };
+  onSelect: () => void;
+}) {
+  return (
+    <button onClick={onSelect} className="w-full text-left">
+      <Card className="border hover:shadow-md hover:border-primary/30 transition-all cursor-pointer">
+        <CardContent className="p-3 flex items-center gap-3">
+          <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+            <User className="h-4 w-4 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-semibold text-foreground truncate">{tenant.tenant_name}</p>
+              <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 shrink-0', statusBadgeColor(tenant.status))}>
+                {tenant.status.replace(/_/g, ' ')}
+              </Badge>
+            </div>
+            <div className="flex items-center gap-3 mt-0.5">
+              <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                <Phone className="h-3 w-3" />{tenant.tenant_phone}
+              </span>
+              <span className="text-[11px] text-muted-foreground">
+                UGX {Number(tenant.rent_amount || 0).toLocaleString()}
+              </span>
+              {tenant.requestCount > 1 && (
+                <span className="text-[10px] text-muted-foreground">
+                  {tenant.requestCount} requests
+                </span>
+              )}
+            </div>
+          </div>
+          <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+        </CardContent>
+      </Card>
+    </button>
   );
 }
 
