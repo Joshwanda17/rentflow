@@ -1656,6 +1656,29 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 </div>
               </div>
 
+              {/* Landlord auto-payout day */}
+              <div className="space-y-1 rounded-xl border border-primary/30 bg-primary/5 p-3">
+                <Label className="text-xs flex items-center gap-1 font-semibold">
+                  <CalendarIcon className="h-3 w-3" /> Landlord payout day (1–28) *
+                </Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={28}
+                  value={landlordPayoutDay}
+                  onChange={(e) => setLandlordPayoutDay(e.target.value)}
+                  placeholder="e.g. 5"
+                  className="h-10"
+                  required
+                />
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  Welile will automatically credit the landlord wallet with UGX{' '}
+                  {(parseInt(rentAmount.replace(/,/g, '')) || 0).toLocaleString()} on day{' '}
+                  <span className="font-semibold text-foreground">{landlordPayoutDay || '–'}</span>{' '}
+                  of every month, regardless of when the tenant pays.
+                </p>
+              </div>
+
               <GuarantorConsentCheckbox checked={guarantorConsent} onCheckedChange={setGuarantorConsent} />
 
               {/* Validation Error Summary */}
