@@ -38,6 +38,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { generateTenantOpsExtractPdf, downloadPdfBlob } from '@/lib/generateTenantOpsExtractPdf';
 import DailyCollectionMonitoringDashboard from '@/components/shared/DailyCollectionMonitoringDashboard';
+import { AgentRentCapacityPanel } from './AgentRentCapacityPanel';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -1286,6 +1287,9 @@ export function TenantOpsDashboard() {
             transition={{ duration: 0.15 }}
             className="space-y-3"
           >
+            {/* Agent Rent-Request Capacity (fleet-wide) */}
+            <AgentRentCapacityPanel />
+
             {/* Tenant List - top of page */}
             <TenantOverviewList
               data={rows}
