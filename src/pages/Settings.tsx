@@ -457,6 +457,9 @@ export default function Settings() {
                 {roles.includes('tenant') && <LazySection name="RentDiscount"><RentDiscountToggle /></LazySection>}
                 {roles.includes('tenant') && <LazySection name="MyLandlords"><MyLandlordsSection /></LazySection>}
                 {roles.includes('landlord') && <LazySection name="MyTenants"><MyTenantsSection /></LazySection>}
+                {roles.includes('agent') && (
+                  <LazySection name="AgentRentCapacity"><AgentRentCapacitySelfCard /></LazySection>
+                )}
               </div>
             )}
 
