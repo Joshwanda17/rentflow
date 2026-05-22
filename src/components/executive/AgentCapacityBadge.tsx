@@ -46,7 +46,7 @@ export function AgentCapacityBadge({
   }
   if (!capacity) return null;
 
-  const { tier, used, pct, headroom, per_tenant_max, repayment_rate } = capacity;
+  const { tier, used, pct, headroom, per_tenant_max, response_rate, responding_tenant_days, expected_tenant_days } = capacity;
   const tone = TIER_TONE[tier];
   const barTone =
     pct >= 95 ? 'bg-destructive' : pct >= 75 ? 'bg-amber-500' : 'bg-emerald-500';
@@ -55,7 +55,8 @@ export function AgentCapacityBadge({
     `Tier: ${tier}\n` +
     `Active exposure: UGX ${formatUGX(used)} / ${formatUGX(AGENT_RENT_CAP_UGX)} (${pct}%)\n` +
     `Headroom: UGX ${formatUGX(headroom)}\n` +
-    `Last week's collection rate: ${Math.round(repayment_rate * 100)}%\n` +
+    `Last 7d tenant response: ${Math.round(response_rate * 100)}% ` +
+    `(${responding_tenant_days}/${expected_tenant_days} tenant-day responses)\n` +
     `Per-tenant rent limit: UGX ${formatUGX(per_tenant_max)}`;
 
   if (variant === 'stack') {
@@ -67,13 +68,13 @@ export function AgentCapacityBadge({
             tone,
           )}
         >
-          {tier} · {pct}%
+          {tier} · {Math.round(response_rate * 100)}%
         </span>
         <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
           <div className={cn('h-full transition-all', barTone)} style={{ width: `${pct}%` }} />
         </div>
         <span className="text-[10px] text-muted-foreground tabular-nums leading-3">
-          {fmtShort(used)}/{fmtShort(AGENT_RENT_CAP_UGX)} · room {fmtShort(headroom)}
+          {responding_tenant_days}/{expected_tenant_days} resp · {fmtShort(headroom)} room
         </span>
       </div>
     );
@@ -89,7 +90,7 @@ export function AgentCapacityBadge({
       )}
     >
       {tier}
-      <span className="opacity-70 font-semibold">· {pct}%</span>
+      <span className="opacity-70 font-semibold">· {Math.round(response_rate * 100)}% resp</span>
     </span>
   );
 }
