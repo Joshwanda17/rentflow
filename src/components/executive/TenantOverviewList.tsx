@@ -842,6 +842,11 @@ function DrillDownView({
                       {tile.count} tenant{tile.count === 1 ? '' : 's'}
                     </p>
                   )}
+                  {drill.level === 'city' && isUnverifiedCity(tile.key) && (
+                    <p className="text-[10px] mt-1 font-semibold text-amber-700 dark:text-amber-300">
+                      ⚠ Needs agent verification
+                    </p>
+                  )}
                 </button>
               );
             })}
