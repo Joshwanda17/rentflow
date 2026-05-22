@@ -18,7 +18,7 @@ import { HighlightText } from '@/components/shared/HighlightText';
 import { useFilterKeyboardShortcuts } from '@/hooks/useFilterKeyboardShortcuts';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
-import { LocationHierarchyView } from './LocationHierarchyView';
+import { LocationBrowser } from './LocationBrowser';
 
 interface HouseRow {
   id: string;
@@ -290,13 +290,7 @@ export function LandlordHousesPanel() {
         </button>
       </div>
 
-      {viewMode === 'location' && (
-        <LocationHierarchyView
-          houses={(housesQuery.data ?? []) as any}
-          profiles={profs}
-          country="Uganda"
-        />
-      )}
+      {viewMode === 'location' && <LocationBrowser />}
 
       {viewMode === 'landlord' && (
       <>
