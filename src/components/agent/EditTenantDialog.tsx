@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Save, User, Phone, Mail, IdCard, Pencil } from 'lucide-react';
+import { Loader2, Save, User, Phone, Mail, IdCard, Pencil, UserX, UserCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -21,7 +21,7 @@ interface EditTenantDialogProps {
     tenant_status?: string | null;
     evicted_at?: string | null;
   };
-  onSaved?: (updated: { full_name: string; phone: string; email: string | null; national_id: string | null }) => void;
+  onSaved?: (updated: { full_name: string; phone: string; email: string | null; national_id: string | null; tenant_status?: string | null }) => void;
 }
 
 const editSchema = z.object({
@@ -52,6 +52,8 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
   const [nationalId, setNationalId] = useState(tenant.national_id || '');
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [statusBusy, setStatusBusy] = useState(false);
+  const [currentStatus, setCurrentStatus] = useState<string | null | undefined>(tenant.tenant_status);
 
   useEffect(() => {
     if (open) {
@@ -60,6 +62,7 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
       setEmail(tenant.email || '');
       setNationalId(tenant.national_id || '');
       setErrors({});
+      setCurrentStatus(tenant.tenant_status);
     }
   }, [open, tenant]);
 
@@ -101,6 +104,49 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
     }
   };
 
+  const isInactive = currentStatus === 'inactive';
+  const isEvicted = currentStatus === 'evicted';
+
+  const handleToggleActive = async () => {
+    if (isEvicted) return;
+    const nextStatus = isInactive ? 'active' : 'inactive';
+    if (nextStatus === 'inactive') {
+      const reason = window.prompt(
+        'Why is this tenant no longer active? (e.g. moved out, defaulted, wrong number)\nThis will be visible to Tenant Ops.',
+        '',
+      );
+      if (reason === null) return; // user cancelled
+      if (reason.trim().length < 4) {
+        toast.error('Please give a short reason (4+ characters).');
+        return;
+      }
+    } else {
+      const ok = window.confirm('Reactivate this tenant? They will be counted as active again.');
+      if (!ok) return;
+    }
+    setStatusBusy(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ tenant_status: nextStatus })
+        .eq('id', tenant.id);
+      if (error) throw error;
+      setCurrentStatus(nextStatus);
+      onSaved?.({
+        full_name: fullName,
+        phone,
+        email: email || null,
+        national_id: nationalId || null,
+        tenant_status: nextStatus,
+      });
+      toast.success(nextStatus === 'inactive' ? 'Tenant marked as not active' : 'Tenant reactivated');
+    } catch (err: any) {
+      toast.error('Could not update status', { description: err?.message || 'Please try again' });
+    } finally {
+      setStatusBusy(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
@@ -114,13 +160,19 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
           </DialogDescription>
         </DialogHeader>
 
-        {tenant.tenant_status === 'evicted' && (
+        {isEvicted && (
           <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
             This tenant is marked <strong>Evicted</strong>{tenant.evicted_at ? ` as of ${new Date(tenant.evicted_at).toLocaleDateString()}` : ''} — record locked for audit. Identity fields cannot be changed.
           </div>
         )}
 
-        <fieldset disabled={tenant.tenant_status === 'evicted'} className="space-y-3 pt-2 disabled:opacity-60">
+        {isInactive && !isEvicted && (
+          <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300">
+            This tenant is currently marked <strong>Not active</strong>. Tenant Ops will see this status.
+          </div>
+        )}
+
+        <fieldset disabled={isEvicted} className="space-y-3 pt-2 disabled:opacity-60">
           <div>
             <Label className="text-xs flex items-center gap-1.5">
               <User className="h-3 w-3" /> Full Name *
@@ -185,6 +237,32 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
               Save Changes
             </Button>
           </div>
+
+          {!isEvicted && (
+            <div className="border-t pt-3 mt-1">
+              <Button
+                type="button"
+                variant={isInactive ? 'default' : 'outline'}
+                className={`w-full ${isInactive ? '' : 'text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive'}`}
+                onClick={handleToggleActive}
+                disabled={statusBusy}
+              >
+                {statusBusy ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : isInactive ? (
+                  <UserCheck className="h-4 w-4 mr-2" />
+                ) : (
+                  <UserX className="h-4 w-4 mr-2" />
+                )}
+                {isInactive ? 'Reactivate tenant' : 'Mark as not active'}
+              </Button>
+              <p className="text-[11px] text-muted-foreground mt-1.5 text-center">
+                {isInactive
+                  ? 'Tenant currently hidden from active counts. Tenant Ops still sees them flagged as Inactive.'
+                  : 'Use this if the tenant moved out, stopped paying, or the number is wrong.'}
+              </p>
+            </div>
+          )}
         </fieldset>
       </DialogContent>
     </Dialog>
