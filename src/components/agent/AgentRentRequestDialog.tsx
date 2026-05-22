@@ -764,7 +764,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     } catch (error: any) {
       console.error('Submission error:', error);
       const msg = error.message || 'Failed to submit request';
-      if (msg.includes('row-level security') || msg.includes('RLS')) {
+      const capacityMsg = humanizeCapacityError(msg);
+      if (capacityMsg) {
+        setSubmissionError(capacityMsg);
+        toast.error('Rent capacity reached', { description: capacityMsg });
+      } else if (msg.includes('row-level security') || msg.includes('RLS')) {
         const friendly = 'Permission denied — your session may have expired. Please log out and log in again.';
         setSubmissionError(friendly);
         toast.error(friendly);
