@@ -18,13 +18,13 @@ import {
 import {
   CheckCircle2, XCircle, Search, RefreshCw, Users,
   Banknote, AlertTriangle, TrendingUp, Phone, MessageCircle,
-  Download, Loader2, Trash2, Wallet
+  Download, Loader2, Trash2, Wallet, Clock
 } from 'lucide-react';
 import { getWhatsAppLink } from '@/lib/phoneUtils';
 import { downloadDailyPerformancePdf, shareDailyPerformanceWhatsApp, type DailyPerformanceData } from '@/lib/dailyPerformanceReport';
 import { toast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 
 type Filter = 'all' | 'paid' | 'unpaid';
 type DeviceFilter = 'all' | 'smartphone' | 'no-smartphone';
@@ -202,6 +202,25 @@ export function DailyPaymentTracker() {
     staleTime: 60000,
   });
 
+  // Fetch latest allocations today (with agent + tenant), most recent first
+  const { data: latestAllocations } = useQuery({
+    queryKey: ['daily-tracker-latest-allocations', todayStr],
+    queryFn: async () => {
+      const startOfDay = `${todayStr}T00:00:00`;
+      const endOfDay = `${todayStr}T23:59:59`;
+      const { data, error } = await supabase
+        .from('agent_collections')
+        .select('id, tenant_id, agent_id, amount, created_at, payment_method, location_name')
+        .gte('created_at', startOfDay)
+        .lte('created_at', endOfDay)
+        .order('created_at', { ascending: false })
+        .limit(30);
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 60000,
+  });
+
   const isLoading = reqLoading || colLoading;
   const profileMap = useMemo(() => {
     const m = new Map<string, { name: string; phone: string }>();
@@ -373,6 +392,71 @@ export function DailyPaymentTracker() {
               </button>
             ))}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Latest Allocations By Agents */}
+      <Card className="border-2 border-primary/30 bg-gradient-to-br from-primary/5 to-transparent shadow-sm">
+        <CardHeader className="pb-2 px-3 sm:px-4">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <Clock className="h-4 w-4 text-primary" />
+            Latest Payments Allocated by Agents — Today
+            <Badge variant="secondary" className="ml-auto text-[10px]">
+              {latestAllocations?.length || 0}
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="px-0 pb-2">
+          {!latestAllocations || latestAllocations.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Banknote className="h-8 w-8 mx-auto mb-2 opacity-40" />
+              <p className="text-xs">No agent allocations recorded today yet.</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-border max-h-[40vh] overflow-y-auto">
+              {latestAllocations.map((c, i) => {
+                const tenant = profileMap.get(c.tenant_id);
+                const agent = c.agent_id ? profileMap.get(c.agent_id) : undefined;
+                return (
+                  <div key={c.id} className="px-3 sm:px-4 py-2.5 flex items-center gap-3">
+                    <div className="w-7 h-7 rounded-full bg-emerald-500/15 flex items-center justify-center shrink-0 text-[10px] font-bold text-emerald-600">
+                      {i + 1}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <button
+                          onClick={() => setProfileSheet({ userId: c.tenant_id, userName: tenant?.name || 'Tenant', userPhone: tenant?.phone, userType: 'tenant' })}
+                          className="text-sm font-semibold truncate text-primary underline underline-offset-2 decoration-primary/30 hover:decoration-primary"
+                        >
+                          {tenant?.name || c.tenant_id.slice(0, 8)}
+                        </button>
+                        <span className="text-[10px] text-muted-foreground">paid via</span>
+                        {c.agent_id ? (
+                          <button
+                            onClick={() => setProfileSheet({ userId: c.agent_id!, userName: agent?.name || 'Agent', userPhone: agent?.phone, userType: 'agent' })}
+                            className="text-xs font-semibold text-primary underline underline-offset-2 decoration-primary/30 hover:decoration-primary truncate"
+                          >
+                            {agent?.name || '—'}
+                          </button>
+                        ) : (
+                          <span className="text-xs font-semibold text-muted-foreground">System</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5 flex-wrap">
+                        <Clock className="h-2.5 w-2.5" />
+                        {formatDistanceToNow(new Date(c.created_at), { addSuffix: true })}
+                        {c.payment_method && (<><span>•</span><span className="capitalize">{c.payment_method}</span></>)}
+                        {c.location_name && (<><span>•</span><span className="truncate">{c.location_name}</span></>)}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-bold text-emerald-600">{formatUGX(Number(c.amount))}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
 
