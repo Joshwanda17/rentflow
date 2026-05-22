@@ -219,6 +219,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [propertyCity, setPropertyCity] = useState('');
   const [propertyDistrict, setPropertyDistrict] = useState('');
   const [houseCategory, setHouseCategory] = useState('');
+  const [landlordPayoutDay, setLandlordPayoutDay] = useState<string>('1');
   const [noSmartphone, setNoSmartphone] = useState(false);
   const [gpsLocation, setGpsLocation] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
