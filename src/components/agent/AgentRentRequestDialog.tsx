@@ -238,6 +238,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setLc1Name('');
     setLc1Phone('');
     setLc1Village('');
+    setPropertyCity('');
+    setPropertyDistrict('');
     setHouseCategory('');
     setOutstandingHouseCategory('');
     setSelectedLandlord(null);
