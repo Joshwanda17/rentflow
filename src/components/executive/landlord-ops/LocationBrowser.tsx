@@ -10,6 +10,8 @@ import {
   type BreadcrumbPath,
   type BreakdownRow,
 } from '@/hooks/useLocationBreakdown';
+import { PLANNED_MARKETS } from './plannedMarkets';
+import { PlannedMarketTile } from './PlannedMarketTile';
 
 export function LocationBrowser() {
   const [path, setPath] = useState<BreadcrumbPath>({});
@@ -29,6 +31,11 @@ export function LocationBrowser() {
     setPath(p);
   };
 
+  const liveCountryNames = new Set((data ?? []).map(r => r.label.toLowerCase()));
+  const plannedToShow = level === 'country'
+    ? PLANNED_MARKETS.filter(m => !liveCountryNames.has(m.country.toLowerCase()))
+    : [];
+
   return (
     <div className="space-y-3">
       <LocationSearchBar onPick={setPath} />
@@ -38,12 +45,28 @@ export function LocationBrowser() {
       {level === 'properties' ? (
         <PropertyLeafList path={path} />
       ) : (
-        <LocationTileGrid
-          rows={data ?? []}
-          level={level}
-          loading={isLoading}
-          onPick={pick}
-        />
+        <>
+          <LocationTileGrid
+            rows={data ?? []}
+            level={level}
+            loading={isLoading}
+            onPick={pick}
+          />
+          {plannedToShow.length > 0 && (
+            <div className="space-y-2 pt-2">
+              <div className="flex items-center gap-2">
+                <div className="h-px flex-1 bg-border" />
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">
+                  Where we're going next
+                </p>
+                <div className="h-px flex-1 bg-border" />
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                {plannedToShow.map(m => <PlannedMarketTile key={m.country} market={m} />)}
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
