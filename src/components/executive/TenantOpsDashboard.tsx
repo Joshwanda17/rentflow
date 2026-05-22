@@ -1534,6 +1534,22 @@ export function TenantOpsDashboard() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Tenant Location Dialog */}
+      <Dialog open={locationDialog.open} onOpenChange={(open) => !open && setLocationDialog({ open: false, tenantId: '', tenantName: '' })}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Location — {locationDialog.tenantName}</DialogTitle>
+          </DialogHeader>
+          {locationDialog.tenantId && (
+            <ResidenceAddressForm
+              userId={locationDialog.tenantId}
+              actingAsAgent
+              onSaved={() => setLocationDialog({ open: false, tenantId: '', tenantName: '' })}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
