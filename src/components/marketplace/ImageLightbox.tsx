@@ -22,7 +22,7 @@ interface ImageLightboxProps {
 }
 
 export function ImageLightbox({ 
-  images, 
+  images: imagesProp, 
   initialIndex = 0, 
   open, 
   onClose,
@@ -33,7 +33,7 @@ export function ImageLightbox({
   // `images[i].image_url` and find `undefined`/`null`. This is the root
   // cause of past `Cannot read properties of null (reading 'x')` crashes
   // that blanked the tenant dashboard.
-  const safeImages = (images ?? []).filter(
+  const images = (imagesProp ?? []).filter(
     (img): img is LightboxImage => !!img && typeof img.image_url === 'string' && img.image_url.length > 0
   );
   const storageKey = memoryKey ? `lightbox:${memoryKey}` : null;
