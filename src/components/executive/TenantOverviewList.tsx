@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Search, Phone, ChevronRight, User, ChevronLeft, ChevronDown, Download, Loader2, Users, MapPin } from 'lucide-react';
+import { Search, Phone, ChevronRight, User, ChevronLeft, ChevronDown, Download, Loader2, Users, MapPin, Globe2, Building2, Home as HomeIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { generateAndDownloadActiveTenantsPdf } from '@/lib/activeTenantsReportPdf';
@@ -75,10 +75,11 @@ interface TenantOverviewListProps {
   onSelectTenant: (tenantId: string, tenantName: string) => void;
 }
 
-type GroupBy = 'none' | 'agent' | 'region' | 'village' | 'district' | 'city' | 'country';
+type GroupBy = 'none' | 'drilldown' | 'agent' | 'region' | 'village' | 'district' | 'city' | 'country';
 
 const GROUP_OPTIONS: { value: GroupBy; label: string }[] = [
   { value: 'none', label: 'No grouping' },
+  { value: 'drilldown', label: 'Drill-down: Country → City → Agent' },
   { value: 'agent', label: 'Agent' },
   { value: 'region', label: 'Region' },
   { value: 'village', label: 'LC1 / Village' },
@@ -101,10 +102,14 @@ export function TenantOverviewList({ data, loading, initialCategory, onSelectTen
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<Category>((initialCategory as Category) || 'all');
   const [page, setPage] = useState(1);
-  const [groupBy, setGroupBy] = useState<GroupBy>('none');
+  const [groupBy, setGroupBy] = useState<GroupBy>('drilldown');
   const [enrichment, setEnrichment] = useState<Map<string, TenantEnrichment>>(new Map());
   const [enriching, setEnriching] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  // Drill-down navigation path: country → city → agent → tenants
+  const [drillCountry, setDrillCountry] = useState<string | null>(null);
+  const [drillCity, setDrillCity] = useState<string | null>(null);
+  const [drillAgent, setDrillAgent] = useState<string | null>(null);
   const PAGE_SIZE = 25;
 
   // Sync when parent changes the filter
@@ -116,6 +121,15 @@ export function TenantOverviewList({ data, loading, initialCategory, onSelectTen
 
   // Reset to first page when filters/search change
   useEffect(() => { setPage(1); }, [search, category]);
+
+  // Reset drill path when leaving drill-down mode
+  useEffect(() => {
+    if (groupBy !== 'drilldown') {
+      setDrillCountry(null);
+      setDrillCity(null);
+      setDrillAgent(null);
+    }
+  }, [groupBy]);
 
   // Deduplicate tenants - group by tenant_id, pick most recent request
   const tenants = useMemo(() => {
@@ -267,7 +281,7 @@ export function TenantOverviewList({ data, loading, initialCategory, onSelectTen
   };
 
   const grouped = useMemo(() => {
-    if (groupBy === 'none') return null;
+    if (groupBy === 'none' || groupBy === 'drilldown') return null;
     const map = new Map<string, (TenantRow & { requestCount: number })[]>();
     for (const t of filtered) {
       const key = groupKeyFor(t);
@@ -285,6 +299,75 @@ export function TenantOverviewList({ data, loading, initialCategory, onSelectTen
         return a.key.localeCompare(b.key);
       });
   }, [filtered, groupBy, enrichment]);
+
+  // Drill-down aggregations
+  const drill = useMemo(() => {
+    if (groupBy !== 'drilldown') return null;
+
+    // Step 1: group by country
+    const byCountry = new Map<string, (TenantRow & { requestCount: number })[]>();
+    for (const t of filtered) {
+      const e = enrichment.get(t.tenant_id);
+      const c = e?.country?.trim() || 'Unknown country';
+      if (!byCountry.has(c)) byCountry.set(c, []);
+      byCountry.get(c)!.push(t);
+    }
+
+    if (!drillCountry) {
+      return {
+        level: 'country' as const,
+        tiles: Array.from(byCountry.entries())
+          .map(([key, rows]) => ({ key, count: rows.length }))
+          .sort((a, b) => b.count - a.count),
+      };
+    }
+
+    const inCountry = byCountry.get(drillCountry) || [];
+
+    // Step 2: group by city within country
+    const byCity = new Map<string, (TenantRow & { requestCount: number })[]>();
+    for (const t of inCountry) {
+      const e = enrichment.get(t.tenant_id);
+      const city = e?.city?.trim() || e?.district?.trim() || 'Unknown city';
+      if (!byCity.has(city)) byCity.set(city, []);
+      byCity.get(city)!.push(t);
+    }
+
+    if (!drillCity) {
+      return {
+        level: 'city' as const,
+        tiles: Array.from(byCity.entries())
+          .map(([key, rows]) => ({ key, count: rows.length }))
+          .sort((a, b) => b.count - a.count),
+      };
+    }
+
+    const inCity = byCity.get(drillCity) || [];
+
+    // Step 3: group by agent within city
+    const byAgent = new Map<string, (TenantRow & { requestCount: number })[]>();
+    for (const t of inCity) {
+      const e = enrichment.get(t.tenant_id);
+      const a = e?.agent_name?.trim() || 'Unassigned';
+      if (!byAgent.has(a)) byAgent.set(a, []);
+      byAgent.get(a)!.push(t);
+    }
+
+    if (!drillAgent) {
+      return {
+        level: 'agent' as const,
+        tiles: Array.from(byAgent.entries())
+          .map(([key, rows]) => ({ key, count: rows.length }))
+          .sort((a, b) => b.count - a.count),
+      };
+    }
+
+    // Step 4: tenant list
+    return {
+      level: 'tenants' as const,
+      rows: byAgent.get(drillAgent) || [],
+    };
+  }, [groupBy, filtered, enrichment, drillCountry, drillCity, drillAgent]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -395,7 +478,18 @@ export function TenantOverviewList({ data, loading, initialCategory, onSelectTen
       </div>
 
       {/* Tenant list — flat (when grouping is off) or grouped sections */}
-      {groupBy === 'none' ? (
+      {groupBy === 'drilldown' ? (
+        <DrillDownView
+          drill={drill}
+          drillCountry={drillCountry}
+          drillCity={drillCity}
+          drillAgent={drillAgent}
+          setDrillCountry={setDrillCountry}
+          setDrillCity={setDrillCity}
+          setDrillAgent={setDrillAgent}
+          onSelectTenant={onSelectTenant}
+        />
+      ) : groupBy === 'none' ? (
       <div className="space-y-1.5">
         {filtered.length === 0 ? (
           <Card>
@@ -566,5 +660,164 @@ function ExportActiveTenantsButton() {
       {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
       <span className="ml-1">Tenants Report PDF</span>
     </Button>
+  );
+}
+
+type DrillTile = { key: string; count: number };
+type DrillState =
+  | { level: 'country'; tiles: DrillTile[] }
+  | { level: 'city'; tiles: DrillTile[] }
+  | { level: 'agent'; tiles: DrillTile[] }
+  | { level: 'tenants'; rows: (TenantRow & { requestCount: number })[] }
+  | null;
+
+function DrillDownView({
+  drill,
+  drillCountry,
+  drillCity,
+  drillAgent,
+  setDrillCountry,
+  setDrillCity,
+  setDrillAgent,
+  onSelectTenant,
+}: {
+  drill: DrillState;
+  drillCountry: string | null;
+  drillCity: string | null;
+  drillAgent: string | null;
+  setDrillCountry: (v: string | null) => void;
+  setDrillCity: (v: string | null) => void;
+  setDrillAgent: (v: string | null) => void;
+  onSelectTenant: (id: string, name: string) => void;
+}) {
+  if (!drill) return null;
+
+  const crumb = (
+    <div className="flex items-center gap-1 flex-wrap text-[11px] text-muted-foreground">
+      <button
+        onClick={() => { setDrillCountry(null); setDrillCity(null); setDrillAgent(null); }}
+        className={cn(
+          'px-2 py-0.5 rounded hover:bg-muted transition-colors flex items-center gap-1',
+          !drillCountry && 'text-foreground font-semibold',
+        )}
+      >
+        <Globe2 className="h-3 w-3" /> All countries
+      </button>
+      {drillCountry && (
+        <>
+          <ChevronRight className="h-3 w-3 opacity-50" />
+          <button
+            onClick={() => { setDrillCity(null); setDrillAgent(null); }}
+            className={cn(
+              'px-2 py-0.5 rounded hover:bg-muted transition-colors',
+              !drillCity && 'text-foreground font-semibold',
+            )}
+          >
+            {drillCountry}
+          </button>
+        </>
+      )}
+      {drillCity && (
+        <>
+          <ChevronRight className="h-3 w-3 opacity-50" />
+          <button
+            onClick={() => setDrillAgent(null)}
+            className={cn(
+              'px-2 py-0.5 rounded hover:bg-muted transition-colors',
+              !drillAgent && 'text-foreground font-semibold',
+            )}
+          >
+            {drillCity}
+          </button>
+        </>
+      )}
+      {drillAgent && (
+        <>
+          <ChevronRight className="h-3 w-3 opacity-50" />
+          <span className="px-2 py-0.5 text-foreground font-semibold">{drillAgent}</span>
+        </>
+      )}
+    </div>
+  );
+
+  const headerLabel =
+    drill.level === 'country'
+      ? 'Tap a country to drill in'
+      : drill.level === 'city'
+        ? `Cities & towns in ${drillCountry}`
+        : drill.level === 'agent'
+          ? `Agents serving ${drillCity}`
+          : `Tenants under ${drillAgent}`;
+
+  return (
+    <div className="space-y-3">
+      {crumb}
+      <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+        {headerLabel}
+      </div>
+
+      {drill.level !== 'tenants' ? (
+        drill.tiles.length === 0 ? (
+          <Card>
+            <CardContent className="p-6 text-center text-muted-foreground text-sm">
+              Nothing to show here yet
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {drill.tiles.map((tile) => {
+              const Icon =
+                drill.level === 'country' ? Globe2 : drill.level === 'city' ? Building2 : Users;
+              const subtitle =
+                drill.level === 'country'
+                  ? `Tenants in ${tile.key}`
+                  : drill.level === 'city'
+                    ? `${tile.key}`
+                    : tile.key;
+              return (
+                <button
+                  key={tile.key}
+                  onClick={() => {
+                    if (drill.level === 'country') setDrillCountry(tile.key);
+                    else if (drill.level === 'city') setDrillCity(tile.key);
+                    else setDrillAgent(tile.key);
+                  }}
+                  className="text-left rounded-xl border bg-card hover:border-primary/40 hover:shadow-md transition-all p-3 group"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <Icon className="h-4 w-4 text-primary" />
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                  </div>
+                  <p className="mt-2 text-sm font-semibold text-foreground truncate">
+                    {drill.level === 'country' ? `Tenants in ${tile.key}` : tile.key}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {tile.count} tenant{tile.count === 1 ? '' : 's'}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+        )
+      ) : drill.rows.length === 0 ? (
+        <Card>
+          <CardContent className="p-6 text-center text-muted-foreground text-sm">
+            No tenants found
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-1.5">
+          {drill.rows.map((tenant) => (
+            <TenantRowCard
+              key={tenant.tenant_id}
+              tenant={tenant}
+              onSelect={() => onSelectTenant(tenant.tenant_id, tenant.tenant_name)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
