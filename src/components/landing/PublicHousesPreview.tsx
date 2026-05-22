@@ -32,6 +32,7 @@ export function PublicHousesPreview() {
           .from('house_listings')
           .select('id, title, region, district, house_category, number_of_rooms, daily_rate, monthly_rent, image_urls')
           .eq('status', 'available')
+          .eq('is_hidden', false)
           .is('tenant_id', null)
           .order('created_at', { ascending: false })
           .limit(6),
@@ -39,6 +40,7 @@ export function PublicHousesPreview() {
           .from('house_listings')
           .select('id', { count: 'exact', head: true })
           .eq('status', 'available')
+          .eq('is_hidden', false)
           .is('tenant_id', null),
       ]);
       if (!mounted) return;
