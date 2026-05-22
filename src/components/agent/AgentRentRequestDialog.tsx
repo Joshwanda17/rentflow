@@ -138,6 +138,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [gpsLocation, setGpsLocation] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [housePhotos, setHousePhotos] = useState<{ file: File; preview: string }[]>([]);
+  const [tenantPhoto, setTenantPhoto] = useState<{ file: File; preview: string } | null>(null);
   const [guarantorConsent, setGuarantorConsent] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
@@ -202,6 +203,47 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     });
   }, []);
 
+  const handleTenantPhoto = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setTenantPhoto(prev => {
+      if (prev) URL.revokeObjectURL(prev.preview);
+      return { file, preview: URL.createObjectURL(file) };
+    });
+    if (e.target) e.target.value = '';
+  }, []);
+
+  const removeTenantPhoto = useCallback(() => {
+    setTenantPhoto(prev => {
+      if (prev) URL.revokeObjectURL(prev.preview);
+      return null;
+    });
+  }, []);
+
+  const uploadTenantPhoto = async (requestId: string, tenantUserId?: string | null): Promise<string | null> => {
+    if (!user || !tenantPhoto) return null;
+    try {
+      const optimized = await optimizeImage(tenantPhoto.file, { maxWidth: 1200, quality: 0.85 });
+      const ext = optimized.file.name.split('.').pop() || 'webp';
+      const path = `${user.id}/${requestId}/tenant_passport.${ext}`;
+      const { error } = await supabase.storage
+        .from('house-images')
+        .upload(path, optimized.file, { cacheControl: '86400', upsert: true });
+      if (error) throw error;
+      const { data } = supabase.storage.from('house-images').getPublicUrl(path);
+      // Best-effort: also set on tenant profile avatar if missing
+      if (tenantUserId) {
+        try {
+          await supabase.from('profiles').update({ avatar_url: data.publicUrl }).eq('id', tenantUserId).is('avatar_url', null);
+        } catch { /* non-fatal */ }
+      }
+      return data.publicUrl;
+    } catch (err) {
+      console.warn('Tenant photo upload failed:', err);
+      return null;
+    }
+  };
+
   const uploadHousePhotos = async (requestId: string): Promise<string[]> => {
     if (!user || housePhotos.length === 0) return [];
     const urls: string[] = [];
@@ -250,6 +292,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setGpsLoading(false);
     housePhotos.forEach(p => URL.revokeObjectURL(p.preview));
     setHousePhotos([]);
+    if (tenantPhoto) URL.revokeObjectURL(tenantPhoto.preview);
+    setTenantPhoto(null);
     setGuarantorConsent(false);
     setValidationErrors([]);
     setSubmissionError(null);
@@ -333,6 +377,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     }
 
     if (!preferredLanguage) errors.push('Preferred language is required');
+
+    if (!tenantPhoto) errors.push('Tenant passport photo is required');
 
     // Outstanding flow uses a searchable landlord picker (LC already linked).
     // Other flows still collect landlord + LC1 inline.
@@ -605,6 +651,17 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           await supabase
             .from('rent_requests')
             .update({ house_image_urls: photoUrls })
+            .eq('id', rentReq.id);
+        }
+      }
+
+      // Upload tenant passport photo (required)
+      if (tenantPhoto && rentReq?.id) {
+        const tenantPhotoUrl = await uploadTenantPhoto(rentReq.id, tenantId);
+        if (tenantPhotoUrl) {
+          await supabase
+            .from('rent_requests')
+            .update({ tenant_photo_url: tenantPhotoUrl } as any)
             .eq('id', rentReq.id);
         }
       }
@@ -1205,6 +1262,42 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   {tenantNationalId.length > 0 && (tenantNationalId.length < 10 || tenantNationalId.length > 14) && (
                     <p className="text-[10px] text-destructive">Must be 10-14 characters</p>
                   )}
+                </div>
+
+                {/* Tenant passport photo (required) */}
+                <div className="space-y-1">
+                  <Label className="text-xs flex items-center gap-1">
+                    🪪 Tenant Passport Photo *
+                  </Label>
+                  <div className="flex items-start gap-3">
+                    {tenantPhoto ? (
+                      <div className="relative h-24 w-20 rounded-lg overflow-hidden border border-border shrink-0">
+                        <img src={tenantPhoto.preview} alt="Tenant" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={removeTenantPhoto}
+                          className="absolute top-1 right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs font-bold"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="h-24 w-20 rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors shrink-0">
+                        <span className="text-xl text-muted-foreground/60">📷</span>
+                        <span className="text-[10px] text-muted-foreground/60 mt-0.5">Capture</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="user"
+                          className="hidden"
+                          onChange={handleTenantPhoto}
+                        />
+                      </label>
+                    )}
+                    <p className="text-[10px] text-muted-foreground leading-relaxed">
+                      Take a clear, well-lit photo of the tenant's face (passport-style). Landlord Ops uses this to verify the tenant during review.
+                    </p>
+                  </div>
                 </div>
 
                 <div className="space-y-1">

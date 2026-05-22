@@ -83,7 +83,7 @@ export function TenantRegistrationReview({ tenantId, tenantName, onBack }: Props
       // Get latest rent request for this tenant
       const { data: reqData } = await supabase
         .from('rent_requests')
-        .select('id, landlord_id, lc1_id, house_category, tenant_water_meter, tenant_electricity_meter, house_image_urls, status, created_at')
+        .select('id, landlord_id, lc1_id, house_category, tenant_water_meter, tenant_electricity_meter, house_image_urls, tenant_photo_url, status, created_at')
         .eq('tenant_id', tenantId)
         .order('created_at', { ascending: false })
         .limit(1)
@@ -323,6 +323,29 @@ export function TenantRegistrationReview({ tenantId, tenantName, onBack }: Props
                 </Badge>
               )}
             </div>
+          )}
+
+          {/* Tenant passport photo */}
+          {data?.request?.tenant_photo_url && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <User className="h-4 w-4 text-primary" /> Tenant Passport Photo
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <a href={data.request.tenant_photo_url} target="_blank" rel="noopener noreferrer" className="inline-block">
+                  <img
+                    src={data.request.tenant_photo_url}
+                    alt={`Tenant ${tenantName}`}
+                    className="h-40 w-32 rounded-lg object-cover border border-border hover:ring-2 hover:ring-primary/50 transition-all"
+                  />
+                </a>
+                <p className="text-[10px] text-muted-foreground mt-2">
+                  Captured by the agent at registration. Click to enlarge.
+                </p>
+              </CardContent>
+            </Card>
           )}
 
           {/* House images gallery */}
