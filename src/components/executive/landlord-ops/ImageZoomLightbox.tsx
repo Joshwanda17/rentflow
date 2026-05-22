@@ -31,7 +31,7 @@ export function ImageZoomLightbox({ images, startIndex, open, onClose, altPrefix
     };
   }, [open, onClose, images.length]);
 
-  if (!open || startIndex === null || images.length === 1) return null;
+  if (!open || startIndex === null) return null;
 
   return (
     <div
