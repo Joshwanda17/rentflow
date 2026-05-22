@@ -84,6 +84,7 @@ export function LandlordHousesPanel() {
     hydratedKeyRef.current = storageKey;
   }, [storageKey]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [houseCollapsed, setHouseCollapsed] = useState<Record<string, boolean>>({});
   const [viewMode, setViewMode] = useState<'landlord' | 'location'>('location');
   const [detailsHouseId, setDetailsHouseId] = useState<string | null>(null);
 
