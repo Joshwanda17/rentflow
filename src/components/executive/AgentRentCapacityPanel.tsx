@@ -363,6 +363,10 @@ function CapacityRow({ row }: { row: AgentRow }) {
           <p className="text-[11px] text-muted-foreground truncate">
             {row.phone || '—'} · {row.active_count} active rent{row.active_count === 1 ? '' : 's'}
           </p>
+          <p className="text-[11px] font-semibold text-emerald-700 truncate">
+            Last 7 days: <span className="tabular-nums">{row.paying_tenants_last_week}</span> of{' '}
+            <span className="tabular-nums">{row.active_tenant_count}</span> tenants paid
+          </p>
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${tier.tone}`}>
