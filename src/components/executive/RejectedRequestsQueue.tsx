@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
-import { Loader2, RotateCcw, ShieldCheck, XCircle, Search } from 'lucide-react';
+import { Loader2, RotateCcw, ShieldCheck, XCircle, Search, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type RejectedStage =
@@ -62,9 +62,13 @@ interface Props {
   stageFilter?: RejectedStage | RejectedStage[];
   /** Card title — defaults to "Rejected Rent Requests". */
   title?: string;
+  /** When true, renders a collapsible card. Defaults to false. */
+  collapsible?: boolean;
+  /** When collapsible, whether the card starts collapsed. Defaults to true. */
+  defaultCollapsed?: boolean;
 }
 
-export function RejectedRequestsQueue({ stageFilter, title = 'Rejected Rent Requests' }: Props) {
+export function RejectedRequestsQueue({ stageFilter, title = 'Rejected Rent Requests', collapsible = false, defaultCollapsed = true }: Props) {
   const { user } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -75,6 +79,7 @@ export function RejectedRequestsQueue({ stageFilter, title = 'Rejected Rent Requ
   const [reason, setReason] = useState('');
   const [payoutRef, setPayoutRef] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [collapsed, setCollapsed] = useState(collapsible ? defaultCollapsed : false);
 
   // Capability check — manager/CFO can force-approve
   const { data: caps } = useQuery({
@@ -183,22 +188,35 @@ export function RejectedRequestsQueue({ stageFilter, title = 'Rejected Rent Requ
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-4">
-        <div>
+        <div
+          className={cn(collapsible && 'cursor-pointer select-none flex-1')}
+          onClick={collapsible ? () => setCollapsed((c) => !c) : undefined}
+        >
           <CardTitle className="flex items-center gap-2">
+            {collapsible && (
+              collapsed
+                ? <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                : <ChevronUp className="w-4 h-4 text-muted-foreground" />
+            )}
             <XCircle className="w-5 h-5 text-destructive" />
             {title}
             <Badge variant="outline" className="ml-1">{rows?.length ?? 0}</Badge>
           </CardTitle>
-          <p className="text-xs text-muted-foreground mt-1">
-            Reopen sends the request back to the stage that rejected it.
-            {caps?.canForce && ' Force-approve advances it directly to the next stage.'}
-          </p>
+          {!collapsed && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Reopen sends the request back to the stage that rejected it.
+              {caps?.canForce && ' Force-approve advances it directly to the next stage.'}
+            </p>
+          )}
         </div>
-        <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isRefetching}>
-          {isRefetching ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RotateCcw className="w-4 h-4 mr-2" />}
-          Refresh
-        </Button>
+        {!collapsed && (
+          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isRefetching}>
+            {isRefetching ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RotateCcw className="w-4 h-4 mr-2" />}
+            Refresh
+          </Button>
+        )}
       </CardHeader>
+      {!collapsed && (
       <CardContent className="space-y-3">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -285,6 +303,7 @@ export function RejectedRequestsQueue({ stageFilter, title = 'Rejected Rent Requ
           </div>
         )}
       </CardContent>
+      )}
 
       <Dialog open={!!active} onOpenChange={(o) => !o && setActive(null)}>
         <DialogContent>
