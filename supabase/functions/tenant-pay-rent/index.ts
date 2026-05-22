@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
     // Get tenant name for notifications
     const { data: profileData } = await supabaseAdmin
       .from("profiles")
-      .select("full_name")
+      .select("full_name, phone")
       .eq("id", tenantId)
       .single();
 
@@ -224,6 +224,82 @@ Deno.serve(async (req) => {
         payload: { title: "✅ Rent Payment Confirmed", body: `UGX ${payAmount.toLocaleString()} rent payment processed`, url: "/dashboard/tenant", type: "success" },
       }),
     }).catch(() => {});
+
+    // Branded "Rent Money You Can Get" SMS to tenant (fire-and-forget).
+    // Mirrors the agent allocation flow so every rent payment — including
+    // tenant-self-pay and one-tap renew — triggers the same confirmation card.
+    (async () => {
+      try {
+        const phone = (profileData as any)?.phone as string | undefined;
+        const fullName = (profileData as any)?.full_name as string | undefined;
+        if (!phone || !fullName) return;
+        const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
+        const username = Deno.env.get("AFRICASTALKING_USERNAME");
+        if (!apiKey || !username) {
+          console.warn("[tenant-pay-rent] Skipping SMS — AT credentials missing");
+          return;
+        }
+        const siteBase = Deno.env.get("PUBLIC_SITE_URL") || "https://welilereceipts.com";
+        const shareUrl = `${siteBase.replace(/\/+$/, "")}/limit/${tenantId}`;
+        const firstName = fullName.split(" ")[0];
+        const fmt = (n: number) => `UGX ${Math.max(0, Math.round(n)).toLocaleString("en-UG")}`;
+        const message = [
+          "WELILE — Rent Money You Can Get",
+          "",
+          `Hello ${firstName},`,
+          "",
+          `You have paid ${fmt(payAmount)} toward your rent. Your remaining balance is ${fmt(remainingBalance)}.`,
+          "",
+          "Continue paying your rent on time to qualify for future rent support of up to UGX 3,000,000.",
+          "",
+          "View your rent card here:",
+          shareUrl,
+          "",
+          "Pay on time, your rent limit increases daily!",
+        ].join("\n");
+
+        const digits = phone.replace(/[^0-9]/g, "");
+        const to = digits.startsWith("256")
+          ? `+${digits}`
+          : digits.startsWith("0")
+            ? `+256${digits.slice(1)}`
+            : digits.length === 9
+              ? `+256${digits}`
+              : `+${digits}`;
+
+        const isSandbox = username.toLowerCase() === "sandbox";
+        const baseUrl = isSandbox
+          ? "https://api.sandbox.africastalking.com/version1/messaging"
+          : "https://api.africastalking.com/version1/messaging";
+
+        const res = await fetch(baseUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            apiKey,
+            Accept: "application/json",
+          },
+          body: new URLSearchParams({ username, to, message, from: "WELILE" }).toString(),
+        });
+        const raw = await res.text();
+        console.log(`[tenant-pay-rent] SMS to=${to} status=${res.status} body=${raw}`);
+
+        await supabaseAdmin.from("system_events").insert({
+          event_type: "rent_access_limit.sms.sent",
+          actor_id: tenantId,
+          subject_id: tenantId,
+          payload: {
+            mode: "tenant_pay_rent",
+            paid_amount: payAmount,
+            remaining_balance: remainingBalance,
+            share_url: shareUrl,
+            http_status: res.status,
+          },
+        });
+      } catch (e) {
+        console.warn("[tenant-pay-rent] branded SMS failed:", e);
+      }
+    })();
 
 
     return new Response(
