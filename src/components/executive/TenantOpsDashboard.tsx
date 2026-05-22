@@ -47,8 +47,10 @@ import { toast } from 'sonner';
 import {
   FileCheck, Clock, AlertTriangle, CheckCircle2, Banknote,
   ArrowRight, Activity, ClipboardList, CalendarCheck, CalendarX2,
-  ArrowLeft, History, Table2, Link2, HandCoins, Users, Trash2, Loader2, FileSearch, Printer, Network, Shield, CalendarIcon, Download, Wallet, Landmark
+  ArrowLeft, History, Table2, Link2, HandCoins, Users, Trash2, Loader2, FileSearch, Printer, Network, Shield, CalendarIcon, Download, Wallet, Landmark, MapPin
 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import ResidenceAddressForm from '@/components/profile/ResidenceAddressForm';
 import { generateTenantOpsReportPdf } from '@/lib/generateTenantOpsReportPdf';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -69,6 +71,7 @@ export function TenantOpsDashboard() {
   const [activeView, setActiveView] = useState<ActiveView>('overview');
   const queryClient = useQueryClient();
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; tenantId: string; tenantName: string }>({ open: false, tenantId: '', tenantName: '' });
+  const [locationDialog, setLocationDialog] = useState<{ open: boolean; tenantId: string; tenantName: string }>({ open: false, tenantId: '', tenantName: '' });
   const [selectedTenantIds, setSelectedTenantIds] = useState<string[]>([]);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
@@ -1122,6 +1125,19 @@ export function TenantOpsDashboard() {
     { key: 'landlord_name', label: 'Landlord' },
     { key: 'landlord_phone', label: 'L. Phone' },
     { key: 'tenant_id', label: 'Action', render: (_v, row) => (
+      <div className="flex items-center gap-1">
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-8 px-2 text-primary hover:bg-primary/10"
+        onClick={(e) => {
+          e.stopPropagation();
+          setLocationDialog({ open: true, tenantId: row.tenant_id, tenantName: row.tenant_name || 'Tenant' });
+        }}
+      >
+        <MapPin className="h-3.5 w-3.5 mr-1" />
+        Location
+      </Button>
       <Button
         variant="ghost"
         size="sm"
@@ -1134,6 +1150,7 @@ export function TenantOpsDashboard() {
         <Trash2 className="h-3.5 w-3.5 mr-1" />
         Delete
       </Button>
+      </div>
     )},
   ];
 
@@ -1517,6 +1534,22 @@ export function TenantOpsDashboard() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Tenant Location Dialog */}
+      <Dialog open={locationDialog.open} onOpenChange={(open) => !open && setLocationDialog({ open: false, tenantId: '', tenantName: '' })}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Location — {locationDialog.tenantName}</DialogTitle>
+          </DialogHeader>
+          {locationDialog.tenantId && (
+            <ResidenceAddressForm
+              userId={locationDialog.tenantId}
+              actingAsAgent
+              onSaved={() => setLocationDialog({ open: false, tenantId: '', tenantName: '' })}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
