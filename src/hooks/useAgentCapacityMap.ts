@@ -89,7 +89,7 @@ export function useAgentCapacityMap(agentIds: string[]) {
       // 1) Active rent_requests drive both exposure AND expected daily collections
       const { data: active } = await supabase
         .from('rent_requests')
-        .select('id, agent_id, total_repayment, amount_repaid, daily_repayment')
+        .select('id, agent_id, tenant_id, total_repayment, amount_repaid, daily_repayment')
         .in('agent_id', agentIds)
         .in('status', ACTIVE_RENT_STATUSES);
 
@@ -183,6 +183,8 @@ export function useAgentCapacityMap(agentIds: string[]) {
         out.set(id, {
           used: exp.used,
           active_count: exp.count,
+          active_tenant_count: activeTenantsByAgent.get(id)?.size || 0,
+          paying_tenants_last_week: payingTenantsByAgent.get(id)?.size || 0,
           response_rate,
           responding_tenant_days,
           expected_tenant_days,
