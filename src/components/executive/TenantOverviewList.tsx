@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Search, Phone, ChevronRight, User, ChevronLeft, ChevronDown, Download, Loader2, Users, MapPin } from 'lucide-react';
+import { Search, Phone, ChevronRight, User, ChevronLeft, ChevronDown, Download, Loader2, Users, MapPin, Globe2, Building2, Home as HomeIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { generateAndDownloadActiveTenantsPdf } from '@/lib/activeTenantsReportPdf';
@@ -75,10 +75,11 @@ interface TenantOverviewListProps {
   onSelectTenant: (tenantId: string, tenantName: string) => void;
 }
 
-type GroupBy = 'none' | 'agent' | 'region' | 'village' | 'district' | 'city' | 'country';
+type GroupBy = 'none' | 'drilldown' | 'agent' | 'region' | 'village' | 'district' | 'city' | 'country';
 
 const GROUP_OPTIONS: { value: GroupBy; label: string }[] = [
   { value: 'none', label: 'No grouping' },
+  { value: 'drilldown', label: 'Drill-down: Country → City → Agent' },
   { value: 'agent', label: 'Agent' },
   { value: 'region', label: 'Region' },
   { value: 'village', label: 'LC1 / Village' },
@@ -105,6 +106,10 @@ export function TenantOverviewList({ data, loading, initialCategory, onSelectTen
   const [enrichment, setEnrichment] = useState<Map<string, TenantEnrichment>>(new Map());
   const [enriching, setEnriching] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  // Drill-down navigation path: country → city → agent → tenants
+  const [drillCountry, setDrillCountry] = useState<string | null>(null);
+  const [drillCity, setDrillCity] = useState<string | null>(null);
+  const [drillAgent, setDrillAgent] = useState<string | null>(null);
   const PAGE_SIZE = 25;
 
   // Sync when parent changes the filter
@@ -116,6 +121,15 @@ export function TenantOverviewList({ data, loading, initialCategory, onSelectTen
 
   // Reset to first page when filters/search change
   useEffect(() => { setPage(1); }, [search, category]);
+
+  // Reset drill path when leaving drill-down mode
+  useEffect(() => {
+    if (groupBy !== 'drilldown') {
+      setDrillCountry(null);
+      setDrillCity(null);
+      setDrillAgent(null);
+    }
+  }, [groupBy]);
 
   // Deduplicate tenants - group by tenant_id, pick most recent request
   const tenants = useMemo(() => {
@@ -267,7 +281,7 @@ export function TenantOverviewList({ data, loading, initialCategory, onSelectTen
   };
 
   const grouped = useMemo(() => {
-    if (groupBy === 'none') return null;
+    if (groupBy === 'none' || groupBy === 'drilldown') return null;
     const map = new Map<string, (TenantRow & { requestCount: number })[]>();
     for (const t of filtered) {
       const key = groupKeyFor(t);
@@ -285,6 +299,75 @@ export function TenantOverviewList({ data, loading, initialCategory, onSelectTen
         return a.key.localeCompare(b.key);
       });
   }, [filtered, groupBy, enrichment]);
+
+  // Drill-down aggregations
+  const drill = useMemo(() => {
+    if (groupBy !== 'drilldown') return null;
+
+    // Step 1: group by country
+    const byCountry = new Map<string, (TenantRow & { requestCount: number })[]>();
+    for (const t of filtered) {
+      const e = enrichment.get(t.tenant_id);
+      const c = e?.country?.trim() || 'Unknown country';
+      if (!byCountry.has(c)) byCountry.set(c, []);
+      byCountry.get(c)!.push(t);
+    }
+
+    if (!drillCountry) {
+      return {
+        level: 'country' as const,
+        tiles: Array.from(byCountry.entries())
+          .map(([key, rows]) => ({ key, count: rows.length }))
+          .sort((a, b) => b.count - a.count),
+      };
+    }
+
+    const inCountry = byCountry.get(drillCountry) || [];
+
+    // Step 2: group by city within country
+    const byCity = new Map<string, (TenantRow & { requestCount: number })[]>();
+    for (const t of inCountry) {
+      const e = enrichment.get(t.tenant_id);
+      const city = e?.city?.trim() || e?.district?.trim() || 'Unknown city';
+      if (!byCity.has(city)) byCity.set(city, []);
+      byCity.get(city)!.push(t);
+    }
+
+    if (!drillCity) {
+      return {
+        level: 'city' as const,
+        tiles: Array.from(byCity.entries())
+          .map(([key, rows]) => ({ key, count: rows.length }))
+          .sort((a, b) => b.count - a.count),
+      };
+    }
+
+    const inCity = byCity.get(drillCity) || [];
+
+    // Step 3: group by agent within city
+    const byAgent = new Map<string, (TenantRow & { requestCount: number })[]>();
+    for (const t of inCity) {
+      const e = enrichment.get(t.tenant_id);
+      const a = e?.agent_name?.trim() || 'Unassigned';
+      if (!byAgent.has(a)) byAgent.set(a, []);
+      byAgent.get(a)!.push(t);
+    }
+
+    if (!drillAgent) {
+      return {
+        level: 'agent' as const,
+        tiles: Array.from(byAgent.entries())
+          .map(([key, rows]) => ({ key, count: rows.length }))
+          .sort((a, b) => b.count - a.count),
+      };
+    }
+
+    // Step 4: tenant list
+    return {
+      level: 'tenants' as const,
+      rows: byAgent.get(drillAgent) || [],
+    };
+  }, [groupBy, filtered, enrichment, drillCountry, drillCity, drillAgent]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -395,7 +478,18 @@ export function TenantOverviewList({ data, loading, initialCategory, onSelectTen
       </div>
 
       {/* Tenant list — flat (when grouping is off) or grouped sections */}
-      {groupBy === 'none' ? (
+      {groupBy === 'drilldown' ? (
+        <DrillDownView
+          drill={drill}
+          drillCountry={drillCountry}
+          drillCity={drillCity}
+          drillAgent={drillAgent}
+          setDrillCountry={setDrillCountry}
+          setDrillCity={setDrillCity}
+          setDrillAgent={setDrillAgent}
+          onSelectTenant={onSelectTenant}
+        />
+      ) : groupBy === 'none' ? (
       <div className="space-y-1.5">
         {filtered.length === 0 ? (
           <Card>
