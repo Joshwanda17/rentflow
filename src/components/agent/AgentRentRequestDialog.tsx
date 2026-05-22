@@ -219,6 +219,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [propertyCity, setPropertyCity] = useState('');
   const [propertyDistrict, setPropertyDistrict] = useState('');
   const [houseCategory, setHouseCategory] = useState('');
+  const [landlordPayoutDay, setLandlordPayoutDay] = useState<string>('1');
   const [noSmartphone, setNoSmartphone] = useState(false);
   const [gpsLocation, setGpsLocation] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
@@ -723,6 +724,18 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
               ? Math.max(0, parseInt(outstandingDaysRemaining, 10))
               : null,
           } : {}),
+          // Welile auto-pays the landlord wallet on this day of the month
+          landlord_payout_day: Math.min(28, Math.max(1, parseInt(landlordPayoutDay, 10) || 1)),
+          landlord_payout_next_run_at: (() => {
+            const day = Math.min(28, Math.max(1, parseInt(landlordPayoutDay, 10) || 1));
+            const d = new Date();
+            d.setUTCDate(1);
+            if (new Date().getUTCDate() >= day) d.setUTCMonth(d.getUTCMonth() + 1);
+            d.setUTCDate(day);
+            d.setUTCHours(7, 0, 0, 0);
+            return d.toISOString();
+          })(),
+          landlord_payout_enabled: true,
         } as any)
         .select('id')
         .single();
@@ -1641,6 +1654,29 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     />
                   </div>
                 </div>
+              </div>
+
+              {/* Landlord auto-payout day */}
+              <div className="space-y-1 rounded-xl border border-primary/30 bg-primary/5 p-3">
+                <Label className="text-xs flex items-center gap-1 font-semibold">
+                  <Calendar className="h-3 w-3" /> Landlord payout day (1–28) *
+                </Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={28}
+                  value={landlordPayoutDay}
+                  onChange={(e) => setLandlordPayoutDay(e.target.value)}
+                  placeholder="e.g. 5"
+                  className="h-10"
+                  required
+                />
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  Welile will automatically credit the landlord wallet with UGX{' '}
+                  {(parseInt(rentAmount.replace(/,/g, '')) || 0).toLocaleString()} on day{' '}
+                  <span className="font-semibold text-foreground">{landlordPayoutDay || '–'}</span>{' '}
+                  of every month, regardless of when the tenant pays.
+                </p>
               </div>
 
               <GuarantorConsentCheckbox checked={guarantorConsent} onCheckedChange={setGuarantorConsent} />

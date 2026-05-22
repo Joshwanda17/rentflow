@@ -1,93 +1,49 @@
-# Booking.com-Style House-by-Location Browser
+## Auto landlord rent payout (Welile-fronted, monthly)
 
-A scalable drill-down explorer for managing houses across 54 countries, with server-side aggregation, global search, and map view — built to handle millions of listings without loading them client-side.
+When an agent places a tenant into a listed house, Welile automatically credits the landlord's wallet with the monthly rent on the landlord's chosen day of the month. Tenant repayment continues through the existing `auto-charge-wallets` flow — this plan only adds the landlord-side payout leg.
 
-## What the user sees (Booking.com pattern)
+### What gets built
 
-```text
-┌─────────────────────────────────────────────────────────┐
-│  🔍  Search any country, city, agent, landlord…         │
-└─────────────────────────────────────────────────────────┘
+1. **Schema (rent_requests)**
+   - `landlord_payout_day` smallint (1-28), nullable until placement
+   - `landlord_payout_next_run_at` timestamptz
+   - `landlord_payout_last_run_at` timestamptz
+   - `landlord_payout_enabled` boolean default true
+   - Constraint: `landlord_payout_day BETWEEN 1 AND 28`
+   - Index on `(landlord_payout_enabled, landlord_payout_next_run_at)` partial WHERE enabled
 
-[ Grid ] [ Map ]   Breadcrumbs: All › Uganda › Central › Kampala
+2. **Capture UI (agent flow)**
+   - Add "Landlord payout day" date-of-month picker (1-28) to `AgentRentRequestDialog` and `RegisterTenantDialog`, required when the rent is approved/active.
+   - Show landlord-facing copy: "Welile will pay UGX {rent} to the landlord wallet on day {N} every month."
+   - Surface the chosen day + next payout date on the rent request detail drawer and on the Landlord Ops house detail dialog.
 
-┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
-│  Uganda  │ │  Kenya   │ │ Nigeria  │ │  Ghana   │  ← tiles
-│ 12,430   │ │  8,210   │ │ 24,005   │ │  3,118   │     show total
-│ 78% occ  │ │ 65% occ  │ │ 71% occ  │ │ 82% occ  │     + occupancy
-└──────────┘ └──────────┘ └──────────┘ └──────────┘
-```
+3. **Cron + edge function**
+   - New edge function `pay-landlord-rent` (verify_jwt=false, service role).
+   - Per active row where `landlord_payout_enabled = true AND landlord_payout_next_run_at <= now() AND status IN ('approved','disbursed','active')`:
+     - Idempotency key: `landlord_rent:{rent_request_id}:{YYYY-MM}`.
+     - Call `create_ledger_transaction(entries=[platform cash_out `rent_disbursement`, wallet cash_in `landlord_rent_payment` with `recipient_type='user'`, `user_id=landlord_id`])` — routes to landlord `withdrawable_balance`.
+     - Emit `system_event` `landlord.rent_payout.completed`.
+     - Advance `landlord_payout_next_run_at` by 1 month (clamped to day ≤ 28); set `landlord_payout_last_run_at = now()`.
+     - On failure: log to `system_events` (`landlord.rent_payout.failed`), do not advance, alert FinOps.
+   - pg_cron job `pay-landlord-rent-daily` at 07:00 UTC invoking the edge function (insert tool, with project URL + anon key).
 
-Click a tile → fetches the next level (region → city → ward → agent → landlord → property). Each level loads only ~20-200 rows. Memory stays flat.
+4. **Funding source**
+   - Welile float fronts the payout. Recovery from the tenant continues through the existing `auto-charge-wallets-daily` cron on `subscription_charges`. No coupling between the two crons; rent is decoupled from collection.
 
-## Architecture (the part that makes it scale)
+5. **Audit + trust**
+   - Insert into `audit_logs` (action_type `landlord_rent_payout`, table `rent_requests`, record id, mandatory reason: `auto-landlord-monthly-payout`).
+   - `capture_trust_signal` for landlord (`rent_received`) and tenant (`rent_obligation_serviced`) on each successful payout.
 
-### 1. Server-side rollup view
-Single materialized view aggregating `house_listings`:
-```text
-mv_house_location_rollup
-  country, region, district, ward,
-  agent_id, landlord_id,
-  total, occupied, vacant, hidden, revenue_ugx
-```
-Refreshed by `pg_cron` every 10 minutes. Indexed on every level.
+### Out of scope
+- No changes to tenant-side `auto-charge-wallets` or to existing repayment ledger entries.
+- No changes to the 6-stage rent pipeline gating; payouts only fire once a request is past `approved`.
+- No FX, no partial payouts, no proration mid-month — landlord receives full `rent_amount` each cycle.
 
-### 2. One RPC for drill-down
-`get_location_breakdown(p_level, p_country, p_region, p_district, p_ward, p_agent_id)`
-- Returns aggregated rows for the NEXT level only
-- Filters honor RLS scope (`landlord_ops_scope`)
-- Sub-100ms even with millions of listings
+### Files
+- New migration: schema + index + cron insert (cron via supabase--insert per the schedule-jobs guidance).
+- New edge fn: `supabase/functions/pay-landlord-rent/index.ts`.
+- Edit: `src/components/agent/AgentRentRequestDialog.tsx`, `src/components/agent/RegisterTenantDialog.tsx`, `src/components/rent/RentRequestDetailDrawer.tsx`, `src/components/executive/landlord-ops/HouseDetailsDialog.tsx`.
+- Memory note: add `mem://features/landlord/auto-monthly-payout.md` documenting the flow and idempotency contract.
 
-### 3. Global search RPC
-`search_locations(p_query, p_limit)` → unified results across countries, regions, cities, agents, landlords. Lets ops jump straight to any node (the Booking.com search bar feel).
-
-### 4. Map view
-Africa choropleth using the Google Maps connector (already available). Click country → zoom region → markers cluster at city level. Toggle Grid ↔ Map.
-
-### 5. Final level: properties
-At the leaf, paginated property list (20/page) with virtualization. Click a property → existing detail/edit drawer.
-
-## Component plan
-
-**New files**
-- `supabase/migrations/<ts>_location_rollup.sql` — MV + indexes + cron + RPCs (`get_location_breakdown`, `search_locations`, `refresh_house_location_rollup`)
-- `src/components/executive/landlord-ops/LocationBrowser.tsx` — root: search bar + view toggle + breadcrumbs + grid/map switch
-- `src/components/executive/landlord-ops/LocationTileGrid.tsx` — virtualized responsive tiles (12-col → 2-col mobile)
-- `src/components/executive/landlord-ops/LocationSearchBar.tsx` — debounced autocomplete calling `search_locations`
-- `src/components/executive/landlord-ops/LocationMapView.tsx` — Google Maps with cluster markers
-- `src/components/executive/landlord-ops/LocationBreadcrumbs.tsx` — clickable trail with back
-- `src/components/executive/landlord-ops/PropertyLeafList.tsx` — paginated property results at the bottom level
-- `src/hooks/useLocationBreakdown.ts` — React Query hook keyed by path, `staleTime: 5min`
-- `src/hooks/useLocationSearch.ts` — debounced search hook
-
-**Edited**
-- `src/components/executive/landlord-ops/LandlordHousesPanel.tsx` — replace the recursive `LocationHierarchyView` with `<LocationBrowser />` when `viewMode === 'location'`. Keep landlord view untouched.
-
-## UX details that matter at this scale
-
-- **Skeleton tiles** while a level loads — never blank screen
-- **Sticky breadcrumbs + search bar** at top so navigation is always one click away
-- **"Pinned countries"** (localStorage) for ops who manage a subset — surfaces first
-- **Counts pills**: Total · Occupied · Vacant · Hidden — color-coded
-- **Empty states** ("No houses in this ward yet") with a "List one" CTA
-- **Keyboard**: `/` focuses search, `Esc` clears, `Backspace` goes up a level
-- **Mobile**: tiles collapse to 2-column; map becomes default on small screens
-
-## Performance & safety
-
-- RLS on the breakdown RPC respects existing landlord-ops permissions
-- React Query caches per breadcrumb path → revisiting a country is instant
-- Map markers cluster (no DOM blow-up over 1k pins)
-- No client-side hierarchy tree; nothing is built in memory beyond the current level
-- MV refresh is cheap (incremental aggregation) and runs on cron, not on every read
-
-## Build order (single PR)
-
-1. Migration: MV + 2 RPCs + cron
-2. Hooks: `useLocationBreakdown`, `useLocationSearch`
-3. Components: Browser → Tiles → Search → Breadcrumbs → Leaf list
-4. Map view (Google Maps connector)
-5. Wire into `LandlordHousesPanel` behind the existing "Location" toggle
-6. Verify with current data (Uganda only today; future-proof for all 54 countries)
-
-After approval I'll implement it end-to-end in one go.
+### Confirm before I build
+Approving this plan will run a schema migration, deploy the new edge function, and create a daily pg_cron job. OK to proceed?

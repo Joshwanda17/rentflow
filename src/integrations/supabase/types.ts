@@ -10975,6 +10975,10 @@ export type Database = {
           landlord_ops_comment: string | null
           landlord_ops_reviewed_at: string | null
           landlord_ops_reviewed_by: string | null
+          landlord_payout_day: number | null
+          landlord_payout_enabled: boolean
+          landlord_payout_last_run_at: string | null
+          landlord_payout_next_run_at: string | null
           landlord_verification_method: string | null
           last_resubmitted_at: string | null
           lc1_id: string | null
@@ -11070,6 +11074,10 @@ export type Database = {
           landlord_ops_comment?: string | null
           landlord_ops_reviewed_at?: string | null
           landlord_ops_reviewed_by?: string | null
+          landlord_payout_day?: number | null
+          landlord_payout_enabled?: boolean
+          landlord_payout_last_run_at?: string | null
+          landlord_payout_next_run_at?: string | null
           landlord_verification_method?: string | null
           last_resubmitted_at?: string | null
           lc1_id?: string | null
@@ -11165,6 +11173,10 @@ export type Database = {
           landlord_ops_comment?: string | null
           landlord_ops_reviewed_at?: string | null
           landlord_ops_reviewed_by?: string | null
+          landlord_payout_day?: number | null
+          landlord_payout_enabled?: boolean
+          landlord_payout_last_run_at?: string | null
+          landlord_payout_next_run_at?: string | null
           landlord_verification_method?: string | null
           last_resubmitted_at?: string | null
           lc1_id?: string | null
