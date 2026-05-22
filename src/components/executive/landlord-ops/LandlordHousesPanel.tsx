@@ -380,9 +380,16 @@ export function LandlordHousesPanel() {
                                 {formatUGX(h.monthly_rent)}/mo · {formatUGX(h.daily_rate)}/day
                               </p>
                             </div>
-                            <Badge variant={h.tenant_id ? 'default' : 'outline'} className="text-[10px] shrink-0">
-                              {h.tenant_id ? 'Occupied' : 'Vacant'}
-                            </Badge>
+                            <div className="flex flex-col items-end gap-1 shrink-0">
+                              <Badge variant={h.tenant_id ? 'default' : 'outline'} className="text-[10px]">
+                                {h.tenant_id ? 'Occupied' : 'Vacant'}
+                              </Badge>
+                              {h.is_hidden && (
+                                <Badge variant="secondary" className="text-[10px] gap-1 bg-amber-100 text-amber-800 border-amber-200">
+                                  <EyeOff className="h-3 w-3" /> Hidden
+                                </Badge>
+                              )}
+                            </div>
                           </div>
 
                           <div className="rounded-md bg-muted/40 p-2 text-[11px] space-y-1">
@@ -434,6 +441,21 @@ export function LandlordHousesPanel() {
                             >
                               <UserCog className="h-3 w-3" />
                               Reassign agent
+                            </Button>
+                            <Button
+                              size="sm" variant="outline" className="h-8 text-xs gap-1"
+                              onClick={() => toggleHidden(h)}
+                              disabled={!!togglingHide[h.id]}
+                              title={h.is_hidden ? 'Show this house to tenants again' : 'Hide this house from tenant browse'}
+                            >
+                              {togglingHide[h.id] ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : h.is_hidden ? (
+                                <Eye className="h-3 w-3" />
+                              ) : (
+                                <EyeOff className="h-3 w-3" />
+                              )}
+                              {h.is_hidden ? 'Unhide' : 'Hide'}
                             </Button>
                             <Button
                               size="sm" variant="ghost" className="h-8 text-xs gap-1"
