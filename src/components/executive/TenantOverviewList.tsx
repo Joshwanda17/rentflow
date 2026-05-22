@@ -102,7 +102,7 @@ export function TenantOverviewList({ data, loading, initialCategory, onSelectTen
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<Category>((initialCategory as Category) || 'all');
   const [page, setPage] = useState(1);
-  const [groupBy, setGroupBy] = useState<GroupBy>('none');
+  const [groupBy, setGroupBy] = useState<GroupBy>('drilldown');
   const [enrichment, setEnrichment] = useState<Map<string, TenantEnrichment>>(new Map());
   const [enriching, setEnriching] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
