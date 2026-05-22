@@ -49,7 +49,7 @@ export function ImageLightbox({
 
   const initial = (() => {
     const m = readMemory();
-    if (m && typeof m.index === 'number' && m.index >= 0 && m.index < safeImages.length) return m;
+    if (m && typeof m.index === 'number' && m.index >= 0 && m.index < images.length) return m;
     return null;
   })();
 
