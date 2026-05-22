@@ -304,22 +304,38 @@ export function TenantOverviewList({ data, loading, initialCategory, onSelectTen
   const drill = useMemo(() => {
     if (groupBy !== 'drilldown') return null;
 
-    // Step 1: group by country
+    // Step 1: group by country. Tenants with no country default to Uganda
+    // (current operating base). Always surface the priority country list even
+    // when empty so ops can see expansion progress at a glance.
+    const PRIORITY_COUNTRIES = ['Uganda', 'Kenya', 'Nigeria', 'South Africa'];
+    const normalizeCountry = (raw: string | null | undefined): string => {
+      const v = (raw || '').trim();
+      if (!v) return 'Uganda';
+      const lower = v.toLowerCase().replace(/\s+/g, ' ');
+      if (['ug', 'uga', 'uganda'].includes(lower)) return 'Uganda';
+      if (['ke', 'ken', 'kenya'].includes(lower)) return 'Kenya';
+      if (['ng', 'nga', 'nigeria'].includes(lower)) return 'Nigeria';
+      if (['za', 'rsa', 'south africa', 'southafrica', 's. africa', 'south-africa'].includes(lower)) return 'South Africa';
+      return v.charAt(0).toUpperCase() + v.slice(1);
+    };
+
     const byCountry = new Map<string, (TenantRow & { requestCount: number })[]>();
+    for (const c of PRIORITY_COUNTRIES) byCountry.set(c, []);
     for (const t of filtered) {
       const e = enrichment.get(t.tenant_id);
-      const c = e?.country?.trim() || 'Unknown country';
+      const c = normalizeCountry(e?.country);
       if (!byCountry.has(c)) byCountry.set(c, []);
       byCountry.get(c)!.push(t);
     }
 
     if (!drillCountry) {
-      return {
-        level: 'country' as const,
-        tiles: Array.from(byCountry.entries())
-          .map(([key, rows]) => ({ key, count: rows.length }))
-          .sort((a, b) => b.count - a.count),
-      };
+      const entries = Array.from(byCountry.entries()).map(([key, rows]) => ({ key, count: rows.length }));
+      const priority = PRIORITY_COUNTRIES
+        .map((name) => entries.find((e) => e.key === name) || { key: name, count: 0 });
+      const others = entries
+        .filter((e) => !PRIORITY_COUNTRIES.includes(e.key))
+        .sort((a, b) => b.count - a.count);
+      return { level: 'country' as const, tiles: [...priority, ...others] };
     }
 
     const inCountry = byCountry.get(drillCountry) || [];
@@ -768,34 +784,48 @@ function DrillDownView({
             {drill.tiles.map((tile) => {
               const Icon =
                 drill.level === 'country' ? Globe2 : drill.level === 'city' ? Building2 : Users;
-              const subtitle =
-                drill.level === 'country'
-                  ? `Tenants in ${tile.key}`
-                  : drill.level === 'city'
-                    ? `${tile.key}`
-                    : tile.key;
+              const isEmpty = tile.count === 0;
+              const disabled = drill.level === 'country' && isEmpty;
               return (
                 <button
                   key={tile.key}
+                  disabled={disabled}
                   onClick={() => {
                     if (drill.level === 'country') setDrillCountry(tile.key);
                     else if (drill.level === 'city') setDrillCity(tile.key);
                     else setDrillAgent(tile.key);
                   }}
-                  className="text-left rounded-xl border bg-card hover:border-primary/40 hover:shadow-md transition-all p-3 group"
+                  className={cn(
+                    'text-left rounded-xl border bg-card transition-all p-3 group',
+                    disabled
+                      ? 'opacity-60 cursor-not-allowed'
+                      : 'hover:border-primary/40 hover:shadow-md',
+                  )}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                       <Icon className="h-4 w-4 text-primary" />
                     </div>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                    {!disabled && (
+                      <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                    )}
                   </div>
-                  <p className="mt-2 text-sm font-semibold text-foreground truncate">
-                    {drill.level === 'country' ? `Tenants in ${tile.key}` : tile.key}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    {tile.count} tenant{tile.count === 1 ? '' : 's'}
-                  </p>
+                  <div className="mt-2 flex items-baseline gap-2">
+                    <span className={cn(
+                      'text-2xl font-bold tabular-nums',
+                      isEmpty ? 'text-muted-foreground' : 'text-foreground',
+                    )}>
+                      {tile.count}
+                    </span>
+                    <span className="text-sm font-semibold text-foreground truncate">
+                      {drill.level === 'country' ? `Tenants in ${tile.key}` : tile.key}
+                    </span>
+                  </div>
+                  {drill.level !== 'country' && (
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {tile.count} tenant{tile.count === 1 ? '' : 's'}
+                    </p>
+                  )}
                 </button>
               );
             })}
