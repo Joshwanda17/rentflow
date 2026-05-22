@@ -239,6 +239,17 @@ export function AgentRentCapacityPanel({
     (r) => r.used / AGENT_RENT_CAP_UGX >= 0.85,
   ).length;
 
+  const expandAll = () => {
+    const next: Record<string, boolean> = {};
+    (filtered || []).forEach((r) => { next[r.agent_id] = false; });
+    setRowCollapsed(next);
+  };
+  const collapseAll = () => {
+    const next: Record<string, boolean> = {};
+    (filtered || []).forEach((r) => { next[r.agent_id] = true; });
+    setRowCollapsed(next);
+  };
+
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden">
       <div className="p-3 sm:p-4 bg-gradient-to-br from-primary/10 via-violet-500/5 to-transparent border-b border-border">
