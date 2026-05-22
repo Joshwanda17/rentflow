@@ -1720,7 +1720,7 @@ export function LandlordOpsDashboard() {
       <div className="space-y-4">
         <BackButton />
         <RentPipelineQueue stage="tenant_ops_approved" />
-        <RejectedRequestsQueue stageFilter="tenant_ops_approved" title="Rejected at Landlord Ops" />
+        <RejectedRequestsQueue stageFilter="tenant_ops_approved" title="Rejected at Landlord Ops" collapsible />
         <DealPipeline />
       </div>
       {renderDialogs()}
@@ -1877,7 +1877,7 @@ export function LandlordOpsDashboard() {
     <div className="space-y-4">
       {/* Priority actions */}
       <RentPipelineQueue stage="tenant_ops_approved" />
-      <RejectedRequestsQueue stageFilter="tenant_ops_approved" title="Rejected at Landlord Ops" />
+      <RejectedRequestsQueue stageFilter="tenant_ops_approved" title="Rejected at Landlord Ops" collapsible />
       <LandlordOpsPayoutReview reviewRole="landlord_ops" />
 
       {/* Agent Rent-Request Capacity (fleet-wide) */}
