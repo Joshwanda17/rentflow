@@ -13,6 +13,8 @@ import { useToast } from '@/hooks/use-toast';
 import { fetchAgentWalletData } from '@/lib/fetchAgentWalletData';
 import { generateAgentWalletReportPdf } from '@/lib/agentWalletReportPdf';
 import { cn } from '@/lib/utils';
+import { useAgentCapacityMap } from '@/hooks/useAgentCapacityMap';
+import { AgentCapacityBadge } from './AgentCapacityBadge';
 
 interface AgentRow {
   id: string;
@@ -94,6 +96,8 @@ export function AgentDirectory() {
   });
 
   const rows = data?.rows ?? [];
+  const visibleAgentIds = useMemo(() => rows.map(r => r.id), [rows]);
+  const { data: capacityMap, isFetching: capacityFetching } = useAgentCapacityMap(visibleAgentIds);
   const totals = data?.totals;
   const totalMatched = data?.totalMatched ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalMatched / PAGE_SIZE));
@@ -281,6 +285,11 @@ export function AgentDirectory() {
                       {a.verified && (
                         <Badge variant="default" className="text-[10px] px-1 py-0 h-4 shrink-0">✓</Badge>
                       )}
+                      <AgentCapacityBadge
+                        capacity={capacityMap?.get(a.id)}
+                        loading={capacityFetching && !capacityMap}
+                        className="shrink-0"
+                      />
                     </div>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       {a.phone && (
@@ -294,6 +303,13 @@ export function AgentDirectory() {
                         </span>
                       )}
                     </div>
+                    {capacityMap?.get(a.id) && (
+                      <p className="text-[10px] text-muted-foreground tabular-nums mt-0.5 truncate">
+                        Rent exposure <strong className="text-foreground">UGX {((capacityMap.get(a.id)!.used)/1e6).toFixed(2)}M</strong>
+                        {' '}/ 100M · headroom{' '}
+                        <strong className="text-foreground">UGX {((capacityMap.get(a.id)!.headroom)/1e6).toFixed(2)}M</strong>
+                      </p>
+                    )}
                   </div>
                   {daysAgo !== null && (
                     <div className="hidden sm:block text-right shrink-0 text-xs">
