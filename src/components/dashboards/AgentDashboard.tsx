@@ -426,6 +426,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
         <AgentAgreementBanner />
 
+        {/* Linked-but-uncredited deposits — surfaces stuck float receipts */}
+        <AgentPendingReceiptPanel />
+
         {/* Profile + Name + AI ID */}
         <div className="flex items-center gap-3">
           <button
