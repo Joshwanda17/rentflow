@@ -9,28 +9,44 @@ export const ACTIVE_RENT_STATUSES = [
 export const AGENT_RENT_CAP_UGX = 100_000_000;
 
 /**
- * Agent rating tiers based on **last 7 days' Daily Collection Rate (DCR)**.
- * DCR = (UGX collected from tenants in the last 7 days)
- *       ÷ (sum of daily_repayment across active rent_requests × 7)
+ * Agent rating tiers based on **last 7 days' Daily Response Rate (DRR)**.
  *
- *   ≥ 50%   → Positive  (per-tenant max  UGX 6,000,000)
- *   25–49%  → Fair      (per-tenant max  UGX 3,000,000)
- *   6–24%   → Bad       (per-tenant max  UGX 1,000,000)
- *   ≤ 5%    → Very Bad  (blocked from new rent requests)
+ * We deliberately measure RESPONSIVENESS, not amount collected. An agent
+ * whose tenants pay something — even a small amount — every day is doing
+ * the hardest part of the job (keeping the tenant engaged) and is rewarded
+ * for it.
+ *
+ *   DRR = (count of (tenant × day) cells in the last 7 days where the
+ *          tenant made at least one repayment)
+ *         ÷ (active tenants × 7)
+ *
+ *   ≥ 70%   → Positive  (per-tenant max  UGX 6,000,000)
+ *   40–69%  → Fair      (per-tenant max  UGX 3,000,000)
+ *   10–39%  → Bad       (per-tenant max  UGX 1,000,000)
+ *   < 10%   → Very Bad  (blocked from new rent requests)
  *   no active rents → Starter (per-tenant max UGX 500,000)
  */
 export const AGENT_TIER_THRESHOLDS = {
-  positive: 0.50,
-  fair:     0.25,
-  bad:      0.06,
+  positive: 0.70,
+  fair:     0.40,
+  bad:      0.10,
 } as const;
 
 export type AgentCapacity = {
   used: number;
   active_count: number;
-  repayment_rate: number;          // 0..1 — last 7d DCR
-  expected_weekly: number;         // UGX expected from tenants over the past 7 days
-  paid_last_week: number;          // UGX actually collected in last 7 days
+  /** Last 7-day Daily Response Rate (0..1). Primary tier metric. */
+  response_rate: number;
+  /** Count of (tenant × day) cells in last 7d where the tenant paid ≥ UGX 1. */
+  responding_tenant_days: number;
+  /** Maximum possible responding cells = active_count × 7. */
+  expected_tenant_days: number;
+  /** Secondary stat — total UGX collected in last 7 days. */
+  paid_last_week: number;
+  /** @deprecated alias of `response_rate` kept for backwards compatibility. */
+  repayment_rate: number;
+  /** @deprecated kept for backwards compatibility (= daily_expected × 7). */
+  expected_weekly: number;
   headroom: number;
   pct: number;
   tier: 'Positive' | 'Fair' | 'Bad' | 'Very Bad' | 'Starter';
@@ -38,22 +54,22 @@ export type AgentCapacity = {
 };
 
 export function classifyAgent(
-  expected_weekly: number,
-  weekly_rate: number,
+  active_count: number,
+  response_rate: number,
 ): { tier: AgentCapacity['tier']; per_tenant_max: number } {
-  if (expected_weekly <= 0) return { tier: 'Starter', per_tenant_max: 500_000 };
-  if (weekly_rate >= AGENT_TIER_THRESHOLDS.positive)
+  if (active_count <= 0) return { tier: 'Starter', per_tenant_max: 500_000 };
+  if (response_rate >= AGENT_TIER_THRESHOLDS.positive)
     return { tier: 'Positive', per_tenant_max: 6_000_000 };
-  if (weekly_rate >= AGENT_TIER_THRESHOLDS.fair)
+  if (response_rate >= AGENT_TIER_THRESHOLDS.fair)
     return { tier: 'Fair', per_tenant_max: 3_000_000 };
-  if (weekly_rate >= AGENT_TIER_THRESHOLDS.bad)
+  if (response_rate >= AGENT_TIER_THRESHOLDS.bad)
     return { tier: 'Bad', per_tenant_max: 1_000_000 };
   return { tier: 'Very Bad', per_tenant_max: 0 };
 }
 
 /**
  * Batch-loads rent-request capacity for a set of agent IDs.
- * Repayment rate = last 7 days' Daily Collection Rate (DCR).
+ * Rating metric = last 7 days' Daily Response Rate (DRR) — see header.
  * Returns a Map keyed by agent_id.
  */
 export function useAgentCapacityMap(agentIds: string[]) {
@@ -87,8 +103,11 @@ export function useAgentCapacityMap(agentIds: string[]) {
         activeIdToAgent.set(r.id, r.agent_id);
       });
 
-      // 2) Sum repayments collected in the last 7 days, scoped to active rent_requests
+      // 2) For each active rent_request, find DISTINCT calendar days in
+      //    the last 7 with at least one repayment (any amount). Aggregate
+      //    those (rent × day) cells per agent — that's the DRR numerator.
       const paidByAgent = new Map<string, number>();
+      const respondingDaysByAgent = new Map<string, number>();
       const activeIds = Array.from(activeIdToAgent.keys());
       if (activeIds.length > 0) {
         const BATCH = 200;
@@ -99,10 +118,27 @@ export function useAgentCapacityMap(agentIds: string[]) {
             .select('rent_request_id, amount, created_at')
             .in('rent_request_id', slice)
             .gte('created_at', weekAgoISO);
+          // Per-rent unique paying-day sets
+          const dayKeyByRent = new Map<string, Set<string>>();
           (pays || []).forEach((p: any) => {
+            const amt = Number(p.amount) || 0;
             const agentId = activeIdToAgent.get(p.rent_request_id);
             if (!agentId) return;
-            paidByAgent.set(agentId, (paidByAgent.get(agentId) || 0) + (Number(p.amount) || 0));
+            paidByAgent.set(agentId, (paidByAgent.get(agentId) || 0) + amt);
+            if (amt <= 0) return;
+            const day = (p.created_at as string).slice(0, 10);
+            let set = dayKeyByRent.get(p.rent_request_id);
+            if (!set) { set = new Set(); dayKeyByRent.set(p.rent_request_id, set); }
+            set.add(day);
+          });
+          // Roll up rent-level day sets into per-agent (rent × day) cell counts
+          dayKeyByRent.forEach((daySet, rentId) => {
+            const agentId = activeIdToAgent.get(rentId);
+            if (!agentId) return;
+            respondingDaysByAgent.set(
+              agentId,
+              (respondingDaysByAgent.get(agentId) || 0) + daySet.size,
+            );
           });
         }
       }
@@ -113,17 +149,27 @@ export function useAgentCapacityMap(agentIds: string[]) {
         const dailyExpected = expectedDaily.get(id) || 0;
         const expected_weekly = dailyExpected * 7;
         const paid_last_week = paidByAgent.get(id) || 0;
-        const repayment_rate =
-          expected_weekly > 0 ? Math.min(1, paid_last_week / expected_weekly) : 0;
-        const { tier, per_tenant_max } = classifyAgent(expected_weekly, repayment_rate);
+        const expected_tenant_days = exp.count * 7;
+        const responding_tenant_days = Math.min(
+          respondingDaysByAgent.get(id) || 0,
+          expected_tenant_days,
+        );
+        const response_rate =
+          expected_tenant_days > 0
+            ? Math.min(1, responding_tenant_days / expected_tenant_days)
+            : 0;
+        const { tier, per_tenant_max } = classifyAgent(exp.count, response_rate);
         const headroom = Math.max(AGENT_RENT_CAP_UGX - exp.used, 0);
         const pct = Math.min(100, Math.round((exp.used / AGENT_RENT_CAP_UGX) * 100));
         out.set(id, {
           used: exp.used,
           active_count: exp.count,
-          repayment_rate,
-          expected_weekly,
+          response_rate,
+          responding_tenant_days,
+          expected_tenant_days,
           paid_last_week,
+          repayment_rate: response_rate,
+          expected_weekly,
           headroom,
           pct,
           tier,

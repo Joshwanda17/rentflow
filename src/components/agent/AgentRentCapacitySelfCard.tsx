@@ -7,7 +7,7 @@ import {
   type AgentCapacity,
 } from '@/hooks/useAgentCapacityMap';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Gauge, TrendingUp, CalendarDays, Info } from 'lucide-react';
+import { Gauge, CalendarCheck2, Users, Info } from 'lucide-react';
 
 const TIER_TONE: Record<AgentCapacity['tier'], string> = {
   Positive:   'bg-emerald-500/15 text-emerald-700 border-emerald-500/30',
@@ -29,7 +29,7 @@ export function AgentRentCapacitySelfCard() {
 
   if (!user?.id) return null;
 
-  const ratePct = cap ? Math.round(cap.repayment_rate * 100) : 0;
+  const ratePct = cap ? Math.round(cap.response_rate * 100) : 0;
   const pct = cap ? cap.pct : 0;
   const bar = pct >= 95 ? 'bg-destructive' : pct >= 75 ? 'bg-amber-500' : 'bg-emerald-500';
 
@@ -43,14 +43,14 @@ export function AgentRentCapacitySelfCard() {
           <div className="min-w-0 flex-1">
             <h3 className="text-sm font-bold text-foreground">My Rent-Request Capacity</h3>
             <p className="text-[11px] text-muted-foreground">
-              Hard cap UGX {formatUGX(AGENT_RENT_CAP_UGX)} of active rent exposure per agent
+              Rated on <strong>daily tenant response</strong> — keep them paying every day, even small amounts
             </p>
           </div>
           {cap && (
             <span
-              className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold border ${TIER_TONE[cap.tier]}`}
+              className={`shrink-0 px-2 py-1 rounded-full text-xs font-extrabold border ${TIER_TONE[cap.tier]}`}
             >
-              {cap.tier}
+              {cap.tier} · {ratePct}%
             </span>
           )}
         </div>
@@ -66,10 +66,36 @@ export function AgentRentCapacitySelfCard() {
           </p>
         ) : (
           <>
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                    Last 7 days · Daily Tenant Response
+                  </div>
+                  <div className="mt-0.5 text-2xl font-extrabold tabular-nums text-foreground">
+                    {ratePct}%
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    {cap.responding_tenant_days} of {cap.expected_tenant_days} possible
+                    tenant-day responses
+                  </p>
+                </div>
+                <div className="h-12 w-12 rounded-full border-2 border-emerald-500/30 flex items-center justify-center">
+                  <CalendarCheck2 className="h-6 w-6 text-emerald-600" />
+                </div>
+              </div>
+              <div className="mt-2 h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full bg-emerald-500 transition-all"
+                  style={{ width: `${ratePct}%` }}
+                />
+              </div>
+            </div>
+
             <div>
               <div className="flex items-center justify-between text-[11px] font-semibold tabular-nums mb-1">
                 <span className="text-muted-foreground">
-                  Used{' '}
+                  Exposure{' '}
                   <span className="text-foreground">{formatUGX(cap.used)}</span> /{' '}
                   {formatUGX(AGENT_RENT_CAP_UGX)}
                 </span>
@@ -92,26 +118,26 @@ export function AgentRentCapacitySelfCard() {
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-xl border border-border bg-background/70 p-2.5">
                 <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-primary">
-                  <CalendarDays className="h-3.5 w-3.5" />
-                  Expected · Last 7 days
+                  <Users className="h-3.5 w-3.5" />
+                  Active Tenants
                 </div>
                 <div className="mt-0.5 text-sm font-extrabold tabular-nums text-foreground">
-                  {formatUGX(cap.expected_weekly)}
+                  {cap.active_count}
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-0.5">
-                  Sum of daily rent × 7 across your active tenants
+                  Each tenant × 7 days = {cap.expected_tenant_days} chances to respond
                 </p>
               </div>
               <div className="rounded-xl border border-border bg-background/70 p-2.5">
                 <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-600">
-                  <TrendingUp className="h-3.5 w-3.5" />
-                  Collected · Last 7 days
+                  <CalendarCheck2 className="h-3.5 w-3.5" />
+                  Responses · Last 7 days
                 </div>
                 <div className="mt-0.5 text-sm font-extrabold tabular-nums text-foreground">
-                  {formatUGX(cap.paid_last_week)}
+                  {cap.responding_tenant_days}
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-0.5">
-                  Your weekly collection rate: <strong>{ratePct}%</strong>
+                  Tenant-days with any payment · {formatUGX(cap.paid_last_week)} total
                 </p>
               </div>
             </div>
@@ -124,9 +150,10 @@ export function AgentRentCapacitySelfCard() {
             How your tier is calculated
           </div>
           <p className="text-[11px] text-muted-foreground leading-relaxed">
-            Each day, your tenants are expected to pay the daily amount on every active rent
-            request you posted. We add those up across the last 7 days and compare it to what you
-            actually collected.
+            We measure <strong>responsiveness</strong>, not the size of payments. For each of your
+            active tenants over the last 7 days, we check: <em>did they pay anything that day?</em>
+            {' '}Even UGX 1,000 counts as a response. Your tier rewards agents who keep tenants
+            paying every single day.
           </p>
           <ul className="mt-2 space-y-1 text-[11px]">
             <li className="flex items-center justify-between gap-2">
@@ -134,7 +161,7 @@ export function AgentRentCapacitySelfCard() {
                 <span className="h-2 w-2 rounded-full bg-emerald-500" />
                 <strong className="text-foreground">Positive</strong>
                 <span className="text-muted-foreground">
-                  ≥ {Math.round(AGENT_TIER_THRESHOLDS.positive * 100)}% collected
+                  ≥ {Math.round(AGENT_TIER_THRESHOLDS.positive * 100)}% daily response
                 </span>
               </span>
               <span className="font-mono text-foreground">UGX 6,000,000 / tenant</span>

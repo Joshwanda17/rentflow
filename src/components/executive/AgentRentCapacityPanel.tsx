@@ -17,8 +17,9 @@ type AgentRow = {
   phone: string | null;
   used: number;
   active_count: number;
-  repayment_rate: number;   // 0..1 — last 7 days DCR
-  expected_weekly: number;
+  response_rate: number;          // 0..1 — last 7 days DRR
+  responding_tenant_days: number;
+  expected_tenant_days: number;
   paid_last_week: number;
   tier: AgentCapacity['tier'];
   per_tenant_max: number;
@@ -42,7 +43,6 @@ export function AgentRentCapacityPanel({
         .not('agent_id', 'is', null);
 
       const exposureMap = new Map<string, { used: number; count: number }>();
-      const expectedDaily = new Map<string, number>();
       const activeIdToAgent = new Map<string, string>();
       (active || []).forEach((r: any) => {
         if (!r.agent_id) return;
@@ -52,16 +52,15 @@ export function AgentRentCapacityPanel({
         );
         const prev = exposureMap.get(r.agent_id) || { used: 0, count: 0 };
         exposureMap.set(r.agent_id, { used: prev.used + owed, count: prev.count + 1 });
-        expectedDaily.set(
-          r.agent_id,
-          (expectedDaily.get(r.agent_id) || 0) + (Number(r.daily_repayment) || 0),
-        );
         activeIdToAgent.set(r.id, r.agent_id);
       });
 
-      // 2) Sum repayments collected in the last 7 days, scoped to active rents
+      // 2) Daily Response Rate — count distinct (rent × day) cells in the
+      //    last 7 days where the tenant paid at least UGX 1. Also keep
+      //    the UGX total as a secondary stat.
       const weekAgoISO = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
       const paidByAgent = new Map<string, number>();
+      const respondingDaysByAgent = new Map<string, number>();
       const activeIds = Array.from(activeIdToAgent.keys());
       const BATCH_PAY = 200;
       for (let i = 0; i < activeIds.length; i += BATCH_PAY) {
@@ -71,10 +70,25 @@ export function AgentRentCapacityPanel({
           .select('rent_request_id, amount, created_at')
           .in('rent_request_id', slice)
           .gte('created_at', weekAgoISO);
+        const dayKeyByRent = new Map<string, Set<string>>();
         (pays || []).forEach((p: any) => {
+          const amt = Number(p.amount) || 0;
           const agentId = activeIdToAgent.get(p.rent_request_id);
           if (!agentId) return;
-          paidByAgent.set(agentId, (paidByAgent.get(agentId) || 0) + (Number(p.amount) || 0));
+          paidByAgent.set(agentId, (paidByAgent.get(agentId) || 0) + amt);
+          if (amt <= 0) return;
+          const day = (p.created_at as string).slice(0, 10);
+          let set = dayKeyByRent.get(p.rent_request_id);
+          if (!set) { set = new Set(); dayKeyByRent.set(p.rent_request_id, set); }
+          set.add(day);
+        });
+        dayKeyByRent.forEach((daySet, rentId) => {
+          const agentId = activeIdToAgent.get(rentId);
+          if (!agentId) return;
+          respondingDaysByAgent.set(
+            agentId,
+            (respondingDaysByAgent.get(agentId) || 0) + daySet.size,
+          );
         });
       }
 
@@ -96,12 +110,17 @@ export function AgentRentCapacityPanel({
 
       const rows: AgentRow[] = agentIds.map((id) => {
         const exp = exposureMap.get(id) || { used: 0, count: 0 };
-        const dailyExpected = expectedDaily.get(id) || 0;
-        const expected_weekly = dailyExpected * 7;
         const paid_last_week = paidByAgent.get(id) || 0;
-        const repayment_rate =
-          expected_weekly > 0 ? Math.min(1, paid_last_week / expected_weekly) : 0;
-        const { tier, per_tenant_max } = classifyAgent(expected_weekly, repayment_rate);
+        const expected_tenant_days = exp.count * 7;
+        const responding_tenant_days = Math.min(
+          respondingDaysByAgent.get(id) || 0,
+          expected_tenant_days,
+        );
+        const response_rate =
+          expected_tenant_days > 0
+            ? Math.min(1, responding_tenant_days / expected_tenant_days)
+            : 0;
+        const { tier, per_tenant_max } = classifyAgent(exp.count, response_rate);
         const prof = profileMap.get(id) || { name: id.slice(0, 8), phone: null };
         return {
           agent_id: id,
@@ -109,8 +128,9 @@ export function AgentRentCapacityPanel({
           phone: prof.phone,
           used: exp.used,
           active_count: exp.count,
-          repayment_rate,
-          expected_weekly,
+          response_rate,
+          responding_tenant_days,
+          expected_tenant_days,
           paid_last_week,
           tier,
           per_tenant_max,
@@ -155,7 +175,7 @@ export function AgentRentCapacityPanel({
               Agent Rent-Request Capacity
             </h3>
             <p className="text-[11px] text-muted-foreground">
-              Tier = last 7 days' collection rate vs daily expected · Hard cap UGX{' '}
+              Tier = last 7 days' <strong>tenant response rate</strong> (any payment = a daily response) · Hard cap UGX{' '}
               {formatUGX(AGENT_RENT_CAP_UGX)} per agent
             </p>
           </div>
@@ -261,7 +281,7 @@ function Kpi({
 function CapacityRow({ row }: { row: AgentRow }) {
   const pct = Math.min(100, Math.round((row.used / AGENT_RENT_CAP_UGX) * 100));
   const headroom = Math.max(AGENT_RENT_CAP_UGX - row.used, 0);
-  const rateLabel = `${Math.round(row.repayment_rate * 100)}%`;
+  const rateLabel = `${Math.round(row.response_rate * 100)}%`;
   const tierTone: Record<AgentCapacity['tier'], string> = {
     Positive:   'bg-emerald-500/15 text-emerald-700 border-emerald-500/30',
     Fair:       'bg-amber-500/15 text-amber-700 border-amber-500/30',
@@ -302,15 +322,16 @@ function CapacityRow({ row }: { row: AgentRow }) {
           Headroom <strong className="text-foreground font-mono">{formatUGX(headroom)}</strong>
         </span>
         <span className="text-muted-foreground">
-          Week rate <strong className="text-foreground">{rateLabel}</strong> · Per-tenant max{' '}
+          Response <strong className="text-foreground">{rateLabel}</strong> · Per-tenant max{' '}
           <strong className="text-foreground font-mono">{formatUGX(tier.max)}</strong>
         </span>
       </div>
       <div className="text-[10px] text-muted-foreground mt-1 tabular-nums">
-        Last 7d: collected{' '}
-        <strong className="text-foreground font-mono">{formatUGX(row.paid_last_week)}</strong>{' '}
-        of expected{' '}
-        <strong className="text-foreground font-mono">{formatUGX(row.expected_weekly)}</strong>
+        Last 7d: <strong className="text-foreground">{row.responding_tenant_days}</strong> /{' '}
+        <strong className="text-foreground">{row.expected_tenant_days}</strong> tenant-day responses
+        {row.paid_last_week > 0 && (
+          <> · <span className="text-muted-foreground">{formatUGX(row.paid_last_week)} total</span></>
+        )}
       </div>
     </li>
   );
