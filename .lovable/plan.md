@@ -1,57 +1,71 @@
-## Add "Extract Report" button to Landlord Ops → Landlords & Tenants
+## Goal
 
-Add an export button on the **Landlords & Tenants** view inside Landlord Operations that downloads a fully-detailed spreadsheet — one row per landlord ↔ tenant pairing with every relevant landlord, tenant and rent-plan field as its own column.
+Tie how much rent an agent can post for a tenant to that tenant's actual repayment behavior, and cap each agent's total outstanding exposure across all their tenants at **UGX 100,000,000**.
 
-### Where the button goes
+## Limit model
 
-File: `src/components/executive/landlord-ops/LandlordsWithTenantsView.tsx`
+### Per-tenant rent request limit (driven by repayment rate)
 
-Place a `Download Report` button in the filter bar next to the search input (top right). Uses the existing `Button` + `Download` icon. Honors the current search + status filter so the user can scope the export.
+`repayment_rate` = `total_paid_on_time / total_due_to_date` over the tenant's completed + active rent cycles (last 180 days). New tenants with no history default to the "starter" tier.
 
-### Data the export will pull
+| Tier | Repayment rate | Per-request max |
+|------|---------------|-----------------|
+| Starter (new tenant, no history) | — | UGX 500,000 |
+| Building (≥ 60%) | 60–79% | UGX 1,500,000 |
+| Reliable (≥ 80%) | 80–94% | UGX 3,000,000 |
+| Premium (≥ 95%) | 95–100% | UGX 6,000,000 |
+| Defaulting (< 60%) | below 60% | blocked (must clear arrears) |
 
-A dedicated query (independent of the on-screen grouped query — needs more columns) hitting:
+A tenant with an active unpaid rent request cannot start a new one (existing rule, kept).
 
-- `landlords` — id, name, phone, verified, mobile_money_name, mobile_money_number, bank_name, account_number, village, district, region, number_of_houses, monthly_rent, caretaker_name, caretaker_phone, tin
-- `rent_requests` — id, tenant_id, landlord_id, registration_type, rent_amount, total_repayment, amount_repaid, daily_repayment, duration_days, status, created_at, funded_at, disbursed_at, completed_at, initial_outstanding_balance
-- `profiles` (tenants) — id, full_name, phone, national_id
-- `house_listings` — landlord_id, tenant_id, title, address, monthly_rent (to surface landlord↔tenant links that don't yet have a rent_request)
+### Agent-level aggregate cap
 
-All three queries paginate with the existing 1000-row `while` loop pattern already used in the view (per `mem://architecture/high-scale-ops-automation`).
+Across all rent requests this agent has posted that are still in `outstanding_balance > 0`, the sum cannot exceed **UGX 100,000,000**. New requests are clipped to whichever is smaller:
 
-### Row shape (one row per pairing)
+```text
+allowed = min(tenant_tier_max, 100_000_000 − agent_current_exposure)
+```
 
-Each row is a flat record. Pairings come from:
-1. Every `rent_requests` row (one row per request).
-2. House-listing tenant links and `landlords.tenant_id` links that have no rent_request → one row each with rent-plan columns blank.
-3. Landlords with no linked tenant at all → one row with tenant columns blank (so all ~325 landlords appear).
+If `allowed < 100,000` the agent is told to wait for collections to free up headroom.
 
-### Columns (in order)
+## Implementation
 
-| Group | Columns |
-|---|---|
-| Landlord | Landlord ID, Landlord Name, Landlord Phone, Verified, MoMo Name, MoMo Number, Bank, Account #, Village, District, Region, # Houses, TIN, Caretaker Name, Caretaker Phone, Listed Monthly Rent |
-| Tenant | Tenant ID, Tenant Name, Tenant Phone, National ID |
-| Linkage | Link Source (rent_request / house_listing / landlord.tenant_id / none), House Title, House Address |
-| Rent Plan | Request ID, Registration Type (normal / outstanding_balance), Status, Rent Amount (Principal), Total Repayment (Expected), Amount Repaid (Collected), Outstanding, Daily Repayment, Duration (days), Initial Outstanding Balance, Created At, Funded At, Disbursed At, Completed At |
-| Computed | Rent Disbursed (UGX) — `rent_amount` when `disbursed_at` is set, else 0; Collection Rate % — `amount_repaid / total_repayment` |
+### 1. New RPC `get_agent_rent_request_capacity(p_agent_id, p_tenant_id)`
 
-All currency columns written as numbers (not strings) so the user can sum/filter in Excel.
+Returns:
+- `tenant_repayment_rate` (numeric 0–1)
+- `tenant_tier` (text)
+- `tenant_max` (bigint, UGX)
+- `agent_exposure` (bigint, sum of outstanding across agent's active rent_requests)
+- `agent_cap` (bigint, hard 100M)
+- `agent_headroom` (bigint, `agent_cap − agent_exposure`)
+- `allowed_max` (bigint, `min(tenant_max, agent_headroom)`)
+- `reason` (text, human-readable if blocked)
 
-### Export format
+Read-only, `SECURITY DEFINER`, `SET search_path = public`.
 
-Use the existing `downloadXlsx` helper at `src/lib/xlsxExport.ts` — produces a single-sheet `.xlsx` with frozen header row and auto-sized columns. Filename: `landlord-ops-extract-YYYY-MM-DD.xlsx`.
+### 2. Server-side enforcement
 
-Also include a small "Summary" footer/sheet? **No** — keep it as a single flat sheet so the user can pivot freely. Totals are trivial to compute from the columns.
+Add a `BEFORE INSERT` trigger on `public.rent_requests` that:
+- Calls `get_agent_rent_request_capacity(agent_id, tenant_id)`
+- Rejects if `rent_amount > allowed_max` or `tier = 'defaulting'`
+- Raises a clean exception message the dialog can surface
 
-### UX
+### 3. Frontend wiring (UI only — no business logic duplicated)
 
-- Button states: idle → "Download Report" / loading → spinner + "Building…" / success toast: "Downloaded N rows".
-- Disabled while loading.
-- Export respects the current search + status filter applied on the view.
+In `AgentRentRequestDialog.tsx`:
+- On tenant select, fetch capacity via the new RPC
+- Show a compact "Repayment Capacity" card: tier badge, repayment %, tenant max, agent headroom
+- Clamp the rent amount input's `max` to `allowed_max`
+- Inline error when amount > `allowed_max` (with the reason from RPC)
+- Disable submit when blocked
 
-### Files touched
+### 4. Agent dashboard surface
 
-1. `src/components/executive/landlord-ops/LandlordsWithTenantsView.tsx` — add button, add `buildExtractRows()` helper + `handleExport()` async fn that runs the dedicated pull, flattens, then calls `downloadXlsx`.
+Small "Tenant Rent Capacity" widget at the top of the agent's tenants list (uses the same RPC aggregated): shows used / 100M, headroom, and how many tenants are currently in each tier.
 
-No DB migration, no edge function, no backend change.
+## Out of scope
+
+- Changing existing rent_requests or recalculating limits on prior approvals
+- Changing the Welile Trust Score formula (this is a separate, simpler operational guardrail)
+- Refunds / clawbacks

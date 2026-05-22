@@ -79,6 +79,91 @@ const PREFERRED_LANGUAGES = [
 // ===== FIX #1: Ugandan phone validation =====
 const UG_PHONE_REGEX = /^0[3-9][0-9]{8}$/;
 
+const ACTIVE_RENT_STATUSES = [
+  'pending','agent_verified','tenant_ops_approved',
+  'agent_ops_approved','landlord_ops_approved',
+  'coo_approved','funded','repaying',
+];
+const AGENT_RENT_CAP_UGX = 100_000_000;
+
+function AgentCapacityBanner({ agentId }: { agentId?: string }) {
+  const [exposure, setExposure] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!agentId) return;
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('rent_requests')
+        .select('total_repayment, amount_repaid')
+        .eq('agent_id', agentId)
+        .in('status', ACTIVE_RENT_STATUSES);
+      if (cancelled) return;
+      if (error || !data) {
+        setExposure(0);
+      } else {
+        const total = data.reduce((acc, r: any) => {
+          const owed = Math.max(
+            (Number(r.total_repayment) || 0) - (Number(r.amount_repaid) || 0),
+            0,
+          );
+          return acc + owed;
+        }, 0);
+        setExposure(Math.round(total));
+      }
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [agentId]);
+
+  const used = exposure ?? 0;
+  const headroom = Math.max(AGENT_RENT_CAP_UGX - used, 0);
+  const pct = Math.min(100, Math.round((used / AGENT_RENT_CAP_UGX) * 100));
+  const tone =
+    pct >= 95 ? 'bg-destructive/10 border-destructive/40 text-destructive'
+    : pct >= 75 ? 'bg-warning/10 border-warning/40 text-warning'
+    : 'bg-success/10 border-success/30 text-success';
+
+  return (
+    <div className={`rounded-xl border p-3 ${tone}`}>
+      <div className="flex items-center justify-between text-xs font-semibold mb-1.5">
+        <span>Your Active Rent Exposure</span>
+        <span>
+          {loading ? '…' : `${formatUGX(used)} / ${formatUGX(AGENT_RENT_CAP_UGX)}`}
+        </span>
+      </div>
+      <div className="h-1.5 w-full rounded-full bg-background/40 overflow-hidden">
+        <div
+          className="h-full bg-current transition-all"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <p className="text-[11px] mt-1.5 leading-snug opacity-90">
+        Headroom available for new rent requests:{' '}
+        <strong className="font-mono">{formatUGX(headroom)}</strong>.
+        Per-tenant rent limits scale with each tenant's repayment rate.
+        Collect on existing rent to grow your headroom.
+      </p>
+    </div>
+  );
+}
+
+function humanizeCapacityError(message: string): string | null {
+  const m = (message || '').toLowerCase();
+  if (m.includes('100,000,000') || m.includes('exposure cap')) {
+    return 'You have reached your UGX 100,000,000 active rent exposure cap. Collect on existing rent requests to free up headroom.';
+  }
+  if (m.includes('behind on rent') || m.includes('arrears')) {
+    return message; // already friendly
+  }
+  if (m.includes('exceeds your available capacity')) {
+    return message;
+  }
+  return null;
+}
+
 function isValidUgPhone(phone: string): boolean {
   return UG_PHONE_REGEX.test(phone.replace(/\s/g, ''));
 }
@@ -679,7 +764,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     } catch (error: any) {
       console.error('Submission error:', error);
       const msg = error.message || 'Failed to submit request';
-      if (msg.includes('row-level security') || msg.includes('RLS')) {
+      const capacityMsg = humanizeCapacityError(msg);
+      if (capacityMsg) {
+        setSubmissionError(capacityMsg);
+        toast.error('Rent capacity reached', { description: capacityMsg });
+      } else if (msg.includes('row-level security') || msg.includes('RLS')) {
         const friendly = 'Permission denied — your session may have expired. Please log out and log in again.';
         setSubmissionError(friendly);
         toast.error(friendly);
@@ -880,6 +969,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
               animate={{ opacity: 1 }}
               className="space-y-4"
             >
+              {/* Agent rent exposure capacity (100M UGX cap) */}
+              <AgentCapacityBanner agentId={user?.id} />
+
               {/* ===== 1. RENT DETAILS — PRIMARY SECTION ===== */}
               {incomeType === 'outstanding' ? (
                 <>
