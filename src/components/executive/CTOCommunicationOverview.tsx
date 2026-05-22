@@ -227,7 +227,7 @@ export function CTOCommunicationOverview() {
             </div>
             <span className="text-xs text-muted-foreground flex items-center gap-1">
               <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
-              Reach via SMS — emails are fallback (e.g. <code className="font-mono">@welile.user</code>).
+              Reach via SMS — emails are fallback (<code className="font-mono">@noapp.welile.user</code>) and phone is on file.
             </span>
           </div>
           <ExecutiveDataTable
