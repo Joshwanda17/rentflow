@@ -25,6 +25,7 @@ import { TenantProfileView } from './TenantProfileView';
 import { TenantFieldCollectDialog } from './TenantFieldCollectDialog';
 import { AgentRequestPipelineView } from './AgentRequestPipelineView';
 import { MarkNotFundedDialog } from './MarkNotFundedDialog';
+import { AgentRentCapacitySelfCard } from './AgentRentCapacitySelfCard';
 
 interface Tenant {
   id: string;
@@ -972,6 +973,10 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
 
           {view === 'tenants' && (
           <>
+          {/* Rent capacity + Today/Week paid vs expected */}
+          <div className="pt-1">
+            <AgentRentCapacitySelfCard />
+          </div>
           {/* Quick search — pinned at the top of the sheet so agents can
               jump straight to a tenant without scrolling past stats. */}
           <div className="sticky top-0 z-20 -mx-4 px-4 pt-1 pb-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
