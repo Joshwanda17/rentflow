@@ -1080,6 +1080,56 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
+      // Proxy-safe delete: if the portfolio actually belongs to another partner
+      // (investor_id) and is only linked to the currently-viewed partner via
+      // agent_id, we must NOT hard-delete — that would wipe the real partner's
+      // record too. Instead, detach the proxy link by pointing agent_id back
+      // to the investor. The portfolio stays intact in the real partner's
+      // account and simply disappears from this view.
+      const viewingPartnerId = detailPartner?.profile.id;
+      const isProxyEntry =
+        !!deletePortfolio.investor_id &&
+        !!viewingPartnerId &&
+        deletePortfolio.investor_id !== viewingPartnerId &&
+        deletePortfolio.agent_id === viewingPartnerId;
+
+      if (isProxyEntry) {
+        const { error: auditErr } = await supabase.from('audit_logs').insert({
+          user_id: user.id,
+          action_type: 'portfolio_proxy_unlinked',
+          table_name: 'investor_portfolios',
+          record_id: deletePortfolio.id,
+          metadata: {
+            portfolio_code: deletePortfolio.portfolio_code,
+            investment_amount: deletePortfolio.investment_amount,
+            previous_agent_id: viewingPartnerId,
+            previous_agent_name: detailPartner?.profile.full_name,
+            real_investor_id: deletePortfolio.investor_id,
+            reason: deleteReason.trim(),
+          },
+        });
+        if (auditErr) throw auditErr;
+
+        const { error: unlinkErr } = await supabase
+          .from('investor_portfolios')
+          .update({ agent_id: deletePortfolio.investor_id })
+          .eq('id', deletePortfolio.id);
+        if (unlinkErr) throw unlinkErr;
+
+        toast.success(`Portfolio ${deletePortfolio.portfolio_code} removed from this account`, {
+          description: 'The partner who owns it still has it. Action logged for audit.',
+        });
+
+        if (detailPartner) {
+          const updated = detailPartner.portfolios.filter(p => p.id !== deletePortfolio.id);
+          setDetailPartner({ ...detailPartner, portfolios: updated });
+        }
+        setDeletePortfolio(null);
+        setDeleteReason('');
+        refreshInBackground();
+        return;
+      }
+
       // Log to audit_logs before deletion
       const { error: auditErr } = await supabase.from('audit_logs').insert({
         user_id: user.id,
