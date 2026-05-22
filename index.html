@@ -102,7 +102,7 @@
             const duration = Number(params.get("duration")) || 4;
             localStorage.setItem("welile.fade.active", "true");
             localStorage.setItem("welile.fade.duration", duration.toString());
-
+            localStorage.setItem("welile.fade.startDate", new Date().toISOString());
 
             params.delete("activate");
             params.delete("duration");
@@ -110,10 +110,9 @@
             const newUrl = window.location.pathname + (newSearch ? "?" + newSearch : "") + window.location.hash;
             window.history.replaceState(null, "", newUrl);
           } else if (activate === "false") {
-
             localStorage.removeItem("welile.fade.active");
             localStorage.removeItem("welile.fade.duration");
-
+            localStorage.removeItem("welile.fade.startDate");
 
             params.delete("activate");
             const newSearch = params.toString();
@@ -124,13 +123,13 @@
           console.warn("Failed to parse activation parameters:", e);
         }
 
-
         try {
           const isActive = localStorage.getItem("welile.fade.active") === "true";
           if (!isActive) return;
 
           const duration = Number(localStorage.getItem("welile.fade.duration")) || 4;
-          const startDate = new Date("2026-05-19T00:00:00");
+          const savedStartDate = localStorage.getItem("welile.fade.startDate");
+          const startDate = savedStartDate ? new Date(savedStartDate) : new Date();
           const currentDate = new Date();
           const timeDiff = currentDate.getTime() - startDate.getTime();
           const daysPastDue = Math.floor(timeDiff / (1000 * 3600 * 24));
