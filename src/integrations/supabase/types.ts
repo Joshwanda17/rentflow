@@ -15269,6 +15269,10 @@ export type Database = {
           with_withdrawable: number
         }[]
       }
+      get_agent_rent_request_capacity: {
+        Args: { p_agent_id: string; p_tenant_id: string }
+        Returns: Json
+      }
       get_agent_reversible_allocations: {
         Args: { p_agent_id: string; p_rent_request_id: string }
         Returns: {
