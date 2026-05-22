@@ -1,71 +1,93 @@
-## Goal
+# Booking.com-Style House-by-Location Browser
 
-Tie how much rent an agent can post for a tenant to that tenant's actual repayment behavior, and cap each agent's total outstanding exposure across all their tenants at **UGX 100,000,000**.
+A scalable drill-down explorer for managing houses across 54 countries, with server-side aggregation, global search, and map view — built to handle millions of listings without loading them client-side.
 
-## Limit model
-
-### Per-tenant rent request limit (driven by repayment rate)
-
-`repayment_rate` = `total_paid_on_time / total_due_to_date` over the tenant's completed + active rent cycles (last 180 days). New tenants with no history default to the "starter" tier.
-
-| Tier | Repayment rate | Per-request max |
-|------|---------------|-----------------|
-| Starter (new tenant, no history) | — | UGX 500,000 |
-| Building (≥ 60%) | 60–79% | UGX 1,500,000 |
-| Reliable (≥ 80%) | 80–94% | UGX 3,000,000 |
-| Premium (≥ 95%) | 95–100% | UGX 6,000,000 |
-| Defaulting (< 60%) | below 60% | blocked (must clear arrears) |
-
-A tenant with an active unpaid rent request cannot start a new one (existing rule, kept).
-
-### Agent-level aggregate cap
-
-Across all rent requests this agent has posted that are still in `outstanding_balance > 0`, the sum cannot exceed **UGX 100,000,000**. New requests are clipped to whichever is smaller:
+## What the user sees (Booking.com pattern)
 
 ```text
-allowed = min(tenant_tier_max, 100_000_000 − agent_current_exposure)
+┌─────────────────────────────────────────────────────────┐
+│  🔍  Search any country, city, agent, landlord…         │
+└─────────────────────────────────────────────────────────┘
+
+[ Grid ] [ Map ]   Breadcrumbs: All › Uganda › Central › Kampala
+
+┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
+│  Uganda  │ │  Kenya   │ │ Nigeria  │ │  Ghana   │  ← tiles
+│ 12,430   │ │  8,210   │ │ 24,005   │ │  3,118   │     show total
+│ 78% occ  │ │ 65% occ  │ │ 71% occ  │ │ 82% occ  │     + occupancy
+└──────────┘ └──────────┘ └──────────┘ └──────────┘
 ```
 
-If `allowed < 100,000` the agent is told to wait for collections to free up headroom.
+Click a tile → fetches the next level (region → city → ward → agent → landlord → property). Each level loads only ~20-200 rows. Memory stays flat.
 
-## Implementation
+## Architecture (the part that makes it scale)
 
-### 1. New RPC `get_agent_rent_request_capacity(p_agent_id, p_tenant_id)`
+### 1. Server-side rollup view
+Single materialized view aggregating `house_listings`:
+```text
+mv_house_location_rollup
+  country, region, district, ward,
+  agent_id, landlord_id,
+  total, occupied, vacant, hidden, revenue_ugx
+```
+Refreshed by `pg_cron` every 10 minutes. Indexed on every level.
 
-Returns:
-- `tenant_repayment_rate` (numeric 0–1)
-- `tenant_tier` (text)
-- `tenant_max` (bigint, UGX)
-- `agent_exposure` (bigint, sum of outstanding across agent's active rent_requests)
-- `agent_cap` (bigint, hard 100M)
-- `agent_headroom` (bigint, `agent_cap − agent_exposure`)
-- `allowed_max` (bigint, `min(tenant_max, agent_headroom)`)
-- `reason` (text, human-readable if blocked)
+### 2. One RPC for drill-down
+`get_location_breakdown(p_level, p_country, p_region, p_district, p_ward, p_agent_id)`
+- Returns aggregated rows for the NEXT level only
+- Filters honor RLS scope (`landlord_ops_scope`)
+- Sub-100ms even with millions of listings
 
-Read-only, `SECURITY DEFINER`, `SET search_path = public`.
+### 3. Global search RPC
+`search_locations(p_query, p_limit)` → unified results across countries, regions, cities, agents, landlords. Lets ops jump straight to any node (the Booking.com search bar feel).
 
-### 2. Server-side enforcement
+### 4. Map view
+Africa choropleth using the Google Maps connector (already available). Click country → zoom region → markers cluster at city level. Toggle Grid ↔ Map.
 
-Add a `BEFORE INSERT` trigger on `public.rent_requests` that:
-- Calls `get_agent_rent_request_capacity(agent_id, tenant_id)`
-- Rejects if `rent_amount > allowed_max` or `tier = 'defaulting'`
-- Raises a clean exception message the dialog can surface
+### 5. Final level: properties
+At the leaf, paginated property list (20/page) with virtualization. Click a property → existing detail/edit drawer.
 
-### 3. Frontend wiring (UI only — no business logic duplicated)
+## Component plan
 
-In `AgentRentRequestDialog.tsx`:
-- On tenant select, fetch capacity via the new RPC
-- Show a compact "Repayment Capacity" card: tier badge, repayment %, tenant max, agent headroom
-- Clamp the rent amount input's `max` to `allowed_max`
-- Inline error when amount > `allowed_max` (with the reason from RPC)
-- Disable submit when blocked
+**New files**
+- `supabase/migrations/<ts>_location_rollup.sql` — MV + indexes + cron + RPCs (`get_location_breakdown`, `search_locations`, `refresh_house_location_rollup`)
+- `src/components/executive/landlord-ops/LocationBrowser.tsx` — root: search bar + view toggle + breadcrumbs + grid/map switch
+- `src/components/executive/landlord-ops/LocationTileGrid.tsx` — virtualized responsive tiles (12-col → 2-col mobile)
+- `src/components/executive/landlord-ops/LocationSearchBar.tsx` — debounced autocomplete calling `search_locations`
+- `src/components/executive/landlord-ops/LocationMapView.tsx` — Google Maps with cluster markers
+- `src/components/executive/landlord-ops/LocationBreadcrumbs.tsx` — clickable trail with back
+- `src/components/executive/landlord-ops/PropertyLeafList.tsx` — paginated property results at the bottom level
+- `src/hooks/useLocationBreakdown.ts` — React Query hook keyed by path, `staleTime: 5min`
+- `src/hooks/useLocationSearch.ts` — debounced search hook
 
-### 4. Agent dashboard surface
+**Edited**
+- `src/components/executive/landlord-ops/LandlordHousesPanel.tsx` — replace the recursive `LocationHierarchyView` with `<LocationBrowser />` when `viewMode === 'location'`. Keep landlord view untouched.
 
-Small "Tenant Rent Capacity" widget at the top of the agent's tenants list (uses the same RPC aggregated): shows used / 100M, headroom, and how many tenants are currently in each tier.
+## UX details that matter at this scale
 
-## Out of scope
+- **Skeleton tiles** while a level loads — never blank screen
+- **Sticky breadcrumbs + search bar** at top so navigation is always one click away
+- **"Pinned countries"** (localStorage) for ops who manage a subset — surfaces first
+- **Counts pills**: Total · Occupied · Vacant · Hidden — color-coded
+- **Empty states** ("No houses in this ward yet") with a "List one" CTA
+- **Keyboard**: `/` focuses search, `Esc` clears, `Backspace` goes up a level
+- **Mobile**: tiles collapse to 2-column; map becomes default on small screens
 
-- Changing existing rent_requests or recalculating limits on prior approvals
-- Changing the Welile Trust Score formula (this is a separate, simpler operational guardrail)
-- Refunds / clawbacks
+## Performance & safety
+
+- RLS on the breakdown RPC respects existing landlord-ops permissions
+- React Query caches per breadcrumb path → revisiting a country is instant
+- Map markers cluster (no DOM blow-up over 1k pins)
+- No client-side hierarchy tree; nothing is built in memory beyond the current level
+- MV refresh is cheap (incremental aggregation) and runs on cron, not on every read
+
+## Build order (single PR)
+
+1. Migration: MV + 2 RPCs + cron
+2. Hooks: `useLocationBreakdown`, `useLocationSearch`
+3. Components: Browser → Tiles → Search → Breadcrumbs → Leaf list
+4. Map view (Google Maps connector)
+5. Wire into `LandlordHousesPanel` behind the existing "Location" toggle
+6. Verify with current data (Uganda only today; future-proof for all 54 countries)
+
+After approval I'll implement it end-to-end in one go.
