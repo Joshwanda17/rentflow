@@ -193,6 +193,8 @@ export function LendingAgentsPanel() {
   const filtered = lendingAgents.filter(a =>
     !q || a.full_name.toLowerCase().includes(q) || (a.phone || '').includes(q) || a.user_id.includes(q)
   );
+  const visibleAgentIds = useMemo(() => filtered.map(a => a.user_id), [filtered]);
+  const { data: capacityMap, isFetching: capacityFetching } = useAgentCapacityMap(visibleAgentIds);
 
   const isLoading = loadingAgreements || loadingLoans;
 
@@ -241,6 +243,10 @@ export function LendingAgentsPanel() {
                         <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
                         <span className="font-medium text-sm truncate">{a.full_name}</span>
                         {a.trust_score != null && <Badge variant="outline" size="sm">Trust {a.trust_score}</Badge>}
+                        <AgentCapacityBadge
+                          capacity={capacityMap?.get(a.user_id)}
+                          loading={capacityFetching && !capacityMap}
+                        />
                       </div>
                       {a.phone && (
                         <div className="flex items-center gap-1.5 mt-0.5 text-xs text-muted-foreground">
