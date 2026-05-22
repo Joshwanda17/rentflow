@@ -101,6 +101,7 @@ export function useAgentCapacityMap(agentIds: string[]) {
       //     response denominator.
       const allActiveIds = (active || []).map((r: any) => r.id);
       const unfundedIds = new Set<string>();
+      const unfundedTenantsByAgent = new Map<string, Set<string>>();
       if (allActiveIds.length > 0) {
         const { data: revs } = await supabase
           .from('agent_tenant_float_reversals')
@@ -110,6 +111,9 @@ export function useAgentCapacityMap(agentIds: string[]) {
         (active || []).forEach((r: any) => {
           if (reversedSet.has(r.id) && (Number(r.amount_repaid) || 0) <= 0) {
             unfundedIds.add(r.id);
+            let s = unfundedTenantsByAgent.get(r.agent_id);
+            if (!s) { s = new Set(); unfundedTenantsByAgent.set(r.agent_id, s); }
+            if (r.tenant_id) s.add(r.tenant_id);
           }
         });
       }
