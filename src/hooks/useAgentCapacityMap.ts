@@ -35,6 +35,10 @@ export const AGENT_TIER_THRESHOLDS = {
 export type AgentCapacity = {
   used: number;
   active_count: number;
+  /** Distinct tenants the agent is currently collecting from (active rent_requests). */
+  active_tenant_count: number;
+  /** Distinct tenants who made at least one payment in the last 7 days. Plain-English KPI. */
+  paying_tenants_last_week: number;
   /** Last 7-day Daily Response Rate (0..1). Primary tier metric. */
   response_rate: number;
   /** Count of (tenant × day) cells in last 7d where the tenant paid ≥ UGX 1. */
