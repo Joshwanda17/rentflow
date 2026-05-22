@@ -12,6 +12,7 @@ import {
   BadgeCheck,
 } from 'lucide-react';
 import { FindAHouseCTA } from '@/components/tenant/FindAHouseCTA';
+import { WidgetErrorBoundary } from '@/components/shared/WidgetErrorBoundary';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
 import { AppRole } from '@/hooks/useAuth';
@@ -834,8 +835,12 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
 
           {/* Available houses — surfaced directly on home so tenants don't have to dig through the menu */}
           <div className="space-y-3">
-            <FindAHouseCTA onClick={() => { hapticTap(); openHousesSheet(); }} />
-            <SuggestedHousesCard userId={user.id} onViewAll={() => { openHousesSheet(); }} />
+            <WidgetErrorBoundary label="Find a house">
+              <FindAHouseCTA onClick={() => { hapticTap(); openHousesSheet(); }} />
+            </WidgetErrorBoundary>
+            <WidgetErrorBoundary label="Suggested houses">
+              <SuggestedHousesCard userId={user.id} onViewAll={() => { openHousesSheet(); }} />
+            </WidgetErrorBoundary>
           </div>
 
           {/* Single Menu button */}
