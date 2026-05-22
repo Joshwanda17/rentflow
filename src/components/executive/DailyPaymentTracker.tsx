@@ -700,15 +700,22 @@ export function DailyPaymentTracker() {
                           <a href={`tel:${t.agent_phone}`} className="underline">{t.agent_phone}</a>
                         )}
                         <span>Agent Wallet: <strong className={t.agent_wallet > 0 ? 'text-emerald-600' : 'text-destructive'}>{formatUGX(t.agent_wallet)}</strong></span>
-                        <span className="col-span-2">Landlord: {t.landlord_id ? (
-                          <button
-                            onClick={() => setProfileSheet({ userId: t.landlord_id, userName: t.landlord_name, userPhone: t.landlord_phone, userType: 'landlord' })}
-                            className="font-semibold text-primary underline underline-offset-2 decoration-primary/30 hover:decoration-primary"
-                          >
-                            {t.landlord_name}
-                          </button>
-                        ) : <strong className="text-foreground">—</strong>}
-                        {t.landlord_phone && <a href={`tel:${t.landlord_phone}`} className="ml-2 underline">{t.landlord_phone}</a>}</span>
+                        <span className="col-span-2 inline-flex items-center gap-1.5 flex-wrap text-[11px] mt-0.5 px-2 py-1 rounded-md bg-amber-500/10 border border-amber-500/20">
+                          <span className="font-semibold text-amber-700 dark:text-amber-400">🏠 Landlord:</span>
+                          {t.landlord_id ? (
+                            <button
+                              onClick={() => setProfileSheet({ userId: t.landlord_id, userName: t.landlord_name, userPhone: t.landlord_phone, userType: 'landlord' })}
+                              className="font-bold text-foreground underline underline-offset-2 decoration-primary/40 hover:decoration-primary"
+                            >
+                              {t.landlord_name}
+                            </button>
+                          ) : <strong className="text-foreground">—</strong>}
+                          {t.landlord_phone && (
+                            <a href={`tel:${t.landlord_phone}`} className="inline-flex items-center gap-0.5 font-medium text-primary underline">
+                              <Phone className="h-2.5 w-2.5" />{t.landlord_phone}
+                            </a>
+                          )}
+                        </span>
                       </div>
                       {/* Collect + Delete buttons */}
                       <div className="flex items-center gap-1 shrink-0">
