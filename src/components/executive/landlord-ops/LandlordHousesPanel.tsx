@@ -18,12 +18,14 @@ import { HighlightText } from '@/components/shared/HighlightText';
 import { useFilterKeyboardShortcuts } from '@/hooks/useFilterKeyboardShortcuts';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
+import { LocationHierarchyView } from './LocationHierarchyView';
 
 interface HouseRow {
   id: string;
   title: string;
   address: string;
   region: string;
+  district: string | null;
   status: string;
   monthly_rent: number;
   daily_rate: number;
@@ -81,6 +83,7 @@ export function LandlordHousesPanel() {
     hydratedKeyRef.current = storageKey;
   }, [storageKey]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [viewMode, setViewMode] = useState<'landlord' | 'location'>('landlord');
 
   useEffect(() => {
     // Only persist after we have hydrated for this user — prevents writing
@@ -99,7 +102,7 @@ export function LandlordHousesPanel() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('house_listings')
-        .select('id,title,address,region,status,monthly_rent,daily_rate,agent_id,landlord_id,tenant_id,created_at,is_hidden')
+        .select('id,title,address,region,district,status,monthly_rent,daily_rate,agent_id,landlord_id,tenant_id,created_at,is_hidden')
         .not('landlord_id', 'is', null)
         .order('created_at', { ascending: false })
         .limit(1000);
@@ -269,9 +272,34 @@ export function LandlordHousesPanel() {
     <div className="space-y-3">
       <h2 className="text-lg font-bold flex items-center gap-2">
         <Building2 className="h-5 w-5 text-primary" />
-        Houses by Landlord
+        {viewMode === 'landlord' ? 'Houses by Landlord' : 'Houses by Location'}
       </h2>
 
+      <div className="inline-flex rounded-md border bg-muted/30 p-0.5">
+        <button
+          onClick={() => setViewMode('landlord')}
+          className={`px-3 h-8 text-xs rounded ${viewMode === 'landlord' ? 'bg-background shadow-sm font-semibold' : 'text-muted-foreground'}`}
+        >
+          By Landlord
+        </button>
+        <button
+          onClick={() => setViewMode('location')}
+          className={`px-3 h-8 text-xs rounded ${viewMode === 'location' ? 'bg-background shadow-sm font-semibold' : 'text-muted-foreground'}`}
+        >
+          By Location
+        </button>
+      </div>
+
+      {viewMode === 'location' && (
+        <LocationHierarchyView
+          houses={(housesQuery.data ?? []) as any}
+          profiles={profs}
+          country="Uganda"
+        />
+      )}
+
+      {viewMode === 'landlord' && (
+      <>
       <div className="space-y-2">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
