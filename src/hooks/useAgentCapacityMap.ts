@@ -49,6 +49,10 @@ export type AgentCapacity = {
   expected_tenant_days: number;
   /** Secondary stat — total UGX collected in last 7 days. */
   paid_last_week: number;
+  /** UGX collected today (since local midnight). */
+  paid_today: number;
+  /** Sum of daily_repayment across active (non-unfunded) rent_requests. */
+  expected_daily: number;
   /** @deprecated alias of `response_rate` kept for backwards compatibility. */
   repayment_rate: number;
   /** @deprecated kept for backwards compatibility (= daily_expected × 7). */
@@ -87,6 +91,9 @@ export function useAgentCapacityMap(agentIds: string[]) {
     queryFn: async (): Promise<Map<string, AgentCapacity>> => {
       if (agentIds.length === 0) return new Map();
       const weekAgoISO = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todayStartMs = todayStart.getTime();
 
       // 1) Active rent_requests drive both exposure AND expected daily collections
       const { data: active } = await supabase
@@ -145,6 +152,7 @@ export function useAgentCapacityMap(agentIds: string[]) {
       //    the last 7 with at least one repayment (any amount). Aggregate
       //    those (rent × day) cells per agent — that's the DRR numerator.
       const paidByAgent = new Map<string, number>();
+      const paidTodayByAgent = new Map<string, number>();
       const respondingDaysByAgent = new Map<string, number>();
       const payingTenantsByAgent = new Map<string, Set<string>>();
       const activeIds = Array.from(activeIdToAgent.keys());
@@ -164,6 +172,9 @@ export function useAgentCapacityMap(agentIds: string[]) {
             const agentId = activeIdToAgent.get(p.rent_request_id);
             if (!agentId) return;
             paidByAgent.set(agentId, (paidByAgent.get(agentId) || 0) + amt);
+            if (new Date(p.created_at).getTime() >= todayStartMs) {
+              paidTodayByAgent.set(agentId, (paidTodayByAgent.get(agentId) || 0) + amt);
+            }
             if (amt <= 0) return;
             const tenantId = p.tenant_id || activeIdToTenant.get(p.rent_request_id);
             if (tenantId) {
@@ -216,6 +227,8 @@ export function useAgentCapacityMap(agentIds: string[]) {
           responding_tenant_days,
           expected_tenant_days,
           paid_last_week,
+          paid_today: paidTodayByAgent.get(id) || 0,
+          expected_daily: dailyExpected,
           repayment_rate: response_rate,
           expected_weekly,
           headroom,
