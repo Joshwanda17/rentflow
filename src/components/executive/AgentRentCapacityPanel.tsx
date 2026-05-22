@@ -366,6 +366,15 @@ function CapacityRow({ row }: { row: AgentRow }) {
 
   const bar =
     pct >= 95 ? 'bg-destructive' : pct >= 75 ? 'bg-amber-500' : 'bg-emerald-500';
+  const expectedWeek = row.expected_daily * 7;
+  const todayPct = row.expected_daily > 0
+    ? Math.min(100, Math.round((row.paid_today / row.expected_daily) * 100))
+    : 0;
+  const weekPct = expectedWeek > 0
+    ? Math.min(100, Math.round((row.paid_last_week / expectedWeek) * 100))
+    : 0;
+  const todayTone = todayPct >= 100 ? 'text-emerald-700' : todayPct >= 50 ? 'text-amber-700' : 'text-destructive';
+  const weekTone = weekPct >= 100 ? 'text-emerald-700' : weekPct >= 50 ? 'text-amber-700' : 'text-destructive';
 
   const handlePrint = async (e: React.MouseEvent) => {
     e.stopPropagation();
