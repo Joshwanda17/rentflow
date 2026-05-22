@@ -43,6 +43,9 @@ interface ActiveTenant {
   agent_id: string;
   agent_name: string;
   agent_phone: string;
+  landlord_id: string;
+  landlord_name: string;
+  landlord_phone: string;
   tenant_wallet: number;
   agent_wallet: number;
   tenant_no_smartphone: boolean;
@@ -55,7 +58,7 @@ export function DailyPaymentTracker() {
   const [filter, setFilter] = useState<Filter>('all');
   const [deviceFilter, setDeviceFilter] = useState<DeviceFilter>('all');
   const [search, setSearch] = useState('');
-  const [profileSheet, setProfileSheet] = useState<{ userId: string; userName: string; userPhone?: string; userType: 'tenant' | 'agent' } | null>(null);
+  const [profileSheet, setProfileSheet] = useState<{ userId: string; userName: string; userPhone?: string; userType: 'tenant' | 'agent' | 'landlord' } | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<typeof filtered[0] | null>(null);
   const [collectingId, setCollectingId] = useState<string | null>(null);
@@ -136,7 +139,7 @@ export function DailyPaymentTracker() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('rent_requests')
-        .select('id, tenant_id, agent_id, daily_repayment, rent_amount, amount_repaid, total_repayment, disbursed_at, status, tenant_no_smartphone')
+        .select('id, tenant_id, agent_id, landlord_id, daily_repayment, rent_amount, amount_repaid, total_repayment, disbursed_at, status, tenant_no_smartphone')
         .in('status', ['disbursed', 'repaying', 'funded'])
         .not('disbursed_at', 'is', null);
       if (error) throw error;
@@ -154,7 +157,23 @@ export function DailyPaymentTracker() {
     return [...new Set((activeRequests || []).map(r => r.agent_id).filter(Boolean))];
   }, [activeRequests]);
 
-  const allUserIds = useMemo(() => [...new Set([...tenantIds, ...agentIds])], [tenantIds, agentIds]);
+  const landlordIds = useMemo(() => {
+    return [...new Set((activeRequests || []).map((r: any) => r.landlord_id).filter(Boolean))];
+  }, [activeRequests]);
+
+  const allocationUserIds = useMemo(() => {
+    const ids: string[] = [];
+    (latestAllocations || []).forEach((a: any) => {
+      if (a.tenant_id) ids.push(a.tenant_id);
+      if (a.agent_id) ids.push(a.agent_id);
+    });
+    return ids;
+  }, [latestAllocations]);
+
+  const allUserIds = useMemo(
+    () => [...new Set([...tenantIds, ...agentIds, ...landlordIds, ...allocationUserIds])],
+    [tenantIds, agentIds, landlordIds, allocationUserIds]
+  );
 
   const { data: profiles } = useQuery({
     queryKey: ['daily-tracker-profiles', allUserIds],
@@ -292,9 +311,10 @@ export function DailyPaymentTracker() {
       const existing = tenantMap.get(r.tenant_id);
       const profile = profileMap.get(r.tenant_id);
       const agentProfile = r.agent_id ? profileMap.get(r.agent_id) : undefined;
+      const landlordProfile = (r as any).landlord_id ? profileMap.get((r as any).landlord_id) : undefined;
       const entry: ActiveTenant = {
         tenant_id: r.tenant_id,
-        tenant_name: profile?.name || r.tenant_id.slice(0, 8),
+        tenant_name: profile?.name || profile?.phone || `Tenant ${r.tenant_id.slice(0, 6)}`,
         phone: profile?.phone || '',
         daily_repayment: Number(r.daily_repayment || 0),
         rent_amount: Number(r.rent_amount || 0),
@@ -305,6 +325,9 @@ export function DailyPaymentTracker() {
         agent_id: r.agent_id || '',
         agent_name: agentProfile?.name || '—',
         agent_phone: agentProfile?.phone || '',
+        landlord_id: (r as any).landlord_id || '',
+        landlord_name: landlordProfile?.name || landlordProfile?.phone || '—',
+        landlord_phone: landlordProfile?.phone || '',
         tenant_wallet: walletMap.get(r.tenant_id) || 0,
         agent_wallet: r.agent_id ? (walletMap.get(r.agent_id) || 0) : 0,
         tenant_no_smartphone: r.tenant_no_smartphone ?? false,
