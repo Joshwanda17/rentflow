@@ -153,6 +153,49 @@ export function AgentRentCapacitySelfCard() {
               </div>
             </div>
 
+            {/* Paid vs Expected — today + this week */}
+            <div className="grid grid-cols-2 gap-2">
+              {(() => {
+                const expectedWeek = cap.expected_daily * 7;
+                const todayPct = cap.expected_daily > 0
+                  ? Math.min(100, Math.round((cap.paid_today / cap.expected_daily) * 100))
+                  : 0;
+                const weekPct = expectedWeek > 0
+                  ? Math.min(100, Math.round((cap.paid_last_week / expectedWeek) * 100))
+                  : 0;
+                const todayTone = todayPct >= 100 ? 'text-emerald-700' : todayPct >= 50 ? 'text-amber-700' : 'text-destructive';
+                const weekTone = weekPct >= 100 ? 'text-emerald-700' : weekPct >= 50 ? 'text-amber-700' : 'text-destructive';
+                const todayBar = todayPct >= 100 ? 'bg-emerald-500' : todayPct >= 50 ? 'bg-amber-500' : 'bg-destructive';
+                const weekBar = weekPct >= 100 ? 'bg-emerald-500' : weekPct >= 50 ? 'bg-amber-500' : 'bg-destructive';
+                return (
+                  <>
+                    <div className="rounded-xl border border-border bg-background/70 p-2.5">
+                      <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Today · Paid vs Expected</div>
+                      <div className={`mt-0.5 text-sm font-extrabold tabular-nums ${todayTone}`}>
+                        {formatUGX(cap.paid_today)}
+                        <span className="text-muted-foreground font-semibold"> / {formatUGX(cap.expected_daily)}</span>
+                      </div>
+                      <div className="mt-1 h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                        <div className={`h-full ${todayBar}`} style={{ width: `${todayPct}%` }} />
+                      </div>
+                      <div className="text-[10px] text-muted-foreground mt-0.5">{todayPct}% of daily target</div>
+                    </div>
+                    <div className="rounded-xl border border-border bg-background/70 p-2.5">
+                      <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">This week (7d) · Paid vs Expected</div>
+                      <div className={`mt-0.5 text-sm font-extrabold tabular-nums ${weekTone}`}>
+                        {formatUGX(cap.paid_last_week)}
+                        <span className="text-muted-foreground font-semibold"> / {formatUGX(expectedWeek)}</span>
+                      </div>
+                      <div className="mt-1 h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                        <div className={`h-full ${weekBar}`} style={{ width: `${weekPct}%` }} />
+                      </div>
+                      <div className="text-[10px] text-muted-foreground mt-0.5">{weekPct}% of weekly target</div>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+
             <div>
               <div className="flex items-center justify-between text-[11px] font-semibold tabular-nums mb-1">
                 <span className="text-muted-foreground">
