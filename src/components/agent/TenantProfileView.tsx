@@ -667,6 +667,7 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
           phone: profile.phone,
           email: profile.email,
           national_id: profile.national_id,
+          tenant_status: profile.tenant_status,
         }}
         onSaved={(updated) => {
           setProfile(prev => prev ? { ...prev, ...updated } : prev);
