@@ -29,6 +29,13 @@ export function ImageLightbox({
   productName = 'Product',
   memoryKey,
 }: ImageLightboxProps) {
+  // Defensive: drop entries without a usable URL so we never index into
+  // `images[i].image_url` and find `undefined`/`null`. This is the root
+  // cause of past `Cannot read properties of null (reading 'x')` crashes
+  // that blanked the tenant dashboard.
+  const safeImages = (images ?? []).filter(
+    (img): img is LightboxImage => !!img && typeof img.image_url === 'string' && img.image_url.length > 0
+  );
   const storageKey = memoryKey ? `lightbox:${memoryKey}` : null;
   const readMemory = useCallback(() => {
     if (!storageKey || typeof window === 'undefined') return null;
@@ -42,7 +49,7 @@ export function ImageLightbox({
 
   const initial = (() => {
     const m = readMemory();
-    if (m && typeof m.index === 'number' && m.index >= 0 && m.index < images.length) return m;
+    if (m && typeof m.index === 'number' && m.index >= 0 && m.index < safeImages.length) return m;
     return null;
   })();
 
