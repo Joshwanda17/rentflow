@@ -1875,6 +1875,19 @@ export function LandlordOpsDashboard() {
   // ─── HOME: Mobile-first card navigation ───
   return (
     <div className="space-y-4">
+      {/* Browse by Location — quick access */}
+      <button
+        onClick={() => setView('houses-by-landlord')}
+        className="w-full rounded-xl border-2 border-purple-400/40 bg-purple-50 dark:bg-purple-950/20 p-3 flex items-center gap-3 text-left min-h-[56px] touch-manipulation active:scale-[0.98] transition-transform"
+      >
+        <MapPin className="h-5 w-5 text-purple-600 shrink-0" />
+        <div className="flex-1">
+          <p className="font-bold text-purple-800 dark:text-purple-300 text-sm">Browse Houses by Location</p>
+          <p className="text-[10px] text-purple-700 dark:text-purple-400">Explore properties across regions, districts & wards</p>
+        </div>
+        <ChevronRight className="h-4 w-4 text-purple-600 shrink-0" />
+      </button>
+
       {/* Priority actions */}
       <RentPipelineQueue stage="tenant_ops_approved" />
       <RejectedRequestsQueue stageFilter="tenant_ops_approved" title="Rejected at Landlord Ops" collapsible />
