@@ -534,6 +534,27 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
       const tenantId = tenantResult.user_id;
 
+      // Persist the property's town/city/district/village on the tenant's
+      // profile so they roll up under a real location in the Tenant Ops
+      // drill-down. Best-effort — never block submission on this.
+      if (!isOutstanding) {
+        const profileLocation: Record<string, string> = {};
+        if (propertyCity.trim()) profileLocation.city = propertyCity.trim();
+        if (propertyDistrict.trim()) profileLocation.district = propertyDistrict.trim();
+        if (lc1Village.trim()) profileLocation.village = lc1Village.trim();
+        if (Object.keys(profileLocation).length > 0) {
+          profileLocation.country = 'Uganda';
+          try {
+            await supabase
+              .from('profiles')
+              .update(profileLocation)
+              .eq('id', tenantId);
+          } catch (e) {
+            console.warn('Failed to update tenant profile location', e);
+          }
+        }
+      }
+
       // FIX #9: Use selected house category or null for outstanding
       const resolvedHouseCategory = isOutstanding
         ? (outstandingHouseCategory || null)
