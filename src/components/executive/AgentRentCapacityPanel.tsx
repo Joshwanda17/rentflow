@@ -4,13 +4,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Search, Gauge, TrendingUp, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-
-const ACTIVE_RENT_STATUSES = [
-  'pending', 'agent_verified', 'tenant_ops_approved',
-  'agent_ops_approved', 'landlord_ops_approved',
-  'coo_approved', 'funded', 'repaying',
-];
-const AGENT_RENT_CAP_UGX = 100_000_000;
+import {
+  ACTIVE_RENT_STATUSES,
+  AGENT_RENT_CAP_UGX,
+  classifyAgent,
+  type AgentCapacity,
+} from '@/hooks/useAgentCapacityMap';
 
 type AgentRow = {
   agent_id: string;
@@ -18,7 +17,11 @@ type AgentRow = {
   phone: string | null;
   used: number;
   active_count: number;
-  repayment_rate: number; // 0..1
+  repayment_rate: number;   // 0..1 — last 7 days DCR
+  expected_weekly: number;
+  paid_last_week: number;
+  tier: AgentCapacity['tier'];
+  per_tenant_max: number;
 };
 
 export function AgentRentCapacityPanel({
@@ -31,22 +34,16 @@ export function AgentRentCapacityPanel({
   const { data, isLoading } = useQuery({
     queryKey: ['agent-rent-capacity-fleet'],
     queryFn: async (): Promise<AgentRow[]> => {
-      // 1) Pull all active rent requests (driver of exposure)
+      // 1) Pull all active rent requests (drives exposure + expected daily collections)
       const { data: active } = await supabase
         .from('rent_requests')
-        .select('agent_id, total_repayment, amount_repaid')
+        .select('id, agent_id, total_repayment, amount_repaid, daily_repayment')
         .in('status', ACTIVE_RENT_STATUSES)
         .not('agent_id', 'is', null);
 
-      // 2) Pull repayment-rate history over last 180 days
-      const since = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString();
-      const { data: history } = await supabase
-        .from('rent_requests')
-        .select('agent_id, total_repayment, amount_repaid, created_at')
-        .gte('created_at', since)
-        .not('agent_id', 'is', null);
-
       const exposureMap = new Map<string, { used: number; count: number }>();
+      const expectedDaily = new Map<string, number>();
+      const activeIdToAgent = new Map<string, string>();
       (active || []).forEach((r: any) => {
         if (!r.agent_id) return;
         const owed = Math.max(
@@ -55,24 +52,33 @@ export function AgentRentCapacityPanel({
         );
         const prev = exposureMap.get(r.agent_id) || { used: 0, count: 0 };
         exposureMap.set(r.agent_id, { used: prev.used + owed, count: prev.count + 1 });
+        expectedDaily.set(
+          r.agent_id,
+          (expectedDaily.get(r.agent_id) || 0) + (Number(r.daily_repayment) || 0),
+        );
+        activeIdToAgent.set(r.id, r.agent_id);
       });
 
-      const rateMap = new Map<string, { expected: number; paid: number }>();
-      (history || []).forEach((r: any) => {
-        if (!r.agent_id) return;
-        const expected = Number(r.total_repayment) || 0;
-        const paid = Number(r.amount_repaid) || 0;
-        const prev = rateMap.get(r.agent_id) || { expected: 0, paid: 0 };
-        rateMap.set(r.agent_id, {
-          expected: prev.expected + expected,
-          paid: prev.paid + paid,
+      // 2) Sum repayments collected in the last 7 days, scoped to active rents
+      const weekAgoISO = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const paidByAgent = new Map<string, number>();
+      const activeIds = Array.from(activeIdToAgent.keys());
+      const BATCH_PAY = 200;
+      for (let i = 0; i < activeIds.length; i += BATCH_PAY) {
+        const slice = activeIds.slice(i, i + BATCH_PAY);
+        const { data: pays } = await supabase
+          .from('repayments')
+          .select('rent_request_id, amount, created_at')
+          .in('rent_request_id', slice)
+          .gte('created_at', weekAgoISO);
+        (pays || []).forEach((p: any) => {
+          const agentId = activeIdToAgent.get(p.rent_request_id);
+          if (!agentId) return;
+          paidByAgent.set(agentId, (paidByAgent.get(agentId) || 0) + (Number(p.amount) || 0));
         });
-      });
+      }
 
-      const agentIds = Array.from(new Set([
-        ...exposureMap.keys(),
-        ...rateMap.keys(),
-      ]));
+      const agentIds = Array.from(exposureMap.keys());
       if (agentIds.length === 0) return [];
 
       // 3) Batch fetch profiles
@@ -90,8 +96,12 @@ export function AgentRentCapacityPanel({
 
       const rows: AgentRow[] = agentIds.map((id) => {
         const exp = exposureMap.get(id) || { used: 0, count: 0 };
-        const rate = rateMap.get(id);
-        const repayment_rate = rate && rate.expected > 0 ? rate.paid / rate.expected : 0;
+        const dailyExpected = expectedDaily.get(id) || 0;
+        const expected_weekly = dailyExpected * 7;
+        const paid_last_week = paidByAgent.get(id) || 0;
+        const repayment_rate =
+          expected_weekly > 0 ? Math.min(1, paid_last_week / expected_weekly) : 0;
+        const { tier, per_tenant_max } = classifyAgent(expected_weekly, repayment_rate);
         const prof = profileMap.get(id) || { name: id.slice(0, 8), phone: null };
         return {
           agent_id: id,
@@ -100,6 +110,10 @@ export function AgentRentCapacityPanel({
           used: exp.used,
           active_count: exp.count,
           repayment_rate,
+          expected_weekly,
+          paid_last_week,
+          tier,
+          per_tenant_max,
         };
       });
 
@@ -141,7 +155,7 @@ export function AgentRentCapacityPanel({
               Agent Rent-Request Capacity
             </h3>
             <p className="text-[11px] text-muted-foreground">
-              Per-tenant limits scale with repayment rate · Hard cap UGX{' '}
+              Tier = last 7 days' collection rate vs daily expected · Hard cap UGX{' '}
               {formatUGX(AGENT_RENT_CAP_UGX)} per agent
             </p>
           </div>
