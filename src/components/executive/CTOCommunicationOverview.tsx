@@ -17,6 +17,7 @@ type Partner = {
   email: string | null;
   created_at: string;
   last_active_at: string | null;
+  portfolios?: number;
 };
 
 const isInvalidEmail = (email: string | null | undefined) => {
@@ -128,6 +129,11 @@ export function CTOCommunicationOverview() {
       },
     },
     {
+      key: 'portfolios',
+      label: 'Portfolios',
+      render: (v) => <span className="font-medium">{Number(v ?? 0).toLocaleString()}</span>,
+    },
+    {
       key: 'last_active_at',
       label: 'Last Active',
       render: (v) => (v ? format(new Date(v as string), 'dd MMM yyyy') : '—'),
@@ -142,7 +148,7 @@ export function CTOCommunicationOverview() {
   const total = (partners || []).length;
   const smsCount = smsOnly.length;
   const emailCount = emailReachable.length;
-  const noContact = (partners || []).filter((p) => isInvalidEmail(p.email) && !p.phone).length;
+  const noContact = (partners || []).filter((p) => isInvalidEmail(p.email) && !isValidPhone(p.phone)).length;
 
   return (
     <div className="space-y-4 sm:space-y-6">
