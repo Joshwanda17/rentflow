@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import { CTOEmailsOverview } from './CTOEmailsOverview';
+import { PartnerSMSBroadcast } from './PartnerSMSBroadcast';
+import { COOPartnerBroadcast } from '@/components/coo/COOPartnerBroadcast';
 import { MessageSquare, Mail, Search, Users, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { KPICard } from './KPICard';
 import { format } from 'date-fns';
@@ -216,6 +218,10 @@ export function CTOCommunicationOverview() {
         </TabsList>
 
         <TabsContent value="sms" className="space-y-3">
+          <PartnerSMSBroadcast />
+
+          <div className="pt-2 border-t border-border" />
+
           <div className="flex items-center gap-2">
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -240,6 +246,10 @@ export function CTOCommunicationOverview() {
         </TabsContent>
 
         <TabsContent value="email" className="space-y-6">
+          <COOPartnerBroadcast />
+
+          <div className="pt-2 border-t border-border" />
+
           <div className="flex items-center gap-2">
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
