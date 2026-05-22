@@ -272,7 +272,7 @@ export function TenantOverviewList({ data, loading, initialCategory, onSelectTen
       case 'district':
         return e?.district?.trim() || 'Unknown district';
       case 'city':
-        return e?.city?.trim() || 'Unknown city';
+        return e?.city?.trim() || UNVERIFIED_CITY_LABEL;
       case 'country':
         return e?.country?.trim() || 'Unknown country';
       default:
