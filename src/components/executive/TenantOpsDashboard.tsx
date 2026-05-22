@@ -55,6 +55,9 @@ import ResidenceAddressForm from '@/components/profile/ResidenceAddressForm';
 import { generateTenantOpsReportPdf } from '@/lib/generateTenantOpsReportPdf';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ChevronDown } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 type ActiveView = 'overview' | 'pipeline' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'transfer-audit' | 'collect-rent' | 'agent-tenants' | 'tenant-detail' | 'registration-review' | 'advance-requests' | 'agent-allocations' | 'daily-collections' | 'landlord-float' | 'landlord-float-timeline';
 
@@ -71,6 +74,14 @@ interface NavCard {
 export function TenantOpsDashboard() {
   const [activeView, setActiveView] = useState<ActiveView>('overview');
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
+  // Collapsible panel state — collapsed by default on phones so the
+  // action grid + tenant list are reachable without scrolling past
+  // heavy dashboards.
+  const [openCapacity, setOpenCapacity] = useState(false);
+  const [openTenants, setOpenTenants] = useState(false);
+  const [openDaily, setOpenDaily] = useState(false);
+  const [openReports, setOpenReports] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; tenantId: string; tenantName: string }>({ open: false, tenantId: '', tenantName: '' });
   const [locationDialog, setLocationDialog] = useState<{ open: boolean; tenantId: string; tenantName: string }>({ open: false, tenantId: '', tenantName: '' });
   const [selectedTenantIds, setSelectedTenantIds] = useState<string[]>([]);
@@ -1274,6 +1285,15 @@ export function TenantOpsDashboard() {
   };
 
   const activeLabel = navCards.find(n => n.id === activeView)?.label || '';
+
+  // Primary mobile quick-actions — surfaced in a sticky pill bar at the
+  // very top so the most-used flows are one tap away on a phone.
+  const quickActions: { id: ActiveView; label: string; icon: React.ElementType; tone: string }[] = [
+    { id: 'collect-rent', label: 'Collect', icon: HandCoins, tone: 'bg-orange-500/10 text-orange-700 border-orange-200' },
+    { id: 'pipeline', label: 'Review', icon: ClipboardList, tone: 'bg-amber-500/10 text-amber-700 border-amber-200' },
+    { id: 'daily', label: 'Today', icon: CalendarCheck, tone: 'bg-emerald-500/10 text-emerald-700 border-emerald-200' },
+    { id: 'missed', label: 'Missed', icon: CalendarX2, tone: 'bg-destructive/10 text-destructive border-destructive/20' },
+  ];
 
   return (
     <div className="space-y-3">
