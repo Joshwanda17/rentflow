@@ -39,6 +39,8 @@ export type AgentCapacity = {
   active_tenant_count: number;
   /** Distinct tenants who made at least one payment in the last 7 days. Plain-English KPI. */
   paying_tenants_last_week: number;
+  /** Distinct tenants the agent has fully marked "Not Funded" (reversed + zero net repayment). */
+  unfunded_tenant_count: number;
   /** Last 7-day Daily Response Rate (0..1). Primary tier metric. */
   response_rate: number;
   /** Count of (tenant × day) cells in last 7d where the tenant paid ≥ UGX 1. */
