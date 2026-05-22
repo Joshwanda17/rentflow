@@ -30,6 +30,8 @@ type AgentRow = {
   responding_tenant_days: number;
   expected_tenant_days: number;
   paid_last_week: number;
+  paid_today: number;
+  expected_daily: number;
   tier: AgentCapacity['tier'];
   per_tenant_max: number;
 };
@@ -80,6 +82,7 @@ export function AgentRentCapacityPanel({
       }
 
       const exposureMap = new Map<string, { used: number; count: number }>();
+      const expectedDailyMap = new Map<string, number>();
       const activeIdToAgent = new Map<string, string>();
       const activeIdToTenant = new Map<string, string>();
       const activeTenantsByAgent = new Map<string, Set<string>>();
@@ -92,6 +95,10 @@ export function AgentRentCapacityPanel({
         );
         const prev = exposureMap.get(r.agent_id) || { used: 0, count: 0 };
         exposureMap.set(r.agent_id, { used: prev.used + owed, count: prev.count + 1 });
+        expectedDailyMap.set(
+          r.agent_id,
+          (expectedDailyMap.get(r.agent_id) || 0) + (Number(r.daily_repayment) || 0),
+        );
         activeIdToAgent.set(r.id, r.agent_id);
         if (r.tenant_id) {
           activeIdToTenant.set(r.id, r.tenant_id);
@@ -105,7 +112,11 @@ export function AgentRentCapacityPanel({
       //    last 7 days where the tenant paid at least UGX 1. Also keep
       //    the UGX total as a secondary stat.
       const weekAgoISO = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todayStartMs = todayStart.getTime();
       const paidByAgent = new Map<string, number>();
+      const paidTodayByAgent = new Map<string, number>();
       const respondingDaysByAgent = new Map<string, number>();
       const payingTenantsByAgent = new Map<string, Set<string>>();
       const activeIds = Array.from(activeIdToAgent.keys());
@@ -123,6 +134,9 @@ export function AgentRentCapacityPanel({
           const agentId = activeIdToAgent.get(p.rent_request_id);
           if (!agentId) return;
           paidByAgent.set(agentId, (paidByAgent.get(agentId) || 0) + amt);
+          if (new Date(p.created_at).getTime() >= todayStartMs) {
+            paidTodayByAgent.set(agentId, (paidTodayByAgent.get(agentId) || 0) + amt);
+          }
           if (amt <= 0) return;
           const tenantId = p.tenant_id || activeIdToTenant.get(p.rent_request_id);
           if (tenantId) {
@@ -188,6 +202,8 @@ export function AgentRentCapacityPanel({
           responding_tenant_days,
           expected_tenant_days,
           paid_last_week,
+          paid_today: paidTodayByAgent.get(id) || 0,
+          expected_daily: expectedDailyMap.get(id) || 0,
           tier,
           per_tenant_max,
         };
@@ -350,6 +366,15 @@ function CapacityRow({ row }: { row: AgentRow }) {
 
   const bar =
     pct >= 95 ? 'bg-destructive' : pct >= 75 ? 'bg-amber-500' : 'bg-emerald-500';
+  const expectedWeek = row.expected_daily * 7;
+  const todayPct = row.expected_daily > 0
+    ? Math.min(100, Math.round((row.paid_today / row.expected_daily) * 100))
+    : 0;
+  const weekPct = expectedWeek > 0
+    ? Math.min(100, Math.round((row.paid_last_week / expectedWeek) * 100))
+    : 0;
+  const todayTone = todayPct >= 100 ? 'text-emerald-700' : todayPct >= 50 ? 'text-amber-700' : 'text-destructive';
+  const weekTone = weekPct >= 100 ? 'text-emerald-700' : weekPct >= 50 ? 'text-amber-700' : 'text-destructive';
 
   const handlePrint = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -365,6 +390,8 @@ function CapacityRow({ row }: { row: AgentRow }) {
         responding_tenant_days: row.responding_tenant_days,
         expected_tenant_days: row.expected_tenant_days,
         paid_last_week: row.paid_last_week,
+        paid_today: row.paid_today,
+        expected_daily: row.expected_daily,
         repayment_rate: row.response_rate,
         expected_weekly: 0,
         headroom,
@@ -447,6 +474,25 @@ function CapacityRow({ row }: { row: AgentRow }) {
         {row.paid_last_week > 0 && (
           <> · <span className="text-muted-foreground">{formatUGX(row.paid_last_week)} total</span></>
         )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-1.5 mt-2">
+        <div className="rounded-lg border border-border bg-background/70 p-2">
+          <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Today</div>
+          <div className={`text-[12px] font-extrabold tabular-nums ${todayTone}`}>
+            {formatUGX(row.paid_today)}
+            <span className="text-muted-foreground font-semibold"> / {formatUGX(row.expected_daily)}</span>
+          </div>
+          <div className="text-[10px] text-muted-foreground">{todayPct}% of daily target</div>
+        </div>
+        <div className="rounded-lg border border-border bg-background/70 p-2">
+          <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">This week (7d)</div>
+          <div className={`text-[12px] font-extrabold tabular-nums ${weekTone}`}>
+            {formatUGX(row.paid_last_week)}
+            <span className="text-muted-foreground font-semibold"> / {formatUGX(expectedWeek)}</span>
+          </div>
+          <div className="text-[10px] text-muted-foreground">{weekPct}% of weekly target</div>
+        </div>
       </div>
     </li>
   );
