@@ -72,6 +72,7 @@ import { AgentManagedPropertiesSheet } from '@/components/agent/AgentManagedProp
 import { AgentLandlordPayoutDialog } from '@/components/agent/AgentLandlordPayoutDialog';
 import { AgentLandlordPayoutFlow } from '@/components/agent/AgentLandlordPayoutFlow';
 import { AgentLandlordFloatCard } from '@/components/agent/AgentLandlordFloatCard';
+import { AgentPendingReceiptPanel } from '@/components/agent/AgentPendingReceiptPanel';
 import { AgentTenantHealthCard } from '@/components/agent/AgentTenantHealthCard';
 import { AgentVouchHighlightCard } from '@/components/agent/AgentVouchHighlightCard';
 import { AgentFloatPayoutWizard } from '@/components/agent/AgentFloatPayoutWizard';
@@ -424,6 +425,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         )}
 
         <AgentAgreementBanner />
+
+        {/* Linked-but-uncredited deposits — surfaces stuck float receipts */}
+        <AgentPendingReceiptPanel />
 
         {/* Profile + Name + AI ID */}
         <div className="flex items-center gap-3">
