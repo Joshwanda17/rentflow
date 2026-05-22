@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  Building2, Home, Search, User, UserPlus, UserX, UserCog, ChevronDown, ChevronRight, Loader2, X,
+  Building2, Home, Search, User, UserPlus, UserX, UserCog, ChevronDown, ChevronRight, Loader2, X, Eye, EyeOff,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { BindTenantToHouseDialog } from './BindTenantToHouseDialog';
@@ -17,6 +17,7 @@ import { HouseActivityTimeline } from '@/components/shared/HouseActivityTimeline
 import { HighlightText } from '@/components/shared/HighlightText';
 import { useFilterKeyboardShortcuts } from '@/hooks/useFilterKeyboardShortcuts';
 import { useAuth } from '@/hooks/useAuth';
+import { toast } from '@/hooks/use-toast';
 
 interface HouseRow {
   id: string;
@@ -30,6 +31,7 @@ interface HouseRow {
   landlord_id: string | null;
   tenant_id: string | null;
   created_at: string;
+  is_hidden: boolean;
 }
 
 interface LandlordGroup {
@@ -97,7 +99,7 @@ export function LandlordHousesPanel() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('house_listings')
-        .select('id,title,address,region,status,monthly_rent,daily_rate,agent_id,landlord_id,tenant_id,created_at')
+        .select('id,title,address,region,status,monthly_rent,daily_rate,agent_id,landlord_id,tenant_id,created_at,is_hidden')
         .not('landlord_id', 'is', null)
         .order('created_at', { ascending: false })
         .limit(1000);
