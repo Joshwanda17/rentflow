@@ -1307,23 +1307,106 @@ export function TenantOpsDashboard() {
             transition={{ duration: 0.15 }}
             className="space-y-3"
           >
-            {/* Agent Rent-Request Capacity (fleet-wide) */}
-            <AgentRentCapacityPanel />
+            {/* Sticky mobile quick-actions — always reachable */}
+            <div className="sticky top-0 z-30 -mx-2 px-2 py-1.5 bg-background/95 backdrop-blur border-b sm:hidden">
+              <div className="grid grid-cols-4 gap-1.5">
+                {quickActions.map((q) => {
+                  const Icon = q.icon;
+                  return (
+                    <button
+                      key={q.id}
+                      onClick={() => { setActiveView(q.id); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                      className={`flex flex-col items-center justify-center gap-0.5 rounded-lg border px-1 py-1.5 ${q.tone}`}
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span className="text-[10px] font-semibold leading-none">{q.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
-            {/* Tenant List - top of page */}
-            <TenantOverviewList
-              data={rows}
-              loading={isLoading}
-              initialCategory={overviewFilter}
-              onSelectTenant={(id, name) => {
-                setSelectedTenant({ id, name });
-                setActiveView('tenant-detail');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-            />
+            {/* Tenant Ops Tools — surfaced first on mobile for fast nav */}
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Tenant Ops Tools</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-2.5">
+                {navCards.map((card) => {
+                  const Icon = card.icon;
+                  return (
+                    <motion.button
+                      key={card.id}
+                      whileTap={{ scale: 0.97 }}
+                      onClick={() => {
+                        setActiveView(card.id);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className="text-left w-full"
+                    >
+                      <Card className={`border h-full hover:shadow-md transition-shadow ${card.color.includes('amber') ? 'border-amber-200' : card.color.includes('emerald') ? 'border-emerald-200' : card.color.includes('destructive') ? 'border-destructive/20' : card.color.includes('purple') ? 'border-purple-200' : card.color.includes('blue') ? 'border-blue-200' : 'border-border'}`}>
+                        <CardContent className="p-3 sm:p-3.5 space-y-1.5 sm:space-y-2">
+                          <div className="flex items-start justify-between">
+                            <div className={`p-1.5 sm:p-2 rounded-xl ${card.color.split(' ').slice(0, 1).join(' ')}`}>
+                              <Icon className={`h-4 w-4 sm:h-5 sm:w-5 ${card.color.split(' ').slice(1, 2).join(' ')}`} />
+                            </div>
+                            {card.badge !== undefined && card.badge > 0 && (
+                              <Badge className={`text-[10px] px-1.5 py-0 font-bold ${card.badgeColor}`}>
+                                {card.badge}
+                              </Badge>
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-bold text-[13px] sm:text-sm text-foreground leading-tight">{card.label}</p>
+                            <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-0.5 leading-snug line-clamp-2">{card.description}</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </motion.button>
+                  );
+                })}
+              </div>
+            </div>
 
-            {/* Headline: Daily Collection Monitoring Dashboard */}
-            <DailyCollectionMonitoringDashboard mode="editable" title="Daily Collection Monitoring" />
+            {/* Agent Rent-Request Capacity (fleet-wide) — collapsible */}
+            <Collapsible open={openCapacity || !isMobile} onOpenChange={setOpenCapacity}>
+              <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border bg-muted/30 px-3 py-2 sm:hidden">
+                <span className="text-xs font-bold uppercase tracking-wider">Agent Rent Capacity</span>
+                <ChevronDown className={`h-4 w-4 transition-transform ${openCapacity ? 'rotate-180' : ''}`} />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-2 sm:pt-0">
+                <AgentRentCapacityPanel />
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Tenant List — collapsible on mobile */}
+            <Collapsible open={openTenants || !isMobile} onOpenChange={setOpenTenants}>
+              <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border bg-muted/30 px-3 py-2 sm:hidden">
+                <span className="text-xs font-bold uppercase tracking-wider">All Tenants ({rows.length})</span>
+                <ChevronDown className={`h-4 w-4 transition-transform ${openTenants ? 'rotate-180' : ''}`} />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-2 sm:pt-0">
+                <TenantOverviewList
+                  data={rows}
+                  loading={isLoading}
+                  initialCategory={overviewFilter}
+                  onSelectTenant={(id, name) => {
+                    setSelectedTenant({ id, name });
+                    setActiveView('tenant-detail');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                />
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Daily Collection Monitoring — collapsible on mobile */}
+            <Collapsible open={openDaily || !isMobile} onOpenChange={setOpenDaily}>
+              <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border bg-muted/30 px-3 py-2 sm:hidden">
+                <span className="text-xs font-bold uppercase tracking-wider">Daily Collection Monitoring</span>
+                <ChevronDown className={`h-4 w-4 transition-transform ${openDaily ? 'rotate-180' : ''}`} />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-2 sm:pt-0">
+                <DailyCollectionMonitoringDashboard mode="editable" title="Daily Collection Monitoring" />
+              </CollapsibleContent>
+            </Collapsible>
 
             {/* Pipeline status strip */}
             <div className="pt-2">
@@ -1357,9 +1440,14 @@ export function TenantOpsDashboard() {
             </div>
 
             {/* Reports & Exports */}
-            <div className="pt-2">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Reports &amp; Exports</p>
-            <div className="flex flex-wrap justify-end items-center gap-2">
+            <Collapsible open={openReports || !isMobile} onOpenChange={setOpenReports} className="pt-2">
+              <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border bg-muted/30 px-3 py-2 sm:hidden">
+                <span className="text-xs font-bold uppercase tracking-wider">Reports & Exports</span>
+                <ChevronDown className={`h-4 w-4 transition-transform ${openReports ? 'rotate-180' : ''}`} />
+              </CollapsibleTrigger>
+              <p className="hidden sm:block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Reports &amp; Exports</p>
+              <CollapsibleContent className="pt-2 sm:pt-0">
+              <div className="flex flex-wrap sm:justify-end items-center gap-2">
               <Popover>
                 <PopoverTrigger asChild>
                   <Button variant="outline" size="sm" className={cn("gap-1.5 font-normal", !reportFrom && "text-muted-foreground")}>
@@ -1438,47 +1526,8 @@ export function TenantOpsDashboard() {
                 Print Report
               </Button>
             </div>
-            </div>
-
-            {/* Tenant Ops Tools */}
-            <div className="pt-2">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Tenant Ops Tools</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-2.5">
-              {navCards.map((card) => {
-                const Icon = card.icon;
-                return (
-                  <motion.button
-                    key={card.id}
-                    whileTap={{ scale: 0.97 }}
-                    onClick={() => {
-                      setActiveView(card.id);
-                      window.scrollTo({ top: 0, behavior: 'smooth' });
-                    }}
-                    className="text-left w-full"
-                  >
-                    <Card className={`border h-full hover:shadow-md transition-shadow ${card.color.includes('amber') ? 'border-amber-200' : card.color.includes('emerald') ? 'border-emerald-200' : card.color.includes('destructive') ? 'border-destructive/20' : card.color.includes('purple') ? 'border-purple-200' : card.color.includes('blue') ? 'border-blue-200' : 'border-border'}`}>
-                      <CardContent className="p-3.5 space-y-2">
-                        <div className="flex items-start justify-between">
-                          <div className={`p-2 rounded-xl ${card.color.split(' ').slice(0, 1).join(' ')}`}>
-                            <Icon className={`h-5 w-5 ${card.color.split(' ').slice(1, 2).join(' ')}`} />
-                          </div>
-                          {card.badge !== undefined && card.badge > 0 && (
-                            <Badge className={`text-[10px] px-1.5 py-0 font-bold ${card.badgeColor}`}>
-                              {card.badge}
-                            </Badge>
-                          )}
-                        </div>
-                        <div>
-                          <p className="font-bold text-sm text-foreground leading-tight">{card.label}</p>
-                          <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{card.description}</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </motion.button>
-                );
-              })}
-            </div>
-            </div>
+              </CollapsibleContent>
+            </Collapsible>
           </motion.div>
         ) : (
           <motion.div
