@@ -88,22 +88,24 @@ export function UnifiedWalletHeroCard({
 
   return (
     <div className="w-full text-left portfolio-hero-card rounded-3xl p-6 relative overflow-hidden">
-      {/* Subtle decorative circle */}
-      <div className="absolute -top-20 -right-20 w-56 h-56 rounded-full bg-primary-foreground/[0.04] pointer-events-none" />
+      {/* Decorative elements for depth and text clarity */}
+      <div className="absolute -top-20 -right-20 w-56 h-56 rounded-full bg-primary-foreground/[0.06] pointer-events-none" />
+      <div className="absolute -bottom-16 -left-16 w-44 h-44 rounded-full bg-primary-foreground/[0.04] pointer-events-none" />
+      <div className="absolute top-1/2 right-0 w-64 h-[1px] bg-gradient-to-l from-transparent via-primary-foreground/10 to-transparent pointer-events-none" />
 
       <div className="relative z-10 space-y-4">
         {/* Header row */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-primary-foreground/20">
+            <div className="p-1.5 rounded-lg bg-primary-foreground/15 backdrop-blur-sm">
               <Wallet className="h-3.5 w-3.5 text-primary-foreground/90" />
             </div>
-            <span className="text-[11px] font-semibold text-primary-foreground/60 uppercase tracking-[0.12em]">
+            <span className="text-[11px] font-semibold text-primary-foreground/80 uppercase tracking-[0.12em]">
               {ROLE_LABELS[role]}
             </span>
           </div>
-          <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary-foreground/15">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+          <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary-foreground/15 backdrop-blur-sm">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             <span className="text-[9px] font-bold text-emerald-300 uppercase tracking-wider">Active</span>
           </div>
         </div>
@@ -156,25 +158,28 @@ export function UnifiedWalletHeroCard({
             onClick={handleOpenWallet}
             className="w-full text-left active:scale-[0.98] transition-transform"
           >
-            <p className="text-[10px] uppercase tracking-[0.15em] font-semibold text-primary-foreground/50 mb-2">
-              Withdrawable Balance
-            </p>
-            <p className="text-[clamp(1.6rem,6vw,2.5rem)] font-black tracking-tight leading-none text-primary-foreground">
-              {formatAmount(headlineBalance)}
-            </p>
-            {pendingHold > 0 && (
-              <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-300/20">
-                <Clock className="h-3 w-3 text-amber-300" />
-                <span className="text-[10px] font-semibold text-amber-200">
-                  {formatAmount(pendingHold)} pending withdrawal
-                </span>
-              </div>
-            )}
-            {pendingHold > 0 && (
-              <p className="text-[10px] text-primary-foreground/40 mt-1.5">
-                Wallet total: <span className="font-semibold text-primary-foreground/60">{formatAmount(balance)}</span>
+            <div className="bg-primary-foreground/[0.10] rounded-2xl p-4 border border-primary-foreground/[0.06]">
+              <p className="text-[10px] uppercase tracking-[0.15em] font-bold text-primary-foreground/75 mb-2 flex items-center gap-1.5">
+                <Wallet className="h-3 w-3" />
+                Withdrawable Balance
               </p>
-            )}
+              <p className="text-[clamp(1.75rem,6.5vw,2.75rem)] font-black tracking-tight leading-none text-primary-foreground drop-shadow-sm">
+                {formatAmount(headlineBalance)}
+              </p>
+              {pendingHold > 0 && (
+                <div className="mt-2.5 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-300/20">
+                  <Clock className="h-3 w-3 text-amber-300" />
+                  <span className="text-[10px] font-semibold text-amber-200">
+                    {formatAmount(pendingHold)} pending withdrawal
+                  </span>
+                </div>
+              )}
+              {pendingHold > 0 && (
+                <p className="text-[10px] text-primary-foreground/50 mt-1.5">
+                  Wallet total: <span className="font-semibold text-primary-foreground/80">{formatAmount(balance)}</span>
+                </p>
+              )}
+            </div>
           </button>
         )}
 
