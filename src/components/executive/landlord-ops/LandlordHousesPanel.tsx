@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  Building2, Home, Search, User, UserPlus, UserX, UserCog, ChevronDown, ChevronRight, Loader2, X,
+  Building2, Home, Search, User, UserPlus, UserX, UserCog, ChevronDown, ChevronRight, Loader2, X, Eye, EyeOff,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { BindTenantToHouseDialog } from './BindTenantToHouseDialog';
@@ -17,6 +17,7 @@ import { HouseActivityTimeline } from '@/components/shared/HouseActivityTimeline
 import { HighlightText } from '@/components/shared/HighlightText';
 import { useFilterKeyboardShortcuts } from '@/hooks/useFilterKeyboardShortcuts';
 import { useAuth } from '@/hooks/useAuth';
+import { toast } from '@/hooks/use-toast';
 
 interface HouseRow {
   id: string;
@@ -30,6 +31,7 @@ interface HouseRow {
   landlord_id: string | null;
   tenant_id: string | null;
   created_at: string;
+  is_hidden: boolean;
 }
 
 interface LandlordGroup {
@@ -97,7 +99,7 @@ export function LandlordHousesPanel() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('house_listings')
-        .select('id,title,address,region,status,monthly_rent,daily_rate,agent_id,landlord_id,tenant_id,created_at')
+        .select('id,title,address,region,status,monthly_rent,daily_rate,agent_id,landlord_id,tenant_id,created_at,is_hidden')
         .not('landlord_id', 'is', null)
         .order('created_at', { ascending: false })
         .limit(1000);
@@ -208,9 +210,55 @@ export function LandlordHousesPanel() {
   const [removeFor, setRemoveFor] = useState<{ houseId: string; houseTitle: string } | null>(null);
   const [reassignFor, setReassignFor] = useState<{ houseId: string; houseTitle: string; currentAgentId: string } | null>(null);
   const [timelineOpen, setTimelineOpen] = useState<Record<string, boolean>>({});
+  const [togglingHide, setTogglingHide] = useState<Record<string, boolean>>({});
 
   const refetch = () => {
     housesQuery.refetch();
+  };
+
+  const toggleHidden = async (h: HouseRow) => {
+    const nextHidden = !h.is_hidden;
+    const action = nextHidden ? 'hide' : 'unhide';
+    const reason = window.prompt(
+      `Reason to ${action} "${h.title}" (min 10 characters) — visible only to landlord ops & audit logs:`,
+      nextHidden ? 'Hidden from tenant browse' : 'Restored to tenant browse'
+    );
+    if (reason === null) return;
+    const trimmed = reason.trim();
+    if (trimmed.length < 10) {
+      toast({ title: 'Reason too short', description: 'Please enter at least 10 characters.', variant: 'destructive' });
+      return;
+    }
+    setTogglingHide(s => ({ ...s, [h.id]: true }));
+    try {
+      const { error } = await supabase
+        .from('house_listings')
+        .update({ is_hidden: nextHidden })
+        .eq('id', h.id);
+      if (error) throw error;
+      await supabase.from('audit_logs').insert({
+        user_id: user?.id,
+        action_type: nextHidden ? 'listing_hidden' : 'listing_unhidden',
+        table_name: 'house_listings',
+        record_id: h.id,
+        metadata: { reason: trimmed, listing_title: h.title },
+      });
+      toast({
+        title: nextHidden ? 'House hidden' : 'House visible',
+        description: nextHidden
+          ? `${h.title} is hidden from tenant browse.`
+          : `${h.title} is back in tenant browse.`,
+      });
+      refetch();
+    } catch (err: any) {
+      toast({
+        title: `Failed to ${action} house`,
+        description: err?.message || 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setTogglingHide(s => ({ ...s, [h.id]: false }));
+    }
   };
 
   if (housesQuery.isLoading) {
@@ -332,9 +380,16 @@ export function LandlordHousesPanel() {
                                 {formatUGX(h.monthly_rent)}/mo · {formatUGX(h.daily_rate)}/day
                               </p>
                             </div>
-                            <Badge variant={h.tenant_id ? 'default' : 'outline'} className="text-[10px] shrink-0">
-                              {h.tenant_id ? 'Occupied' : 'Vacant'}
-                            </Badge>
+                            <div className="flex flex-col items-end gap-1 shrink-0">
+                              <Badge variant={h.tenant_id ? 'default' : 'outline'} className="text-[10px]">
+                                {h.tenant_id ? 'Occupied' : 'Vacant'}
+                              </Badge>
+                              {h.is_hidden && (
+                                <Badge variant="secondary" className="text-[10px] gap-1 bg-amber-100 text-amber-800 border-amber-200">
+                                  <EyeOff className="h-3 w-3" /> Hidden
+                                </Badge>
+                              )}
+                            </div>
                           </div>
 
                           <div className="rounded-md bg-muted/40 p-2 text-[11px] space-y-1">
@@ -386,6 +441,21 @@ export function LandlordHousesPanel() {
                             >
                               <UserCog className="h-3 w-3" />
                               Reassign agent
+                            </Button>
+                            <Button
+                              size="sm" variant="outline" className="h-8 text-xs gap-1"
+                              onClick={() => toggleHidden(h)}
+                              disabled={!!togglingHide[h.id]}
+                              title={h.is_hidden ? 'Show this house to tenants again' : 'Hide this house from tenant browse'}
+                            >
+                              {togglingHide[h.id] ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : h.is_hidden ? (
+                                <Eye className="h-3 w-3" />
+                              ) : (
+                                <EyeOff className="h-3 w-3" />
+                              )}
+                              {h.is_hidden ? 'Unhide' : 'Hide'}
                             </Button>
                             <Button
                               size="sm" variant="ghost" className="h-8 text-xs gap-1"

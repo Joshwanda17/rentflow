@@ -48,6 +48,7 @@ async function fetchSuggestions(userId: string): Promise<SuggestedHouse[]> {
     .from('house_listings')
     .select('id, title, address, region, district, house_category, number_of_rooms, monthly_rent, daily_rate, image_urls, short_code, agent_id')
     .eq('status', 'available')
+    .eq('is_hidden', false)
     .is('tenant_id', null)
     .lte('monthly_rent', maxRent)
     .order('created_at', { ascending: false })

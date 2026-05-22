@@ -95,6 +95,12 @@ export function useHouseListings(options: UseHouseListingsOptions = {}) {
         query = query.eq('status', 'available');
       }
 
+      // Hide houses that landlord ops has hidden — only when not viewing
+      // an agent's own listings (agents must still see/manage their hidden ones).
+      if (!options.agentId) {
+        query = query.eq('is_hidden', false);
+      }
+
       if (options.region) {
         query = query.ilike('region', `%${options.region}%`);
       }
