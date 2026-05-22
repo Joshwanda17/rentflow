@@ -262,16 +262,14 @@ function CapacityRow({ row }: { row: AgentRow }) {
   const pct = Math.min(100, Math.round((row.used / AGENT_RENT_CAP_UGX) * 100));
   const headroom = Math.max(AGENT_RENT_CAP_UGX - row.used, 0);
   const rateLabel = `${Math.round(row.repayment_rate * 100)}%`;
-  const tier =
-    row.repayment_rate >= 0.95
-      ? { label: 'Premium', tone: 'bg-emerald-500/15 text-emerald-700 border-emerald-500/30', max: 6_000_000 }
-      : row.repayment_rate >= 0.8
-      ? { label: 'Reliable', tone: 'bg-sky-500/15 text-sky-700 border-sky-500/30', max: 3_000_000 }
-      : row.repayment_rate >= 0.6
-      ? { label: 'Building', tone: 'bg-amber-500/15 text-amber-700 border-amber-500/30', max: 1_500_000 }
-      : row.active_count === 0
-      ? { label: 'Starter', tone: 'bg-violet-500/15 text-violet-700 border-violet-500/30', max: 500_000 }
-      : { label: 'Defaulting', tone: 'bg-destructive/15 text-destructive border-destructive/30', max: 0 };
+  const tierTone: Record<AgentCapacity['tier'], string> = {
+    Positive:   'bg-emerald-500/15 text-emerald-700 border-emerald-500/30',
+    Fair:       'bg-amber-500/15 text-amber-700 border-amber-500/30',
+    Bad:        'bg-orange-500/15 text-orange-700 border-orange-500/30',
+    'Very Bad': 'bg-destructive/15 text-destructive border-destructive/30',
+    Starter:    'bg-violet-500/15 text-violet-700 border-violet-500/30',
+  };
+  const tier = { label: row.tier, tone: tierTone[row.tier], max: row.per_tenant_max };
 
   const bar =
     pct >= 95 ? 'bg-destructive' : pct >= 75 ? 'bg-amber-500' : 'bg-emerald-500';
@@ -304,9 +302,15 @@ function CapacityRow({ row }: { row: AgentRow }) {
           Headroom <strong className="text-foreground font-mono">{formatUGX(headroom)}</strong>
         </span>
         <span className="text-muted-foreground">
-          Repayment <strong className="text-foreground">{rateLabel}</strong> · Per-tenant max{' '}
+          Week rate <strong className="text-foreground">{rateLabel}</strong> · Per-tenant max{' '}
           <strong className="text-foreground font-mono">{formatUGX(tier.max)}</strong>
         </span>
+      </div>
+      <div className="text-[10px] text-muted-foreground mt-1 tabular-nums">
+        Last 7d: collected{' '}
+        <strong className="text-foreground font-mono">{formatUGX(row.paid_last_week)}</strong>{' '}
+        of expected{' '}
+        <strong className="text-foreground font-mono">{formatUGX(row.expected_weekly)}</strong>
       </div>
     </li>
   );
