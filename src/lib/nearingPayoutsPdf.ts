@@ -99,17 +99,17 @@ async function fetchPayoutMethodsMap(userIds: string[]): Promise<Map<string, Pay
     if (r.payout_mode === 'bank_transfer') {
       map.set(uid, {
         mode: 'bank_transfer',
-        line1: `🏦 ${r.bank_name || 'Bank'}`,
+        line1: `BANK: ${r.bank_name || '—'}`,
         line2: `${r.bank_account_name || '—'}\nA/C ${r.bank_account_number || '—'}`,
       });
     } else if (r.payout_mode === 'mobile_money') {
       map.set(uid, {
         mode: 'mobile_money',
-        line1: `📱 ${r.momo_provider || 'MoMo'} Mobile Money`,
+        line1: `${(r.momo_provider || 'MoMo').toUpperCase()} MOBILE MONEY`,
         line2: `${r.momo_name || '—'}\n${r.momo_number || '—'}`,
       });
     } else {
-      map.set(uid, { mode: 'cash', line1: '💵 Cash Pickup', line2: '—' });
+      map.set(uid, { mode: 'cash', line1: 'CASH PICKUP', line2: '—' });
     }
   }
   return map;
@@ -227,7 +227,7 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
     const pm = r.investorId ? payoutMap.get(r.investorId) : undefined;
     const paymentCell = pm
       ? `${pm.line1}\n${pm.line2}`
-      : '⚠ Not set\nAdd payout method';
+      : 'Not set\nAdd payout method';
     return [
       String(idx + 1),
       r.name || '—',
@@ -277,7 +277,7 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
       // Subtle warning for missing payment methods
       if (data.section === 'body' && data.column.index === 10) {
         const v = String(data.cell.raw || '');
-        if (v.startsWith('⚠')) {
+        if (v.startsWith('Not set')) {
           data.cell.styles.textColor = [180, 83, 9];
           data.cell.styles.fontStyle = 'italic';
         }
