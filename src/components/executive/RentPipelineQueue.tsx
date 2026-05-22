@@ -880,6 +880,54 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
                 )}
               </div>
 
+              {/* Tenant passport + house photos — visible verification evidence */}
+              {(selectedRequest.tenant_photo_url || (selectedRequest.house_image_urls && selectedRequest.house_image_urls.length > 0)) && (
+                <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-3">
+                  <h4 className="text-sm font-semibold flex items-center gap-1.5">
+                    <Camera className="h-4 w-4 text-primary" />
+                    Verification Photos
+                  </h4>
+                  <div className="flex flex-wrap gap-3">
+                    {selectedRequest.tenant_photo_url && (
+                      <div className="space-y-1">
+                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">Tenant Passport</p>
+                        <a href={selectedRequest.tenant_photo_url} target="_blank" rel="noopener noreferrer" className="block">
+                          <img
+                            src={selectedRequest.tenant_photo_url}
+                            alt={`Tenant ${selectedRequest.tenant_name}`}
+                            className="h-32 w-24 rounded-lg object-cover border-2 border-primary/30 hover:ring-2 hover:ring-primary transition-all bg-background"
+                            loading="lazy"
+                          />
+                        </a>
+                      </div>
+                    )}
+                    {selectedRequest.house_image_urls && selectedRequest.house_image_urls.length > 0 && (
+                      <div className="space-y-1 flex-1 min-w-0">
+                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold flex items-center gap-1">
+                          <ImageIcon className="h-3 w-3" />
+                          House Photos ({selectedRequest.house_image_urls.length})
+                        </p>
+                        <div className="flex gap-2 overflow-x-auto pb-1">
+                          {selectedRequest.house_image_urls.map((url: string, i: number) => (
+                            <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                              <img
+                                src={url}
+                                alt={`House ${i + 1}`}
+                                className="h-32 w-32 rounded-lg object-cover border border-border hover:ring-2 hover:ring-primary/50 transition-all"
+                                loading="lazy"
+                              />
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    Captured by the agent at registration. Click any photo to enlarge.
+                  </p>
+                </div>
+              )}
+
               {/* LC1 & GPS Details — hidden for outstanding-balance (no fresh property to verify) */}
               {selectedRequest.registration_type !== 'outstanding_balance' && (
               <div className="rounded-xl border border-border p-3 bg-muted/30 space-y-2">
