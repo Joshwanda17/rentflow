@@ -2365,9 +2365,47 @@ export function EmailTransactionsPanel() {
                 </div>
               </div>
                 );
-              })}
+              });
+            })()}
           </div>
         )}
+        {/* Pagination controls — only shown when there's more than one page. */}
+        {!loading && rows.length > 0 && (() => {
+          const meta = (typeof window !== 'undefined' ? (window as any).__emailPaginationMeta : null) as
+            | { totalPages: number; safePage: number; total: number }
+            | null;
+          if (!meta) return null;
+          const { totalPages, safePage, total } = meta;
+          const from = total === 0 ? 0 : (safePage - 1) * pageSize + 1;
+          const to = Math.min(safePage * pageSize, total);
+          return (
+            <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t bg-muted/20 text-xs">
+              <div className="text-muted-foreground tabular-nums">
+                Showing <span className="font-medium text-foreground">{from.toLocaleString()}–{to.toLocaleString()}</span> of{' '}
+                <span className="font-medium text-foreground">{total.toLocaleString()}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-muted-foreground">Rows:</label>
+                <select
+                  value={pageSize}
+                  onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
+                  className="h-7 rounded border border-input bg-background px-2 text-xs"
+                >
+                  {[25, 50, 100, 200, 500].map((n) => <option key={n} value={n}>{n}</option>)}
+                </select>
+                <Button size="sm" variant="outline" className="h-7 px-2"
+                  onClick={() => setCurrentPage(1)} disabled={safePage <= 1}>« First</Button>
+                <Button size="sm" variant="outline" className="h-7 px-2"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={safePage <= 1}>‹ Prev</Button>
+                <span className="tabular-nums text-muted-foreground px-1">Page {safePage} / {totalPages}</span>
+                <Button size="sm" variant="outline" className="h-7 px-2"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={safePage >= totalPages}>Next ›</Button>
+                <Button size="sm" variant="outline" className="h-7 px-2"
+                  onClick={() => setCurrentPage(totalPages)} disabled={safePage >= totalPages}>Last »</Button>
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       <DedupAuditPanel />
