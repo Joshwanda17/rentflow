@@ -546,32 +546,36 @@ export function EmailTransactionsPanel() {
     // (not just the most-recent 200). When neither a date range nor a
     // search is active we still default to a generous recent window so
     // the page opens fast.
-    let q: any = (supabase.from('gmail_transactions') as any)
-      .select('id,gmail_message_id,from_email,from_name,subject,snippet,amount,transaction_id,parsed,internal_date,direction,channel,counterparty,fee,balance')
-      .order('internal_date', { ascending: false, nullsFirst: false });
-
     const fromTsLoad = fromDate ? zonedWallClockToUtcMs(fromDate, '00:00:00', tz) : null;
     const toTsLoad = toDate ? zonedWallClockToUtcMs(toDate, '23:59:59', tz) : null;
-    if (fromTsLoad) q = q.gte('internal_date', new Date(fromTsLoad).toISOString());
-    if (toTsLoad) q = q.lte('internal_date', new Date(toTsLoad).toISOString());
-
     const tokens = searchQuery.split(/\s+/).map((t) => t.trim()).filter(Boolean);
-    if (tokens.length > 0) {
-      // Use the LONGEST token for the server-side OR (most selective).
-      // Remaining tokens are AND-applied client-side in `matchesSearch`.
-      const probe = tokens.slice().sort((a, b) => b.length - a.length)[0];
-      const esc = probe.replace(/[%_,()]/g, (m) => '\\' + m);
-      q = q.or(
-        [
-          `transaction_id.ilike.%${esc}%`,
-          `subject.ilike.%${esc}%`,
-          `snippet.ilike.%${esc}%`,
-          `counterparty.ilike.%${esc}%`,
-          `from_email.ilike.%${esc}%`,
-          `from_name.ilike.%${esc}%`,
-        ].join(',')
-      );
-    }
+    const probe = tokens.length
+      ? tokens.slice().sort((a, b) => b.length - a.length)[0]
+      : null;
+    const esc = probe ? probe.replace(/[%_,()]/g, (m) => '\\' + m) : null;
+
+    // Each page must be built from a FRESH query builder — reusing the
+    // same builder across awaits can stack modifiers in PostgREST.
+    const buildQuery = () => {
+      let q: any = (supabase.from('gmail_transactions') as any)
+        .select('id,gmail_message_id,from_email,from_name,subject,snippet,amount,transaction_id,parsed,internal_date,direction,channel,counterparty,fee,balance')
+        .order('internal_date', { ascending: false, nullsFirst: false });
+      if (fromTsLoad) q = q.gte('internal_date', new Date(fromTsLoad).toISOString());
+      if (toTsLoad) q = q.lte('internal_date', new Date(toTsLoad).toISOString());
+      if (esc) {
+        q = q.or(
+          [
+            `transaction_id.ilike.%${esc}%`,
+            `subject.ilike.%${esc}%`,
+            `snippet.ilike.%${esc}%`,
+            `counterparty.ilike.%${esc}%`,
+            `from_email.ilike.%${esc}%`,
+            `from_name.ilike.%${esc}%`,
+          ].join(',')
+        );
+      }
+      return q;
+    };
 
     // Pagination strategy — Supabase enforces a 1000-row hard cap per
     // request, so to reach the FULL history (well beyond 5000) we walk
@@ -594,7 +598,7 @@ export function EmailTransactionsPanel() {
     // eslint-disable-next-line no-constant-condition
     while (true) {
       const end = offset + PAGE - 1;
-      const { data: page, error } = await q.range(offset, end);
+      const { data: page, error } = await buildQuery().range(offset, end);
       if (error || !page || page.length === 0) break;
       all.push(...(page as unknown as GmailTx[]));
       if (page.length < PAGE) break;          // last page
