@@ -94,6 +94,7 @@ export function useCreditAccessLimit(userId: string | undefined) {
           bonusFromLandlordRent: 0,
           bonusFromHousesListed: 0,
           bonusFromPartnersOnboarded: 0,
+          bonusFromAgentAllocations: 0,
         }
   );
   // If we have ANY cached value (memory or localStorage), don't show a
