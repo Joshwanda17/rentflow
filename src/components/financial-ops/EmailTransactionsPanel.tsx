@@ -743,14 +743,14 @@ export function EmailTransactionsPanel() {
                 .order('created_at', { ascending: false })
                 .limit(3),
             ]);
-            if (viewRes.error) return [id, null, []] as const;
+            if (viewRes.error) return [id, null as number | null, [] as RecentTx[]] as const;
             const r = (viewRes.data ?? {}) as Record<string, unknown>;
             const withdrawable = Number((r.withdrawable as number | string | undefined) ?? 0);
             const floatBal = Number((r.float_balance as number | string | undefined) ?? 0);
             const tx = (txRes.data ?? []) as RecentTx[];
-            return [id, withdrawable + floatBal, tx] as const;
+            return [id, (withdrawable + floatBal) as number | null, tx] as const;
           } catch {
-            return [id, null, []] as const;
+            return [id, null as number | null, [] as RecentTx[]] as const;
           }
         }),
       );
