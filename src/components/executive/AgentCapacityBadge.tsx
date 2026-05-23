@@ -106,6 +106,7 @@ export function AgentCapacityBadge({
           >
             {dailyLabel}
           </span>
+          <DailyRatingThresholdPopover className="scale-90" />
           <span
             className={cn(
               'inline-flex items-center gap-1 px-1.5 py-0 rounded-full border text-[10px] font-bold leading-4',
