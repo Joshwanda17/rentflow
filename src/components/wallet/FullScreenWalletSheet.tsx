@@ -44,6 +44,7 @@ import { AgentRentRequestsWalletSection } from './AgentRentRequestsWalletSection
 import { format } from 'date-fns';
 import { EmptyHousePlacementBonusBanner } from '@/components/agent/EmptyHousePlacementBonusBanner';
 import { FloatBreakdownCard } from './FloatBreakdownCard';
+import { AgentMoneyMapCard } from './AgentMoneyMapCard';
 
 interface FullScreenWalletSheetProps {
   open: boolean;
@@ -57,7 +58,7 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
   const { profile } = useProfile();
   const isAgent = role === 'agent';
   const { commissionBalance, withdrawableBalance } = useAgentBalances();
-  const { floatBalance: walletFloatBalance } = useAgentBalances();
+  const { floatBalance: walletFloatBalance, advanceBalance, pendingHolds } = useAgentBalances();
   // STRICT: total visible balance is float + ledger-backed withdrawable.
   // We never use the raw cached `wallets.balance` because it can drift
   // above the user's true ledger-backed position.
@@ -205,13 +206,18 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
                     {getDynamicCurrencyName()}
                   </p>
                   <WalletDisclaimer variant="dark" />
-                  {isAgent && (
-                    <p className="text-[11px] text-white/60 mt-2">
-                      Withdrawable: <CompactAmount value={realWithdrawableBalance} className="text-white/80 border-0" /> · Float (tenant collections): <CompactAmount value={walletFloatBalance} className="text-white/80 border-0" />
-                    </p>
-                  )}
                 </div>
               </Card>
+
+              {/* Plain-language money breakdown (agents only) */}
+              {isAgent && (
+                <AgentMoneyMapCard
+                  withdrawable={realWithdrawableBalance}
+                  float={walletFloatBalance}
+                  advance={advanceBalance}
+                  pendingHolds={pendingHolds}
+                />
+              )}
 
               {/* Bounty: empty houses waiting for a tenant (agents only) */}
               {isAgent && <EmptyHousePlacementBonusBanner />}
