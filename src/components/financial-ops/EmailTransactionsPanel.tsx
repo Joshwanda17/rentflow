@@ -852,6 +852,11 @@ export function EmailTransactionsPanel() {
         delete next[entry.target_user_id];
         return next;
       });
+      setUserRecentTx((cur) => {
+        const next = { ...cur };
+        delete next[entry.target_user_id];
+        return next;
+      });
       toast({
         title: 'Routing reversed',
         description: `${opLabel} UGX ${Math.round(entry.amount).toLocaleString()} ${opposite === 'credit' ? 'to' : 'from'} ${entry.target_user_name || 'user'}.`,
