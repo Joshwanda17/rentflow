@@ -2422,6 +2422,31 @@ export function EmailTransactionsPanel() {
                                         ? '…'
                                         : `UGX ${Math.round(userBalances[u.id]).toLocaleString()}`}
                                     </p>
+                                    {(userRecentTx[u.id]?.length ?? 0) > 0 && (
+                                      <div className="pt-1 mt-1 border-t">
+                                        <p className="text-muted-foreground font-sans text-[10px] uppercase tracking-wider mb-0.5">
+                                          Last {Math.min(3, userRecentTx[u.id].length)} wallet tx
+                                        </p>
+                                        <ul className="space-y-0.5">
+                                          {userRecentTx[u.id].slice(0, 3).map((t) => {
+                                            const isIn = t.direction === 'cash_in' || t.direction === 'credit';
+                                            return (
+                                              <li key={t.id} className="flex items-center justify-between gap-2 font-sans">
+                                                <span className="truncate">
+                                                  <span className={isIn ? 'text-emerald-600' : 'text-rose-600'}>
+                                                    {isIn ? '+' : '−'}{Math.round(t.amount).toLocaleString()}
+                                                  </span>{' '}
+                                                  <span className="text-muted-foreground">· {t.category}</span>
+                                                </span>
+                                                <span className="text-muted-foreground/70 text-[10px] shrink-0">
+                                                  {format(new Date(t.created_at), 'MMM d HH:mm')}
+                                                </span>
+                                              </li>
+                                            );
+                                          })}
+                                        </ul>
+                                      </div>
+                                    )}
                                   </div>
                                 </TooltipContent>
                               </Tooltip>
