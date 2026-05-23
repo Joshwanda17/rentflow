@@ -17,6 +17,7 @@ import {
   generateAgentCapacityPdf,
   downloadCapacityPdf,
 } from '@/lib/generateAgentCapacityPdf';
+import { DailyRatingThresholdPopover } from '@/components/shared/DailyRatingThresholdPopover';
 
 type AgentRow = {
   agent_id: string;
