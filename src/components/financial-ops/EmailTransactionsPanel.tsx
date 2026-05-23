@@ -829,7 +829,17 @@ export function EmailTransactionsPanel() {
         description: `${opLabel} UGX ${Math.round(entry.amount).toLocaleString()} ${opposite === 'credit' ? 'to' : 'from'} ${entry.target_user_name || 'user'}.`,
       });
     } catch (e: any) {
-      toast({ title: 'Reverse failed', description: e?.message || String(e), variant: 'destructive' });
+      const raw = e?.message || String(e);
+      let title = 'Reverse failed';
+      let description = raw;
+      if (/NEGATIVE_WALLET_BLOCKED/i.test(raw)) {
+        const m = raw.match(/cannot debit\s+(\d+).*strict available balance is\s+(\d+)/i);
+        const amt = m?.[1] ? `UGX ${Number(m[1]).toLocaleString()}` : 'the requested amount';
+        const bal = m?.[2] ? `UGX ${Number(m[2]).toLocaleString()}` : '0';
+        title = 'Cannot reverse — insufficient funds';
+        description = `This user’s strict available balance is ${bal}, but the reversal requires ${amt}. The money may have already been swept to another wallet (e.g., via system balance correction). To reverse the original deposit, debit the wallet that currently holds the funds instead.`;
+      }
+      toast({ title, description, variant: 'destructive' });
     } finally {
       setReverseBusy((cur) => {
         const { [entry.id]: _, ...rest } = cur;
