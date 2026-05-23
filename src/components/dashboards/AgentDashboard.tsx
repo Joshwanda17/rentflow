@@ -588,6 +588,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               onOpenListHouse={() => setListHouseOpen(true)}
             />
 
+            {/* Live rating — today vs target + 7-day capacity tier */}
+            <AgentRatingCard agentId={user.id} />
+
             {/* Quick access: agent's own listed houses */}
             <button
               type="button"
