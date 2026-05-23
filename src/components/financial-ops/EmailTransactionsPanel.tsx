@@ -2398,6 +2398,8 @@ export function EmailTransactionsPanel() {
                         <ul className="space-y-1">
                           {history.slice(0, 4).map((h) => {
                             const reversal = /revers/i.test(h.reason || '');
+                            const busy = !!reverseBusy[h.id];
+                            const bal = userBalances[h.target_user_id];
                             return (
                               <li
                                 key={h.id}
@@ -2420,6 +2422,29 @@ export function EmailTransactionsPanel() {
                                     {h.routed_by_name ? `by ${h.routed_by_name} · ` : ''}
                                     {format(new Date(h.created_at), 'MMM d, HH:mm')}
                                     {h.sms_sent ? ' · SMS sent' : ''}
+                                  </span>
+                                  <span className="mt-1 flex items-center gap-2 flex-wrap">
+                                    <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+                                      <Wallet className="h-3 w-3" />
+                                      Wallet now:{' '}
+                                      <strong className="font-mono tabular-nums text-foreground/80">
+                                        {bal === undefined ? '…' : `UGX ${Math.round(bal).toLocaleString()}`}
+                                      </strong>
+                                    </span>
+                                    {!reversal && (
+                                      <button
+                                        type="button"
+                                        disabled={busy}
+                                        onClick={() => reverseRoutingEntry(r, h)}
+                                        className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border border-rose-300 text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30 disabled:opacity-60"
+                                        title="Post the opposite ledger leg against the same user/bucket"
+                                      >
+                                        {busy
+                                          ? <Loader2 className="h-3 w-3 animate-spin" />
+                                          : <Undo2 className="h-3 w-3" />}
+                                        Reverse
+                                      </button>
+                                    )}
                                   </span>
                                 </span>
                               </li>
