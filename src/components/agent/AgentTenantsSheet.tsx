@@ -1146,7 +1146,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                     <div className={`h-10 w-10 rounded-xl ${s.bg} flex items-center justify-center shrink-0`}>
                       <Icon className={`h-4 w-4 ${s.fg}`} />
                     </div>
-                    <div className="min-w-1">
+                    <div className="min-w-0">
                       <p className="text-[10px] text-muted-foreground leading-tight">{s.label}</p>
                       <p className="text-base font-bold leading-tight truncate">{s.value}</p>
                       <p className={`text-[10px] leading-tight ${s.subClass || 'text-muted-foreground'}`}>{s.sub}</p>
