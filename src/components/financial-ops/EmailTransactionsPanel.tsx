@@ -2469,6 +2469,12 @@ export function EmailTransactionsPanel() {
                         size="sm"
                         variant="outline"
                         className="mt-1.5 h-8 sm:h-7 text-[11px] gap-1"
+                        disabled={isRouted && !isReversed}
+                        title={
+                          isRouted && !isReversed
+                            ? 'Already routed — reverse the existing entry first before re-routing.'
+                            : 'Route this deposit to a user wallet'
+                        }
                         onClick={() => {
                           const matches = userMatches[r.id] ?? [];
                           const top = matches
@@ -2489,7 +2495,7 @@ export function EmailTransactionsPanel() {
                           setRoutingRow(r);
                         }}
                       >
-                        Route to user <ArrowRight className="h-3 w-3" />
+                        {isRouted && !isReversed ? 'Already routed' : <>Route to user <ArrowRight className="h-3 w-3" /></>}
                       </Button>
                     )}
                     {r.amount && r.amount > 0 && (r.direction === 'out' || r.direction === 'charge') && (
@@ -2522,6 +2528,12 @@ export function EmailTransactionsPanel() {
                         size="sm"
                         variant="outline"
                         className="mt-1.5 h-8 sm:h-7 text-[11px] gap-1 border-rose-300 text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                        disabled={isRouted && !isReversed}
+                        title={
+                          isRouted && !isReversed
+                            ? 'Already routed — reverse the existing entry first before re-routing.'
+                            : 'Debit this outflow from a user wallet'
+                        }
                         onClick={() => {
                           const matches = userMatches[r.id] ?? [];
                           const top = matches
@@ -2542,7 +2554,7 @@ export function EmailTransactionsPanel() {
                           setRoutingRow(r);
                         }}
                       >
-                        Debit user wallet <ArrowRight className="h-3 w-3" />
+                        {isRouted && !isReversed ? 'Already routed' : <>Debit user wallet <ArrowRight className="h-3 w-3" /></>}
                       </Button>
                     )}
                   </div>
