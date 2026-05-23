@@ -10,11 +10,13 @@ export const AGENT_RENT_CAP_UGX = 100_000_000;
 
 /**
  * Daily Eligibility Law (new):
- *   If, on the previous calendar day, an agent collected
- *   at least 20% of their expected daily rent, they are
- *   UNBLOCKED from posting new rent requests today and are
- *   rated "Good" (green). If they fall below 20% the next
- *   day, they are BLOCKED until they catch up again.
+ *   An agent is UNBLOCKED and rated "Good" (green) as soon
+ *   as EITHER yesterday's OR today's collections reach 20%
+ *   of their expected daily rent. Today's progress counts
+ *   live — the moment an agent crosses the 20% line today,
+ *   their rating flips up and they may post new rent
+ *   requests immediately. If neither yesterday nor today
+ *   is at 20%, they stay BLOCKED until they catch up.
  *
  *   Agents with no active rent collections yet (Starter)
  *   are always allowed to post their first request.
@@ -22,9 +24,11 @@ export const AGENT_RENT_CAP_UGX = 100_000_000;
 export const DAILY_ELIGIBILITY_THRESHOLD = 0.20;
 
 /**
- * Daily rating tiers based on YESTERDAY's collection ratio
- * (paid_yesterday / expected_daily). 20% is the unblock line and
- * is explicitly the start of "Good".
+ * Daily rating tiers based on the BEST of yesterday's and today's
+ * collection ratios (paid / expected_daily). 20% is the unblock line
+ * and is explicitly the start of "Good". Using the best of the two
+ * lets a strong day TODAY immediately lift an agent out of "Very Bad"
+ * instead of forcing them to wait until tomorrow.
  *
  *   ≥ 50%        → Very Good  (emerald, allowed)
  *   20% – <50%   → Good       (green,   allowed)
