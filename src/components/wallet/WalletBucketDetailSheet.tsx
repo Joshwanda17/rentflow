@@ -5,9 +5,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrency } from '@/hooks/useCurrency';
 import {
-  ArrowDownLeft, ArrowUpRight, HandCoins, Users, X, Loader2,
+  ArrowDownLeft, ArrowUpRight, HandCoins, Users, X, Loader2, Share2,
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
+import { generateWalletStatementPdf, shareWalletStatementPdf } from '@/lib/walletStatementPdf';
 
 // Mirror the float bucket categories used by FloatBreakdownCard so the two
 // drill-down views never disagree about which entries belong to which bucket.
@@ -189,6 +191,7 @@ export function WalletBucketDetailSheet({
   const { formatAmount } = useCurrency();
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(false);
+  const [sharing, setSharing] = useState(false);
 
   const copy = COPY[bucket];
 
@@ -234,6 +237,48 @@ export function WalletBucketDetailSheet({
     }
     return { totalIn: i, totalOut: o };
   }, [entries]);
+
+  const handleShare = useCallback(async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const ownerName =
+        (user?.user_metadata?.full_name as string | undefined) ||
+        (user?.user_metadata?.name as string | undefined) ||
+        user?.email ||
+        'Welile User';
+      const ownerPhone = (user?.user_metadata?.phone as string | undefined) || user?.phone || null;
+      const blob = await generateWalletStatementPdf({
+        bucketTitle: copy.title,
+        bucketSubtitle: copy.helper,
+        ownerName,
+        ownerPhone,
+        balance,
+        totalIn,
+        totalOut,
+        entries: entries.map(e => ({
+          transaction_date: e.transaction_date,
+          label: labelFor(e.category),
+          reason: reasonFor(e.category),
+          description: e.description,
+          direction: e.direction,
+          amount: Number(e.amount || 0),
+        })),
+      });
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const slug = bucket === 'withdrawable' ? 'earnings' : 'tenant-collections';
+      const filename = `welile-${slug}-statement-${today}.pdf`;
+      const caption =
+        `My Welile ${copy.title} statement (${today}). ` +
+        `Balance: ${formatAmount(balance)}.`;
+      await shareWalletStatementPdf(blob, filename, caption);
+    } catch (err) {
+      console.error('[WalletBucketDetailSheet] share failed', err);
+      toast.error('Could not generate statement. Please try again.');
+    } finally {
+      setSharing(false);
+    }
+  }, [sharing, user, copy.title, copy.helper, balance, totalIn, totalOut, entries, bucket, formatAmount]);
 
   // Group entries by day for an easy-to-scan timeline.
   const grouped = useMemo(() => {
@@ -304,6 +349,20 @@ export function WalletBucketDetailSheet({
               </p>
             </div>
           </div>
+
+          {/* Share statement */}
+          <Button
+            type="button"
+            onClick={handleShare}
+            disabled={sharing || loading}
+            className="w-full mt-4 h-11 rounded-xl font-bold gap-2"
+          >
+            {sharing ? (
+              <><Loader2 className="h-4 w-4 animate-spin" /> Preparing PDF…</>
+            ) : (
+              <><Share2 className="h-4 w-4" /> Share statement (PDF)</>
+            )}
+          </Button>
         </div>
 
         {/* Activity list */}
