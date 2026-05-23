@@ -7,6 +7,13 @@ export default function FinancialOpsPage() {
   const navigate = useNavigate();
 
   const goToManagerDashboard = () => navigate('/dashboard/manager');
+  const goBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/dashboard/manager');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -16,9 +23,9 @@ export default function FinancialOpsPage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={goToManagerDashboard}
+            onClick={goBack}
             className="gap-2 text-sm font-medium -ml-2"
-            aria-label="Back to manager dashboard"
+            aria-label="Back to previous page"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to dashboard
