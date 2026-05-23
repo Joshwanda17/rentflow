@@ -1327,6 +1327,26 @@ export function EmailTransactionsPanel() {
     .split(/\s+/)
     .map((t) => t.trim())
     .filter(Boolean);
+  // Expand each token with phone-number variants so a search like "0772123456"
+  // matches emails that printed "+256772123456" / "256772 123 456" / etc.
+  const expandedSearchTokens: string[][] = searchTokens.map((t) => {
+    const variants = new Set<string>([t]);
+    const digits = t.replace(/\D/g, '');
+    if (digits.length >= 7) {
+      variants.add(digits);
+      const norm = normalizeUgPhone(t);
+      if (norm) {
+        variants.add(norm);                 // 256XXXXXXXXX
+        variants.add(`0${norm.slice(3)}`);  // 0XXXXXXXXX
+        variants.add(norm.slice(3));        // 7XXXXXXXX
+      }
+    }
+    // Amount typed with or without commas (e.g. "150000" vs "150,000")
+    if (/^\d{4,}$/.test(digits)) {
+      variants.add(Number(digits).toLocaleString().toLowerCase());
+    }
+    return Array.from(variants);
+  });
   const matchesSearch = (r: GmailTx): boolean => {
     if (searchTokens.length === 0) return true;
     const matched = userMatches[r.id] ?? [];
@@ -1343,11 +1363,17 @@ export function EmailTransactionsPanel() {
       r.direction ?? '',
       r.channel ?? '',
       r.amount != null ? String(Math.round(r.amount)) : '',
+      r.amount != null ? Math.round(r.amount).toLocaleString() : '',
+      r.fee != null ? String(Math.round(r.fee)) : '',
+      r.balance != null ? String(Math.round(r.balance)) : '',
       r.gmail_message_id ?? '',
       r.internal_date ?? '',
       matchedHay,
     ].join(' ').toLowerCase();
-    return searchTokens.every((t) => hay.includes(t));
+    // Each token must match in ANY of its variant forms.
+    return expandedSearchTokens.every((variants) =>
+      variants.some((v) => hay.includes(v)),
+    );
   };
   // `filteredRows` reflects BOTH the date range and the search box, so every
   // downstream consumer (stats, breakdown, chart, exports, list) stays in sync.
@@ -1986,28 +2012,47 @@ export function EmailTransactionsPanel() {
       })()}
 
       <div className="rounded-xl border bg-card overflow-hidden">
-        <div className="p-4 border-b flex items-center justify-between gap-3 flex-wrap">
-          <div className="relative w-full sm:w-56">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+        {/* Prominent, full-width search bar — lets ops find any email by
+            amount, name, phone (any format), reference id, or any word in
+            the body / subject. Sticky on scroll so it's always reachable. */}
+        <div className="p-4 border-b bg-muted/30 sticky top-0 z-10 space-y-2">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <h3 className="font-semibold text-sm flex items-center gap-2">
+              <Mail className="h-4 w-4 text-muted-foreground" />
+              Recent emails
+            </h3>
+            {searchActive && (
+              <span className="text-xs text-muted-foreground">
+                {filteredRows.length} match{filteredRows.length === 1 ? '' : 'es'}
+              </span>
+            )}
+          </div>
+          <div className="relative w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
             <input
               type="search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search any email…"
-              className="h-8 w-full rounded-md border border-input bg-background pl-7 pr-7 text-sm"
+              placeholder="Search by amount, name, phone, transaction id, or any word in the email…"
+              aria-label="Search emails"
+              className="h-12 w-full rounded-lg border-2 border-input bg-background pl-10 pr-10 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent placeholder:text-muted-foreground/70"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground rounded-full p-1 hover:bg-muted"
                 aria-label="Clear search"
               >
-                <X className="h-3.5 w-3.5" />
+                <X className="h-4 w-4" />
               </button>
             )}
           </div>
-          <h3 className="font-semibold text-sm">Recent emails</h3>
+          <p className="text-[11px] text-muted-foreground">
+            Tip: combine words (e.g. <code className="px-1 rounded bg-muted">john 150000</code>) — every word must match. Phone numbers work in any format.
+          </p>
+        </div>
+        <div className="p-4 border-b flex items-center justify-between gap-3 flex-wrap">
           {(() => {
             // Money-in vs money-out chips. Counts respect the active date /
             // search filters so the numbers always match what's listed below.
