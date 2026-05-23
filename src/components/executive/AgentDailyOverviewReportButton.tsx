@@ -165,11 +165,11 @@ export function AgentDailyOverviewReportButton() {
           principalPaid: a.principalPaid,
           outstanding: a.outstanding,
         }))
-        // Show worst performers first: lowest collection rate, then highest expected
+        // Show best performers first: highest collection rate, then highest expected
         .sort((x, y) => {
           const rx = x.expectedToday > 0 ? x.collectedToday / x.expectedToday : 1;
           const ry = y.expectedToday > 0 ? y.collectedToday / y.expectedToday : 1;
-          if (rx !== ry) return rx - ry;
+          if (rx !== ry) return ry - rx;
           return y.expectedToday - x.expectedToday;
         });
 
