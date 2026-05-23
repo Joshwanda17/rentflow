@@ -1,4 +1,11 @@
 import { useState, useEffect, useCallback, useMemo, useRef, useDeferredValue } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -253,6 +260,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [recentCollectionFilter, setRecentCollectionFilter] = useState<RecentCollectionFilter>(
     () => loadPrefs().recentCollectionFilter ?? 'all',
   );
+  const [showBalanceBreakdown, setShowBalanceBreakdown] = useState(false);
   const tenantListRef = useRef<HTMLDivElement>(null);
 
   // Push a property to the front of the MRU list and persist (deduped, capped).
@@ -1122,12 +1130,18 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               { icon: CalendarClock, label: 'Daily Expectation', value: formatUGX(stats.dailyExpectation), sub: `From ${stats.owingCount} active`, bg: 'bg-indigo-100', fg: 'text-indigo-600', subClass: 'text-indigo-600 font-medium' },
               { icon: Wallet, label: 'Owing', value: String(stats.owingCount), sub: 'Tenants owing', bg: 'bg-amber-100', fg: 'text-amber-600', subClass: 'text-rose-600 font-medium' },
               { icon: DollarSign, label: 'Collected', value: formatUGX(Object.values(tenantTotals).reduce((s, v) => s + (v?.paid || 0), 0)), sub: 'Lifetime', bg: 'bg-emerald-100', fg: 'text-emerald-600' },
-              { icon: AlertCircle, label: 'Overdue Amount', value: formatUGX(stats.totalOwing), sub: `From ${stats.owingCount} tenants`, bg: 'bg-rose-100', fg: 'text-rose-600', subClass: 'text-rose-600 font-medium' },
+              { icon: AlertCircle, label: 'Total Owed', value: formatUGX(stats.totalOwing), sub: `From ${stats.owingCount} tenants`, bg: 'bg-rose-100', fg: 'text-rose-600', subClass: 'text-rose-600 font-medium', clickable: true },
               { icon: TrendingUp, label: 'Occupancy', value: stats.total > 0 ? `${Math.round((stats.paidUpCount + stats.owingCount) / stats.total * 100)}%` : '0%', sub: 'Active cycles', bg: 'bg-sky-100', fg: 'text-sky-600', subClass: 'text-emerald-600 font-medium' },
             ].map((s, i) => {
               const Icon = s.icon;
               return (
-                <div key={i} className="rounded-2xl border border-border/60 bg-card p-3 shadow-sm">
+                <button
+                  key={i}
+                  type="button"
+                  onClick={s.clickable ? () => setShowBalanceBreakdown(true) : undefined}
+                  className={`rounded-2xl border border-border/60 bg-card p-3 shadow-sm text-left w-full ${s.clickable ? 'cursor-pointer hover:shadow-md hover:border-rose-300 transition-all active:scale-[0.98]' : ''}`}
+                  disabled={!s.clickable}
+                >
                   <div className="flex items-center gap-2.5">
                     <div className={`h-10 w-10 rounded-xl ${s.bg} flex items-center justify-center shrink-0`}>
                       <Icon className={`h-4 w-4 ${s.fg}`} />
@@ -1138,7 +1152,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                       <p className={`text-[10px] leading-tight ${s.subClass || 'text-muted-foreground'}`}>{s.sub}</p>
                     </div>
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
@@ -1459,9 +1473,13 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           })()}
 
           {stats.totalOwing > 0 && (
-            <p className="text-xs text-muted-foreground">
-              Total owed: <span className="font-bold text-destructive font-mono">{formatUGX(stats.totalOwing)}</span>
-            </p>
+            <button
+              type="button"
+              onClick={() => setShowBalanceBreakdown(true)}
+              className="text-xs text-muted-foreground text-left hover:text-foreground transition-colors cursor-pointer"
+            >
+              Total owed: <span className="font-bold text-destructive font-mono underline decoration-dotted underline-offset-2">{formatUGX(stats.totalOwing)}</span>
+            </button>
           )}
           </>
           )}
@@ -2086,6 +2104,54 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           fetchTenants();
         }}
       />
+
+      {/* Balance Breakdown Dialog */}
+      <Dialog open={showBalanceBreakdown} onOpenChange={setShowBalanceBreakdown}>
+        <DialogContent stable className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-rose-500" />
+              Tenant Balance Breakdown
+            </DialogTitle>
+            <DialogDescription>
+              Total owed: {formatUGX(stats.totalOwing)} from {stats.owingCount} tenant{stats.owingCount !== 1 ? 's' : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+            {(() => {
+              const breakdown = tenants
+                .filter((t) => (tenantBalances[t.id] || 0) > 0)
+                .map((t) => ({ id: t.id, name: t.full_name, balance: tenantBalances[t.id] || 0 }))
+                .sort((a, b) => b.balance - a.balance);
+              if (breakdown.length === 0) {
+                return <p className="text-sm text-muted-foreground text-center py-4">No outstanding balances</p>;
+              }
+              return breakdown.map((t, i) => (
+                <div
+                  key={t.id}
+                  className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl bg-muted/40"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="h-8 w-8 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center text-xs font-bold shrink-0">
+                      {i + 1}
+                    </div>
+                    <span className="text-sm font-medium truncate">{t.name}</span>
+                  </div>
+                  <span className="text-sm font-bold text-rose-600 font-mono shrink-1">
+                    {formatUGX(t.balance)}
+                  </span>
+                </div>
+              ));
+            })()}
+          </div>
+          {stats.totalOwing > 0 && (
+            <div className="pt-2 border-t border-border flex items-center justify-between">
+              <span className="text-sm font-medium">Total</span>
+              <span className="text-base font-bold text-rose-600 font-mono">{formatUGX(stats.totalOwing)}</span>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Sheet>
   );
 }
