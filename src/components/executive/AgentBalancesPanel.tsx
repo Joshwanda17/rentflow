@@ -184,7 +184,10 @@ export function AgentBalancesPanel() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <div className="font-semibold text-sm truncate flex items-center gap-1.5 flex-wrap">
-                        <span className="truncate">{r.full_name || '—'}</span>
+                        <span className={`truncate ${(() => {
+                          const dr = capacityMap?.get(r.user_id)?.daily_rating;
+                          return dr === 'Very Good' || dr === 'Good' ? 'text-emerald-700' : '';
+                        })()}`}>{r.full_name || '—'}</span>
                         <AgentCapacityBadge
                           capacity={capacityMap?.get(r.user_id)}
                           loading={capacityFetching && !capacityMap}
