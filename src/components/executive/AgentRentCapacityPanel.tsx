@@ -123,8 +123,10 @@ export function AgentRentCapacityPanel({
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
       const todayStartMs = todayStart.getTime();
+      const yesterdayStartMs = todayStartMs - 24 * 60 * 60 * 1000;
       const paidByAgent = new Map<string, number>();
       const paidTodayByAgent = new Map<string, number>();
+      const paidYesterdayByAgent = new Map<string, number>();
       const respondingDaysByAgent = new Map<string, number>();
       const payingTenantsByAgent = new Map<string, Set<string>>();
       const activeIds = Array.from(activeIdToAgent.keys());
