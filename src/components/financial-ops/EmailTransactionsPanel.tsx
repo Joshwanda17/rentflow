@@ -1498,34 +1498,6 @@ export function EmailTransactionsPanel() {
             className="h-9 rounded-md border border-input bg-background px-3 text-sm"
           />
         </div>
-        <div className="flex flex-col flex-1 min-w-full sm:min-w-[200px]">
-          <label
-            className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1"
-            title="Match against transaction id, reference, receipt (RCT-…), subject, snippet, counterparty, amount, sender email/name, and the matched user's name or phone. Tokens are AND-matched."
-          >
-            Search any email (id, name, phone, amount…)
-          </label>
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-            <input
-              type="search"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="e.g. Lamaru, 0707…, 2,000,000, RCT-1234, FT2025…"
-              className="h-9 w-full rounded-md border border-input bg-background pl-7 pr-8 text-sm"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                aria-label="Clear search"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
-        </div>
         <div className="flex flex-col flex-1 sm:flex-none min-w-[160px]">
           <label
             className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1"
