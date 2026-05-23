@@ -90,7 +90,7 @@ export default function AdminDashboardPage() {
             aria-label="Back to your dashboard"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to dashboard
+            Back to personal dashboard
           </Button>
           <Button
             type="button"
