@@ -152,8 +152,11 @@ export function AgentBalancesPanel() {
                   {rows.map((r) => (
                     <tr key={r.user_id} onClick={() => setOpenAgentId(r.user_id)} className="hover:bg-muted/30 transition-colors cursor-pointer">
                       <td className="px-4 py-2.5">
-                        <div className="font-medium text-foreground hover:text-primary flex items-center gap-1.5 flex-wrap">
-                          <span>{r.full_name || '—'}</span>
+                        <div className="font-medium hover:text-primary flex items-center gap-1.5 flex-wrap">
+                          <span className={`${(() => {
+                            const dr = capacityMap?.get(r.user_id)?.daily_rating;
+                            return dr === 'Very Good' || dr === 'Good' ? 'text-emerald-700' : 'text-foreground';
+                          })()}`}>{r.full_name || '—'}</span>
                           <AgentCapacityBadge
                             capacity={capacityMap?.get(r.user_id)}
                             loading={capacityFetching && !capacityMap}
