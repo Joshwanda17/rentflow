@@ -416,6 +416,9 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
           {/* Prominent live tracker for any in-flight / active Business Advance */}
           <BusinessAdvanceStatusHero />
 
+          {/* Credit access limit — full-size, prominent at top */}
+          <CreditAccessCard userId={user.id} />
+
           {/* Wallet hero card — replaces the previous bread hero on tenant dashboard */}
           <div id="tenant-wallet-hero">
             <UnifiedWalletHeroCard
