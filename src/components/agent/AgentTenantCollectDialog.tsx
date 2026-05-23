@@ -294,6 +294,40 @@ export function AgentTenantCollectDialog({
           </DialogTitle>
         </DialogHeader>
 
+        {/* Static educational card: how Agent Advance grows from tenant allocations.
+            Mirrors the card on the My Tenants sheet so agents see the incentive
+            at the exact moment they're allocating float to a tenant's rent. */}
+        <div className="rounded-2xl p-3.5 bg-gradient-to-br from-purple-600 via-purple-700 to-fuchsia-700 text-white shadow-lg shadow-purple-900/20 border border-purple-400/30">
+          <div className="flex items-start gap-3">
+            <div className="h-9 w-9 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center shrink-0 ring-1 ring-white/20">
+              <TrendingUp className="h-5 w-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[10px] uppercase tracking-wider font-bold text-purple-100/90">
+                How your Agent Advance grows
+              </div>
+              <div className="text-[13px] font-semibold leading-snug mt-0.5">
+                Every shilling you allocate to a tenant&apos;s rent adds{' '}
+                <span className="font-extrabold">2×</span> that amount to your Agent Advance limit.
+              </div>
+              <div className="mt-2 grid grid-cols-3 gap-1.5 text-center">
+                <div className="rounded-lg bg-white/10 px-1.5 py-1">
+                  <div className="text-[9px] text-purple-100/80 font-medium">You allocate</div>
+                  <div className="text-[11px] font-bold">UGX 100K</div>
+                </div>
+                <div className="rounded-lg bg-white/10 px-1.5 py-1">
+                  <div className="text-[9px] text-purple-100/80 font-medium">Limit grows by</div>
+                  <div className="text-[11px] font-bold">+ UGX 200K</div>
+                </div>
+                <div className="rounded-lg bg-white/15 px-1.5 py-1 ring-1 ring-white/25">
+                  <div className="text-[9px] text-purple-100/80 font-medium">Max cap</div>
+                  <div className="text-[11px] font-bold">UGX 30M</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {draftSaved ? (
           /* ───── Offline draft saved (provisional receipt) ───── */
           <div className="space-y-4 py-2">
