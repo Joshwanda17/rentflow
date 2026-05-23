@@ -499,6 +499,15 @@ export function EmailTransactionsPanel() {
   }
   const [routingHistory, setRoutingHistory] = useState<Record<string, RoutingHistoryEntry[]>>({});
 
+  // Live wallet balances (strict, ledger-derived) for every possible user
+  // and every routing-history target shown in the list. Lets Financial Ops
+  // see the recipient's current wallet position at a glance before/after
+  // routing or reversing a transaction.
+  const [userBalances, setUserBalances] = useState<Record<string, number>>({});
+  // Per-history-entry busy flag for the Reverse action so the button can
+  // show a spinner without blocking other entries.
+  const [reverseBusy, setReverseBusy] = useState<Record<string, boolean>>({});
+
   /**
    * Auto-payout matcher: for outgoing money-out emails (MoMo payouts / bank
    * disbursements), look up the pending `withdrawal_requests` row that the
