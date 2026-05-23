@@ -152,7 +152,10 @@ function DashboardContent() {
     if (areAllRolesUnlocked()) return;
     const preferred = getPreferredDefaultRole();
     if (preferred !== 'auto') return;
-    if (urlRole !== 'supporter' && roles.includes('supporter')) {
+    // Only auto-default when the user landed without an explicit persona slug
+    // (e.g. bare /dashboard). If they explicitly chose /dashboard/agent or any
+    // other persona, respect that choice — never yank them back to /funder.
+    if (!urlRole && roles.includes('supporter')) {
       navigate('/dashboard/funder', { replace: true });
     }
     hasAutoDefaulted.current = true;
