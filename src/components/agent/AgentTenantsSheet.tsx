@@ -2120,7 +2120,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
             {(() => {
               const breakdown = tenants
-                .filter((t) => (tenantBalances[t.id] || 0) > 3)
+                .filter((t) => (tenantBalances[t.id] || 0) > 0)
                 .map((t) => ({ id: t.id, name: t.full_name, balance: tenantBalances[t.id] || 0 }))
                 .sort((a, b) => b.balance - a.balance);
               if (breakdown.length === 0) {
