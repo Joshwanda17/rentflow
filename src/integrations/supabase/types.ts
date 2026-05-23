@@ -2874,6 +2874,60 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_unfunding_requests: {
+        Row: {
+          agent_id: string
+          amount: number
+          cfo_decision_at: string | null
+          cfo_id: string | null
+          cfo_note: string | null
+          created_at: string
+          id: string
+          landlord_id: string | null
+          landlord_name: string | null
+          original_transaction_group: string
+          reason: string
+          rent_request_id: string
+          reversal_transaction_group: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          amount: number
+          cfo_decision_at?: string | null
+          cfo_id?: string | null
+          cfo_note?: string | null
+          created_at?: string
+          id?: string
+          landlord_id?: string | null
+          landlord_name?: string | null
+          original_transaction_group: string
+          reason: string
+          rent_request_id: string
+          reversal_transaction_group?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          amount?: number
+          cfo_decision_at?: string | null
+          cfo_id?: string | null
+          cfo_note?: string | null
+          created_at?: string
+          id?: string
+          landlord_id?: string | null
+          landlord_name?: string | null
+          original_transaction_group?: string
+          reason?: string
+          rent_request_id?: string
+          reversal_transaction_group?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       agent_visits: {
         Row: {
           accuracy: number | null
@@ -14885,6 +14939,10 @@ export type Database = {
         }
         Returns: Json
       }
+      cfo_decide_agent_unallocation: {
+        Args: { p_cfo_note?: string; p_decision: string; p_request_id: string }
+        Returns: Json
+      }
       check_archived_account_by_email: {
         Args: { p_email: string }
         Returns: {
@@ -15320,6 +15378,9 @@ export type Database = {
           description: string
           landlord_id: string
           landlord_name: string
+          pending_request_id: string
+          pending_request_status: string
+          requires_cfo_approval: boolean
           transaction_group: string
         }[]
       }
@@ -16157,6 +16218,15 @@ export type Database = {
           p_new_tenant_id: string
           p_old_rent_request_id: string
           p_reason: string
+        }
+        Returns: Json
+      }
+      request_agent_unallocation: {
+        Args: {
+          p_agent_id: string
+          p_original_transaction_group: string
+          p_reason: string
+          p_rent_request_id: string
         }
         Returns: Json
       }

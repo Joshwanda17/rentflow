@@ -16,6 +16,9 @@ interface Reversible {
   landlord_name: string;
   description: string | null;
   created_at: string;
+  requires_cfo_approval: boolean;
+  pending_request_id: string | null;
+  pending_request_status: string | null;
 }
 
 interface Props {
@@ -74,13 +77,26 @@ export function MarkNotFundedDialog({ open, onOpenChange, rentRequestId, tenantN
       toast({ title: 'Reason required', description: 'Please give at least 10 characters of context.', variant: 'destructive' });
       return;
     }
+    const picked = items.find((i) => i.transaction_group === selected);
+    if (!picked) return;
+    if (picked.pending_request_status === 'pending') {
+      toast({ title: 'Already waiting on CFO', description: 'This funding is already pending CFO approval.' });
+      return;
+    }
     setSubmitting(true);
-    const { data, error } = await supabase.rpc('agent_unallocate_tenant_payment', {
-      p_agent_id: user.id,
-      p_rent_request_id: rentRequestId,
-      p_original_transaction_group: selected,
-      p_reason: reason.trim(),
-    });
+    const { data, error } = picked.requires_cfo_approval
+      ? await supabase.rpc('request_agent_unallocation', {
+          p_agent_id: user.id,
+          p_rent_request_id: rentRequestId,
+          p_original_transaction_group: selected,
+          p_reason: reason.trim(),
+        })
+      : await supabase.rpc('agent_unallocate_tenant_payment', {
+          p_agent_id: user.id,
+          p_rent_request_id: rentRequestId,
+          p_original_transaction_group: selected,
+          p_reason: reason.trim(),
+        });
     setSubmitting(false);
     if (error || (data as any)?.success === false) {
       toast({
@@ -91,10 +107,17 @@ export function MarkNotFundedDialog({ open, onOpenChange, rentRequestId, tenantN
       return;
     }
     const r = data as any;
-    toast({
-      title: 'Marked as not funded',
-      description: `${formatUGX(r.amount_returned)} returned to ${r.landlord_name} float. Commission of ${formatUGX(r.commission_clawback)} was clawed back.`,
-    });
+    if (picked.requires_cfo_approval) {
+      toast({
+        title: 'Sent to CFO for approval',
+        description: `${formatUGX(r.amount)} reversal for ${r.landlord_name} is now waiting on CFO sign-off.`,
+      });
+    } else {
+      toast({
+        title: 'Marked as not funded',
+        description: `${formatUGX(r.amount_returned)} returned to ${r.landlord_name} float. Commission of ${formatUGX(r.commission_clawback)} was clawed back.`,
+      });
+    }
     onReversed?.();
     onOpenChange(false);
   };
@@ -105,8 +128,8 @@ export function MarkNotFundedDialog({ open, onOpenChange, rentRequestId, tenantN
         <DialogHeader>
           <DialogTitle>Mark {tenantName} as not funded</DialogTitle>
           <DialogDescription>
-            Reverses a funding you made in the last 7 days. The money returns to your landlord float (same landlord
-            name) and your 10% commission on that funding is reversed.
+            Reverses a funding you previously made. Within 7 days it's instant — older fundings need CFO approval.
+            On reversal, the money goes back to your landlord float and your 10% commission is clawed back.
           </DialogDescription>
         </DialogHeader>
 
@@ -118,29 +141,46 @@ export function MarkNotFundedDialog({ open, onOpenChange, rentRequestId, tenantN
           <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/40 p-3 text-sm">
             <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
             <p className="text-muted-foreground">
-              No reversible fundings found on this rent plan within the last 7 days. Older fundings need CFO support.
+              No reversible fundings found on this rent plan.
             </p>
           </div>
         ) : (
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {items.map((it) => {
               const isActive = selected === it.transaction_group;
+              const pending = it.pending_request_status === 'pending';
               return (
                 <button
                   key={it.transaction_group}
                   type="button"
-                  onClick={() => setSelected(it.transaction_group)}
+                  onClick={() => !pending && setSelected(it.transaction_group)}
+                  disabled={pending}
                   className={`w-full text-left rounded-lg border p-3 transition ${
                     isActive ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/40'
-                  }`}
+                  } ${pending ? 'opacity-60 cursor-not-allowed' : ''}`}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-sm font-semibold truncate">{it.landlord_name}</span>
                     <span className="text-sm font-mono font-bold">{formatUGX(Number(it.amount))}</span>
                   </div>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    {formatDistanceToNowStrict(new Date(it.created_at), { addSuffix: true })}
-                  </p>
+                  <div className="flex items-center justify-between gap-2 mt-0.5">
+                    <p className="text-[11px] text-muted-foreground">
+                      {formatDistanceToNowStrict(new Date(it.created_at), { addSuffix: true })}
+                    </p>
+                    {pending ? (
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-warning/15 text-warning border border-warning/30">
+                        Awaiting CFO
+                      </span>
+                    ) : it.requires_cfo_approval ? (
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/30">
+                        Needs CFO approval
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-success/10 text-success border border-success/30">
+                        Instant
+                      </span>
+                    )}
+                  </div>
                 </button>
               );
             })}
@@ -174,7 +214,10 @@ export function MarkNotFundedDialog({ open, onOpenChange, rentRequestId, tenantN
             className="gap-2"
           >
             {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
-            Mark not funded
+            {(() => {
+              const picked = items.find((i) => i.transaction_group === selected);
+              return picked?.requires_cfo_approval ? 'Request CFO approval' : 'Mark not funded';
+            })()}
           </Button>
         </div>
       </DialogContent>
