@@ -10,11 +10,13 @@ export const AGENT_RENT_CAP_UGX = 100_000_000;
 
 /**
  * Daily Eligibility Law (new):
- *   If, on the previous calendar day, an agent collected
- *   at least 20% of their expected daily rent, they are
- *   UNBLOCKED from posting new rent requests today and are
- *   rated "Good" (green). If they fall below 20% the next
- *   day, they are BLOCKED until they catch up again.
+ *   An agent is UNBLOCKED and rated "Good" (green) as soon
+ *   as EITHER yesterday's OR today's collections reach 20%
+ *   of their expected daily rent. Today's progress counts
+ *   live — the moment an agent crosses the 20% line today,
+ *   their rating flips up and they may post new rent
+ *   requests immediately. If neither yesterday nor today
+ *   is at 20%, they stay BLOCKED until they catch up.
  *
  *   Agents with no active rent collections yet (Starter)
  *   are always allowed to post their first request.
@@ -22,9 +24,11 @@ export const AGENT_RENT_CAP_UGX = 100_000_000;
 export const DAILY_ELIGIBILITY_THRESHOLD = 0.20;
 
 /**
- * Daily rating tiers based on YESTERDAY's collection ratio
- * (paid_yesterday / expected_daily). 20% is the unblock line and
- * is explicitly the start of "Good".
+ * Daily rating tiers based on the BEST of yesterday's and today's
+ * collection ratios (paid / expected_daily). 20% is the unblock line
+ * and is explicitly the start of "Good". Using the best of the two
+ * lets a strong day TODAY immediately lift an agent out of "Very Bad"
+ * instead of forcing them to wait until tomorrow.
  *
  *   ≥ 50%        → Very Good  (emerald, allowed)
  *   20% – <50%   → Good       (green,   allowed)
@@ -101,6 +105,10 @@ export type AgentCapacity = {
   paid_yesterday: number;
   /** Yesterday's collection ratio = paid_yesterday / expected_daily (0..1+). */
   yesterday_response_pct: number;
+  /** Today's collection ratio = paid_today / expected_daily (0..1+). */
+  today_response_pct: number;
+  /** The ratio actually driving the rating = max(today, yesterday). */
+  effective_daily_pct: number;
   /**
    * Daily eligibility status driven by yesterday's performance:
    *   - 'starter' : no active rents to measure → always allowed
@@ -290,12 +298,17 @@ export function useAgentCapacityMap(agentIds: string[]) {
         const yesterday_response_pct = dailyExpected > 0
           ? paid_yesterday / dailyExpected
           : 0;
+        const paid_today_val = paidTodayByAgent.get(id) || 0;
+        const today_response_pct = dailyExpected > 0
+          ? paid_today_val / dailyExpected
+          : 0;
+        const effective_daily_pct = Math.max(yesterday_response_pct, today_response_pct);
         let daily_status: AgentCapacity['daily_status'];
         if (exp.count <= 0) daily_status = 'starter';
-        else if (yesterday_response_pct >= DAILY_ELIGIBILITY_THRESHOLD) daily_status = 'good';
+        else if (effective_daily_pct >= DAILY_ELIGIBILITY_THRESHOLD) daily_status = 'good';
         else daily_status = 'blocked';
         const can_post_rent_today = daily_status !== 'blocked';
-        const daily_rating = classifyDailyRating(exp.count, yesterday_response_pct);
+        const daily_rating = classifyDailyRating(exp.count, effective_daily_pct);
         out.set(id, {
           used: exp.used,
           active_count: exp.count,
@@ -306,9 +319,11 @@ export function useAgentCapacityMap(agentIds: string[]) {
           responding_tenant_days,
           expected_tenant_days,
           paid_last_week,
-          paid_today: paidTodayByAgent.get(id) || 0,
+          paid_today: paid_today_val,
           paid_yesterday,
           yesterday_response_pct,
+          today_response_pct,
+          effective_daily_pct,
           daily_status,
           daily_rating,
           can_post_rent_today,

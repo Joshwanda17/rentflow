@@ -445,6 +445,8 @@ function CapacityRow({
         paid_today: row.paid_today,
         paid_yesterday: 0,
         yesterday_response_pct: 0,
+        today_response_pct: 0,
+        effective_daily_pct: 0,
         daily_status: 'starter',
         daily_rating: 'Starter',
         can_post_rent_today: true,
