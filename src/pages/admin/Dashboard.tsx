@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
   Crown, Cpu, Megaphone, MessageSquare, Users, Home, Building2,
-  Shield, Activity, BarChart3, Wallet, Handshake, ArrowLeft, Gift
+  Shield, Activity, BarChart3, Wallet, Handshake, ArrowLeft, Gift, LayoutDashboard
 } from 'lucide-react';
 import { useStaffPermissions } from '@/hooks/useStaffPermissions';
 import { useAuth } from '@/hooks/useAuth';
@@ -72,19 +72,34 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
-        <div className="flex items-center justify-between gap-2">
+      {/* Sticky top bar so the back action is always reachable */}
+      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-border">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-2.5 flex items-center justify-between gap-2">
           <Button
+            type="button"
             variant="ghost"
             size="sm"
             onClick={() => navigate('/dashboard/manager')}
-            className="gap-2 text-sm text-muted-foreground hover:text-foreground"
+            className="gap-2 text-sm font-medium -ml-2"
+            aria-label="Back to manager dashboard"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to Dashboard
+            Back to dashboard
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/dashboard/manager')}
+            className="gap-2 text-sm"
+          >
+            <LayoutDashboard className="h-4 w-4" />
+            Manager dashboard
           </Button>
         </div>
+      </div>
 
+      <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
         <div>
           <h1 className="text-2xl font-black text-foreground">Dashboard Access Panel</h1>
           <p className="text-sm text-muted-foreground mt-1">Open any executive or operations dashboard you have access to</p>
