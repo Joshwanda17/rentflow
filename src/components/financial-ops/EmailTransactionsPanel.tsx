@@ -438,8 +438,6 @@ export function EmailTransactionsPanel() {
   });
   useEffect(() => { try { localStorage.setItem('gmail_filter_page_size', String(pageSize)); } catch {} }, [pageSize]);
   const [currentPage, setCurrentPage] = useState<number>(1);
-  // Reset to first page whenever any filter that changes the visible row set changes.
-  useEffect(() => { setCurrentPage(1); }, [searchQuery, fromDate, toDate, tz, pageSize]);
   // Match-type filter for the Recent emails list. Persisted so it survives reload.
   //   all       → no match filter
   //   confident → at least one reference OR from-phone match
