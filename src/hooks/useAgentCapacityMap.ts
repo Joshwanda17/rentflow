@@ -9,6 +9,19 @@ export const ACTIVE_RENT_STATUSES = [
 export const AGENT_RENT_CAP_UGX = 100_000_000;
 
 /**
+ * Daily Eligibility Law (new):
+ *   If, on the previous calendar day, an agent collected
+ *   at least 20% of their expected daily rent, they are
+ *   UNBLOCKED from posting new rent requests today and are
+ *   rated "Good" (green). If they fall below 20% the next
+ *   day, they are BLOCKED until they catch up again.
+ *
+ *   Agents with no active rent collections yet (Starter)
+ *   are always allowed to post their first request.
+ */
+export const DAILY_ELIGIBILITY_THRESHOLD = 0.20;
+
+/**
  * Agent rating tiers based on **last 7 days' Daily Response Rate (DRR)**.
  *
  * We deliberately measure RESPONSIVENESS, not amount collected. An agent
@@ -51,6 +64,19 @@ export type AgentCapacity = {
   paid_last_week: number;
   /** UGX collected today (since local midnight). */
   paid_today: number;
+  /** UGX collected YESTERDAY (the previous calendar day, local midnight to midnight). */
+  paid_yesterday: number;
+  /** Yesterday's collection ratio = paid_yesterday / expected_daily (0..1+). */
+  yesterday_response_pct: number;
+  /**
+   * Daily eligibility status driven by yesterday's performance:
+   *   - 'starter' : no active rents to measure → always allowed
+   *   - 'good'    : yesterday ≥ 20% of expected daily → allowed today, green
+   *   - 'blocked' : yesterday < 20% of expected daily → blocked today, red
+   */
+  daily_status: 'starter' | 'good' | 'blocked';
+  /** True iff agent may post a new rent request today. */
+  can_post_rent_today: boolean;
   /** Sum of daily_repayment across active (non-unfunded) rent_requests. */
   expected_daily: number;
   /** @deprecated alias of `response_rate` kept for backwards compatibility. */
@@ -94,6 +120,7 @@ export function useAgentCapacityMap(agentIds: string[]) {
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
       const todayStartMs = todayStart.getTime();
+      const yesterdayStartMs = todayStartMs - 24 * 60 * 60 * 1000;
 
       // 1) Active rent_requests drive both exposure AND expected daily collections
       const { data: active } = await supabase
@@ -153,6 +180,7 @@ export function useAgentCapacityMap(agentIds: string[]) {
       //    those (rent × day) cells per agent — that's the DRR numerator.
       const paidByAgent = new Map<string, number>();
       const paidTodayByAgent = new Map<string, number>();
+      const paidYesterdayByAgent = new Map<string, number>();
       const respondingDaysByAgent = new Map<string, number>();
       const payingTenantsByAgent = new Map<string, Set<string>>();
       const activeIds = Array.from(activeIdToAgent.keys());
@@ -172,8 +200,14 @@ export function useAgentCapacityMap(agentIds: string[]) {
             const agentId = activeIdToAgent.get(p.rent_request_id);
             if (!agentId) return;
             paidByAgent.set(agentId, (paidByAgent.get(agentId) || 0) + amt);
-            if (new Date(p.created_at).getTime() >= todayStartMs) {
+            const ts = new Date(p.created_at).getTime();
+            if (ts >= todayStartMs) {
               paidTodayByAgent.set(agentId, (paidTodayByAgent.get(agentId) || 0) + amt);
+            } else if (ts >= yesterdayStartMs) {
+              paidYesterdayByAgent.set(
+                agentId,
+                (paidYesterdayByAgent.get(agentId) || 0) + amt,
+              );
             }
             if (amt <= 0) return;
             const tenantId = p.tenant_id || activeIdToTenant.get(p.rent_request_id);
@@ -217,6 +251,15 @@ export function useAgentCapacityMap(agentIds: string[]) {
         const { tier, per_tenant_max } = classifyAgent(exp.count, response_rate);
         const headroom = Math.max(AGENT_RENT_CAP_UGX - exp.used, 0);
         const pct = Math.min(100, Math.round((exp.used / AGENT_RENT_CAP_UGX) * 100));
+        const paid_yesterday = paidYesterdayByAgent.get(id) || 0;
+        const yesterday_response_pct = dailyExpected > 0
+          ? paid_yesterday / dailyExpected
+          : 0;
+        let daily_status: AgentCapacity['daily_status'];
+        if (exp.count <= 0) daily_status = 'starter';
+        else if (yesterday_response_pct >= DAILY_ELIGIBILITY_THRESHOLD) daily_status = 'good';
+        else daily_status = 'blocked';
+        const can_post_rent_today = daily_status !== 'blocked';
         out.set(id, {
           used: exp.used,
           active_count: exp.count,
@@ -228,6 +271,10 @@ export function useAgentCapacityMap(agentIds: string[]) {
           expected_tenant_days,
           paid_last_week,
           paid_today: paidTodayByAgent.get(id) || 0,
+          paid_yesterday,
+          yesterday_response_pct,
+          daily_status,
+          can_post_rent_today,
           expected_daily: dailyExpected,
           repayment_rate: response_rate,
           expected_weekly,
