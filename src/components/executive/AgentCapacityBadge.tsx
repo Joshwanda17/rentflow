@@ -72,10 +72,11 @@ export function AgentCapacityBadge({
     daily_rating === 'Starter'
       ? 'New'
       : `${daily_rating}${blockedSuffix}`;
+  const epct = Math.max(yesterday_response_pct, 1); // effective % is max(yesterday, today) — today not in this compact badge
   const dailyTitleLine =
     daily_status === 'starter'
       ? `Starter agent — always allowed to post the first rent request.`
-      : `Yesterday: collected UGX ${formatUGX(paid_yesterday)} of ` +
+      : `Best day: collected UGX ${formatUGX(paid_yesterday)} of ` +
         `UGX ${formatUGX(expected_daily)} (${Math.round(yesterday_response_pct * 100)}%). ` +
         `Rating: ${daily_rating}. ` +
         (daily_status === 'good'
