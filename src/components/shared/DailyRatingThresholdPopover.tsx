@@ -24,7 +24,7 @@ export function DailyRatingThresholdPopover({ className }: { className?: string 
       <PopoverContent className="w-64 p-3 space-y-2" align="start" sideOffset={4}>
         <p className="text-xs font-bold text-foreground">Daily Rating Thresholds</p>
         <p className="text-[11px] text-muted-foreground leading-snug">
-          Based on the best of yesterday&apos;s or today&apos;s collection vs expected daily rent.
+          Based on <strong className="text-foreground">today&apos;s</strong> collection vs today&apos;s expected daily rent.
         </p>
         <ul className="space-y-1.5">
           {TIERS.map((t) => (
