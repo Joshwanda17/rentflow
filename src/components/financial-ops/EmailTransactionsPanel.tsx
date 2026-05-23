@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { archivePdfBlob } from '@/lib/pdfVault';
 import { ArchivedPdfsDrawer } from '@/components/financial-ops/ArchivedPdfsDrawer';
 import { Badge } from '@/components/ui/badge';
-import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert, Copy, Check, Wifi, WifiOff, ShieldCheck, History, LinkIcon, ChevronDown, ChevronUp, FileDown, FileText, AlertTriangle, Search, X, Pencil, Trash2, Star, Users, ArrowRight, Zap } from 'lucide-react';
+import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert, Copy, Check, Wifi, WifiOff, ShieldCheck, History, LinkIcon, ChevronDown, ChevronUp, FileDown, FileText, AlertTriangle, Search, X, Pencil, Trash2, Star, Users, ArrowRight, Zap, Undo2, Wallet } from 'lucide-react';
 import { RouteEmailDepositDialog, type EmailRowForRouting, type PrefilledUser } from '@/components/financial-ops/RouteEmailDepositDialog';
 import { Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -499,6 +499,15 @@ export function EmailTransactionsPanel() {
   }
   const [routingHistory, setRoutingHistory] = useState<Record<string, RoutingHistoryEntry[]>>({});
 
+  // Live wallet balances (strict, ledger-derived) for every possible user
+  // and every routing-history target shown in the list. Lets Financial Ops
+  // see the recipient's current wallet position at a glance before/after
+  // routing or reversing a transaction.
+  const [userBalances, setUserBalances] = useState<Record<string, number>>({});
+  // Per-history-entry busy flag for the Reverse action so the button can
+  // show a spinner without blocking other entries.
+  const [reverseBusy, setReverseBusy] = useState<Record<string, boolean>>({});
+
   /**
    * Auto-payout matcher: for outgoing money-out emails (MoMo payouts / bank
    * disbursements), look up the pending `withdrawal_requests` row that the
@@ -689,6 +698,145 @@ export function EmailTransactionsPanel() {
       .subscribe();
     return () => { cancelled = true; supabase.removeChannel(sub); };
   }, [rows]);
+
+  // Background fetch of strict ledger-derived withdrawable balances for
+  // every possible-user candidate AND every routed target currently shown.
+  // Uses the operator-safe `get_user_wallet_view` RPC so the figure matches
+  // what the user themselves would see in their wallet. Re-runs whenever
+  // the set of relevant user ids changes (e.g. after a re-route or a new
+  // possible-user resolution).
+  useEffect(() => {
+    const ids = new Set<string>();
+    for (const list of Object.values(userMatches)) {
+      for (const u of list) ids.add(u.id);
+    }
+    for (const list of Object.values(routingHistory)) {
+      for (const h of list) if (h.target_user_id) ids.add(h.target_user_id);
+    }
+    const missing = Array.from(ids).filter((id) => userBalances[id] === undefined);
+    if (missing.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const results = await Promise.all(
+        missing.map(async (id) => {
+          try {
+            const { data, error } = await supabase.rpc('get_user_wallet_view', { p_user_id: id });
+            if (error) return [id, null] as const;
+            const r = (data ?? {}) as Record<string, unknown>;
+            const withdrawable = Number((r.withdrawable as number | string | undefined) ?? 0);
+            const floatBal = Number((r.float_balance as number | string | undefined) ?? 0);
+            // Surface the total spendable + held float position so reviewers see
+            // every bucket that could absorb a reversal.
+            return [id, withdrawable + floatBal] as const;
+          } catch {
+            return [id, null] as const;
+          }
+        }),
+      );
+      if (cancelled) return;
+      setUserBalances((cur) => {
+        const next = { ...cur };
+        for (const [id, bal] of results) {
+          if (bal !== null) next[id] = bal;
+        }
+        return next;
+      });
+    })();
+    return () => { cancelled = true; };
+  }, [userMatches, routingHistory, userBalances]);
+
+  // Reverse a single routing-history entry. Posts the opposite leg through
+  // `cfo-direct-credit` against the same target user/bucket, then writes a
+  // new history row tagged "Reversed" so the UI marks the entry reversed.
+  const reverseRoutingEntry = async (rowForEntry: GmailTx, entry: RoutingHistoryEntry) => {
+    const isDebitEntry = entry.route.endsWith('_debit');
+    const opposite: 'credit' | 'debit' = isDebitEntry ? 'credit' : 'debit';
+    const isFloat =
+      entry.route === 'operational_float' || entry.route === 'landlord_float_debit';
+    const isProxyAgentRoute = entry.route === 'proxy_agent_wallet_debit';
+    const opLabel = opposite === 'credit' ? 'Credit back' : 'Debit back';
+    if (typeof window !== 'undefined') {
+      const ok = window.confirm(
+        `${opLabel} UGX ${Math.round(entry.amount).toLocaleString()} ` +
+        `${opposite === 'credit' ? 'to' : 'from'} ${entry.target_user_name || 'this user'}?\n\n` +
+        `This will post an offsetting ledger leg through CFO Direct ${opposite === 'credit' ? 'Credit' : 'Debit'} ` +
+        `and mark the original routing entry as reversed.`,
+      );
+      if (!ok) return;
+    }
+    setReverseBusy((cur) => ({ ...cur, [entry.id]: true }));
+    try {
+      const body = {
+        target_user_id: entry.target_user_id,
+        amount: Number(entry.amount),
+        reason:
+          `Reversed routing entry ${entry.id.slice(0, 8)}… ` +
+          `(${entry.route}) — Financial Ops correction.`,
+        operation: opposite,
+        wallet_category: isFloat ? 'agent_float_deposit' : 'wallet_transfer',
+        platform_category: isFloat ? 'agent_float_deposit' : 'wallet_transfer',
+        financial_impact: 'neutral' as const,
+        category_label: `Reverse ${entry.route.replace(/_/g, ' ')}`,
+        recipient_type: isFloat ? 'operational_wallet' : 'user',
+        sub_category: rowForEntry.transaction_id ?? null,
+      };
+      const { data, error } = await supabase.functions.invoke('cfo-direct-credit', { body });
+      if (error) throw new Error((error as any)?.message || 'Reversal failed');
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const referenceId = (data as any)?.reference_id ?? null;
+
+      // Best-effort history insert so the UI shows the reversal immediately.
+      try {
+        const { data: me } = await supabase.auth.getUser();
+        if (me?.user?.id) {
+          let routedByName: string | null = null;
+          try {
+            const { data: rp } = await (supabase.from('profiles') as any)
+              .select('full_name').eq('id', me.user.id).maybeSingle();
+            routedByName = rp?.full_name ?? null;
+          } catch { /* ignore */ }
+          await (supabase.from('email_routing_history') as any).insert({
+            gmail_transaction_id: rowForEntry.id,
+            gmail_message_id: rowForEntry.gmail_message_id ?? null,
+            transaction_id: rowForEntry.transaction_id,
+            from_email: rowForEntry.from_email,
+            from_name: rowForEntry.from_name,
+            subject: rowForEntry.subject,
+            amount: Number(entry.amount),
+            route: entry.route,
+            target_user_id: entry.target_user_id,
+            target_user_name: entry.target_user_name,
+            target_user_phone: entry.target_user_phone,
+            reason: `Reversed ${isDebitEntry ? 'debit' : 'credit'} (was ${entry.route}): manual reversal by Financial Ops.`,
+            ledger_reference_id: referenceId,
+            routed_by: me.user.id,
+            routed_by_name: routedByName,
+            sms_sent: false,
+            sms_error: null,
+          });
+        }
+      } catch (e) { console.warn('[EmailTransactionsPanel] reversal history insert failed', e); }
+
+      // Invalidate the cached balance for this user so the next render
+      // re-fetches the post-reversal position.
+      setUserBalances((cur) => {
+        const next = { ...cur };
+        delete next[entry.target_user_id];
+        return next;
+      });
+      toast({
+        title: 'Routing reversed',
+        description: `${opLabel} UGX ${Math.round(entry.amount).toLocaleString()} ${opposite === 'credit' ? 'to' : 'from'} ${entry.target_user_name || 'user'}.`,
+      });
+    } catch (e: any) {
+      toast({ title: 'Reverse failed', description: e?.message || String(e), variant: 'destructive' });
+    } finally {
+      setReverseBusy((cur) => {
+        const { [entry.id]: _, ...rest } = cur;
+        return rest;
+      });
+    }
+  };
 
   // ── Auto-payout matcher ─────────────────────────────────────────────
   // For every visible outgoing email (MoMo payout / bank disbursement),
@@ -2226,6 +2374,14 @@ export function EmailTransactionsPanel() {
                                         {u.mobile_money_number}
                                       </p>
                                     )}
+                                    <p className="font-mono pt-0.5 border-t mt-1">
+                                      <span className="text-muted-foreground font-sans inline-flex items-center gap-1">
+                                        <Wallet className="h-3 w-3" /> Wallet:{' '}
+                                      </span>
+                                      {userBalances[u.id] === undefined
+                                        ? '…'
+                                        : `UGX ${Math.round(userBalances[u.id]).toLocaleString()}`}
+                                    </p>
                                   </div>
                                 </TooltipContent>
                               </Tooltip>
@@ -2242,6 +2398,8 @@ export function EmailTransactionsPanel() {
                         <ul className="space-y-1">
                           {history.slice(0, 4).map((h) => {
                             const reversal = /revers/i.test(h.reason || '');
+                            const busy = !!reverseBusy[h.id];
+                            const bal = userBalances[h.target_user_id];
                             return (
                               <li
                                 key={h.id}
@@ -2264,6 +2422,29 @@ export function EmailTransactionsPanel() {
                                     {h.routed_by_name ? `by ${h.routed_by_name} · ` : ''}
                                     {format(new Date(h.created_at), 'MMM d, HH:mm')}
                                     {h.sms_sent ? ' · SMS sent' : ''}
+                                  </span>
+                                  <span className="mt-1 flex items-center gap-2 flex-wrap">
+                                    <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+                                      <Wallet className="h-3 w-3" />
+                                      Wallet now:{' '}
+                                      <strong className="font-mono tabular-nums text-foreground/80">
+                                        {bal === undefined ? '…' : `UGX ${Math.round(bal).toLocaleString()}`}
+                                      </strong>
+                                    </span>
+                                    {!reversal && (
+                                      <button
+                                        type="button"
+                                        disabled={busy}
+                                        onClick={() => reverseRoutingEntry(r, h)}
+                                        className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border border-rose-300 text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30 disabled:opacity-60"
+                                        title="Post the opposite ledger leg against the same user/bucket"
+                                      >
+                                        {busy
+                                          ? <Loader2 className="h-3 w-3 animate-spin" />
+                                          : <Undo2 className="h-3 w-3" />}
+                                        Reverse
+                                      </button>
+                                    )}
                                   </span>
                                 </span>
                               </li>
