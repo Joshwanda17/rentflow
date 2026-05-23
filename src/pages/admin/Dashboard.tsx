@@ -6,6 +6,9 @@ import {
   Crown, Cpu, Megaphone, MessageSquare, Users, Home, Building2,
   Shield, Activity, BarChart3, Wallet, Handshake, ArrowLeft, Gift, LayoutDashboard
 } from 'lucide-react';
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 import { useStaffPermissions } from '@/hooks/useStaffPermissions';
 import { useAuth } from '@/hooks/useAuth';
 import { roleToSlug } from '@/lib/roleRoutes';
@@ -54,6 +57,13 @@ export default function AdminDashboardPage() {
   // /dashboard/funder, landlord → /dashboard/landlord, manager → /dashboard/manager).
   const homeDashboard = roleToSlug(role);
 
+  const personaTargets = [
+    { label: 'Agent dashboard', route: '/dashboard/agent', icon: Users },
+    { label: 'Tenant dashboard', route: '/dashboard/tenant', icon: Home },
+    { label: 'Funder dashboard', route: '/dashboard/funder', icon: Handshake },
+    { label: 'Owner dashboard', route: '/dashboard/landlord', icon: Building2 },
+  ];
+
   // Log dashboard_accessed
   useEffect(() => {
     if (!user || loggedRef.current) return;
@@ -81,27 +91,56 @@ export default function AdminDashboardPage() {
       {/* Sticky top bar so the back action is always reachable */}
       <div className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-border">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-2.5 flex items-center justify-between gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate(homeDashboard)}
-            className="gap-2 text-sm font-medium -ml-2"
-            aria-label="Back to your dashboard"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to personal dashboard
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => navigate(homeDashboard)}
-            className="gap-2 text-sm"
-          >
-            <LayoutDashboard className="h-4 w-4" />
-            My dashboard
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="gap-2 text-sm font-medium -ml-2"
+                aria-label="Back to personal dashboard"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to personal dashboard
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56 bg-popover z-50">
+              <DropdownMenuLabel>Open personal dashboard</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {personaTargets.map((p) => (
+                <DropdownMenuItem key={p.route} onClick={() => navigate(p.route)} className="gap-2 cursor-pointer">
+                  <p.icon className="h-4 w-4" />
+                  {p.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-2 text-sm"
+              >
+                <LayoutDashboard className="h-4 w-4" />
+                My dashboard
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 bg-popover z-50">
+              <DropdownMenuItem onClick={() => navigate(homeDashboard)} className="gap-2 cursor-pointer">
+                <LayoutDashboard className="h-4 w-4" />
+                My active role dashboard
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {personaTargets.map((p) => (
+                <DropdownMenuItem key={p.route} onClick={() => navigate(p.route)} className="gap-2 cursor-pointer">
+                  <p.icon className="h-4 w-4" />
+                  {p.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
