@@ -13,9 +13,7 @@ export default function ResolveShortLink() {
 
     (async () => {
       const { data, error: err } = await supabase
-        .from('short_links')
-        .select('target_path, target_params')
-        .eq('code', code)
+        .rpc('resolve_short_link', { p_code: code })
         .maybeSingle();
 
       if (err || !data) { setError(true); return; }
