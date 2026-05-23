@@ -90,6 +90,9 @@ const AGENT_RENT_CAP_UGX = 100_000_000;
 function AgentCapacityBanner({ agentId }: { agentId?: string }) {
   const [exposure, setExposure] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const ids = useMemo(() => (agentId ? [agentId] : []), [agentId]);
+  const { data: capMap } = useAgentCapacityMap(ids);
+  const cap = agentId ? capMap?.get(agentId) : undefined;
 
   useEffect(() => {
     if (!agentId) return;
@@ -128,6 +131,32 @@ function AgentCapacityBanner({ agentId }: { agentId?: string }) {
     : 'bg-success/10 border-success/30 text-success';
 
   return (
+    <>
+    {cap && cap.daily_status !== 'starter' && (
+      <div
+        className={
+          'rounded-xl border p-3 ' +
+          (cap.daily_status === 'good'
+            ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700'
+            : 'border-destructive/40 bg-destructive/10 text-destructive')
+        }
+      >
+        <div className="text-xs font-extrabold uppercase tracking-wide mb-1">
+          {cap.daily_status === 'good'
+            ? 'Good — Allowed Today'
+            : 'Blocked from posting today'}
+        </div>
+        <p className="text-[11px] leading-snug opacity-95">
+          Yesterday you collected{' '}
+          <strong className="font-mono">{formatUGX(cap.paid_yesterday)}</strong>{' '}
+          of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong>{' '}
+          ({Math.round(cap.yesterday_response_pct * 100)}%).{' '}
+          {cap.daily_status === 'good'
+            ? `You met the ${Math.round(DAILY_ELIGIBILITY_THRESHOLD * 100)}% daily law — you can post new rent requests.`
+            : `Below the ${Math.round(DAILY_ELIGIBILITY_THRESHOLD * 100)}% daily law — collect ${Math.round(DAILY_ELIGIBILITY_THRESHOLD * 100)}% today to be unblocked tomorrow.`}
+        </p>
+      </div>
+    )}
     <div className={`rounded-xl border p-3 ${tone}`}>
       <div className="flex items-center justify-between text-xs font-semibold mb-1.5">
         <span>Your Active Rent Exposure</span>
@@ -148,6 +177,7 @@ function AgentCapacityBanner({ agentId }: { agentId?: string }) {
         Collect on existing rent to grow your headroom.
       </p>
     </div>
+    </>
   );
 }
 
