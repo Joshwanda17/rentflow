@@ -1,22 +1,41 @@
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, LayoutDashboard } from 'lucide-react';
 import { FinancialOpsCommandCenter } from '@/components/financial-ops/FinancialOpsCommandCenter';
 
 export default function FinancialOpsPage() {
   const navigate = useNavigate();
 
+  const goToManagerDashboard = () => navigate('/dashboard/manager');
+
   return (
     <div className="min-h-screen bg-background">
+      {/* Sticky top bar so the back action is always reachable */}
+      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-border">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-2.5 flex items-center justify-between gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={goToManagerDashboard}
+            className="gap-2 text-sm font-medium -ml-2"
+            aria-label="Back to manager dashboard"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to dashboard
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={goToManagerDashboard}
+            className="gap-2 text-sm"
+          >
+            <LayoutDashboard className="h-4 w-4" />
+            Manager dashboard
+          </Button>
+        </div>
+      </div>
+
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-6">
-        <Button
-          variant="ghost"
-          onClick={() => navigate('/admin/dashboard')}
-          className="gap-2 text-sm text-muted-foreground hover:text-foreground -ml-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to dashboard
-        </Button>
         <FinancialOpsCommandCenter />
       </div>
     </div>
