@@ -105,6 +105,10 @@ export type AgentCapacity = {
   paid_yesterday: number;
   /** Yesterday's collection ratio = paid_yesterday / expected_daily (0..1+). */
   yesterday_response_pct: number;
+  /** Today's collection ratio = paid_today / expected_daily (0..1+). */
+  today_response_pct: number;
+  /** The ratio actually driving the rating = max(today, yesterday). */
+  effective_daily_pct: number;
   /**
    * Daily eligibility status driven by yesterday's performance:
    *   - 'starter' : no active rents to measure → always allowed
