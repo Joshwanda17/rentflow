@@ -22,6 +22,39 @@ export const AGENT_RENT_CAP_UGX = 100_000_000;
 export const DAILY_ELIGIBILITY_THRESHOLD = 0.20;
 
 /**
+ * Daily rating tiers based on YESTERDAY's collection ratio
+ * (paid_yesterday / expected_daily). 20% is the unblock line and
+ * is explicitly the start of "Good".
+ *
+ *   ≥ 50%        → Very Good  (emerald, allowed)
+ *   20% – <50%   → Good       (green,   allowed)
+ *   15% – <20%   → Fair       (amber,   BLOCKED)
+ *   5%  – <15%   → Bad        (orange,  BLOCKED)
+ *   < 5%         → Very Bad   (red,     BLOCKED)
+ */
+export const DAILY_RATING_THRESHOLDS = {
+  very_good: 0.50,
+  good:      0.20,
+  fair:      0.15,
+  bad:       0.05,
+} as const;
+
+export type DailyRating =
+  | 'Very Good' | 'Good' | 'Fair' | 'Bad' | 'Very Bad' | 'Starter';
+
+export function classifyDailyRating(
+  active_count: number,
+  yesterday_pct: number,
+): DailyRating {
+  if (active_count <= 0) return 'Starter';
+  if (yesterday_pct >= DAILY_RATING_THRESHOLDS.very_good) return 'Very Good';
+  if (yesterday_pct >= DAILY_RATING_THRESHOLDS.good)      return 'Good';
+  if (yesterday_pct >= DAILY_RATING_THRESHOLDS.fair)      return 'Fair';
+  if (yesterday_pct >= DAILY_RATING_THRESHOLDS.bad)       return 'Bad';
+  return 'Very Bad';
+}
+
+/**
  * Agent rating tiers based on **last 7 days' Daily Response Rate (DRR)**.
  *
  * We deliberately measure RESPONSIVENESS, not amount collected. An agent
@@ -75,6 +108,8 @@ export type AgentCapacity = {
    *   - 'blocked' : yesterday < 20% of expected daily → blocked today, red
    */
   daily_status: 'starter' | 'good' | 'blocked';
+  /** 5-tier human label for yesterday's performance. */
+  daily_rating: DailyRating;
   /** True iff agent may post a new rent request today. */
   can_post_rent_today: boolean;
   /** Sum of daily_repayment across active (non-unfunded) rent_requests. */
