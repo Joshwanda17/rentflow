@@ -48,6 +48,27 @@ export function AgentRentCapacityPanel({
   const [search, setSearch] = useState('');
   const [showAll, setShowAll] = useState(false);
   const [rowCollapsed, setRowCollapsed] = useState<Record<string, boolean>>({});
+  const queryClient = useQueryClient();
+
+  // Auto-refresh the fleet rating table whenever ANY rent_request changes
+  // (amount_repaid bump on a repayment trigger, status flip, or a fresh
+  // funded request). This catches every write path — agent collect dialog,
+  // submit-offline-collection edge fn, auto-charge cron — without needing
+  // per-mutation invalidation hooks.
+  useEffect(() => {
+    const channel = supabase
+      .channel('agent-rent-capacity-fleet-watch')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'rent_requests' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['agent-rent-capacity-fleet'] });
+          queryClient.invalidateQueries({ queryKey: ['agent-capacity-map'] });
+        },
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [queryClient]);
 
   const toggleRow = (agentId: string) =>
     setRowCollapsed((prev) => ({ ...prev, [agentId]: !prev[agentId] }));
