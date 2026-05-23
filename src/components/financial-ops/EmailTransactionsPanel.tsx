@@ -546,43 +546,67 @@ export function EmailTransactionsPanel() {
     // (not just the most-recent 200). When neither a date range nor a
     // search is active we still default to a generous recent window so
     // the page opens fast.
-    let q: any = (supabase.from('gmail_transactions') as any)
-      .select('id,gmail_message_id,from_email,from_name,subject,snippet,amount,transaction_id,parsed,internal_date,direction,channel,counterparty,fee,balance')
-      .order('internal_date', { ascending: false, nullsFirst: false });
-
     const fromTsLoad = fromDate ? zonedWallClockToUtcMs(fromDate, '00:00:00', tz) : null;
     const toTsLoad = toDate ? zonedWallClockToUtcMs(toDate, '23:59:59', tz) : null;
-    if (fromTsLoad) q = q.gte('internal_date', new Date(fromTsLoad).toISOString());
-    if (toTsLoad) q = q.lte('internal_date', new Date(toTsLoad).toISOString());
-
     const tokens = searchQuery.split(/\s+/).map((t) => t.trim()).filter(Boolean);
-    if (tokens.length > 0) {
-      // Use the LONGEST token for the server-side OR (most selective).
-      // Remaining tokens are AND-applied client-side in `matchesSearch`.
-      const probe = tokens.slice().sort((a, b) => b.length - a.length)[0];
-      const esc = probe.replace(/[%_,()]/g, (m) => '\\' + m);
-      q = q.or(
-        [
-          `transaction_id.ilike.%${esc}%`,
-          `subject.ilike.%${esc}%`,
-          `snippet.ilike.%${esc}%`,
-          `counterparty.ilike.%${esc}%`,
-          `from_email.ilike.%${esc}%`,
-          `from_name.ilike.%${esc}%`,
-        ].join(',')
-      );
-    }
+    const probe = tokens.length
+      ? tokens.slice().sort((a, b) => b.length - a.length)[0]
+      : null;
+    const esc = probe ? probe.replace(/[%_,()]/g, (m) => '\\' + m) : null;
 
-    // Cap: 5000 when filters/search are active (large enough for full
-    // historical sweeps), 500 otherwise.
+    // Each page must be built from a FRESH query builder — reusing the
+    // same builder across awaits can stack modifiers in PostgREST.
+    const buildQuery = () => {
+      let q: any = (supabase.from('gmail_transactions') as any)
+        .select('id,gmail_message_id,from_email,from_name,subject,snippet,amount,transaction_id,parsed,internal_date,direction,channel,counterparty,fee,balance')
+        .order('internal_date', { ascending: false, nullsFirst: false });
+      if (fromTsLoad) q = q.gte('internal_date', new Date(fromTsLoad).toISOString());
+      if (toTsLoad) q = q.lte('internal_date', new Date(toTsLoad).toISOString());
+      if (esc) {
+        q = q.or(
+          [
+            `transaction_id.ilike.%${esc}%`,
+            `subject.ilike.%${esc}%`,
+            `snippet.ilike.%${esc}%`,
+            `counterparty.ilike.%${esc}%`,
+            `from_email.ilike.%${esc}%`,
+            `from_name.ilike.%${esc}%`,
+          ].join(',')
+        );
+      }
+      return q;
+    };
+
+    // Pagination strategy — Supabase enforces a 1000-row hard cap per
+    // request, so to reach the FULL history (well beyond 5000) we walk
+    // the result set with `.range()` in pages of 1000 until the table
+    // is exhausted. Without a filter we stop at one page (1000) to keep
+    // the initial paint fast; with any filter/search we keep paging up
+    // to a generous safety ceiling so memory can't run away.
     const hasFilter = !!(fromTsLoad || toTsLoad || tokens.length > 0);
-    q = q.limit(hasFilter ? 5000 : 500);
+    const PAGE = 1000;
+    const MAX_ROWS = hasFilter ? 100_000 : PAGE;
 
-    const [{ data: txs }, { data: ps }] = await Promise.all([
-      q,
-      supabase.from('gmail_poll_state').select('last_polled_at,last_status,last_error').eq('id', 1).maybeSingle(),
-    ]);
-    setRows((txs as unknown as GmailTx[]) ?? []);
+    const psPromise = supabase
+      .from('gmail_poll_state')
+      .select('last_polled_at,last_status,last_error')
+      .eq('id', 1)
+      .maybeSingle();
+
+    const all: GmailTx[] = [];
+    let offset = 0;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const end = offset + PAGE - 1;
+      const { data: page, error } = await buildQuery().range(offset, end);
+      if (error || !page || page.length === 0) break;
+      all.push(...(page as unknown as GmailTx[]));
+      if (page.length < PAGE) break;          // last page
+      if (all.length >= MAX_ROWS) break;       // safety ceiling
+      offset += PAGE;
+    }
+    const { data: ps } = await psPromise;
+    setRows(all);
     setState((ps as PollState) ?? null);
     const psTyped = ps as PollState | null;
     if (psTyped?.last_status === 'ok' && psTyped.last_polled_at) {
