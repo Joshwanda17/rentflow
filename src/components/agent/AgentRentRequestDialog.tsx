@@ -167,7 +167,10 @@ function AgentCapacityBanner({ agentId }: { agentId?: string }) {
     if (rating === 'Fair') {
       return (
         <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-amber-700">
-          <div className="text-xs font-extrabold uppercase tracking-wide mb-1">Fair — Blocked from posting today</div>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-extrabold uppercase tracking-wide">Fair — Blocked from posting today</span>
+            <DailyRatingThresholdPopover />
+          </div>
           <p className="text-[11px] leading-snug opacity-95">
             Yesterday you collected <strong className="font-mono">{formatUGX(cap.paid_yesterday)}</strong> ({ypct}%) of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong> expected — best day is {epct}%. You are between 15% and 19%, just below the {threshold}% law. Hit {threshold}% today to be unblocked and rated Good immediately.
           </p>
