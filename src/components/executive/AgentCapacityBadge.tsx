@@ -1,6 +1,7 @@
 import { AgentCapacity, AGENT_RENT_CAP_UGX } from '@/hooks/useAgentCapacityMap';
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
+import { DailyRatingThresholdPopover } from '@/components/shared/DailyRatingThresholdPopover';
 
 const TIER_TONE: Record<AgentCapacity['tier'], string> = {
   Positive:   'bg-emerald-500/15 text-emerald-700 border-emerald-500/30',
