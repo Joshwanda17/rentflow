@@ -146,6 +146,9 @@ export function AgentRentCapacitySelfCard() {
               const status = cap.daily_status;
               const rating = cap.daily_rating;
               const ypct = Math.round(cap.yesterday_response_pct * 100);
+              const tpct = Math.round(cap.today_response_pct * 100);
+              const epct = Math.round(cap.effective_daily_pct * 100);
+              const todayLeads = cap.today_response_pct >= cap.yesterday_response_pct;
               const threshold = Math.round(DAILY_ELIGIBILITY_THRESHOLD * 100);
               if (status === 'starter') {
                 return (
@@ -175,11 +178,15 @@ export function AgentRentCapacitySelfCard() {
                     <div className="text-sm">
                       <div className="font-extrabold text-emerald-700">{headline}</div>
                       <p className="text-foreground/80 mt-0.5">
-                        Yesterday you collected{' '}
+                        Today you've collected{' '}
+                        <strong className="font-mono">{formatUGX(cap.paid_today)}</strong>{' '}
+                        ({tpct}%) and yesterday{' '}
                         <strong className="font-mono">{formatUGX(cap.paid_yesterday)}</strong>{' '}
-                        of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong>{' '}
-                        ({ypct}%) — rated <strong>{rating}</strong> (≥ {threshold}% daily law).
-                        Keep it up: if you fall below {threshold}% today, you will be blocked tomorrow.
+                        ({ypct}%) of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong>{' '}
+                        expected daily — rated <strong>{rating}</strong> on your best day ({epct}%, ≥ {threshold}% law).
+                        {todayLeads && cap.today_response_pct >= DAILY_ELIGIBILITY_THRESHOLD
+                          ? " Today's collections already lifted your rating — keep going."
+                          : ' Keep it up: if you fall below ' + threshold + '% tomorrow you will be blocked again.'}
                       </p>
                     </div>
                   </div>
@@ -193,13 +200,15 @@ export function AgentRentCapacitySelfCard() {
                       {rating} — blocked from new rent requests today
                     </div>
                     <p className="text-foreground/80 mt-0.5">
-                      Yesterday you collected only{' '}
+                      Today you've collected{' '}
+                      <strong className="font-mono">{formatUGX(cap.paid_today)}</strong>{' '}
+                      ({tpct}%) and yesterday{' '}
                       <strong className="font-mono">{formatUGX(cap.paid_yesterday)}</strong>{' '}
-                      of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong>{' '}
-                      ({ypct}%) — rated <strong>{rating}</strong>, below the{' '}
-                      <strong>{threshold}%</strong> daily law.
-                      Collect at least <strong>{threshold}%</strong> of your daily rent today and
-                      you will be unblocked and rated <strong className="text-emerald-700">Good</strong> tomorrow.
+                      ({ypct}%) of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong>{' '}
+                      expected daily — best is {epct}%, below the{' '}
+                      <strong>{threshold}%</strong> daily law. Hit{' '}
+                      <strong>{threshold}%</strong> TODAY and you will be unblocked and
+                      rated <strong className="text-emerald-700">Good</strong> immediately.
                     </p>
                   </div>
                 </div>
