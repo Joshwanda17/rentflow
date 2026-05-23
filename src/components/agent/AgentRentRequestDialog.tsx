@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { addDays, format } from 'date-fns';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -9,7 +9,6 @@ import { LandlordSearchSelect, type LandlordOption } from '@/components/agent/La
 import RegisterLandlordDialog from '@/components/agent/RegisterLandlordDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useAgentCapacityMap, DAILY_ELIGIBILITY_THRESHOLD } from '@/hooks/useAgentCapacityMap';
-import { useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
