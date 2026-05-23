@@ -143,8 +143,8 @@ function AgentCapacityBanner({ agentId }: { agentId?: string }) {
       >
         <div className="text-xs font-extrabold uppercase tracking-wide mb-1">
           {cap.daily_status === 'good'
-            ? 'Good — Allowed Today'
-            : 'Blocked from posting today'}
+            ? `${cap.daily_rating} — Allowed Today`
+            : `${cap.daily_rating} — Blocked from posting today`}
         </div>
         <p className="text-[11px] leading-snug opacity-95">
           Yesterday you collected{' '}
