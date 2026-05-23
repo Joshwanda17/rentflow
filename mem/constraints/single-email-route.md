@@ -1,9 +1,14 @@
 ---
-name: Single forward email route per email transaction
-description: email_routing_history can hold at most one active forward route per gmail_transaction_id; reversal entries (reason ILIKE 'Reversed%') are exempt and re-open routing
+name: Single email route per user
+description: A MoMo/email transaction can be routed once per target user; routing to a different user is still allowed; only reversals re-open the same user.
 type: constraint
 ---
-- DB trigger `trg_enforce_single_forward_email_route` (BEFORE INSERT on `email_routing_history`) raises `DUPLICATE_EMAIL_ROUTE` (errcode `unique_violation`) when a non-reversal row would be inserted while an unreversed forward route already exists for the same `gmail_transaction_id`.
-- Reversal rows are detected by `reason ILIKE 'Reversed%'` — keep that prefix when posting reversals from any new code path.
-- Frontend mirrors this in `EmailTransactionsPanel`: "Route to user" and "Debit user wallet" buttons render disabled as "Already routed" when `isRouted && !isReversed`. Reverse button stays enabled.
-- **Why:** A single MoMo/email transaction was once routed twice and the duplicate could not be debited back because the second credit had already been spent. The trigger is the hard backstop, the UI gate is UX.
+**Rule (DB trigger `trg_enforce_single_forward_email_route` on `email_routing_history`):**
+
+A single `gmail_transaction_id` may have AT MOST ONE active (non-reversed) forward route **per `target_user_id`**.
+
+- ✅ Routing the same email to a **different user** → allowed.
+- ❌ Routing the same email to the **same user** twice → blocked with `DUPLICATE_EMAIL_ROUTE` (`unique_violation`).
+- ✅ Rows whose `reason ILIKE 'Reversed%'` are exempt and re-open routing to that user.
+
+**Why:** Auto-credit (e.g. CFO auto-route) already lands the money in user A's wallet. A second manual route to user A would create phantom value. But the same physical TID may legitimately need to be routed to user B (e.g. wrong auto-match), so we only scope the lock per target user. UI buttons remain enabled and read "Route to another user" when already routed; the trigger is the hard backstop.
