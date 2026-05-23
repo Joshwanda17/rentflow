@@ -32,9 +32,12 @@ type AgentRow = {
   expected_tenant_days: number;
   paid_last_week: number;
   paid_today: number;
+  paid_yesterday: number;
   expected_daily: number;
   tier: AgentCapacity['tier'];
   per_tenant_max: number;
+  daily_rating: AgentCapacity['daily_rating'];
+  daily_status: AgentCapacity['daily_status'];
 };
 
 export function AgentRentCapacityPanel({
