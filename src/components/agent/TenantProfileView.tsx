@@ -836,10 +836,28 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
             {/* Payment history — each cash-in with running Paid / Remaining */}
             {(() => {
               const target = summary.activeRequest!.total_repayment;
-              const allCycleRepayments = repayments
+              const cycleRepayments = repayments
                 .filter(r => r.rent_request_id === summary.activeRequest!.id)
                 .slice()
                 .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+              // Broaden to match the progress bar: include payments that updated
+              // amount_repaid directly (e.g. agent float allocation, supporter
+              // top-ups, system adjustments) but never wrote a `repayments` row.
+              const repaymentsSum = cycleRepayments.reduce((s, r) => s + (r.amount || 0), 0);
+              const amountRepaid = Number(summary.activeRequest!.amount_repaid || 0);
+              const otherSourcesAmount = Math.max(0, amountRepaid - repaymentsSum);
+              const allCycleRepayments: Array<{ id: string; amount: number; created_at: string; source?: 'repayment' | 'other' }> = [
+                ...(otherSourcesAmount > 0
+                  ? [{
+                      id: `other-${summary.activeRequest!.id}`,
+                      amount: otherSourcesAmount,
+                      created_at: (summary.activeRequest as any).disbursed_at || summary.activeRequest!.created_at,
+                      source: 'other' as const,
+                    }]
+                  : []),
+                ...cycleRepayments.map(r => ({ id: r.id, amount: r.amount || 0, created_at: r.created_at, source: 'repayment' as const })),
+              ].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
               // Determine date window
               const now = new Date();
@@ -866,6 +884,7 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
                   date: r.created_at,
                   paid: running,
                   remaining: Math.max(0, target - running),
+                  source: r.source,
                 };
               });
               const filteredRows = allRows.filter(row => {
@@ -951,7 +970,9 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
                             +{formatUGX(row.amount)}
                           </p>
                           <p className="text-[10px] text-muted-foreground">
-                            {format(new Date(row.date), 'MMM d, yyyy · HH:mm')}
+                            {row.source === 'other'
+                              ? 'Funded by float / other channels'
+                              : format(new Date(row.date), 'MMM d, yyyy · HH:mm')}
                           </p>
                         </div>
                         <div className="text-right shrink-0">
