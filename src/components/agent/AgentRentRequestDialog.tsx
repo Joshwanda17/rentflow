@@ -9,6 +9,7 @@ import { LandlordSearchSelect, type LandlordOption } from '@/components/agent/La
 import RegisterLandlordDialog from '@/components/agent/RegisterLandlordDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useAgentCapacityMap, DAILY_ELIGIBILITY_THRESHOLD } from '@/hooks/useAgentCapacityMap';
+import { DailyRatingThresholdPopover } from '@/components/shared/DailyRatingThresholdPopover';
 import {
   Dialog,
   DialogContent,
