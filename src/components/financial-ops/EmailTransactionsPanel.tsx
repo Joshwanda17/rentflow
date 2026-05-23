@@ -2374,6 +2374,12 @@ export function EmailTransactionsPanel() {
                                     <span className="font-medium">{u.full_name}</span>
                                     <span className="opacity-70">· {shortLabel}</span>
                                     <span className="font-mono tabular-nums opacity-80">{score}%</span>
+                                    <span className="font-mono tabular-nums opacity-90 border-l border-current/30 pl-1 ml-0.5 inline-flex items-center gap-0.5">
+                                      <Wallet className="h-2.5 w-2.5" />
+                                      {userBalances[u.id] === undefined
+                                        ? '…'
+                                        : Math.round(userBalances[u.id]).toLocaleString()}
+                                    </span>
                                   </Badge>
                                 </TooltipTrigger>
                                 <TooltipContent side="top" className="max-w-xs text-xs">
