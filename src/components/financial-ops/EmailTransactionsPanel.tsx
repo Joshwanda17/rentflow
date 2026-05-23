@@ -2374,6 +2374,14 @@ export function EmailTransactionsPanel() {
                                         {u.mobile_money_number}
                                       </p>
                                     )}
+                                    <p className="font-mono pt-0.5 border-t mt-1">
+                                      <span className="text-muted-foreground font-sans inline-flex items-center gap-1">
+                                        <Wallet className="h-3 w-3" /> Wallet:{' '}
+                                      </span>
+                                      {userBalances[u.id] === undefined
+                                        ? '…'
+                                        : `UGX ${Math.round(userBalances[u.id]).toLocaleString()}`}
+                                    </p>
                                   </div>
                                 </TooltipContent>
                               </Tooltip>
