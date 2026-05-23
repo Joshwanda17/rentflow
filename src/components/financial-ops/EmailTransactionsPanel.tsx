@@ -1327,6 +1327,26 @@ export function EmailTransactionsPanel() {
     .split(/\s+/)
     .map((t) => t.trim())
     .filter(Boolean);
+  // Expand each token with phone-number variants so a search like "0772123456"
+  // matches emails that printed "+256772123456" / "256772 123 456" / etc.
+  const expandedSearchTokens: string[][] = searchTokens.map((t) => {
+    const variants = new Set<string>([t]);
+    const digits = t.replace(/\D/g, '');
+    if (digits.length >= 7) {
+      variants.add(digits);
+      const norm = normalizeUgPhone(t);
+      if (norm) {
+        variants.add(norm);                 // 256XXXXXXXXX
+        variants.add(`0${norm.slice(3)}`);  // 0XXXXXXXXX
+        variants.add(norm.slice(3));        // 7XXXXXXXX
+      }
+    }
+    // Amount typed with or without commas (e.g. "150000" vs "150,000")
+    if (/^\d{4,}$/.test(digits)) {
+      variants.add(Number(digits).toLocaleString().toLowerCase());
+    }
+    return Array.from(variants);
+  });
   const matchesSearch = (r: GmailTx): boolean => {
     if (searchTokens.length === 0) return true;
     const matched = userMatches[r.id] ?? [];
@@ -1343,11 +1363,17 @@ export function EmailTransactionsPanel() {
       r.direction ?? '',
       r.channel ?? '',
       r.amount != null ? String(Math.round(r.amount)) : '',
+      r.amount != null ? Math.round(r.amount).toLocaleString() : '',
+      r.fee != null ? String(Math.round(r.fee)) : '',
+      r.balance != null ? String(Math.round(r.balance)) : '',
       r.gmail_message_id ?? '',
       r.internal_date ?? '',
       matchedHay,
     ].join(' ').toLowerCase();
-    return searchTokens.every((t) => hay.includes(t));
+    // Each token must match in ANY of its variant forms.
+    return expandedSearchTokens.every((variants) =>
+      variants.some((v) => hay.includes(v)),
+    );
   };
   // `filteredRows` reflects BOTH the date range and the search box, so every
   // downstream consumer (stats, breakdown, chart, exports, list) stays in sync.
