@@ -1944,6 +1944,26 @@ export function EmailTransactionsPanel() {
 
       <div className="rounded-xl border bg-card overflow-hidden">
         <div className="p-4 border-b flex items-center justify-between gap-3 flex-wrap">
+          <div className="relative w-full sm:w-56">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search any email…"
+              className="h-8 w-full rounded-md border border-input bg-background pl-7 pr-7 text-sm"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label="Clear search"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
           <h3 className="font-semibold text-sm">Recent emails</h3>
           {(() => {
             // Money-in vs money-out chips. Counts respect the active date /
