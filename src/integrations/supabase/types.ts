@@ -4268,6 +4268,7 @@ export type Database = {
       credit_access_limits: {
         Row: {
           base_limit: number
+          bonus_from_agent_allocations: number
           bonus_from_houses_listed: number
           bonus_from_landlord_rent: number
           bonus_from_partners_onboarded: number
@@ -4282,6 +4283,7 @@ export type Database = {
         }
         Insert: {
           base_limit?: number
+          bonus_from_agent_allocations?: number
           bonus_from_houses_listed?: number
           bonus_from_landlord_rent?: number
           bonus_from_partners_onboarded?: number
@@ -4296,6 +4298,7 @@ export type Database = {
         }
         Update: {
           base_limit?: number
+          bonus_from_agent_allocations?: number
           bonus_from_houses_listed?: number
           bonus_from_landlord_rent?: number
           bonus_from_partners_onboarded?: number
