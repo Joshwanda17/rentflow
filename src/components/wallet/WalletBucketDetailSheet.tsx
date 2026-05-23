@@ -41,6 +41,10 @@ const CATEGORY_LABEL: Record<string, string> = {
   // withdrawable / commission
   agent_rent_commission: 'Rent commission (10%)',
   rent_commission: 'Rent commission',
+  agent_commission_earned: 'Commission earned',
+  agent_commission: 'Commission earned',
+  agent_commission_payout: 'Commission paid out',
+  agent_commission_payable: 'Commission posted',
   agent_investment_commission: 'Investment commission',
   investment_commission: 'Investment commission',
   partner_commission: 'Partner commission (2%)',
@@ -50,15 +54,92 @@ const CATEGORY_LABEL: Record<string, string> = {
   facilitation_bonus: 'Facilitation bonus',
   listing_bonus: 'Listing bonus',
   tenant_placement_bonus: 'Tenant placement bonus',
+  agent_bonus: 'Bonus',
   approval_bonus: 'Approval bonus',
   referral_bonus: 'Referral bonus',
   roi_wallet_credit: 'Investor returns',
   withdrawal: 'Withdrawal',
   agent_wallet_withdrawal: 'Withdrawal',
+  wallet_withdrawal: 'Withdrawal',
+  // deposits & adjustments
+  deposit: 'Deposit',
+  wallet_deposit: 'Deposit',
+  tenant_repayment: 'Tenant repayment',
+  agent_float_settlement: 'Float settled',
+  rent_float_funding: 'Rent funding',
+  rent_disbursement: 'Rent disbursed to landlord',
+  rent_receivable_created: 'Rent recorded',
+  balance_correction: 'Wallet correction',
+  historical_balance_reseed: 'Opening balance',
+  wallet_transfer: 'Wallet transfer',
+  wallet_deduction: 'Deduction',
+  wallet_deduction_general_adjustment: 'Adjustment',
+  marketing_expense: 'Marketing expense',
+};
+
+/**
+ * Ordinary-person explanation for every category we surface to a user.
+ * Shown under the label so a non-finance user instantly knows WHY the
+ * money moved. Keep each line under ~90 chars, no jargon, no underscores.
+ */
+const CATEGORY_REASON: Record<string, string> = {
+  agent_float_deposit: 'You added cash to your float so you can pay tenants’ rent.',
+  operational_float_deposit: 'Cash added to your float to use for tenant rent.',
+  agent_float_topup: 'You topped up your float.',
+  float_received: 'Float sent to you from your partner or supervisor.',
+  partner_float_transfer_in: 'Your partner moved float into your wallet.',
+  rent_payment_for_tenant: 'You used float to settle rent for a tenant.',
+  agent_float_used_for_rent: 'Float used to pay a tenant’s rent.',
+  agent_float_payout: 'Float released back out of your wallet.',
+  float_withdrawal: 'Float taken out of your wallet.',
+  landlord_payout: 'You paid a landlord from float.',
+  partner_float_transfer_out: 'Float moved from your wallet to your partner.',
+
+  agent_rent_commission: 'Your 10% earnings for collecting rent.',
+  rent_commission: 'Earnings from a rent collection.',
+  agent_commission_earned: 'Your 10% earnings for paying a tenant’s rent.',
+  agent_commission: 'Earnings credited to you.',
+  agent_commission_payout: 'Earnings released into your withdrawable balance.',
+  agent_commission_payable: 'Platform recorded your earnings (matches your commission credit).',
+  agent_investment_commission: 'Your 2% earnings on a partner investment.',
+  investment_commission: 'Earnings from an investment you facilitated.',
+  partner_commission: 'Your 2% partner cut on a proxy agent’s deposit.',
+  subagent_commission: 'Override from a sub-agent under you.',
+  registration_bonus: 'Reward for registering a new user.',
+  verification_bonus: 'Reward for completing a verification.',
+  facilitation_bonus: 'Reward for facilitating a deal.',
+  listing_bonus: 'Reward for listing a house.',
+  tenant_placement_bonus: 'UGX 5,000 reward for placing a tenant in a listed house.',
+  agent_bonus: 'A bonus credited to your wallet.',
+  approval_bonus: 'Reward for an approval milestone.',
+  referral_bonus: 'Reward for a referral that signed up.',
+  roi_wallet_credit: 'Returns from your investment portfolio.',
+
+  withdrawal: 'Money you sent out of your wallet.',
+  agent_wallet_withdrawal: 'Cash-out you requested from your wallet.',
+  wallet_withdrawal: 'Cash-out from your wallet.',
+
+  deposit: 'Money added into your wallet.',
+  wallet_deposit: 'Money added into your wallet.',
+  tenant_repayment: 'A tenant repaid money to you.',
+  agent_float_settlement: 'Your float was settled with the platform.',
+  rent_float_funding: 'Float advanced so you can pay rent on a tenant’s behalf.',
+  rent_disbursement: 'Rent sent through to the landlord.',
+  rent_receivable_created: 'A rent obligation was recorded against a tenant.',
+  balance_correction: 'Finance team corrected your wallet to match your real earnings.',
+  historical_balance_reseed: 'Opening balance carried forward when your wallet was reset.',
+  wallet_transfer: 'Money moved between wallets.',
+  wallet_deduction: 'Finance team removed money from your wallet (see note).',
+  wallet_deduction_general_adjustment: 'A finance adjustment on your wallet (see note).',
+  marketing_expense: 'Wallet used to cover a marketing cost.',
 };
 
 function labelFor(cat: string) {
   return CATEGORY_LABEL[cat] ?? cat.replace(/_/g, ' ');
+}
+
+function reasonFor(cat: string): string | null {
+  return CATEGORY_REASON[cat] ?? null;
 }
 
 interface Entry {
