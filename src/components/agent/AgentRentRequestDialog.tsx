@@ -130,53 +130,87 @@ function AgentCapacityBanner({ agentId }: { agentId?: string }) {
     : pct >= 75 ? 'bg-warning/10 border-warning/40 text-warning'
     : 'bg-success/10 border-success/30 text-success';
 
-  return (
-    <>
-    {cap && cap.daily_status !== 'starter' && (
-      <div
-        className={
-          'rounded-xl border p-3 ' +
-          (cap.daily_status === 'good'
-            ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700'
-            : 'border-destructive/40 bg-destructive/10 text-destructive')
-        }
-      >
-        <div className="text-xs font-extrabold uppercase tracking-wide mb-1">
-          {cap.daily_status === 'good'
-            ? `${cap.daily_rating} — Allowed Today`
-            : `${cap.daily_rating} — Blocked from posting today`}
+  const threshold = Math.round(DAILY_ELIGIBILITY_THRESHOLD * 100);
+
+  const dailyBanner = (() => {
+    if (!cap || cap.daily_status === 'starter') return null;
+    const rating = cap.daily_rating;
+    const ypct = Math.round(cap.yesterday_response_pct * 100);
+    const epct = Math.round(cap.effective_daily_pct * 100);
+    if (rating === 'Very Good') {
+      return (
+        <div className="rounded-xl border border-emerald-600/50 bg-emerald-600/10 p-3 text-emerald-700">
+          <div className="text-xs font-extrabold uppercase tracking-wide mb-1">Very Good — Allowed Today</div>
+          <p className="text-[11px] leading-snug opacity-95">
+            Yesterday you collected <strong className="font-mono">{formatUGX(cap.paid_yesterday)}</strong> ({ypct}%) of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong> expected — best day is {epct}%. You are well above the {threshold}% law and may post new rent requests.
+          </p>
         </div>
+      );
+    }
+    if (rating === 'Good') {
+      return (
+        <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3 text-emerald-700">
+          <div className="text-xs font-extrabold uppercase tracking-wide mb-1">Good — Allowed Today</div>
+          <p className="text-[11px] leading-snug opacity-95">
+            Yesterday you collected <strong className="font-mono">{formatUGX(cap.paid_yesterday)}</strong> ({ypct}%) of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong> expected — best day is {epct}%. You met the {threshold}% law and may post new rent requests. Keep going to reach Very Good (≥ 50%).
+          </p>
+        </div>
+      );
+    }
+    if (rating === 'Fair') {
+      return (
+        <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-amber-700">
+          <div className="text-xs font-extrabold uppercase tracking-wide mb-1">Fair — Blocked from posting today</div>
+          <p className="text-[11px] leading-snug opacity-95">
+            Yesterday you collected <strong className="font-mono">{formatUGX(cap.paid_yesterday)}</strong> ({ypct}%) of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong> expected — best day is {epct}%. You are between 15% and 19%, just below the {threshold}% law. Hit {threshold}% today to be unblocked and rated Good immediately.
+          </p>
+        </div>
+      );
+    }
+    if (rating === 'Bad') {
+      return (
+        <div className="rounded-xl border border-orange-500/40 bg-orange-500/10 p-3 text-orange-700">
+          <div className="text-xs font-extrabold uppercase tracking-wide mb-1">Bad — Blocked from posting today</div>
+          <p className="text-[11px] leading-snug opacity-95">
+            Yesterday you collected <strong className="font-mono">{formatUGX(cap.paid_yesterday)}</strong> ({ypct}%) of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong> expected — best day is {epct}%. You are between 5% and 14%, below the {threshold}% law. Hit {threshold}% today to be unblocked and rated Good immediately.
+          </p>
+        </div>
+      );
+    }
+    // Very Bad
+    return (
+      <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-destructive">
+        <div className="text-xs font-extrabold uppercase tracking-wide mb-1">Very Bad — Blocked from posting today</div>
         <p className="text-[11px] leading-snug opacity-95">
-          Yesterday you collected{' '}
-          <strong className="font-mono">{formatUGX(cap.paid_yesterday)}</strong>{' '}
-          of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong>{' '}
-          ({Math.round(cap.yesterday_response_pct * 100)}%).{' '}
-          {cap.daily_status === 'good'
-            ? `You met the ${Math.round(DAILY_ELIGIBILITY_THRESHOLD * 100)}% daily law — you can post new rent requests.`
-            : `Below the ${Math.round(DAILY_ELIGIBILITY_THRESHOLD * 100)}% daily law — collect ${Math.round(DAILY_ELIGIBILITY_THRESHOLD * 100)}% today to be unblocked tomorrow.`}
+          Yesterday you collected <strong className="font-mono">{formatUGX(cap.paid_yesterday)}</strong> ({ypct}%) of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong> expected — best day is {epct}%. You are below 5%, far below the {threshold}% law. Hit {threshold}% today to be unblocked and rated Good immediately.
         </p>
       </div>
-    )}
-    <div className={`rounded-xl border p-3 ${tone}`}>
-      <div className="flex items-center justify-between text-xs font-semibold mb-1.5">
-        <span>Your Active Rent Exposure</span>
-        <span>
-          {loading ? '…' : `${formatUGX(used)} / ${formatUGX(AGENT_RENT_CAP_UGX)}`}
-        </span>
+    );
+  })();
+
+  return (
+    <>
+      {dailyBanner}
+      <div className={`rounded-xl border p-3 ${tone}`}>
+        <div className="flex items-center justify-between text-xs font-semibold mb-1.5">
+          <span>Your Active Rent Exposure</span>
+          <span>
+            {loading ? '…' : `${formatUGX(used)} / ${formatUGX(AGENT_RENT_CAP_UGX)}`}
+          </span>
+        </div>
+        <div className="h-1.5 w-full rounded-full bg-background/40 overflow-hidden">
+          <div
+            className="h-full bg-current transition-all"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        <p className="text-[11px] mt-1.5 leading-snug opacity-90">
+          Headroom available for new rent requests:{' '}
+          <strong className="font-mono">{formatUGX(headroom)}</strong>.
+          Per-tenant rent limits scale with each tenant's repayment rate.
+          Collect on existing rent to grow your headroom.
+        </p>
       </div>
-      <div className="h-1.5 w-full rounded-full bg-background/40 overflow-hidden">
-        <div
-          className="h-full bg-current transition-all"
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-      <p className="text-[11px] mt-1.5 leading-snug opacity-90">
-        Headroom available for new rent requests:{' '}
-        <strong className="font-mono">{formatUGX(headroom)}</strong>.
-        Per-tenant rent limits scale with each tenant's repayment rate.
-        Collect on existing rent to grow your headroom.
-      </p>
-    </div>
     </>
   );
 }
