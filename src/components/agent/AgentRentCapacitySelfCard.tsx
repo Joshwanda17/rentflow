@@ -154,15 +154,13 @@ export function AgentRentCapacitySelfCard() {
               const rating = cap.daily_rating;
               const ypct = Math.round(cap.yesterday_response_pct * 100);
               const tpct = Math.round(cap.today_response_pct * 100);
-              const epct = Math.round(cap.effective_daily_pct * 100);
               const threshold = Math.round(DAILY_ELIGIBILITY_THRESHOLD * 100);
               const baseMsg = (
-                <>Yesterday you collected{' '}
-                  <strong className="font-mono">{formatUGX(cap.paid_yesterday)}</strong>{' '}
-                  ({ypct}%) and today{' '}
+                <>Today you have collected{' '}
                   <strong className="font-mono">{formatUGX(cap.paid_today)}</strong>{' '}
-                  ({tpct}%) of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong>{' '}
-                  expected daily — best day is <strong>{epct}%</strong>.
+                  of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong>{' '}
+                  expected daily — that is <strong>{tpct}%</strong> of today&apos;s target.
+                  {' '}Yesterday: <strong className="font-mono">{formatUGX(cap.paid_yesterday)}</strong> ({ypct}%).
                 </>
               );
               if (rating === 'Starter') {
