@@ -4,10 +4,11 @@ import {
   useAgentCapacityMap,
   AGENT_RENT_CAP_UGX,
   AGENT_TIER_THRESHOLDS,
+  DAILY_ELIGIBILITY_THRESHOLD,
   type AgentCapacity,
 } from '@/hooks/useAgentCapacityMap';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Gauge, CalendarCheck2, Users, Info, Printer, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Gauge, CalendarCheck2, Users, Info, Printer, Loader2, ChevronDown, ChevronUp, CheckCircle2, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { hapticTap } from '@/lib/haptics';
