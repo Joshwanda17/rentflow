@@ -1130,23 +1130,29 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               { icon: CalendarClock, label: 'Daily Expectation', value: formatUGX(stats.dailyExpectation), sub: `From ${stats.owingCount} active`, bg: 'bg-indigo-100', fg: 'text-indigo-600', subClass: 'text-indigo-600 font-medium' },
               { icon: Wallet, label: 'Owing', value: String(stats.owingCount), sub: 'Tenants owing', bg: 'bg-amber-100', fg: 'text-amber-600', subClass: 'text-rose-600 font-medium' },
               { icon: DollarSign, label: 'Collected', value: formatUGX(Object.values(tenantTotals).reduce((s, v) => s + (v?.paid || 0), 0)), sub: 'Lifetime', bg: 'bg-emerald-100', fg: 'text-emerald-600' },
-              { icon: AlertCircle, label: 'Overdue Amount', value: formatUGX(stats.totalOwing), sub: `From ${stats.owingCount} tenants`, bg: 'bg-rose-100', fg: 'text-rose-600', subClass: 'text-rose-600 font-medium' },
+              { icon: AlertCircle, label: 'Total Owed', value: formatUGX(stats.totalOwing), sub: `From ${stats.owingCount} tenants`, bg: 'bg-rose-100', fg: 'text-rose-600', subClass: 'text-rose-600 font-medium', clickable: true },
               { icon: TrendingUp, label: 'Occupancy', value: stats.total > 0 ? `${Math.round((stats.paidUpCount + stats.owingCount) / stats.total * 100)}%` : '0%', sub: 'Active cycles', bg: 'bg-sky-100', fg: 'text-sky-600', subClass: 'text-emerald-600 font-medium' },
             ].map((s, i) => {
               const Icon = s.icon;
               return (
-                <div key={i} className="rounded-2xl border border-border/60 bg-card p-3 shadow-sm">
+                <button
+                  key={i}
+                  type="button"
+                  onClick={s.clickable ? () => setShowBalanceBreakdown(true) : undefined}
+                  className={`rounded-2xl border border-border/60 bg-card p-3 shadow-sm text-left w-full ${s.clickable ? 'cursor-pointer hover:shadow-md hover:border-rose-300 transition-all active:scale-[0.98]' : ''}`}
+                  disabled={!s.clickable}
+                >
                   <div className="flex items-center gap-2.5">
                     <div className={`h-10 w-10 rounded-xl ${s.bg} flex items-center justify-center shrink-0`}>
                       <Icon className={`h-4 w-4 ${s.fg}`} />
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-1">
                       <p className="text-[10px] text-muted-foreground leading-tight">{s.label}</p>
                       <p className="text-base font-bold leading-tight truncate">{s.value}</p>
                       <p className={`text-[10px] leading-tight ${s.subClass || 'text-muted-foreground'}`}>{s.sub}</p>
                     </div>
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
