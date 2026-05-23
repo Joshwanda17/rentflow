@@ -141,6 +141,61 @@ export function AgentRentCapacitySelfCard() {
           </p>
         ) : (
           <>
+            {/* Daily Eligibility Law banner */}
+            {(() => {
+              const status = cap.daily_status;
+              const ypct = Math.round(cap.yesterday_response_pct * 100);
+              const threshold = Math.round(DAILY_ELIGIBILITY_THRESHOLD * 100);
+              if (status === 'starter') {
+                return (
+                  <div className="rounded-xl border border-violet-500/30 bg-violet-500/5 p-3 flex items-start gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-violet-600 shrink-0 mt-0.5" />
+                    <div className="text-sm">
+                      <div className="font-bold text-violet-700">You can post your first rent request</div>
+                      <p className="text-muted-foreground mt-0.5">
+                        Once you have active rents, you must collect at least{' '}
+                        <strong>{threshold}%</strong> of your expected daily rent each day
+                        to keep posting new ones tomorrow.
+                      </p>
+                    </div>
+                  </div>
+                );
+              }
+              if (status === 'good') {
+                return (
+                  <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3 flex items-start gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+                    <div className="text-sm">
+                      <div className="font-extrabold text-emerald-700">Good — you can post new rent requests today</div>
+                      <p className="text-foreground/80 mt-0.5">
+                        Yesterday you collected{' '}
+                        <strong className="font-mono">{formatUGX(cap.paid_yesterday)}</strong>{' '}
+                        of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong>{' '}
+                        ({ypct}%) — at or above the <strong>{threshold}%</strong> daily law.
+                        Keep it up: if you fall below {threshold}% today, you will be blocked tomorrow.
+                      </p>
+                    </div>
+                  </div>
+                );
+              }
+              return (
+                <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-3 flex items-start gap-3">
+                  <Lock className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+                  <div className="text-sm">
+                    <div className="font-extrabold text-destructive">Blocked from new rent requests today</div>
+                    <p className="text-foreground/80 mt-0.5">
+                      Yesterday you collected only{' '}
+                      <strong className="font-mono">{formatUGX(cap.paid_yesterday)}</strong>{' '}
+                      of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong>{' '}
+                      ({ypct}%) — below the <strong>{threshold}%</strong> daily law.
+                      Collect at least <strong>{threshold}%</strong> of your daily rent today and
+                      you will be unblocked and rated <strong className="text-emerald-700">Good</strong> tomorrow.
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
+
             <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
               <div className="flex items-center justify-between">
                 <div>
