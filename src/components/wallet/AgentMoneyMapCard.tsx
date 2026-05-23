@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Wallet, Users, Clock, AlertCircle, ArrowRight, HandCoins, Home, Coins } from 'lucide-react';
+import { Wallet, Users, Clock, AlertCircle, ArrowRight, HandCoins, Home, Coins, ChevronRight } from 'lucide-react';
 import { useCurrency } from '@/hooks/useCurrency';
+import { hapticTap } from '@/lib/haptics';
+import { WalletBucketDetailSheet, type BucketType } from './WalletBucketDetailSheet';
 
 interface AgentMoneyMapCardProps {
   withdrawable: number;
@@ -18,8 +21,12 @@ interface AgentMoneyMapCardProps {
 export function AgentMoneyMapCard({ withdrawable, float, advance = 0, pendingHolds = 0 }: AgentMoneyMapCardProps) {
   const { formatAmount } = useCurrency();
   const total = withdrawable + float;
+  const [openBucket, setOpenBucket] = useState<BucketType | null>(null);
+
+  const open = (b: BucketType) => { hapticTap(); setOpenBucket(b); };
 
   return (
+    <>
     <Card className="border-border/50 shadow-sm overflow-hidden">
       <CardContent className="p-0">
         {/* Header */}
@@ -33,7 +40,12 @@ export function AgentMoneyMapCard({ withdrawable, float, advance = 0, pendingHol
         {/* Two big buckets */}
         <div className="px-5 space-y-3">
           {/* Yours to keep — withdrawable */}
-          <div className="rounded-2xl border-2 border-emerald-500/30 bg-emerald-500/5 p-4">
+          <button
+            type="button"
+            onClick={() => open('withdrawable')}
+            className="w-full text-left rounded-2xl border-2 border-emerald-500/30 bg-emerald-500/5 p-4 active:scale-[0.99] active:bg-emerald-500/10 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
+            aria-label="View 'Yours to keep' details"
+          >
             <div className="flex items-start gap-3">
               <div className="h-11 w-11 rounded-xl bg-emerald-500/15 flex items-center justify-center shrink-0">
                 <HandCoins className="h-6 w-6 text-emerald-600" />
@@ -48,12 +60,21 @@ export function AgentMoneyMapCard({ withdrawable, float, advance = 0, pendingHol
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Your commission &amp; bonuses. You can withdraw this.
                 </p>
+                <p className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 mt-1.5 inline-flex items-center gap-0.5">
+                  Tap to see details <ChevronRight className="h-3 w-3" />
+                </p>
               </div>
+              <ChevronRight className="h-5 w-5 text-emerald-600/70 shrink-0 mt-2" />
             </div>
-          </div>
+          </button>
 
           {/* Tenant collections — float */}
-          <div className="rounded-2xl border-2 border-sky-500/30 bg-sky-500/5 p-4">
+          <button
+            type="button"
+            onClick={() => open('float')}
+            className="w-full text-left rounded-2xl border-2 border-sky-500/30 bg-sky-500/5 p-4 active:scale-[0.99] active:bg-sky-500/10 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+            aria-label="View 'Tenant collections' details"
+          >
             <div className="flex items-start gap-3">
               <div className="h-11 w-11 rounded-xl bg-sky-500/15 flex items-center justify-center shrink-0">
                 <Users className="h-6 w-6 text-sky-600" />
@@ -68,9 +89,13 @@ export function AgentMoneyMapCard({ withdrawable, float, advance = 0, pendingHol
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Money tenants gave you. Must pay their rent — you cannot withdraw it.
                 </p>
+                <p className="text-[11px] font-bold text-sky-700 dark:text-sky-400 mt-1.5 inline-flex items-center gap-0.5">
+                  Tap to see details <ChevronRight className="h-3 w-3" />
+                </p>
               </div>
+              <ChevronRight className="h-5 w-5 text-sky-600/70 shrink-0 mt-2" />
             </div>
-          </div>
+          </button>
 
           {/* Pending hold (only if any) */}
           {pendingHolds > 0 && (
@@ -139,6 +164,14 @@ export function AgentMoneyMapCard({ withdrawable, float, advance = 0, pendingHol
         </div>
       </CardContent>
     </Card>
+
+    <WalletBucketDetailSheet
+      open={openBucket !== null}
+      onOpenChange={(o) => { if (!o) setOpenBucket(null); }}
+      bucket={openBucket ?? 'withdrawable'}
+      balance={openBucket === 'float' ? float : withdrawable}
+    />
+    </>
   );
 }
 
