@@ -429,6 +429,15 @@ export function EmailTransactionsPanel() {
     typeof window === 'undefined' ? '' : (localStorage.getItem('gmail_filter_search') || '')
   );
   useEffect(() => { try { localStorage.setItem('gmail_filter_search', searchQuery); } catch {} }, [searchQuery]);
+  // Pagination for the Recent emails list. Page size is user-selectable and
+  // persisted; current page resets to 1 whenever any filter changes.
+  const [pageSize, setPageSize] = useState<number>(() => {
+    if (typeof window === 'undefined') return 50;
+    const v = Number(localStorage.getItem('gmail_filter_page_size') || '50');
+    return [25, 50, 100, 200, 500].includes(v) ? v : 50;
+  });
+  useEffect(() => { try { localStorage.setItem('gmail_filter_page_size', String(pageSize)); } catch {} }, [pageSize]);
+  const [currentPage, setCurrentPage] = useState<number>(1);
   // Match-type filter for the Recent emails list. Persisted so it survives reload.
   //   all       → no match filter
   //   confident → at least one reference OR from-phone match
