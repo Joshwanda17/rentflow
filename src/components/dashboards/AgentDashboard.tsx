@@ -97,6 +97,7 @@ import { FieldDepositQueueCard } from '@/components/agent/FieldDepositQueueCard'
 import { CollectFromReferenceDialog } from '@/components/agent/CollectFromReferenceDialog';
 
 import { AgentTopUpTenantDialog } from '@/components/agent/AgentTopUpTenantDialog';
+import { AgentRatingCard } from '@/components/agent/AgentRatingCard';
 import { AgentInvestForPartnerDialog } from '@/components/agent/AgentInvestForPartnerDialog';
 import { AgentAngelPoolInvestDialog } from '@/components/agent/AgentAngelPoolInvestDialog';
 import { ProxyInvestmentHistorySheet } from '@/components/agent/ProxyInvestmentHistorySheet';
@@ -586,6 +587,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               onOpenNewTenant={() => setRentRequestOpen(true)}
               onOpenListHouse={() => setListHouseOpen(true)}
             />
+
+            {/* Live rating — today vs target + 7-day capacity tier */}
+            <AgentRatingCard agentId={user.id} />
 
             {/* Quick access: agent's own listed houses */}
             <button
