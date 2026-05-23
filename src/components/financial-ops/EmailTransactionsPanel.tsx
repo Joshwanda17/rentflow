@@ -504,6 +504,17 @@ export function EmailTransactionsPanel() {
   // see the recipient's current wallet position at a glance before/after
   // routing or reversing a transaction.
   const [userBalances, setUserBalances] = useState<Record<string, number>>({});
+  // Latest 3 wallet ledger entries per possible-user, shown in the tooltip
+  // so Financial Ops can see recent activity at a glance before routing.
+  interface RecentTx {
+    id: string;
+    amount: number;
+    direction: string;
+    category: string;
+    description: string | null;
+    created_at: string;
+  }
+  const [userRecentTx, setUserRecentTx] = useState<Record<string, RecentTx[]>>({});
   // Per-history-entry busy flag for the Reverse action so the button can
   // show a spinner without blocking other entries.
   const [reverseBusy, setReverseBusy] = useState<Record<string, boolean>>({});
@@ -720,16 +731,26 @@ export function EmailTransactionsPanel() {
       const results = await Promise.all(
         missing.map(async (id) => {
           try {
-            const { data, error } = await supabase.rpc('get_user_wallet_view', { p_user_id: id });
-            if (error) return [id, null] as const;
-            const r = (data ?? {}) as Record<string, unknown>;
+            const [viewRes, txRes] = await Promise.all([
+              supabase.rpc('get_user_wallet_view', { p_user_id: id }),
+              supabase
+                .from('general_ledger')
+                .select('id, amount, direction, category, description, created_at')
+                .eq('user_id', id)
+                .eq('ledger_scope', 'wallet')
+                .neq('classification', 'admin_correction')
+                .neq('category', 'system_balance_correction')
+                .order('created_at', { ascending: false })
+                .limit(3),
+            ]);
+            if (viewRes.error) return [id, null as number | null, [] as RecentTx[]] as const;
+            const r = (viewRes.data ?? {}) as Record<string, unknown>;
             const withdrawable = Number((r.withdrawable as number | string | undefined) ?? 0);
             const floatBal = Number((r.float_balance as number | string | undefined) ?? 0);
-            // Surface the total spendable + held float position so reviewers see
-            // every bucket that could absorb a reversal.
-            return [id, withdrawable + floatBal] as const;
+            const tx = (txRes.data ?? []) as RecentTx[];
+            return [id, (withdrawable + floatBal) as number | null, tx] as const;
           } catch {
-            return [id, null] as const;
+            return [id, null as number | null, [] as RecentTx[]] as const;
           }
         }),
       );
@@ -738,6 +759,13 @@ export function EmailTransactionsPanel() {
         const next = { ...cur };
         for (const [id, bal] of results) {
           if (bal !== null) next[id] = bal;
+        }
+        return next;
+      });
+      setUserRecentTx((cur) => {
+        const next = { ...cur };
+        for (const [id, , tx] of results) {
+          if (tx && tx.length) next[id] = tx;
         }
         return next;
       });
@@ -820,6 +848,11 @@ export function EmailTransactionsPanel() {
       // Invalidate the cached balance for this user so the next render
       // re-fetches the post-reversal position.
       setUserBalances((cur) => {
+        const next = { ...cur };
+        delete next[entry.target_user_id];
+        return next;
+      });
+      setUserRecentTx((cur) => {
         const next = { ...cur };
         delete next[entry.target_user_id];
         return next;
@@ -2341,6 +2374,12 @@ export function EmailTransactionsPanel() {
                                     <span className="font-medium">{u.full_name}</span>
                                     <span className="opacity-70">· {shortLabel}</span>
                                     <span className="font-mono tabular-nums opacity-80">{score}%</span>
+                                    <span className="font-mono tabular-nums opacity-90 border-l border-current/30 pl-1 ml-0.5 inline-flex items-center gap-0.5">
+                                      <Wallet className="h-2.5 w-2.5" />
+                                      {userBalances[u.id] === undefined
+                                        ? '…'
+                                        : Math.round(userBalances[u.id]).toLocaleString()}
+                                    </span>
                                   </Badge>
                                 </TooltipTrigger>
                                 <TooltipContent side="top" className="max-w-xs text-xs">
@@ -2389,6 +2428,31 @@ export function EmailTransactionsPanel() {
                                         ? '…'
                                         : `UGX ${Math.round(userBalances[u.id]).toLocaleString()}`}
                                     </p>
+                                    {(userRecentTx[u.id]?.length ?? 0) > 0 && (
+                                      <div className="pt-1 mt-1 border-t">
+                                        <p className="text-muted-foreground font-sans text-[10px] uppercase tracking-wider mb-0.5">
+                                          Last {Math.min(3, userRecentTx[u.id].length)} wallet tx
+                                        </p>
+                                        <ul className="space-y-0.5">
+                                          {userRecentTx[u.id].slice(0, 3).map((t) => {
+                                            const isIn = t.direction === 'cash_in' || t.direction === 'credit';
+                                            return (
+                                              <li key={t.id} className="flex items-center justify-between gap-2 font-sans">
+                                                <span className="truncate">
+                                                  <span className={isIn ? 'text-emerald-600' : 'text-rose-600'}>
+                                                    {isIn ? '+' : '−'}{Math.round(t.amount).toLocaleString()}
+                                                  </span>{' '}
+                                                  <span className="text-muted-foreground">· {t.category}</span>
+                                                </span>
+                                                <span className="text-muted-foreground/70 text-[10px] shrink-0">
+                                                  {format(new Date(t.created_at), 'MMM d HH:mm')}
+                                                </span>
+                                              </li>
+                                            );
+                                          })}
+                                        </ul>
+                                      </div>
+                                    )}
                                   </div>
                                 </TooltipContent>
                               </Tooltip>
