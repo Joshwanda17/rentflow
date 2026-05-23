@@ -154,7 +154,10 @@ function AgentCapacityBanner({ agentId }: { agentId?: string }) {
     if (rating === 'Good') {
       return (
         <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3 text-emerald-700">
-          <div className="text-xs font-extrabold uppercase tracking-wide mb-1">Good — Allowed Today</div>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-extrabold uppercase tracking-wide">Good — Allowed Today</span>
+            <DailyRatingThresholdPopover />
+          </div>
           <p className="text-[11px] leading-snug opacity-95">
             Yesterday you collected <strong className="font-mono">{formatUGX(cap.paid_yesterday)}</strong> ({ypct}%) of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong> expected — best day is {epct}%. You met the {threshold}% law and may post new rent requests. Keep going to reach Very Good (≥ 50%).
           </p>
