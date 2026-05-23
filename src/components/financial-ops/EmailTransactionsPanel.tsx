@@ -1133,6 +1133,11 @@ export function EmailTransactionsPanel() {
       r.counterparty ?? '',
       r.from_email ?? '',
       r.from_name ?? '',
+      r.direction ?? '',
+      r.channel ?? '',
+      r.amount != null ? String(Math.round(r.amount)) : '',
+      r.gmail_message_id ?? '',
+      r.internal_date ?? '',
     ].join(' ').toLowerCase();
     return searchTokens.every((t) => hay.includes(t));
   };
