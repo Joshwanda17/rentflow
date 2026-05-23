@@ -8,6 +8,7 @@ import {
   ACTIVE_RENT_STATUSES,
   AGENT_RENT_CAP_UGX,
   classifyAgent,
+  classifyDailyRating,
   type AgentCapacity,
 } from '@/hooks/useAgentCapacityMap';
 import { toast } from 'sonner';
@@ -31,9 +32,12 @@ type AgentRow = {
   expected_tenant_days: number;
   paid_last_week: number;
   paid_today: number;
+  paid_yesterday: number;
   expected_daily: number;
   tier: AgentCapacity['tier'];
   per_tenant_max: number;
+  daily_rating: AgentCapacity['daily_rating'];
+  daily_status: AgentCapacity['daily_status'];
 };
 
 export function AgentRentCapacityPanel({
@@ -119,8 +123,10 @@ export function AgentRentCapacityPanel({
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
       const todayStartMs = todayStart.getTime();
+      const yesterdayStartMs = todayStartMs - 24 * 60 * 60 * 1000;
       const paidByAgent = new Map<string, number>();
       const paidTodayByAgent = new Map<string, number>();
+      const paidYesterdayByAgent = new Map<string, number>();
       const respondingDaysByAgent = new Map<string, number>();
       const payingTenantsByAgent = new Map<string, Set<string>>();
       const activeIds = Array.from(activeIdToAgent.keys());
@@ -138,8 +144,11 @@ export function AgentRentCapacityPanel({
           const agentId = activeIdToAgent.get(p.rent_request_id);
           if (!agentId) return;
           paidByAgent.set(agentId, (paidByAgent.get(agentId) || 0) + amt);
-          if (new Date(p.created_at).getTime() >= todayStartMs) {
+          const ts = new Date(p.created_at).getTime();
+          if (ts >= todayStartMs) {
             paidTodayByAgent.set(agentId, (paidTodayByAgent.get(agentId) || 0) + amt);
+          } else if (ts >= yesterdayStartMs) {
+            paidYesterdayByAgent.set(agentId, (paidYesterdayByAgent.get(agentId) || 0) + amt);
           }
           if (amt <= 0) return;
           const tenantId = p.tenant_id || activeIdToTenant.get(p.rent_request_id);
@@ -193,6 +202,14 @@ export function AgentRentCapacityPanel({
             : 0;
         const { tier, per_tenant_max } = classifyAgent(exp.count, response_rate);
         const prof = profileMap.get(id) || { name: id.slice(0, 8), phone: null };
+        const paid_yesterday = paidYesterdayByAgent.get(id) || 0;
+        const expected_daily = expectedDailyMap.get(id) || 0;
+        const yesterday_response_pct = expected_daily >  0 ? paid_yesterday / expected_daily : 0;
+        const today_response_pct = expected_daily > 0 ? (paidTodayByAgent.get(id) || 0) / expected_daily : 0;
+        const effective_daily_pct = Math.max(yesterday_response_pct, today_response_pct);
+        const daily_rating = classifyDailyRating(exp.count, effective_daily_pct);
+        const daily_status: AgentCapacity['daily_status'] =
+          exp.count <=   1 ? 'starter' : effective_daily_pct >= 0.20 ? 'good' : 'blocked';
         return {
           agent_id: id,
           name: prof.name,
@@ -207,9 +224,12 @@ export function AgentRentCapacityPanel({
           expected_tenant_days,
           paid_last_week,
           paid_today: paidTodayByAgent.get(id) || 0,
-          expected_daily: expectedDailyMap.get(id) || 0,
+          paid_yesterday,
+          expected_daily,
           tier,
           per_tenant_max,
+          daily_rating,
+          daily_status,
         };
       });
 
@@ -477,7 +497,7 @@ function CapacityRow({
     <li className="rounded-xl border border-border bg-background p-2.5 sm:p-3">
       <div className="flex items-start justify-between gap-2 mb-1.5">
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-foreground truncate">{row.name}</p>
+          <p className={`text-sm font-semibold truncate ${row.daily_rating === 'Very Good' || row.daily_rating === 'Good' ? 'text-emerald-700' : 'text-foreground'}`}>{row.name}</p>
           <p className="text-[11px] text-muted-foreground truncate">
             {row.phone || '—'} · {row.active_count} active rent{row.active_count === 1 ? '' : 's'}
             {row.unfunded_tenant_count > 0 && (

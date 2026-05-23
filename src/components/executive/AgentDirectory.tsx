@@ -281,7 +281,10 @@ export function AgentDirectory() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <span className="font-medium text-sm truncate">{a.full_name || 'Unknown Agent'}</span>
+                      <span className={`font-medium text-sm truncate ${(() => {
+                        const dr = capacityMap?.get(a.id)?.daily_rating;
+                        return dr === 'Very Good' || dr === 'Good' ? 'text-emerald-700' : '';
+                      })()}`}>{a.full_name || 'Unknown Agent'}</span>
                       {a.verified && (
                         <Badge variant="default" className="text-[10px] px-1 py-0 h-4 shrink-0">✓</Badge>
                       )}
