@@ -8,6 +8,8 @@ import { GuarantorConsentCheckbox } from '@/components/agent/GuarantorConsentChe
 import { LandlordSearchSelect, type LandlordOption } from '@/components/agent/LandlordSearchSelect';
 import RegisterLandlordDialog from '@/components/agent/RegisterLandlordDialog';
 import { useAuth } from '@/hooks/useAuth';
+import { useAgentCapacityMap, DAILY_ELIGIBILITY_THRESHOLD } from '@/hooks/useAgentCapacityMap';
+import { useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
