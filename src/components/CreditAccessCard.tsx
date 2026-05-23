@@ -123,6 +123,7 @@ export function CreditAccessCard({ userId, showBreakdown = true, compact = false
                 <p className="text-[10px] font-semibold text-foreground">🚀 Pay on time → Unlock more rent fees</p>
                 <div className="space-y-1.5">
                 <CompactBreakdownRow icon={<TrendingUp className="h-3 w-3 text-success" />} label="✅ Repay rent on time" value={limit.bonusFromRentHistory} currency={currency} tip="Biggest boost" />
+                  <CompactBreakdownRow icon={<TrendingUp className="h-3 w-3 text-emerald-500" />} label="💸 Pay tenant rent (2× boost)" value={limit.bonusFromAgentAllocations} currency={currency} tip="Every UGX you allocate adds 2× to your limit" />
                   <CompactBreakdownRow icon={<Receipt className="h-3 w-3 text-blue-500" />} label="📸 Post rent receipts" value={limit.bonusFromReceipts} currency={currency} tip="Proves history" />
                   <CompactBreakdownRow icon={<Star className="h-3 w-3 text-yellow-500" />} label="⭐ Earn landlord ratings" value={limit.bonusFromRatings} currency={currency} tip="Trust score" />
                   <CompactBreakdownRow icon={<Home className="h-3 w-3 text-purple-500" />} label="🏠 List houses" value={limit.bonusFromHousesListed} currency={currency} tip="+50K per house" />
