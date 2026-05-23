@@ -51,12 +51,33 @@ export function AgentCapacityBadge({
     responding_tenant_days, expected_tenant_days,
     paying_tenants_last_week, active_tenant_count,
     unfunded_tenant_count,
+    daily_status, yesterday_response_pct, paid_yesterday, expected_daily,
   } = capacity;
   const tone = TIER_TONE[tier];
   const barTone =
     pct >= 95 ? 'bg-destructive' : pct >= 75 ? 'bg-amber-500' : 'bg-emerald-500';
 
+  const dailyTone =
+    daily_status === 'good'
+      ? 'bg-emerald-500/15 text-emerald-700 border-emerald-500/40'
+      : daily_status === 'blocked'
+        ? 'bg-destructive/15 text-destructive border-destructive/40'
+        : 'bg-muted text-muted-foreground border-border';
+  const dailyLabel =
+    daily_status === 'good' ? 'Good · Today OK'
+    : daily_status === 'blocked' ? 'Blocked Today'
+    : 'New';
+  const dailyTitleLine =
+    daily_status === 'starter'
+      ? `Starter agent — always allowed to post the first rent request.`
+      : `Yesterday: collected UGX ${formatUGX(paid_yesterday)} of ` +
+        `UGX ${formatUGX(expected_daily)} (${Math.round(yesterday_response_pct * 100)}%). ` +
+        (daily_status === 'good'
+          ? `≥ 20% → ALLOWED to post new rent requests today.`
+          : `< 20% → BLOCKED from posting new rent requests today.`);
+
   const title =
+    `${dailyTitleLine}\n` +
     `Tier: ${tier}\n` +
     `Last 7 days: ${paying_tenants_last_week} of ${active_tenant_count} tenants paid\n` +
     `Not Funded: ${unfunded_tenant_count} tenant${unfunded_tenant_count === 1 ? '' : 's'}\n` +
@@ -69,14 +90,24 @@ export function AgentCapacityBadge({
   if (variant === 'stack') {
     return (
       <div className={cn('flex flex-col gap-0.5 min-w-[90px]', className)} title={title}>
-        <span
-          className={cn(
-            'inline-flex items-center gap-1 self-start px-1.5 py-0 rounded-full border text-[10px] font-bold leading-4',
-            tone,
-          )}
-        >
-          {tier} · {Math.round(response_rate * 100)}%
-        </span>
+        <div className="flex flex-wrap items-center gap-1">
+          <span
+            className={cn(
+              'inline-flex items-center gap-1 px-1.5 py-0 rounded-full border text-[10px] font-bold leading-4',
+              dailyTone,
+            )}
+          >
+            {dailyLabel}
+          </span>
+          <span
+            className={cn(
+              'inline-flex items-center gap-1 px-1.5 py-0 rounded-full border text-[10px] font-bold leading-4',
+              tone,
+            )}
+          >
+            {tier} · {Math.round(response_rate * 100)}%
+          </span>
+        </div>
         <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
           <div className={cn('h-full transition-all', barTone)} style={{ width: `${pct}%` }} />
         </div>
@@ -88,17 +119,25 @@ export function AgentCapacityBadge({
   }
 
   return (
-    <span
-      title={title}
-      className={cn(
-        'inline-flex items-center gap-1 px-1.5 py-0 rounded-full border text-[10px] font-bold leading-4',
-        tone,
-        className,
-      )}
-    >
-      {tier}
-      <span className="opacity-70 font-semibold">
-        · {paying_tenants_last_week}/{active_tenant_count} paid 7d
+    <span title={title} className={cn('inline-flex items-center gap-1', className)}>
+      <span
+        className={cn(
+          'inline-flex items-center gap-1 px-1.5 py-0 rounded-full border text-[10px] font-bold leading-4',
+          dailyTone,
+        )}
+      >
+        {dailyLabel}
+      </span>
+      <span
+        className={cn(
+          'inline-flex items-center gap-1 px-1.5 py-0 rounded-full border text-[10px] font-bold leading-4',
+          tone,
+        )}
+      >
+        {tier}
+        <span className="opacity-70 font-semibold">
+          · {paying_tenants_last_week}/{active_tenant_count} paid 7d
+        </span>
       </span>
     </span>
   );
