@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 export const ACTIVE_RENT_STATUSES = [
@@ -153,10 +154,48 @@ export function classifyAgent(
  */
 export function useAgentCapacityMap(agentIds: string[]) {
   const sortedKey = [...agentIds].sort().join(',');
+  const queryClient = useQueryClient();
+
+  // Auto-invalidate whenever a tracked rent_request changes (amount_repaid /
+  // status flips when ANY allocation/repayment lands — online, offline edge
+  // function, cron auto-charge, manual unallocate). Catches every write path
+  // so the rating recalculates immediately without per-mutation invalidation.
+  useEffect(() => {
+    if (agentIds.length === 0) return;
+    const channel = supabase
+      .channel(`agent-capacity-${sortedKey.slice(0, 32) || 'empty'}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'rent_requests' },
+        (payload: any) => {
+          const agentId = payload?.new?.agent_id || payload?.old?.agent_id;
+          if (!agentId || !agentIds.includes(agentId)) return;
+          queryClient.invalidateQueries({ queryKey: ['agent-capacity-map'] });
+          queryClient.invalidateQueries({ queryKey: ['agent-rent-capacity-fleet'] });
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'rent_requests' },
+        (payload: any) => {
+          const agentId = payload?.new?.agent_id;
+          if (!agentId || !agentIds.includes(agentId)) return;
+          queryClient.invalidateQueries({ queryKey: ['agent-capacity-map'] });
+          queryClient.invalidateQueries({ queryKey: ['agent-rent-capacity-fleet'] });
+        },
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [sortedKey, queryClient]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return useQuery({
     queryKey: ['agent-capacity-map', sortedKey],
     enabled: agentIds.length > 0,
-    staleTime: 60_000,
+    // Short stale window + always refetch on mount/focus so navigating back
+    // to any agent panel reflects collections made seconds ago.
+    staleTime: 15_000,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
     queryFn: async (): Promise<Map<string, AgentCapacity>> => {
       if (agentIds.length === 0) return new Map();
       const weekAgoISO = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();

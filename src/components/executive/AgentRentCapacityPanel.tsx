@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Search, Gauge, TrendingUp, AlertTriangle, ShieldCheck, Printer, Loader2, ChevronDown, ChevronUp, Minus, Plus } from 'lucide-react';
@@ -48,12 +48,38 @@ export function AgentRentCapacityPanel({
   const [search, setSearch] = useState('');
   const [showAll, setShowAll] = useState(false);
   const [rowCollapsed, setRowCollapsed] = useState<Record<string, boolean>>({});
+  const queryClient = useQueryClient();
+
+  // Auto-refresh the fleet rating table whenever ANY rent_request changes
+  // (amount_repaid bump on a repayment trigger, status flip, or a fresh
+  // funded request). This catches every write path — agent collect dialog,
+  // submit-offline-collection edge fn, auto-charge cron — without needing
+  // per-mutation invalidation hooks.
+  useEffect(() => {
+    const channel = supabase
+      .channel('agent-rent-capacity-fleet-watch')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'rent_requests' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['agent-rent-capacity-fleet'] });
+          queryClient.invalidateQueries({ queryKey: ['agent-capacity-map'] });
+        },
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [queryClient]);
 
   const toggleRow = (agentId: string) =>
     setRowCollapsed((prev) => ({ ...prev, [agentId]: !prev[agentId] }));
 
   const { data, isLoading } = useQuery({
     queryKey: ['agent-rent-capacity-fleet'],
+    // Always pull a fresh slice when the panel mounts or regains focus so
+    // ratings reflect collections that happened seconds ago.
+    staleTime: 15_000,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
     queryFn: async (): Promise<AgentRow[]> => {
       // 1) Pull all active rent requests (drives exposure + expected daily collections)
       const { data: active } = await supabase
@@ -238,7 +264,6 @@ export function AgentRentCapacityPanel({
       rows.sort((a, b) => b.used - a.used);
       return rows;
     },
-    staleTime: 60_000,
   });
 
   const filtered = useMemo(() => {
