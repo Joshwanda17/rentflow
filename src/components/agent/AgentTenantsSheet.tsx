@@ -260,6 +260,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [recentCollectionFilter, setRecentCollectionFilter] = useState<RecentCollectionFilter>(
     () => loadPrefs().recentCollectionFilter ?? 'all',
   );
+  const [showBalanceBreakdown, setShowBalanceBreakdown] = useState(false);
   const tenantListRef = useRef<HTMLDivElement>(null);
 
   // Push a property to the front of the MRU list and persist (deduped, capped).
