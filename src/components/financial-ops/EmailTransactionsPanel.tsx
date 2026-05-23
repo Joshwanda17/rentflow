@@ -429,6 +429,15 @@ export function EmailTransactionsPanel() {
     typeof window === 'undefined' ? '' : (localStorage.getItem('gmail_filter_search') || '')
   );
   useEffect(() => { try { localStorage.setItem('gmail_filter_search', searchQuery); } catch {} }, [searchQuery]);
+  // Pagination for the Recent emails list. Page size is user-selectable and
+  // persisted; current page resets to 1 whenever any filter changes.
+  const [pageSize, setPageSize] = useState<number>(() => {
+    if (typeof window === 'undefined') return 50;
+    const v = Number(localStorage.getItem('gmail_filter_page_size') || '50');
+    return [25, 50, 100, 200, 500].includes(v) ? v : 50;
+  });
+  useEffect(() => { try { localStorage.setItem('gmail_filter_page_size', String(pageSize)); } catch {} }, [pageSize]);
+  const [currentPage, setCurrentPage] = useState<number>(1);
   // Match-type filter for the Recent emails list. Persisted so it survives reload.
   //   all       → no match filter
   //   confident → at least one reference OR from-phone match
@@ -455,6 +464,9 @@ export function EmailTransactionsPanel() {
     return v && ['all', 'in', 'out'].includes(v) ? v : 'all';
   });
   useEffect(() => { try { localStorage.setItem('gmail_filter_direction', directionFilter); } catch {} }, [directionFilter]);
+
+  // Reset pagination whenever any filter that affects the visible list changes.
+  useEffect(() => { setCurrentPage(1); }, [searchQuery, fromDate, toDate, tz, pageSize, directionFilter, matchFilter]);
 
   // Persisted cache of derived channel classifications keyed by transaction id
   // / receipt number (with gmail_message_id as fallback). Loaded once on mount
@@ -1133,6 +1145,11 @@ export function EmailTransactionsPanel() {
       r.counterparty ?? '',
       r.from_email ?? '',
       r.from_name ?? '',
+      r.direction ?? '',
+      r.channel ?? '',
+      r.amount != null ? String(Math.round(r.amount)) : '',
+      r.gmail_message_id ?? '',
+      r.internal_date ?? '',
     ].join(' ').toLowerCase();
     return searchTokens.every((t) => hay.includes(t));
   };
@@ -1900,20 +1917,24 @@ export function EmailTransactionsPanel() {
           </div>
         ) : (
           <div className="divide-y max-h-[600px] overflow-y-auto">
-            {filteredRows
-              .filter((r) => {
+            {(() => {
+              const visible = filteredRows.filter((r) => {
                 if (directionFilter === 'in' && r.direction !== 'in') return false;
                 if (directionFilter === 'out' && r.direction !== 'out' && r.direction !== 'charge') return false;
                 if (matchFilter === 'all') return true;
                 const list = userMatches[r.id] ?? [];
                 if (matchFilter === 'reference') return list.some((u) => u.matched_on.startsWith('reference '));
                 if (matchFilter === 'from') return list.some((u) => u.matched_on.startsWith('from '));
-                // 'confident'
                 return list.some(
                   (u) => u.matched_on.startsWith('reference ') || u.matched_on.startsWith('from ')
                 );
-              })
-              .map((r) => {
+              });
+              const totalPages = Math.max(1, Math.ceil(visible.length / pageSize));
+              const safePage = Math.min(currentPage, totalPages);
+              const startIdx = (safePage - 1) * pageSize;
+              const pageRows = visible.slice(startIdx, startIdx + pageSize);
+              (window as any).__emailPaginationMeta = { totalPages, safePage, total: visible.length };
+              return pageRows.map((r) => {
                 const matches = userMatches[r.id] ?? [];
                 const hasRef = matches.some((u) => u.matched_on.startsWith('reference '));
                 const hasFrom = matches.some((u) => u.matched_on.startsWith('from '));
@@ -2347,9 +2368,47 @@ export function EmailTransactionsPanel() {
                 </div>
               </div>
                 );
-              })}
+              });
+            })()}
           </div>
         )}
+        {/* Pagination controls — only shown when there's more than one page. */}
+        {!loading && rows.length > 0 && (() => {
+          const meta = (typeof window !== 'undefined' ? (window as any).__emailPaginationMeta : null) as
+            | { totalPages: number; safePage: number; total: number }
+            | null;
+          if (!meta) return null;
+          const { totalPages, safePage, total } = meta;
+          const from = total === 0 ? 0 : (safePage - 1) * pageSize + 1;
+          const to = Math.min(safePage * pageSize, total);
+          return (
+            <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t bg-muted/20 text-xs">
+              <div className="text-muted-foreground tabular-nums">
+                Showing <span className="font-medium text-foreground">{from.toLocaleString()}–{to.toLocaleString()}</span> of{' '}
+                <span className="font-medium text-foreground">{total.toLocaleString()}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-muted-foreground">Rows:</label>
+                <select
+                  value={pageSize}
+                  onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
+                  className="h-7 rounded border border-input bg-background px-2 text-xs"
+                >
+                  {[25, 50, 100, 200, 500].map((n) => <option key={n} value={n}>{n}</option>)}
+                </select>
+                <Button size="sm" variant="outline" className="h-7 px-2"
+                  onClick={() => setCurrentPage(1)} disabled={safePage <= 1}>« First</Button>
+                <Button size="sm" variant="outline" className="h-7 px-2"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={safePage <= 1}>‹ Prev</Button>
+                <span className="tabular-nums text-muted-foreground px-1">Page {safePage} / {totalPages}</span>
+                <Button size="sm" variant="outline" className="h-7 px-2"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={safePage >= totalPages}>Next ›</Button>
+                <Button size="sm" variant="outline" className="h-7 px-2"
+                  onClick={() => setCurrentPage(totalPages)} disabled={safePage >= totalPages}>Last »</Button>
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       <DedupAuditPanel />
