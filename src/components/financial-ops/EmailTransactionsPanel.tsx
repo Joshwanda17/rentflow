@@ -504,6 +504,17 @@ export function EmailTransactionsPanel() {
   // see the recipient's current wallet position at a glance before/after
   // routing or reversing a transaction.
   const [userBalances, setUserBalances] = useState<Record<string, number>>({});
+  // Latest 3 wallet ledger entries per possible-user, shown in the tooltip
+  // so Financial Ops can see recent activity at a glance before routing.
+  interface RecentTx {
+    id: string;
+    amount: number;
+    direction: string;
+    category: string;
+    description: string | null;
+    created_at: string;
+  }
+  const [userRecentTx, setUserRecentTx] = useState<Record<string, RecentTx[]>>({});
   // Per-history-entry busy flag for the Reverse action so the button can
   // show a spinner without blocking other entries.
   const [reverseBusy, setReverseBusy] = useState<Record<string, boolean>>({});
