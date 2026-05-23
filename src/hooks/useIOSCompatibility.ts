@@ -130,12 +130,10 @@ export function useIOSCompatibility() {
     window.addEventListener('resize', setViewportHeight);
     window.addEventListener('orientationchange', setViewportHeight);
 
-    // Prevent iOS overscroll/bounce in standalone mode
+    // Prevent iOS overscroll/bounce in standalone mode using the modern overscroll-behavior API
     if (isStandalone && isIOS) {
-      document.body.style.overflow = 'hidden';
-      document.body.style.position = 'fixed';
-      document.body.style.width = '100%';
-      document.body.style.height = '100%';
+      document.documentElement.style.overscrollBehaviorY = 'none';
+      document.body.style.overscrollBehaviorY = 'none';
     }
 
     return () => {

@@ -1,59 +1,46 @@
-# Plan: Payment Calendar Streak in Tenant Detail (Agent)
-
 ## Goal
-When an agent taps a tenant's name under "My Tenants" and opens the tenant detail view (`TenantProfileView`), show a month-grid calendar that visualizes — for each day of the tenant's active rent plan — whether they **paid in full**, **paid partially**, **missed**, or it's **upcoming / outside the plan window**.
+Fix the iOS standalone PWA scroll freeze by removing the legacy body/`#root` `position: fixed` + `overflow: hidden` locks and replacing them with the modern `overscroll-behavior-y: none` boundary. This matches the analysis you posted and is the right call — both culprits still exist in the working tree (`useIOSCompatibility.ts` L133–139 and `index.css` L390–411), so the GitHub fix has not landed in Lovable yet.
 
-## Where it goes
-- File: `src/components/agent/TenantProfileView.tsx` — already loads `repayments` (last 50) and `requests` (rent plans). Insert the new calendar inside the existing "Payment History" / repayments area (around line ~1412, right above the existing flat list of repayments) so the streak is the first thing the agent sees, with the existing list still available below.
-- New presentational component: `src/components/agent/TenantPaymentCalendar.tsx` — pure UI, no data fetching; receives props from `TenantProfileView`.
+## Why this solution (vs. the alternatives)
 
-## What it shows
-Per active rent plan (the most recent `repaying` / `disbursed` / `funded` request, with fallback to most recent completed):
-- Plan window = `disbursed_at` → `disbursed_at + duration_days` (or `created_at` if no `disbursed_at`).
-- Daily expected = `daily_repayment` from the request (already normalized by `getEffectiveRentRequestAmounts`).
-- For each day in the window:
-  - Sum `repayments` whose `created_at` falls on that local day AND `rent_request_id` matches the active plan.
-  - Status:
-    - `paid` (green) — sum ≥ daily expected.
-    - `partial` (amber) — 0 < sum < daily expected.
-    - `missed` (red) — day is in the past, sum = 0.
-    - `today` (ring highlight, colored by actual status).
-    - `upcoming` (muted) — day in the future, within plan window.
-    - `outside` (hidden / very muted) — calendar cell that falls outside the plan window for the month being viewed.
+| Option | Verdict |
+|---|---|
+| **A. `overscroll-behavior-y: none`** (your proposal) | ✅ Pick this. Standard, supported on iOS 16+, keeps native momentum + keyboard avoidance, kills rubber-band. |
+| B. Keep body-lock but add cleanup on unmount | ❌ Still freezes scroll the entire time the app is open in standalone — cleanup only helps on teardown, which never happens in a PWA. |
+| C. Scope body-lock to only when a sheet/modal is open | ❌ Solves bounce inside modals but leaves the real bug (frozen base pages) unfixed and adds modal-state coupling. |
+| D. Do nothing, rely on existing `overscroll-behavior: none` already in `critical.css` body | ❌ Doesn't override the `html.ios-standalone` cascade still forcing `position: fixed`. |
 
-## Layout
-- Compact month-grid (Mon–Sun columns, ~28×28px cells), with prev/next month chevrons. Default month = month containing today (clamped to plan window).
-- Header chips: `🔥 Current streak: N days`, `Best: M days`, `Paid X / Y days`, `Collected UGX … / Expected UGX …` for the visible window.
-- Legend row: Paid / Partial / Missed / Upcoming, using existing semantic tokens (`bg-success`, `bg-warning`, `bg-destructive`, `bg-muted`).
-- Tap a cell → small popover/tooltip showing date, expected amount, collected amount, and a "Collect now" shortcut that opens the existing `AgentTenantCollectDialog` pre-filled to that tenant (reuse `setCollectDialogOpen(true)` already in the file). No new backend wiring.
-- Empty state: if no active plan, show a single line — "No active rent plan to chart yet."
+Option A is the only one that fixes the reported video without regressing bounce control.
 
-## Streak math
-- Current streak = consecutive `paid` days ending at the latest non-future day in the plan window. `partial` breaks the streak (same as the existing platform behavior — daily expectation is the bar).
-- Best streak = longest run of consecutive `paid` days anywhere in the plan window.
-- Both computed client-side in `useMemo` from the already-loaded `repayments` array — no new queries.
+## Changes
 
-## Data sources (already loaded, no new fetch)
-- `requests` (active rent plan: `disbursed_at`, `duration_days`, `daily_repayment`, `id`).
-- `repayments` (`amount`, `created_at`, `rent_request_id`).
+### 1. `src/hooks/useIOSCompatibility.ts` (lines 133–139)
+Replace the four body mutations with overscroll boundaries on `html` + `body`:
+```ts
+if (isStandalone && isIOS) {
+  document.documentElement.style.overscrollBehaviorY = 'none';
+  document.body.style.overscrollBehaviorY = 'none';
+}
+```
+No cleanup needed (style is non-destructive and the hook is app-lifetime).
 
-If the active plan is longer than 50 days and the agent pages backward into months not covered by the existing 50-row repayment fetch, we'll bump the existing `repayments` query `.limit(50)` → `.limit(400)` (covers >1 year of daily collections) in the same file. No schema or RPC changes.
+### 2. `src/index.css` (lines 390–411)
+Delete the three `html.ios-standalone`, `html.ios-standalone body`, `html.ios-standalone #root` blocks. Replace with a single boundary rule:
+```css
+/* Prevent iOS rubber-band in standalone PWA without locking layout */
+html.ios-standalone,
+html.ios-standalone body {
+  overscroll-behavior-y: none;
+}
+```
+This frees `#root` to use the document scroller (native momentum) and lets the iOS keyboard reflow the viewport naturally.
 
-## Design system
-- All colors via semantic tokens (`success`, `warning`, `destructive`, `muted`, `primary`) — no hardcoded hex.
-- Reuses existing `Badge`, `Button`, `formatUGX`, `date-fns`. No new dependencies.
-- Mobile-first: grid scales down to 24px cells under 360px; header chips wrap.
+## Out of scope
+- No changes to `DeferredExtras`, `IOSOptimizations`, or any sheet/modal scroll containers.
+- No change to `--keyboard-inset-height` plumbing — once the body un-locks, the existing value works as intended.
+- No change to Android branches.
 
-## Out of scope (not changing)
-- No edits to backend, RPCs, ledger, or other dashboards.
-- No change to the existing flat repayments list below — calendar is added above it.
-- No change to `AgentTenantsSheet` list itself; only the detail view it opens.
-
-## Technical notes
-- Day bucket key: `format(new Date(r.created_at), 'yyyy-MM-dd')` in the browser's local TZ — matches how today/collected_today are already computed elsewhere in this file.
-- Match repayments to the active plan by `rent_request_id === activeRequest.id` so payments on previous plans don't pollute the current streak.
-- Calendar starts on Monday to match existing date pickers in `ui/calendar.tsx`.
-
-## Files touched
-- **New**: `src/components/agent/TenantPaymentCalendar.tsx`
-- **Edited**: `src/components/agent/TenantProfileView.tsx` (import + render the calendar above the repayments list; bump repayments `.limit(50)` to `.limit(400)`).
+## Verification
+- Build passes (Lovable auto-build).
+- Manual check on `/dashboard/agent` and `/dashboard/funder` inside an installed iOS PWA: full-page vertical scroll works; pull-down past the top no longer rubber-bands the whole shell; focusing an input shifts content above the keyboard.
+- Desktop and iOS Safari tab behavior unchanged (both branches skipped — `isStandalone` is false there).
