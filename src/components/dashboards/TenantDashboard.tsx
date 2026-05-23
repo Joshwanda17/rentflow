@@ -416,6 +416,9 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
           {/* Prominent live tracker for any in-flight / active Business Advance */}
           <BusinessAdvanceStatusHero />
 
+          {/* Credit access limit — full-size, prominent at top */}
+          <CreditAccessCard userId={user.id} />
+
           {/* Wallet hero card — replaces the previous bread hero on tenant dashboard */}
           <div id="tenant-wallet-hero">
             <UnifiedWalletHeroCard
@@ -928,7 +931,6 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             <TrustBoostBanner />
             <VerificationChecklist userId={user.id} highlightRole="tenant" compact />
             <SubscriptionStatusCard userId={user.id} />
-            <CreditAccessCard userId={user.id} compact />
             <RentHistoryRecordCTA />
             <div className="space-y-2">
               <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider px-0.5">Actions</p>

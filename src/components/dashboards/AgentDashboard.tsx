@@ -709,6 +709,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {/* === TENANTS TAB === People & properties */}
         {activeTab === 'tenants' && (
           <div className={cn("space-y-5", tabAnimClass)}>
+            {/* Agent advance limit — prominent at top of tenants tab */}
+            <CreditAccessCard userId={user.id} />
             <div className="grid grid-cols-2 gap-2.5">
               {[
                 { icon: FileText, label: 'New Tenant', onClick: () => setRentRequestOpen(true) },
