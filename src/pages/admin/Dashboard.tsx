@@ -73,11 +73,11 @@ export default function AdminDashboardPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => { if (window.history.length > 1) { navigate(-1); } else { navigate(roleToSlug(role)); } }}
+            onClick={() => navigate('/dashboard/manager')}
             className="gap-2 text-sm text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />
