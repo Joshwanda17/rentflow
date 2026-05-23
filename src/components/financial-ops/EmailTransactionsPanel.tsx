@@ -731,16 +731,26 @@ export function EmailTransactionsPanel() {
       const results = await Promise.all(
         missing.map(async (id) => {
           try {
-            const { data, error } = await supabase.rpc('get_user_wallet_view', { p_user_id: id });
-            if (error) return [id, null] as const;
-            const r = (data ?? {}) as Record<string, unknown>;
+            const [viewRes, txRes] = await Promise.all([
+              supabase.rpc('get_user_wallet_view', { p_user_id: id }),
+              supabase
+                .from('general_ledger')
+                .select('id, amount, direction, category, description, created_at')
+                .eq('user_id', id)
+                .eq('ledger_scope', 'wallet')
+                .neq('classification', 'admin_correction')
+                .neq('category', 'system_balance_correction')
+                .order('created_at', { ascending: false })
+                .limit(3),
+            ]);
+            if (viewRes.error) return [id, null, []] as const;
+            const r = (viewRes.data ?? {}) as Record<string, unknown>;
             const withdrawable = Number((r.withdrawable as number | string | undefined) ?? 0);
             const floatBal = Number((r.float_balance as number | string | undefined) ?? 0);
-            // Surface the total spendable + held float position so reviewers see
-            // every bucket that could absorb a reversal.
-            return [id, withdrawable + floatBal] as const;
+            const tx = (txRes.data ?? []) as RecentTx[];
+            return [id, withdrawable + floatBal, tx] as const;
           } catch {
-            return [id, null] as const;
+            return [id, null, []] as const;
           }
         }),
       );
@@ -749,6 +759,13 @@ export function EmailTransactionsPanel() {
         const next = { ...cur };
         for (const [id, bal] of results) {
           if (bal !== null) next[id] = bal;
+        }
+        return next;
+      });
+      setUserRecentTx((cur) => {
+        const next = { ...cur };
+        for (const [id, , tx] of results) {
+          if (tx && tx.length) next[id] = tx;
         }
         return next;
       });
