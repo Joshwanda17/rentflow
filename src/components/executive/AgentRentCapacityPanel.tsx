@@ -54,6 +54,11 @@ export function AgentRentCapacityPanel({
 
   const { data, isLoading } = useQuery({
     queryKey: ['agent-rent-capacity-fleet'],
+    // Always pull a fresh slice when the panel mounts or regains focus so
+    // ratings reflect collections that happened seconds ago.
+    staleTime: 15_000,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
     queryFn: async (): Promise<AgentRow[]> => {
       // 1) Pull all active rent requests (drives exposure + expected daily collections)
       const { data: active } = await supabase
