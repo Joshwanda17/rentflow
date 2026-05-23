@@ -193,14 +193,12 @@ export function useAuthForm() {
       toast({ title: 'Sign In Failed', description: errorMessage, variant: 'destructive' });
       return;
     }
-    // Same 24h "Remember me" window as the phone-login path
+    // Persistent login: once signed in, stay signed in until the user
+    // explicitly signs out. Suppress the inactivity lock indefinitely
+    // by parking the "remember until" timestamp 10 years in the future.
     try {
-      if (rememberMe) {
-        const until = Date.now() + 24 * 60 * 60 * 1000;
-        localStorage.setItem('welile_remember_until', String(until));
-      } else {
-        localStorage.removeItem('welile_remember_until');
-      }
+      const until = Date.now() + 10 * 365 * 24 * 60 * 60 * 1000;
+      localStorage.setItem('welile_remember_until', String(until));
     } catch { /* non-critical */ }
   };
 
@@ -645,16 +643,13 @@ export function useAuthForm() {
       setLoginError(null);
       setFailedAttempts(0);
       saveLocationInBackground();
-        // "Remember me" → keep the user signed in for 24h with no
-        // re-prompts (inactivity lock, PIN, biometric, etc. all honor
-        // this window). Cleared on explicit sign-out.
+        // Persistent login: stay signed in until the user explicitly
+        // signs out. Park the "remember until" stamp 10 years out so
+        // the inactivity lock, PIN, and biometric prompts all stay
+        // suppressed. Cleared on explicit sign-out.
         try {
-          if (rememberMe) {
-            const until = Date.now() + 24 * 60 * 60 * 1000;
-            localStorage.setItem('welile_remember_until', String(until));
-          } else {
-            localStorage.removeItem('welile_remember_until');
-          }
+          const until = Date.now() + 10 * 365 * 24 * 60 * 60 * 1000;
+          localStorage.setItem('welile_remember_until', String(until));
         } catch { /* non-critical */ }
       // Save user name for returning-user greeting
       try {
