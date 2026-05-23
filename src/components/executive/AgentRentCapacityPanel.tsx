@@ -278,7 +278,7 @@ export function AgentRentCapacityPanel({
           <div className="h-8 w-8 rounded-xl bg-primary/15 flex items-center justify-center">
             <Gauge className="h-4 w-4 text-primary" />
           </div>
-          <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1">
             <h3 className="text-sm sm:text-base font-bold text-foreground leading-tight">
               Agent Rent-Request Capacity
             </h3>
@@ -287,6 +287,7 @@ export function AgentRentCapacityPanel({
               {formatUGX(AGENT_RENT_CAP_UGX)} per agent
             </p>
           </div>
+          <DailyRatingThresholdPopover />
         </div>
 
         {!compact && (
