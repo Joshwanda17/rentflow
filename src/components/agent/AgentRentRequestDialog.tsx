@@ -215,6 +215,9 @@ function formatCurrencyInput(raw: string): string {
 
 export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, prefillTenantName, prefillTenantPhone, prefillRentAmount }: AgentRentRequestDialogProps) {
   const { user } = useAuth();
+  const capIds = useMemo(() => (user?.id ? [user.id] : []), [user?.id]);
+  const { data: capMap } = useAgentCapacityMap(capIds);
+  const myCap = user?.id ? capMap?.get(user.id) : undefined;
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [activationLink, setActivationLink] = useState<string | null>(null);
