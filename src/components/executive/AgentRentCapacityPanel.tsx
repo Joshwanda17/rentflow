@@ -446,6 +446,7 @@ function CapacityRow({
         paid_yesterday: 0,
         yesterday_response_pct: 0,
         daily_status: 'starter',
+        daily_rating: 'Starter',
         can_post_rent_today: true,
         expected_daily: row.expected_daily,
         repayment_rate: row.response_rate,
