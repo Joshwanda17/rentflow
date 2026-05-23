@@ -144,8 +144,11 @@ export function AgentRentCapacityPanel({
           const agentId = activeIdToAgent.get(p.rent_request_id);
           if (!agentId) return;
           paidByAgent.set(agentId, (paidByAgent.get(agentId) || 0) + amt);
-          if (new Date(p.created_at).getTime() >= todayStartMs) {
+          const ts = new Date(p.created_at).getTime();
+          if (ts >= todayStartMs) {
             paidTodayByAgent.set(agentId, (paidTodayByAgent.get(agentId) || 0) + amt);
+          } else if (ts >= yesterdayStartMs) {
+            paidYesterdayByAgent.set(agentId, (paidYesterdayByAgent.get(agentId) || 0) + amt);
           }
           if (amt <= 0) return;
           const tenantId = p.tenant_id || activeIdToTenant.get(p.rent_request_id);
