@@ -97,6 +97,7 @@ import { FieldDepositQueueCard } from '@/components/agent/FieldDepositQueueCard'
 import { CollectFromReferenceDialog } from '@/components/agent/CollectFromReferenceDialog';
 
 import { AgentTopUpTenantDialog } from '@/components/agent/AgentTopUpTenantDialog';
+import { AgentRatingCard } from '@/components/agent/AgentRatingCard';
 import { AgentInvestForPartnerDialog } from '@/components/agent/AgentInvestForPartnerDialog';
 import { AgentAngelPoolInvestDialog } from '@/components/agent/AgentAngelPoolInvestDialog';
 import { ProxyInvestmentHistorySheet } from '@/components/agent/ProxyInvestmentHistorySheet';
