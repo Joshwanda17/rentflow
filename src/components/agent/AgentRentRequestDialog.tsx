@@ -137,7 +137,7 @@ function AgentCapacityBanner({ agentId }: { agentId?: string }) {
     if (!cap || cap.daily_status === 'starter') return null;
     const rating = cap.daily_rating;
     const ypct = Math.round(cap.yesterday_response_pct * 100);
-    const epct = Math.round(cap.effective_daily_pct * 100);
+    const tpct = Math.round(cap.today_response_pct * 100);
     if (rating === 'Very Good') {
       return (
         <div className="rounded-xl border border-emerald-600/50 bg-emerald-600/10 p-3 text-emerald-700">
@@ -146,7 +146,7 @@ function AgentCapacityBanner({ agentId }: { agentId?: string }) {
             <DailyRatingThresholdPopover />
           </div>
           <p className="text-[11px] leading-snug opacity-95">
-            Yesterday you collected <strong className="font-mono">{formatUGX(cap.paid_yesterday)}</strong> ({ypct}%) of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong> expected — best day is {epct}%. You are well above the {threshold}% law and may post new rent requests.
+            Today you have collected <strong className="font-mono">{formatUGX(cap.paid_today)}</strong> ({tpct}%) of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong> today&apos;s target. You are well above the {threshold}% law and may post new rent requests. (Yesterday: {ypct}%.)
           </p>
         </div>
       );
@@ -159,7 +159,7 @@ function AgentCapacityBanner({ agentId }: { agentId?: string }) {
             <DailyRatingThresholdPopover />
           </div>
           <p className="text-[11px] leading-snug opacity-95">
-            Yesterday you collected <strong className="font-mono">{formatUGX(cap.paid_yesterday)}</strong> ({ypct}%) of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong> expected — best day is {epct}%. You met the {threshold}% law and may post new rent requests. Keep going to reach Very Good (≥ 50%).
+            Today you have collected <strong className="font-mono">{formatUGX(cap.paid_today)}</strong> ({tpct}%) of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong> today&apos;s target. You met the {threshold}% law and may post new rent requests. Keep going to reach Very Good (≥ 50%). (Yesterday: {ypct}%.)
           </p>
         </div>
       );
@@ -172,7 +172,7 @@ function AgentCapacityBanner({ agentId }: { agentId?: string }) {
             <DailyRatingThresholdPopover />
           </div>
           <p className="text-[11px] leading-snug opacity-95">
-            Yesterday you collected <strong className="font-mono">{formatUGX(cap.paid_yesterday)}</strong> ({ypct}%) of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong> expected — best day is {epct}%. You are between 15% and 19%, just below the {threshold}% law. Hit {threshold}% today to be unblocked and rated Good immediately.
+            Today you have collected <strong className="font-mono">{formatUGX(cap.paid_today)}</strong> ({tpct}%) of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong> today&apos;s target. You are between 15% and 19%, just below the {threshold}% law. Hit {threshold}% today to be unblocked and rated Good immediately. (Yesterday: {ypct}%.)
           </p>
         </div>
       );
@@ -185,7 +185,7 @@ function AgentCapacityBanner({ agentId }: { agentId?: string }) {
             <DailyRatingThresholdPopover />
           </div>
           <p className="text-[11px] leading-snug opacity-95">
-            Yesterday you collected <strong className="font-mono">{formatUGX(cap.paid_yesterday)}</strong> ({ypct}%) of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong> expected — best day is {epct}%. You are between 5% and 14%, below the {threshold}% law. Hit {threshold}% today to be unblocked and rated Good immediately.
+            Today you have collected <strong className="font-mono">{formatUGX(cap.paid_today)}</strong> ({tpct}%) of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong> today&apos;s target. You are between 5% and 14%, below the {threshold}% law. Hit {threshold}% today to be unblocked and rated Good immediately. (Yesterday: {ypct}%.)
           </p>
         </div>
       );
@@ -198,7 +198,7 @@ function AgentCapacityBanner({ agentId }: { agentId?: string }) {
           <DailyRatingThresholdPopover />
         </div>
         <p className="text-[11px] leading-snug opacity-95">
-          Yesterday you collected <strong className="font-mono">{formatUGX(cap.paid_yesterday)}</strong> ({ypct}%) of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong> expected — best day is {epct}%. You are below 5%, far below the {threshold}% law. Hit {threshold}% today to be unblocked and rated Good immediately.
+          Today you have collected <strong className="font-mono">{formatUGX(cap.paid_today)}</strong> ({tpct}%) of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong> today&apos;s target. You are below 5%, far below the {threshold}% law. Hit {threshold}% today to be unblocked and rated Good immediately. (Yesterday: {ypct}%.)
         </p>
       </div>
     );
