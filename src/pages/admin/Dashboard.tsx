@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useStaffPermissions } from '@/hooks/useStaffPermissions';
 import { useAuth } from '@/hooks/useAuth';
+import { roleToSlug } from '@/lib/roleRoutes';
 
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
@@ -48,6 +49,11 @@ export default function AdminDashboardPage() {
   const { hasPermission, loading } = useStaffPermissions();
   const loggedRef = useRef(false);
 
+  // Send the user back to whichever persona dashboard matches their active
+  // role (agent → /dashboard/agent, tenant → /dashboard/tenant, funder →
+  // /dashboard/funder, landlord → /dashboard/landlord, manager → /dashboard/manager).
+  const homeDashboard = roleToSlug(role);
+
   // Log dashboard_accessed
   useEffect(() => {
     if (!user || loggedRef.current) return;
@@ -79,9 +85,9 @@ export default function AdminDashboardPage() {
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() => navigate('/dashboard/manager')}
+            onClick={() => navigate(homeDashboard)}
             className="gap-2 text-sm font-medium -ml-2"
-            aria-label="Back to manager dashboard"
+            aria-label="Back to your dashboard"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to dashboard
@@ -90,11 +96,11 @@ export default function AdminDashboardPage() {
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => navigate('/dashboard/manager')}
+            onClick={() => navigate(homeDashboard)}
             className="gap-2 text-sm"
           >
             <LayoutDashboard className="h-4 w-4" />
-            Manager dashboard
+            My dashboard
           </Button>
         </div>
       </div>
