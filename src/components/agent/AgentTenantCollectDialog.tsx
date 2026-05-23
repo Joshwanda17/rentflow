@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -76,6 +77,7 @@ export function AgentTenantCollectDialog({
 }: AgentTenantCollectDialogProps) {
   const { user } = useAuth();
   const { floatBalance, refetch: refetchBalances } = useAgentLandlordFloat(user?.id);
+  const queryClient = useQueryClient();
   const { isOnline } = useOffline();
   const [amount, setAmount] = useState<number>(0);
   const [notes, setNotes] = useState('');
@@ -168,6 +170,11 @@ export function AgentTenantCollectDialog({
       setResult(res);
       setConfirming(false);
       refetchBalances();
+      // Today vs Expected report (self-card + executive fleet panel) is
+      // driven by `repayments` rows the RPC just inserted — invalidate
+      // BOTH cached queries so the new allocation shows up immediately.
+      queryClient.invalidateQueries({ queryKey: ['agent-capacity-map'] });
+      queryClient.invalidateQueries({ queryKey: ['agent-rent-capacity-fleet'] });
 
       // 🎉 Trigger commission celebration — pure UI, no DB calls
       // Source priority: API response → fallback to client-side 10% estimate
