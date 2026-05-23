@@ -2,6 +2,7 @@ import { AgentCapacity, AGENT_RENT_CAP_UGX } from '@/hooks/useAgentCapacityMap';
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
 import { DailyRatingThresholdPopover } from '@/components/shared/DailyRatingThresholdPopover';
+import { WhyRatingPopover } from '@/components/shared/WhyRatingPopover';
 
 const TIER_TONE: Record<AgentCapacity['tier'], string> = {
   Positive:   'bg-emerald-500/15 text-emerald-700 border-emerald-500/30',
@@ -61,7 +62,7 @@ export function AgentCapacityBadge({
     responding_tenant_days, expected_tenant_days,
     paying_tenants_last_week, active_tenant_count,
     unfunded_tenant_count,
-    daily_status, daily_rating, yesterday_response_pct, paid_yesterday, expected_daily,
+    daily_status, daily_rating, today_response_pct, paid_today, expected_daily,
   } = capacity;
   const tone = TIER_TONE[tier];
   const barTone =
@@ -76,8 +77,8 @@ export function AgentCapacityBadge({
   const dailyTitleLine =
     daily_status === 'starter'
       ? `Starter agent — always allowed to post the first rent request.`
-      : `Best day: collected UGX ${formatUGX(paid_yesterday)} of ` +
-        `UGX ${formatUGX(expected_daily)} (${Math.round(yesterday_response_pct * 100)}%). ` +
+      : `Today: collected UGX ${formatUGX(paid_today)} of ` +
+        `UGX ${formatUGX(expected_daily)} (${Math.round(today_response_pct * 100)}%). ` +
         `Rating: ${daily_rating}. ` +
         (daily_status === 'good'
           ? `≥ 20% → ALLOWED to post new rent requests today.`
@@ -106,6 +107,7 @@ export function AgentCapacityBadge({
           >
             {dailyLabel}
           </span>
+          <WhyRatingPopover capacity={capacity} className="scale-90" />
           <DailyRatingThresholdPopover className="scale-90" />
           <span
             className={cn(
@@ -136,6 +138,7 @@ export function AgentCapacityBadge({
       >
         {dailyLabel}
       </span>
+      <WhyRatingPopover capacity={capacity} className="scale-90" />
       <DailyRatingThresholdPopover className="scale-90" />
       <span
         className={cn(
