@@ -1,6 +1,7 @@
 import { AgentCapacity, AGENT_RENT_CAP_UGX } from '@/hooks/useAgentCapacityMap';
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
+import { DailyRatingThresholdPopover } from '@/components/shared/DailyRatingThresholdPopover';
 
 const TIER_TONE: Record<AgentCapacity['tier'], string> = {
   Positive:   'bg-emerald-500/15 text-emerald-700 border-emerald-500/30',
@@ -105,6 +106,7 @@ export function AgentCapacityBadge({
           >
             {dailyLabel}
           </span>
+          <DailyRatingThresholdPopover className="scale-90" />
           <span
             className={cn(
               'inline-flex items-center gap-1 px-1.5 py-0 rounded-full border text-[10px] font-bold leading-4',
@@ -134,6 +136,7 @@ export function AgentCapacityBadge({
       >
         {dailyLabel}
       </span>
+      <DailyRatingThresholdPopover className="scale-90" />
       <span
         className={cn(
           'inline-flex items-center gap-1 px-1.5 py-0 rounded-full border text-[10px] font-bold leading-4',

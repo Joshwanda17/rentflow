@@ -18,6 +18,7 @@ import {
   downloadCapacityPdf,
 } from '@/lib/generateAgentCapacityPdf';
 import { supabase } from '@/integrations/supabase/client';
+import { DailyRatingThresholdPopover } from '@/components/shared/DailyRatingThresholdPopover';
 
 const TIER_TONE: Record<AgentCapacity['tier'], string> = {
   Positive:   'bg-emerald-500/15 text-emerald-700 border-emerald-500/30',
@@ -141,6 +142,13 @@ export function AgentRentCapacitySelfCard() {
           </p>
         ) : (
           <>
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Daily Performance Rating
+              </span>
+              <DailyRatingThresholdPopover />
+            </div>
+
             {/* Daily Eligibility Law banner — one distinct message per rating level */}
             {(() => {
               const rating = cap.daily_rating;

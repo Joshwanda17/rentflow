@@ -9,6 +9,7 @@ import { LandlordSearchSelect, type LandlordOption } from '@/components/agent/La
 import RegisterLandlordDialog from '@/components/agent/RegisterLandlordDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useAgentCapacityMap, DAILY_ELIGIBILITY_THRESHOLD } from '@/hooks/useAgentCapacityMap';
+import { DailyRatingThresholdPopover } from '@/components/shared/DailyRatingThresholdPopover';
 import {
   Dialog,
   DialogContent,
@@ -140,7 +141,10 @@ function AgentCapacityBanner({ agentId }: { agentId?: string }) {
     if (rating === 'Very Good') {
       return (
         <div className="rounded-xl border border-emerald-600/50 bg-emerald-600/10 p-3 text-emerald-700">
-          <div className="text-xs font-extrabold uppercase tracking-wide mb-1">Very Good — Allowed Today</div>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-extrabold uppercase tracking-wide">Very Good — Allowed Today</span>
+            <DailyRatingThresholdPopover />
+          </div>
           <p className="text-[11px] leading-snug opacity-95">
             Yesterday you collected <strong className="font-mono">{formatUGX(cap.paid_yesterday)}</strong> ({ypct}%) of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong> expected — best day is {epct}%. You are well above the {threshold}% law and may post new rent requests.
           </p>
@@ -150,7 +154,10 @@ function AgentCapacityBanner({ agentId }: { agentId?: string }) {
     if (rating === 'Good') {
       return (
         <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3 text-emerald-700">
-          <div className="text-xs font-extrabold uppercase tracking-wide mb-1">Good — Allowed Today</div>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-extrabold uppercase tracking-wide">Good — Allowed Today</span>
+            <DailyRatingThresholdPopover />
+          </div>
           <p className="text-[11px] leading-snug opacity-95">
             Yesterday you collected <strong className="font-mono">{formatUGX(cap.paid_yesterday)}</strong> ({ypct}%) of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong> expected — best day is {epct}%. You met the {threshold}% law and may post new rent requests. Keep going to reach Very Good (≥ 50%).
           </p>
@@ -160,7 +167,10 @@ function AgentCapacityBanner({ agentId }: { agentId?: string }) {
     if (rating === 'Fair') {
       return (
         <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-amber-700">
-          <div className="text-xs font-extrabold uppercase tracking-wide mb-1">Fair — Blocked from posting today</div>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-extrabold uppercase tracking-wide">Fair — Blocked from posting today</span>
+            <DailyRatingThresholdPopover />
+          </div>
           <p className="text-[11px] leading-snug opacity-95">
             Yesterday you collected <strong className="font-mono">{formatUGX(cap.paid_yesterday)}</strong> ({ypct}%) of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong> expected — best day is {epct}%. You are between 15% and 19%, just below the {threshold}% law. Hit {threshold}% today to be unblocked and rated Good immediately.
           </p>
@@ -170,7 +180,10 @@ function AgentCapacityBanner({ agentId }: { agentId?: string }) {
     if (rating === 'Bad') {
       return (
         <div className="rounded-xl border border-orange-500/40 bg-orange-500/10 p-3 text-orange-700">
-          <div className="text-xs font-extrabold uppercase tracking-wide mb-1">Bad — Blocked from posting today</div>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-extrabold uppercase tracking-wide">Bad — Blocked from posting today</span>
+            <DailyRatingThresholdPopover />
+          </div>
           <p className="text-[11px] leading-snug opacity-95">
             Yesterday you collected <strong className="font-mono">{formatUGX(cap.paid_yesterday)}</strong> ({ypct}%) of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong> expected — best day is {epct}%. You are between 5% and 14%, below the {threshold}% law. Hit {threshold}% today to be unblocked and rated Good immediately.
           </p>
@@ -180,7 +193,10 @@ function AgentCapacityBanner({ agentId }: { agentId?: string }) {
     // Very Bad
     return (
       <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-destructive">
-        <div className="text-xs font-extrabold uppercase tracking-wide mb-1">Very Bad — Blocked from posting today</div>
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs font-extrabold uppercase tracking-wide">Very Bad — Blocked from posting today</span>
+          <DailyRatingThresholdPopover />
+        </div>
         <p className="text-[11px] leading-snug opacity-95">
           Yesterday you collected <strong className="font-mono">{formatUGX(cap.paid_yesterday)}</strong> ({ypct}%) of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong> expected — best day is {epct}%. You are below 5%, far below the {threshold}% law. Hit {threshold}% today to be unblocked and rated Good immediately.
         </p>
