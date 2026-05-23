@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { useStaffPermissions } from '@/hooks/useStaffPermissions';
 import { useAuth } from '@/hooks/useAuth';
-import { roleToSlug } from '@/lib/roleRoutes';
+
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
 import RunBackupNowButton from '@/components/admin/RunBackupNowButton';
