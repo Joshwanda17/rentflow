@@ -563,6 +563,19 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       toast.error('You must be signed in to submit a request');
       return;
     }
+    // Daily Eligibility Law: block posting if yesterday < 20% of expected daily.
+    if (myCap && myCap.daily_status === 'blocked') {
+      const threshold = Math.round(DAILY_ELIGIBILITY_THRESHOLD * 100);
+      const ypct = Math.round(myCap.yesterday_response_pct * 100);
+      const msg =
+        `Blocked from posting new rent requests today. ` +
+        `Yesterday you collected ${ypct}% of your expected daily rent ` +
+        `(UGX ${formatUGX(myCap.paid_yesterday)} of UGX ${formatUGX(myCap.expected_daily)}). ` +
+        `Collect at least ${threshold}% today to be unblocked and rated Good tomorrow.`;
+      setSubmissionError(msg);
+      toast.error('Blocked today', { description: msg });
+      return;
+    }
     if (!fees) {
       toast.error('Please enter a valid rent amount before submitting');
       return;
