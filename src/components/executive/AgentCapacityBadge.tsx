@@ -75,7 +75,7 @@ export function AgentCapacityBadge({
   const dailyTitleLine =
     daily_status === 'starter'
       ? `Starter agent — always allowed to post the first rent request.`
-      : `Yesterday: collected UGX ${formatUGX(paid_yesterday)} of ` +
+      : `Best day: collected UGX ${formatUGX(paid_yesterday)} of ` +
         `UGX ${formatUGX(expected_daily)} (${Math.round(yesterday_response_pct * 100)}%). ` +
         `Rating: ${daily_rating}. ` +
         (daily_status === 'good'

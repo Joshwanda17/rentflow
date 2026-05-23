@@ -141,16 +141,23 @@ export function AgentRentCapacitySelfCard() {
           </p>
         ) : (
           <>
-            {/* Daily Eligibility Law banner */}
+            {/* Daily Eligibility Law banner — one distinct message per rating level */}
             {(() => {
-              const status = cap.daily_status;
               const rating = cap.daily_rating;
               const ypct = Math.round(cap.yesterday_response_pct * 100);
               const tpct = Math.round(cap.today_response_pct * 100);
               const epct = Math.round(cap.effective_daily_pct * 100);
-              const todayLeads = cap.today_response_pct >= cap.yesterday_response_pct;
               const threshold = Math.round(DAILY_ELIGIBILITY_THRESHOLD * 100);
-              if (status === 'starter') {
+              const baseMsg = (
+                <>Yesterday you collected{' '}
+                  <strong className="font-mono">{formatUGX(cap.paid_yesterday)}</strong>{' '}
+                  ({ypct}%) and today{' '}
+                  <strong className="font-mono">{formatUGX(cap.paid_today)}</strong>{' '}
+                  ({tpct}%) of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong>{' '}
+                  expected daily — best day is <strong>{epct}%</strong>.
+                </>
+              );
+              if (rating === 'Starter') {
                 return (
                   <div className="rounded-xl border border-violet-500/30 bg-violet-500/5 p-3 flex items-start gap-3">
                     <CheckCircle2 className="h-5 w-5 text-violet-600 shrink-0 mt-0.5" />
@@ -165,50 +172,66 @@ export function AgentRentCapacitySelfCard() {
                   </div>
                 );
               }
-              if (status === 'good') {
-                const headline = rating === 'Very Good'
-                  ? 'Very Good — top performer, free to post today'
-                  : 'Good — you can post new rent requests today';
-                const tone = rating === 'Very Good'
-                  ? 'border-emerald-600/50 bg-emerald-600/10'
-                  : 'border-emerald-500/40 bg-emerald-500/10';
+              if (rating === 'Very Good') {
                 return (
-                  <div className={`rounded-xl border ${tone} p-3 flex items-start gap-3`}>
+                  <div className="rounded-xl border border-emerald-600/50 bg-emerald-600/10 p-3 flex items-start gap-3">
                     <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
                     <div className="text-sm">
-                      <div className="font-extrabold text-emerald-700">{headline}</div>
+                      <div className="font-extrabold text-emerald-700">Very Good — outstanding daily performance, free to post today</div>
                       <p className="text-foreground/80 mt-0.5">
-                        Today you've collected{' '}
-                        <strong className="font-mono">{formatUGX(cap.paid_today)}</strong>{' '}
-                        ({tpct}%) and yesterday{' '}
-                        <strong className="font-mono">{formatUGX(cap.paid_yesterday)}</strong>{' '}
-                        ({ypct}%) of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong>{' '}
-                        expected daily — rated <strong>{rating}</strong> on your best day ({epct}%, ≥ {threshold}% law).
-                        {todayLeads && cap.today_response_pct >= DAILY_ELIGIBILITY_THRESHOLD
-                          ? " Today's collections already lifted your rating — keep going."
-                          : ' Keep it up: if you fall below ' + threshold + '% tomorrow you will be blocked again.'}
+                        {baseMsg} You are well above the <strong>{threshold}%</strong> daily law and can post new rent requests. Keep this up to stay at the top.
                       </p>
                     </div>
                   </div>
                 );
               }
+              if (rating === 'Good') {
+                return (
+                  <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3 flex items-start gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+                    <div className="text-sm">
+                      <div className="font-extrabold text-emerald-700">Good — you can post new rent requests today</div>
+                      <p className="text-foreground/80 mt-0.5">
+                        {baseMsg} You met the <strong>{threshold}%</strong> daily law. Keep collecting to move up to <strong className="text-emerald-700">Very Good</strong> (≥ 50%).
+                      </p>
+                    </div>
+                  </div>
+                );
+              }
+              if (rating === 'Fair') {
+                return (
+                  <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 flex items-start gap-3">
+                    <Lock className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="text-sm">
+                      <div className="font-extrabold text-amber-700">Fair — close to target but blocked from new rent requests today</div>
+                      <p className="text-foreground/80 mt-0.5">
+                        {baseMsg} You are between 15% and 19%, just shy of the <strong>{threshold}%</strong> unblock line. Hit <strong>{threshold}%</strong> today and you will be unblocked and rated <strong className="text-emerald-700">Good</strong> immediately.
+                      </p>
+                    </div>
+                  </div>
+                );
+              }
+              if (rating === 'Bad') {
+                return (
+                  <div className="rounded-xl border border-orange-500/40 bg-orange-500/10 p-3 flex items-start gap-3">
+                    <Lock className="h-5 w-5 text-orange-600 shrink-0 mt-0.5" />
+                    <div className="text-sm">
+                      <div className="font-extrabold text-orange-700">Bad — well below target, blocked from new rent requests today</div>
+                      <p className="text-foreground/80 mt-0.5">
+                        {baseMsg} You are between 5% and 14%, below the <strong>{threshold}%</strong> daily law. Hit <strong>{threshold}%</strong> today and you will be unblocked and rated <strong className="text-emerald-700">Good</strong> immediately.
+                      </p>
+                    </div>
+                  </div>
+                );
+              }
+              // Very Bad
               return (
                 <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-3 flex items-start gap-3">
                   <Lock className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
                   <div className="text-sm">
-                    <div className="font-extrabold text-destructive">
-                      {rating} — blocked from new rent requests today
-                    </div>
+                    <div className="font-extrabold text-destructive">Very Bad — critically low, blocked from new rent requests today</div>
                     <p className="text-foreground/80 mt-0.5">
-                      Today you've collected{' '}
-                      <strong className="font-mono">{formatUGX(cap.paid_today)}</strong>{' '}
-                      ({tpct}%) and yesterday{' '}
-                      <strong className="font-mono">{formatUGX(cap.paid_yesterday)}</strong>{' '}
-                      ({ypct}%) of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong>{' '}
-                      expected daily — best is {epct}%, below the{' '}
-                      <strong>{threshold}%</strong> daily law. Hit{' '}
-                      <strong>{threshold}%</strong> TODAY and you will be unblocked and
-                      rated <strong className="text-emerald-700">Good</strong> immediately.
+                      {baseMsg} You are below 5%, far below the <strong>{threshold}%</strong> daily law. Hit <strong>{threshold}%</strong> today and you will be unblocked and rated <strong className="text-emerald-700">Good</strong> immediately.
                     </p>
                   </div>
                 </div>
