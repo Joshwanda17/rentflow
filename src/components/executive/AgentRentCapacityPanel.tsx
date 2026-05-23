@@ -50,6 +50,16 @@ export function AgentRentCapacityPanel({
   const [rowCollapsed, setRowCollapsed] = useState<Record<string, boolean>>({});
   const queryClient = useQueryClient();
 
+  // Force a fresh fetch every time the panel mounts (e.g. user switches to
+  // the Agent Rent Capacity tab). Without this, a cached fleet snapshot
+  // from a previous mount could briefly render stale yesterday-based
+  // ratings before the background refetch lands.
+  useEffect(() => {
+    queryClient.invalidateQueries({ queryKey: ['agent-rent-capacity-fleet'] });
+    queryClient.invalidateQueries({ queryKey: ['agent-capacity-map'] });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Auto-refresh the fleet rating table whenever ANY rent_request changes
   // (amount_repaid bump on a repayment trigger, status flip, or a fresh
   // funded request). This catches every write path — agent collect dialog,
