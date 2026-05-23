@@ -2469,10 +2469,9 @@ export function EmailTransactionsPanel() {
                         size="sm"
                         variant="outline"
                         className="mt-1.5 h-8 sm:h-7 text-[11px] gap-1"
-                        disabled={isRouted && !isReversed}
                         title={
                           isRouted && !isReversed
-                            ? 'Already routed — reverse the existing entry first before re-routing.'
+                            ? 'Already routed to a user. You can still route it to a different user — routing it to the same user again will be blocked.'
                             : 'Route this deposit to a user wallet'
                         }
                         onClick={() => {
@@ -2495,7 +2494,7 @@ export function EmailTransactionsPanel() {
                           setRoutingRow(r);
                         }}
                       >
-                        {isRouted && !isReversed ? 'Already routed' : <>Route to user <ArrowRight className="h-3 w-3" /></>}
+                        {isRouted && !isReversed ? <>Route to another user <ArrowRight className="h-3 w-3" /></> : <>Route to user <ArrowRight className="h-3 w-3" /></>}
                       </Button>
                     )}
                     {r.amount && r.amount > 0 && (r.direction === 'out' || r.direction === 'charge') && (
@@ -2528,10 +2527,9 @@ export function EmailTransactionsPanel() {
                         size="sm"
                         variant="outline"
                         className="mt-1.5 h-8 sm:h-7 text-[11px] gap-1 border-rose-300 text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30"
-                        disabled={isRouted && !isReversed}
                         title={
                           isRouted && !isReversed
-                            ? 'Already routed — reverse the existing entry first before re-routing.'
+                            ? 'Already debited from a user. You can still debit a different user — debiting the same user again will be blocked.'
                             : 'Debit this outflow from a user wallet'
                         }
                         onClick={() => {
@@ -2554,7 +2552,7 @@ export function EmailTransactionsPanel() {
                           setRoutingRow(r);
                         }}
                       >
-                        {isRouted && !isReversed ? 'Already routed' : <>Debit user wallet <ArrowRight className="h-3 w-3" /></>}
+                        {isRouted && !isReversed ? <>Debit a different user <ArrowRight className="h-3 w-3" /></> : <>Debit user wallet <ArrowRight className="h-3 w-3" /></>}
                       </Button>
                     )}
                   </div>
