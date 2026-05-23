@@ -8,6 +8,7 @@ import {
   ACTIVE_RENT_STATUSES,
   AGENT_RENT_CAP_UGX,
   classifyAgent,
+  classifyDailyRating,
   type AgentCapacity,
 } from '@/hooks/useAgentCapacityMap';
 import { toast } from 'sonner';
