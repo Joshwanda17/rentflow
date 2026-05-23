@@ -474,6 +474,17 @@ function CapacityRow({
   };
   const tier = { label: row.tier, tone: tierTone[row.tier], max: row.per_tenant_max };
 
+  const dailyRatingTone: Record<AgentCapacity['daily_rating'], string> = {
+    'Very Good': 'bg-emerald-600/20 text-emerald-800 border-emerald-600/40',
+    'Good':      'bg-emerald-500/15 text-emerald-700 border-emerald-500/40',
+    'Fair':      'bg-amber-500/15 text-amber-700 border-amber-500/40',
+    'Bad':       'bg-orange-500/15 text-orange-700 border-orange-500/40',
+    'Very Bad':  'bg-destructive/15 text-destructive border-destructive/40',
+    'Starter':   'bg-violet-500/15 text-violet-700 border-violet-500/40',
+  };
+  const dailyLabel =
+    row.daily_rating === 'Starter' ? 'New today' : `Today: ${row.daily_rating}`;
+
   const bar =
     pct >= 95 ? 'bg-destructive' : pct >= 75 ? 'bg-amber-500' : 'bg-emerald-500';
   const expectedWeek = row.expected_daily * 7;
@@ -550,8 +561,14 @@ function CapacityRow({
           </p>
         </div>
         <div className="flex items-center gap-1 shrink-0">
+          <span
+            className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${dailyRatingTone[row.daily_rating]}`}
+            title={`Today's collection rating — ${formatUGX(row.paid_today)} of ${formatUGX(row.expected_daily)} (${todayPct}%)`}
+          >
+            {dailyLabel}
+          </span>
           <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${tier.tone}`}>
-            {tier.label}
+            7d: {tier.label}
           </span>
           <button
             type="button"
