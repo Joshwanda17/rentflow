@@ -298,12 +298,17 @@ export function useAgentCapacityMap(agentIds: string[]) {
         const yesterday_response_pct = dailyExpected > 0
           ? paid_yesterday / dailyExpected
           : 0;
+        const paid_today_val = paidTodayByAgent.get(id) || 0;
+        const today_response_pct = dailyExpected > 0
+          ? paid_today_val / dailyExpected
+          : 0;
+        const effective_daily_pct = Math.max(yesterday_response_pct, today_response_pct);
         let daily_status: AgentCapacity['daily_status'];
         if (exp.count <= 0) daily_status = 'starter';
-        else if (yesterday_response_pct >= DAILY_ELIGIBILITY_THRESHOLD) daily_status = 'good';
+        else if (effective_daily_pct >= DAILY_ELIGIBILITY_THRESHOLD) daily_status = 'good';
         else daily_status = 'blocked';
         const can_post_rent_today = daily_status !== 'blocked';
-        const daily_rating = classifyDailyRating(exp.count, yesterday_response_pct);
+        const daily_rating = classifyDailyRating(exp.count, effective_daily_pct);
         out.set(id, {
           used: exp.used,
           active_count: exp.count,
@@ -314,9 +319,11 @@ export function useAgentCapacityMap(agentIds: string[]) {
           responding_tenant_days,
           expected_tenant_days,
           paid_last_week,
-          paid_today: paidTodayByAgent.get(id) || 0,
+          paid_today: paid_today_val,
           paid_yesterday,
           yesterday_response_pct,
+          today_response_pct,
+          effective_daily_pct,
           daily_status,
           daily_rating,
           can_post_rent_today,
