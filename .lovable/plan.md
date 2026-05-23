@@ -1,49 +1,59 @@
-## Auto landlord rent payout (Welile-fronted, monthly)
+# Plan: Payment Calendar Streak in Tenant Detail (Agent)
 
-When an agent places a tenant into a listed house, Welile automatically credits the landlord's wallet with the monthly rent on the landlord's chosen day of the month. Tenant repayment continues through the existing `auto-charge-wallets` flow — this plan only adds the landlord-side payout leg.
+## Goal
+When an agent taps a tenant's name under "My Tenants" and opens the tenant detail view (`TenantProfileView`), show a month-grid calendar that visualizes — for each day of the tenant's active rent plan — whether they **paid in full**, **paid partially**, **missed**, or it's **upcoming / outside the plan window**.
 
-### What gets built
+## Where it goes
+- File: `src/components/agent/TenantProfileView.tsx` — already loads `repayments` (last 50) and `requests` (rent plans). Insert the new calendar inside the existing "Payment History" / repayments area (around line ~1412, right above the existing flat list of repayments) so the streak is the first thing the agent sees, with the existing list still available below.
+- New presentational component: `src/components/agent/TenantPaymentCalendar.tsx` — pure UI, no data fetching; receives props from `TenantProfileView`.
 
-1. **Schema (rent_requests)**
-   - `landlord_payout_day` smallint (1-28), nullable until placement
-   - `landlord_payout_next_run_at` timestamptz
-   - `landlord_payout_last_run_at` timestamptz
-   - `landlord_payout_enabled` boolean default true
-   - Constraint: `landlord_payout_day BETWEEN 1 AND 28`
-   - Index on `(landlord_payout_enabled, landlord_payout_next_run_at)` partial WHERE enabled
+## What it shows
+Per active rent plan (the most recent `repaying` / `disbursed` / `funded` request, with fallback to most recent completed):
+- Plan window = `disbursed_at` → `disbursed_at + duration_days` (or `created_at` if no `disbursed_at`).
+- Daily expected = `daily_repayment` from the request (already normalized by `getEffectiveRentRequestAmounts`).
+- For each day in the window:
+  - Sum `repayments` whose `created_at` falls on that local day AND `rent_request_id` matches the active plan.
+  - Status:
+    - `paid` (green) — sum ≥ daily expected.
+    - `partial` (amber) — 0 < sum < daily expected.
+    - `missed` (red) — day is in the past, sum = 0.
+    - `today` (ring highlight, colored by actual status).
+    - `upcoming` (muted) — day in the future, within plan window.
+    - `outside` (hidden / very muted) — calendar cell that falls outside the plan window for the month being viewed.
 
-2. **Capture UI (agent flow)**
-   - Add "Landlord payout day" date-of-month picker (1-28) to `AgentRentRequestDialog` and `RegisterTenantDialog`, required when the rent is approved/active.
-   - Show landlord-facing copy: "Welile will pay UGX {rent} to the landlord wallet on day {N} every month."
-   - Surface the chosen day + next payout date on the rent request detail drawer and on the Landlord Ops house detail dialog.
+## Layout
+- Compact month-grid (Mon–Sun columns, ~28×28px cells), with prev/next month chevrons. Default month = month containing today (clamped to plan window).
+- Header chips: `🔥 Current streak: N days`, `Best: M days`, `Paid X / Y days`, `Collected UGX … / Expected UGX …` for the visible window.
+- Legend row: Paid / Partial / Missed / Upcoming, using existing semantic tokens (`bg-success`, `bg-warning`, `bg-destructive`, `bg-muted`).
+- Tap a cell → small popover/tooltip showing date, expected amount, collected amount, and a "Collect now" shortcut that opens the existing `AgentTenantCollectDialog` pre-filled to that tenant (reuse `setCollectDialogOpen(true)` already in the file). No new backend wiring.
+- Empty state: if no active plan, show a single line — "No active rent plan to chart yet."
 
-3. **Cron + edge function**
-   - New edge function `pay-landlord-rent` (verify_jwt=false, service role).
-   - Per active row where `landlord_payout_enabled = true AND landlord_payout_next_run_at <= now() AND status IN ('approved','disbursed','active')`:
-     - Idempotency key: `landlord_rent:{rent_request_id}:{YYYY-MM}`.
-     - Call `create_ledger_transaction(entries=[platform cash_out `rent_disbursement`, wallet cash_in `landlord_rent_payment` with `recipient_type='user'`, `user_id=landlord_id`])` — routes to landlord `withdrawable_balance`.
-     - Emit `system_event` `landlord.rent_payout.completed`.
-     - Advance `landlord_payout_next_run_at` by 1 month (clamped to day ≤ 28); set `landlord_payout_last_run_at = now()`.
-     - On failure: log to `system_events` (`landlord.rent_payout.failed`), do not advance, alert FinOps.
-   - pg_cron job `pay-landlord-rent-daily` at 07:00 UTC invoking the edge function (insert tool, with project URL + anon key).
+## Streak math
+- Current streak = consecutive `paid` days ending at the latest non-future day in the plan window. `partial` breaks the streak (same as the existing platform behavior — daily expectation is the bar).
+- Best streak = longest run of consecutive `paid` days anywhere in the plan window.
+- Both computed client-side in `useMemo` from the already-loaded `repayments` array — no new queries.
 
-4. **Funding source**
-   - Welile float fronts the payout. Recovery from the tenant continues through the existing `auto-charge-wallets-daily` cron on `subscription_charges`. No coupling between the two crons; rent is decoupled from collection.
+## Data sources (already loaded, no new fetch)
+- `requests` (active rent plan: `disbursed_at`, `duration_days`, `daily_repayment`, `id`).
+- `repayments` (`amount`, `created_at`, `rent_request_id`).
 
-5. **Audit + trust**
-   - Insert into `audit_logs` (action_type `landlord_rent_payout`, table `rent_requests`, record id, mandatory reason: `auto-landlord-monthly-payout`).
-   - `capture_trust_signal` for landlord (`rent_received`) and tenant (`rent_obligation_serviced`) on each successful payout.
+If the active plan is longer than 50 days and the agent pages backward into months not covered by the existing 50-row repayment fetch, we'll bump the existing `repayments` query `.limit(50)` → `.limit(400)` (covers >1 year of daily collections) in the same file. No schema or RPC changes.
 
-### Out of scope
-- No changes to tenant-side `auto-charge-wallets` or to existing repayment ledger entries.
-- No changes to the 6-stage rent pipeline gating; payouts only fire once a request is past `approved`.
-- No FX, no partial payouts, no proration mid-month — landlord receives full `rent_amount` each cycle.
+## Design system
+- All colors via semantic tokens (`success`, `warning`, `destructive`, `muted`, `primary`) — no hardcoded hex.
+- Reuses existing `Badge`, `Button`, `formatUGX`, `date-fns`. No new dependencies.
+- Mobile-first: grid scales down to 24px cells under 360px; header chips wrap.
 
-### Files
-- New migration: schema + index + cron insert (cron via supabase--insert per the schedule-jobs guidance).
-- New edge fn: `supabase/functions/pay-landlord-rent/index.ts`.
-- Edit: `src/components/agent/AgentRentRequestDialog.tsx`, `src/components/agent/RegisterTenantDialog.tsx`, `src/components/rent/RentRequestDetailDrawer.tsx`, `src/components/executive/landlord-ops/HouseDetailsDialog.tsx`.
-- Memory note: add `mem://features/landlord/auto-monthly-payout.md` documenting the flow and idempotency contract.
+## Out of scope (not changing)
+- No edits to backend, RPCs, ledger, or other dashboards.
+- No change to the existing flat repayments list below — calendar is added above it.
+- No change to `AgentTenantsSheet` list itself; only the detail view it opens.
 
-### Confirm before I build
-Approving this plan will run a schema migration, deploy the new edge function, and create a daily pg_cron job. OK to proceed?
+## Technical notes
+- Day bucket key: `format(new Date(r.created_at), 'yyyy-MM-dd')` in the browser's local TZ — matches how today/collected_today are already computed elsewhere in this file.
+- Match repayments to the active plan by `rent_request_id === activeRequest.id` so payments on previous plans don't pollute the current streak.
+- Calendar starts on Monday to match existing date pickers in `ui/calendar.tsx`.
+
+## Files touched
+- **New**: `src/components/agent/TenantPaymentCalendar.tsx`
+- **Edited**: `src/components/agent/TenantProfileView.tsx` (import + render the calendar above the repayments list; bump repayments `.limit(50)` to `.limit(400)`).

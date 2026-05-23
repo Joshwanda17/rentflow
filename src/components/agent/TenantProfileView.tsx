@@ -29,6 +29,7 @@ import { EditTenantDialog } from './EditTenantDialog';
 import { TenantQuickActionsSheet } from './TenantQuickActionsSheet';
 import { RentAccessLimitCard } from './RentAccessLimitCard';
 import RentAccessLimitActivity from './RentAccessLimitActivity';
+import { TenantPaymentCalendar } from './TenantPaymentCalendar';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Sparkles, ChevronRight } from 'lucide-react';
 
@@ -235,7 +236,7 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
           .select('id, amount, created_at, rent_request_id')
           .eq('tenant_id', tenantId)
           .order('created_at', { ascending: false })
-          .limit(50),
+          .limit(400),
         supabase
           .from('wallets')
           .select('balance')
@@ -1409,6 +1410,39 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
         )}
 
         {/* ── Repayment History ── */}
+        {(() => {
+          const ACTIVE_STATUSES = ['repaying', 'disbursed', 'funded'];
+          const active =
+            requests.find(r => ACTIVE_STATUSES.includes((r.status || '').toLowerCase())) ||
+            requests[0];
+          if (!active) return null;
+          const startIso = (active as any).disbursed_at || active.created_at;
+          const duration = Number(active.duration_days) || 0;
+          const daily = Number(active.daily_repayment) || 0;
+          if (!startIso || duration <= 0 || daily <= 0) return null;
+          return (
+            <SectionCard
+              icon={Calendar}
+              title="Payment Calendar"
+              badge={<Badge variant="outline" className="text-xs">Active plan</Badge>}
+            >
+              <TenantPaymentCalendar
+                plan={{
+                  id: active.id,
+                  startDate: startIso,
+                  durationDays: duration,
+                  dailyExpected: daily,
+                }}
+                repayments={repayments.map(r => ({
+                  amount: Number(r.amount),
+                  created_at: r.created_at,
+                  rent_request_id: (r as any).rent_request_id ?? null,
+                }))}
+              />
+            </SectionCard>
+          );
+        })()}
+
         {repayments.length > 0 && (
           <SectionCard
             icon={History}
