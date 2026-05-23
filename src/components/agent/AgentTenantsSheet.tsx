@@ -1473,9 +1473,13 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           })()}
 
           {stats.totalOwing > 0 && (
-            <p className="text-xs text-muted-foreground">
-              Total owed: <span className="font-bold text-destructive font-mono">{formatUGX(stats.totalOwing)}</span>
-            </p>
+            <button
+              type="button"
+              onClick={() => setShowBalanceBreakdown(true)}
+              className="text-xs text-muted-foreground text-left hover:text-foreground transition-colors cursor-pointer"
+            >
+              Total owed: <span className="font-bold text-destructive font-mono underline decoration-dotted underline-offset-2">{formatUGX(stats.totalOwing)}</span>
+            </button>
           )}
           </>
           )}
