@@ -541,11 +541,45 @@ export function EmailTransactionsPanel() {
   };
 
   const load = async () => {
+    // Build a server-side query that honors the date range and free-text
+    // search box so the Recent emails list can reach the FULL history
+    // (not just the most-recent 200). When neither a date range nor a
+    // search is active we still default to a generous recent window so
+    // the page opens fast.
+    let q: any = (supabase.from('gmail_transactions') as any)
+      .select('id,gmail_message_id,from_email,from_name,subject,snippet,amount,transaction_id,parsed,internal_date,direction,channel,counterparty,fee,balance')
+      .order('internal_date', { ascending: false, nullsFirst: false });
+
+    const fromTsLoad = fromDate ? zonedWallClockToUtcMs(fromDate, '00:00:00', tz) : null;
+    const toTsLoad = toDate ? zonedWallClockToUtcMs(toDate, '23:59:59', tz) : null;
+    if (fromTsLoad) q = q.gte('internal_date', new Date(fromTsLoad).toISOString());
+    if (toTsLoad) q = q.lte('internal_date', new Date(toTsLoad).toISOString());
+
+    const tokens = searchQuery.split(/\s+/).map((t) => t.trim()).filter(Boolean);
+    if (tokens.length > 0) {
+      // Use the LONGEST token for the server-side OR (most selective).
+      // Remaining tokens are AND-applied client-side in `matchesSearch`.
+      const probe = tokens.slice().sort((a, b) => b.length - a.length)[0];
+      const esc = probe.replace(/[%_,()]/g, (m) => '\\' + m);
+      q = q.or(
+        [
+          `transaction_id.ilike.%${esc}%`,
+          `subject.ilike.%${esc}%`,
+          `snippet.ilike.%${esc}%`,
+          `counterparty.ilike.%${esc}%`,
+          `from_email.ilike.%${esc}%`,
+          `from_name.ilike.%${esc}%`,
+        ].join(',')
+      );
+    }
+
+    // Cap: 5000 when filters/search are active (large enough for full
+    // historical sweeps), 500 otherwise.
+    const hasFilter = !!(fromTsLoad || toTsLoad || tokens.length > 0);
+    q = q.limit(hasFilter ? 5000 : 500);
+
     const [{ data: txs }, { data: ps }] = await Promise.all([
-      (supabase.from('gmail_transactions') as any)
-        .select('id,gmail_message_id,from_email,from_name,subject,snippet,amount,transaction_id,parsed,internal_date,direction,channel,counterparty,fee,balance')
-        .order('internal_date', { ascending: false, nullsFirst: false })
-        .limit(200),
+      q,
       supabase.from('gmail_poll_state').select('last_polled_at,last_status,last_error').eq('id', 1).maybeSingle(),
     ]);
     setRows((txs as unknown as GmailTx[]) ?? []);
@@ -563,11 +597,21 @@ export function EmailTransactionsPanel() {
     const ch = supabase
       .channel('gmail_transactions_feed')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'gmail_transactions' }, (payload) => {
-        setRows((cur) => [payload.new as GmailTx, ...cur].slice(0, 200));
+        setRows((cur) => [payload.new as GmailTx, ...cur].slice(0, 5000));
       })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, []);
+
+  // Re-run the server-side load whenever the date range or search query
+  // changes so the Recent emails list can reach the FULL history (not
+  // just the latest 200 rows). Debounced for the search box so each
+  // keystroke doesn't fire a query.
+  useEffect(() => {
+    const handle = setTimeout(() => { load(); }, 300);
+    return () => clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromDate, toDate, searchQuery, tz]);
 
   // Background load of routing history for the currently visible rows.
   // Also subscribes to inserts so a fresh re-route shows up instantly
