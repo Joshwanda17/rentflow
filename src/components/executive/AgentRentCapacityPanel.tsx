@@ -207,7 +207,8 @@ export function AgentRentCapacityPanel({
         const expected_daily = expectedDailyMap.get(id) || 0;
         const yesterday_response_pct = expected_daily >  0 ? paid_yesterday / expected_daily : 0;
         const today_response_pct = expected_daily > 0 ? (paidTodayByAgent.get(id) || 0) / expected_daily : 0;
-        const effective_daily_pct = Math.max(yesterday_response_pct, today_response_pct);
+        // Rating depends on TODAY's collection vs today's daily target only.
+        const effective_daily_pct = today_response_pct;
         const daily_rating = classifyDailyRating(exp.count, effective_daily_pct);
         const daily_status: AgentCapacity['daily_status'] =
           exp.count <=   1 ? 'starter' : effective_daily_pct >= 0.20 ? 'good' : 'blocked';
