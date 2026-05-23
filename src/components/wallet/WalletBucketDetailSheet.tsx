@@ -352,8 +352,15 @@ export function WalletBucketDetailSheet({
                           <p className="text-sm font-bold text-foreground truncate">
                             {labelFor(e.category)}
                           </p>
+                          {reasonFor(e.category) && (
+                            <p className="text-xs text-foreground/70 leading-snug">
+                              {reasonFor(e.category)}
+                            </p>
+                          )}
                           {e.description && (
-                            <p className="text-xs text-muted-foreground truncate">{e.description}</p>
+                            <p className="text-[11px] text-muted-foreground/80 leading-snug mt-0.5 line-clamp-2">
+                              Note: {e.description}
+                            </p>
                           )}
                           <p className="text-[11px] text-muted-foreground/80 mt-0.5">
                             {format(new Date(e.transaction_date), 'h:mm a')}
