@@ -238,16 +238,19 @@ export function LendingAgentsPanel() {
               <Card key={a.user_id} className="border cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => setSelected(a)}>
                 <CardContent className="p-3">
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                        <span className="font-medium text-sm truncate">{a.full_name}</span>
-                        {a.trust_score != null && <Badge variant="outline" size="sm">Trust {a.trust_score}</Badge>}
-                        <AgentCapacityBadge
-                          capacity={capacityMap?.get(a.user_id)}
-                          loading={capacityFetching && !capacityMap}
-                        />
-                      </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                      <span className={`font-medium text-sm truncate ${(() => {
+                        const dr = capacityMap?.get(a.user_id)?.daily_rating;
+                        return dr === 'Very Good' || dr === 'Good' ? 'text-emerald-700' : '';
+                      })()}`}>{a.full_name}</span>
+                      {a.trust_score != null && <Badge variant="outline" size="sm">Trust {a.trust_score}</Badge>}
+                      <AgentCapacityBadge
+                        capacity={capacityMap?.get(a.user_id)}
+                        loading={capacityFetching && !capacityMap}
+                      />
+                    </div>
                       {a.phone && (
                         <div className="flex items-center gap-1.5 mt-0.5 text-xs text-muted-foreground">
                           <Phone className="h-3 w-3" /> {a.phone}
