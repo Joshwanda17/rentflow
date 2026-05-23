@@ -243,7 +243,6 @@ export function AgentRentCapacityPanel({
       rows.sort((a, b) => b.used - a.used);
       return rows;
     },
-    staleTime: 60_000,
   });
 
   const filtered = useMemo(() => {
