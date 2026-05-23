@@ -17,9 +17,7 @@ export default function TrackedRedirect() {
 
     (async () => {
       const { data, error } = await supabase
-        .from('short_links')
-        .select('target_path, target_params')
-        .eq('code', code)
+        .rpc('resolve_short_link', { p_code: code })
         .maybeSingle();
 
       if (cancelled) return;

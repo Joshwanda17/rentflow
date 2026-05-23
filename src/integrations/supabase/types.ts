@@ -5105,42 +5105,6 @@ export type Database = {
           },
         ]
       }
-      e2e_landlord_payout_results: {
-        Row: {
-          action: string | null
-          challenge_id: string | null
-          deduct_result: Json | null
-          final_challenge_status: string | null
-          final_payout_status: string | null
-          payout_id: string | null
-          post_float: number | null
-          pre_float: number | null
-          run_at: string | null
-        }
-        Insert: {
-          action?: string | null
-          challenge_id?: string | null
-          deduct_result?: Json | null
-          final_challenge_status?: string | null
-          final_payout_status?: string | null
-          payout_id?: string | null
-          post_float?: number | null
-          pre_float?: number | null
-          run_at?: string | null
-        }
-        Update: {
-          action?: string | null
-          challenge_id?: string | null
-          deduct_result?: Json | null
-          final_challenge_status?: string | null
-          final_payout_status?: string | null
-          payout_id?: string | null
-          post_float?: number | null
-          pre_float?: number | null
-          run_at?: string | null
-        }
-        Relationships: []
-      }
       earning_baselines: {
         Row: {
           avg_daily_earnings: number | null
@@ -16258,6 +16222,13 @@ export type Database = {
         Returns: boolean
       }
       resolve_ai_id_to_user: { Args: { p_ai_id: string }; Returns: string }
+      resolve_short_link: {
+        Args: { p_code: string }
+        Returns: {
+          target_params: Json
+          target_path: string
+        }[]
+      }
       resolve_welile_ai_id: { Args: { ai_id: string }; Returns: string }
       resubmit_rejected_deposit: {
         Args: { p_id: string; p_payload: Json }
