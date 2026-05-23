@@ -246,6 +246,13 @@ export function CreditAccessCard({ userId, showBreakdown = true, compact = false
                     tip="Complete rent access requests on time"
                   />
                   <BreakdownRow
+                    icon={<TrendingUp className="h-3.5 w-3.5 text-emerald-500" />}
+                    label="Tenant Rent Allocations (2×)"
+                    value={limit.bonusFromAgentAllocations}
+                    currency={currency}
+                    tip="Every UGX you allocate from float to pay a tenant's rent adds 2× to your advance limit (cap UGX 30M)"
+                  />
+                  <BreakdownRow
                     icon={<Home className="h-3.5 w-3.5 text-purple-500" />}
                     label="Houses Listed"
                     value={limit.bonusFromHousesListed}
