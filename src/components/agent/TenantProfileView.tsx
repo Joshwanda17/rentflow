@@ -29,6 +29,7 @@ import { EditTenantDialog } from './EditTenantDialog';
 import { TenantQuickActionsSheet } from './TenantQuickActionsSheet';
 import { RentAccessLimitCard } from './RentAccessLimitCard';
 import RentAccessLimitActivity from './RentAccessLimitActivity';
+import { TenantPaymentCalendar } from './TenantPaymentCalendar';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Sparkles, ChevronRight } from 'lucide-react';
 
@@ -235,7 +236,7 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
           .select('id, amount, created_at, rent_request_id')
           .eq('tenant_id', tenantId)
           .order('created_at', { ascending: false })
-          .limit(50),
+          .limit(400),
         supabase
           .from('wallets')
           .select('balance')
