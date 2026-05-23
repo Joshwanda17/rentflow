@@ -387,27 +387,10 @@ section[aria-label*="Notifications" i]:empty {
     }
   }
 
-  /* Prevent iOS rubber-band scrolling on body */
-  html.ios-standalone {
-    position: fixed;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-  }
-
+  /* Prevent iOS rubber-band in standalone PWA without locking layout */
+  html.ios-standalone,
   html.ios-standalone body {
-    position: fixed;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-  }
-
-  html.ios-standalone #root {
-    position: fixed;
-    width: 100%;
-    height: 100%;
-    overflow: auto;
-    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: none;
   }
 }
 
