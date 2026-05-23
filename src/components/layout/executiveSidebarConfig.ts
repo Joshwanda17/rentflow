@@ -74,6 +74,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Staff & Payroll', icon: Users, id: 'payroll' },
         { label: 'Agent Requests', icon: FileText, id: 'agent-requisitions' },
         { label: 'Wallet Removals', icon: MinusCircle, id: 'retractions' },
+        { label: 'Mark-Not-Funded Approvals', icon: ShieldCheck, id: 'unfunding-approvals' },
       ],
     },
     {
