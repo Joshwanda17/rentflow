@@ -497,7 +497,7 @@ function CapacityRow({
     <li className="rounded-xl border border-border bg-background p-2.5 sm:p-3">
       <div className="flex items-start justify-between gap-2 mb-1.5">
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-foreground truncate">{row.name}</p>
+          <p className={`text-sm font-semibold truncate ${row.daily_rating === 'Very Good' || row.daily_rating === 'Good' ? 'text-emerald-700' : 'text-foreground'}`}>{row.name}</p>
           <p className="text-[11px] text-muted-foreground truncate">
             {row.phone || '—'} · {row.active_count} active rent{row.active_count === 1 ? '' : 's'}
             {row.unfunded_tenant_count > 0 && (
