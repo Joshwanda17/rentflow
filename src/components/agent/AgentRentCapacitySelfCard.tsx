@@ -142,6 +142,13 @@ export function AgentRentCapacitySelfCard() {
           </p>
         ) : (
           <>
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Daily Performance Rating
+              </span>
+              <DailyRatingThresholdPopover />
+            </div>
+
             {/* Daily Eligibility Law banner — one distinct message per rating level */}
             {(() => {
               const rating = cap.daily_rating;
