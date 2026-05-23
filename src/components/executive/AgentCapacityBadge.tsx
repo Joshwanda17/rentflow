@@ -10,6 +10,15 @@ const TIER_TONE: Record<AgentCapacity['tier'], string> = {
   Starter:    'bg-violet-500/15 text-violet-700 border-violet-500/30',
 };
 
+const DAILY_RATING_TONE: Record<AgentCapacity['daily_rating'], string> = {
+  'Very Good': 'bg-emerald-600/20 text-emerald-800 border-emerald-600/40',
+  'Good':      'bg-emerald-500/15 text-emerald-700 border-emerald-500/40',
+  'Fair':      'bg-amber-500/15 text-amber-700 border-amber-500/40',
+  'Bad':       'bg-orange-500/15 text-orange-700 border-orange-500/40',
+  'Very Bad':  'bg-destructive/15 text-destructive border-destructive/40',
+  'Starter':   'bg-violet-500/15 text-violet-700 border-violet-500/40',
+};
+
 function fmtShort(n: number) {
   if (n >= 1e9) return `${(n / 1e9).toFixed(2)}B`;
   if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
@@ -51,27 +60,24 @@ export function AgentCapacityBadge({
     responding_tenant_days, expected_tenant_days,
     paying_tenants_last_week, active_tenant_count,
     unfunded_tenant_count,
-    daily_status, yesterday_response_pct, paid_yesterday, expected_daily,
+    daily_status, daily_rating, yesterday_response_pct, paid_yesterday, expected_daily,
   } = capacity;
   const tone = TIER_TONE[tier];
   const barTone =
     pct >= 95 ? 'bg-destructive' : pct >= 75 ? 'bg-amber-500' : 'bg-emerald-500';
 
-  const dailyTone =
-    daily_status === 'good'
-      ? 'bg-emerald-500/15 text-emerald-700 border-emerald-500/40'
-      : daily_status === 'blocked'
-        ? 'bg-destructive/15 text-destructive border-destructive/40'
-        : 'bg-muted text-muted-foreground border-border';
+  const dailyTone = DAILY_RATING_TONE[daily_rating];
+  const blockedSuffix = daily_status === 'blocked' ? ' · Blocked' : '';
   const dailyLabel =
-    daily_status === 'good' ? 'Good · Today OK'
-    : daily_status === 'blocked' ? 'Blocked Today'
-    : 'New';
+    daily_rating === 'Starter'
+      ? 'New'
+      : `${daily_rating}${blockedSuffix}`;
   const dailyTitleLine =
     daily_status === 'starter'
       ? `Starter agent — always allowed to post the first rent request.`
       : `Yesterday: collected UGX ${formatUGX(paid_yesterday)} of ` +
         `UGX ${formatUGX(expected_daily)} (${Math.round(yesterday_response_pct * 100)}%). ` +
+        `Rating: ${daily_rating}. ` +
         (daily_status === 'good'
           ? `≥ 20% → ALLOWED to post new rent requests today.`
           : `< 20% → BLOCKED from posting new rent requests today.`);
