@@ -302,7 +302,9 @@ export function useAgentCapacityMap(agentIds: string[]) {
         const today_response_pct = dailyExpected > 0
           ? paid_today_val / dailyExpected
           : 0;
-        const effective_daily_pct = Math.max(yesterday_response_pct, today_response_pct);
+        // Rating is driven by TODAY's collection vs today's daily target only.
+        // Yesterday's % is retained for context/reporting but does not affect the rating.
+        const effective_daily_pct = today_response_pct;
         let daily_status: AgentCapacity['daily_status'];
         if (exp.count <= 0) daily_status = 'starter';
         else if (effective_daily_pct >= DAILY_ELIGIBILITY_THRESHOLD) daily_status = 'good';
