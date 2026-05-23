@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { addDays, format } from 'date-fns';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -8,6 +8,7 @@ import { GuarantorConsentCheckbox } from '@/components/agent/GuarantorConsentChe
 import { LandlordSearchSelect, type LandlordOption } from '@/components/agent/LandlordSearchSelect';
 import RegisterLandlordDialog from '@/components/agent/RegisterLandlordDialog';
 import { useAuth } from '@/hooks/useAuth';
+import { useAgentCapacityMap, DAILY_ELIGIBILITY_THRESHOLD } from '@/hooks/useAgentCapacityMap';
 import {
   Dialog,
   DialogContent,
@@ -89,6 +90,9 @@ const AGENT_RENT_CAP_UGX = 100_000_000;
 function AgentCapacityBanner({ agentId }: { agentId?: string }) {
   const [exposure, setExposure] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const ids = useMemo(() => (agentId ? [agentId] : []), [agentId]);
+  const { data: capMap } = useAgentCapacityMap(ids);
+  const cap = agentId ? capMap?.get(agentId) : undefined;
 
   useEffect(() => {
     if (!agentId) return;
@@ -127,6 +131,32 @@ function AgentCapacityBanner({ agentId }: { agentId?: string }) {
     : 'bg-success/10 border-success/30 text-success';
 
   return (
+    <>
+    {cap && cap.daily_status !== 'starter' && (
+      <div
+        className={
+          'rounded-xl border p-3 ' +
+          (cap.daily_status === 'good'
+            ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700'
+            : 'border-destructive/40 bg-destructive/10 text-destructive')
+        }
+      >
+        <div className="text-xs font-extrabold uppercase tracking-wide mb-1">
+          {cap.daily_status === 'good'
+            ? 'Good — Allowed Today'
+            : 'Blocked from posting today'}
+        </div>
+        <p className="text-[11px] leading-snug opacity-95">
+          Yesterday you collected{' '}
+          <strong className="font-mono">{formatUGX(cap.paid_yesterday)}</strong>{' '}
+          of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong>{' '}
+          ({Math.round(cap.yesterday_response_pct * 100)}%).{' '}
+          {cap.daily_status === 'good'
+            ? `You met the ${Math.round(DAILY_ELIGIBILITY_THRESHOLD * 100)}% daily law — you can post new rent requests.`
+            : `Below the ${Math.round(DAILY_ELIGIBILITY_THRESHOLD * 100)}% daily law — collect ${Math.round(DAILY_ELIGIBILITY_THRESHOLD * 100)}% today to be unblocked tomorrow.`}
+        </p>
+      </div>
+    )}
     <div className={`rounded-xl border p-3 ${tone}`}>
       <div className="flex items-center justify-between text-xs font-semibold mb-1.5">
         <span>Your Active Rent Exposure</span>
@@ -147,6 +177,7 @@ function AgentCapacityBanner({ agentId }: { agentId?: string }) {
         Collect on existing rent to grow your headroom.
       </p>
     </div>
+    </>
   );
 }
 
@@ -184,6 +215,9 @@ function formatCurrencyInput(raw: string): string {
 
 export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, prefillTenantName, prefillTenantPhone, prefillRentAmount }: AgentRentRequestDialogProps) {
   const { user } = useAuth();
+  const capIds = useMemo(() => (user?.id ? [user.id] : []), [user?.id]);
+  const { data: capMap } = useAgentCapacityMap(capIds);
+  const myCap = user?.id ? capMap?.get(user.id) : undefined;
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [activationLink, setActivationLink] = useState<string | null>(null);
@@ -527,6 +561,19 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
     if (!user) {
       toast.error('You must be signed in to submit a request');
+      return;
+    }
+    // Daily Eligibility Law: block posting if yesterday < 20% of expected daily.
+    if (myCap && myCap.daily_status === 'blocked') {
+      const threshold = Math.round(DAILY_ELIGIBILITY_THRESHOLD * 100);
+      const ypct = Math.round(myCap.yesterday_response_pct * 100);
+      const msg =
+        `Blocked from posting new rent requests today. ` +
+        `Yesterday you collected ${ypct}% of your expected daily rent ` +
+        `(UGX ${formatUGX(myCap.paid_yesterday)} of UGX ${formatUGX(myCap.expected_daily)}). ` +
+        `Collect at least ${threshold}% today to be unblocked and rated Good tomorrow.`;
+      setSubmissionError(msg);
+      toast.error('Blocked today', { description: msg });
       return;
     }
     if (!fees) {
