@@ -1286,6 +1286,10 @@ export function EmailTransactionsPanel() {
     .filter(Boolean);
   const matchesSearch = (r: GmailTx): boolean => {
     if (searchTokens.length === 0) return true;
+    const matched = userMatches[r.id] ?? [];
+    const matchedHay = matched
+      .flatMap((u) => [u.full_name ?? '', u.phone ?? '', u.id ?? ''])
+      .join(' ');
     const hay = [
       r.transaction_id ?? '',
       r.subject ?? '',
@@ -1298,6 +1302,7 @@ export function EmailTransactionsPanel() {
       r.amount != null ? String(Math.round(r.amount)) : '',
       r.gmail_message_id ?? '',
       r.internal_date ?? '',
+      matchedHay,
     ].join(' ').toLowerCase();
     return searchTokens.every((t) => hay.includes(t));
   };
