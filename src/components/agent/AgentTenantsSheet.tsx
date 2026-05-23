@@ -936,6 +936,40 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         <>
         {/* ───── Header (scrolls with the rest of the page) ───── */}
         <div className="bg-background/95 border-b border-border/50 px-4 pt-4 pb-3 space-y-3 shrink-0">
+          {/* Static educational card: how advance limit grows from tenant allocations */}
+          <div className="rounded-2xl p-4 bg-gradient-to-br from-purple-600 via-purple-700 to-fuchsia-700 text-white shadow-lg shadow-purple-900/20 border border-purple-400/30">
+            <div className="flex items-start gap-3">
+              <div className="h-9 w-9 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center shrink-0 ring-1 ring-white/20">
+                <TrendingUp className="h-5 w-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[11px] uppercase tracking-wider font-bold text-purple-100/90">
+                  How your Agent Advance grows
+                </div>
+                <div className="text-sm font-semibold leading-snug mt-0.5">
+                  Every shilling you allocate to a tenant&apos;s rent adds <span className="font-extrabold">2×</span> that amount to your Agent Advance limit.
+                </div>
+                <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+                  <div className="rounded-lg bg-white/10 px-2 py-1.5">
+                    <div className="text-[10px] text-purple-100/80 font-medium">You allocate</div>
+                    <div className="text-xs font-bold">UGX 100K</div>
+                  </div>
+                  <div className="rounded-lg bg-white/10 px-2 py-1.5">
+                    <div className="text-[10px] text-purple-100/80 font-medium">Limit grows by</div>
+                    <div className="text-xs font-bold">+ UGX 200K</div>
+                  </div>
+                  <div className="rounded-lg bg-white/15 px-2 py-1.5 ring-1 ring-white/25">
+                    <div className="text-[10px] text-purple-100/80 font-medium">Max cap</div>
+                    <div className="text-xs font-bold">UGX 30M</div>
+                  </div>
+                </div>
+                <div className="text-[11px] text-purple-100/85 mt-2 leading-snug">
+                  The bonus stays on your account — keep paying tenants from float to unlock a bigger advance.
+                </div>
+              </div>
+            </div>
+          </div>
+
           <SheetHeader className="pb-0">
             <SheetTitle className="flex items-center justify-between">
               <div className="flex items-center gap-2">
