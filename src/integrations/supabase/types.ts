@@ -4360,6 +4360,63 @@ export type Database = {
           },
         ]
       }
+      credit_limit_reconciliation_alerts: {
+        Row: {
+          bonus_drift: number
+          cached_bonus_allocations: number
+          cached_float: number
+          cached_total_limit: number
+          details: Json
+          detected_at: string
+          expected_bonus_allocations: number
+          expected_total_limit: number
+          float_drift: number
+          id: string
+          ledger_float: number
+          limit_drift: number
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          user_id: string
+        }
+        Insert: {
+          bonus_drift?: number
+          cached_bonus_allocations?: number
+          cached_float?: number
+          cached_total_limit?: number
+          details?: Json
+          detected_at?: string
+          expected_bonus_allocations?: number
+          expected_total_limit?: number
+          float_drift?: number
+          id?: string
+          ledger_float?: number
+          limit_drift?: number
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          user_id: string
+        }
+        Update: {
+          bonus_drift?: number
+          cached_bonus_allocations?: number
+          cached_float?: number
+          cached_total_limit?: number
+          details?: Json
+          detected_at?: string
+          expected_bonus_allocations?: number
+          expected_total_limit?: number
+          float_drift?: number
+          id?: string
+          ledger_float?: number
+          limit_drift?: number
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       credit_request_details: {
         Row: {
           agent_id: string | null
@@ -15116,6 +15173,13 @@ export type Database = {
         Returns: string
       }
       derive_welile_ai_id: { Args: { p_user_id: string }; Returns: string }
+      detect_credit_limit_reconciliation_drift: {
+        Args: never
+        Returns: {
+          inserted_alerts: number
+          scanned_users: number
+        }[]
+      }
       detect_deposit_guardrail_alerts: {
         Args: never
         Returns: {
