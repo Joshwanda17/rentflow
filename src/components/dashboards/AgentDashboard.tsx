@@ -828,6 +828,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           setFieldCollectOpen(true);
         }}
         onViewTenants={() => { setMenuOpen(false); setTenantsSheetOpen(true); }}
+        onViewCreditAccess={() => { setMenuOpen(false); setCreditOpen(true); }}
         onInvestForPartner={() => { setMenuOpen(false); setInvestForPartnerOpen(true); }}
         onViewProxyHistory={() => { setMenuOpen(false); setProxyHistoryOpen(true); }}
         onIssueReceipt={() => { setMenuOpen(false); setReceiptOpen(true); }}
