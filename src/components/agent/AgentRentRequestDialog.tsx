@@ -8,7 +8,7 @@ import { GuarantorConsentCheckbox } from '@/components/agent/GuarantorConsentChe
 import { LandlordSearchSelect, type LandlordOption } from '@/components/agent/LandlordSearchSelect';
 import RegisterLandlordDialog from '@/components/agent/RegisterLandlordDialog';
 import { useAuth } from '@/hooks/useAuth';
-import { useAgentCapacityMap, DAILY_ELIGIBILITY_THRESHOLD } from '@/hooks/useAgentCapacityMap';
+import { useAgentCapacityMap, DAILY_ELIGIBILITY_THRESHOLD, PAUSE_DAILY_ELIGIBILITY } from '@/hooks/useAgentCapacityMap';
 import { DailyRatingThresholdPopover } from '@/components/shared/DailyRatingThresholdPopover';
 import {
   Dialog,
@@ -133,6 +133,13 @@ function AgentCapacityBanner({ agentId }: { agentId?: string }) {
 
   const threshold = Math.round(DAILY_ELIGIBILITY_THRESHOLD * 100);
 
+  const pausedBanner = PAUSE_DAILY_ELIGIBILITY ? (
+    <div className="rounded-xl border border-primary/30 bg-primary/5 p-2 mb-2">
+      <p className="text-[10px] font-semibold text-primary uppercase tracking-wide">Daily Eligibility Law — Paused</p>
+      <p className="text-[10px] text-muted-foreground">Posting is currently unrestricted. Stats below are for informational purposes only.</p>
+    </div>
+  ) : null;
+
   const dailyBanner = (() => {
     if (!cap || cap.daily_status === 'starter') return null;
     const rating = cap.daily_rating;
@@ -206,6 +213,7 @@ function AgentCapacityBanner({ agentId }: { agentId?: string }) {
 
   return (
     <>
+      {pausedBanner}
       {dailyBanner}
       <div className={`rounded-xl border p-3 ${tone}`}>
         <div className="flex items-center justify-between text-xs font-semibold mb-1.5">
@@ -614,7 +622,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       return;
     }
     // Daily Eligibility Law: block posting if yesterday < 20% of expected daily.
-    if (myCap && myCap.daily_status === 'blocked') {
+    // PAUSED (2026-05-24): Enforcement temporarily disabled. Keep code for re-activation.
+    if (!PAUSE_DAILY_ELIGIBILITY && myCap && myCap.daily_status === 'blocked') {
       const threshold = Math.round(DAILY_ELIGIBILITY_THRESHOLD * 100);
       const ypct = Math.round(myCap.yesterday_response_pct * 100);
       const msg =
