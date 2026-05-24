@@ -192,5 +192,33 @@ export function useCreditAccessLimit(userId: string | undefined) {
     return () => window.removeEventListener(REFRESH_EVENT, handler);
   }, [userId, fetchLimit]);
 
+  // Cross-device realtime: subscribe to changes on the user's
+  // `credit_access_limits` row. Whenever the backend recomputes the limit
+  // (allocation, repayment, bonus job, manual recalc on another device),
+  // every open session/device for this user refreshes its card instantly.
+  // We never trust payload.new — we always re-fetch via the canonical path.
+  useEffect(() => {
+    if (!userId) return;
+    const channel = supabase
+      .channel(`credit-limit-${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'credit_access_limits',
+          filter: `user_id=eq.${userId}`,
+        },
+        () => {
+          limitCache.delete(userId);
+          fetchLimit();
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId, fetchLimit]);
+
   return { limit, loading, refreshLimit: fetchLimit };
 }
