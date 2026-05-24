@@ -354,7 +354,8 @@ export function useAgentCapacityMap(agentIds: string[]) {
         if (exp.count <= 0) daily_status = 'starter';
         else if (effective_daily_pct >= DAILY_ELIGIBILITY_THRESHOLD) daily_status = 'good';
         else daily_status = 'blocked';
-        const can_post_rent_today = daily_status !== 'blocked';
+        // PAUSED: always allow posting regardless of daily status
+        const can_post_rent_today = PAUSE_DAILY_ELIGIBILITY || daily_status !== 'blocked';
         const daily_rating = classifyDailyRating(exp.count, effective_daily_pct);
         out.set(id, {
           used: exp.used,
