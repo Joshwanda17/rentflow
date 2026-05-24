@@ -968,6 +968,23 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
             <div aria-hidden className="pointer-events-none absolute -bottom-20 -left-10 h-40 w-40 rounded-full bg-purple-300/20 blur-3xl" />
 
             <div className="relative">
+              {/* Floating "+UGX X added" badge — appears the instant the
+                  borrow limit increases after an allocation. */}
+              <AnimatePresence>
+                {limitBump && (
+                  <motion.div
+                    key={limitBump.id}
+                    initial={{ opacity: 0, y: 10, scale: 0.85 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -24, scale: 0.9 }}
+                    transition={{ type: 'spring', stiffness: 320, damping: 20 }}
+                    className="absolute -top-2 right-0 z-10 inline-flex items-center gap-1 rounded-full bg-emerald-400 text-emerald-950 font-extrabold text-xs px-3 py-1.5 shadow-lg shadow-emerald-900/40 ring-2 ring-white/70"
+                  >
+                    <TrendingUp className="h-3.5 w-3.5" />
+                    + {formatCreditAmount(limitBump.amount)} added
+                  </motion.div>
+                )}
+              </AnimatePresence>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="h-8 w-8 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center ring-1 ring-white/25">
