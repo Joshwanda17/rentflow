@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useAgentLandlordFloat } from '@/hooks/useAgentLandlordFloat';
+import { invalidateCreditAccessLimit } from '@/hooks/useCreditAccessLimit';
 import { formatUGX } from '@/lib/rentCalculations';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { useOffline } from '@/contexts/OfflineContext';
@@ -170,6 +171,9 @@ export function AgentTenantCollectDialog({
       setResult(res);
       setConfirming(false);
       refetchBalances();
+      // Refresh the agent's "advance you can access" card so the new
+      // allocation (and its commission/bonus) is reflected immediately.
+      invalidateCreditAccessLimit(user.id);
       // Today vs Expected report (self-card + executive fleet panel) is
       // driven by `repayments` rows the RPC just inserted — invalidate
       // BOTH cached queries so the new allocation shows up immediately.
