@@ -21,8 +21,14 @@ export const AGENT_RENT_CAP_UGX = 100_000_000;
  *
  *   Agents with no active rent collections yet (Starter)
  *   are always allowed to post their first request.
+ *
+ *   PAUSED (2026-05-24): Daily eligibility law is temporarily
+ *   disabled. can_post_rent_today is always true while this flag
+ *   is set. All daily stats (rating, percentages) continue to
+ *   compute for informational display.
  */
 export const DAILY_ELIGIBILITY_THRESHOLD = 0.20;
+export const PAUSE_DAILY_ELIGIBILITY = true;
 
 /**
  * Daily rating tiers based on the BEST of yesterday's and today's
