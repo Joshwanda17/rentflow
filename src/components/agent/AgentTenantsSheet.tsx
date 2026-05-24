@@ -970,7 +970,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               {/* BIG live number */}
               <div className="mt-3">
                 <div className="text-[11px] font-medium text-purple-100/85">
-                  Your current advance available
+                  Money you can borrow today
                 </div>
                 <AnimatePresence mode="popLayout" initial={false}>
                   <motion.div
@@ -987,7 +987,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                   </motion.div>
                 </AnimatePresence>
                 <div className="text-[11px] text-purple-100/85 mt-1.5 leading-snug">
-                  Grows the moment you allocate to a tenant — every shilling adds <span className="font-extrabold text-white">2×</span> to your limit.
+                  Pay 1,000 for a tenant, you can borrow <span className="font-extrabold text-white">2,000</span>. Pay more, borrow more.
                 </div>
               </div>
 
@@ -1002,24 +1002,24 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                   />
                 </div>
                 <div className="flex items-center justify-between mt-1 text-[10px] text-purple-100/80 font-medium">
-                  <span>UGX 30K start</span>
-                  <span>Cap UGX 30M</span>
+                  <span>Start UGX 30,000</span>
+                  <span>Up to UGX 30M</span>
                 </div>
               </div>
 
               {/* Live mini-stats */}
               <div className="mt-3 grid grid-cols-3 gap-2 text-center">
                 <div className="rounded-lg bg-white/10 px-2 py-1.5 ring-1 ring-white/10">
-                  <div className="text-[10px] text-purple-100/80 font-medium">Allocated</div>
+                  <div className="text-[10px] text-purple-100/80 font-medium">You paid for tenants</div>
                   <div className="text-xs font-bold tabular-nums">{formatCreditAmount(allocatedTotal)}</div>
                 </div>
                 <div className="rounded-lg bg-white/10 px-2 py-1.5 ring-1 ring-white/10">
-                  <div className="text-[10px] text-purple-100/80 font-medium">Bonus earned</div>
+                  <div className="text-[10px] text-purple-100/80 font-medium">Added to your borrow</div>
                   <div className="text-xs font-bold tabular-nums text-emerald-100">+ {formatCreditAmount(bonusFromAlloc)}</div>
                 </div>
                 <div className="rounded-lg bg-white/15 px-2 py-1.5 ring-1 ring-white/25">
-                  <div className="text-[10px] text-purple-100/80 font-medium">Multiplier</div>
-                  <div className="text-xs font-bold">2×</div>
+                  <div className="text-[10px] text-purple-100/80 font-medium">Every 1,000</div>
+                  <div className="text-xs font-bold">= 2,000</div>
                 </div>
               </div>
 
@@ -1030,10 +1030,10 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                 style={{ touchAction: 'manipulation', minHeight: 48 }}
               >
                 <Zap className="h-4 w-4" />
-                Apply for Agent Advance
+                Get Money Now
               </button>
               <div className="text-[10px] text-purple-100/70 text-center mt-1.5">
-                Funds land in your wallet · instant approval up to your limit
+                Money goes straight to your wallet. Fast. No long forms.
               </div>
             </div>
           </div>
