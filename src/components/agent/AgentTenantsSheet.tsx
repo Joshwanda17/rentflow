@@ -33,6 +33,9 @@ import { TenantFieldCollectDialog } from './TenantFieldCollectDialog';
 import { AgentRequestPipelineView } from './AgentRequestPipelineView';
 import { MarkNotFundedDialog } from './MarkNotFundedDialog';
 import { AgentRentCapacitySelfCard } from './AgentRentCapacitySelfCard';
+import { useCreditAccessLimit, formatCreditAmount } from '@/hooks/useCreditAccessLimit';
+import { AgentAdvanceRequestForm } from './AgentAdvanceRequestForm';
+import { Sparkles, Zap } from 'lucide-react';
 
 interface Tenant {
   id: string;
@@ -207,6 +210,12 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const { user } = useAuth();
   const { toast } = useToast();
   const [view, setView] = useState<'tenants' | 'pipeline'>('tenants');
+  const [applyAdvanceOpen, setApplyAdvanceOpen] = useState(false);
+  const { limit: advanceLimit, loading: advanceLoading } = useCreditAccessLimit(user?.id);
+  const allocatedTotal = Math.max(0, Math.round((advanceLimit.bonusFromAgentAllocations || 0) / 2));
+  const bonusFromAlloc = advanceLimit.bonusFromAgentAllocations || 0;
+  const MAX_CAP = 30_000_000;
+  const capProgress = Math.min(100, (advanceLimit.totalLimit / MAX_CAP) * 100);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState(() => loadPrefs().search ?? '');
