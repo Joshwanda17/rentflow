@@ -216,6 +216,22 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const bonusFromAlloc = advanceLimit.bonusFromAgentAllocations || 0;
   const MAX_CAP = 30_000_000;
   const capProgress = Math.min(100, (advanceLimit.totalLimit / MAX_CAP) * 100);
+  // Track increases to the borrow limit so we can flash a "+UGX X added"
+  // badge over the hero card the instant an allocation lands.
+  const prevLimitRef = useRef<number | null>(null);
+  const [limitBump, setLimitBump] = useState<{ amount: number; id: number } | null>(null);
+  useEffect(() => {
+    const current = advanceLimit.totalLimit || 0;
+    const prev = prevLimitRef.current;
+    if (prev !== null && current > prev) {
+      const delta = current - prev;
+      setLimitBump({ amount: delta, id: Date.now() });
+      const t = setTimeout(() => setLimitBump(null), 3800);
+      prevLimitRef.current = current;
+      return () => clearTimeout(t);
+    }
+    prevLimitRef.current = current;
+  }, [advanceLimit.totalLimit]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState(() => loadPrefs().search ?? '');
