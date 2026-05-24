@@ -622,7 +622,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       return;
     }
     // Daily Eligibility Law: block posting if yesterday < 20% of expected daily.
-    if (myCap && myCap.daily_status === 'blocked') {
+    // PAUSED (2026-05-24): Enforcement temporarily disabled. Keep code for re-activation.
+    if (!PAUSE_DAILY_ELIGIBILITY && myCap && myCap.daily_status === 'blocked') {
       const threshold = Math.round(DAILY_ELIGIBILITY_THRESHOLD * 100);
       const ypct = Math.round(myCap.yesterday_response_pct * 100);
       const msg =
