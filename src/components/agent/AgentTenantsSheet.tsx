@@ -944,7 +944,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-[11px] uppercase tracking-wider font-bold text-purple-100/90">
-                  How your Agent Advance grows
+                  Welile agent advance
                 </div>
                 <div className="text-sm font-semibold leading-snug mt-0.5">
                   Every shilling you allocate to a tenant&apos;s rent adds <span className="font-extrabold">2×</span> that amount to your Agent Advance limit.
