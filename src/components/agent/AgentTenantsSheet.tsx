@@ -219,14 +219,14 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   // Track increases to the borrow limit so we can flash a "+UGX X added"
   // badge over the hero card the instant an allocation lands.
   const prevLimitRef = useRef<number | null>(null);
-  const [limitBump, setLimitBump] = useState<{ amount: number; id: number } | null>(null);
+  const [limitBump, setLimitBump] = useState<{ amount: number; id: number; prev: number; next: number } | null>(null);
   useEffect(() => {
     const current = advanceLimit.totalLimit || 0;
     const prev = prevLimitRef.current;
     if (prev !== null && current > prev) {
       const delta = current - prev;
-      setLimitBump({ amount: delta, id: Date.now() });
-      const t = setTimeout(() => setLimitBump(null), 3800);
+      setLimitBump({ amount: delta, id: Date.now(), prev, next: current });
+      const t = setTimeout(() => setLimitBump(null), 7000);
       prevLimitRef.current = current;
       return () => clearTimeout(t);
     }
@@ -1023,6 +1023,47 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                   Pay 1,000 for a tenant, you can borrow <span className="font-extrabold text-white">2,000</span>. Pay more, borrow more.
                 </div>
               </div>
+
+              {/* Allocation breakdown — appears right after each allocation
+                  with the exact UGX unlocked and the new borrow limit. */}
+              <AnimatePresence>
+                {limitBump && (
+                  <motion.div
+                    key={`bd-${limitBump.id}`}
+                    initial={{ opacity: 0, y: 8, height: 0 }}
+                    animate={{ opacity: 1, y: 0, height: 'auto' }}
+                    exit={{ opacity: 0, y: -4, height: 0 }}
+                    transition={{ type: 'spring', stiffness: 240, damping: 24 }}
+                    className="mt-3 rounded-xl bg-emerald-50/95 text-emerald-950 ring-2 ring-emerald-300 shadow-lg shadow-emerald-900/20 overflow-hidden"
+                  >
+                    <div className="px-3 py-2.5">
+                      <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-emerald-700">
+                        <Sparkles className="h-3.5 w-3.5" />
+                        Just unlocked
+                      </div>
+                      <div className="mt-1 flex items-baseline justify-between gap-2">
+                        <div>
+                          <div className="text-[10px] font-semibold text-emerald-800/80">You unlocked</div>
+                          <div className="text-xl font-extrabold tabular-nums text-emerald-700">
+                            + {formatCreditAmount(limitBump.amount)}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-[10px] font-semibold text-emerald-800/80">New borrow limit</div>
+                          <div className="text-xl font-extrabold tabular-nums text-emerald-900">
+                            {formatCreditAmount(limitBump.next)}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-1.5 flex items-center gap-1 text-[10px] font-medium text-emerald-800/80 tabular-nums">
+                        <span>{formatCreditAmount(limitBump.prev)}</span>
+                        <TrendingUp className="h-3 w-3" />
+                        <span className="font-bold text-emerald-700">{formatCreditAmount(limitBump.next)}</span>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {/* Progress to cap */}
               <div className="mt-3">
