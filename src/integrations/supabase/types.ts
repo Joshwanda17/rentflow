@@ -1210,6 +1210,45 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_daily_eligibility_history: {
+        Row: {
+          active_count: number
+          agent_id: string
+          created_at: string
+          day: string
+          expected_daily: number
+          paid: number
+          rating: string
+          ratio: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          active_count?: number
+          agent_id: string
+          created_at?: string
+          day: string
+          expected_daily?: number
+          paid?: number
+          rating: string
+          ratio?: number
+          status: string
+          updated_at?: string
+        }
+        Update: {
+          active_count?: number
+          agent_id?: string
+          created_at?: string
+          day?: string
+          expected_daily?: number
+          paid?: number
+          rating?: string
+          ratio?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       agent_delivery_confirmations: {
         Row: {
           agent_id: string
@@ -14749,6 +14788,10 @@ export type Database = {
       }
     }
     Functions: {
+      _classify_daily_rating: {
+        Args: { p_active_count: number; p_ratio: number }
+        Returns: string
+      }
       _test_proxy_capability_sync: {
         Args: never
         Returns: {
@@ -16420,6 +16463,10 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      snapshot_agent_daily_eligibility: {
+        Args: { p_days?: number }
+        Returns: number
+      }
       snapshot_wallet_ledger_baseline: {
         Args: never
         Returns: {
