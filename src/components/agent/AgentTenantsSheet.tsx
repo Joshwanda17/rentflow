@@ -216,6 +216,22 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const bonusFromAlloc = advanceLimit.bonusFromAgentAllocations || 0;
   const MAX_CAP = 30_000_000;
   const capProgress = Math.min(100, (advanceLimit.totalLimit / MAX_CAP) * 100);
+  // Track increases to the borrow limit so we can flash a "+UGX X added"
+  // badge over the hero card the instant an allocation lands.
+  const prevLimitRef = useRef<number | null>(null);
+  const [limitBump, setLimitBump] = useState<{ amount: number; id: number } | null>(null);
+  useEffect(() => {
+    const current = advanceLimit.totalLimit || 0;
+    const prev = prevLimitRef.current;
+    if (prev !== null && current > prev) {
+      const delta = current - prev;
+      setLimitBump({ amount: delta, id: Date.now() });
+      const t = setTimeout(() => setLimitBump(null), 3800);
+      prevLimitRef.current = current;
+      return () => clearTimeout(t);
+    }
+    prevLimitRef.current = current;
+  }, [advanceLimit.totalLimit]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState(() => loadPrefs().search ?? '');
@@ -952,6 +968,23 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
             <div aria-hidden className="pointer-events-none absolute -bottom-20 -left-10 h-40 w-40 rounded-full bg-purple-300/20 blur-3xl" />
 
             <div className="relative">
+              {/* Floating "+UGX X added" badge — appears the instant the
+                  borrow limit increases after an allocation. */}
+              <AnimatePresence>
+                {limitBump && (
+                  <motion.div
+                    key={limitBump.id}
+                    initial={{ opacity: 0, y: 10, scale: 0.85 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -24, scale: 0.9 }}
+                    transition={{ type: 'spring', stiffness: 320, damping: 20 }}
+                    className="absolute -top-2 right-0 z-10 inline-flex items-center gap-1 rounded-full bg-emerald-400 text-emerald-950 font-extrabold text-xs px-3 py-1.5 shadow-lg shadow-emerald-900/40 ring-2 ring-white/70"
+                  >
+                    <TrendingUp className="h-3.5 w-3.5" />
+                    + {formatCreditAmount(limitBump.amount)} added
+                  </motion.div>
+                )}
+              </AnimatePresence>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="h-8 w-8 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center ring-1 ring-white/25">
