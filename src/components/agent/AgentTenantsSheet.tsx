@@ -25,6 +25,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { downloadRepaymentPdf, shareRepaymentPdfWhatsApp } from '@/lib/repaymentSchedulePdf';
 import { downloadRentStatement, buildRentStatementWhatsApp } from '@/lib/receiptPdf';
 import { useToast } from '@/hooks/use-toast';
+import { toast as sonnerToast } from 'sonner';
 import AgentRentRequestDialog from './AgentRentRequestDialog';
 import { AgentTenantCollectDialog } from './AgentTenantCollectDialog';
 import { TenantBehaviorCard } from './TenantBehaviorCard';
@@ -225,7 +226,12 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     const prev = prevLimitRef.current;
     if (prev !== null && current > prev) {
       const delta = current - prev;
+      const refId = `WID-${Date.now().toString(36).toUpperCase()}`;
       setLimitBump({ amount: delta, id: Date.now(), prev, next: current });
+      sonnerToast.success(
+        `You unlocked ${formatCreditAmount(delta)} extra credit`,
+        { description: `Ref: ${refId}`, duration: 5000 }
+      );
       const t = setTimeout(() => setLimitBump(null), 7000);
       prevLimitRef.current = current;
       return () => clearTimeout(t);
