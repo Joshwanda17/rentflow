@@ -135,6 +135,12 @@ function AgentCapacityBanner({ agentId }: { agentId?: string }) {
 
   const dailyBanner = (() => {
     if (!cap || cap.daily_status === 'starter') return null;
+    const pausedBanner = PAUSE_DAILY_ELIGIBILITY ? (
+      <div className="rounded-xl border border-primary/30 bg-primary/5 p-2 mb-2">
+        <p className="text-[10px] font-semibold text-primary uppercase tracking-wide">Daily Eligibility Law — Paused</p>
+        <p className="text-[10px] text-muted-foreground">Posting is currently unrestricted. Stats below are for informational purposes only.</p>
+      </div>
+    ) : null;
     const rating = cap.daily_rating;
     const ypct = Math.round(cap.yesterday_response_pct * 100);
     const tpct = Math.round(cap.today_response_pct * 100);
