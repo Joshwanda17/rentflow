@@ -74,6 +74,25 @@ function saveToLS(userId: string, data: CreditAccessLimit) {
   }
 }
 
+// Event name fired whenever an action (e.g. agent float allocation) should
+// force the credit-access limit card to recompute from the server.
+const REFRESH_EVENT = 'credit-access-limit:refresh';
+
+/**
+ * Invalidate cached credit-access limit for a user and signal all live
+ * `useCreditAccessLimit` hook instances to refetch immediately. Call this
+ * after any action that changes the agent's effective advance limit
+ * (allocations, repayments, bonuses, etc.).
+ */
+export function invalidateCreditAccessLimit(userId: string | undefined) {
+  if (!userId) return;
+  limitCache.delete(userId);
+  try { localStorage.removeItem(lsKey(userId)); } catch { /* ignore */ }
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(REFRESH_EVENT, { detail: { userId } }));
+  }
+}
+
 export function useCreditAccessLimit(userId: string | undefined) {
   const cached = userId ? limitCache.get(userId) : undefined;
   const persisted = userId ? loadFromLS(userId) : null;
@@ -157,6 +176,21 @@ export function useCreditAccessLimit(userId: string | undefined) {
   useEffect(() => {
     fetchLimit();
   }, [fetchLimit]);
+
+  // Listen for global "refresh" pings so the card updates the instant an
+  // allocation (or any other limit-changing action) completes.
+  useEffect(() => {
+    if (!userId || typeof window === 'undefined') return;
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { userId?: string } | undefined;
+      if (!detail?.userId || detail.userId === userId) {
+        limitCache.delete(userId);
+        fetchLimit();
+      }
+    };
+    window.addEventListener(REFRESH_EVENT, handler);
+    return () => window.removeEventListener(REFRESH_EVENT, handler);
+  }, [userId, fetchLimit]);
 
   return { limit, loading, refreshLimit: fetchLimit };
 }
