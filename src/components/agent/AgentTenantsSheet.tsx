@@ -226,7 +226,12 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     const prev = prevLimitRef.current;
     if (prev !== null && current > prev) {
       const delta = current - prev;
+      const refId = `WID-${Date.now().toString(36).toUpperCase()}`;
       setLimitBump({ amount: delta, id: Date.now(), prev, next: current });
+      sonnerToast.success(
+        `You unlocked ${formatCreditAmount(delta)} extra credit`,
+        { description: `Ref: ${refId}`, duration: 500０ }
+      );
       const t = setTimeout(() => setLimitBump(null), 7000);
       prevLimitRef.current = current;
       return () => clearTimeout(t);
