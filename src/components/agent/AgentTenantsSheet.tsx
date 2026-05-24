@@ -2254,6 +2254,11 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           )}
         </DialogContent>
       </Dialog>
+
+      <AgentAdvanceRequestForm
+        open={applyAdvanceOpen}
+        onOpenChange={setApplyAdvanceOpen}
+      />
     </Sheet>
   );
 }
