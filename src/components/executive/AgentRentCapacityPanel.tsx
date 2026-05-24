@@ -491,10 +491,14 @@ function CapacityRow({
   const todayPct = row.expected_daily > 0
     ? Math.min(100, Math.round((row.paid_today / row.expected_daily) * 100))
     : 0;
+  const yesterdayPct = row.expected_daily > 1
+    ? Math.min(100, Math.round((row.paid_yesterday / row.expected_daily) * 100))
+    : 0;
   const weekPct = expectedWeek > 0
     ? Math.min(100, Math.round((row.paid_last_week / expectedWeek) * 100))
     : 0;
   const todayTone = todayPct >= 100 ? 'text-emerald-700' : todayPct >= 50 ? 'text-amber-700' : 'text-destructive';
+  const yesterdayTone = yesterdayPct >= 100 ? 'text-emerald-700' : yesterdayPct >= 50 ? 'text-amber-700' : 'text-destructive';
   const weekTone = weekPct >= 100 ? 'text-emerald-700' : weekPct >= 50 ? 'text-amber-700' : 'text-destructive';
 
   const handlePrint = async (e: React.MouseEvent) => {
