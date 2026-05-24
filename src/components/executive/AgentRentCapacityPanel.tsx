@@ -491,10 +491,14 @@ function CapacityRow({
   const todayPct = row.expected_daily > 0
     ? Math.min(100, Math.round((row.paid_today / row.expected_daily) * 100))
     : 0;
+  const yesterdayPct = row.expected_daily > 1
+    ? Math.min(100, Math.round((row.paid_yesterday / row.expected_daily) * 100))
+    : 0;
   const weekPct = expectedWeek > 0
     ? Math.min(100, Math.round((row.paid_last_week / expectedWeek) * 100))
     : 0;
   const todayTone = todayPct >= 100 ? 'text-emerald-700' : todayPct >= 50 ? 'text-amber-700' : 'text-destructive';
+  const yesterdayTone = yesterdayPct >= 100 ? 'text-emerald-700' : yesterdayPct >= 50 ? 'text-amber-700' : 'text-destructive';
   const weekTone = weekPct >= 100 ? 'text-emerald-700' : weekPct >= 50 ? 'text-amber-700' : 'text-destructive';
 
   const handlePrint = async (e: React.MouseEvent) => {
@@ -512,13 +516,13 @@ function CapacityRow({
         expected_tenant_days: row.expected_tenant_days,
         paid_last_week: row.paid_last_week,
         paid_today: row.paid_today,
-        paid_yesterday: 0,
-        yesterday_response_pct: 0,
-        today_response_pct: 0,
-        effective_daily_pct: 0,
-        daily_status: 'starter',
-        daily_rating: 'Starter',
-        can_post_rent_today: true,
+        paid_yesterday: row.paid_yesterday,
+        yesterday_response_pct: row.expected_daily > 1 ? row.paid_yesterday / row.expected_daily : 0,
+        today_response_pct: row.expected_daily > 1 ? row.paid_today / row.expected_daily : 0,
+        effective_daily_pct: row.expected_daily > 1 ? row.paid_today / row.expected_daily : 0,
+        daily_status: row.daily_status,
+        daily_rating: row.daily_rating,
+        can_post_rent_today: row.daily_status !== 'blocked',
         expected_daily: row.expected_daily,
         repayment_rate: row.response_rate,
         expected_weekly: 0,
@@ -622,7 +626,7 @@ function CapacityRow({
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-1.5 mt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 mt-2">
             <div className="rounded-lg border border-border bg-background/70 p-2">
               <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Today</div>
               <div className={`text-[12px] font-extrabold tabular-nums ${todayTone}`}>
@@ -630,6 +634,14 @@ function CapacityRow({
                 <span className="text-muted-foreground font-semibold"> / {formatUGX(row.expected_daily)}</span>
               </div>
               <div className="text-[10px] text-muted-foreground">{todayPct}% of daily target</div>
+            </div>
+            <div className="rounded-lg border border-border bg-background/70 p-2">
+              <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Yesterday</div>
+              <div className={`text-[12px] font-extrabold tabular-nums ${yesterdayTone}`}>
+                {formatUGX(row.paid_yesterday)}
+                <span className="text-muted-foreground font-semibold"> / {formatUGX(row.expected_daily)}</span>
+              </div>
+              <div className="text-[10px] text-muted-foreground">{yesterdayPct}% of daily target</div>
             </div>
             <div className="rounded-lg border border-border bg-background/70 p-2">
               <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">This week (7d)</div>
