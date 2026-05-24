@@ -230,7 +230,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
       setLimitBump({ amount: delta, id: Date.now(), prev, next: current });
       sonnerToast.success(
         `You unlocked ${formatCreditAmount(delta)} extra credit`,
-        { description: `Ref: ${refId}`, duration: 500０ }
+        { description: `Ref: ${refId}`, duration: 5000 }
       );
       const t = setTimeout(() => setLimitBump(null), 7000);
       prevLimitRef.current = current;
