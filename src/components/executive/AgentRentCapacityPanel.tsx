@@ -18,6 +18,7 @@ import {
   downloadCapacityPdf,
 } from '@/lib/generateAgentCapacityPdf';
 import { DailyRatingThresholdPopover } from '@/components/shared/DailyRatingThresholdPopover';
+import { AgentEligibilityHistoryStrip } from './AgentEligibilityHistoryStrip';
 
 type AgentRow = {
   agent_id: string;
@@ -652,6 +653,8 @@ function CapacityRow({
               <div className="text-[10px] text-muted-foreground">{weekPct}% of weekly target</div>
             </div>
           </div>
+
+          <AgentEligibilityHistoryStrip agentId={row.agent_id} />
         </>
       )}
     </li>
