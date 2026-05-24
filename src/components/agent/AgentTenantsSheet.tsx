@@ -33,6 +33,9 @@ import { TenantFieldCollectDialog } from './TenantFieldCollectDialog';
 import { AgentRequestPipelineView } from './AgentRequestPipelineView';
 import { MarkNotFundedDialog } from './MarkNotFundedDialog';
 import { AgentRentCapacitySelfCard } from './AgentRentCapacitySelfCard';
+import { useCreditAccessLimit, formatCreditAmount } from '@/hooks/useCreditAccessLimit';
+import { AgentAdvanceRequestForm } from './AgentAdvanceRequestForm';
+import { Sparkles, Zap } from 'lucide-react';
 
 interface Tenant {
   id: string;
@@ -207,6 +210,12 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const { user } = useAuth();
   const { toast } = useToast();
   const [view, setView] = useState<'tenants' | 'pipeline'>('tenants');
+  const [applyAdvanceOpen, setApplyAdvanceOpen] = useState(false);
+  const { limit: advanceLimit, loading: advanceLoading } = useCreditAccessLimit(user?.id);
+  const allocatedTotal = Math.max(0, Math.round((advanceLimit.bonusFromAgentAllocations || 0) / 2));
+  const bonusFromAlloc = advanceLimit.bonusFromAgentAllocations || 0;
+  const MAX_CAP = 30_000_000;
+  const capProgress = Math.min(100, (advanceLimit.totalLimit / MAX_CAP) * 100);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState(() => loadPrefs().search ?? '');
@@ -936,36 +945,95 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         <>
         {/* ───── Header (scrolls with the rest of the page) ───── */}
         <div className="bg-background/95 border-b border-border/50 px-4 pt-4 pb-3 space-y-3 shrink-0">
-          {/* Static educational card: how advance limit grows from tenant allocations */}
-          <div className="rounded-2xl p-4 bg-gradient-to-br from-purple-600 via-purple-700 to-fuchsia-700 text-white shadow-lg shadow-purple-900/20 border border-purple-400/30">
-            <div className="flex items-start gap-3">
-              <div className="h-9 w-9 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center shrink-0 ring-1 ring-white/20">
-                <TrendingUp className="h-5 w-5" />
+          {/* HERO: Welile Agent Advance — live limit + Apply CTA */}
+          <div className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-purple-600 via-purple-700 to-fuchsia-700 text-white shadow-xl shadow-purple-900/30 border border-purple-300/40">
+            {/* Decorative glow */}
+            <div aria-hidden className="pointer-events-none absolute -top-16 -right-16 h-44 w-44 rounded-full bg-fuchsia-400/30 blur-3xl" />
+            <div aria-hidden className="pointer-events-none absolute -bottom-20 -left-10 h-40 w-40 rounded-full bg-purple-300/20 blur-3xl" />
+
+            <div className="relative">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center ring-1 ring-white/25">
+                    <Sparkles className="h-4 w-4" />
+                  </div>
+                  <div className="text-[11px] uppercase tracking-[0.18em] font-bold text-purple-100/90">
+                    Welile Agent Advance
+                  </div>
+                </div>
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/20 ring-1 ring-emerald-300/40 px-2 py-0.5 text-[10px] font-semibold text-emerald-50">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 animate-pulse" />
+                  Live
+                </span>
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-[11px] uppercase tracking-wider font-bold text-purple-100/90">
-                  Welile agent advance
+
+              {/* BIG live number */}
+              <div className="mt-3">
+                <div className="text-[11px] font-medium text-purple-100/85">
+                  Your current advance available
                 </div>
-                <div className="text-sm font-semibold leading-snug mt-0.5">
-                  Every shilling you allocate to a tenant&apos;s rent adds <span className="font-extrabold">2×</span> that amount to your Agent Advance limit.
+                <AnimatePresence mode="popLayout" initial={false}>
+                  <motion.div
+                    key={advanceLimit.totalLimit}
+                    initial={{ opacity: 0, y: 8, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                    transition={{ type: 'spring', stiffness: 260, damping: 22 }}
+                    className="text-4xl sm:text-5xl font-extrabold tracking-tight leading-none mt-1 tabular-nums"
+                  >
+                    {advanceLoading && !advanceLimit.totalLimit
+                      ? '—'
+                      : formatCreditAmount(advanceLimit.totalLimit)}
+                  </motion.div>
+                </AnimatePresence>
+                <div className="text-[11px] text-purple-100/85 mt-1.5 leading-snug">
+                  Grows the moment you allocate to a tenant — every shilling adds <span className="font-extrabold text-white">2×</span> to your limit.
                 </div>
-                <div className="mt-2 grid grid-cols-3 gap-2 text-center">
-                  <div className="rounded-lg bg-white/10 px-2 py-1.5">
-                    <div className="text-[10px] text-purple-100/80 font-medium">You allocate</div>
-                    <div className="text-xs font-bold">UGX 100K</div>
-                  </div>
-                  <div className="rounded-lg bg-white/10 px-2 py-1.5">
-                    <div className="text-[10px] text-purple-100/80 font-medium">Limit grows by</div>
-                    <div className="text-xs font-bold">+ UGX 200K</div>
-                  </div>
-                  <div className="rounded-lg bg-white/15 px-2 py-1.5 ring-1 ring-white/25">
-                    <div className="text-[10px] text-purple-100/80 font-medium">Max cap</div>
-                    <div className="text-xs font-bold">UGX 30M</div>
-                  </div>
+              </div>
+
+              {/* Progress to cap */}
+              <div className="mt-3">
+                <div className="h-1.5 w-full rounded-full bg-white/15 overflow-hidden">
+                  <motion.div
+                    initial={false}
+                    animate={{ width: `${capProgress}%` }}
+                    transition={{ type: 'spring', stiffness: 120, damping: 22 }}
+                    className="h-full bg-gradient-to-r from-amber-300 via-yellow-200 to-emerald-300"
+                  />
                 </div>
-                <div className="text-[11px] text-purple-100/85 mt-2 leading-snug">
-                  The bonus stays on your account — keep paying tenants from float to unlock a bigger advance.
+                <div className="flex items-center justify-between mt-1 text-[10px] text-purple-100/80 font-medium">
+                  <span>UGX 30K start</span>
+                  <span>Cap UGX 30M</span>
                 </div>
+              </div>
+
+              {/* Live mini-stats */}
+              <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                <div className="rounded-lg bg-white/10 px-2 py-1.5 ring-1 ring-white/10">
+                  <div className="text-[10px] text-purple-100/80 font-medium">Allocated</div>
+                  <div className="text-xs font-bold tabular-nums">{formatCreditAmount(allocatedTotal)}</div>
+                </div>
+                <div className="rounded-lg bg-white/10 px-2 py-1.5 ring-1 ring-white/10">
+                  <div className="text-[10px] text-purple-100/80 font-medium">Bonus earned</div>
+                  <div className="text-xs font-bold tabular-nums text-emerald-100">+ {formatCreditAmount(bonusFromAlloc)}</div>
+                </div>
+                <div className="rounded-lg bg-white/15 px-2 py-1.5 ring-1 ring-white/25">
+                  <div className="text-[10px] text-purple-100/80 font-medium">Multiplier</div>
+                  <div className="text-xs font-bold">2×</div>
+                </div>
+              </div>
+
+              {/* CTA */}
+              <button
+                onClick={() => setApplyAdvanceOpen(true)}
+                className="mt-3 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-white text-purple-800 font-bold text-sm px-4 py-3 shadow-lg shadow-purple-950/20 ring-1 ring-white/60 hover:bg-white/95 active:scale-[0.99] transition"
+                style={{ touchAction: 'manipulation', minHeight: 48 }}
+              >
+                <Zap className="h-4 w-4" />
+                Apply for Agent Advance
+              </button>
+              <div className="text-[10px] text-purple-100/70 text-center mt-1.5">
+                Funds land in your wallet · instant approval up to your limit
               </div>
             </div>
           </div>
@@ -2186,6 +2254,11 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           )}
         </DialogContent>
       </Dialog>
+
+      <AgentAdvanceRequestForm
+        open={applyAdvanceOpen}
+        onOpenChange={setApplyAdvanceOpen}
+      />
     </Sheet>
   );
 }
