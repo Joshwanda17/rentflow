@@ -1025,6 +1025,21 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <FinancialAgentSection open={requisitionOpen} onOpenChange={setRequisitionOpen} />
       <LendingAgentPortal open={lendingAgentOpen} onOpenChange={setLendingAgentOpen} />
 
+      {/* Rent Fee Available (Credit Access) — opened from All Menu → Earnings */}
+      <Dialog open={creditOpen} onOpenChange={setCreditOpen}>
+        <DialogContent className="w-[calc(100vw-1rem)] sm:w-full max-w-lg p-0 gap-0 max-h-[90vh] flex flex-col overflow-hidden">
+          <DialogHeader className="p-4 pb-3 border-b shrink-0">
+            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg pr-6">
+              <TrendingUp className="h-5 w-5 text-primary shrink-0" />
+              <span className="truncate">Rent Fee Available</span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="overflow-y-auto p-4">
+            <CreditAccessCard userId={user.id} />
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Cash Payouts Dialog - only rendered for cashout agents */}
       <Dialog open={cashPayoutsOpen} onOpenChange={setCashPayoutsOpen}>
         <DialogContent className="w-[calc(100vw-1rem)] sm:w-full max-w-lg p-0 gap-0 max-h-[90vh] sm:max-h-[85vh] flex flex-col overflow-hidden">
