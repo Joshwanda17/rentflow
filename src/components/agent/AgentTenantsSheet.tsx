@@ -219,14 +219,14 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   // Track increases to the borrow limit so we can flash a "+UGX X added"
   // badge over the hero card the instant an allocation lands.
   const prevLimitRef = useRef<number | null>(null);
-  const [limitBump, setLimitBump] = useState<{ amount: number; id: number } | null>(null);
+  const [limitBump, setLimitBump] = useState<{ amount: number; id: number; prev: number; next: number } | null>(null);
   useEffect(() => {
     const current = advanceLimit.totalLimit || 0;
     const prev = prevLimitRef.current;
     if (prev !== null && current > prev) {
       const delta = current - prev;
-      setLimitBump({ amount: delta, id: Date.now() });
-      const t = setTimeout(() => setLimitBump(null), 3800);
+      setLimitBump({ amount: delta, id: Date.now(), prev, next: current });
+      const t = setTimeout(() => setLimitBump(null), 7000);
       prevLimitRef.current = current;
       return () => clearTimeout(t);
     }
