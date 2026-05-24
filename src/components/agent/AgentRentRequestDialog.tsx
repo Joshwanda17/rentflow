@@ -212,6 +212,7 @@ function AgentCapacityBanner({ agentId }: { agentId?: string }) {
 
   return (
     <>
+      {pausedBanner}
       {dailyBanner}
       <div className={`rounded-xl border p-3 ${tone}`}>
         <div className="flex items-center justify-between text-xs font-semibold mb-1.5">
