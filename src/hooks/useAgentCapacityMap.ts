@@ -341,9 +341,10 @@ export function useAgentCapacityMap(agentIds: string[]) {
         const today_response_pct = dailyExpected > 0
           ? paid_today_val / dailyExpected
           : 0;
-        // Rating is driven by TODAY's collection vs today's daily target only.
-        // Yesterday's % is retained for context/reporting but does not affect the rating.
-        const effective_daily_pct = today_response_pct;
+        // Best-of-today/yesterday rule (documented law):
+        // An agent is unblocked as soon as EITHER yesterday OR today hits 20%.
+        // This gives agents a grace window after a strong evening collection run.
+        const effective_daily_pct = Math.max(today_response_pct, yesterday_response_pct);
         let daily_status: AgentCapacity['daily_status'];
         if (exp.count <= 0) daily_status = 'starter';
         else if (effective_daily_pct >= DAILY_ELIGIBILITY_THRESHOLD) daily_status = 'good';
