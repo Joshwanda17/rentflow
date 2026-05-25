@@ -655,7 +655,7 @@ export function CFOAdvanceRequestPayments() {
                       />
 
                       <Button
-                        onClick={() => payMutation.mutate(req)}
+                        onClick={() => setConfirmingId(req.id)}
                         disabled={payMutation.isPending || isPending}
                         className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white disabled:bg-muted disabled:text-muted-foreground"
                       >
