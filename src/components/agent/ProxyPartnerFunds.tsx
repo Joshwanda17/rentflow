@@ -110,6 +110,7 @@ export function ProxyPartnerFunds() {
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [prefillAmount, setPrefillAmount] = useState<number>(0);
   const [prefillReason, setPrefillReason] = useState('');
+  const [prefillPayout, setPrefillPayout] = useState<any>(null);
   const [selectedPartnerId, setSelectedPartnerId] = useState<string>('');
   const [partnerWithdrawalStatus, setPartnerWithdrawalStatus] = useState<Record<string, string>>({});
   const [partnerWithdrawalIds, setPartnerWithdrawalIds] = useState<Record<string, string>>({});
