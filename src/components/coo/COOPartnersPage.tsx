@@ -458,7 +458,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         metadata: { portfolio_id: portfolio.id, roi_amount: roiAmount, reference: refId },
       });
 
-      // Send partner-compound transactional email (fire-and-forget, non-blocking)
+      // Send partner-portfolio-compounded transactional email (fire-and-forget, non-blocking).
+      // This is an EXISTING partner compounding an active portfolio.
       try {
         // Resolve partner email (not stored on detailPartner.profile)
         const { data: profileRow } = await supabase
@@ -512,9 +513,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
           await supabase.functions.invoke('send-transactional-email', {
             body: {
-              templateName: 'partner-compound',
+              templateName: 'partner-portfolio-compounded',
               recipientEmail,
-              idempotencyKey: `partner-compound-${detailPartner.profile.id}-${portfolio.id}-${paymentNumber}`,
+              idempotencyKey: `partner-portfolio-compounded-${detailPartner.profile.id}-${portfolio.id}-${paymentNumber}`,
               templateData: {
                 partner_name: detailPartner.profile.full_name || 'Partner',
                 portfolio_id: portfolio.portfolio_code || portfolio.id,
@@ -522,7 +523,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                 initial_partnership_amount: portfolio.investment_amount,
                 roi_return: `${portfolio.roi_percentage}%`,
                 return_amount: roiAmount,
-                new_total_partnership_value: finalTotal,
+                // For existing partners we show the value AFTER this cycle
+                // (principal + return earned), matching the in-app dialog.
+                new_total_partnership_value: Number(newAmount),
                 roi_percentage: portfolio.roi_percentage,
                 payment_number: paymentNumber,
                 compound_history,
@@ -536,7 +539,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           });
         }
       } catch (emailErr) {
-        console.warn('[partner-compound] email dispatch failed (non-blocking):', emailErr);
+        console.warn('[partner-portfolio-compounded] email dispatch failed (non-blocking):', emailErr);
       }
 
       toast.success(`Compounded ${formatUGX(roiAmount)}`, { description: `New principal: ${formatUGX(newAmount)}. Ref: ${refId}` });
