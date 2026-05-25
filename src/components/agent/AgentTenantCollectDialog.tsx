@@ -440,6 +440,30 @@ export function AgentTenantCollectDialog({
                 <span className="text-success font-semibold">Your commission (10%)</span>
                 <span className="font-mono font-bold text-success">+{formatUGX(Math.round(amount * 0.10))}</span>
               </div>
+              {(() => {
+                const CAP = 30_000_000;
+                const current = Math.min(creditLimit.totalLimit, CAP);
+                const headroom = Math.max(0, CAP - current);
+                const boost = Math.min(Math.round(amount * 2), headroom);
+                const next = current + boost;
+                return (
+                  <>
+                    <div className="flex justify-between text-xs border-t border-border/40 pt-2">
+                      <span className="text-muted-foreground">Your Advance (now)</span>
+                      <span className="font-mono">{formatCreditAmount(current).trim()}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-primary font-semibold">New Advance limit</span>
+                      <span className="font-mono font-bold text-primary">
+                        {formatCreditAmount(next).trim()}
+                        {boost > 0 && (
+                          <span className="ml-1 text-success">(+{formatCreditAmount(boost).trim()})</span>
+                        )}
+                      </span>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
 
             {rpcError && (
