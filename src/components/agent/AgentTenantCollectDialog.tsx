@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useAgentLandlordFloat } from '@/hooks/useAgentLandlordFloat';
-import { invalidateCreditAccessLimit } from '@/hooks/useCreditAccessLimit';
+import { invalidateCreditAccessLimit, useCreditAccessLimit, formatCreditAmount } from '@/hooks/useCreditAccessLimit';
 import { formatUGX } from '@/lib/rentCalculations';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { useOffline } from '@/contexts/OfflineContext';
@@ -78,6 +78,7 @@ export function AgentTenantCollectDialog({
 }: AgentTenantCollectDialogProps) {
   const { user } = useAuth();
   const { floatBalance, refetch: refetchBalances } = useAgentLandlordFloat(user?.id);
+  const { limit: creditLimit } = useCreditAccessLimit(user?.id);
   const queryClient = useQueryClient();
   const { isOnline } = useOffline();
   const [amount, setAmount] = useState<number>(0);
@@ -305,9 +306,42 @@ export function AgentTenantCollectDialog({
           </DialogTitle>
         </DialogHeader>
 
-        {/* Static educational card: how Agent Advance grows from tenant allocations.
-            Mirrors the card on the My Tenants sheet so agents see the incentive
-            at the exact moment they're allocating float to a tenant's rent. */}
+        {/* Header: on the entry form it's the educational "how it grows" card.
+            On the Confirm Payment step it switches to a live readout of the
+            agent's current borrow limit and the impact of THIS allocation. */}
+        {confirming ? (() => {
+          const CAP = 30_000_000;
+          const current = Math.min(creditLimit.totalLimit, CAP);
+          const headroom = Math.max(0, CAP - current);
+          const boost = Math.min(Math.round(amount * 2), headroom);
+          const next = current + boost;
+          return (
+            <div className="rounded-2xl p-3.5 bg-gradient-to-br from-purple-600 via-purple-700 to-fuchsia-700 text-white shadow-lg shadow-purple-900/20 border border-purple-400/30">
+              <div className="text-[10px] uppercase tracking-wider font-bold text-purple-100/90">
+                Money you can borrow
+              </div>
+              <div className="mt-1 flex items-baseline gap-2">
+                <span className="text-2xl font-black font-mono leading-none">{formatCreditAmount(current).trim()}</span>
+                {boost > 0 && (
+                  <span className="text-[11px] font-bold text-emerald-200">+ {formatCreditAmount(boost).trim()}</span>
+                )}
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-1.5 text-center">
+                <div className="rounded-lg bg-white/10 px-2 py-1.5">
+                  <div className="text-[9px] text-purple-100/80 font-medium uppercase tracking-wider">This allocation adds</div>
+                  <div className="text-[12px] font-extrabold">+ {formatCreditAmount(boost).trim()}</div>
+                </div>
+                <div className="rounded-lg bg-white/15 px-2 py-1.5 ring-1 ring-white/25">
+                  <div className="text-[9px] text-purple-100/80 font-medium uppercase tracking-wider">New borrow limit</div>
+                  <div className="text-[12px] font-extrabold">{formatCreditAmount(next).trim()}</div>
+                </div>
+              </div>
+              {boost === 0 && headroom === 0 && (
+                <p className="text-[10px] text-purple-100/80 mt-1.5">You're already at the UGX 30M cap.</p>
+              )}
+            </div>
+          );
+        })() : (
         <div className="rounded-2xl p-3.5 bg-gradient-to-br from-purple-600 via-purple-700 to-fuchsia-700 text-white shadow-lg shadow-purple-900/20 border border-purple-400/30">
           <div className="flex items-start gap-3">
             <div className="h-9 w-9 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center shrink-0 ring-1 ring-white/20">
@@ -338,6 +372,7 @@ export function AgentTenantCollectDialog({
             </div>
           </div>
         </div>
+        )}
 
         {draftSaved ? (
           /* ───── Offline draft saved (provisional receipt) ───── */
@@ -405,6 +440,30 @@ export function AgentTenantCollectDialog({
                 <span className="text-success font-semibold">Your commission (10%)</span>
                 <span className="font-mono font-bold text-success">+{formatUGX(Math.round(amount * 0.10))}</span>
               </div>
+              {(() => {
+                const CAP = 30_000_000;
+                const current = Math.min(creditLimit.totalLimit, CAP);
+                const headroom = Math.max(0, CAP - current);
+                const boost = Math.min(Math.round(amount * 2), headroom);
+                const next = current + boost;
+                return (
+                  <>
+                    <div className="flex justify-between text-xs border-t border-border/40 pt-2">
+                      <span className="text-muted-foreground">Your Advance (now)</span>
+                      <span className="font-mono">{formatCreditAmount(current).trim()}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-primary font-semibold">New Advance limit</span>
+                      <span className="font-mono font-bold text-primary">
+                        {formatCreditAmount(next).trim()}
+                        {boost > 0 && (
+                          <span className="ml-1 text-success">(+{formatCreditAmount(boost).trim()})</span>
+                        )}
+                      </span>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
 
             {rpcError && (
