@@ -302,76 +302,104 @@ export function RentDisbursementQueue() {
               </div>
             )}
 
-            {/* List */}
-            <div className="space-y-1.5 max-h-[350px] overflow-y-auto">
-              {items.map(item => (
-                <div
-                  key={item.id}
-                  className={cn(
-                    'flex items-start gap-3 p-2.5 rounded-lg border text-sm transition-colors',
-                    selected.has(item.id) && 'bg-primary/5 border-primary/20'
-                  )}
-                >
-                  <Checkbox
-                    checked={selected.has(item.id)}
-                    onCheckedChange={() => toggle(item.id)}
-                    className="mt-0.5"
-                  />
-                  <div className="flex-1 min-w-0 space-y-1">
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium truncate">{item.tenant_name}</p>
-                      <span className="text-[10px] text-muted-foreground">→</span>
-                      <p className="font-medium truncate text-primary">{item.landlord_name}</p>
-                    </div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant="outline" className="text-[9px] px-1.5 py-0">
-                        <Users className="h-2.5 w-2.5 mr-0.5" />
-                        {item.agent_name}
-                      </Badge>
-                      {item.payout_target === 'landlord_wallet' ? (
-                        <Badge className="text-[9px] px-1.5 py-0 bg-emerald-100 text-emerald-700 border-emerald-200">
-                          <Wallet className="h-2.5 w-2.5 mr-0.5" />
-                          Landlord Wallet
+            {/* Helper hint */}
+            <p className="text-[11px] text-muted-foreground">
+              Tip: tick one tenant, a few, or use an agent's group toggle to fund a subset. The batch button funds only what's ticked.
+            </p>
+
+            {/* Grouped list (by agent) */}
+            <div className="space-y-3 max-h-[420px] overflow-y-auto">
+              {grouped.map(group => {
+                const groupIds = group.rows.map(r => r.id);
+                const groupSelectedCount = groupIds.filter(id => selected.has(id)).length;
+                const allGroupOn = groupSelectedCount === groupIds.length;
+                const someGroupOn = groupSelectedCount > 0 && !allGroupOn;
+                const groupTotal = group.rows.reduce((s, r) => s + r.rent_amount, 0);
+                return (
+                  <div key={group.agent_id} className="rounded-lg border">
+                    <div className="flex items-center justify-between gap-2 px-3 py-2 bg-muted/40 rounded-t-lg">
+                      <label className="flex items-center gap-2 text-sm cursor-pointer min-w-0 flex-1">
+                        <Checkbox
+                          checked={allGroupOn ? true : someGroupOn ? 'indeterminate' : false}
+                          onCheckedChange={() => toggleAgentGroup(group.rows)}
+                        />
+                        <Users className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span className="font-semibold truncate">{group.agent_name}</span>
+                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 shrink-0">
+                          {groupSelectedCount}/{group.rows.length}
                         </Badge>
-                      ) : (
-                        <Badge className="text-[9px] px-1.5 py-0 bg-amber-100 text-amber-700 border-amber-200">
-                          <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
-                          Agent Float
-                        </Badge>
-                      )}
-                      <span className="text-[10px] text-muted-foreground">
-                        {format(new Date(item.created_at), 'dd MMM')}
-                      </span>
+                      </label>
+                      <span className="text-xs font-bold text-orange-600 shrink-0">{fmt(groupTotal)}</span>
                     </div>
-                    <div className="flex items-center gap-3 text-[10px]">
-                      <span>Rent: <b className="text-orange-600">{fmt(item.rent_amount)}</b></span>
-                      <span>Fees: <b className="text-emerald-600">{fmt(item.access_fee + item.request_fee)}</b></span>
-                      <span>Repay: <b>{fmt(item.total_repayment)}</b></span>
+                    <div className="divide-y">
+                      {group.rows.map(item => (
+                        <div
+                          key={item.id}
+                          className={cn(
+                            'flex items-start gap-3 p-2.5 text-sm transition-colors',
+                            selected.has(item.id) && 'bg-primary/5'
+                          )}
+                        >
+                          <Checkbox
+                            checked={selected.has(item.id)}
+                            onCheckedChange={() => toggle(item.id)}
+                            className="mt-0.5"
+                          />
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium truncate">{item.tenant_name}</p>
+                              <span className="text-[10px] text-muted-foreground">→</span>
+                              <p className="font-medium truncate text-primary">{item.landlord_name}</p>
+                            </div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {item.payout_target === 'landlord_wallet' ? (
+                                <Badge className="text-[9px] px-1.5 py-0 bg-emerald-100 text-emerald-700 border-emerald-200">
+                                  <Wallet className="h-2.5 w-2.5 mr-0.5" />
+                                  Landlord Wallet
+                                </Badge>
+                              ) : (
+                                <Badge className="text-[9px] px-1.5 py-0 bg-amber-100 text-amber-700 border-amber-200">
+                                  <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
+                                  Agent Float
+                                </Badge>
+                              )}
+                              <span className="text-[10px] text-muted-foreground">
+                                {format(new Date(item.created_at), 'dd MMM')}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-3 text-[10px]">
+                              <span>Rent: <b className="text-orange-600">{fmt(item.rent_amount)}</b></span>
+                              <span>Fees: <b className="text-emerald-600">{fmt(item.access_fee + item.request_fee)}</b></span>
+                              <span>Repay: <b>{fmt(item.total_repayment)}</b></span>
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="shrink-0 text-xs h-7"
+                            onClick={() => singleDisburse.mutate(item.id)}
+                            disabled={singleDisburse.isPending}
+                            title={`Fund only this tenant on ${item.agent_name}'s float`}
+                          >
+                            {singleDisburse.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Banknote className="h-3 w-3 mr-1" />}
+                            Fund 1
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="shrink-0 text-xs h-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => { setRejectTarget(item); setRejectReason(''); }}
+                            title="Reject and return to agent with a comment"
+                          >
+                            <XCircle className="h-3 w-3 mr-1" />
+                            Reject
+                          </Button>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="shrink-0 text-xs h-7"
-                    onClick={() => singleDisburse.mutate(item.id)}
-                    disabled={singleDisburse.isPending}
-                    title={`Will land in ${item.agent_name}'s Landlord Payout Float`}
-                  >
-                    {singleDisburse.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Banknote className="h-3 w-3 mr-1" />}
-                    Fund Agent Float
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="shrink-0 text-xs h-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => { setRejectTarget(item); setRejectReason(''); }}
-                    title="Reject and return to agent with a comment"
-                  >
-                    <XCircle className="h-3 w-3 mr-1" />
-                    Reject
-                  </Button>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Batch actions */}
