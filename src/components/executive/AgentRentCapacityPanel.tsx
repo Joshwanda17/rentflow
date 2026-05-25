@@ -427,7 +427,7 @@ export function AgentRentCapacityPanel({
               <CapacityRow
                 key={row.agent_id}
                 row={row}
-                collapsed={!!rowCollapsed[row.agent_id]}
+                collapsed={rowCollapsed[row.agent_id] ?? defaultCollapsed}
                 onToggle={() => toggleRow(row.agent_id)}
               />
             ))}
