@@ -21,6 +21,14 @@ interface WithdrawRequestDialogProps {
   onSuccess?: () => void;
   prefillAmount?: number;
   prefillReason?: string;
+  prefillPayout?: {
+    payoutMode?: 'mtn' | 'airtel' | 'bank' | 'cash';
+    momoNumber?: string;
+    momoName?: string;
+    bankName?: string;
+    bankAccountName?: string;
+    bankAccountNumber?: string;
+  } | null;
   linkedParty?: string;
 }
 
@@ -140,7 +148,7 @@ function formatRelativeMinutes(submittedAt: number): string {
   return minutes === 1 ? '1 minute ago' : `${minutes} minutes ago`;
 }
 
-export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, onSuccess, prefillAmount, prefillReason, linkedParty }: WithdrawRequestDialogProps) {
+export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, onSuccess, prefillAmount, prefillReason, prefillPayout, linkedParty }: WithdrawRequestDialogProps) {
   const { user } = useAuth();
   const [amount, setAmount] = useState<number>(0);
   const [loading, setLoading] = useState(false);
@@ -185,6 +193,18 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
       setReason(prefillReason);
     }
   }, [open, prefillAmount, prefillReason]);
+
+  // When opened with portfolio-attached payment details (proxy partner
+  // withdrawal), pre-populate the destination so the agent doesn't re-key.
+  useEffect(() => {
+    if (!open || !prefillPayout) return;
+    if (prefillPayout.payoutMode) setPayoutMode(prefillPayout.payoutMode);
+    if (prefillPayout.momoNumber !== undefined) setMomoNumber(prefillPayout.momoNumber);
+    if (prefillPayout.momoName !== undefined) setMomoName(prefillPayout.momoName);
+    if (prefillPayout.bankName !== undefined) setBankName(prefillPayout.bankName);
+    if (prefillPayout.bankAccountName !== undefined) setBankAccountName(prefillPayout.bankAccountName);
+    if (prefillPayout.bankAccountNumber !== undefined) setBankAccountNumber(prefillPayout.bankAccountNumber);
+  }, [open, prefillPayout]);
   const [fetchingProfile, setFetchingProfile] = useState(false);
 
   useEffect(() => {
@@ -218,6 +238,10 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
   useEffect(() => {
     const fetchSavedNumber = async () => {
       if (!user || !open) return;
+      // If the caller pre-filled payout details (e.g. proxy partner withdraw
+      // sourced from the portfolio's saved payment route), don't overwrite
+      // them with the agent's own saved MoMo number.
+      if (prefillPayout) return;
       setFetchingProfile(true);
       try {
         const { data: profile } = await supabase
@@ -237,7 +261,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
       }
     };
     fetchSavedNumber();
-  }, [user, open]);
+  }, [user, open, prefillPayout]);
 
   const isPayoutValid = () => {
     if (!payoutMode) return false;

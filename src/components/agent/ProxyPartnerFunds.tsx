@@ -53,6 +53,12 @@ interface PortfolioInfo {
   portfolio_code: string | null;
   account_name: string | null;
   investor_id: string;
+  payment_method?: 'mobile_money' | 'bank_transfer' | 'cash' | null;
+  mobile_network?: 'MTN' | 'Airtel' | null;
+  mobile_money_number?: string | null;
+  bank_name?: string | null;
+  bank_account_name?: string | null;
+  account_number?: string | null;
 }
 
 const ACTIVE_PROXY_WITHDRAWAL_STATUSES = [
@@ -104,6 +110,7 @@ export function ProxyPartnerFunds() {
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [prefillAmount, setPrefillAmount] = useState<number>(0);
   const [prefillReason, setPrefillReason] = useState('');
+  const [prefillPayout, setPrefillPayout] = useState<any>(null);
   const [selectedPartnerId, setSelectedPartnerId] = useState<string>('');
   const [partnerWithdrawalStatus, setPartnerWithdrawalStatus] = useState<Record<string, string>>({});
   const [partnerWithdrawalIds, setPartnerWithdrawalIds] = useState<Record<string, string>>({});
@@ -404,7 +411,7 @@ export function ProxyPartnerFunds() {
       if (uniquePortfolioIds.length > 0) {
         const { data: portfolioData } = await supabase
           .from('investor_portfolios')
-          .select('id, portfolio_code, account_name, investor_id')
+          .select('id, portfolio_code, account_name, investor_id, payment_method, mobile_network, mobile_money_number, bank_name, bank_account_name, account_number')
           .in('id', uniquePortfolioIds);
         fetchedPortfolios = (portfolioData || []) as PortfolioInfo[];
       }
@@ -818,6 +825,35 @@ export function ProxyPartnerFunds() {
       ? ` (Portfolio: ${partner.accountName || partner.portfolioCode})`
       : '';
     setPrefillReason(`Proxy payout delivery for ${partner.partnerName}${portfolioLabel}`);
+
+    // Auto-populate payout destination from the portfolio's saved payment
+    // details (set by Partner Ops). If a portfolio has its own payment
+    // method configured, the agent's withdrawal form will pre-fill MoMo /
+    // bank details so they don't re-key.
+    const pInfo = partner.portfolioId ? portfolioMap[partner.portfolioId] : null;
+    if (pInfo?.payment_method) {
+      if (pInfo.payment_method === 'mobile_money') {
+        setPrefillPayout({
+          payoutMode: pInfo.mobile_network === 'Airtel' ? 'airtel' : 'mtn',
+          momoNumber: pInfo.mobile_money_number || '',
+          momoName: pInfo.account_name || partner.partnerName || '',
+        });
+      } else if (pInfo.payment_method === 'bank_transfer') {
+        setPrefillPayout({
+          payoutMode: 'bank',
+          bankName: pInfo.bank_name || '',
+          bankAccountName: pInfo.bank_account_name || partner.partnerName || '',
+          bankAccountNumber: pInfo.account_number || '',
+        });
+      } else if (pInfo.payment_method === 'cash') {
+        setPrefillPayout({ payoutMode: 'cash' });
+      } else {
+        setPrefillPayout(null);
+      }
+    } else {
+      setPrefillPayout(null);
+    }
+
     setWithdrawOpen(true);
 
     try {
@@ -1397,6 +1433,7 @@ export function ProxyPartnerFunds() {
         onSuccess={handleWithdrawSuccess}
         prefillAmount={prefillAmount}
         prefillReason={prefillReason}
+        prefillPayout={prefillPayout}
         linkedParty={selectedPartnerId}
       />
 
