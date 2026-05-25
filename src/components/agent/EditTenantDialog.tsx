@@ -672,12 +672,12 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
               )}
 
               <div className="flex gap-2 pt-2">
-                <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)} disabled={saving}>
+                <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)} disabled={saveSubmitting}>
                   <X className="h-4 w-4 mr-2" />
                   Cancel
                 </Button>
-                <Button className="flex-1" onClick={handleSave} disabled={saving}>
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                <Button className="flex-1" onClick={handleSave} disabled={saveSubmitting}>
+                  {saveSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                   Save Changes
                 </Button>
               </div>
