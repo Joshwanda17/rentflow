@@ -1139,8 +1139,8 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
             </SheetTitle>
           </SheetHeader>
 
-          {/* Top-level view toggle: live tenants vs request pipeline */}
-          <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-muted/50">
+          {/* Top-level view toggle: live tenants vs request pipeline — sticky on mobile so agents can always switch views */}
+          <div className="sticky top-0 z-30 grid grid-cols-2 gap-2 p-1 rounded-xl bg-muted/50 backdrop-blur supports-[backdrop-filter]:bg-muted/60">
             <button
               onClick={() => setView('tenants')}
               className={`py-2 rounded-lg text-sm font-semibold transition-all ${
