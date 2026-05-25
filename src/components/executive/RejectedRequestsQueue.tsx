@@ -252,7 +252,7 @@ export function RejectedRequestsQueue({ stageFilter, title = 'Rejected Rent Requ
               <tbody>
                 {filtered.map((r) => {
                   const stage = r.rejected_at_stage ?? 'pending';
-                  const locked = (r.reopen_count ?? 0) >= 3 && !caps?.isManager;
+                  const locked = (r.reopen_count ?? 0) >= 5 && !caps?.isManager;
                   return (
                     <tr key={r.id} className="border-b last:border-0">
                       <td className="py-2 pr-3">
