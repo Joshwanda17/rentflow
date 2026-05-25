@@ -107,9 +107,28 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
       if (!data || data.length === 0) {
         throw new Error("You don't have permission to edit this tenant's details. Ask a manager to update them.");
       }
+
+      const oldVals = {
+        'Full Name': tenant.full_name,
+        'Phone Number': tenant.phone,
+        'Email': tenant.email || '—',
+        'National ID': tenant.national_id || '—',
+      };
+      const newVals = {
+        'Full Name': parsed.data.full_name,
+        'Phone Number': parsed.data.phone,
+        'Email': parsed.data.email || '—',
+        'National ID': parsed.data.national_id || '—',
+      };
+      const summary: SavedField[] = [
+        { label: 'Full Name', oldValue: oldVals['Full Name'], newValue: newVals['Full Name'], changed: oldVals['Full Name'] !== newVals['Full Name'] },
+        { label: 'Phone Number', oldValue: oldVals['Phone Number'], newValue: newVals['Phone Number'], changed: oldVals['Phone Number'] !== newVals['Phone Number'] },
+        { label: 'Email', oldValue: oldVals['Email'], newValue: newVals['Email'], changed: oldVals['Email'] !== newVals['Email'] },
+        { label: 'National ID', oldValue: oldVals['National ID'], newValue: newVals['National ID'], changed: oldVals['National ID'] !== newVals['National ID'] },
+      ];
+      setSavedSummary(summary);
       toast.success('Tenant details saved', { description: parsed.data.full_name });
       onSaved?.(payload);
-      onOpenChange(false);
     } catch (err: any) {
       toast.error('Failed to update', { description: err.message || 'Please try again' });
     } finally {
