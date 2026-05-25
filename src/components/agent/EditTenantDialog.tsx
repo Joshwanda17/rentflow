@@ -109,6 +109,28 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
     );
   };
 
+  const validateField = (field: 'full_name' | 'phone' | 'email' | 'national_id') => {
+    const raw = {
+      full_name: fullName,
+      phone,
+      email: email || undefined,
+      national_id: nationalId || undefined,
+    };
+    const result = editSchema.safeParse(raw);
+    if (result.success) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+      return;
+    }
+    const issue = result.error.issues.find((i) => i.path[0] === field);
+    if (issue) {
+      setErrors((prev) => ({ ...prev, [field]: issue.message }));
+    }
+  };
+
   const handleSave = async () => {
     const parsed = editSchema.safeParse({
       full_name: fullName,
