@@ -128,13 +128,13 @@ export function useCreditAccessLimit(userId: string | undefined) {
     if (!forceFresh && existing && (Date.now() - existing.timestamp < CACHE_TTL)) {
       setLimit(existing.data);
       setLoading(false);
-      return;
+      return existing.data;
     }
 
     // Offline: keep whatever cache we already rendered. Never spin.
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       setLoading(false);
-      return;
+      return limit;
     }
 
     setLoading(true);
@@ -163,6 +163,7 @@ export function useCreditAccessLimit(userId: string | undefined) {
         setLimit(parsed);
         limitCache.set(userId, { data: parsed, timestamp: Date.now() });
         saveToLS(userId, parsed);
+        return parsed;
       }
     } catch (err) {
       console.error('[useCreditAccessLimit] Error:', err);
