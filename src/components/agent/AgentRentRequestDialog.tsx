@@ -357,20 +357,32 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     );
   }, []);
 
-  const handlePhotoAdd = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    const remaining = 3 - housePhotos.length;
-    if (remaining <= 0) { toast.error('Maximum 3 photos'); return; }
-    const toAdd = files.slice(0, remaining);
-    const newPhotos = toAdd.map(f => ({ file: f, preview: URL.createObjectURL(f) }));
-    setHousePhotos(prev => [...prev, ...newPhotos]);
+  // Four required outside views of the house
+  const HOUSE_PHOTO_SLOTS = [
+    { key: 'front', label: 'Front of house', hint: 'Main entrance / front facade' },
+    { key: 'back', label: 'Back of house', hint: 'Rear side of the building' },
+    { key: 'left', label: 'Left side', hint: 'Left exterior wall' },
+    { key: 'right', label: 'Right side', hint: 'Right exterior wall' },
+  ] as const;
+
+  const handlePhotoAddAt = useCallback((index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (e.target) e.target.value = '';
-  }, [housePhotos.length]);
+    if (!file) return;
+    setHousePhotos(prev => {
+      const next = [...prev];
+      if (next[index]) URL.revokeObjectURL(next[index].preview);
+      next[index] = { file, preview: URL.createObjectURL(file) };
+      return next;
+    });
+  }, []);
 
   const removePhoto = useCallback((index: number) => {
     setHousePhotos(prev => {
-      URL.revokeObjectURL(prev[index].preview);
-      return prev.filter((_, i) => i !== index);
+      const next = [...prev];
+      if (next[index]) URL.revokeObjectURL(next[index].preview);
+      next.splice(index, 1);
+      return next;
     });
   }, []);
 
@@ -1753,37 +1765,48 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   )}
                 </div>
 
-                {/* House Photos (max 3) */}
+                {/* House Photos — 4 outside views */}
                 <div className="space-y-2">
                   <Label className="text-xs flex items-center gap-1">
-                    📸 House Photos (up to 3)
+                    📸 House Photos — capture all 4 outside views
                   </Label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {housePhotos.map((photo, idx) => (
-                      <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-border">
-                        <img src={photo.preview} alt={`House ${idx + 1}`} className="w-full h-full object-cover" />
-                        <button
-                          type="button"
-                          onClick={() => removePhoto(idx)}
-                          className="absolute top-1 right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs font-bold"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
-                    {housePhotos.length < 3 && (
-                      <label className="aspect-square rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors">
-                        <span className="text-xl text-muted-foreground/50">📷</span>
-                        <span className="text-[10px] text-muted-foreground/50 mt-1">Add Photo</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          capture="environment"
-                          className="hidden"
-                          onChange={handlePhotoAdd}
-                        />
-                      </label>
-                    )}
+                  <p className="text-[11px] text-muted-foreground">
+                    Take one photo of each outside part of the house: front, back, left side and right side.
+                  </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {HOUSE_PHOTO_SLOTS.map((slot, idx) => {
+                      const photo = housePhotos[idx];
+                      return (
+                        <div key={slot.key} className="space-y-1">
+                          {photo ? (
+                            <div className="relative aspect-square rounded-lg overflow-hidden border border-border">
+                              <img src={photo.preview} alt={slot.label} className="w-full h-full object-cover" />
+                              <button
+                                type="button"
+                                onClick={() => removePhoto(idx)}
+                                className="absolute top-1 right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs font-bold"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ) : (
+                            <label className="aspect-square rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors text-center px-1">
+                              <span className="text-xl text-muted-foreground/60">📷</span>
+                              <span className="text-[10px] font-medium text-foreground/80 mt-1 leading-tight">{slot.label}</span>
+                              <span className="text-[9px] text-muted-foreground/60 mt-0.5 leading-tight">{slot.hint}</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                capture="environment"
+                                className="hidden"
+                                onChange={(e) => handlePhotoAddAt(idx, e)}
+                              />
+                            </label>
+                          )}
+                          <p className="text-[10px] text-center text-muted-foreground truncate">{slot.label}</p>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
