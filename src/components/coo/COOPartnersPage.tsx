@@ -510,30 +510,15 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           // its result IS the "New Total Partnership Value" headline.
           // The breakdown starts from the NEXT month and projects monthly
           // compounding through the remainder of the portfolio's duration.
-          const compound_history: Array<{
-            cycle: number; month_name: string; date: string; balance_before: number; return_amount: number; balance_after: number;
-          }> = [];
-          const totalMonths = Number(portfolio.duration_months || 12);
-          const remainingMonths = Math.max(0, totalMonths - paymentNumber);
-          const roiPct = Number(portfolio.roi_percentage || 0);
-          // `newRoiDate` was advanced +1 month above — that IS next month's payout.
-          const projectionStart = new Date(newRoiDate);
-          let runningPrincipal = Number(newAmount);
-          for (let i = 0; i < remainingMonths; i++) {
-            const d = new Date(projectionStart);
-            d.setMonth(d.getMonth() + i);
-            const earned = Math.round(runningPrincipal * roiPct / 100);
-            const after = runningPrincipal + earned;
-            compound_history.push({
-              cycle: paymentNumber + i + 1,
-              month_name: d.toLocaleDateString('en-GB', { month: 'long' }),
-              date: d.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }),
-              balance_before: runningPrincipal,
-              return_amount: earned,
-              balance_after: after,
-            });
-            runningPrincipal = after;
-          }
+          // Anchored to the contribution date (not cycle count) so skipped
+          // or backfilled cycles never cause month drift.
+          const compound_history = buildCompoundProjection({
+            contributionDate: portfolio.created_at,
+            durationMonths: Number(portfolio.duration_months || 12),
+            newPrincipal: Number(newAmount),
+            roiPct: Number(portfolio.roi_percentage || 0),
+            compoundDate: new Date(),
+          });
 
           const contributionDateStr = new Date(portfolio.created_at).toLocaleDateString('en-GB', {
             day: '2-digit', month: 'long', year: 'numeric',
