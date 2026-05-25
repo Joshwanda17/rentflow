@@ -96,6 +96,37 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
     }
   }, [open, tenant]);
 
+  // Live re-validate so the Save button (and error text) never stays in a stale "invalid" state
+  // once the user has corrected a previously-flagged field.
+  useEffect(() => {
+    if (!open) return;
+    const parsed = editSchema.safeParse({
+      full_name: fullName,
+      phone,
+      email: email || undefined,
+      national_id: nationalId || undefined,
+    });
+    if (parsed.success) {
+      setErrors((prev) => (Object.keys(prev).length === 0 ? prev : {}));
+      return;
+    }
+    const validNow = new Set(['full_name', 'phone', 'email', 'national_id']);
+    for (const issue of parsed.error.issues) {
+      validNow.delete(issue.path[0] as string);
+    }
+    setErrors((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const f of validNow) {
+        if (next[f]) {
+          delete next[f];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [open, fullName, phone, email, nationalId]);
+
   const isPermissionError = (err: any, rowsReturned: number | null) => {
     if (rowsReturned === 0) return true;
     const code = err?.code || '';
