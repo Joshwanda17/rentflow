@@ -92,9 +92,16 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
         email: parsed.data.email || null,
         national_id: parsed.data.national_id || null,
       };
-      const { error } = await supabase.from('profiles').update(payload).eq('id', tenant.id);
+      const { data, error } = await supabase
+        .from('profiles')
+        .update(payload)
+        .eq('id', tenant.id)
+        .select('id, full_name, phone, email, national_id');
       if (error) throw error;
-      toast.success('Tenant details updated', { description: parsed.data.full_name });
+      if (!data || data.length === 0) {
+        throw new Error("You don't have permission to edit this tenant's details. Ask a manager to update them.");
+      }
+      toast.success('Tenant details saved', { description: parsed.data.full_name });
       onSaved?.(payload);
       onOpenChange(false);
     } catch (err: any) {
@@ -126,11 +133,15 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
     }
     setStatusBusy(true);
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .update({ tenant_status: nextStatus })
-        .eq('id', tenant.id);
+        .eq('id', tenant.id)
+        .select('id');
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error("You don't have permission to change this tenant's status.");
+      }
       setCurrentStatus(nextStatus);
       onSaved?.({
         full_name: fullName,
