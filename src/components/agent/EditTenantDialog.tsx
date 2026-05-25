@@ -167,7 +167,9 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
       if (!data || data.length === 0) {
         throw new Error("You don't have permission to change this tenant's status.");
       }
+      const prev = currentStatus || 'active';
       setCurrentStatus(nextStatus);
+      setStatusSummary({ oldStatus: prev, newStatus: nextStatus });
       onSaved?.({
         full_name: fullName,
         phone,
