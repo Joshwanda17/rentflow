@@ -22,8 +22,21 @@ try {
   const mem = (navigator as any).deviceMemory ?? 8;
   const cores = navigator.hardwareConcurrency ?? 8;
   const userForced = localStorage.getItem('welile-no-blur') === '1';
-  if (userForced || (isAndroid && (mem <= 4 || cores <= 4))) {
+  // Android 12-14 Chrome / Samsung Internet are the documented victims of
+  // the Mali/Adreno backdrop-filter + sticky-in-transform compositor bug
+  // (rainbow tearing band + duplicated rows). Flag them all, regardless of RAM.
+  const androidVerMatch = ua.match(/Android\s+(\d+)/i);
+  const androidVer = androidVerMatch ? parseInt(androidVerMatch[1], 10) : 0;
+  const isSamsungBrowser = /SamsungBrowser/i.test(ua);
+  const isAndroidChromeWebView = isAndroid && /Chrome|wv/i.test(ua);
+  const isAffectedAndroid =
+    isAndroid && androidVer >= 12 && androidVer <= 14 &&
+    (isSamsungBrowser || isAndroidChromeWebView);
+  if (userForced || isAffectedAndroid || (isAndroid && (mem <= 4 || cores <= 4))) {
     document.documentElement.classList.add('no-backdrop-blur');
+    if (isAffectedAndroid) {
+      document.documentElement.classList.add('android-compositor-safe');
+    }
   }
 } catch {}
 
