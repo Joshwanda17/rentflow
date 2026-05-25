@@ -109,6 +109,34 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
     );
   };
 
+  const writeAuditLog = async (
+    actionType: 'tenant_profile_edit' | 'tenant_status_change',
+    changedFields: { field: string; old_value: string | null; new_value: string | null }[],
+    reason: string,
+  ) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action_type: actionType,
+        table_name: 'profiles',
+        record_id: tenant.id,
+        metadata: {
+          tenant_id: tenant.id,
+          tenant_name: tenant.full_name,
+          editor_id: user.id,
+          editor_email: user.email,
+          edited_at: new Date().toISOString(),
+          changed_fields: changedFields,
+          reason,
+        },
+      });
+    } catch (e) {
+      console.warn('[audit_logs] failed to write tenant edit audit', e);
+    }
+  };
+
   const validateField = (field: 'full_name' | 'phone' | 'email' | 'national_id') => {
     const raw = {
       full_name: fullName,
@@ -218,6 +246,16 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
         { label: 'National ID', oldValue: oldVals['National ID'], newValue: newVals['National ID'], changed: oldVals['National ID'] !== newVals['National ID'] },
       ];
       setSavedSummary(summary);
+      const changedFields = summary
+        .filter((f) => f.changed)
+        .map((f) => ({ field: f.label, old_value: f.oldValue, new_value: f.newValue }));
+      if (changedFields.length > 0) {
+        await writeAuditLog(
+          'tenant_profile_edit',
+          changedFields,
+          `Agent edited tenant identity fields (${changedFields.map((f) => f.field).join(', ')})`,
+        );
+      }
       toast.success('Tenant details saved', { description: parsed.data.full_name });
       onSaved?.(payload);
     } catch (err: any) {
@@ -277,6 +315,11 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
       const prev = currentStatus || 'active';
       setCurrentStatus(nextStatus);
       setStatusSummary({ oldStatus: prev, newStatus: nextStatus });
+      await writeAuditLog(
+        'tenant_status_change',
+        [{ field: 'tenant_status', old_value: prev, new_value: nextStatus }],
+        `Agent changed tenant status from ${prev} to ${nextStatus}`,
+      );
       onSaved?.({
         full_name: fullName,
         phone,
