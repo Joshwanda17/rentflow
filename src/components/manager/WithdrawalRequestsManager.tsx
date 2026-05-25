@@ -491,19 +491,18 @@ export function WithdrawalRequestsManager({ subCategoryFilter: propSubCategoryFi
   const fetchRequests = useCallback(async () => {
     try {
       // Fetch pending withdrawal requests with limit (bounded query for scale)
-      let query = supabase
+      const filters: any = { status: 'pending' };
+      if (subCategoryFilter && subCategoryFilter !== 'all') {
+        filters.sub_category = subCategoryFilter;
+      }
+
+      const { data: requestsData, error } = await supabase
         .from('withdrawal_requests')
         .select('*')
-        .eq('status', 'pending')
+        .match(filters)
         .gt('amount', 500)
         .order('created_at', { ascending: false })
         .limit(100);
-
-      if (subCategoryFilter && subCategoryFilter !== 'all') {
-        query = query.eq('sub_category', subCategoryFilter);
-      }
-
-      const { data: requestsData, error } = await query;
 
       if (error) throw error;
 
