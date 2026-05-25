@@ -340,12 +340,15 @@ export function CFOAdvanceRequestPayments() {
       ) : (
         <>
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold">COO-Approved Advance Requests</h3>
-            <Badge variant="secondary">{requests.length} ready</Badge>
+            <h3 className="text-sm font-bold">
+              {stageFilter === 'pending' ? 'Agent-Submitted Applications' : stageFilter === 'coo_approved' ? 'COO-Approved · Ready to Pay' : 'All Agent Advance Applications'}
+            </h3>
+            <Badge variant="secondary">{requests.length} shown</Badge>
           </div>
           {requests.map((req: any) => {
             const profile = req.profiles;
             const isExpanded = expandedId === req.id;
+            const isPending = req.status === 'pending';
             const currentRate = adjustedRates[req.id] ?? Number(req.monthly_rate);
             const currentPrincipal = adjustedPrincipals[req.id] ?? Number(req.principal);
             const currentCycle = adjustedCycles[req.id] ?? Number(req.cycle_days);
@@ -365,7 +368,21 @@ export function CFOAdvanceRequestPayments() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold truncate">{profile?.full_name || 'Agent'}</p>
-                        <p className="text-[10px] text-muted-foreground">{profile?.phone} • {format(new Date(req.created_at), 'MMM d')} • We earn <span className="text-emerald-600 font-bold">+{formatUGX(profitPerRequest)}</span></p>
+                        <p className="text-[10px] text-muted-foreground flex items-center gap-1.5 flex-wrap">
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              'text-[9px] px-1.5 py-0 h-4 uppercase tracking-wider',
+                              isPending
+                                ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/30 dark:text-amber-400'
+                                : 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/30 dark:text-emerald-400'
+                            )}
+                          >
+                            {isPending ? 'Agent Applied' : 'COO Approved'}
+                          </Badge>
+                          <span>{profile?.phone} • {format(new Date(req.created_at), 'MMM d')}</span>
+                          {!isPending && <span>• We earn <span className="text-emerald-600 font-bold">+{formatUGX(profitPerRequest)}</span></span>}
+                        </p>
                       </div>
                       <div className="text-right shrink-0">
                         <p className="text-lg font-bold text-primary">{formatUGX(currentPrincipal)}</p>
@@ -456,10 +473,14 @@ export function CFOAdvanceRequestPayments() {
 
                       <Button
                         onClick={() => payMutation.mutate(req)}
-                        disabled={payMutation.isPending}
-                        className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                        disabled={payMutation.isPending || isPending}
+                        className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white disabled:bg-muted disabled:text-muted-foreground"
                       >
-                        {payMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><CheckCircle2 className="h-4 w-4" /> Pay {formatUGX(currentPrincipal)} to Agent Wallet</>}
+                        {payMutation.isPending
+                          ? <Loader2 className="h-4 w-4 animate-spin" />
+                          : isPending
+                            ? <>Awaiting COO approval before payout</>
+                            : <><CheckCircle2 className="h-4 w-4" /> Pay {formatUGX(currentPrincipal)} to Agent Wallet</>}
                       </Button>
                     </div>
                   )}
