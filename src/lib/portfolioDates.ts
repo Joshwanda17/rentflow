@@ -84,3 +84,81 @@ export function parseContributionDate(raw: any): string | null {
 
   return null;
 }
+
+/**
+ * Build the forward-projection compound history rows for the
+ * partner-portfolio-compounded email. The current month (the cycle that
+ * was just compounded) is intentionally excluded — its result is the
+ * "New Total Partnership Value" headline. The breakdown starts from the
+ * month after the compound month and projects monthly through the
+ * portfolio's maturity (contributionDate + durationMonths).
+ *
+ * Anchoring to contributionDate (not cycle/payment count) prevents drift
+ * if any past cycle was skipped, backfilled, or processed manually.
+ */
+export interface CompoundProjectionRow {
+  cycle: number;
+  month_name: string;
+  date: string;
+  balance_before: number;
+  return_amount: number;
+  balance_after: number;
+}
+
+export function buildCompoundProjection(params: {
+  contributionDate: string | Date;
+  durationMonths: number;
+  newPrincipal: number;
+  roiPct: number;
+  compoundDate?: Date;
+}): CompoundProjectionRow[] {
+  const { durationMonths, newPrincipal, roiPct } = params;
+  const compoundDate = params.compoundDate ?? new Date();
+  const contribution =
+    params.contributionDate instanceof Date
+      ? params.contributionDate
+      : new Date(params.contributionDate);
+
+  if (!Number.isFinite(durationMonths) || durationMonths <= 0) return [];
+  if (!Number.isFinite(newPrincipal) || newPrincipal <= 0) return [];
+  if (Number.isNaN(contribution.getTime())) return [];
+
+  // First day of the month AFTER the compound month.
+  const projectionStart = new Date(
+    compoundDate.getFullYear(),
+    compoundDate.getMonth() + 1,
+    1,
+  );
+
+  // Maturity = contribution date + duration_months (same day of month).
+  const maturity = new Date(contribution);
+  maturity.setMonth(maturity.getMonth() + durationMonths);
+
+  // Inclusive whole-month count between projectionStart and maturity.
+  const monthsBetween = (a: Date, b: Date) =>
+    (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
+  const remainingMonths = Math.max(0, monthsBetween(projectionStart, maturity));
+
+  // Cycle index of the FIRST projected row = months elapsed since
+  // contribution + 1. (projectionStart is exclusive of the compounded month.)
+  const monthsElapsed = Math.max(0, monthsBetween(contribution, projectionStart));
+
+  const rows: CompoundProjectionRow[] = [];
+  let runningPrincipal = newPrincipal;
+  for (let i = 0; i < remainingMonths; i++) {
+    const d = new Date(projectionStart);
+    d.setMonth(d.getMonth() + i);
+    const earned = Math.round((runningPrincipal * roiPct) / 100);
+    const after = runningPrincipal + earned;
+    rows.push({
+      cycle: monthsElapsed + i + 1,
+      month_name: d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }),
+      date: d.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }),
+      balance_before: runningPrincipal,
+      return_amount: earned,
+      balance_after: after,
+    });
+    runningPrincipal = after;
+  }
+  return rows;
+}
