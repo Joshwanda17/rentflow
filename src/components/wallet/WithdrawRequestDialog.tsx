@@ -193,6 +193,18 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
       setReason(prefillReason);
     }
   }, [open, prefillAmount, prefillReason]);
+
+  // When opened with portfolio-attached payment details (proxy partner
+  // withdrawal), pre-populate the destination so the agent doesn't re-key.
+  useEffect(() => {
+    if (!open || !prefillPayout) return;
+    if (prefillPayout.payoutMode) setPayoutMode(prefillPayout.payoutMode);
+    if (prefillPayout.momoNumber !== undefined) setMomoNumber(prefillPayout.momoNumber);
+    if (prefillPayout.momoName !== undefined) setMomoName(prefillPayout.momoName);
+    if (prefillPayout.bankName !== undefined) setBankName(prefillPayout.bankName);
+    if (prefillPayout.bankAccountName !== undefined) setBankAccountName(prefillPayout.bankAccountName);
+    if (prefillPayout.bankAccountNumber !== undefined) setBankAccountNumber(prefillPayout.bankAccountNumber);
+  }, [open, prefillPayout]);
   const [fetchingProfile, setFetchingProfile] = useState(false);
 
   useEffect(() => {
