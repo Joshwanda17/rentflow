@@ -11251,6 +11251,8 @@ export type Database = {
           landlord_payout_next_run_at: string | null
           landlord_verification_method: string | null
           last_resubmitted_at: string | null
+          latest_rent_receipt_uploaded_at: string | null
+          latest_rent_receipt_url: string | null
           lc1_id: string | null
           manager_verified: boolean | null
           manager_verified_at: string | null
@@ -11350,6 +11352,8 @@ export type Database = {
           landlord_payout_next_run_at?: string | null
           landlord_verification_method?: string | null
           last_resubmitted_at?: string | null
+          latest_rent_receipt_uploaded_at?: string | null
+          latest_rent_receipt_url?: string | null
           lc1_id?: string | null
           manager_verified?: boolean | null
           manager_verified_at?: string | null
@@ -11449,6 +11453,8 @@ export type Database = {
           landlord_payout_next_run_at?: string | null
           landlord_verification_method?: string | null
           last_resubmitted_at?: string | null
+          latest_rent_receipt_uploaded_at?: string | null
+          latest_rent_receipt_url?: string | null
           lc1_id?: string | null
           manager_verified?: boolean | null
           manager_verified_at?: string | null
