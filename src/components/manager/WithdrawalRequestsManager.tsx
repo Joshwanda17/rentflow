@@ -552,7 +552,7 @@ export function WithdrawalRequestsManager({ subCategoryFilter: propSubCategoryFi
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [subCategoryFilter]);
 
   // Fetch history with filters
   const fetchHistory = useCallback(async () => {
