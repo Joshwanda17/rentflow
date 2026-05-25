@@ -131,6 +131,7 @@ export function WithdrawalRequestsManager({ subCategoryFilter: propSubCategoryFi
     to: undefined
   });
   const [datePreset, setDatePreset] = useState<'all' | 'today' | '7days' | '30days' | 'custom'>('all');
+  const [subCategoryFilter, setSubCategoryFilter] = useState<string>(propSubCategoryFilter || 'all');
 
   // Batch selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
