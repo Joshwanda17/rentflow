@@ -357,20 +357,32 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     );
   }, []);
 
-  const handlePhotoAdd = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    const remaining = 3 - housePhotos.length;
-    if (remaining <= 0) { toast.error('Maximum 3 photos'); return; }
-    const toAdd = files.slice(0, remaining);
-    const newPhotos = toAdd.map(f => ({ file: f, preview: URL.createObjectURL(f) }));
-    setHousePhotos(prev => [...prev, ...newPhotos]);
+  // Four required outside views of the house
+  const HOUSE_PHOTO_SLOTS = [
+    { key: 'front', label: 'Front of house', hint: 'Main entrance / front facade' },
+    { key: 'back', label: 'Back of house', hint: 'Rear side of the building' },
+    { key: 'left', label: 'Left side', hint: 'Left exterior wall' },
+    { key: 'right', label: 'Right side', hint: 'Right exterior wall' },
+  ] as const;
+
+  const handlePhotoAddAt = useCallback((index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (e.target) e.target.value = '';
-  }, [housePhotos.length]);
+    if (!file) return;
+    setHousePhotos(prev => {
+      const next = [...prev];
+      if (next[index]) URL.revokeObjectURL(next[index].preview);
+      next[index] = { file, preview: URL.createObjectURL(file) };
+      return next;
+    });
+  }, []);
 
   const removePhoto = useCallback((index: number) => {
     setHousePhotos(prev => {
-      URL.revokeObjectURL(prev[index].preview);
-      return prev.filter((_, i) => i !== index);
+      const next = [...prev];
+      if (next[index]) URL.revokeObjectURL(next[index].preview);
+      next.splice(index, 1);
+      return next;
     });
   }, []);
 
