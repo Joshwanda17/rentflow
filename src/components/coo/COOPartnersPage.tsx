@@ -503,7 +503,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           }
 
           const compound_history: Array<{
-            cycle: number; date: string; balance_before: number; return_amount: number; balance_after: number;
+            cycle: number; month_name: string; date: string; balance_before: number; return_amount: number; balance_after: number;
           }> = [];
           let runningBefore = originalPrincipal;
           allLogs.forEach((log: any, idx: number) => {
