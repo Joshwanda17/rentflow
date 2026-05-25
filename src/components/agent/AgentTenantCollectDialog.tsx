@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useAgentLandlordFloat } from '@/hooks/useAgentLandlordFloat';
-import { invalidateCreditAccessLimit } from '@/hooks/useCreditAccessLimit';
+import { invalidateCreditAccessLimit, useCreditAccessLimit, formatCreditAmount } from '@/hooks/useCreditAccessLimit';
 import { formatUGX } from '@/lib/rentCalculations';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { useOffline } from '@/contexts/OfflineContext';
@@ -78,6 +78,7 @@ export function AgentTenantCollectDialog({
 }: AgentTenantCollectDialogProps) {
   const { user } = useAuth();
   const { floatBalance, refetch: refetchBalances } = useAgentLandlordFloat(user?.id);
+  const { limit: creditLimit } = useCreditAccessLimit(user?.id);
   const queryClient = useQueryClient();
   const { isOnline } = useOffline();
   const [amount, setAmount] = useState<number>(0);
