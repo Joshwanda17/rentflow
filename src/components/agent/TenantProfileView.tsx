@@ -216,8 +216,8 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
     loadLastAllocation();
   }, [tenantId, user?.id]);
 
-  const loadFullProfile = async () => {
-    setLoading(true);
+  const loadFullProfile = async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true);
     try {
       const [profileRes, rentRes, repaymentRes, walletRes, portfolioRes, ledgerRes, rolesRes] = await Promise.all([
         supabase
@@ -292,7 +292,7 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
     } catch (err) {
       console.error('Failed to load tenant profile:', err);
     } finally {
-      setLoading(false);
+      if (!opts?.silent) setLoading(false);
     }
   };
 
