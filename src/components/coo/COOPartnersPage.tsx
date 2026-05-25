@@ -2442,6 +2442,17 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
                               {/* Edit, Approve, Top Up & Delete Portfolio Buttons */}
                               <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end gap-1.5 mt-2.5 pt-2.5 border-t border-border/50">
+                                {p.payment_method && (
+                                  <span className="col-span-2 sm:col-span-full text-[10px] text-muted-foreground inline-flex items-center gap-1">
+                                    <Banknote className="h-3 w-3 text-sky-600" />
+                                    Route:&nbsp;
+                                    {p.payment_method === 'mobile_money'
+                                      ? `${p.mobile_network || 'MoMo'} · ${p.mobile_money_number || '—'}${p.account_name ? ' · ' + p.account_name : ''}`
+                                      : p.payment_method === 'bank_transfer'
+                                        ? `${p.bank_name || 'Bank'} · ${p.account_number || '—'}${p.bank_account_name ? ' · ' + p.bank_account_name : ''}`
+                                        : 'Cash pickup'}
+                                  </span>
+                                )}
                                 {(p.status === 'pending_approval' || p.status === 'pending') && (
                                   <Button
                                     variant="ghost"
