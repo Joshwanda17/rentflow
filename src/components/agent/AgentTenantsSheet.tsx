@@ -1696,11 +1696,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         </div>
 
         {/* ───── Body ───── */}
-        {view === 'pipeline' ? (
-          <div className="flex-1 overflow-y-auto px-4 py-3">
-            <AgentRequestPipelineView />
-          </div>
-        ) : mapMode ? (
+        {mapMode ? (
           <div className="flex-1 overflow-hidden px-4 py-3">
             <PropertyMapView
               tenants={processedTenants}
