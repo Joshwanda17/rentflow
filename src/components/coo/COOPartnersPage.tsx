@@ -252,6 +252,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
   // Partner payment details dialog
   const [paymentDetailsOpen, setPaymentDetailsOpen] = useState(false);
+  const [paymentDetailsPortfolio, setPaymentDetailsPortfolio] = useState<any | null>(null);
   const [saving, setSaving] = useState(false);
 
   // Suspend dialog
@@ -2466,8 +2467,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                     variant="ghost"
                                     size="sm"
                                     className="h-9 px-3 text-xs text-sky-600 hover:text-sky-700 hover:bg-sky-500/10 gap-1.5 min-h-[44px]"
-                                    onClick={() => setPaymentDetailsOpen(true)}
-                                    title="Add MoMo / bank details for this partner"
+                                    onClick={() => { setPaymentDetailsPortfolio(p); setPaymentDetailsOpen(true); }}
+                                    title="Set MoMo / bank details for this portfolio"
                                   >
                                     <Banknote className="h-3.5 w-3.5" /> Payment Details
                                   </Button>
@@ -2911,12 +2912,14 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       <PartnerImportDialog open={importOpen} onOpenChange={setImportOpen} onSuccess={() => { refreshInBackground(); fetchPendingCount(); }} />
 
       {/* Partner Payment Details Dialog */}
-      {detailPartner && (
+      {detailPartner && paymentDetailsPortfolio && (
         <PartnerPaymentDetailsDialog
           open={paymentDetailsOpen}
-          onOpenChange={setPaymentDetailsOpen}
+          onOpenChange={(o) => { setPaymentDetailsOpen(o); if (!o) setPaymentDetailsPortfolio(null); }}
           partnerId={detailPartner.profile.id}
           partnerName={detailPartner.profile.full_name || 'Partner'}
+          portfolio={paymentDetailsPortfolio}
+          onSaved={() => { if (detailPartner?.profile?.id) openPartnerDetail(detailPartner.profile.id); }}
         />
       )}
 
