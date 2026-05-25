@@ -4,11 +4,31 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, ArrowDownToLine, AlertCircle } from 'lucide-react';
+import { Loader2, ArrowDownToLine, AlertCircle, Smartphone, Landmark, Banknote, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { formatUGX } from '@/lib/rentCalculations';
+import { cn } from '@/lib/utils';
+
+type PayoutMode = 'mobile_money' | 'bank_transfer' | 'cash';
+
+interface PayoutRoute {
+  key: string;
+  source: 'saved' | 'portfolio';
+  label: string;
+  sublabel: string;
+  is_default: boolean;
+  payout_mode: PayoutMode;
+  momo_provider: 'MTN' | 'Airtel' | null;
+  momo_number: string | null;
+  momo_name: string | null;
+  bank_name: string | null;
+  bank_account_name: string | null;
+  bank_account_number: string | null;
+  portfolio_id?: string;
+  portfolio_code?: string | null;
+}
 
 interface AgentProxyWithdrawalDialogProps {
   open: boolean;
@@ -27,21 +47,106 @@ export function AgentProxyWithdrawalDialog({
   const [amount, setAmount] = useState<number>(0);
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadingRoutes, setLoadingRoutes] = useState(false);
+  const [routes, setRoutes] = useState<PayoutRoute[]>([]);
+  const [selectedRouteKey, setSelectedRouteKey] = useState<string | null>(null);
   const isSubmittingRef = useRef(false);
   const clientRequestIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (open) {
-      setAmount(0);
-      setReason('');
-      clientRequestIdRef.current = null;
-    }
-  }, [open]);
+    if (!open) return;
+    setAmount(0);
+    setReason('');
+    clientRequestIdRef.current = null;
+    setRoutes([]);
+    setSelectedRouteKey(null);
+    if (!funderId) return;
+
+    let cancelled = false;
+    (async () => {
+      setLoadingRoutes(true);
+      try {
+        const [savedRes, portfoliosRes] = await Promise.all([
+          supabase
+            .from('saved_payout_methods' as never)
+            .select('*')
+            .eq('user_id', funderId)
+            .order('is_default', { ascending: false })
+            .order('created_at', { ascending: false }),
+          supabase
+            .from('investor_portfolios')
+            .select('id, portfolio_code, account_name, status, payment_method, mobile_network, mobile_money_number, bank_name, bank_account_name, account_number')
+            .eq('investor_id', funderId)
+            .in('status', ['active', 'pending', 'pending_approval', 'matured'])
+            .not('payment_method', 'is', null)
+            .order('created_at', { ascending: false })
+            .limit(50),
+        ]);
+        if (cancelled) return;
+
+        const list: PayoutRoute[] = [];
+        for (const s of ((savedRes.data ?? []) as any[])) {
+          list.push({
+            key: `saved:${s.id}`,
+            source: 'saved',
+            label: s.nickname || (s.payout_mode === 'mobile_money' ? `${s.momo_provider} MoMo` : s.payout_mode === 'bank_transfer' ? (s.bank_name || 'Bank') : 'Cash'),
+            sublabel: s.payout_mode === 'mobile_money'
+              ? `${s.momo_number ?? '—'} · ${s.momo_name ?? ''}`.trim()
+              : s.payout_mode === 'bank_transfer'
+                ? `${s.bank_account_number ?? '—'} · ${s.bank_account_name ?? ''}`.trim()
+                : 'Cash pickup',
+            is_default: !!s.is_default,
+            payout_mode: s.payout_mode,
+            momo_provider: s.momo_provider,
+            momo_number: s.momo_number,
+            momo_name: s.momo_name,
+            bank_name: s.bank_name,
+            bank_account_name: s.bank_account_name,
+            bank_account_number: s.bank_account_number,
+          });
+        }
+        for (const p of ((portfoliosRes.data ?? []) as any[])) {
+          list.push({
+            key: `portfolio:${p.id}`,
+            source: 'portfolio',
+            label: p.portfolio_code || p.account_name || `Portfolio ${p.id.slice(0, 6)}`,
+            sublabel: p.payment_method === 'mobile_money'
+              ? `${p.mobile_network ?? 'MoMo'} · ${p.mobile_money_number ?? '—'}`
+              : p.payment_method === 'bank_transfer'
+                ? `${p.bank_name ?? 'Bank'} · ${p.account_number ?? '—'}`
+                : 'Cash pickup',
+            is_default: false,
+            payout_mode: p.payment_method,
+            momo_provider: p.mobile_network,
+            momo_number: p.mobile_money_number,
+            momo_name: p.account_name,
+            bank_name: p.bank_name,
+            bank_account_name: p.bank_account_name,
+            bank_account_number: p.account_number,
+            portfolio_id: p.id,
+            portfolio_code: p.portfolio_code,
+          });
+        }
+
+        setRoutes(list);
+        const preferred = list.find(r => r.is_default) ?? list[0] ?? null;
+        setSelectedRouteKey(preferred?.key ?? null);
+      } catch (e: any) {
+        toast.error('Failed to load saved payment options', { description: e.message });
+      } finally {
+        if (!cancelled) setLoadingRoutes(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open, funderId]);
+
+  const selectedRoute = routes.find(r => r.key === selectedRouteKey) ?? null;
 
   const isValid =
     amount >= 500 &&
     amount <= walletBalance &&
-    reason.trim().length >= 10;
+    reason.trim().length >= 10 &&
+    !!selectedRoute;
 
   const handleSubmit = async () => {
     if (!user || !isValid) return;
@@ -56,6 +161,10 @@ export function AgentProxyWithdrawalDialog({
             : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       }
       const clientRequestId = clientRequestIdRef.current;
+      const route = selectedRoute!;
+      const routeMeta = route.source === 'portfolio'
+        ? ` | Route: portfolio ${route.portfolio_code ?? route.portfolio_id}`
+        : ` | Route: saved method "${route.label}"`;
       // CUSTODY-V2: partner is the legal owner of the funds.
       // user_id  = partner (so v_user_wallet_strict auto-deducts partner.withdrawable
       //            and existing approve-withdrawal flow debits the partner's wallet).
@@ -71,10 +180,20 @@ export function AgentProxyWithdrawalDialog({
         beneficiary_id: funderId,
         amount,
         status: 'pending' as const,
-        reason: `[Proxy initiated by agent ${user.id}] ${reason.trim()}`,
+        reason: `[Proxy initiated by agent ${user.id}] ${reason.trim()}${routeMeta}`,
         proxy_partner_id: funderId,
         client_request_id: clientRequestId,
         auto_dispatched: false,
+        // Pre-populate the payout route the partner has on file so Financial Ops
+        // does not need to re-key MoMo / bank details. This pulls from the
+        // selected saved method or per-portfolio route.
+        payout_method: route.payout_mode,
+        mobile_money_provider: route.payout_mode === 'mobile_money' ? route.momo_provider : null,
+        mobile_money_number: route.payout_mode === 'mobile_money' ? route.momo_number : null,
+        mobile_money_name: route.payout_mode === 'mobile_money' ? route.momo_name : null,
+        bank_name: route.payout_mode === 'bank_transfer' ? route.bank_name : null,
+        bank_account_name: route.payout_mode === 'bank_transfer' ? route.bank_account_name : null,
+        bank_account_number: route.payout_mode === 'bank_transfer' ? route.bank_account_number : null,
       } as any);
       if (error) {
         // 23505 = unique_violation. Either the idempotency key collided
@@ -122,6 +241,10 @@ export function AgentProxyWithdrawalDialog({
           funder_name: funderName,
           amount,
           reason: reason.trim(),
+          payout_route_source: route.source,
+          payout_route_key: route.key,
+          portfolio_id: route.portfolio_id ?? null,
+          payout_method: route.payout_mode,
         },
       } as any);
 
@@ -163,6 +286,59 @@ export function AgentProxyWithdrawalDialog({
             </div>
           )}
 
+          {/* Saved payout routes */}
+          <div>
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+              Payout Destination
+            </Label>
+            {loadingRoutes ? (
+              <div className="py-4 flex justify-center"><Loader2 className="h-4 w-4 animate-spin" /></div>
+            ) : routes.length === 0 ? (
+              <div className="flex items-start gap-2 rounded-lg bg-destructive/10 p-2.5 text-xs text-destructive">
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>
+                  No payment details on file for {funderName}. Ask Partner Ops to save MoMo or bank details
+                  before requesting a withdrawal.
+                </span>
+              </div>
+            ) : (
+              <div className="space-y-1.5 mt-1">
+                {routes.map(r => {
+                  const active = r.key === selectedRouteKey;
+                  const Icon = r.payout_mode === 'mobile_money' ? Smartphone : r.payout_mode === 'bank_transfer' ? Landmark : Banknote;
+                  return (
+                    <button
+                      type="button"
+                      key={r.key}
+                      onClick={() => setSelectedRouteKey(r.key)}
+                      className={cn(
+                        'w-full flex items-start gap-2 p-2.5 rounded-md border text-left transition-colors',
+                        active ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50',
+                      )}
+                    >
+                      <Icon className="h-4 w-4 mt-0.5 text-primary shrink-0" />
+                      <div className="flex-1 min-w-0 text-xs">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-semibold truncate">{r.label}</span>
+                          {r.source === 'portfolio' ? (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/10 text-primary flex items-center gap-1">
+                              <Wallet className="h-2.5 w-2.5" /> Per-portfolio
+                            </span>
+                          ) : r.is_default ? (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-success/10 text-success">Default</span>
+                          ) : (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Saved</span>
+                          )}
+                        </div>
+                        <p className="text-muted-foreground truncate">{r.sublabel}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           {/* Amount */}
           <div>
             <Label className="text-xs">Amount (UGX) *</Label>
@@ -193,8 +369,10 @@ export function AgentProxyWithdrawalDialog({
           </div>
 
           <div className="rounded-lg bg-warning/10 p-2.5 text-[10px] text-warning">
-            ⚠️ This withdrawal is submitted on behalf of <strong>{funderName}</strong> and will be audited.
-            Financial Ops will select the payout method and confirm the transaction.
+            ⚠️ Submitted on behalf of <strong>{funderName}</strong> and fully audited.
+            {selectedRoute
+              ? <> Financial Ops will pay out to the selected destination above.</>
+              : <> Select a payout destination first.</>}
           </div>
 
           <Button
