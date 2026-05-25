@@ -100,7 +100,6 @@ export function PartnerPortfolioCompounded({
   const retNum = Number(String(return_amount).replace(/,/g, '')) || 0
   const newTotalNum = Number(String(new_total_partnership_value).replace(/,/g, '')) || 0
 
-  const formattedInitial = formatAmount(initial_partnership_amount, currency)
   const formattedReturn = formatAmount(return_amount, currency)
   // Headline = explicit New Total Partnership Value from the caller (the
   // truth shown in the in-app compound dialog: current principal + this
@@ -110,6 +109,12 @@ export function PartnerPortfolioCompounded({
   // compound, so it must never override an explicit value.
   const headlineNum = newTotalNum > 0 ? newTotalNum : (initNum + retNum)
   const formattedNewTotal = formatAmount(Math.round(headlineNum), currency)
+  // Opening principal for THIS compound cycle = balance just before the
+  // return was applied. Prefer (new_total − return) since the caller-supplied
+  // new_total is the authoritative live principal after compounding.
+  // Falls back to initial_partnership_amount only if new_total is missing.
+  const openingPrincipalNum = newTotalNum > 0 ? Math.max(0, newTotalNum - retNum) : initNum
+  const formattedOpeningPrincipal = formatAmount(Math.round(openingPrincipalNum), currency)
   const roiLabel = resolveRoiLabel(roi_percentage, roi_return, initNum, retNum)
   const timeline = Array.isArray(compound_history) && compound_history.length > 0
     ? compound_history.map((row, index) => ({
