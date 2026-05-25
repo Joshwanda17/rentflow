@@ -15449,6 +15449,7 @@ export type Database = {
         Args: { p_notes: string }
         Returns: Json
       }
+      extract_public_schema_sql: { Args: never; Returns: string }
       find_duplicate_phones: {
         Args: never
         Returns: {
