@@ -558,9 +558,15 @@ export function WithdrawalRequestsManager({ subCategoryFilter: propSubCategoryFi
   const fetchHistory = useCallback(async () => {
     setHistoryLoading(true);
     try {
+      const historyFilters: any = {};
+      if (subCategoryFilter && subCategoryFilter !== 'all') {
+        historyFilters.sub_category = subCategoryFilter;
+      }
+
       let query = supabase
         .from('withdrawal_requests')
         .select('*')
+        .match(historyFilters)
         .in('status', statusFilter === 'all' ? ['approved', 'rejected'] : [statusFilter])
         .order('created_at', { ascending: false })
         .limit(50);
