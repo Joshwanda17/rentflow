@@ -76,7 +76,9 @@ export function AgentRejectedRequestsSection() {
       </div>
 
       {requests.map((req) => {
-        const lockedFromResubmit = (req.reopen_count ?? 0) >= 3;
+        const RESUBMIT_CAP = 5;
+        const used = req.reopen_count ?? 0;
+        const lockedFromResubmit = used >= RESUBMIT_CAP;
         return (
           <Card key={req.id} className="border-2 border-destructive/40 bg-destructive/5 overflow-hidden">
             <CardContent className="p-4 space-y-3">
@@ -120,9 +122,12 @@ export function AgentRejectedRequestsSection() {
                 <p className="text-sm text-foreground/90 whitespace-pre-wrap">
                   {req.rejected_reason || 'No reason provided.'}
                 </p>
-                {req.reopen_count > 0 && (
-                  <p className="text-[10px] text-muted-foreground mt-1.5">
-                    Previously resubmitted {req.reopen_count}× {lockedFromResubmit && '— manager review required'}
+                {used > 0 && (
+                  <p className="text-[10px] mt-1.5">
+                    <span className={lockedFromResubmit ? 'text-destructive font-semibold' : 'text-muted-foreground'}>
+                      Resubmits used: {used}/{RESUBMIT_CAP}
+                      {lockedFromResubmit && ' — limit reached, ask a manager to reopen this request'}
+                    </span>
                   </p>
                 )}
               </div>
@@ -133,10 +138,10 @@ export function AgentRejectedRequestsSection() {
                   className="flex-1 gap-1.5"
                   onClick={() => setEditing(req)}
                   disabled={lockedFromResubmit}
-                  title={lockedFromResubmit ? 'Reopen limit reached — manager only' : 'Edit and send back to reviewer'}
+                  title={lockedFromResubmit ? `Resubmit cap reached (${RESUBMIT_CAP}/${RESUBMIT_CAP}). A manager must reopen it.` : 'Edit and send back to reviewer'}
                 >
                   <RefreshCw className="h-3.5 w-3.5" />
-                  Edit & Resubmit
+                  {lockedFromResubmit ? 'Manager reopen required' : 'Edit & Resubmit'}
                 </Button>
                 <Button
                   size="sm"
