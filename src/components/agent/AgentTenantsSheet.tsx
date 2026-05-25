@@ -1180,9 +1180,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
             </button>
             <button
               onClick={() => setView('pipeline')}
-              className={`py-2 rounded-lg text-sm font-semibold transition-all ${
-                view === 'pipeline' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'
-              }`}
+              className="py-2 rounded-lg text-sm font-semibold text-muted-foreground transition-all"
               style={{ touchAction: 'manipulation', minHeight: '40px' }}
             >
               Submissions
