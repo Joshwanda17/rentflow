@@ -880,6 +880,39 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
                 )}
               </div>
 
+              {/* Latest rent receipt from landlord — highlighted for operator review */}
+              {selectedRequest.latest_rent_receipt_url && (
+                <div className="rounded-xl border-2 border-amber-400/60 bg-amber-50 dark:bg-amber-950/20 p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="text-sm font-semibold flex items-center gap-1.5 text-amber-900 dark:text-amber-200">
+                      <Camera className="h-4 w-4" />
+                      Tenant's Latest Rent Receipt (from Landlord)
+                    </h4>
+                    {selectedRequest.latest_rent_receipt_uploaded_at && (
+                      <span className="text-[10px] text-amber-800/70 dark:text-amber-300/70">
+                        {new Date(selectedRequest.latest_rent_receipt_uploaded_at).toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                  <a
+                    href={selectedRequest.latest_rent_receipt_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block"
+                  >
+                    <img
+                      src={selectedRequest.latest_rent_receipt_url}
+                      alt="Tenant's latest rent receipt"
+                      className="w-full max-h-96 rounded-lg object-contain border-2 border-amber-300 bg-white hover:ring-2 hover:ring-amber-500 transition-all cursor-zoom-in"
+                      loading="lazy"
+                    />
+                  </a>
+                  <p className="text-[10px] text-amber-800/80 dark:text-amber-300/80">
+                    Most recent receipt the landlord issued to this tenant. Click to enlarge.
+                  </p>
+                </div>
+              )}
+
               {/* Tenant passport + house photos — visible verification evidence */}
               {(selectedRequest.tenant_photo_url || (selectedRequest.house_image_urls && selectedRequest.house_image_urls.length > 0)) && (
                 <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-3">
