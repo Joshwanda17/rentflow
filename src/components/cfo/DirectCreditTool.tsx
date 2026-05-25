@@ -187,6 +187,10 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     platformCategory: 'equipment_expense',
     allowedOps: ['credit'],
     recipientLock: 'either',
+    subCategories: [
+      { id: 'maintenance', label: 'Maintenance' },
+      { id: 'renovation', label: 'Renovation' },
+    ],
   },
   {
     id: 'correction_credit',
