@@ -1338,6 +1338,54 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_eligibility_unblock_events: {
+        Row: {
+          active_count: number
+          agent_id: string
+          created_at: string
+          expected_daily: number
+          id: string
+          kampala_day: string
+          occurred_at: string
+          paid_today: number
+          ratio_pct: number
+          sms_sent: boolean
+          sms_sent_at: string | null
+          toast_seen_at: string | null
+          trigger_collection_id: string | null
+        }
+        Insert: {
+          active_count: number
+          agent_id: string
+          created_at?: string
+          expected_daily: number
+          id?: string
+          kampala_day: string
+          occurred_at?: string
+          paid_today: number
+          ratio_pct: number
+          sms_sent?: boolean
+          sms_sent_at?: string | null
+          toast_seen_at?: string | null
+          trigger_collection_id?: string | null
+        }
+        Update: {
+          active_count?: number
+          agent_id?: string
+          created_at?: string
+          expected_daily?: number
+          id?: string
+          kampala_day?: string
+          occurred_at?: string
+          paid_today?: number
+          ratio_pct?: number
+          sms_sent?: boolean
+          sms_sent_at?: string | null
+          toast_seen_at?: string | null
+          trigger_collection_id?: string | null
+        }
+        Relationships: []
+      }
       agent_escalations: {
         Row: {
           agent_id: string
