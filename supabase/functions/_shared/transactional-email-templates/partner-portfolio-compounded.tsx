@@ -29,11 +29,20 @@ interface PartnerPortfolioCompoundedProps {
   partner_name?: string
   portfolio_id?: string
   compound_date?: string
+  contribution_date?: string
   initial_partnership_amount?: string | number
   roi_return?: string
   roi_percentage?: number | string
   return_amount?: string | number
   new_total_partnership_value?: string | number
+  payment_number?: number | string
+  compound_history?: Array<{
+    cycle?: number | string
+    date?: string
+    balance_before?: string | number
+    return_amount?: string | number
+    balance_after?: string | number
+  }>
   currency?: string
   company_name?: string
   logo_url?: string
@@ -72,11 +81,14 @@ export function PartnerPortfolioCompounded({
   partner_name = 'Partner',
   portfolio_id = 'PF-XXXXXXXX',
   compound_date = '',
+  contribution_date = '',
   initial_partnership_amount = 0,
   roi_return,
   roi_percentage,
   return_amount = 0,
   new_total_partnership_value = 0,
+  payment_number,
+  compound_history,
   currency = 'UGX',
   company_name = 'Welile',
   logo_url = 'https://welilereceipts.com/welile-logo.png',
@@ -93,6 +105,23 @@ export function PartnerPortfolioCompounded({
   const headlineNum = (initNum + retNum) > 0 ? (initNum + retNum) : newTotalNum
   const formattedNewTotal = formatAmount(Math.round(headlineNum), currency)
   const roiLabel = resolveRoiLabel(roi_percentage, roi_return, initNum, retNum)
+  const timeline = Array.isArray(compound_history) && compound_history.length > 0
+    ? compound_history.map((row, index) => ({
+      cycleLabel: `Cycle ${row.cycle || index + 1}`,
+      dateLabel: row.date,
+      before: Number(String(row.balance_before ?? 0).replace(/,/g, '')) || 0,
+      earned: Number(String(row.return_amount ?? 0).replace(/,/g, '')) || 0,
+      after: Number(String(row.balance_after ?? 0).replace(/,/g, '')) || 0,
+      isCurrent: index === compound_history.length - 1,
+    }))
+    : [{
+      cycleLabel: payment_number ? `Cycle ${payment_number}` : 'This cycle',
+      dateLabel: compound_date,
+      before: initNum,
+      earned: retNum,
+      after: headlineNum,
+      isCurrent: true,
+    }]
 
   return (
     <Html>
@@ -161,6 +190,56 @@ export function PartnerPortfolioCompounded({
                         </tr>
                       </tbody>
                     </table>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td className="padding-mobile" style={{ padding: '0 40px 30px 40px' }}>
+                    <Text style={timelineTitle}>Compounded portfolio breakdown</Text>
+                    <Text style={timelineSubtitle}>
+                      {contribution_date
+                        ? `Actual compounding history from your contribution date (${contribution_date}) to this compound cycle.`
+                        : 'Actual compounding history for this portfolio up to this compound cycle.'}
+                    </Text>
+                    <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={timelineCard}>
+                      <tbody>
+                        {timeline.map((row, i) => {
+                          const isLast = i === timeline.length - 1
+                          return (
+                            <tr key={i}>
+                              <td width={28} valign="top" style={timelineRailCell}>
+                                <div style={{ ...timelineDot, ...(row.isCurrent ? timelineDotCurrent : {}) }} />
+                                {!isLast && <div style={timelineLine} />}
+                              </td>
+                              <td valign="top" style={{ ...timelineRowCell, ...(isLast ? { paddingBottom: 4 } : {}) }}>
+                                <Text style={timelineCycleLabel}>
+                                  {row.cycleLabel}
+                                  {row.isCurrent && <span style={timelineCurrentTag}>&nbsp;· Current</span>}
+                                  {row.dateLabel && <span style={timelineDateLabel}>&nbsp;· {row.dateLabel}</span>}
+                                </Text>
+                                <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={{ marginTop: 6 }}>
+                                  <tbody>
+                                    <tr>
+                                      <td style={timelineKvLabel}>Opening principal</td>
+                                      <td align="right" style={timelineKvValue}>{formatAmount(row.before, currency)}</td>
+                                    </tr>
+                                    <tr>
+                                      <td style={timelineKvLabel}>Return compounded ({roiLabel})</td>
+                                      <td align="right" style={timelineKvEarned}>+{formatAmount(row.earned, currency)}</td>
+                                    </tr>
+                                    <tr>
+                                      <td style={timelineKvLabelStrong}>Principal after compound</td>
+                                      <td align="right" style={timelineKvAfter}>{formatAmount(row.after, currency)}</td>
+                                    </tr>
+                                  </tbody>
+                                </table>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                    <Text style={timelineFootnote}>This breakdown is based on recorded compound events, not a full-year projection.</Text>
                   </td>
                 </tr>
 
