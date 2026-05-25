@@ -27,8 +27,18 @@ interface PartnerWithdrawalRequest {
   requested_at: string;
   partner_ops_approved_at: string | null;
   coo_approved_at: string | null;
+  sub_category?: string | null;
   user?: { full_name: string; phone: string; avatar_url: string | null };
 }
+
+const SUB_CATEGORY_LABELS: Record<string, { label: string; color: string }> = {
+  general: { label: 'General', color: 'bg-slate-100 text-slate-700 border-slate-300' },
+  repair: { label: 'Repair', color: 'bg-amber-100 text-amber-700 border-amber-300' },
+  rent: { label: 'Rent', color: 'bg-blue-100 text-blue-700 border-blue-300' },
+  commission: { label: 'Commission', color: 'bg-emerald-100 text-emerald-700 border-emerald-300' },
+  investment: { label: 'Investment', color: 'bg-purple-100 text-purple-700 border-purple-300' },
+  roi: { label: 'ROI', color: 'bg-rose-100 text-rose-700 border-rose-300' },
+};
 
 import { formatDynamic } from '@/lib/currencyFormat';
 const formatCurrency = formatDynamic;
