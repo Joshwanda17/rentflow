@@ -656,15 +656,20 @@ export function CFOAdvanceRequestPayments() {
 
                       <Button
                         onClick={() => setConfirmingId(req.id)}
-                        disabled={payMutation.isPending || isPending}
+                        disabled={payMutation.isPending}
                         className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white disabled:bg-muted disabled:text-muted-foreground"
                       >
                         {payMutation.isPending
                           ? <Loader2 className="h-4 w-4 animate-spin" />
                           : isPending
-                            ? <>Awaiting COO approval before payout</>
+                            ? <><CheckCircle2 className="h-4 w-4" /> Approve &amp; Pay {formatUGX(currentPrincipal)} to Agent Wallet</>
                             : <><CheckCircle2 className="h-4 w-4" /> Pay {formatUGX(currentPrincipal)} to Agent Wallet</>}
                       </Button>
+                      {isPending && (
+                        <p className="text-[10px] text-muted-foreground text-center">
+                          Principal, cycle days, and rate remain editable until you approve &amp; submit the payout.
+                        </p>
+                      )}
                     </div>
                   )}
                 </CardContent>
