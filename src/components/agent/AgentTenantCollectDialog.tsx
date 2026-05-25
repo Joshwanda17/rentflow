@@ -564,6 +564,46 @@ export function AgentTenantCollectDialog({
               <p className="text-xs text-muted-foreground">Ref: {result.tracking_id}</p>
             </div>
 
+            {/* 🎯 NEW ADVANCE LIMIT UNLOCKED — hero card */}
+            {(() => {
+              const CAP = 30_000_000;
+              const previousLimit = Math.min(creditLimit.totalLimit, CAP);
+              const headroom = Math.max(0, CAP - previousLimit);
+              const boost = Math.min(Math.round(result.amount * 2), headroom);
+              const newLimit = previousLimit + boost;
+              return (
+                <div className="rounded-2xl p-4 bg-gradient-to-br from-purple-600 via-purple-700 to-fuchsia-700 text-white shadow-lg shadow-purple-900/20 border border-purple-400/30 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-lg bg-white/15 backdrop-blur flex items-center justify-center shrink-0 ring-1 ring-white/20">
+                      <Unlock className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider font-bold text-purple-100/90">New Advance Limit Unlocked</p>
+                      <p className="text-xs text-purple-100/80">You can now borrow more</p>
+                    </div>
+                  </div>
+                  <div className="text-center py-1">
+                    <p className="text-3xl font-black font-mono leading-none">{formatCreditAmount(newLimit).trim()}</p>
+                    {boost > 0 ? (
+                      <p className="text-sm font-bold text-emerald-300 mt-1">+{formatCreditAmount(boost).trim()} from this allocation</p>
+                    ) : (
+                      <p className="text-sm font-bold text-purple-200 mt-1">At UGX 30M cap</p>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-lg bg-white/10 px-2 py-1.5 text-center">
+                      <p className="text-[9px] text-purple-100/70 uppercase tracking-wider">Before</p>
+                      <p className="text-xs font-bold">{formatCreditAmount(previousLimit).trim()}</p>
+                    </div>
+                    <div className="rounded-lg bg-white/15 px-2 py-1.5 text-center ring-1 ring-white/25">
+                      <p className="text-[9px] text-purple-100/70 uppercase tracking-wider">After</p>
+                      <p className="text-xs font-bold">{formatCreditAmount(newLimit).trim()}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
             <div className="bg-muted/30 rounded-xl p-3 space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Amount</span>
