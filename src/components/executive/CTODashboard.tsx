@@ -12,6 +12,7 @@ import { CTOCommunicationOverview } from './CTOCommunicationOverview';
 import RunBackupNowButton from '@/components/admin/RunBackupNowButton';
 import { CTOLedgerExport } from './CTOLedgerExport';
 import MaintenanceToggleCard from '@/components/cto/MaintenanceToggleCard';
+import ExtractSchemaCard from '@/components/cto/ExtractSchemaCard';
 
 export function CTODashboard({ activeTab }: { activeTab?: string }) {
   if (activeTab === 'system-logs') {
@@ -230,6 +231,9 @@ export function CTODashboard({ activeTab }: { activeTab?: string }) {
     <div className="space-y-4 sm:space-y-6">
       {/* Maintenance Mode Control (CTO) */}
       <MaintenanceToggleCard />
+
+      {/* Database Schema Export */}
+      <ExtractSchemaCard />
 
       {/* Infrastructure Health Monitor */}
       <InfrastructureHealthMonitor />
