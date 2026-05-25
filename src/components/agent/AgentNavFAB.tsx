@@ -124,7 +124,13 @@ export default function AgentNavFAB() {
 
   const isAgent = role === 'agent';
 
-  const onHome = location.pathname === '/' || location.pathname === '/dashboard';
+  // Treat the role-scoped dashboard routes (e.g. `/dashboard/agent`) as
+  // "home" too — otherwise the Back pill renders on the agent landing page
+  // and collides with the fixed bottom role-switcher on small phones.
+  const onHome =
+    location.pathname === '/' ||
+    location.pathname === '/dashboard' ||
+    /^\/dashboard\/(agent|tenant|landlord|funder|manager|owner)\/?$/.test(location.pathname);
 
   // Lightweight in-memory route history (most-recent last, max 5 unique entries).
   // Persisted to sessionStorage so a refresh doesn't strand the agent.
