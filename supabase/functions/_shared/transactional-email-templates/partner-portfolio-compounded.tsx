@@ -38,6 +38,7 @@ interface PartnerPortfolioCompoundedProps {
   payment_number?: number | string
   compound_history?: Array<{
     cycle?: number | string
+    month_name?: string
     date?: string
     balance_before?: string | number
     return_amount?: string | number
