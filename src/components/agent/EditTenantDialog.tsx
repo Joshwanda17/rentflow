@@ -24,23 +24,39 @@ interface EditTenantDialogProps {
   onSaved?: (updated: { full_name: string; phone: string; email: string | null; national_id: string | null; tenant_status?: string | null }) => void;
 }
 
+const normalizePhone = (v: string) => v.replace(/[\s-]/g, '');
+
 const editSchema = z.object({
   full_name: z.string().trim().min(2, 'Full name must be at least 2 characters').max(100, 'Too long'),
   phone: z
     .string()
     .trim()
-    .regex(/^\+?[0-9\s-]{7,15}$/, 'Enter a valid phone (e.g. +256712345678)'),
+    .transform(normalizePhone)
+    .pipe(
+      z.string().regex(
+        /^(\+256[7-9]\d{8}|0[7-9]\d{8})$/,
+        'Enter a valid Uganda phone (e.g. +256712345678 or 0772123456)'
+      )
+    ),
   email: z
     .string()
     .trim()
-    .email('Invalid email')
-    .max(255)
+    .max(255, 'Email too long')
+    .refine((v) => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), {
+      message: 'Enter a valid email (e.g. name@domain.com)',
+    })
     .optional()
     .or(z.literal('')),
   national_id: z
     .string()
     .trim()
-    .regex(/^[A-Za-z0-9]{10,14}$/, 'National ID must be 10-14 letters/numbers')
+    .toUpperCase()
+    .pipe(
+      z.string().regex(
+        /^[A-Z0-9]{14}$/,
+        'National ID must be exactly 14 letters/numbers (e.g. CM12345678ABCD)'
+      )
+    )
     .optional()
     .or(z.literal('')),
 });
