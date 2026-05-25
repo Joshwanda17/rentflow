@@ -638,13 +638,13 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
         </div>
         <Button
           variant="outline"
-          size="icon"
           onClick={() => setEditDialogOpen(true)}
-          className="h-11 w-11 rounded-xl shrink-0"
+          className="h-11 px-3 rounded-xl shrink-0 gap-1.5 font-semibold border-primary/40 text-primary hover:bg-primary/10"
           aria-label="Edit tenant details"
           title="Edit tenant details"
         >
-          <Pencil className="h-5 w-5" />
+          <Pencil className="h-4 w-4" />
+          <span className="text-sm">Edit</span>
         </Button>
         <Button
           variant="outline"
