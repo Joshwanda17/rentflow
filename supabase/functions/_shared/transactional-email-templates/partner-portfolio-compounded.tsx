@@ -115,16 +115,10 @@ export function PartnerPortfolioCompounded({
       before: Number(String(row.balance_before ?? 0).replace(/,/g, '')) || 0,
       earned: Number(String(row.return_amount ?? 0).replace(/,/g, '')) || 0,
       after: Number(String(row.balance_after ?? 0).replace(/,/g, '')) || 0,
-      isCurrent: index === compound_history.length - 1,
+      // Forward projection — first upcoming month is highlighted as "Next".
+      isCurrent: index === 0,
     }))
-    : [{
-      cycleLabel: payment_number ? `Month ${payment_number}` : 'This cycle',
-      dateLabel: compound_date,
-      before: initNum,
-      earned: retNum,
-      after: headlineNum,
-      isCurrent: true,
-    }]
+    : []
 
   return (
     <Html>
@@ -196,13 +190,12 @@ export function PartnerPortfolioCompounded({
                   </td>
                 </tr>
 
+                {timeline.length > 0 && (
                 <tr>
                   <td className="padding-mobile" style={{ padding: '0 40px 30px 40px' }}>
-                    <Text style={timelineTitle}>Compounded portfolio breakdown</Text>
+                    <Text style={timelineTitle}>Upcoming compounding breakdown</Text>
                     <Text style={timelineSubtitle}>
-                      {contribution_date
-                        ? `Actual compounding history from your contribution date (${contribution_date}) to this compound cycle.`
-                        : 'Actual compounding history for this portfolio up to this compound cycle.'}
+                      Projected forward from your <strong>New Total Partnership Value</strong> ({formattedNewTotal}). The cycle just settled is excluded — the table starts from your next month and compounds at {roiLabel} through the remainder of your portfolio term.
                     </Text>
                     <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={timelineCard}>
                       <tbody>
@@ -217,7 +210,7 @@ export function PartnerPortfolioCompounded({
                               <td valign="top" style={{ ...timelineRowCell, ...(isLast ? { paddingBottom: 4 } : {}) }}>
                                 <Text style={timelineCycleLabel}>
                                   {row.cycleLabel}
-                                  {row.isCurrent && <span style={timelineCurrentTag}>&nbsp;· Current</span>}
+                                  {row.isCurrent && <span style={timelineCurrentTag}>&nbsp;· Next</span>}
                                   {row.dateLabel && <span style={timelineDateLabel}>&nbsp;· {row.dateLabel}</span>}
                                 </Text>
                                 <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={{ marginTop: 6 }}>
@@ -242,9 +235,10 @@ export function PartnerPortfolioCompounded({
                         })}
                       </tbody>
                     </table>
-                    <Text style={timelineFootnote}>This breakdown is based on recorded compound events, not a full-year projection.</Text>
+                    <Text style={timelineFootnote}>Projection assumes the portfolio continues compounding at the same monthly return through maturity. Actual values may vary if you withdraw, top up, or change the portfolio.</Text>
                   </td>
                 </tr>
+                )}
 
                 <tr>
                   <td className="padding-mobile" style={{ padding: '0 40px 40px 40px' }}>
