@@ -21,6 +21,14 @@ interface WithdrawRequestDialogProps {
   onSuccess?: () => void;
   prefillAmount?: number;
   prefillReason?: string;
+  prefillPayout?: {
+    payoutMode?: 'mtn' | 'airtel' | 'bank' | 'cash';
+    momoNumber?: string;
+    momoName?: string;
+    bankName?: string;
+    bankAccountName?: string;
+    bankAccountNumber?: string;
+  } | null;
   linkedParty?: string;
 }
 
@@ -140,7 +148,7 @@ function formatRelativeMinutes(submittedAt: number): string {
   return minutes === 1 ? '1 minute ago' : `${minutes} minutes ago`;
 }
 
-export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, onSuccess, prefillAmount, prefillReason, linkedParty }: WithdrawRequestDialogProps) {
+export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, onSuccess, prefillAmount, prefillReason, prefillPayout, linkedParty }: WithdrawRequestDialogProps) {
   const { user } = useAuth();
   const [amount, setAmount] = useState<number>(0);
   const [loading, setLoading] = useState(false);
