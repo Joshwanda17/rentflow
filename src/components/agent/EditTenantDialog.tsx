@@ -24,23 +24,39 @@ interface EditTenantDialogProps {
   onSaved?: (updated: { full_name: string; phone: string; email: string | null; national_id: string | null; tenant_status?: string | null }) => void;
 }
 
+const normalizePhone = (v: string) => v.replace(/[\s-]/g, '');
+
 const editSchema = z.object({
   full_name: z.string().trim().min(2, 'Full name must be at least 2 characters').max(100, 'Too long'),
   phone: z
     .string()
     .trim()
-    .regex(/^\+?[0-9\s-]{7,15}$/, 'Enter a valid phone (e.g. +256712345678)'),
+    .transform(normalizePhone)
+    .pipe(
+      z.string().regex(
+        /^(\+256[7-9]\d{8}|0[7-9]\d{8})$/,
+        'Enter a valid Uganda phone (e.g. +256712345678 or 0772123456)'
+      )
+    ),
   email: z
     .string()
     .trim()
-    .email('Invalid email')
-    .max(255)
+    .max(255, 'Email too long')
+    .refine((v) => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), {
+      message: 'Enter a valid email (e.g. name@domain.com)',
+    })
     .optional()
     .or(z.literal('')),
   national_id: z
     .string()
     .trim()
-    .regex(/^[A-Za-z0-9]{10,14}$/, 'National ID must be 10-14 letters/numbers')
+    .toUpperCase()
+    .pipe(
+      z.string().regex(
+        /^[A-Z0-9]{14}$/,
+        'National ID must be exactly 14 letters/numbers (e.g. CM12345678ABCD)'
+      )
+    )
     .optional()
     .or(z.literal('')),
 });
@@ -91,6 +107,28 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
       msg.includes('permission') ||
       msg.includes("don't have permission")
     );
+  };
+
+  const validateField = (field: 'full_name' | 'phone' | 'email' | 'national_id') => {
+    const raw = {
+      full_name: fullName,
+      phone,
+      email: email || undefined,
+      national_id: nationalId || undefined,
+    };
+    const result = editSchema.safeParse(raw);
+    if (result.success) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+      return;
+    }
+    const issue = result.error.issues.find((i) => i.path[0] === field);
+    if (issue) {
+      setErrors((prev) => ({ ...prev, [field]: issue.message }));
+    }
   };
 
   const handleSave = async () => {
@@ -461,10 +499,15 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
                 <Input
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
+                  onBlur={() => validateField('full_name')}
                   placeholder="Jane Doe"
                   maxLength={100}
                 />
-                {errors.full_name && <p className="text-xs text-destructive mt-1">{errors.full_name}</p>}
+                {errors.full_name ? (
+                  <p className="text-xs text-destructive mt-1">{errors.full_name}</p>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground mt-1">At least 2 characters</p>
+                )}
               </div>
 
               <div>
@@ -474,12 +517,17 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
                 <PhoneInput
                   value={phone}
                   onChange={(v) => setPhone(v)}
+                  onBlur={() => validateField('phone')}
                   onContactPicked={({ name }) => {
                     if (name && !fullName.trim()) setFullName(name);
                   }}
                   placeholder="+256712345678"
                 />
-                {errors.phone && <p className="text-xs text-destructive mt-1">{errors.phone}</p>}
+                {errors.phone ? (
+                  <p className="text-xs text-destructive mt-1">{errors.phone}</p>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground mt-1">Format: +2567XXXXXXXX or 07XXXXXXXX</p>
+                )}
               </div>
 
               <div>
@@ -490,10 +538,15 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  onBlur={() => validateField('email')}
                   placeholder="jane@example.com"
                   maxLength={255}
                 />
-                {errors.email && <p className="text-xs text-destructive mt-1">{errors.email}</p>}
+                {errors.email ? (
+                  <p className="text-xs text-destructive mt-1">{errors.email}</p>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground mt-1">name@domain.com</p>
+                )}
               </div>
 
               <div>
@@ -503,10 +556,15 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
                 <Input
                   value={nationalId}
                   onChange={(e) => setNationalId(e.target.value.toUpperCase())}
+                  onBlur={() => validateField('national_id')}
                   placeholder="CM12345678ABCD"
                   maxLength={14}
                 />
-                {errors.national_id && <p className="text-xs text-destructive mt-1">{errors.national_id}</p>}
+                {errors.national_id ? (
+                  <p className="text-xs text-destructive mt-1">{errors.national_id}</p>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground mt-1">Exactly 14 letters and numbers</p>
+                )}
               </div>
 
               <div className="flex gap-2 pt-2">
