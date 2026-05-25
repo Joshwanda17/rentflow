@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, Save, User, Phone, Mail, IdCard, Pencil, UserX, UserCheck, CheckCircle2, ArrowRight, X, ShieldAlert, RefreshCw, MessageSquare, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { useIdempotentSubmit } from '@/hooks/useIdempotentSubmit';
 
 interface EditTenantDialogProps {
   open: boolean;
@@ -76,9 +77,9 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
   const [phone, setPhone] = useState(tenant.phone);
   const [email, setEmail] = useState(tenant.email || '');
   const [nationalId, setNationalId] = useState(tenant.national_id || '');
-  const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [statusBusy, setStatusBusy] = useState(false);
+  const { submit: doSave, isSubmitting: saveSubmitting, reset: resetSave } = useIdempotentSubmit({ cooldownMs: 2000 });
   const [currentStatus, setCurrentStatus] = useState<string | null | undefined>(tenant.tenant_status);
   const [savedSummary, setSavedSummary] = useState<SavedField[] | null>(null);
   const [statusSummary, setStatusSummary] = useState<{ oldStatus: string; newStatus: string } | null>(null);
@@ -95,8 +96,9 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
       setSavedSummary(null);
       setStatusSummary(null);
       setPermissionBlock(null);
+      resetSave();
     }
-  }, [open, tenant]);
+  }, [open, tenant, resetSave]);
 
   // Live re-validate so the Save button (and error text) never stays in a stale "invalid" state
   // once the user has corrected a previously-flagged field.
@@ -210,92 +212,92 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
       return;
     }
 
-    setSaving(true);
-    try {
+    await doSave(async () => {
       const payload = {
         full_name: parsed.data.full_name,
         phone: parsed.data.phone,
         email: parsed.data.email || null,
         national_id: parsed.data.national_id || null,
       };
-      const { data, error } = await supabase
-        .from('profiles')
-        .update(payload)
-        .eq('id', tenant.id)
-        .select('id, full_name, phone, email, national_id');
-      const rowsReturned = data?.length ?? 0;
-      if (error || rowsReturned === 0) {
-        if (isPermissionError(error, rowsReturned)) {
-          const attempted = {
-            'Full Name': parsed.data.full_name,
-            'Phone Number': parsed.data.phone,
-            'Email': parsed.data.email || '—',
-            'National ID': parsed.data.national_id || '—',
-          };
-          const original = {
-            'Full Name': tenant.full_name,
-            'Phone Number': tenant.phone,
-            'Email': tenant.email || '—',
-            'National ID': tenant.national_id || '—',
-          };
-          const blockedFields = (Object.keys(attempted) as (keyof typeof attempted)[])
-            .filter((k) => attempted[k] !== original[k])
-            .map((k) => ({ label: k, oldValue: original[k], attemptedValue: attempted[k] }));
-          setPermissionBlock({
-            scope: 'profile',
-            message:
-              error?.message ||
-              "Your role doesn't allow editing this tenant's identity fields. A manager must approve or apply these changes.",
-            fields: blockedFields.length
-              ? blockedFields
-              : [{ label: 'Tenant profile', oldValue: '—', attemptedValue: '—' }],
-            retry: () => {
-              setPermissionBlock(null);
-              void handleSave();
-            },
-          });
-          toast.error('Permission blocked', { description: 'Escalate to a manager to save these changes.' });
-          return;
-        }
-        throw error || new Error('Update did not return any rows.');
-      }
 
-      const oldVals = {
-        'Full Name': tenant.full_name,
-        'Phone Number': tenant.phone,
-        'Email': tenant.email || '—',
-        'National ID': tenant.national_id || '—',
-      };
-      const newVals = {
-        'Full Name': parsed.data.full_name,
-        'Phone Number': parsed.data.phone,
-        'Email': parsed.data.email || '—',
-        'National ID': parsed.data.national_id || '—',
-      };
-      const summary: SavedField[] = [
-        { label: 'Full Name', oldValue: oldVals['Full Name'], newValue: newVals['Full Name'], changed: oldVals['Full Name'] !== newVals['Full Name'] },
-        { label: 'Phone Number', oldValue: oldVals['Phone Number'], newValue: newVals['Phone Number'], changed: oldVals['Phone Number'] !== newVals['Phone Number'] },
-        { label: 'Email', oldValue: oldVals['Email'], newValue: newVals['Email'], changed: oldVals['Email'] !== newVals['Email'] },
-        { label: 'National ID', oldValue: oldVals['National ID'], newValue: newVals['National ID'], changed: oldVals['National ID'] !== newVals['National ID'] },
-      ];
-      setSavedSummary(summary);
-      const changedFields = summary
-        .filter((f) => f.changed)
-        .map((f) => ({ field: f.label, old_value: f.oldValue, new_value: f.newValue }));
-      if (changedFields.length > 0) {
-        await writeAuditLog(
-          'tenant_profile_edit',
-          changedFields,
-          `Agent edited tenant identity fields (${changedFields.map((f) => f.field).join(', ')})`,
-        );
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .update(payload)
+          .eq('id', tenant.id)
+          .select('id, full_name, phone, email, national_id');
+        const rowsReturned = data?.length ?? 0;
+        if (error || rowsReturned === 0) {
+          if (isPermissionError(error, rowsReturned)) {
+            const attempted = {
+              'Full Name': parsed.data.full_name,
+              'Phone Number': parsed.data.phone,
+              'Email': parsed.data.email || '—',
+              'National ID': parsed.data.national_id || '—',
+            };
+            const original = {
+              'Full Name': tenant.full_name,
+              'Phone Number': tenant.phone,
+              'Email': tenant.email || '—',
+              'National ID': tenant.national_id || '—',
+            };
+            const blockedFields = (Object.keys(attempted) as (keyof typeof attempted)[])
+              .filter((k) => attempted[k] !== original[k])
+              .map((k) => ({ label: k, oldValue: original[k], attemptedValue: attempted[k] }));
+            setPermissionBlock({
+              scope: 'profile',
+              message:
+                error?.message ||
+                "Your role doesn't allow editing this tenant's identity fields. A manager must approve or apply these changes.",
+              fields: blockedFields.length
+                ? blockedFields
+                : [{ label: 'Tenant profile', oldValue: '—', attemptedValue: '—' }],
+              retry: () => {
+                setPermissionBlock(null);
+                void handleSave();
+              },
+            });
+            toast.error('Permission blocked', { description: 'Escalate to a manager to save these changes.' });
+            return;
+          }
+          throw error || new Error('Update did not return any rows.');
+        }
+
+        const oldVals = {
+          'Full Name': tenant.full_name,
+          'Phone Number': tenant.phone,
+          'Email': tenant.email || '—',
+          'National ID': tenant.national_id || '—',
+        };
+        const newVals = {
+          'Full Name': parsed.data.full_name,
+          'Phone Number': parsed.data.phone,
+          'Email': parsed.data.email || '—',
+          'National ID': parsed.data.national_id || '—',
+        };
+        const summary: SavedField[] = [
+          { label: 'Full Name', oldValue: oldVals['Full Name'], newValue: newVals['Full Name'], changed: oldVals['Full Name'] !== newVals['Full Name'] },
+          { label: 'Phone Number', oldValue: oldVals['Phone Number'], newValue: newVals['Phone Number'], changed: oldVals['Phone Number'] !== newVals['Phone Number'] },
+          { label: 'Email', oldValue: oldVals['Email'], newValue: newVals['Email'], changed: oldVals['Email'] !== newVals['Email'] },
+          { label: 'National ID', oldValue: oldVals['National ID'], newValue: newVals['National ID'], changed: oldVals['National ID'] !== newVals['National ID'] },
+        ];
+        setSavedSummary(summary);
+        const changedFields = summary
+          .filter((f) => f.changed)
+          .map((f) => ({ field: f.label, old_value: f.oldValue, new_value: f.newValue }));
+        if (changedFields.length > 0) {
+          await writeAuditLog(
+            'tenant_profile_edit',
+            changedFields,
+            `Agent edited tenant identity fields (${changedFields.map((f) => f.field).join(', ')})`,
+          );
+        }
+        toast.success('Tenant details saved', { description: parsed.data.full_name });
+        onSaved?.(payload);
+      } catch (err: any) {
+        toast.error('Failed to update', { description: err.message || 'Please try again' });
       }
-      toast.success('Tenant details saved', { description: parsed.data.full_name });
-      onSaved?.(payload);
-    } catch (err: any) {
-      toast.error('Failed to update', { description: err.message || 'Please try again' });
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
   const isInactive = currentStatus === 'inactive';
@@ -450,7 +452,7 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
                     variant="outline"
                     className="flex-1"
                     onClick={() => setPermissionBlock(null)}
-                    disabled={saving || statusBusy}
+                    disabled={saveSubmitting || statusBusy}
                   >
                     <X className="h-4 w-4 mr-2" />
                     Back
@@ -459,9 +461,9 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
                     variant="secondary"
                     className="flex-1"
                     onClick={permissionBlock.retry}
-                    disabled={saving || statusBusy}
+                    disabled={saveSubmitting || statusBusy}
                   >
-                    {(saving || statusBusy) ? (
+                    {(saveSubmitting || statusBusy) ? (
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
                     ) : (
                       <RefreshCw className="h-4 w-4 mr-2" />
@@ -670,12 +672,12 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
               )}
 
               <div className="flex gap-2 pt-2">
-                <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)} disabled={saving}>
+                <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)} disabled={saveSubmitting}>
                   <X className="h-4 w-4 mr-2" />
                   Cancel
                 </Button>
-                <Button className="flex-1" onClick={handleSave} disabled={saving}>
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                <Button className="flex-1" onClick={handleSave} disabled={saveSubmitting}>
+                  {saveSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                   Save Changes
                 </Button>
               </div>
