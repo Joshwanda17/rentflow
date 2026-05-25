@@ -199,6 +199,45 @@ export function CFOPartnerPayoutProcessing() {
           </div>
         </CardHeader>
         <CardContent>
+          {/* Sub-category summary */}
+          {(() => {
+            const repairCount = requests.filter(r => r.sub_category === 'repair').length;
+            const rentCount = requests.filter(r => r.sub_category === 'rent').length;
+            const commissionCount = requests.filter(r => r.sub_category === 'commission').length;
+            const investmentCount = requests.filter(r => r.sub_category === 'investment').length;
+            const roiCount = requests.filter(r => r.sub_category === 'roi').length;
+            if (!repairCount && !rentCount && !commissionCount && !investmentCount && !roiCount) return null;
+            return (
+              <div className="flex flex-wrap items-center gap-2 mb-3 pb-3 border-b">
+                <span className="text-xs text-muted-foreground">By category:</span>
+                {repairCount > 0 && (
+                  <Badge variant="outline" className="text-xs gap-1 bg-amber-50 text-amber-700 border-amber-200">
+                    🔧 Repair: <span className="font-bold">{repairCount}</span>
+                  </Badge>
+                )}
+                {rentCount > 0 && (
+                  <Badge variant="outline" className="text-xs gap-1 bg-blue-50 text-blue-700 border-blue-200">
+                    🏠 Rent: <span className="font-bold">{rentCount}</span>
+                  </Badge>
+                )}
+                {commissionCount > 0 && (
+                  <Badge variant="outline" className="text-xs gap-1 bg-emerald-50 text-emerald-700 border-emerald-200">
+                    💰 Commission: <span className="font-bold">{commissionCount}</span>
+                  </Badge>
+                )}
+                {investmentCount > 0 && (
+                  <Badge variant="outline" className="text-xs gap-1 bg-purple-50 text-purple-700 border-purple-200">
+                    📈 Investment: <span className="font-bold">{investmentCount}</span>
+                  </Badge>
+                )}
+                {roiCount > 0 && (
+                  <Badge variant="outline" className="text-xs gap-1 bg-rose-50 text-rose-700 border-rose-200">
+                    📊 ROI: <span className="font-bold">{roiCount}</span>
+                  </Badge>
+                )}
+              </div>
+            );
+          })()}
           <div className="space-y-2">
             {requests.map(req => (
               <div
