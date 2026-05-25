@@ -238,6 +238,10 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
   useEffect(() => {
     const fetchSavedNumber = async () => {
       if (!user || !open) return;
+      // If the caller pre-filled payout details (e.g. proxy partner withdraw
+      // sourced from the portfolio's saved payment route), don't overwrite
+      // them with the agent's own saved MoMo number.
+      if (prefillPayout) return;
       setFetchingProfile(true);
       try {
         const { data: profile } = await supabase
@@ -257,7 +261,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
       }
     };
     fetchSavedNumber();
-  }, [user, open]);
+  }, [user, open, prefillPayout]);
 
   const isPayoutValid = () => {
     if (!payoutMode) return false;
