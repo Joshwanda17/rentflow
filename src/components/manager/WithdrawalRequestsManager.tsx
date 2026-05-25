@@ -1239,13 +1239,19 @@ export function WithdrawalRequestsManager({ subCategoryFilter: propSubCategoryFi
               </div>
 
               {/* Active filters display */}
-              {(statusFilter !== 'all' || dateRange.from || dateRange.to) && (
+              {(statusFilter !== 'all' || dateRange.from || dateRange.to || subCategoryFilter !== 'all') && (
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-xs text-muted-foreground">Active:</span>
                   {statusFilter !== 'all' && (
                     <Badge variant="secondary" className="text-xs gap-1">
                       {statusFilter === 'approved' ? '✅' : '❌'} {statusFilter}
                       <button onClick={() => setStatusFilter('all')} className="ml-1 hover:text-destructive">×</button>
+                    </Badge>
+                  )}
+                  {subCategoryFilter !== 'all' && (
+                    <Badge variant="secondary" className="text-xs gap-1">
+                      {SUB_CATEGORY_LABELS[subCategoryFilter]?.label || subCategoryFilter}
+                      <button onClick={() => setSubCategoryFilter('all')} className="ml-1 hover:text-destructive">×</button>
                     </Badge>
                   )}
                   {dateRange.from && (
