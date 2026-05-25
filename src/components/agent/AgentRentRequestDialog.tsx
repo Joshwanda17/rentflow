@@ -309,6 +309,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [gpsLoading, setGpsLoading] = useState(false);
   const [housePhotos, setHousePhotos] = useState<{ file: File; preview: string }[]>([]);
   const [tenantPhoto, setTenantPhoto] = useState<{ file: File; preview: string } | null>(null);
+  const [latestRentReceipt, setLatestRentReceipt] = useState<{ file: File; preview: string } | null>(null);
   const [guarantorConsent, setGuarantorConsent] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
@@ -390,6 +391,41 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     });
   }, []);
 
+  const handleLatestRentReceipt = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLatestRentReceipt(prev => {
+      if (prev) URL.revokeObjectURL(prev.preview);
+      return { file, preview: URL.createObjectURL(file) };
+    });
+    if (e.target) e.target.value = '';
+  }, []);
+
+  const removeLatestRentReceipt = useCallback(() => {
+    setLatestRentReceipt(prev => {
+      if (prev) URL.revokeObjectURL(prev.preview);
+      return null;
+    });
+  }, []);
+
+  const uploadLatestRentReceipt = async (requestId: string): Promise<string | null> => {
+    if (!user || !latestRentReceipt) return null;
+    try {
+      const optimized = await optimizeImage(latestRentReceipt.file, { maxWidth: 1600, quality: 0.85 });
+      const ext = optimized.file.name.split('.').pop() || 'webp';
+      const path = `${user.id}/${requestId}/latest_rent_receipt.${ext}`;
+      const { error } = await supabase.storage
+        .from('house-images')
+        .upload(path, optimized.file, { cacheControl: '86400', upsert: true });
+      if (error) throw error;
+      const { data } = supabase.storage.from('house-images').getPublicUrl(path);
+      return data.publicUrl;
+    } catch (err) {
+      console.warn('Latest rent receipt upload failed:', err);
+      return null;
+    }
+  };
+
   const uploadTenantPhoto = async (requestId: string, tenantUserId?: string | null): Promise<string | null> => {
     if (!user || !tenantPhoto) return null;
     try {
@@ -464,6 +500,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setHousePhotos([]);
     if (tenantPhoto) URL.revokeObjectURL(tenantPhoto.preview);
     setTenantPhoto(null);
+    if (latestRentReceipt) URL.revokeObjectURL(latestRentReceipt.preview);
+    setLatestRentReceipt(null);
     setGuarantorConsent(false);
     setValidationErrors([]);
     setSubmissionError(null);
