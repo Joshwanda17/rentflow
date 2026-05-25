@@ -1343,6 +1343,22 @@ export function WithdrawalRequestsManager({ subCategoryFilter: propSubCategoryFi
                                 <><XCircle className="h-3 w-3" /> Rejected</>
                               )}
                             </Badge>
+                            {request.sub_category && request.sub_category !== 'general' && (
+                              <Badge 
+                                variant="outline" 
+                                className={`gap-1 text-xs ${SUB_CATEGORY_LABELS[request.sub_category]?.color || 'bg-slate-100 text-slate-700'}`}
+                              >
+                                {SUB_CATEGORY_LABELS[request.sub_category]?.icon && (
+                                  <span className="h-3 w-3 flex items-center justify-center">
+                                    {(() => {
+                                      const Icon = SUB_CATEGORY_LABELS[request.sub_category].icon;
+                                      return <Icon className="h-3 w-3" />;
+                                    })()}
+                                  </span>
+                                )}
+                                {SUB_CATEGORY_LABELS[request.sub_category]?.label || request.sub_category}
+                              </Badge>
+                            )}
                           </div>
                           
                           <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
