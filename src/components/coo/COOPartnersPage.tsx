@@ -3760,7 +3760,8 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         metadata: { portfolio_id: p.portfolioId, roi_amount: roiAmount, reference: refId },
       });
 
-      // Send partner-compound transactional email (fire-and-forget, non-blocking)
+      // Send partner-portfolio-compounded transactional email (fire-and-forget, non-blocking).
+      // Existing partner — bulk compound action.
       const recipientEmail = p.email || '';
       const isRealEmail =
         !!recipientEmail &&
@@ -3779,12 +3780,12 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
             .eq('record_id', p.portfolioId);
           const paymentNumber = (priorCompounds ?? 0);
 
-          // Detect "previously sent" — was a partner-compound email for this recipient
+          // Detect "previously sent" — was a partner-portfolio-compounded email for this recipient
           // already successfully sent before this action?
           const { count: priorSentCount } = await supabase
             .from('email_send_log')
             .select('id', { count: 'exact', head: true })
-            .eq('template_name', 'partner-compound')
+            .eq('template_name', 'partner-portfolio-compounded')
             .eq('recipient_email', recipientEmail)
             .eq('status', 'sent');
 
@@ -3794,9 +3795,9 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
 
           const { data: emailResp, error: emailInvokeErr } = await supabase.functions.invoke('send-transactional-email', {
             body: {
-              templateName: 'partner-compound',
+              templateName: 'partner-portfolio-compounded',
               recipientEmail,
-              idempotencyKey: `partner-compound-${p.investorId}-${p.portfolioId}-${paymentNumber}`,
+              idempotencyKey: `partner-portfolio-compounded-${p.investorId}-${p.portfolioId}-${paymentNumber}`,
               templateData: {
                 partner_name: p.name || 'Partner',
                 portfolio_id: p.portfolioName || p.portfolioId,
@@ -3834,7 +3835,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         } catch (emailErr: any) {
           emailStatus = 'failed';
           emailDetail = emailErr?.message || 'Email dispatch threw an exception.';
-          console.warn('[partner-compound] email dispatch failed (non-blocking):', emailErr);
+          console.warn('[partner-portfolio-compounded] email dispatch failed (non-blocking):', emailErr);
         }
       } else {
         emailDetail = recipientEmail
