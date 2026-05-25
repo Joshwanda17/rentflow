@@ -715,6 +715,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           daysUntil: du,
           nextPayoutDate: effectiveNextDate,
           dueToday,
+          durationMonths: Number((p as any).duration_months || 12),
+          nextRoiDate: p.next_roi_date,
         });
       });
       nearingList.sort((a, b) => a.daysUntil - b.daysUntil);
