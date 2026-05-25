@@ -73,6 +73,7 @@ interface WithdrawalRequest {
   transaction_id: string | null;
   processed_at: string | null;
   processed_by: string | null;
+  sub_category?: string | null;
   user?: {
     full_name: string;
     phone: string;
@@ -81,6 +82,15 @@ interface WithdrawalRequest {
   wallet_balance?: number;
   fund_sources?: FundSource[];
 }
+
+const SUB_CATEGORY_LABELS: Record<string, { label: string; color: string; icon: any }> = {
+  general: { label: 'General', color: 'bg-slate-100 text-slate-700 border-slate-300', icon: null },
+  repair: { label: 'Repair', color: 'bg-amber-100 text-amber-700 border-amber-300', icon: Wrench },
+  rent: { label: 'Rent', color: 'bg-blue-100 text-blue-700 border-blue-300', icon: null },
+  commission: { label: 'Commission', color: 'bg-emerald-100 text-emerald-700 border-emerald-300', icon: null },
+  investment: { label: 'Investment', color: 'bg-purple-100 text-purple-700 border-purple-300', icon: null },
+  roi: { label: 'ROI', color: 'bg-rose-100 text-rose-700 border-rose-300', icon: null },
+};
 
 export function WithdrawalRequestsManager() {
   const { user } = useAuth();
