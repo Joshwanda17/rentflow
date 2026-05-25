@@ -130,6 +130,32 @@ export function RentDisbursementQueue() {
     setSelected(next);
   };
 
+  // Group rows by agent so CFO can pick one tenant, a few, or all of an
+  // agent's tenants at a glance.
+  const grouped = useMemo(() => {
+    const map = new Map<string, { agent_id: string; agent_name: string; rows: ApprovedRentItem[] }>();
+    for (const it of items) {
+      const key = it.assigned_agent_id || it.agent_id || 'unassigned';
+      const g = map.get(key) ?? { agent_id: key, agent_name: it.agent_name, rows: [] };
+      g.rows.push(it);
+      map.set(key, g);
+    }
+    return [...map.values()].sort(
+      (a, b) =>
+        b.rows.reduce((s, r) => s + r.rent_amount, 0) -
+        a.rows.reduce((s, r) => s + r.rent_amount, 0),
+    );
+  }, [items]);
+
+  const toggleAgentGroup = (rows: ApprovedRentItem[]) => {
+    const ids = rows.map(r => r.id);
+    const allOn = ids.every(id => selected.has(id));
+    const next = new Set(selected);
+    if (allOn) ids.forEach(id => next.delete(id));
+    else ids.forEach(id => next.add(id));
+    setSelected(next);
+  };
+
   const batchDisburse = useMutation({
     mutationFn: async () => {
       if (!batchRef.trim()) throw new Error('Enter a batch reference');
