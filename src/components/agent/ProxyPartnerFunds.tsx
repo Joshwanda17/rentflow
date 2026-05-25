@@ -825,6 +825,35 @@ export function ProxyPartnerFunds() {
       ? ` (Portfolio: ${partner.accountName || partner.portfolioCode})`
       : '';
     setPrefillReason(`Proxy payout delivery for ${partner.partnerName}${portfolioLabel}`);
+
+    // Auto-populate payout destination from the portfolio's saved payment
+    // details (set by Partner Ops). If a portfolio has its own payment
+    // method configured, the agent's withdrawal form will pre-fill MoMo /
+    // bank details so they don't re-key.
+    const pInfo = partner.portfolioId ? portfolioMap[partner.portfolioId] : null;
+    if (pInfo?.payment_method) {
+      if (pInfo.payment_method === 'mobile_money') {
+        setPrefillPayout({
+          payoutMode: pInfo.mobile_network === 'Airtel' ? 'airtel' : 'mtn',
+          momoNumber: pInfo.mobile_money_number || '',
+          momoName: pInfo.account_name || partner.partnerName || '',
+        });
+      } else if (pInfo.payment_method === 'bank_transfer') {
+        setPrefillPayout({
+          payoutMode: 'bank',
+          bankName: pInfo.bank_name || '',
+          bankAccountName: pInfo.bank_account_name || partner.partnerName || '',
+          bankAccountNumber: pInfo.account_number || '',
+        });
+      } else if (pInfo.payment_method === 'cash') {
+        setPrefillPayout({ payoutMode: 'cash' });
+      } else {
+        setPrefillPayout(null);
+      }
+    } else {
+      setPrefillPayout(null);
+    }
+
     setWithdrawOpen(true);
 
     try {
