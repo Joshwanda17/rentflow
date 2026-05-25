@@ -327,7 +327,10 @@ export default function AgentNavFAB() {
     buttons[next]?.focus();
   };
 
-  if (!isAgent || modalOpen) return null;
+  // Hide entirely on the agent home — the user is already home, and the
+  // disabled Home circle would otherwise overlap the WhatsApp / Field Collect
+  // FABs at the bottom-left of small phones.
+  if (!isAgent || modalOpen || onHome) return null;
 
   return (
     <AnimatePresence>
