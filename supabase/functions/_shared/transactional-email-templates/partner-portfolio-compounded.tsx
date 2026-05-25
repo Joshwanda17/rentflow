@@ -135,7 +135,7 @@ export function PartnerPortfolioCompounded({
       <Head>
         <style>{clientOverrides}</style>
       </Head>
-      <Preview>Portfolio Compounded — New Value {formattedNewTotal}</Preview>
+      <Preview>Portfolio Compounded — Value {formattedNewTotal}</Preview>
       <Body style={main}>
         <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={bgTable}>
           <tbody><tr><td align="center" style={{ padding: '40px 10px' }}>
@@ -173,7 +173,7 @@ export function PartnerPortfolioCompounded({
                       We are pleased to confirm the successful compounding of your portfolio (<span style={{ color: '#a855f7' }}>{portfolio_id}</span>) with {company_name} Technologies Limited.
                     </Text>
                     <Text style={{ ...introText, margin: 0 }}>
-                      On the <strong>{compound_date}</strong>, in accordance with your existing agreement, your portfolio of <strong>{formattedInitial}</strong> earned a {roiLabel} return (<strong>{formattedReturn}</strong>). This brings your new total portfolio value to <strong>{formattedNewTotal}</strong>.
+                      On the <strong>{compound_date}</strong>, in accordance with your existing agreement, your portfolio of <strong>{formattedOpeningPrincipal}</strong> earned a {roiLabel} return (<strong>{formattedReturn}</strong>). This brings your new total portfolio value to <strong>{formattedNewTotal}</strong>.
                     </Text>
                   </td>
                 </tr>
@@ -415,8 +415,8 @@ export const template = {
     const initNum = Number(String(data?.initial_partnership_amount ?? 0).replace(/,/g, '')) || 0
     const retNum = Number(String(data?.return_amount ?? 0).replace(/,/g, '')) || 0
     const newTotalNum = Number(String(data?.new_total_partnership_value ?? 0).replace(/,/g, '')) || 0
-    const headline = (initNum + retNum) > 0 ? (initNum + retNum) : newTotalNum
-    return `Portfolio Compounded — New Value ${formatAmount(headline, currency)}`
+    const headline = newTotalNum > 0 ? newTotalNum : (initNum + retNum)
+    return `Portfolio Compounded — Value ${formatAmount(headline, currency)}`
   },
   displayName: 'Partner Portfolio Compounded (Existing Partner)',
   previewData: {
