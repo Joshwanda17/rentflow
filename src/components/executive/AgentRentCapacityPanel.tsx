@@ -86,7 +86,10 @@ export function AgentRentCapacityPanel({
   }, [queryClient]);
 
   const toggleRow = (agentId: string) =>
-    setRowCollapsed((prev) => ({ ...prev, [agentId]: !prev[agentId] }));
+    setRowCollapsed((prev) => {
+      const current = prev[agentId] ?? defaultCollapsed;
+      return { ...prev, [agentId]: !current };
+    });
 
   const { data, isLoading } = useQuery({
     queryKey: ['agent-rent-capacity-fleet'],
