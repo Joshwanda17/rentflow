@@ -1169,7 +1169,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           </div>
           {/* Quick search — pinned at the top of the sheet so agents can
               jump straight to a tenant without scrolling past stats. */}
-          <div className="sticky top-0 z-20 -mx-4 px-4 pt-1 pb-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+          <div className="sticky top-14 z-20 -mx-4 px-4 pt-1 pb-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
