@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Save, User, Phone, Mail, IdCard, Pencil, UserX, UserCheck } from 'lucide-react';
+import { Loader2, Save, User, Phone, Mail, IdCard, Pencil, UserX, UserCheck, CheckCircle2, ArrowRight, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
