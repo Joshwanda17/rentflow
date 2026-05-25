@@ -134,7 +134,7 @@ export function useCreditAccessLimit(userId: string | undefined) {
     // Offline: keep whatever cache we already rendered. Never spin.
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       setLoading(false);
-      return limit;
+      return existing?.data ?? persisted ?? undefined;
     }
 
     setLoading(true);
