@@ -25,6 +25,9 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'partnership-split-allocation': partnershipSplitAllocationTemplate,
   'partner-compound': partnerCompoundTemplate,
   'partner-portfolio-compounded': partnerPortfolioCompoundedTemplate,
+  // Alias — semantic name for the existing-partner compound template.
+  // Both keys resolve to the same template so callers can use either.
+  'partner-compound-existing': partnerPortfolioCompoundedTemplate,
   'portfolio-renewal': portfolioRenewalTemplate,
   'portfolio-maturity': portfolioMaturityTemplate,
   'partner-account-created': partnerAccountCreatedTemplate,
