@@ -66,15 +66,19 @@ export default function PartnerPaymentDetailsDialog({ open, onOpenChange, partne
         payment_method: mode,
         mobile_network: mode === 'mobile_money' ? momoProvider : null,
         mobile_money_number: mode === 'mobile_money' ? momoNumber.trim() : null,
+        account_name: mode === 'mobile_money' ? momoName.trim() : (portfolio.account_name ?? null),
         bank_name: mode === 'bank_transfer' ? bankName.trim() : null,
         bank_account_name: mode === 'bank_transfer' ? bankAccName.trim() : null,
         account_number: mode === 'bank_transfer' ? bankAccNumber.trim() : null,
       };
-      const { error } = await supabase
+      const { data: saved, error } = await supabase
         .from('investor_portfolios')
         .update(updates)
-        .eq('id', portfolio.id);
+        .eq('id', portfolio.id)
+        .select('id, payment_method, mobile_network, mobile_money_number, account_name, bank_name, bank_account_name, account_number')
+        .maybeSingle();
       if (error) throw error;
+      if (!saved) throw new Error('Save returned no rows — check permissions');
       toast.success('Portfolio payment route saved', {
         description: portfolio.portfolio_code || portfolio.account_name || 'Portfolio',
       });

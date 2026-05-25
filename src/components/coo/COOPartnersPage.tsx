@@ -139,6 +139,12 @@ interface PortfolioRow {
   next_roi_date: string | null;
   investor_id: string | null;
   agent_id: string;
+  payment_method?: 'mobile_money' | 'bank_transfer' | 'cash' | null;
+  mobile_network?: 'MTN' | 'Airtel' | null;
+  mobile_money_number?: string | null;
+  bank_name?: string | null;
+  bank_account_name?: string | null;
+  account_number?: string | null;
 }
 
 interface PartnerDetail {
@@ -843,7 +849,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         supabase.from('profiles').select('id, full_name, phone, email, created_at, frozen_at, frozen_reason').eq('id', partnerId).single(),
         supabase.from('wallets').select('balance').eq('user_id', partnerId).single(),
         supabase.from('investor_portfolios')
-          .select('id, portfolio_code, account_name, investment_amount, roi_percentage, payout_day, roi_mode, status, created_at, maturity_date, total_roi_earned, duration_months, next_roi_date, investor_id, agent_id')
+          .select('id, portfolio_code, account_name, investment_amount, roi_percentage, payout_day, roi_mode, status, created_at, maturity_date, total_roi_earned, duration_months, next_roi_date, investor_id, agent_id, payment_method, mobile_network, mobile_money_number, bank_name, bank_account_name, account_number')
           .or(`investor_id.eq.${partnerId},agent_id.eq.${partnerId}`)
           .order('created_at', { ascending: false }),
         supabase.from('general_ledger')
@@ -2442,6 +2448,17 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
                               {/* Edit, Approve, Top Up & Delete Portfolio Buttons */}
                               <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end gap-1.5 mt-2.5 pt-2.5 border-t border-border/50">
+                                {p.payment_method && (
+                                  <span className="col-span-2 sm:col-span-full text-[10px] text-muted-foreground inline-flex items-center gap-1">
+                                    <Banknote className="h-3 w-3 text-sky-600" />
+                                    Route:&nbsp;
+                                    {p.payment_method === 'mobile_money'
+                                      ? `${p.mobile_network || 'MoMo'} · ${p.mobile_money_number || '—'}${p.account_name ? ' · ' + p.account_name : ''}`
+                                      : p.payment_method === 'bank_transfer'
+                                        ? `${p.bank_name || 'Bank'} · ${p.account_number || '—'}${p.bank_account_name ? ' · ' + p.bank_account_name : ''}`
+                                        : 'Cash pickup'}
+                                  </span>
+                                )}
                                 {(p.status === 'pending_approval' || p.status === 'pending') && (
                                   <Button
                                     variant="ghost"
