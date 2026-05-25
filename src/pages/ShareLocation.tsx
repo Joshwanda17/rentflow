@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { createClient } from '@supabase/supabase-js';
 import { MapPin, Loader2, CheckCircle, XCircle, Navigation } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -39,7 +40,15 @@ export default function ShareLocation() {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude, accuracy } = pos.coords;
-        const { error } = await supabase
+        // The RLS policy on `location_requests` requires the row's secret
+        // token to be supplied in the `x-location-token` request header so
+        // anonymous clients cannot overwrite arbitrary pending captures.
+        const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+        const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+        const tokenClient = createClient(SUPABASE_URL, SUPABASE_KEY, {
+          global: { headers: { 'x-location-token': token } },
+        });
+        const { error } = await tokenClient
           .from('location_requests')
           .update({
             latitude,
