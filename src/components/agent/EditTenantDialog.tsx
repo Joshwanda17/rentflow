@@ -452,7 +452,7 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
                     variant="outline"
                     className="flex-1"
                     onClick={() => setPermissionBlock(null)}
-                    disabled={saving || statusBusy}
+                    disabled={saveSubmitting || statusBusy}
                   >
                     <X className="h-4 w-4 mr-2" />
                     Back
@@ -461,9 +461,9 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
                     variant="secondary"
                     className="flex-1"
                     onClick={permissionBlock.retry}
-                    disabled={saving || statusBusy}
+                    disabled={saveSubmitting || statusBusy}
                   >
-                    {(saving || statusBusy) ? (
+                    {(saveSubmitting || statusBusy) ? (
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
                     ) : (
                       <RefreshCw className="h-4 w-4 mr-2" />
