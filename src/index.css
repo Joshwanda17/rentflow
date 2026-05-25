@@ -912,7 +912,7 @@ html.android-compositor-safe .glass-card {
 /* Kill nested GPU layer promotion inside dialogs/sheets/drawers — the
    compositor doubles sticky/fixed children when their ancestor is
    transformed. Only the outermost overlay gets a promoted layer. */
-html.android-compositor-safe [role="dialog"] *,
+html.android-compositor-safe [role="dialog"] *:not(.app-sheet-content):not(.app-dialog-content),
 html.android-compositor-safe [data-radix-popper-content-wrapper] * {
   transform: none !important;
   -webkit-transform: none !important;
