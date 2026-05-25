@@ -686,12 +686,17 @@ function Step3({ form, setForm }: { form: FormState; setForm: React.Dispatch<Rea
       </motion.div>
 
       <motion.div variants={fadeUp}>
-        <label className="flex items-start gap-3 cursor-pointer bg-gray-50 border border-gray-100 rounded-xl p-3">
+        <button
+          type="button"
+          onClick={() => setForm(p => ({ ...p, agreedToTerms: !p.agreedToTerms }))}
+          className="w-full flex items-start gap-3 cursor-pointer bg-gray-50 border border-gray-100 rounded-xl p-3 text-left touch-manipulation active:bg-gray-100 transition-colors"
+          style={{ WebkitTapHighlightColor: 'transparent' }}
+          aria-pressed={form.agreedToTerms}
+        >
           <div
             className={`w-5 h-5 rounded-md border-2 shrink-0 mt-0.5 flex items-center justify-center transition-all ${
               form.agreedToTerms ? 'bg-[#6c11d4] border-[#6c11d4] scale-100' : 'border-gray-300'
             }`}
-            onClick={() => setForm(p => ({ ...p, agreedToTerms: !p.agreedToTerms }))}
           >
             {form.agreedToTerms && <Check size={11} className="text-white" strokeWidth={3} />}
           </div>
@@ -702,7 +707,7 @@ function Step3({ form, setForm }: { form: FormState; setForm: React.Dispatch<Rea
             <span className="text-[#6c11d4] font-semibold">Privacy Policy</span>.
             {' '}<span className="text-gray-400">Your data is encrypted and never Exchanged.</span>
           </p>
-        </label>
+        </button>
       </motion.div>
     </motion.div>
   );
