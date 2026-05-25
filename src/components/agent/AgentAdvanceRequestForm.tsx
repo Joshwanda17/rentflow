@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -39,6 +39,13 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
   const [cycleDays, setCycleDays] = useState<number>(30);
   const [reason, setReason] = useState('');
   const [allocOpen, setAllocOpen] = useState(false);
+
+  // Always recompute the limit from latest data when the sheet opens so
+  // recent allocations are reflected before the agent submits. The hero
+  // card may already show a fresher value than the module cache.
+  useEffect(() => {
+    if (open) refreshLimit();
+  }, [open, refreshLimit]);
 
   const principal = Math.max(0, parseInt(amount) || 0);
   const monthlyRate = 0.33;
