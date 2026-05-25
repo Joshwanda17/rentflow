@@ -673,6 +673,129 @@ export function CFOAdvanceRequestPayments() {
           })}
         </>
       )}
+
+      {/* Confirmation Dialog */}
+      {(() => {
+        const req = requests.find((r: any) => r.id === confirmingId);
+        if (!req) return null;
+        const profile = req.profiles;
+        const principal = adjustedPrincipals[req.id] ?? Number(req.principal);
+        const cycleDays = adjustedCycles[req.id] ?? Number(req.cycle_days);
+        const rate = adjustedRates[req.id] ?? Number(req.monthly_rate);
+        const regFee = calculateRegistrationFee(principal);
+        const accessFee = calculateAccessFee(principal, cycleDays, rate);
+        const totalPayable = principal + accessFee + regFee;
+        const daily = Math.ceil(totalPayable / cycleDays);
+        const weEarn = accessFee + regFee;
+        const originalPrincipal = Number(req.principal);
+        const originalCycle = Number(req.cycle_days);
+        const principalChanged = principal !== originalPrincipal;
+        const cycleChanged = cycleDays !== originalCycle;
+
+        return (
+          <Dialog open={!!confirmingId} onOpenChange={(open) => !open && setConfirmingId(null)}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-base">
+                  <AlertTriangle className="h-5 w-5 text-amber-500" />
+                  Confirm Agent Advance Payout
+                </DialogTitle>
+                <DialogDescription className="text-xs">
+                  Review the edited details before crediting {profile?.full_name || 'Agent'}&apos;s wallet.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-3 py-2">
+                {/* Agent identity */}
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/40">
+                  <div className="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                    <User className="h-4 w-4 text-emerald-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold">{profile?.full_name || 'Agent'}</p>
+                    <p className="text-[10px] text-muted-foreground">{profile?.phone}</p>
+                  </div>
+                </div>
+
+                {/* Key figures */}
+                <div className="rounded-lg border divide-y text-xs">
+                  <div className="flex justify-between px-3 py-2">
+                    <span className="text-muted-foreground">Principal to Wallet</span>
+                    <span className={cn('font-mono font-bold', principalChanged ? 'text-amber-600' : 'text-foreground')}>
+                      {formatUGX(principal)}
+                      {principalChanged && <span className="ml-1 text-[10px] text-muted-foreground">(was {formatUGX(originalPrincipal)})</span>}
+                    </span>
+                  </div>
+                  <div className="flex justify-between px-3 py-2">
+                    <span className="text-muted-foreground">Cycle Days</span>
+                    <span className={cn('font-mono font-bold', cycleChanged ? 'text-amber-600' : 'text-foreground')}>
+                      {cycleDays} days
+                      {cycleChanged && <span className="ml-1 text-[10px] text-muted-foreground">(was {originalCycle})</span>}
+                    </span>
+                  </div>
+                  <div className="flex justify-between px-3 py-2">
+                    <span className="text-muted-foreground">Monthly Rate</span>
+                    <span className="font-mono font-bold">{Math.round(rate * 100)}%</span>
+                  </div>
+                  <div className="flex justify-between px-3 py-2">
+                    <span className="text-muted-foreground">Access Fee</span>
+                    <span className="font-mono font-bold text-emerald-600">+{formatUGX(accessFee)}</span>
+                  </div>
+                  <div className="flex justify-between px-3 py-2">
+                    <span className="text-muted-foreground">Registration Fee</span>
+                    <span className="font-mono font-bold text-emerald-600">+{formatUGX(regFee)}</span>
+                  </div>
+                  <div className="flex justify-between px-3 py-2 bg-muted/30">
+                    <span className="font-bold">Total Payable by Agent</span>
+                    <span className="font-mono font-bold text-primary">{formatUGX(totalPayable)}</span>
+                  </div>
+                  <div className="flex justify-between px-3 py-2 bg-muted/30">
+                    <span className="font-bold">Daily Deduction</span>
+                    <span className="font-mono font-bold text-red-500">{formatUGX(daily)}/d</span>
+                  </div>
+                </div>
+
+                {/* Revenue summary */}
+                <div className="rounded-lg border-2 border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 p-3">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 mb-1">How Welile earns</p>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-muted-foreground">Gross revenue on this advance</span>
+                    <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400">+{formatUGX(weEarn)}</span>
+                  </div>
+                </body>
+
+                {notes[req.id] && (
+                  <div className="rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 p-2">
+                    <p className="text-[10px] font-bold uppercase text-amber-700 dark:text-amber-400">CFO Note</p>
+                    <p className="text-xs text-amber-800 dark:text-amber-300">{notes[req.id]}</p>
+                  </div>
+                )}
+              </div>
+
+              <DialogFooter className="flex-col gap-2 sm:flex-row">
+                <Button
+                  variant="outline"
+                  onClick={() => setConfirmingId(null)}
+                  className="w-full sm:w-auto"
+                >
+                  <X className="h-4 w-4 mr-1" /> Cancel
+                </Button>
+                <Button
+                  onClick={() => {
+                    payMutation.mutate(req);
+                    setConfirmingId(null);
+                  }}
+                  disabled={payMutation.isPending}
+                  className="w-full sm:w-auto gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  {payMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                  Confirm &amp; Pay {formatUGX(principal)}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        );
+      })()}
     </div>
   );
 }
