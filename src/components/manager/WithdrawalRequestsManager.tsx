@@ -28,7 +28,8 @@ import {
   Minus,
   Printer,
   Share2,
-  ExternalLink
+  ExternalLink,
+  Wrench
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -72,6 +73,7 @@ interface WithdrawalRequest {
   transaction_id: string | null;
   processed_at: string | null;
   processed_by: string | null;
+  sub_category?: string | null;
   user?: {
     full_name: string;
     phone: string;
@@ -81,7 +83,21 @@ interface WithdrawalRequest {
   fund_sources?: FundSource[];
 }
 
-export function WithdrawalRequestsManager() {
+const SUB_CATEGORY_LABELS: Record<string, { label: string; color: string; icon: any }> = {
+  general: { label: 'General', color: 'bg-slate-100 text-slate-700 border-slate-300', icon: null },
+  repair: { label: 'Repair', color: 'bg-amber-100 text-amber-700 border-amber-300', icon: Wrench },
+  rent: { label: 'Rent', color: 'bg-blue-100 text-blue-700 border-blue-300', icon: null },
+  commission: { label: 'Commission', color: 'bg-emerald-100 text-emerald-700 border-emerald-300', icon: null },
+  investment: { label: 'Investment', color: 'bg-purple-100 text-purple-700 border-purple-300', icon: null },
+  roi: { label: 'ROI', color: 'bg-rose-100 text-rose-700 border-rose-300', icon: null },
+};
+
+interface WithdrawalRequestsManagerProps {
+  subCategoryFilter?: string;
+}
+
+export function WithdrawalRequestsManager({ subCategoryFilter: propSubCategoryFilter }: WithdrawalRequestsManagerProps = {}) {
+
   const { user } = useAuth();
   const [requests, setRequests] = useState<WithdrawalRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -115,6 +131,7 @@ export function WithdrawalRequestsManager() {
     to: undefined
   });
   const [datePreset, setDatePreset] = useState<'all' | 'today' | '7days' | '30days' | 'custom'>('all');
+  const [subCategoryFilter, setSubCategoryFilter] = useState<string>(propSubCategoryFilter || 'all');
 
   // Batch selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -474,10 +491,15 @@ export function WithdrawalRequestsManager() {
   const fetchRequests = useCallback(async () => {
     try {
       // Fetch pending withdrawal requests with limit (bounded query for scale)
+      const filters: any = { status: 'pending' };
+      if (subCategoryFilter && subCategoryFilter !== 'all') {
+        filters.sub_category = subCategoryFilter;
+      }
+
       const { data: requestsData, error } = await supabase
         .from('withdrawal_requests')
         .select('*')
-        .eq('status', 'pending')
+        .match(filters)
         .gt('amount', 500)
         .order('created_at', { ascending: false })
         .limit(100);
@@ -530,15 +552,21 @@ export function WithdrawalRequestsManager() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [subCategoryFilter]);
 
   // Fetch history with filters
   const fetchHistory = useCallback(async () => {
     setHistoryLoading(true);
     try {
+      const historyFilters: any = {};
+      if (subCategoryFilter && subCategoryFilter !== 'all') {
+        historyFilters.sub_category = subCategoryFilter;
+      }
+
       let query = supabase
         .from('withdrawal_requests')
         .select('*')
+        .match(historyFilters)
         .in('status', statusFilter === 'all' ? ['approved', 'rejected'] : [statusFilter])
         .order('created_at', { ascending: false })
         .limit(50);
@@ -581,7 +609,7 @@ export function WithdrawalRequestsManager() {
     } finally {
       setHistoryLoading(false);
     }
-  }, [statusFilter, dateRange]);
+  }, [statusFilter, dateRange, subCategoryFilter]);
 
   // Apply date presets
   const applyDatePreset = (preset: typeof datePreset) => {
@@ -947,6 +975,22 @@ export function WithdrawalRequestsManager() {
                                 <Clock className="h-3 w-3" />
                                 {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
                               </Badge>
+                              {request.sub_category && request.sub_category !== 'general' && (
+                                <Badge 
+                                  variant="outline" 
+                                  className={`gap-1 text-xs ${SUB_CATEGORY_LABELS[request.sub_category]?.color || 'bg-slate-100 text-slate-700'}`}
+                                >
+                                  {SUB_CATEGORY_LABELS[request.sub_category]?.icon && (
+                                    <span className="h-3 w-3 flex items-center justify-center">
+                                      {(() => {
+                                        const Icon = SUB_CATEGORY_LABELS[request.sub_category].icon;
+                                        return <Icon className="h-3 w-3" />;
+                                      })()}
+                                    </span>
+                                  )}
+                                  {SUB_CATEGORY_LABELS[request.sub_category]?.label || request.sub_category}
+                                </Badge>
+                              )}
                             </div>
                             
                             <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
@@ -1131,6 +1175,22 @@ export function WithdrawalRequestsManager() {
                   </SelectContent>
                 </Select>
 
+                {/* Sub-Category Filter */}
+                <Select value={subCategoryFilter} onValueChange={(v) => setSubCategoryFilter(v)}>
+                  <SelectTrigger className="w-[140px] h-8 text-xs">
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    <SelectItem value="repair">🔧 Repair</SelectItem>
+                    <SelectItem value="rent">🏠 Rent</SelectItem>
+                    <SelectItem value="commission">💰 Commission</SelectItem>
+                    <SelectItem value="investment">📈 Investment</SelectItem>
+                    <SelectItem value="roi">📊 ROI</SelectItem>
+                    <SelectItem value="general">📋 General</SelectItem>
+                  </SelectContent>
+                </Select>
+
                 {/* Date Presets */}
                 <div className="flex gap-1">
                   {[
@@ -1179,13 +1239,19 @@ export function WithdrawalRequestsManager() {
               </div>
 
               {/* Active filters display */}
-              {(statusFilter !== 'all' || dateRange.from || dateRange.to) && (
+              {(statusFilter !== 'all' || dateRange.from || dateRange.to || subCategoryFilter !== 'all') && (
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-xs text-muted-foreground">Active:</span>
                   {statusFilter !== 'all' && (
                     <Badge variant="secondary" className="text-xs gap-1">
                       {statusFilter === 'approved' ? '✅' : '❌'} {statusFilter}
                       <button onClick={() => setStatusFilter('all')} className="ml-1 hover:text-destructive">×</button>
+                    </Badge>
+                  )}
+                  {subCategoryFilter !== 'all' && (
+                    <Badge variant="secondary" className="text-xs gap-1">
+                      {SUB_CATEGORY_LABELS[subCategoryFilter]?.label || subCategoryFilter}
+                      <button onClick={() => setSubCategoryFilter('all')} className="ml-1 hover:text-destructive">×</button>
                     </Badge>
                   )}
                   {dateRange.from && (
@@ -1299,6 +1365,22 @@ export function WithdrawalRequestsManager() {
                                 <><XCircle className="h-3 w-3" /> Rejected</>
                               )}
                             </Badge>
+                            {request.sub_category && request.sub_category !== 'general' && (
+                              <Badge 
+                                variant="outline" 
+                                className={`gap-1 text-xs ${SUB_CATEGORY_LABELS[request.sub_category]?.color || 'bg-slate-100 text-slate-700'}`}
+                              >
+                                {SUB_CATEGORY_LABELS[request.sub_category]?.icon && (
+                                  <span className="h-3 w-3 flex items-center justify-center">
+                                    {(() => {
+                                      const Icon = SUB_CATEGORY_LABELS[request.sub_category].icon;
+                                      return <Icon className="h-3 w-3" />;
+                                    })()}
+                                  </span>
+                                )}
+                                {SUB_CATEGORY_LABELS[request.sub_category]?.label || request.sub_category}
+                              </Badge>
+                            )}
                           </div>
                           
                           <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
