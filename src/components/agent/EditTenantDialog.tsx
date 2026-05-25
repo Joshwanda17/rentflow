@@ -77,9 +77,9 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
   const [phone, setPhone] = useState(tenant.phone);
   const [email, setEmail] = useState(tenant.email || '');
   const [nationalId, setNationalId] = useState(tenant.national_id || '');
-  const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [statusBusy, setStatusBusy] = useState(false);
+  const { submit: doSave, isSubmitting: saveSubmitting, reset: resetSave } = useIdempotentSubmit({ cooldownMs: 2000 });
   const [currentStatus, setCurrentStatus] = useState<string | null | undefined>(tenant.tenant_status);
   const [savedSummary, setSavedSummary] = useState<SavedField[] | null>(null);
   const [statusSummary, setStatusSummary] = useState<{ oldStatus: string; newStatus: string } | null>(null);
