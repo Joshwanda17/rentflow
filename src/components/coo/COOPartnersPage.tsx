@@ -3713,13 +3713,41 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
 
       if (isRealEmail) {
         try {
-          // Compute paymentNumber for idempotency: count of prior roi_compounded events for this portfolio
-          const { count: priorCompounds } = await supabase
+          const { data: priorLogs } = await supabase
             .from('audit_logs')
-            .select('id', { count: 'exact', head: true })
+            .select('created_at, metadata')
             .eq('action_type', 'roi_compounded')
-            .eq('record_id', p.portfolioId);
-          const paymentNumber = (priorCompounds ?? 0);
+            .eq('record_id', p.portfolioId)
+            .order('created_at', { ascending: true });
+          const allLogs = priorLogs ?? [];
+          const paymentNumber = allLogs.length;
+
+          let originalPrincipal = Number(p.investmentAmount) - roiAmount;
+          if (allLogs.length >= 1) {
+            const first: any = allLogs[0].metadata || {};
+            const firstNew = Number(first.new_principal || 0);
+            const firstRoi = Number(first.roi_amount || 0);
+            if (firstNew > 0 && firstRoi >= 0) originalPrincipal = firstNew - firstRoi;
+          }
+
+          const compound_history: Array<{
+            cycle: number; date: string; balance_before: number; return_amount: number; balance_after: number;
+          }> = [];
+          let runningBefore = originalPrincipal;
+          allLogs.forEach((log: any, idx: number) => {
+            const md = log.metadata || {};
+            const earned = Number(md.roi_amount || 0);
+            const after = Number(md.new_principal || runningBefore + earned);
+            const when = new Date(log.created_at);
+            compound_history.push({
+              cycle: idx + 1,
+              date: when.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }),
+              balance_before: runningBefore,
+              return_amount: earned,
+              balance_after: after,
+            });
+            runningBefore = after;
+          });
 
           // Detect "previously sent" — was a partner-portfolio-compounded email for this recipient
           // already successfully sent before this action?
@@ -3733,6 +3761,9 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
           const compoundDate = new Date().toLocaleDateString('en-GB', {
             day: '2-digit', month: 'long', year: 'numeric',
           });
+          const contributionDateStr = new Date(p.createdAt).toLocaleDateString('en-GB', {
+            day: '2-digit', month: 'long', year: 'numeric',
+          });
 
           const { data: emailResp, error: emailInvokeErr } = await supabase.functions.invoke('send-transactional-email', {
             body: {
@@ -3743,12 +3774,14 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                 partner_name: p.name || 'Partner',
                 portfolio_id: p.portfolioName || p.portfolioId,
                 compound_date: compoundDate,
-                initial_partnership_amount: p.investmentAmount,
+                contribution_date: contributionDateStr,
+                initial_partnership_amount: originalPrincipal,
                 roi_return: `${p.roiPercentage}%`,
                 return_amount: roiAmount,
                 new_total_partnership_value: newAmount,
                 roi_percentage: p.roiPercentage,
                 payment_number: paymentNumber,
+                compound_history,
                 currency: 'UGX',
                 company_name: 'Welile',
                 logo_url: 'https://welilereceipts.com/welile-logo.png',
