@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Search, Gauge, TrendingUp, AlertTriangle, ShieldCheck, Printer, Loader2, ChevronDown, ChevronUp, Minus, Plus } from 'lucide-react';
+import { Search, Gauge, TrendingUp, AlertTriangle, ShieldCheck, Printer, Loader2, ChevronDown, ChevronUp, Minus, Plus, CheckCircle2, XCircle, Sparkles } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import {
   ACTIVE_RENT_STATUSES,
@@ -48,7 +48,11 @@ export function AgentRentCapacityPanel({
 }: { defaultLimit?: number; compact?: boolean }) {
   const [search, setSearch] = useState('');
   const [showAll, setShowAll] = useState(false);
+  // On phones, default every row to collapsed so the agent sees a clean
+  // ALLOWED / BLOCKED status card and can tap to drill in.
+  const isPhone = typeof window !== 'undefined' && window.innerWidth < 640;
   const [rowCollapsed, setRowCollapsed] = useState<Record<string, boolean>>({});
+  const [defaultCollapsed] = useState<boolean>(isPhone);
   const queryClient = useQueryClient();
 
   // Force a fresh fetch every time the panel mounts (e.g. user switches to
@@ -82,7 +86,10 @@ export function AgentRentCapacityPanel({
   }, [queryClient]);
 
   const toggleRow = (agentId: string) =>
-    setRowCollapsed((prev) => ({ ...prev, [agentId]: !prev[agentId] }));
+    setRowCollapsed((prev) => {
+      const current = prev[agentId] ?? defaultCollapsed;
+      return { ...prev, [agentId]: !current };
+    });
 
   const { data, isLoading } = useQuery({
     queryKey: ['agent-rent-capacity-fleet'],
@@ -423,7 +430,7 @@ export function AgentRentCapacityPanel({
               <CapacityRow
                 key={row.agent_id}
                 row={row}
-                collapsed={!!rowCollapsed[row.agent_id]}
+                collapsed={rowCollapsed[row.agent_id] ?? defaultCollapsed}
                 onToggle={() => toggleRow(row.agent_id)}
               />
             ))}
@@ -564,60 +571,131 @@ function CapacityRow({
     }
   };
 
+  // Plain-language status for people who don't read details
+  const isStarter = row.daily_status === 'starter';
+  const isAllowed = row.daily_status !== 'blocked';
+  const statusBg = isStarter
+    ? 'bg-violet-50 border-violet-300'
+    : isAllowed
+      ? 'bg-emerald-50 border-emerald-300'
+      : 'bg-red-50 border-red-300';
+  const statusText = isStarter ? 'text-violet-800' : isAllowed ? 'text-emerald-800' : 'text-red-800';
+  const StatusIcon = isStarter ? Sparkles : isAllowed ? CheckCircle2 : XCircle;
+  const statusHeadline = isStarter
+    ? 'New agent — can post'
+    : isAllowed
+      ? 'Can post new rent today'
+      : 'Blocked from posting today';
+  const statusSub = isStarter
+    ? 'No active rents yet'
+    : isAllowed
+      ? `Collected ${todayPct}% of today's target`
+      : `Need at least 20% — at ${todayPct}% so far`;
+
   return (
-    <li className="rounded-xl border border-border bg-background p-2.5 sm:p-3">
-      <div className="flex items-start justify-between gap-2 mb-1.5">
-        <div className="min-w-0 flex-1">
-          <p className={`text-sm font-semibold truncate ${row.daily_rating === 'Very Good' || row.daily_rating === 'Good' ? 'text-emerald-700' : 'text-foreground'}`}>{row.name}</p>
-          <p className="text-[11px] text-muted-foreground truncate">
-            {row.phone || '—'} · {row.active_count} active rent{row.active_count === 1 ? '' : 's'}
-            {row.unfunded_tenant_count > 0 && (
-              <span className="text-destructive font-bold">
-                {' · '}{row.unfunded_tenant_count} marked Not Funded
-              </span>
-            )}
-          </p>
-          <p className="text-[11px] font-semibold text-emerald-700 truncate">
-            Last 7 days: <span className="tabular-nums">{row.paying_tenants_last_week}</span> of{' '}
-            <span className="tabular-nums">{row.active_tenant_count}</span> tenants paid
-          </p>
+    <li className="rounded-xl border border-border bg-background overflow-hidden">
+      {/* Tap-anywhere header — big, plain-language status */}
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onToggle}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); } }}
+        className="w-full text-left p-3 active:bg-muted/40 transition-colors touch-manipulation cursor-pointer"
+        aria-expanded={!collapsed}
+      >
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <div className="min-w-0 flex-1">
+            <p className="text-base font-bold text-foreground truncate leading-tight">
+              {row.name}
+            </p>
+            <p className="text-[11px] text-muted-foreground truncate">
+              {row.phone || '—'} · {row.active_count} active rent{row.active_count === 1 ? '' : 's'}
+              {row.unfunded_tenant_count > 0 && (
+                <span className="text-destructive font-bold">
+                  {' · '}{row.unfunded_tenant_count} not funded
+                </span>
+              )}
+            </p>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              onClick={handlePrint}
+              disabled={printing}
+              title={`Print report for ${row.name}`}
+              className="inline-flex items-center justify-center h-9 w-9 rounded-lg border border-border hover:bg-muted disabled:opacity-50"
+            >
+              {printing
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : <Printer className="h-4 w-4" />}
+            </button>
+            <div
+              className="inline-flex items-center justify-center h-9 w-9 rounded-lg border border-border"
+              aria-hidden
+            >
+              {collapsed
+                ? <ChevronDown className="h-4 w-4" />
+                : <ChevronUp className="h-4 w-4" />}
+            </div>
+          </div>
         </div>
-        <div className="flex items-center gap-1 shrink-0">
-          <span
-            className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${dailyRatingTone[row.daily_rating]}`}
-            title={`Today's collection rating — ${formatUGX(row.paid_today)} of ${formatUGX(row.expected_daily)} (${todayPct}%)`}
-          >
-            {dailyLabel}
-          </span>
-          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${tier.tone}`}>
-            7d: {tier.label}
-          </span>
-          <button
-            type="button"
-            onClick={onToggle}
-            className="inline-flex items-center justify-center h-6 w-6 rounded-md border border-border hover:bg-muted"
-            title={collapsed ? 'Expand row' : 'Collapse row'}
-          >
-            {collapsed
-              ? <ChevronDown className="h-3.5 w-3.5" />
-              : <ChevronUp className="h-3.5 w-3.5" />}
-          </button>
-          <button
-            type="button"
-            onClick={handlePrint}
-            disabled={printing}
-            title={`Print per-tenant capacity for ${row.name}`}
-            className="inline-flex items-center justify-center h-6 w-6 rounded-md border border-border hover:bg-muted disabled:opacity-50"
-          >
-            {printing
-              ? <Loader2 className="h-3 w-3 animate-spin" />
-              : <Printer className="h-3 w-3" />}
-          </button>
+
+        {/* BIG status banner — the only thing a busy person needs to see */}
+        <div className={`rounded-xl border-2 ${statusBg} p-3 flex items-center gap-3`}>
+          <StatusIcon className={`h-8 w-8 shrink-0 ${statusText}`} strokeWidth={2.5} />
+          <div className="min-w-0 flex-1">
+            <p className={`text-base font-extrabold leading-tight ${statusText}`}>
+              {statusHeadline}
+            </p>
+            <p className={`text-xs font-semibold mt-0.5 ${statusText} opacity-90`}>
+              {statusSub}
+            </p>
+          </div>
         </div>
+
+        {/* Today's collection — large numbers everyone can read */}
+        {!isStarter && (
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <div className="rounded-lg border border-border bg-background/70 p-2">
+              <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Collected today</div>
+              <div className={`text-base font-extrabold tabular-nums ${todayTone}`}>
+                {formatUGX(row.paid_today)}
+              </div>
+              <div className="text-[10px] text-muted-foreground tabular-nums">
+                of {formatUGX(row.expected_daily)} target
+              </div>
+            </div>
+            <div className="rounded-lg border border-border bg-background/70 p-2">
+              <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Tenants paid (7d)</div>
+              <div className="text-base font-extrabold tabular-nums text-foreground">
+                {row.paying_tenants_last_week}<span className="text-muted-foreground font-semibold text-xs"> / {row.active_tenant_count}</span>
+              </div>
+              <div className="text-[10px] text-muted-foreground">in the last 7 days</div>
+            </div>
+          </div>
+        )}
+
+        {/* Show "Tap for details" hint when collapsed */}
+        {collapsed && (
+          <p className="text-center text-[10px] text-muted-foreground mt-2 font-semibold">
+            Tap for full details
+          </p>
+        )}
       </div>
 
       {!collapsed && (
-        <>
+        <div className="px-3 pb-3 border-t border-border/60 pt-3 space-y-2">
+          <div className="flex flex-wrap items-center gap-1">
+            <span
+              className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${dailyRatingTone[row.daily_rating]}`}
+              title={`Today's collection rating — ${formatUGX(row.paid_today)} of ${formatUGX(row.expected_daily)} (${todayPct}%)`}
+            >
+              {dailyLabel}
+            </span>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${tier.tone}`}>
+              7d tier: {tier.label}
+            </span>
+          </div>
           <div className="flex items-center justify-between text-[11px] font-semibold tabular-nums mb-1">
             <span className="text-muted-foreground">
               Used <span className="text-foreground">{formatUGX(row.used)}</span> / {formatUGX(AGENT_RENT_CAP_UGX)}
@@ -672,7 +750,7 @@ function CapacityRow({
           </div>
 
           <AgentEligibilityHistoryStrip agentId={row.agent_id} />
-        </>
+        </div>
       )}
     </li>
   );
