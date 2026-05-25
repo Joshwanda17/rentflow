@@ -8895,6 +8895,111 @@ export type Database = {
         }
         Relationships: []
       }
+      ops_inbox_events: {
+        Row: {
+          bucket: string
+          created_at: string
+          delta: number
+          id: string
+          reason: string | null
+          related_id: string | null
+          scope: string
+        }
+        Insert: {
+          bucket: string
+          created_at?: string
+          delta?: number
+          id?: string
+          reason?: string | null
+          related_id?: string | null
+          scope?: string
+        }
+        Update: {
+          bucket?: string
+          created_at?: string
+          delta?: number
+          id?: string
+          reason?: string | null
+          related_id?: string | null
+          scope?: string
+        }
+        Relationships: []
+      }
+      ops_inbox_state: {
+        Row: {
+          created_at: string
+          escalated_at: string | null
+          id: string
+          last_acted_at: string | null
+          notes: string | null
+          ops_user_id: string
+          snoozed_until: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          escalated_at?: string | null
+          id?: string
+          last_acted_at?: string | null
+          notes?: string | null
+          ops_user_id: string
+          snoozed_until?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          escalated_at?: string | null
+          id?: string
+          last_acted_at?: string | null
+          notes?: string | null
+          ops_user_id?: string
+          snoozed_until?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ops_saved_segments: {
+        Row: {
+          created_at: string
+          description: string | null
+          filter: Json
+          id: string
+          is_starter: boolean
+          name: string
+          owner_id: string | null
+          scope: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          filter?: Json
+          id?: string
+          is_starter?: boolean
+          name: string
+          owner_id?: string | null
+          scope?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          filter?: Json
+          id?: string
+          is_starter?: boolean
+          name?: string
+          owner_id?: string | null
+          scope?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       otp_verifications: {
         Row: {
           attempts: number
@@ -16027,6 +16132,7 @@ export type Database = {
         | { Args: never; Returns: boolean }
         | { Args: { p_user_id: string }; Returns: boolean }
       is_tenant_locked: { Args: { _user_id: string }; Returns: boolean }
+      is_tenant_ops_staff: { Args: { _uid: string }; Returns: boolean }
       landlord_ops_bind_tenant_to_house: {
         Args: {
           p_house_id: string
@@ -16157,6 +16263,19 @@ export type Database = {
         }
         Returns: Json
       }
+      ops_query_tenants: {
+        Args: { p_cursor?: string; p_limit?: number; p_segment_id: string }
+        Returns: {
+          city: string
+          full_name: string
+          matched_at: string
+          outstanding_ugx: number
+          phone: string
+          tenant_id: string
+          trust_score: number
+          trust_tier: string
+        }[]
+      }
       ops_resolve_agent_segment: {
         Args: {
           _district?: string
@@ -16191,6 +16310,25 @@ export type Database = {
           _tier: Database["public"]["Enums"]["agent_tier"]
         }
         Returns: Json
+      }
+      ops_tenant_behavior: { Args: { p_tenant_id: string }; Returns: Json }
+      ops_tenant_inbox: {
+        Args: { p_bucket: string; p_cursor?: string; p_limit?: number }
+        Returns: {
+          city: string
+          days_no_progress: number
+          full_name: string
+          last_visit_at: string
+          outstanding_ugx: number
+          phone: string
+          rank_at: string
+          reason: string
+          severity: string
+          snoozed_until: string
+          tenant_id: string
+          trust_score: number
+          trust_tier: string
+        }[]
       }
       ops_undo_agent_capability_job: {
         Args: { _job_id: string; _reason: string }
