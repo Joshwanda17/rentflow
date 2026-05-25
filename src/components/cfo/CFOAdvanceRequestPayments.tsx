@@ -1,16 +1,18 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { formatUGX, calculateAccessFee } from '@/lib/agentAdvanceCalculations';
+import { formatUGX, calculateAccessFee, calculateRegistrationFee } from '@/lib/agentAdvanceCalculations';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { CheckCircle2, Loader2, Pencil, User, Banknote, X } from 'lucide-react';
+import { CheckCircle2, Loader2, Pencil, User, Banknote, X, TrendingUp, Percent, Wallet, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function CFOAdvanceRequestPayments() {
@@ -18,6 +20,8 @@ export function CFOAdvanceRequestPayments() {
   const queryClient = useQueryClient();
   const [editingRate, setEditingRate] = useState<string | null>(null);
   const [adjustedRates, setAdjustedRates] = useState<Record<string, number>>({});
+  const [adjustedPrincipals, setAdjustedPrincipals] = useState<Record<string, number>>({});
+  const [adjustedCycles, setAdjustedCycles] = useState<Record<string, number>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -66,9 +70,12 @@ export function CFOAdvanceRequestPayments() {
     mutationFn: async (req: any) => {
       if (!user?.id) throw new Error('Not authenticated');
       const adjustedRate = adjustedRates[req.id] ?? Number(req.monthly_rate);
-      const newAccessFee = calculateAccessFee(Number(req.principal), Number(req.cycle_days), adjustedRate);
-      const newTotal = Number(req.principal) + newAccessFee + Number(req.registration_fee);
-      const newDaily = Math.ceil(newTotal / Number(req.cycle_days));
+      const principal = adjustedPrincipals[req.id] ?? Number(req.principal);
+      const cycleDays = adjustedCycles[req.id] ?? Number(req.cycle_days);
+      const registrationFee = calculateRegistrationFee(principal);
+      const newAccessFee = calculateAccessFee(principal, cycleDays, adjustedRate);
+      const newTotal = principal + newAccessFee + registrationFee;
+      const newDaily = Math.ceil(newTotal / cycleDays);
 
       // 1. Update the request as paid
       const { error: updateErr } = await supabase.from('agent_advance_requests').update({
@@ -77,6 +84,9 @@ export function CFOAdvanceRequestPayments() {
         cfo_paid_at: new Date().toISOString(),
         cfo_adjusted_rate: adjustedRate !== Number(req.monthly_rate) ? adjustedRate : null,
         cfo_notes: notes[req.id] || null,
+        principal,
+        cycle_days: cycleDays,
+        registration_fee: registrationFee,
         access_fee: newAccessFee,
         total_payable: newTotal,
         daily_payment: newDaily,
@@ -86,18 +96,18 @@ export function CFOAdvanceRequestPayments() {
 
       // 2. Create agent_advances record (starts daily deductions via existing edge function)
       const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + Number(req.cycle_days));
+      expiresAt.setDate(expiresAt.getDate() + cycleDays);
       
       const { error: advErr } = await supabase.from('agent_advances').insert({
         agent_id: req.agent_id,
         issued_by: user.id,
-        principal: Number(req.principal),
+        principal,
         outstanding_balance: newTotal,
-        cycle_days: Number(req.cycle_days),
+        cycle_days: cycleDays,
         monthly_rate: adjustedRate,
         daily_rate: adjustedRate,
         access_fee: newAccessFee,
-        registration_fee: Number(req.registration_fee),
+        registration_fee: registrationFee,
         access_fee_collected: 0,
         access_fee_status: 'unpaid',
         status: 'active',
@@ -112,11 +122,11 @@ export function CFOAdvanceRequestPayments() {
             user_id: req.agent_id,
             ledger_scope: 'wallet',
             direction: 'cash_in',
-            amount: Number(req.principal),
+            amount: principal,
             category: 'agent_advance_credit',
             source_table: 'agent_advance_requests',
             source_id: req.id,
-            description: `Agent advance disbursement - ${Number(req.cycle_days)}d @ ${Math.round(adjustedRate * 100)}%`,
+            description: `Agent advance disbursement - ${cycleDays}d @ ${Math.round(adjustedRate * 100)}%`,
             currency: 'UGX',
             transaction_date: new Date().toISOString(),
           },
@@ -124,7 +134,7 @@ export function CFOAdvanceRequestPayments() {
             user_id: req.agent_id,
             ledger_scope: 'platform',
             direction: 'cash_out',
-            amount: Number(req.principal),
+            amount: principal,
             category: 'rent_disbursement',
             source_table: 'agent_advance_requests',
             source_id: req.id,
@@ -137,14 +147,14 @@ export function CFOAdvanceRequestPayments() {
       if (rpcErr) throw rpcErr;
 
       // 4. Record registration fee revenue
-      if (Number(req.registration_fee) > 0) {
+      if (registrationFee > 0) {
         await supabase.rpc('create_ledger_transaction', {
           entries: [
             {
               user_id: req.agent_id,
               ledger_scope: 'platform',
               direction: 'cash_in',
-              amount: Number(req.registration_fee),
+              amount: registrationFee,
               category: 'registration_fee_collected',
               source_table: 'agent_advance_requests',
               source_id: req.id,
@@ -156,7 +166,7 @@ export function CFOAdvanceRequestPayments() {
               user_id: req.agent_id,
               ledger_scope: 'wallet',
               direction: 'cash_out',
-              amount: Number(req.registration_fee),
+              amount: registrationFee,
               category: 'registration_fee_collected',
               source_table: 'agent_advance_requests',
               source_id: req.id,
@@ -175,12 +185,75 @@ export function CFOAdvanceRequestPayments() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  // Portfolio-level revenue economics across all pending requests
+  const revenueTotals = useMemo(() => {
+    let principal = 0, accessFee = 0, regFee = 0;
+    for (const req of requests as any[]) {
+      const p = adjustedPrincipals[req.id] ?? Number(req.principal);
+      const d = adjustedCycles[req.id] ?? Number(req.cycle_days);
+      const r = adjustedRates[req.id] ?? Number(req.monthly_rate);
+      principal += p;
+      accessFee += calculateAccessFee(p, d, r);
+      regFee += calculateRegistrationFee(p);
+    }
+    return { principal, accessFee, regFee, gross: accessFee + regFee };
+  }, [requests, adjustedPrincipals, adjustedCycles, adjustedRates]);
+
   if (isLoading) {
     return <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
   }
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <Banknote className="h-4 w-4 text-primary" />
+        <h2 className="text-base font-bold">Agent Advance Payouts</h2>
+        {requests.length > 0 && (
+          <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30">
+            {requests.length} pending · {formatUGX(revenueTotals.principal)}
+          </Badge>
+        )}
+      </div>
+
+      {/* Portfolio-level "how we make money" panel */}
+      {requests.length > 0 && (
+        <div className="rounded-lg border-2 border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 p-3 space-y-2">
+          <p className="text-xs font-bold flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
+            <TrendingUp className="h-3.5 w-3.5" />
+            How we make money on agent advances
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+            <div>
+              <p className="text-[10px] text-muted-foreground flex items-center justify-center gap-1">
+                <Wallet className="h-2.5 w-2.5" /> Principal Out
+              </p>
+              <p className="font-bold text-sm text-orange-600">{formatUGX(revenueTotals.principal)}</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-muted-foreground flex items-center justify-center gap-1">
+                <Percent className="h-2.5 w-2.5" /> Access Fees
+              </p>
+              <p className="font-bold text-sm text-emerald-600">+{formatUGX(revenueTotals.accessFee)}</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-muted-foreground flex items-center justify-center gap-1">
+                <Users className="h-2.5 w-2.5" /> Registration Fees
+              </p>
+              <p className="font-bold text-sm text-emerald-600">+{formatUGX(revenueTotals.regFee)}</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-muted-foreground flex items-center justify-center gap-1">
+                <TrendingUp className="h-2.5 w-2.5" /> Gross Revenue
+              </p>
+              <p className="font-bold text-sm text-primary">{formatUGX(revenueTotals.gross)}</p>
+            </div>
+          </div>
+          <p className="text-[10px] text-muted-foreground italic">
+            Revenue model: 28–33% monthly compounding access fee on principal · flat registration fee (10K ≤ 200K · 20K &gt; 200K).
+          </p>
+        </div>
+      )}
+
       {/* Global Fee Config */}
       {feeConfig && (
         <Card className="border-primary/20">
@@ -238,9 +311,13 @@ export function CFOAdvanceRequestPayments() {
             const profile = req.profiles;
             const isExpanded = expandedId === req.id;
             const currentRate = adjustedRates[req.id] ?? Number(req.monthly_rate);
-            const adjAccessFee = calculateAccessFee(Number(req.principal), Number(req.cycle_days), currentRate);
-            const adjTotal = Number(req.principal) + adjAccessFee + Number(req.registration_fee);
-            const adjDaily = Math.ceil(adjTotal / Number(req.cycle_days));
+            const currentPrincipal = adjustedPrincipals[req.id] ?? Number(req.principal);
+            const currentCycle = adjustedCycles[req.id] ?? Number(req.cycle_days);
+            const currentRegFee = calculateRegistrationFee(currentPrincipal);
+            const adjAccessFee = calculateAccessFee(currentPrincipal, currentCycle, currentRate);
+            const adjTotal = currentPrincipal + adjAccessFee + currentRegFee;
+            const adjDaily = Math.ceil(adjTotal / currentCycle);
+            const profitPerRequest = adjAccessFee + currentRegFee;
 
             return (
               <Card key={req.id}>
@@ -252,17 +329,43 @@ export function CFOAdvanceRequestPayments() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold truncate">{profile?.full_name || 'Agent'}</p>
-                        <p className="text-[10px] text-muted-foreground">{profile?.phone} • {format(new Date(req.created_at), 'MMM d')}</p>
+                        <p className="text-[10px] text-muted-foreground">{profile?.phone} • {format(new Date(req.created_at), 'MMM d')} • We earn <span className="text-emerald-600 font-bold">+{formatUGX(profitPerRequest)}</span></p>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="text-lg font-bold text-primary">{formatUGX(Number(req.principal))}</p>
-                        <p className="text-[10px] text-muted-foreground">{req.cycle_days}d</p>
+                        <p className="text-lg font-bold text-primary">{formatUGX(currentPrincipal)}</p>
+                        <p className="text-[10px] text-muted-foreground">{currentCycle}d</p>
                       </div>
                     </div>
                   </button>
 
                   {isExpanded && (
                     <div className="mt-4 space-y-3">
+                      {/* Editable principal & cycle days */}
+                      <div className="grid grid-cols-2 gap-2 p-3 rounded-xl bg-muted/50">
+                        <div className="space-y-1">
+                          <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Principal (UGX)</Label>
+                          <Input
+                            type="number"
+                            value={currentPrincipal}
+                            min={1000}
+                            step={1000}
+                            onChange={e => setAdjustedPrincipals(prev => ({ ...prev, [req.id]: Math.max(0, Number(e.target.value) || 0) }))}
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Cycle Days</Label>
+                          <Input
+                            type="number"
+                            value={currentCycle}
+                            min={1}
+                            max={365}
+                            onChange={e => setAdjustedCycles(prev => ({ ...prev, [req.id]: Math.max(1, Number(e.target.value) || 1) }))}
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                      </div>
+
                       {/* Fee adjustment */}
                       <div className="p-3 rounded-xl bg-muted/50 space-y-2">
                         <div className="flex items-center justify-between">
@@ -290,12 +393,16 @@ export function CFOAdvanceRequestPayments() {
                         )}
                       </div>
 
-                      {/* Breakdown */}
-                      <div className="grid grid-cols-2 gap-2 p-3 rounded-xl bg-muted/30 text-xs">
-                        <div><span className="text-muted-foreground">Principal</span><br /><span className="font-bold">{formatUGX(Number(req.principal))}</span></div>
-                        <div><span className="text-muted-foreground">Access Fee</span><br /><span className="font-bold text-orange-600">{formatUGX(adjAccessFee)}</span></div>
-                        <div><span className="text-muted-foreground">Total Payable</span><br /><span className="font-bold text-primary">{formatUGX(adjTotal)}</span></div>
-                        <div><span className="text-muted-foreground">Daily</span><br /><span className="font-bold text-red-500">{formatUGX(adjDaily)}/d</span></div>
+                      {/* Breakdown — live revenue preview */}
+                      <div className="rounded-xl border bg-muted/30 p-3 space-y-2">
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div><span className="text-muted-foreground">Principal Out</span><br /><span className="font-bold text-orange-600">{formatUGX(currentPrincipal)}</span></div>
+                          <div><span className="text-muted-foreground">Access Fee</span><br /><span className="font-bold text-emerald-600">+{formatUGX(adjAccessFee)}</span></div>
+                          <div><span className="text-muted-foreground">Registration Fee</span><br /><span className="font-bold text-emerald-600">+{formatUGX(currentRegFee)}</span></div>
+                          <div><span className="text-muted-foreground">Total Payable by Agent</span><br /><span className="font-bold text-primary">{formatUGX(adjTotal)}</span></div>
+                          <div><span className="text-muted-foreground">Daily Deduction</span><br /><span className="font-bold text-red-500">{formatUGX(adjDaily)}/d</span></div>
+                          <div><span className="text-muted-foreground">We Earn (gross)</span><br /><span className="font-bold text-emerald-700">+{formatUGX(profitPerRequest)}</span></div>
+                        </div>
                       </div>
 
                       <div className="p-3 rounded-xl bg-muted/30">
@@ -316,7 +423,7 @@ export function CFOAdvanceRequestPayments() {
                         disabled={payMutation.isPending}
                         className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
                       >
-                        {payMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><CheckCircle2 className="h-4 w-4" /> Pay to Wallet</>}
+                        {payMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><CheckCircle2 className="h-4 w-4" /> Pay {formatUGX(currentPrincipal)} to Agent Wallet</>}
                       </Button>
                     </div>
                   )}
