@@ -926,7 +926,7 @@ html.android-compositor-safe [role="dialog"] [class*="sticky"] {
    iPhone home indicator PLUS a comfortable 24px buffer so the last row of
    content (e.g. the agent hub tab strip) never sits flush behind the nav. */
 .pb-nav {
-  padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(9rem + env(safe-area-inset-bottom, 0px));
 }
 @media (min-width: 1024px) {
   .pb-nav { padding-bottom: 1rem; }
