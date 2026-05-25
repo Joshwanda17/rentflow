@@ -458,7 +458,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         metadata: { portfolio_id: portfolio.id, roi_amount: roiAmount, reference: refId },
       });
 
-      // Send partner-compound transactional email (fire-and-forget, non-blocking)
+      // Send partner-portfolio-compounded transactional email (fire-and-forget, non-blocking).
+      // This is an EXISTING partner compounding an active portfolio.
       try {
         // Resolve partner email (not stored on detailPartner.profile)
         const { data: profileRow } = await supabase
@@ -512,9 +513,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
           await supabase.functions.invoke('send-transactional-email', {
             body: {
-              templateName: 'partner-compound',
+              templateName: 'partner-portfolio-compounded',
               recipientEmail,
-              idempotencyKey: `partner-compound-${detailPartner.profile.id}-${portfolio.id}-${paymentNumber}`,
+              idempotencyKey: `partner-portfolio-compounded-${detailPartner.profile.id}-${portfolio.id}-${paymentNumber}`,
               templateData: {
                 partner_name: detailPartner.profile.full_name || 'Partner',
                 portfolio_id: portfolio.portfolio_code || portfolio.id,
@@ -522,7 +523,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                 initial_partnership_amount: portfolio.investment_amount,
                 roi_return: `${portfolio.roi_percentage}%`,
                 return_amount: roiAmount,
-                new_total_partnership_value: finalTotal,
+                // For existing partners we show the value AFTER this cycle
+                // (principal + return earned), matching the in-app dialog.
+                new_total_partnership_value: Number(newAmount),
                 roi_percentage: portfolio.roi_percentage,
                 payment_number: paymentNumber,
                 compound_history,
@@ -536,7 +539,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           });
         }
       } catch (emailErr) {
-        console.warn('[partner-compound] email dispatch failed (non-blocking):', emailErr);
+        console.warn('[partner-portfolio-compounded] email dispatch failed (non-blocking):', emailErr);
       }
 
       toast.success(`Compounded ${formatUGX(roiAmount)}`, { description: `New principal: ${formatUGX(newAmount)}. Ref: ${refId}` });
@@ -1382,9 +1385,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
             await supabase.functions.invoke('send-transactional-email', {
               body: {
-                templateName: 'partner-compound',
+                templateName: 'partner-portfolio-compounded',
                 recipientEmail,
-                idempotencyKey: `partner-compound-enable-${detailPartner.profile.id}-${editPortfolio.id}-${Date.now()}`,
+                idempotencyKey: `partner-portfolio-compounded-enable-${detailPartner.profile.id}-${editPortfolio.id}-${Date.now()}`,
                 templateData: {
                   partner_name: detailPartner.profile.full_name || 'Partner',
                   portfolio_id: editPortfolio.portfolio_code || editPortfolio.id,
@@ -1409,7 +1412,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           }
         }
       } catch (emailErr) {
-        console.warn('[partner-compound] edit-trigger email dispatch failed (non-blocking):', emailErr);
+        console.warn('[partner-portfolio-compounded] edit-trigger email dispatch failed (non-blocking):', emailErr);
       }
 
       // Update local state
@@ -3757,7 +3760,8 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         metadata: { portfolio_id: p.portfolioId, roi_amount: roiAmount, reference: refId },
       });
 
-      // Send partner-compound transactional email (fire-and-forget, non-blocking)
+      // Send partner-portfolio-compounded transactional email (fire-and-forget, non-blocking).
+      // Existing partner — bulk compound action.
       const recipientEmail = p.email || '';
       const isRealEmail =
         !!recipientEmail &&
@@ -3776,12 +3780,12 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
             .eq('record_id', p.portfolioId);
           const paymentNumber = (priorCompounds ?? 0);
 
-          // Detect "previously sent" — was a partner-compound email for this recipient
+          // Detect "previously sent" — was a partner-portfolio-compounded email for this recipient
           // already successfully sent before this action?
           const { count: priorSentCount } = await supabase
             .from('email_send_log')
             .select('id', { count: 'exact', head: true })
-            .eq('template_name', 'partner-compound')
+            .eq('template_name', 'partner-portfolio-compounded')
             .eq('recipient_email', recipientEmail)
             .eq('status', 'sent');
 
@@ -3791,9 +3795,9 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
 
           const { data: emailResp, error: emailInvokeErr } = await supabase.functions.invoke('send-transactional-email', {
             body: {
-              templateName: 'partner-compound',
+              templateName: 'partner-portfolio-compounded',
               recipientEmail,
-              idempotencyKey: `partner-compound-${p.investorId}-${p.portfolioId}-${paymentNumber}`,
+              idempotencyKey: `partner-portfolio-compounded-${p.investorId}-${p.portfolioId}-${paymentNumber}`,
               templateData: {
                 partner_name: p.name || 'Partner',
                 portfolio_id: p.portfolioName || p.portfolioId,
@@ -3831,7 +3835,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         } catch (emailErr: any) {
           emailStatus = 'failed';
           emailDetail = emailErr?.message || 'Email dispatch threw an exception.';
-          console.warn('[partner-compound] email dispatch failed (non-blocking):', emailErr);
+          console.warn('[partner-portfolio-compounded] email dispatch failed (non-blocking):', emailErr);
         }
       } else {
         emailDetail = recipientEmail
