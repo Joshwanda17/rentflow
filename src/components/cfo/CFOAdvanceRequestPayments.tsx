@@ -213,6 +213,66 @@ export function CFOAdvanceRequestPayments() {
     return { principal, accessFee, regFee, gross: accessFee + regFee };
   }, [cooApproved, adjustedPrincipals, adjustedCycles, adjustedRates]);
 
+  // Income Statement Impact — recognize Registration Fee at payout date,
+  // Access Fee straight-line across cycle days. Only counts revenue whose
+  // recognition window overlaps the selected [rangeStart, rangeEnd].
+  const incomeImpact = useMemo(() => {
+    const startD = new Date(rangeStart + 'T00:00:00');
+    const endD = new Date(rangeEnd + 'T23:59:59');
+    if (isNaN(startD.getTime()) || isNaN(endD.getTime()) || isAfter(startD, endD)) {
+      return { rows: [] as any[], regFee: 0, accessFee: 0, principalDisbursed: 0, total: 0 };
+    }
+    let regFeeTotal = 0, accessFeeTotal = 0, principalDisbursed = 0;
+    const rows: Array<{
+      id: string; name: string; principal: number; cycleDays: number;
+      regFee: number; accessFeeInRange: number; daysInRange: number; total: number;
+    }> = [];
+
+    for (const req of cooApproved) {
+      const p = adjustedPrincipals[req.id] ?? Number(req.principal);
+      const d = adjustedCycles[req.id] ?? Number(req.cycle_days);
+      const r = adjustedRates[req.id] ?? Number(req.monthly_rate);
+      const payoutDate = today; // payout is "now" in the preview
+      const cycleEnd = addDays(payoutDate, d - 1);
+
+      const regFee = (payoutDate >= startD && payoutDate <= endD) ? calculateRegistrationFee(p) : 0;
+
+      const overlapStart = dateMax([payoutDate, startD]);
+      const overlapEnd = dateMin([cycleEnd, endD]);
+      const daysInRange = isAfter(overlapStart, overlapEnd)
+        ? 0
+        : differenceInCalendarDays(overlapEnd, overlapStart) + 1;
+
+      const fullAccessFee = calculateAccessFee(p, d, r);
+      const accessFeeInRange = d > 0 ? Math.round((fullAccessFee * daysInRange) / d) : 0;
+
+      const principalIfInRange = (payoutDate >= startD && payoutDate <= endD) ? p : 0;
+      principalDisbursed += principalIfInRange;
+      regFeeTotal += regFee;
+      accessFeeTotal += accessFeeInRange;
+
+      const total = regFee + accessFeeInRange;
+      rows.push({
+        id: req.id,
+        name: req.profiles?.full_name || 'Agent',
+        principal: p,
+        cycleDays: d,
+        regFee,
+        accessFeeInRange,
+        daysInRange,
+        total,
+      });
+    }
+
+    return {
+      rows,
+      regFee: regFeeTotal,
+      accessFee: accessFeeTotal,
+      principalDisbursed,
+      total: regFeeTotal + accessFeeTotal,
+    };
+  }, [cooApproved, adjustedPrincipals, adjustedCycles, adjustedRates, rangeStart, rangeEnd]);
+
   if (isLoading) {
     return <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
   }
