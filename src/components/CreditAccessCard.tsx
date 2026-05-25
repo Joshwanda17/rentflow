@@ -172,7 +172,7 @@ export function CreditAccessCard({ userId, showBreakdown = true, compact = false
               </div>
               <div>
                 <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Rent Fee Available</p>
-                <p className="font-black text-2xl text-foreground leading-tight">
+                <p className="font-black text-2xl text-foreground leading-tight whitespace-pre-line">
                   {formatCreditAmount(limit.totalLimit, currency)}
                 </p>
               </div>
