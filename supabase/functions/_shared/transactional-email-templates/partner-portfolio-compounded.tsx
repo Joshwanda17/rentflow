@@ -100,7 +100,6 @@ export function PartnerPortfolioCompounded({
   const retNum = Number(String(return_amount).replace(/,/g, '')) || 0
   const newTotalNum = Number(String(new_total_partnership_value).replace(/,/g, '')) || 0
 
-  const formattedInitial = formatAmount(initial_partnership_amount, currency)
   const formattedReturn = formatAmount(return_amount, currency)
   // Headline = explicit New Total Partnership Value from the caller (the
   // truth shown in the in-app compound dialog: current principal + this
@@ -110,6 +109,12 @@ export function PartnerPortfolioCompounded({
   // compound, so it must never override an explicit value.
   const headlineNum = newTotalNum > 0 ? newTotalNum : (initNum + retNum)
   const formattedNewTotal = formatAmount(Math.round(headlineNum), currency)
+  // Opening principal for THIS compound cycle = balance just before the
+  // return was applied. Prefer (new_total − return) since the caller-supplied
+  // new_total is the authoritative live principal after compounding.
+  // Falls back to initial_partnership_amount only if new_total is missing.
+  const openingPrincipalNum = newTotalNum > 0 ? Math.max(0, newTotalNum - retNum) : initNum
+  const formattedOpeningPrincipal = formatAmount(Math.round(openingPrincipalNum), currency)
   const roiLabel = resolveRoiLabel(roi_percentage, roi_return, initNum, retNum)
   const timeline = Array.isArray(compound_history) && compound_history.length > 0
     ? compound_history.map((row, index) => ({
@@ -130,7 +135,7 @@ export function PartnerPortfolioCompounded({
       <Head>
         <style>{clientOverrides}</style>
       </Head>
-      <Preview>Portfolio Compounded — New Value {formattedNewTotal}</Preview>
+      <Preview>Portfolio Compounded — Value {formattedNewTotal}</Preview>
       <Body style={main}>
         <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={bgTable}>
           <tbody><tr><td align="center" style={{ padding: '40px 10px' }}>
@@ -168,7 +173,7 @@ export function PartnerPortfolioCompounded({
                       We are pleased to confirm the successful compounding of your portfolio (<span style={{ color: '#a855f7' }}>{portfolio_id}</span>) with {company_name} Technologies Limited.
                     </Text>
                     <Text style={{ ...introText, margin: 0 }}>
-                      On the <strong>{compound_date}</strong>, in accordance with your existing agreement, your portfolio of <strong>{formattedInitial}</strong> earned a {roiLabel} return (<strong>{formattedReturn}</strong>). This brings your new total portfolio value to <strong>{formattedNewTotal}</strong>.
+                      On the <strong>{compound_date}</strong>, in accordance with your existing agreement, your portfolio of <strong>{formattedOpeningPrincipal}</strong> earned a {roiLabel} return (<strong>{formattedReturn}</strong>). This brings your new total portfolio value to <strong>{formattedNewTotal}</strong>.
                     </Text>
                   </td>
                 </tr>
@@ -410,8 +415,8 @@ export const template = {
     const initNum = Number(String(data?.initial_partnership_amount ?? 0).replace(/,/g, '')) || 0
     const retNum = Number(String(data?.return_amount ?? 0).replace(/,/g, '')) || 0
     const newTotalNum = Number(String(data?.new_total_partnership_value ?? 0).replace(/,/g, '')) || 0
-    const headline = (initNum + retNum) > 0 ? (initNum + retNum) : newTotalNum
-    return `Portfolio Compounded — New Value ${formatAmount(headline, currency)}`
+    const headline = newTotalNum > 0 ? newTotalNum : (initNum + retNum)
+    return `Portfolio Compounded — Value ${formatAmount(headline, currency)}`
   },
   displayName: 'Partner Portfolio Compounded (Existing Partner)',
   previewData: {
