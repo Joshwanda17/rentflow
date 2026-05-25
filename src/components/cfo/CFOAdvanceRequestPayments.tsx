@@ -11,8 +11,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
-import { CheckCircle2, Loader2, Pencil, User, Banknote, X, TrendingUp, Percent, Wallet, Users } from 'lucide-react';
+import { format, addDays, differenceInCalendarDays, max as dateMax, min as dateMin, isAfter, startOfMonth, endOfMonth } from 'date-fns';
+import { CheckCircle2, Loader2, Pencil, User, Banknote, X, TrendingUp, Percent, Wallet, Users, FileText, CalendarRange } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function CFOAdvanceRequestPayments() {
@@ -25,6 +25,11 @@ export function CFOAdvanceRequestPayments() {
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [stageFilter, setStageFilter] = useState<'all' | 'pending' | 'coo_approved'>('all');
+
+  // Income Statement Impact preview — date range
+  const today = new Date();
+  const [rangeStart, setRangeStart] = useState<string>(format(startOfMonth(today), 'yyyy-MM-dd'));
+  const [rangeEnd, setRangeEnd] = useState<string>(format(endOfMonth(today), 'yyyy-MM-dd'));
 
   // Fetch fee config
   const { data: feeConfig } = useQuery({
