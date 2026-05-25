@@ -369,6 +369,24 @@ const highlightEyebrow: React.CSSProperties = { margin: '0 0 10px 0', color: SUB
 const highlightValue: React.CSSProperties = { margin: '0 0 5px 0', color: BRAND, fontSize: '34px', fontWeight: 800, letterSpacing: '-1px' }
 const highlightSub: React.CSSProperties = { margin: 0, color: MUTED, fontSize: '13px', fontWeight: 500 }
 
+const timelineTitle: React.CSSProperties = { margin: '0 0 8px 0', color: INK, fontSize: '18px', fontWeight: 800 }
+const timelineSubtitle: React.CSSProperties = { margin: '0 0 16px 0', color: BODY, fontSize: '14px', lineHeight: '22px' }
+const timelineCard: React.CSSProperties = { border: `1px solid ${BORDER}`, borderRadius: '12px', backgroundColor: '#ffffff', padding: '18px 18px 6px 18px' }
+const timelineRailCell: React.CSSProperties = { padding: '4px 0 0 0' }
+const timelineDot: React.CSSProperties = { width: 10, height: 10, borderRadius: 999, backgroundColor: '#cbd5e1', margin: '2px auto 0 auto' }
+const timelineDotCurrent: React.CSSProperties = { backgroundColor: BRAND, boxShadow: `0 0 0 4px ${ACCENT_BG}` }
+const timelineLine: React.CSSProperties = { width: 2, height: 78, backgroundColor: HAIRLINE, margin: '4px auto 0 auto' }
+const timelineRowCell: React.CSSProperties = { padding: '0 0 18px 12px' }
+const timelineCycleLabel: React.CSSProperties = { margin: 0, color: INK, fontSize: '14px', fontWeight: 800 }
+const timelineCurrentTag: React.CSSProperties = { color: BRAND, fontSize: '12px', fontWeight: 800 }
+const timelineDateLabel: React.CSSProperties = { color: MUTED, fontSize: '12px', fontWeight: 600 }
+const timelineKvLabel: React.CSSProperties = { padding: '3px 0', color: SUB, fontSize: '12px', lineHeight: '18px' }
+const timelineKvValue: React.CSSProperties = { padding: '3px 0', color: BODY, fontSize: '12px', lineHeight: '18px', fontWeight: 600 }
+const timelineKvEarned: React.CSSProperties = { padding: '3px 0', color: SUCCESS, fontSize: '12px', lineHeight: '18px', fontWeight: 800 }
+const timelineKvLabelStrong: React.CSSProperties = { padding: '6px 0 3px 0', color: INK, fontSize: '12px', lineHeight: '18px', fontWeight: 800, borderTop: `1px solid ${HAIRLINE}` }
+const timelineKvAfter: React.CSSProperties = { padding: '6px 0 3px 0', color: BRAND, fontSize: '12px', lineHeight: '18px', fontWeight: 800, borderTop: `1px solid ${HAIRLINE}` }
+const timelineFootnote: React.CSSProperties = { margin: '12px 0 0 0', color: MUTED, fontSize: '12px', lineHeight: '18px' }
+
 const outroText: React.CSSProperties = { margin: 0, color: BODY, fontSize: '15px', lineHeight: '24px' }
 const inlineLink: React.CSSProperties = { color: BRAND, textDecoration: 'none', fontWeight: 600 }
 const signatureText: React.CSSProperties = { margin: '25px 0 0 0', color: INK, fontSize: '15px', fontWeight: 600 }
@@ -402,6 +420,12 @@ export const template = {
     roi_percentage: 12,
     return_amount: 752_640,
     new_total_partnership_value: 7_024_640,
+    payment_number: 2,
+    contribution_date: '20 March 2026',
+    compound_history: [
+      { cycle: 1, date: '20 April 2026', balance_before: 5_600_000, return_amount: 672_000, balance_after: 6_272_000 },
+      { cycle: 2, date: '20 May 2026', balance_before: 6_272_000, return_amount: 752_640, balance_after: 7_024_640 },
+    ],
     currency: 'UGX',
     company_name: 'Welile',
     logo_url: 'https://welilereceipts.com/welile-logo.png',
