@@ -338,12 +338,14 @@ function PortfolioDetailSheet({ portfolio, open, onOpenChange, onRenamed, onTopU
             {portfolio.funded_at && (
               <DetailRow label="Funded" value={formatDateOnlyForDisplay(portfolio.funded_at)} icon={Calendar} />
             )}
-            <DetailRow
-              label="Auto-Reinvest"
-              value={autoReinvestValue ? 'Enabled' : 'Disabled'}
-              icon={RefreshCw}
-              valueClassName={autoReinvestValue ? 'text-primary' : ''}
-            />
+            {!isActive && (
+              <DetailRow
+                label="Auto-Reinvest"
+                value={autoReinvestValue ? 'Enabled' : 'Disabled'}
+                icon={RefreshCw}
+                valueClassName={autoReinvestValue ? 'text-primary' : ''}
+              />
+            )}
           </div>
 
           {/* Share & Download */}
