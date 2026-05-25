@@ -184,8 +184,8 @@ export default function CFODashboardPage() {
       case 'advances':
         return (
           <div className="space-y-6">
-            <CFOAdvanceRequestPayments />
             <BusinessAdvanceQueue stage="cfo" />
+            <CFOAdvanceRequestPayments />
             <CFOAdvancesManager />
           </div>
         );
