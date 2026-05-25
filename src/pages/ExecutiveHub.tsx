@@ -6,7 +6,7 @@ import { CEODashboard } from '@/components/executive/CEODashboard';
 import { CTODashboard } from '@/components/executive/CTODashboard';
 import { CMODashboard } from '@/components/executive/CMODashboard';
 import { AgentOpsDashboard } from '@/components/executive/AgentOpsDashboard';
-import { TenantOpsDashboard } from '@/components/executive/TenantOpsDashboard';
+import { TenantOpsHub } from '@/components/executive/TenantOpsHub';
 import { LandlordOpsDashboard } from '@/components/executive/LandlordOpsDashboard';
 import { PartnersOpsDashboard } from '@/components/executive/PartnersOpsDashboard';
 import { CRMDashboard } from '@/components/executive/CRMDashboard';
@@ -16,7 +16,7 @@ const dashboards: Record<string, { title: string; component: React.FC }> = {
   cto: { title: 'CTO Dashboard', component: CTODashboard },
   cmo: { title: 'CMO Dashboard', component: CMODashboard },
   'agent-ops': { title: 'Agent Operations', component: AgentOpsDashboard },
-  'tenant-ops': { title: 'Tenant Operations', component: TenantOpsDashboard },
+  'tenant-ops': { title: 'Tenant Operations', component: TenantOpsHub },
   'landlord-ops': { title: 'Landlord Operations', component: LandlordOpsDashboard },
   'partners-ops': { title: 'Partners Operations', component: PartnersOpsDashboard },
   crm: { title: 'CRM Dashboard', component: CRMDashboard },
