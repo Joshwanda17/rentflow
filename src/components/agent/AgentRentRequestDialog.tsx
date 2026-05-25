@@ -391,14 +391,26 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     });
   }, []);
 
-  const handleLatestRentReceipt = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLatestRentReceipt = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    const input = e.target;
+    if (input) input.value = '';
     if (!file) return;
-    setLatestRentReceipt(prev => {
-      if (prev) URL.revokeObjectURL(prev.preview);
-      return { file, preview: URL.createObjectURL(file) };
-    });
-    if (e.target) e.target.value = '';
+    try {
+      // Optimize immediately so we don't hold a multi-MB raw camera photo in memory
+      // (low-end phones OOM when the preview blob + original File both live in state).
+      const optimized = await optimizeImage(file, { maxWidth: 1600, quality: 0.85 });
+      setLatestRentReceipt(prev => {
+        if (prev) URL.revokeObjectURL(prev.preview);
+        return { file: optimized.file, preview: optimized.previewUrl };
+      });
+    } catch (err) {
+      console.warn('Receipt optimize failed, falling back to raw file:', err);
+      setLatestRentReceipt(prev => {
+        if (prev) URL.revokeObjectURL(prev.preview);
+        return { file, preview: URL.createObjectURL(file) };
+      });
+    }
   }, []);
 
   const removeLatestRentReceipt = useCallback(() => {
@@ -411,12 +423,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const uploadLatestRentReceipt = async (requestId: string): Promise<string | null> => {
     if (!user || !latestRentReceipt) return null;
     try {
-      const optimized = await optimizeImage(latestRentReceipt.file, { maxWidth: 1600, quality: 0.85 });
-      const ext = optimized.file.name.split('.').pop() || 'webp';
+      // Already optimized at capture-time; just upload as-is.
+      const file = latestRentReceipt.file;
+      const ext = file.name.split('.').pop() || 'webp';
       const path = `${user.id}/${requestId}/latest_rent_receipt.${ext}`;
       const { error } = await supabase.storage
         .from('house-images')
-        .upload(path, optimized.file, { cacheControl: '86400', upsert: true });
+        .upload(path, file, { cacheControl: '86400', upsert: true });
       if (error) throw error;
       const { data } = supabase.storage.from('house-images').getPublicUrl(path);
       return data.publicUrl;
