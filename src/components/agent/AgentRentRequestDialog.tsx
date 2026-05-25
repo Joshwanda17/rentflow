@@ -309,6 +309,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [gpsLoading, setGpsLoading] = useState(false);
   const [housePhotos, setHousePhotos] = useState<{ file: File; preview: string }[]>([]);
   const [tenantPhoto, setTenantPhoto] = useState<{ file: File; preview: string } | null>(null);
+  const [latestRentReceipt, setLatestRentReceipt] = useState<{ file: File; preview: string } | null>(null);
   const [guarantorConsent, setGuarantorConsent] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
@@ -390,6 +391,41 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     });
   }, []);
 
+  const handleLatestRentReceipt = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLatestRentReceipt(prev => {
+      if (prev) URL.revokeObjectURL(prev.preview);
+      return { file, preview: URL.createObjectURL(file) };
+    });
+    if (e.target) e.target.value = '';
+  }, []);
+
+  const removeLatestRentReceipt = useCallback(() => {
+    setLatestRentReceipt(prev => {
+      if (prev) URL.revokeObjectURL(prev.preview);
+      return null;
+    });
+  }, []);
+
+  const uploadLatestRentReceipt = async (requestId: string): Promise<string | null> => {
+    if (!user || !latestRentReceipt) return null;
+    try {
+      const optimized = await optimizeImage(latestRentReceipt.file, { maxWidth: 1600, quality: 0.85 });
+      const ext = optimized.file.name.split('.').pop() || 'webp';
+      const path = `${user.id}/${requestId}/latest_rent_receipt.${ext}`;
+      const { error } = await supabase.storage
+        .from('house-images')
+        .upload(path, optimized.file, { cacheControl: '86400', upsert: true });
+      if (error) throw error;
+      const { data } = supabase.storage.from('house-images').getPublicUrl(path);
+      return data.publicUrl;
+    } catch (err) {
+      console.warn('Latest rent receipt upload failed:', err);
+      return null;
+    }
+  };
+
   const uploadTenantPhoto = async (requestId: string, tenantUserId?: string | null): Promise<string | null> => {
     if (!user || !tenantPhoto) return null;
     try {
@@ -464,6 +500,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setHousePhotos([]);
     if (tenantPhoto) URL.revokeObjectURL(tenantPhoto.preview);
     setTenantPhoto(null);
+    if (latestRentReceipt) URL.revokeObjectURL(latestRentReceipt.preview);
+    setLatestRentReceipt(null);
     setGuarantorConsent(false);
     setValidationErrors([]);
     setSubmissionError(null);
@@ -549,6 +587,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     if (!preferredLanguage) errors.push('Preferred language is required');
 
     if (!tenantPhoto) errors.push('Tenant passport photo is required');
+    if (!latestRentReceipt) errors.push("Photo of tenant's latest rent receipt is required");
 
     // Outstanding flow uses a searchable landlord picker (LC already linked).
     // Other flows still collect landlord + LC1 inline.
@@ -861,6 +900,20 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         }
       }
 
+      // Upload latest rent receipt photo from the landlord (required)
+      if (latestRentReceipt && rentReq?.id) {
+        const receiptUrl = await uploadLatestRentReceipt(rentReq.id);
+        if (receiptUrl) {
+          await supabase
+            .from('rent_requests')
+            .update({
+              latest_rent_receipt_url: receiptUrl,
+              latest_rent_receipt_uploaded_at: new Date().toISOString(),
+            } as any)
+            .eq('id', rentReq.id);
+        }
+      }
+
       // Build activation link if tenant is new
       if (!tenantResult.existing && tenantResult.activation_token) {
         const link = `${getPublicOrigin()}/join?t=${tenantResult.activation_token}`;
@@ -1081,6 +1134,55 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
             >
               {/* Agent rent exposure capacity (100M UGX cap) */}
               <AgentCapacityBanner agentId={user?.id} />
+
+              {/* Latest rent receipt from landlord (required for all flows) */}
+              <div className="space-y-2 p-4 rounded-2xl border-2 border-amber-400/40 bg-amber-50/60 dark:bg-amber-500/5">
+                <h4 className="text-sm font-semibold flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-amber-600" />
+                  📄 Tenant's Latest Rent Receipt *
+                </h4>
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  Upload a clear photo of the most recent rent receipt the landlord
+                  gave the tenant. Used to verify rent amount, payment history and
+                  tenancy before approval.
+                </p>
+                <div className="flex items-start gap-3">
+                  {latestRentReceipt ? (
+                    <div className="relative h-28 w-28 rounded-lg overflow-hidden border border-border shrink-0">
+                      <img
+                        src={latestRentReceipt.preview}
+                        alt="Latest rent receipt"
+                        className="w-full h-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={removeLatestRentReceipt}
+                        className="absolute top-1 right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs font-bold"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="h-28 w-28 rounded-lg border-2 border-dashed border-amber-500/40 flex flex-col items-center justify-center cursor-pointer hover:border-amber-500 hover:bg-amber-100/40 dark:hover:bg-amber-500/10 transition-colors shrink-0">
+                      <span className="text-2xl">🧾</span>
+                      <span className="text-[10px] text-muted-foreground mt-0.5 text-center px-1 leading-tight">
+                        Tap to capture
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={handleLatestRentReceipt}
+                      />
+                    </label>
+                  )}
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    Make sure the receipt date, amount and landlord name are clearly
+                    visible. Blurry or cropped photos will be rejected.
+                  </p>
+                </div>
+              </div>
 
               {/* ===== 1. RENT DETAILS — PRIMARY SECTION ===== */}
               {incomeType === 'outstanding' ? (
