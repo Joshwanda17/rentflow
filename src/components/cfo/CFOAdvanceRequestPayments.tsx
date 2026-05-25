@@ -24,6 +24,7 @@ export function CFOAdvanceRequestPayments() {
   const [adjustedCycles, setAdjustedCycles] = useState<Record<string, number>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [stageFilter, setStageFilter] = useState<'all' | 'pending' | 'coo_approved'>('all');
 
   // Fetch fee config
   const { data: feeConfig } = useQuery({
@@ -34,19 +35,27 @@ export function CFOAdvanceRequestPayments() {
     },
   });
 
-  // Fetch COO-approved requests
-  const { data: requests = [], isLoading } = useQuery({
+  // Fetch ALL agent advance applications so CFO sees every stage (pending, coo_approved, etc.)
+  const { data: allRequests = [], isLoading } = useQuery({
     queryKey: ['cfo-advance-requests'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('agent_advance_requests')
         .select('*, profiles!agent_advance_requests_agent_id_fkey(full_name, phone)')
-        .eq('status', 'coo_approved')
+        .in('status', ['pending', 'coo_approved'])
         .order('created_at', { ascending: true });
       if (error) throw error;
       return data || [];
     },
   });
+
+  const pendingApplications = (allRequests as any[]).filter(r => r.status === 'pending');
+  const cooApproved = (allRequests as any[]).filter(r => r.status === 'coo_approved');
+  const requests = stageFilter === 'pending'
+    ? pendingApplications
+    : stageFilter === 'coo_approved'
+      ? cooApproved
+      : allRequests;
 
   // Update global default rate
   const updateConfigMutation = useMutation({
@@ -188,7 +197,7 @@ export function CFOAdvanceRequestPayments() {
   // Portfolio-level revenue economics across all pending requests
   const revenueTotals = useMemo(() => {
     let principal = 0, accessFee = 0, regFee = 0;
-    for (const req of requests as any[]) {
+    for (const req of cooApproved) {
       const p = adjustedPrincipals[req.id] ?? Number(req.principal);
       const d = adjustedCycles[req.id] ?? Number(req.cycle_days);
       const r = adjustedRates[req.id] ?? Number(req.monthly_rate);
@@ -197,7 +206,7 @@ export function CFOAdvanceRequestPayments() {
       regFee += calculateRegistrationFee(p);
     }
     return { principal, accessFee, regFee, gross: accessFee + regFee };
-  }, [requests, adjustedPrincipals, adjustedCycles, adjustedRates]);
+  }, [cooApproved, adjustedPrincipals, adjustedCycles, adjustedRates]);
 
   if (isLoading) {
     return <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
@@ -205,18 +214,45 @@ export function CFOAdvanceRequestPayments() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Banknote className="h-4 w-4 text-primary" />
-        <h2 className="text-base font-bold">Agent Advance Payouts</h2>
-        {requests.length > 0 && (
-          <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30">
-            {requests.length} pending · {formatUGX(revenueTotals.principal)}
-          </Badge>
-        )}
+      <div className="rounded-lg border-2 border-primary/40 bg-primary/5 p-3 space-y-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Banknote className="h-4 w-4 text-primary" />
+          <Badge className="text-[10px] bg-primary text-primary-foreground uppercase tracking-widest">Agent Advance</Badge>
+          <h2 className="text-base font-bold">Applications &amp; Payouts</h2>
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          Live view of every agent advance application. Pending items are awaiting COO approval; COO-approved items are ready for you to pay out.
+        </p>
+        <div className="flex flex-wrap gap-2 pt-1">
+          <Button
+            size="sm"
+            variant={stageFilter === 'all' ? 'default' : 'outline'}
+            className="h-7 text-[11px]"
+            onClick={() => setStageFilter('all')}
+          >
+            All <span className="ml-1 opacity-70">{allRequests.length}</span>
+          </Button>
+          <Button
+            size="sm"
+            variant={stageFilter === 'pending' ? 'default' : 'outline'}
+            className="h-7 text-[11px]"
+            onClick={() => setStageFilter('pending')}
+          >
+            Agent Applied <span className="ml-1 opacity-70">{pendingApplications.length}</span>
+          </Button>
+          <Button
+            size="sm"
+            variant={stageFilter === 'coo_approved' ? 'default' : 'outline'}
+            className="h-7 text-[11px]"
+            onClick={() => setStageFilter('coo_approved')}
+          >
+            Ready to Pay <span className="ml-1 opacity-70">{cooApproved.length}</span>
+          </Button>
+        </div>
       </div>
 
-      {/* Portfolio-level "how we make money" panel */}
-      {requests.length > 0 && (
+      {/* Portfolio-level "how we make money" panel — based on COO-approved (payable) pool */}
+      {cooApproved.length > 0 && (
         <div className="rounded-lg border-2 border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 p-3 space-y-2">
           <p className="text-xs font-bold flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
             <TrendingUp className="h-3.5 w-3.5" />
