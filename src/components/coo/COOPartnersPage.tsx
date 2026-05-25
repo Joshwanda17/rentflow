@@ -9,6 +9,7 @@ import {
   extractDateOnly,
   formatDateOnlyForDisplay,
   formatLocalDateOnly,
+  buildCompoundProjection,
 } from '@/lib/portfolioDates';
 import {
   Loader2, Search, X, Download, ChevronLeft, ChevronRight, ChevronUp, ChevronDown,
