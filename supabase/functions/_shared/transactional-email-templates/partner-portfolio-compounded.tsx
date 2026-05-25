@@ -108,7 +108,9 @@ export function PartnerPortfolioCompounded({
   const roiLabel = resolveRoiLabel(roi_percentage, roi_return, initNum, retNum)
   const timeline = Array.isArray(compound_history) && compound_history.length > 0
     ? compound_history.map((row, index) => ({
-      cycleLabel: `Cycle ${row.cycle || index + 1}`,
+      cycleLabel: row.month_name
+        ? `Month ${row.cycle || index + 1} — ${row.month_name}`
+        : `Month ${row.cycle || index + 1}`,
       dateLabel: row.date,
       before: Number(String(row.balance_before ?? 0).replace(/,/g, '')) || 0,
       earned: Number(String(row.return_amount ?? 0).replace(/,/g, '')) || 0,
@@ -116,7 +118,7 @@ export function PartnerPortfolioCompounded({
       isCurrent: index === compound_history.length - 1,
     }))
     : [{
-      cycleLabel: payment_number ? `Cycle ${payment_number}` : 'This cycle',
+      cycleLabel: payment_number ? `Month ${payment_number}` : 'This cycle',
       dateLabel: compound_date,
       before: initNum,
       earned: retNum,
