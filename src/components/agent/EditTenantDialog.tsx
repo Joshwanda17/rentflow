@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Save, User, Phone, Mail, IdCard, Pencil, UserX, UserCheck, CheckCircle2, ArrowRight, X } from 'lucide-react';
+import { Loader2, Save, User, Phone, Mail, IdCard, Pencil, UserX, UserCheck, CheckCircle2, ArrowRight, X, ShieldAlert, RefreshCw, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -46,6 +46,12 @@ const editSchema = z.object({
 });
 
 type SavedField = { label: string; oldValue: string; newValue: string; changed: boolean };
+type PermissionBlock = {
+  scope: 'profile' | 'status';
+  message: string;
+  fields: { label: string; oldValue: string; attemptedValue: string }[];
+  retry: () => void;
+};
 
 export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTenantDialogProps) {
   const [fullName, setFullName] = useState(tenant.full_name);
@@ -58,6 +64,7 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
   const [currentStatus, setCurrentStatus] = useState<string | null | undefined>(tenant.tenant_status);
   const [savedSummary, setSavedSummary] = useState<SavedField[] | null>(null);
   const [statusSummary, setStatusSummary] = useState<{ oldStatus: string; newStatus: string } | null>(null);
+  const [permissionBlock, setPermissionBlock] = useState<PermissionBlock | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -69,8 +76,22 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
       setCurrentStatus(tenant.tenant_status);
       setSavedSummary(null);
       setStatusSummary(null);
+      setPermissionBlock(null);
     }
   }, [open, tenant]);
+
+  const isPermissionError = (err: any, rowsReturned: number | null) => {
+    if (rowsReturned === 0) return true;
+    const code = err?.code || '';
+    const msg = (err?.message || '').toLowerCase();
+    return (
+      code === '42501' ||
+      code === 'PGRST301' ||
+      msg.includes('row-level security') ||
+      msg.includes('permission') ||
+      msg.includes("don't have permission")
+    );
+  };
 
   const handleSave = async () => {
     const parsed = editSchema.safeParse({
@@ -103,9 +124,41 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
         .update(payload)
         .eq('id', tenant.id)
         .select('id, full_name, phone, email, national_id');
-      if (error) throw error;
-      if (!data || data.length === 0) {
-        throw new Error("You don't have permission to edit this tenant's details. Ask a manager to update them.");
+      const rowsReturned = data?.length ?? 0;
+      if (error || rowsReturned === 0) {
+        if (isPermissionError(error, rowsReturned)) {
+          const attempted = {
+            'Full Name': parsed.data.full_name,
+            'Phone Number': parsed.data.phone,
+            'Email': parsed.data.email || '—',
+            'National ID': parsed.data.national_id || '—',
+          };
+          const original = {
+            'Full Name': tenant.full_name,
+            'Phone Number': tenant.phone,
+            'Email': tenant.email || '—',
+            'National ID': tenant.national_id || '—',
+          };
+          const blockedFields = (Object.keys(attempted) as (keyof typeof attempted)[])
+            .filter((k) => attempted[k] !== original[k])
+            .map((k) => ({ label: k, oldValue: original[k], attemptedValue: attempted[k] }));
+          setPermissionBlock({
+            scope: 'profile',
+            message:
+              error?.message ||
+              "Your role doesn't allow editing this tenant's identity fields. A manager must approve or apply these changes.",
+            fields: blockedFields.length
+              ? blockedFields
+              : [{ label: 'Tenant profile', oldValue: '—', attemptedValue: '—' }],
+            retry: () => {
+              setPermissionBlock(null);
+              void handleSave();
+            },
+          });
+          toast.error('Permission blocked', { description: 'Escalate to a manager to save these changes.' });
+          return;
+        }
+        throw error || new Error('Update did not return any rows.');
       }
 
       const oldVals = {
@@ -163,9 +216,25 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
         .update({ tenant_status: nextStatus })
         .eq('id', tenant.id)
         .select('id');
-      if (error) throw error;
-      if (!data || data.length === 0) {
-        throw new Error("You don't have permission to change this tenant's status.");
+      const rowsReturned = data?.length ?? 0;
+      if (error || rowsReturned === 0) {
+        if (isPermissionError(error, rowsReturned)) {
+          const prev = currentStatus || 'active';
+          setPermissionBlock({
+            scope: 'status',
+            message:
+              error?.message ||
+              "Your role doesn't allow changing tenant status. Ask a manager to approve this change.",
+            fields: [{ label: 'Tenant Status', oldValue: prev, attemptedValue: nextStatus }],
+            retry: () => {
+              setPermissionBlock(null);
+              void handleToggleActive();
+            },
+          });
+          toast.error('Permission blocked', { description: 'Escalate to a manager to change status.' });
+          return;
+        }
+        throw error || new Error('Status update did not return any rows.');
       }
       const prev = currentStatus || 'active';
       setCurrentStatus(nextStatus);
@@ -188,15 +257,108 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
   const handleCloseConfirmation = () => {
     setSavedSummary(null);
     setStatusSummary(null);
+    setPermissionBlock(null);
     onOpenChange(false);
   };
 
   const showingConfirmation = savedSummary !== null || statusSummary !== null;
+  const showingPermissionBlock = permissionBlock !== null;
+
+  const notifyManager = () => {
+    if (!permissionBlock) return;
+    const lines = [
+      `Manager approval needed for tenant ${tenant.full_name} (${tenant.phone}).`,
+      permissionBlock.scope === 'profile'
+        ? 'Requested profile edits:'
+        : 'Requested status change:',
+      ...permissionBlock.fields.map(
+        (f) => `• ${f.label}: "${f.oldValue}" → "${f.attemptedValue}"`,
+      ),
+      '',
+      'Reason from system: ' + permissionBlock.message,
+    ];
+    const text = lines.join('\n');
+    const wa = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(wa, '_blank');
+    toast.success('Manager notification drafted', { description: 'Send it via WhatsApp to your manager.' });
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
-        {showingConfirmation ? (
+        {showingPermissionBlock && permissionBlock ? (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-destructive">
+                <ShieldAlert className="h-5 w-5" />
+                Manager Approval Required
+              </DialogTitle>
+              <DialogDescription>
+                Your role isn't allowed to save these changes directly. Escalate to a manager or retry.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-3 pt-2">
+              <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-2">
+                <p className="text-xs font-semibold text-destructive uppercase tracking-wide">
+                  {permissionBlock.scope === 'profile' ? 'Blocked Field Changes' : 'Blocked Status Change'}
+                </p>
+                {permissionBlock.fields.map((field) => (
+                  <div key={field.label} className="flex flex-col gap-0.5">
+                    <span className="text-[11px] text-muted-foreground">{field.label}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm flex-1 line-through text-muted-foreground">
+                        {field.oldValue}
+                      </span>
+                      <ArrowRight className="h-3 w-3 text-destructive shrink-0" />
+                      <span className="text-sm font-semibold text-destructive flex-1 capitalize">
+                        {field.attemptedValue}
+                      </span>
+                      <span className="text-[10px] font-bold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded">
+                        BLOCKED
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="rounded-md border bg-muted/40 p-2.5 text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">Reason:</span> {permissionBlock.message}
+              </div>
+
+              <div className="flex flex-col gap-2 pt-1">
+                <Button onClick={notifyManager} className="w-full">
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  Notify manager via WhatsApp
+                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => setPermissionBlock(null)}
+                    disabled={saving || statusBusy}
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Back
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    className="flex-1"
+                    onClick={permissionBlock.retry}
+                    disabled={saving || statusBusy}
+                  >
+                    {(saving || statusBusy) ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                    )}
+                    Retry save
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </>
+        ) : showingConfirmation ? (
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-emerald-600">
