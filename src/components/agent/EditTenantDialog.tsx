@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Save, User, Phone, Mail, IdCard, Pencil, UserX, UserCheck } from 'lucide-react';
+import { Loader2, Save, User, Phone, Mail, IdCard, Pencil, UserX, UserCheck, CheckCircle2, ArrowRight, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -45,6 +45,8 @@ const editSchema = z.object({
     .or(z.literal('')),
 });
 
+type SavedField = { label: string; oldValue: string; newValue: string; changed: boolean };
+
 export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTenantDialogProps) {
   const [fullName, setFullName] = useState(tenant.full_name);
   const [phone, setPhone] = useState(tenant.phone);
@@ -54,6 +56,8 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [statusBusy, setStatusBusy] = useState(false);
   const [currentStatus, setCurrentStatus] = useState<string | null | undefined>(tenant.tenant_status);
+  const [savedSummary, setSavedSummary] = useState<SavedField[] | null>(null);
+  const [statusSummary, setStatusSummary] = useState<{ oldStatus: string; newStatus: string } | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -63,6 +67,8 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
       setNationalId(tenant.national_id || '');
       setErrors({});
       setCurrentStatus(tenant.tenant_status);
+      setSavedSummary(null);
+      setStatusSummary(null);
     }
   }, [open, tenant]);
 
@@ -101,9 +107,28 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
       if (!data || data.length === 0) {
         throw new Error("You don't have permission to edit this tenant's details. Ask a manager to update them.");
       }
+
+      const oldVals = {
+        'Full Name': tenant.full_name,
+        'Phone Number': tenant.phone,
+        'Email': tenant.email || '—',
+        'National ID': tenant.national_id || '—',
+      };
+      const newVals = {
+        'Full Name': parsed.data.full_name,
+        'Phone Number': parsed.data.phone,
+        'Email': parsed.data.email || '—',
+        'National ID': parsed.data.national_id || '—',
+      };
+      const summary: SavedField[] = [
+        { label: 'Full Name', oldValue: oldVals['Full Name'], newValue: newVals['Full Name'], changed: oldVals['Full Name'] !== newVals['Full Name'] },
+        { label: 'Phone Number', oldValue: oldVals['Phone Number'], newValue: newVals['Phone Number'], changed: oldVals['Phone Number'] !== newVals['Phone Number'] },
+        { label: 'Email', oldValue: oldVals['Email'], newValue: newVals['Email'], changed: oldVals['Email'] !== newVals['Email'] },
+        { label: 'National ID', oldValue: oldVals['National ID'], newValue: newVals['National ID'], changed: oldVals['National ID'] !== newVals['National ID'] },
+      ];
+      setSavedSummary(summary);
       toast.success('Tenant details saved', { description: parsed.data.full_name });
       onSaved?.(payload);
-      onOpenChange(false);
     } catch (err: any) {
       toast.error('Failed to update', { description: err.message || 'Please try again' });
     } finally {
@@ -142,7 +167,9 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
       if (!data || data.length === 0) {
         throw new Error("You don't have permission to change this tenant's status.");
       }
+      const prev = currentStatus || 'active';
       setCurrentStatus(nextStatus);
+      setStatusSummary({ oldStatus: prev, newStatus: nextStatus });
       onSaved?.({
         full_name: fullName,
         phone,
@@ -158,123 +185,207 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
     }
   };
 
+  const handleCloseConfirmation = () => {
+    setSavedSummary(null);
+    setStatusSummary(null);
+    onOpenChange(false);
+  };
+
+  const showingConfirmation = savedSummary !== null || statusSummary !== null;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Pencil className="h-5 w-5 text-primary" />
-            Edit Tenant Details
-          </DialogTitle>
-          <DialogDescription>
-            Update contact information for this tenant. Other fields (verification, balances) cannot be changed here.
-          </DialogDescription>
-        </DialogHeader>
+        {showingConfirmation ? (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-emerald-600">
+                <CheckCircle2 className="h-5 w-5" />
+                Changes Saved
+              </DialogTitle>
+              <DialogDescription>
+                Here is exactly what was updated for this tenant.
+              </DialogDescription>
+            </DialogHeader>
 
-        {isEvicted && (
-          <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-            This tenant is marked <strong>Evicted</strong>{tenant.evicted_at ? ` as of ${new Date(tenant.evicted_at).toLocaleDateString()}` : ''} — record locked for audit. Identity fields cannot be changed.
-          </div>
-        )}
+            <div className="space-y-3 pt-2">
+              {savedSummary && (
+                <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 space-y-2">
+                  <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 uppercase tracking-wide">
+                    Updated Fields
+                  </p>
+                  {savedSummary.map((field) => (
+                    <div key={field.label} className="flex flex-col gap-0.5">
+                      <span className="text-[11px] text-muted-foreground">{field.label}</span>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm flex-1 ${field.changed ? 'line-through text-muted-foreground' : ''}`}>
+                          {field.oldValue}
+                        </span>
+                        {field.changed && (
+                          <>
+                            <ArrowRight className="h-3 w-3 text-emerald-500 shrink-0" />
+                            <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 flex-1">
+                              {field.newValue}
+                            </span>
+                            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 px-1.5 py-0.5 rounded">
+                              CHANGED
+                            </span>
+                          </>
+                        )}
+                        {!field.changed && (
+                          <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                            UNCHANGED
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
-        {isInactive && !isEvicted && (
-          <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300">
-            This tenant is currently marked <strong>Not active</strong>. Tenant Ops will see this status.
-          </div>
-        )}
+              {statusSummary && (
+                <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-3 space-y-2">
+                  <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wide">
+                    Status Change
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground capitalize">{statusSummary.oldStatus}</span>
+                    <ArrowRight className="h-3 w-3 text-blue-500 shrink-0" />
+                    <span className="text-sm font-semibold text-blue-600 dark:text-blue-400 capitalize">
+                      {statusSummary.newStatus}
+                    </span>
+                    <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/40 px-1.5 py-0.5 rounded">
+                      CHANGED
+                    </span>
+                  </div>
+                </div>
+              )}
 
-        <fieldset disabled={isEvicted} className="space-y-3 pt-2 disabled:opacity-60">
-          <div>
-            <Label className="text-xs flex items-center gap-1.5">
-              <User className="h-3 w-3" /> Full Name *
-            </Label>
-            <Input
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              placeholder="Jane Doe"
-              maxLength={100}
-            />
-            {errors.full_name && <p className="text-xs text-destructive mt-1">{errors.full_name}</p>}
-          </div>
-
-          <div>
-            <Label className="text-xs flex items-center gap-1.5">
-              <Phone className="h-3 w-3" /> Phone Number *
-            </Label>
-            <PhoneInput
-              value={phone}
-              onChange={(v) => setPhone(v)}
-              onContactPicked={({ name }) => {
-                if (name && !fullName.trim()) setFullName(name);
-              }}
-              placeholder="+256712345678"
-            />
-            {errors.phone && <p className="text-xs text-destructive mt-1">{errors.phone}</p>}
-          </div>
-
-          <div>
-            <Label className="text-xs flex items-center gap-1.5">
-              <Mail className="h-3 w-3" /> Email <span className="text-muted-foreground">(optional)</span>
-            </Label>
-            <Input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="jane@example.com"
-              maxLength={255}
-            />
-            {errors.email && <p className="text-xs text-destructive mt-1">{errors.email}</p>}
-          </div>
-
-          <div>
-            <Label className="text-xs flex items-center gap-1.5">
-              <IdCard className="h-3 w-3" /> National ID <span className="text-muted-foreground">(optional)</span>
-            </Label>
-            <Input
-              value={nationalId}
-              onChange={(e) => setNationalId(e.target.value.toUpperCase())}
-              placeholder="CM12345678ABCD"
-              maxLength={14}
-            />
-            {errors.national_id && <p className="text-xs text-destructive mt-1">{errors.national_id}</p>}
-          </div>
-
-          <div className="flex gap-2 pt-2">
-            <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)} disabled={saving}>
-              Cancel
-            </Button>
-            <Button className="flex-1" onClick={handleSave} disabled={saving}>
-              {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-              Save Changes
-            </Button>
-          </div>
-
-          {!isEvicted && (
-            <div className="border-t pt-3 mt-1">
-              <Button
-                type="button"
-                variant={isInactive ? 'default' : 'outline'}
-                className={`w-full ${isInactive ? '' : 'text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive'}`}
-                onClick={handleToggleActive}
-                disabled={statusBusy}
-              >
-                {statusBusy ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : isInactive ? (
-                  <UserCheck className="h-4 w-4 mr-2" />
-                ) : (
-                  <UserX className="h-4 w-4 mr-2" />
-                )}
-                {isInactive ? 'Reactivate tenant' : 'Mark as not active'}
+              <Button className="w-full mt-2" onClick={handleCloseConfirmation}>
+                <CheckCircle2 className="h-4 w-4 mr-2" />
+                Done
               </Button>
-              <p className="text-[11px] text-muted-foreground mt-1.5 text-center">
-                {isInactive
-                  ? 'Tenant currently hidden from active counts. Tenant Ops still sees them flagged as Inactive.'
-                  : 'Use this if the tenant moved out, stopped paying, or the number is wrong.'}
-              </p>
             </div>
-          )}
-        </fieldset>
+          </>
+        ) : (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Pencil className="h-5 w-5 text-primary" />
+                Edit Tenant Details
+              </DialogTitle>
+              <DialogDescription>
+                Update contact information for this tenant. Other fields (verification, balances) cannot be changed here.
+              </DialogDescription>
+            </DialogHeader>
+
+            {isEvicted && (
+              <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                This tenant is marked <strong>Evicted</strong>{tenant.evicted_at ? ` as of ${new Date(tenant.evicted_at).toLocaleDateString()}` : ''} — record locked for audit. Identity fields cannot be changed.
+              </div>
+            )}
+
+            {isInactive && !isEvicted && (
+              <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300">
+                This tenant is currently marked <strong>Not active</strong>. Tenant Ops will see this status.
+              </div>
+            )}
+
+            <fieldset disabled={isEvicted} className="space-y-3 pt-2 disabled:opacity-60">
+              <div>
+                <Label className="text-xs flex items-center gap-1.5">
+                  <User className="h-3 w-3" /> Full Name *
+                </Label>
+                <Input
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Jane Doe"
+                  maxLength={100}
+                />
+                {errors.full_name && <p className="text-xs text-destructive mt-1">{errors.full_name}</p>}
+              </div>
+
+              <div>
+                <Label className="text-xs flex items-center gap-1.5">
+                  <Phone className="h-3 w-3" /> Phone Number *
+                </Label>
+                <PhoneInput
+                  value={phone}
+                  onChange={(v) => setPhone(v)}
+                  onContactPicked={({ name }) => {
+                    if (name && !fullName.trim()) setFullName(name);
+                  }}
+                  placeholder="+256712345678"
+                />
+                {errors.phone && <p className="text-xs text-destructive mt-1">{errors.phone}</p>}
+              </div>
+
+              <div>
+                <Label className="text-xs flex items-center gap-1.5">
+                  <Mail className="h-3 w-3" /> Email <span className="text-muted-foreground">(optional)</span>
+                </Label>
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="jane@example.com"
+                  maxLength={255}
+                />
+                {errors.email && <p className="text-xs text-destructive mt-1">{errors.email}</p>}
+              </div>
+
+              <div>
+                <Label className="text-xs flex items-center gap-1.5">
+                  <IdCard className="h-3 w-3" /> National ID <span className="text-muted-foreground">(optional)</span>
+                </Label>
+                <Input
+                  value={nationalId}
+                  onChange={(e) => setNationalId(e.target.value.toUpperCase())}
+                  placeholder="CM12345678ABCD"
+                  maxLength={14}
+                />
+                {errors.national_id && <p className="text-xs text-destructive mt-1">{errors.national_id}</p>}
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)} disabled={saving}>
+                  <X className="h-4 w-4 mr-2" />
+                  Cancel
+                </Button>
+                <Button className="flex-1" onClick={handleSave} disabled={saving}>
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                  Save Changes
+                </Button>
+              </div>
+
+              {!isEvicted && (
+                <div className="border-t pt-3 mt-1">
+                  <Button
+                    type="button"
+                    variant={isInactive ? 'default' : 'outline'}
+                    className={`w-full ${isInactive ? '' : 'text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive'}`}
+                    onClick={handleToggleActive}
+                    disabled={statusBusy}
+                  >
+                    {statusBusy ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : isInactive ? (
+                      <UserCheck className="h-4 w-4 mr-2" />
+                    ) : (
+                      <UserX className="h-4 w-4 mr-2" />
+                    )}
+                    {isInactive ? 'Reactivate tenant' : 'Mark as not active'}
+                  </Button>
+                  <p className="text-[11px] text-muted-foreground mt-1.5 text-center">
+                    {isInactive
+                      ? 'Tenant currently hidden from active counts. Tenant Ops still sees them flagged as Inactive.'
+                      : 'Use this if the tenant moved out, stopped paying, or the number is wrong.'}
+                  </p>
+                </div>
+              )}
+            </fieldset>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );
