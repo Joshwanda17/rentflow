@@ -92,7 +92,12 @@ const SUB_CATEGORY_LABELS: Record<string, { label: string; color: string; icon: 
   roi: { label: 'ROI', color: 'bg-rose-100 text-rose-700 border-rose-300', icon: null },
 };
 
-export function WithdrawalRequestsManager() {
+interface WithdrawalRequestsManagerProps {
+  subCategoryFilter?: string;
+}
+
+export function WithdrawalRequestsManager({ subCategoryFilter: propSubCategoryFilter }: WithdrawalRequestsManagerProps = {}) {
+
   const { user } = useAuth();
   const [requests, setRequests] = useState<WithdrawalRequest[]>([]);
   const [loading, setLoading] = useState(true);
