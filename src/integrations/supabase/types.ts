@@ -14713,6 +14713,19 @@ export type Database = {
         }
         Relationships: []
       }
+      v_agent_daily_eligibility: {
+        Row: {
+          active_count: number | null
+          agent_id: string | null
+          effective_pct: number | null
+          expected_daily: number | null
+          paid_today: number | null
+          paid_yesterday: number | null
+          today_pct: number | null
+          yesterday_pct: number | null
+        }
+        Relationships: []
+      }
       v_operational_float_tid_duplicates: {
         Row: {
           amounts: number[] | null
@@ -15337,6 +15350,19 @@ export type Database = {
       generate_portfolio_code: { Args: never; Returns: string }
       generate_short_code: { Args: never; Returns: string }
       generate_welile_ai_id: { Args: { user_uuid: string }; Returns: string }
+      get_agent_daily_eligibility: {
+        Args: { p_agent_ids: string[] }
+        Returns: {
+          active_count: number
+          agent_id: string
+          effective_pct: number
+          expected_daily: number
+          paid_today: number
+          paid_yesterday: number
+          today_pct: number
+          yesterday_pct: number
+        }[]
+      }
       get_agent_daily_missions: { Args: { p_agent_id?: string }; Returns: Json }
       get_agent_directory_rows: {
         Args: {
