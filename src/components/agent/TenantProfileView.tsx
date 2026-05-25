@@ -672,6 +672,7 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
         }}
         onSaved={(updated) => {
           setProfile(prev => prev ? { ...prev, ...updated } : prev);
+          loadFullProfile({ silent: true });
         }}
       />
 
