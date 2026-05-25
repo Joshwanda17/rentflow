@@ -595,10 +595,12 @@ function CapacityRow({
   return (
     <li className="rounded-xl border border-border bg-background overflow-hidden">
       {/* Tap-anywhere header — big, plain-language status */}
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         onClick={onToggle}
-        className="w-full text-left p-3 active:bg-muted/40 transition-colors touch-manipulation"
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); } }}
+        className="w-full text-left p-3 active:bg-muted/40 transition-colors touch-manipulation cursor-pointer"
         aria-expanded={!collapsed}
       >
         <div className="flex items-center justify-between gap-2 mb-2">
@@ -679,7 +681,7 @@ function CapacityRow({
             Tap for full details
           </p>
         )}
-      </button>
+      </div>
 
       {!collapsed && (
         <div className="px-3 pb-3 border-t border-border/60 pt-3 space-y-2">
