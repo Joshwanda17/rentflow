@@ -1135,6 +1135,55 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
               {/* Agent rent exposure capacity (100M UGX cap) */}
               <AgentCapacityBanner agentId={user?.id} />
 
+              {/* Latest rent receipt from landlord (required for all flows) */}
+              <div className="space-y-2 p-4 rounded-2xl border-2 border-amber-400/40 bg-amber-50/60 dark:bg-amber-500/5">
+                <h4 className="text-sm font-semibold flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-amber-600" />
+                  📄 Tenant's Latest Rent Receipt *
+                </h4>
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  Upload a clear photo of the most recent rent receipt the landlord
+                  gave the tenant. Used to verify rent amount, payment history and
+                  tenancy before approval.
+                </p>
+                <div className="flex items-start gap-3">
+                  {latestRentReceipt ? (
+                    <div className="relative h-28 w-28 rounded-lg overflow-hidden border border-border shrink-0">
+                      <img
+                        src={latestRentReceipt.preview}
+                        alt="Latest rent receipt"
+                        className="w-full h-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={removeLatestRentReceipt}
+                        className="absolute top-1 right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs font-bold"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="h-28 w-28 rounded-lg border-2 border-dashed border-amber-500/40 flex flex-col items-center justify-center cursor-pointer hover:border-amber-500 hover:bg-amber-100/40 dark:hover:bg-amber-500/10 transition-colors shrink-0">
+                      <span className="text-2xl">🧾</span>
+                      <span className="text-[10px] text-muted-foreground mt-0.5 text-center px-1 leading-tight">
+                        Tap to capture
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={handleLatestRentReceipt}
+                      />
+                    </label>
+                  )}
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    Make sure the receipt date, amount and landlord name are clearly
+                    visible. Blurry or cropped photos will be rejected.
+                  </p>
+                </div>
+              </div>
+
               {/* ===== 1. RENT DETAILS — PRIMARY SECTION ===== */}
               {incomeType === 'outstanding' ? (
                 <>
