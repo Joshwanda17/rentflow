@@ -63,6 +63,7 @@ import { useOfflineAgentDashboard } from '@/hooks/useOfflineAgentDashboard';
 import { useWallet } from '@/hooks/useWallet';
 import { useAgentBalances } from '@/hooks/useAgentBalances';
 import { useAgentLandlordFloat } from '@/hooks/useAgentLandlordFloat';
+import { useAgentDashboardRealtime } from '@/hooks/useAgentDashboardRealtime';
 import { EarningsRankSystemSheet } from '@/components/agent/EarningsRankSystemSheet';
 import { AgentMenuDrawer } from '@/components/agent/AgentMenuDrawer';
 import { AgentHubTabs, type AgentHubTab } from '@/components/agent/AgentHubTabs';
@@ -176,6 +177,18 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   // Kept for the lower AgentLandlordFloatCard / sheets (CFO escrow, NOT the wallet float)
   const { floatBalance: landlordPayoutFloat } = useAgentLandlordFloat();
   const { isOnline } = useOffline();
+
+  // Instant mobile dashboard refresh: one debounced channel listens for any
+  // agent-scoped commission, wallet movement, or float change and re-pulls
+  // the headline numbers so the agent sees money arrive without reloading.
+  useAgentDashboardRealtime({
+    agentId: user?.id,
+    onChange: () => {
+      void refreshWallet();
+      void refreshBalances();
+      void refreshEarnings();
+    },
+  });
   
   const { 
     stats, 

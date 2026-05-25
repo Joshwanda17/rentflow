@@ -194,12 +194,15 @@ export function useWallet() {
       // Only fetch wallet balance on mount — transactions load lazily when wallet sheet opens
       fetchWallet().finally(() => setLoading(false));
 
-      // SINGLE realtime channel for wallet balance only (reduced from 4 channels to 1)
+      // SINGLE realtime channel for wallet balance only (reduced from 4 channels to 1).
+      // NOTE: `public.wallets` is a VIEW — realtime publications can only
+      // observe the underlying physical table `wallets_physical`. The previous
+      // subscription on `wallets` silently never fired.
       const walletChannel = supabase
         .channel(`wallet-${user.id}`)
         .on(
           'postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'wallets', filter: `user_id=eq.${user.id}` },
+          { event: '*', schema: 'public', table: 'wallets_physical', filter: `user_id=eq.${user.id}` },
           () => {
             // Don't trust the realtime payload's cached `balance` directly —
             // re-derive against the ledger so the UI always matches backend truth.
