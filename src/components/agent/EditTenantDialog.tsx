@@ -96,8 +96,9 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
       setSavedSummary(null);
       setStatusSummary(null);
       setPermissionBlock(null);
+      resetSave();
     }
-  }, [open, tenant]);
+  }, [open, tenant, resetSave]);
 
   // Live re-validate so the Save button (and error text) never stays in a stale "invalid" state
   // once the user has corrected a previously-flagged field.
