@@ -643,6 +643,32 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
                 )}
               </div>
 
+              {Object.keys(errors).length > 0 && (
+                <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 space-y-2">
+                  <div className="flex items-center gap-2 text-destructive">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span className="text-xs font-semibold uppercase tracking-wide">
+                      Fix {Object.keys(errors).length} field{Object.keys(errors).length > 1 ? 's' : ''} before saving
+                    </span>
+                  </div>
+                  <div className="space-y-1">
+                    {Object.entries(errors).map(([key, msg]) => {
+                      const label =
+                        key === 'full_name' ? 'Full Name' :
+                        key === 'phone' ? 'Phone Number' :
+                        key === 'email' ? 'Email' :
+                        key === 'national_id' ? 'National ID' : key;
+                      return (
+                        <div key={key} className="flex items-start gap-2 text-[11px]">
+                          <span className="font-medium text-destructive shrink-1">{label}:</span>
+                          <span className="text-muted-foreground">{msg}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div className="flex gap-2 pt-2">
                 <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)} disabled={saving}>
                   <X className="h-4 w-4 mr-2" />
