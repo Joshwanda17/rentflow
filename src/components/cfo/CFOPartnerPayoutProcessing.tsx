@@ -213,7 +213,14 @@ export function CFOPartnerPayoutProcessing() {
                       <p className="text-xs text-muted-foreground">{req.user?.phone}</p>
                     </div>
                   </div>
-                  <p className="text-base font-black">{formatCurrency(req.amount)}</p>
+                  <div className="text-right">
+                    <p className="text-base font-black">{formatCurrency(req.amount)}</p>
+                    {req.sub_category && req.sub_category !== 'general' && (
+                      <Badge variant="outline" className={`text-[10px] mt-0.5 ${SUB_CATEGORY_LABELS[req.sub_category]?.color || 'bg-slate-100 text-slate-700'}`}>
+                        {SUB_CATEGORY_LABELS[req.sub_category]?.label || req.sub_category}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
 
                 {req.reason && (
