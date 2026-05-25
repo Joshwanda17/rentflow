@@ -922,9 +922,11 @@ html.android-compositor-safe [role="dialog"] [class*="sticky"] {
 }
 
 /* Clearance for fixed bottom role / tab nav on mobile.
-   Bottom nav is ~64px; add safe-area-inset-bottom for iPhone home indicator. */
+   Bottom nav is ~72px (56px min-h + py-2); add safe-area-inset-bottom for
+   iPhone home indicator PLUS a comfortable 24px buffer so the last row of
+   content (e.g. the agent hub tab strip) never sits flush behind the nav. */
 .pb-nav {
-  padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(9rem + env(safe-area-inset-bottom, 0px));
 }
 @media (min-width: 1024px) {
   .pb-nav { padding-bottom: 1rem; }
