@@ -609,7 +609,7 @@ export function WithdrawalRequestsManager({ subCategoryFilter: propSubCategoryFi
     } finally {
       setHistoryLoading(false);
     }
-  }, [statusFilter, dateRange]);
+  }, [statusFilter, dateRange, subCategoryFilter]);
 
   // Apply date presets
   const applyDatePreset = (preset: typeof datePreset) => {
