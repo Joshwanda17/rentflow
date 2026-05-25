@@ -932,6 +932,32 @@ html.android-compositor-safe [role="dialog"] [class*="sticky"] {
   .pb-nav { padding-bottom: 1rem; }
 }
 
+/* Single source of truth for how far floating action buttons must sit above
+   the bottom of the viewport so they never collide with the fixed bottom
+   role switcher (~72px) or the iPhone home indicator (safe-area-inset-bottom).
+   The +12px gives every FAB a visible breathing gap above the nav.
+
+   Used by: FieldCollectFab, FloatingToolbar (WhatsApp), AgentNavFAB, and any
+   future mobile FAB. Reference it as `bottom: var(--fab-bottom)` (or the
+   Tailwind arbitrary value `bottom-[var(--fab-bottom)]`). */
+:root {
+  --fab-bottom: calc(72px + env(safe-area-inset-bottom, 0px) + 12px);
+  --fab-bottom-stacked: calc(72px + env(safe-area-inset-bottom, 0px) + 76px);
+}
+@media (min-width: 768px) {
+  /* Desktop has no bottom role switcher — anchor FABs to a small inset only. */
+  :root {
+    --fab-bottom: 1.5rem;
+    --fab-bottom-stacked: 5.5rem;
+  }
+}
+/* Short landscape phones (≤ 500px tall): collapse non-critical FABs so they
+   don't dominate the limited vertical space or overlap each other. */
+@media (max-height: 500px) and (orientation: landscape) {
+  .fab-hide-landscape { display: none !important; }
+  .fab-shrink-landscape { transform: scale(0.85); transform-origin: bottom right; }
+}
+
 /* Sticky header that respects the iOS notch */
 .sticky-top-safe {
   position: sticky;
