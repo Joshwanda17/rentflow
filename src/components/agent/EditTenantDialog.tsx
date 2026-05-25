@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, Save, User, Phone, Mail, IdCard, Pencil, UserX, UserCheck, CheckCircle2, ArrowRight, X, ShieldAlert, RefreshCw, MessageSquare, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { useIdempotentSubmit } from '@/hooks/useIdempotentSubmit';
 
 interface EditTenantDialogProps {
   open: boolean;
