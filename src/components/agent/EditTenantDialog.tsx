@@ -25,6 +25,7 @@ interface EditTenantDialogProps {
 }
 
 const normalizePhone = (v: string) => v.replace(/[\s-]/g, '');
+const normalizeNationalId = (v: string) => v.replace(/[\s-]/g, '');
 
 const editSchema = z.object({
   full_name: z.string().trim().min(2, 'Full name must be at least 2 characters').max(100, 'Too long'),
@@ -51,6 +52,7 @@ const editSchema = z.object({
     .string()
     .trim()
     .toUpperCase()
+    .transform(normalizeNationalId)
     .pipe(
       z.string().regex(
         /^[A-Z0-9]{10,14}$/,
@@ -629,10 +631,10 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
                 </Label>
                 <Input
                   value={nationalId}
-                  onChange={(e) => setNationalId(e.target.value.toUpperCase())}
+                  onChange={(e) => setNationalId(normalizeNationalId(e.target.value.toUpperCase()))}
                   onBlur={() => validateField('national_id')}
                   placeholder="CM12345678ABCD"
-                  maxLength={14}
+                  maxLength={18}
                 />
                 {errors.national_id ? (
                   <p className="text-xs text-destructive mt-1">{errors.national_id}</p>
