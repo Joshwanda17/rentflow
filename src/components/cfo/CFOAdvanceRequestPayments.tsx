@@ -755,6 +755,82 @@ export function CFOAdvanceRequestPayments() {
                   </div>
                 </div>
 
+                {/* Ledger entries preview — exactly what create_ledger_transaction will post */}
+                <div className="rounded-lg border-2 border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-3.5 w-3.5 text-slate-700 dark:text-slate-300" />
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                      Ledger entries to be posted
+                    </p>
+                    <Badge variant="outline" className="text-[9px] uppercase tracking-wider">
+                      {regFee > 0 ? '4 legs · 2 txns' : '2 legs · 1 txn'}
+                    </Badge>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    Double-entry, balanced. <span className="font-mono">source_table=agent_advance_requests</span>, <span className="font-mono">source_id={req.id.slice(0, 8)}…</span>
+                  </p>
+                  <div className="overflow-x-auto -mx-1">
+                    <table className="w-full text-[10px] font-mono">
+                      <thead className="text-muted-foreground">
+                        <tr className="border-b">
+                          <th className="text-left px-1 py-1">#</th>
+                          <th className="text-left px-1 py-1">Scope</th>
+                          <th className="text-left px-1 py-1">Dir</th>
+                          <th className="text-left px-1 py-1">Category</th>
+                          <th className="text-right px-1 py-1">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="border-b">
+                          <td className="px-1 py-1">1</td>
+                          <td className="px-1 py-1">wallet</td>
+                          <td className="px-1 py-1 text-emerald-600">cash_in</td>
+                          <td className="px-1 py-1">agent_advance_credit</td>
+                          <td className="px-1 py-1 text-right text-emerald-600">+{formatUGX(principal)}</td>
+                        </tr>
+                        <tr className="border-b">
+                          <td className="px-1 py-1">2</td>
+                          <td className="px-1 py-1">platform</td>
+                          <td className="px-1 py-1 text-red-600">cash_out</td>
+                          <td className="px-1 py-1">rent_disbursement</td>
+                          <td className="px-1 py-1 text-right text-red-600">-{formatUGX(principal)}</td>
+                        </tr>
+                        {regFee > 0 && (
+                          <>
+                            <tr className="border-b">
+                              <td className="px-1 py-1">3</td>
+                              <td className="px-1 py-1">platform</td>
+                              <td className="px-1 py-1 text-emerald-600">cash_in</td>
+                              <td className="px-1 py-1">registration_fee_collected</td>
+                              <td className="px-1 py-1 text-right text-emerald-600">+{formatUGX(regFee)}</td>
+                            </tr>
+                            <tr>
+                              <td className="px-1 py-1">4</td>
+                              <td className="px-1 py-1">wallet</td>
+                              <td className="px-1 py-1 text-red-600">cash_out</td>
+                              <td className="px-1 py-1">registration_fee_collected</td>
+                              <td className="px-1 py-1 text-right text-red-600">-{formatUGX(regFee)}</td>
+                            </tr>
+                          </>
+                        )}
+                      </tbody>
+                      <tfoot>
+                        <tr className="border-t bg-muted/40">
+                          <td colSpan={3} className="px-1 py-1 font-bold">Net (must balance)</td>
+                          <td className="px-1 py-1 text-right text-muted-foreground">wallet / platform</td>
+                          <td className="px-1 py-1 text-right font-bold">
+                            {formatUGX(0)}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                  <div className="text-[10px] text-muted-foreground space-y-0.5 pt-1 border-t">
+                    <p>· Also inserts <span className="font-mono">agent_advances</span> row (principal {formatUGX(principal)}, outstanding {formatUGX(totalPayable)}, {cycleDays}d, rate {Math.round(rate * 100)}%).</p>
+                    <p>· Access fee <span className="font-mono text-emerald-700">+{formatUGX(accessFee)}</span> is recognised over {cycleDays}d by the daily deduction engine — not posted now.</p>
+                  </div>
+                </div>
+
                 {/* Revenue summary */}
                 <div className="rounded-lg border-2 border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 p-3">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 mb-1">How Welile earns</p>
