@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useCreditAccessLimit } from '@/hooks/useCreditAccessLimit';
+import { useCreditAccessLimit, formatCreditAmount } from '@/hooks/useCreditAccessLimit';
 import { calculateAccessFee, calculateRegistrationFee, calculateTotalPayable, calculateDailyPayment, REPAYMENT_PERIODS, formatUGX } from '@/lib/agentAdvanceCalculations';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -112,7 +112,9 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
     mutationFn: async () => {
       if (!user?.id) throw new Error('Not authenticated');
       if (principal <= 0) throw new Error('Amount must be greater than zero');
-      if (overLimit) throw new Error(`Amount exceeds your credit limit of ${formatUGX(maxAmount)}`);
+      const latestLimit = await refreshLimit();
+      const latestMaxAmount = latestLimit?.totalLimit ?? maxAmount;
+      if (principal > latestMaxAmount) throw new Error(`Amount exceeds your credit limit of ${formatUGX(latestMaxAmount)}`);
       if (reason.trim().length < 10) throw new Error('Reason must be at least 10 characters');
 
       // Check for existing pending requests
@@ -171,7 +173,7 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
             <div className="flex-1 min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Your Credit Limit</p>
               <p className="text-lg font-bold text-foreground whitespace-pre-line">
-                {limitLoading ? '...' : `UGX ${Math.round(maxAmount)}\n`}
+                {limitLoading ? '...' : formatCreditAmount(maxAmount)}
               </p>
               {allocBonus > 0 && (
                 <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">

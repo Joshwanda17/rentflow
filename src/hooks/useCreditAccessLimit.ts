@@ -33,7 +33,7 @@ export function convertFromUGX(amountUGX: number, currency: string): number {
 
 export function formatCreditAmount(amountUGX: number, currency: string = 'UGX'): string {
   if (currency === 'UGX') {
-    return `UGX ${Math.round(amountUGX)}\n`;
+    return `UGX${Math.round(amountUGX)}\n`;
   }
   const converted = convertFromUGX(amountUGX, currency);
   const symbols: Record<string, string> = { USD: '$', EUR: '€', GBP: '£', KES: 'KES ', TZS: 'TZS ', ZAR: 'R' };
@@ -120,21 +120,21 @@ export function useCreditAccessLimit(userId: string | undefined) {
     !cached && !persisted,
   );
 
-  const fetchLimit = useCallback(async () => {
+  const fetchLimit = useCallback(async (forceFresh = false) => {
     if (!userId) return;
 
     // Check module-level cache first
     const existing = limitCache.get(userId);
-    if (existing && (Date.now() - existing.timestamp < CACHE_TTL)) {
+    if (!forceFresh && existing && (Date.now() - existing.timestamp < CACHE_TTL)) {
       setLimit(existing.data);
       setLoading(false);
-      return;
+      return existing.data;
     }
 
     // Offline: keep whatever cache we already rendered. Never spin.
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       setLoading(false);
-      return;
+      return existing?.data ?? persisted ?? undefined;
     }
 
     setLoading(true);
@@ -163,6 +163,7 @@ export function useCreditAccessLimit(userId: string | undefined) {
         setLimit(parsed);
         limitCache.set(userId, { data: parsed, timestamp: Date.now() });
         saveToLS(userId, parsed);
+        return parsed;
       }
     } catch (err) {
       console.error('[useCreditAccessLimit] Error:', err);
@@ -183,7 +184,7 @@ export function useCreditAccessLimit(userId: string | undefined) {
       const detail = (e as CustomEvent).detail as { userId?: string } | undefined;
       if (!detail?.userId || detail.userId === userId) {
         limitCache.delete(userId);
-        fetchLimit();
+        fetchLimit(true);
       }
     };
     window.addEventListener(REFRESH_EVENT, handler);
@@ -209,7 +210,7 @@ export function useCreditAccessLimit(userId: string | undefined) {
         },
         () => {
           limitCache.delete(userId);
-          fetchLimit();
+          fetchLimit(true);
         },
       )
       .subscribe();
@@ -218,5 +219,7 @@ export function useCreditAccessLimit(userId: string | undefined) {
     };
   }, [userId, fetchLimit]);
 
-  return { limit, loading, refreshLimit: fetchLimit };
+  const refreshLimit = useCallback(() => fetchLimit(true), [fetchLimit]);
+
+  return { limit, loading, refreshLimit };
 }
