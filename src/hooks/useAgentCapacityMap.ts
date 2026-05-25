@@ -199,10 +199,42 @@ export function useAgentCapacityMap(agentIds: string[]) {
     queryFn: async (): Promise<Map<string, AgentCapacity>> => {
       if (agentIds.length === 0) return new Map();
       const weekAgoISO = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      const todayStartMs = todayStart.getTime();
-      const yesterdayStartMs = todayStartMs - 24 * 60 * 60 * 1000;
+
+      // ----- Daily Eligibility Law: SERVER-SIDE source of truth -----
+      // Today / yesterday / effective_pct are computed by the Postgres
+      // view `v_agent_daily_eligibility` (Africa/Kampala TZ, sourced from
+      // `agent_collections`). The browser no longer slices days locally —
+      // that previously failed on TZ drift and on the
+      // `repayments` ↔ `agent_collections` split.
+      const { data: eligRows, error: eligErr } = await supabase.rpc(
+        'get_agent_daily_eligibility',
+        { p_agent_ids: agentIds },
+      );
+      if (eligErr) {
+        // Never silently zero everyone — fall back to empty map so the
+        // hook reports starter state instead of mass-blocking the fleet.
+        console.error('[useAgentCapacityMap] eligibility RPC failed', eligErr);
+      }
+      const eligByAgent = new Map<string, {
+        active_count: number;
+        expected_daily: number;
+        paid_today: number;
+        paid_yesterday: number;
+        today_pct: number;
+        yesterday_pct: number;
+        effective_pct: number;
+      }>();
+      (eligRows || []).forEach((r: any) => {
+        eligByAgent.set(r.agent_id, {
+          active_count:    Number(r.active_count)    || 0,
+          expected_daily:  Number(r.expected_daily)  || 0,
+          paid_today:      Number(r.paid_today)      || 0,
+          paid_yesterday:  Number(r.paid_yesterday)  || 0,
+          today_pct:       Number(r.today_pct)       || 0,
+          yesterday_pct:   Number(r.yesterday_pct)   || 0,
+          effective_pct:   Number(r.effective_pct)   || 0,
+        });
+      });
 
       // 1) Active rent_requests drive both exposure AND expected daily collections
       const { data: active } = await supabase
@@ -260,9 +292,9 @@ export function useAgentCapacityMap(agentIds: string[]) {
       // 2) For each active rent_request, find DISTINCT calendar days in
       //    the last 7 with at least one repayment (any amount). Aggregate
       //    those (rent × day) cells per agent — that's the DRR numerator.
+      //    NOTE: today/yesterday day-sums are NO LONGER read here — those
+      //    now come from the server-side eligibility view above.
       const paidByAgent = new Map<string, number>();
-      const paidTodayByAgent = new Map<string, number>();
-      const paidYesterdayByAgent = new Map<string, number>();
       const respondingDaysByAgent = new Map<string, number>();
       const payingTenantsByAgent = new Map<string, Set<string>>();
       const activeIds = Array.from(activeIdToAgent.keys());
@@ -282,15 +314,6 @@ export function useAgentCapacityMap(agentIds: string[]) {
             const agentId = activeIdToAgent.get(p.rent_request_id);
             if (!agentId) return;
             paidByAgent.set(agentId, (paidByAgent.get(agentId) || 0) + amt);
-            const ts = new Date(p.created_at).getTime();
-            if (ts >= todayStartMs) {
-              paidTodayByAgent.set(agentId, (paidTodayByAgent.get(agentId) || 0) + amt);
-            } else if (ts >= yesterdayStartMs) {
-              paidYesterdayByAgent.set(
-                agentId,
-                (paidYesterdayByAgent.get(agentId) || 0) + amt,
-              );
-            }
             if (amt <= 0) return;
             const tenantId = p.tenant_id || activeIdToTenant.get(p.rent_request_id);
             if (tenantId) {
@@ -318,7 +341,10 @@ export function useAgentCapacityMap(agentIds: string[]) {
       const out = new Map<string, AgentCapacity>();
       agentIds.forEach((id) => {
         const exp = exposure.get(id) || { used: 0, count: 0 };
-        const dailyExpected = expectedDaily.get(id) || 0;
+        const elig = eligByAgent.get(id);
+        // Prefer the server-side denominator when present (it applies the
+        // same reversed/unfunded filter we apply on the client).
+        const dailyExpected = elig?.expected_daily ?? (expectedDaily.get(id) || 0);
         const expected_weekly = dailyExpected * 7;
         const paid_last_week = paidByAgent.get(id) || 0;
         const expected_tenant_days = exp.count * 7;
@@ -333,18 +359,14 @@ export function useAgentCapacityMap(agentIds: string[]) {
         const { tier, per_tenant_max } = classifyAgent(exp.count, response_rate);
         const headroom = Math.max(AGENT_RENT_CAP_UGX - exp.used, 0);
         const pct = Math.min(100, Math.round((exp.used / AGENT_RENT_CAP_UGX) * 100));
-        const paid_yesterday = paidYesterdayByAgent.get(id) || 0;
-        const yesterday_response_pct = dailyExpected > 0
-          ? paid_yesterday / dailyExpected
-          : 0;
-        const paid_today_val = paidTodayByAgent.get(id) || 0;
-        const today_response_pct = dailyExpected > 0
-          ? paid_today_val / dailyExpected
-          : 0;
-        // Best-of-today/yesterday rule (documented law):
-        // An agent is unblocked as soon as EITHER yesterday OR today hits 20%.
-        // This gives agents a grace window after a strong evening collection run.
-        const effective_daily_pct = Math.max(today_response_pct, yesterday_response_pct);
+        // Server-side eligibility values (Africa/Kampala TZ, from
+        // agent_collections). Fall back to 0 when the RPC didn't return a
+        // row for this agent (= no active rents / no collections found).
+        const paid_today_val      = elig?.paid_today     ?? 0;
+        const paid_yesterday      = elig?.paid_yesterday ?? 0;
+        const today_response_pct  = elig?.today_pct      ?? 0;
+        const yesterday_response_pct = elig?.yesterday_pct ?? 0;
+        const effective_daily_pct = elig?.effective_pct  ?? 0;
         let daily_status: AgentCapacity['daily_status'];
         if (exp.count <= 0) daily_status = 'starter';
         else if (effective_daily_pct >= DAILY_ELIGIBILITY_THRESHOLD) daily_status = 'good';

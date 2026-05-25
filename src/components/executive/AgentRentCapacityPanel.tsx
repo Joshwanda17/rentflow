@@ -157,14 +157,11 @@ export function AgentRentCapacityPanel({
       // 2) Daily Response Rate — count distinct (rent × day) cells in the
       //    last 7 days where the tenant paid at least UGX 1. Also keep
       //    the UGX total as a secondary stat.
+      //    NOTE: today/yesterday day-sums are NO LONGER computed here —
+      //    they come from the server-side eligibility view (Kampala TZ,
+      //    sourced from agent_collections). See useAgentCapacityMap.ts.
       const weekAgoISO = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      const todayStartMs = todayStart.getTime();
-      const yesterdayStartMs = todayStartMs - 24 * 60 * 60 * 1000;
       const paidByAgent = new Map<string, number>();
-      const paidTodayByAgent = new Map<string, number>();
-      const paidYesterdayByAgent = new Map<string, number>();
       const respondingDaysByAgent = new Map<string, number>();
       const payingTenantsByAgent = new Map<string, Set<string>>();
       const activeIds = Array.from(activeIdToAgent.keys());
@@ -182,12 +179,6 @@ export function AgentRentCapacityPanel({
           const agentId = activeIdToAgent.get(p.rent_request_id);
           if (!agentId) return;
           paidByAgent.set(agentId, (paidByAgent.get(agentId) || 0) + amt);
-          const ts = new Date(p.created_at).getTime();
-          if (ts >= todayStartMs) {
-            paidTodayByAgent.set(agentId, (paidTodayByAgent.get(agentId) || 0) + amt);
-          } else if (ts >= yesterdayStartMs) {
-            paidYesterdayByAgent.set(agentId, (paidYesterdayByAgent.get(agentId) || 0) + amt);
-          }
           if (amt <= 0) return;
           const tenantId = p.tenant_id || activeIdToTenant.get(p.rent_request_id);
           if (tenantId) {
@@ -212,6 +203,31 @@ export function AgentRentCapacityPanel({
 
       const agentIds = Array.from(exposureMap.keys());
       if (agentIds.length === 0) return [];
+
+      // 2b) Server-side Daily Eligibility (Kampala TZ, agent_collections).
+      const eligByAgent = new Map<string, {
+        active_count: number; expected_daily: number;
+        paid_today: number; paid_yesterday: number;
+        today_pct: number; yesterday_pct: number; effective_pct: number;
+      }>();
+      {
+        const { data: eligRows, error: eligErr } = await supabase.rpc(
+          'get_agent_daily_eligibility',
+          { p_agent_ids: agentIds },
+        );
+        if (eligErr) console.error('[AgentRentCapacityPanel] eligibility RPC failed', eligErr);
+        (eligRows || []).forEach((r: any) => {
+          eligByAgent.set(r.agent_id, {
+            active_count:   Number(r.active_count)   || 0,
+            expected_daily: Number(r.expected_daily) || 0,
+            paid_today:     Number(r.paid_today)     || 0,
+            paid_yesterday: Number(r.paid_yesterday) || 0,
+            today_pct:      Number(r.today_pct)      || 0,
+            yesterday_pct:  Number(r.yesterday_pct)  || 0,
+            effective_pct:  Number(r.effective_pct)  || 0,
+          });
+        });
+      }
 
       // 3) Batch fetch profiles
       const profileMap = new Map<string, { name: string; phone: string | null }>();
@@ -240,15 +256,16 @@ export function AgentRentCapacityPanel({
             : 0;
         const { tier, per_tenant_max } = classifyAgent(exp.count, response_rate);
         const prof = profileMap.get(id) || { name: id.slice(0, 8), phone: null };
-        const paid_yesterday = paidYesterdayByAgent.get(id) || 0;
-        const expected_daily = expectedDailyMap.get(id) || 0;
-        const yesterday_response_pct = expected_daily >  0 ? paid_yesterday / expected_daily : 0;
-        const today_response_pct = expected_daily > 0 ? (paidTodayByAgent.get(id) || 0) / expected_daily : 0;
-        // Best-of-today/yesterday: unblocked if EITHER day hits 20%
-        const effective_daily_pct = Math.max(today_response_pct, yesterday_response_pct);
+        const elig = eligByAgent.get(id);
+        const expected_daily        = elig?.expected_daily ?? (expectedDailyMap.get(id) || 0);
+        const paid_today_val        = elig?.paid_today     ?? 0;
+        const paid_yesterday        = elig?.paid_yesterday ?? 0;
+        const today_response_pct    = elig?.today_pct      ?? 0;
+        const yesterday_response_pct= elig?.yesterday_pct  ?? 0;
+        const effective_daily_pct   = elig?.effective_pct  ?? 0;
         const daily_rating = classifyDailyRating(exp.count, effective_daily_pct);
         const daily_status: AgentCapacity['daily_status'] =
-          exp.count <=   1 ? 'starter' : effective_daily_pct >= 0.20 ? 'good' : 'blocked';
+          exp.count <= 0 ? 'starter' : effective_daily_pct >= 0.20 ? 'good' : 'blocked';
         return {
           agent_id: id,
           name: prof.name,
@@ -262,7 +279,7 @@ export function AgentRentCapacityPanel({
           responding_tenant_days,
           expected_tenant_days,
           paid_last_week,
-          paid_today: paidTodayByAgent.get(id) || 0,
+          paid_today: paid_today_val,
           paid_yesterday,
           expected_daily,
           tier,
