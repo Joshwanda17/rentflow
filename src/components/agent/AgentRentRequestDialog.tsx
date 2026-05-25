@@ -900,6 +900,20 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         }
       }
 
+      // Upload latest rent receipt photo from the landlord (required)
+      if (latestRentReceipt && rentReq?.id) {
+        const receiptUrl = await uploadLatestRentReceipt(rentReq.id);
+        if (receiptUrl) {
+          await supabase
+            .from('rent_requests')
+            .update({
+              latest_rent_receipt_url: receiptUrl,
+              latest_rent_receipt_uploaded_at: new Date().toISOString(),
+            } as any)
+            .eq('id', rentReq.id);
+        }
+      }
+
       // Build activation link if tenant is new
       if (!tenantResult.existing && tenantResult.activation_token) {
         const link = `${getPublicOrigin()}/join?t=${tenantResult.activation_token}`;
