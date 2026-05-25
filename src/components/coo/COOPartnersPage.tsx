@@ -503,7 +503,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           }
 
           const compound_history: Array<{
-            cycle: number; date: string; balance_before: number; return_amount: number; balance_after: number;
+            cycle: number; month_name: string; date: string; balance_before: number; return_amount: number; balance_after: number;
           }> = [];
           let runningBefore = originalPrincipal;
           allLogs.forEach((log: any, idx: number) => {
@@ -513,6 +513,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             const when = new Date(log.created_at);
             compound_history.push({
               cycle: idx + 1,
+              month_name: when.toLocaleDateString('en-GB', { month: 'long' }),
               date: when.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }),
               balance_before: runningBefore,
               return_amount: earned,
