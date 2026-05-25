@@ -3734,29 +3734,15 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
           // FORWARD PROJECTION breakdown — excludes the current cycle (its
           // result IS the New Total Partnership Value headline) and starts
           // from next month, compounding monthly through portfolio maturity.
-          const compound_history: Array<{
-            cycle: number; month_name: string; date: string; balance_before: number; return_amount: number; balance_after: number;
-          }> = [];
-          const totalMonths = Number(p.durationMonths || 12);
-          const remainingMonths = Math.max(0, totalMonths - paymentNumber);
-          const roiPct = Number(p.roiPercentage || 0);
-          const projectionStart = new Date(newRoiDate); // already advanced +1 month
-          let runningPrincipal = Number(newAmount);
-          for (let i = 0; i < remainingMonths; i++) {
-            const d = new Date(projectionStart);
-            d.setMonth(d.getMonth() + i);
-            const earned = Math.round(runningPrincipal * roiPct / 100);
-            const after = runningPrincipal + earned;
-            compound_history.push({
-              cycle: paymentNumber + i + 1,
-              month_name: d.toLocaleDateString('en-GB', { month: 'long' }),
-              date: d.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }),
-              balance_before: runningPrincipal,
-              return_amount: earned,
-              balance_after: after,
-            });
-            runningPrincipal = after;
-          }
+          // Anchored to contribution date (not cycle count) — robust to
+          // skipped/backfilled past cycles.
+          const compound_history = buildCompoundProjection({
+            contributionDate: p.createdAt,
+            durationMonths: Number(p.durationMonths || 12),
+            newPrincipal: Number(newAmount),
+            roiPct: Number(p.roiPercentage || 0),
+            compoundDate: new Date(),
+          });
 
           // Detect "previously sent" — was a partner-portfolio-compounded email for this recipient
           // already successfully sent before this action?
