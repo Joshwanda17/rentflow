@@ -339,8 +339,11 @@ export default function AgentNavFAB() {
         transition={{ type: 'spring', stiffness: 220, damping: 22 }}
         className={cn(
           'md:hidden fixed left-3 right-3 z-[60] flex flex-col items-start gap-2',
-          // sit above the bottom safe area + above the WhatsApp FAB stack
-          'bottom-[max(1rem,env(safe-area-inset-bottom))]',
+          // Sit comfortably above the bottom role switcher and the WhatsApp
+          // FAB stack (uses the global --fab-bottom variable so every floating
+          // element keeps the same clearance).
+          'bottom-[var(--fab-bottom)]',
+          'fab-shrink-landscape',
         )}
       >
         {/* Recent screens — scrollable horizontal chip strip */}
