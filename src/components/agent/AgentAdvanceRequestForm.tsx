@@ -38,6 +38,7 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
   const [amount, setAmount] = useState('');
   const [cycleDays, setCycleDays] = useState<number>(30);
   const [reason, setReason] = useState('');
+  const [allocOpen, setAllocOpen] = useState(false);
 
   const principal = Math.max(0, parseInt(amount) || 0);
   const monthlyRate = 0.33;
@@ -47,6 +48,26 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
   const dailyPayment = calculateDailyPayment(principal, cycleDays, monthlyRate);
   const maxAmount = limit?.totalLimit || 0;
   const overLimit = principal > maxAmount;
+
+  // Recent tenant allocations (each one boosts the agent's credit limit
+  // by 2× its amount, capped at 30M total — see recalculate_credit_limit).
+  const ALLOC_MULTIPLIER = 2;
+  const { data: recentAllocations = [] } = useQuery({
+    queryKey: ['my-recent-allocations', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from('agent_collections')
+        .select('id, amount, created_at, tenant_id, tenant:profiles!agent_collections_tenant_id_fkey(full_name)')
+        .eq('agent_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(15);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id && open,
+  });
+  const allocBonus = limit?.bonusFromAgentAllocations || 0;
 
   const { data: myRequests = [], isLoading: historyLoading } = useQuery({
     queryKey: ['my-advance-requests', user?.id],
@@ -119,16 +140,68 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
         </div>
 
         {/* Credit limit indicator */}
-        <div className="rounded-2xl bg-muted/50 p-3 mb-4 flex items-center gap-3">
-          <div className="rounded-full bg-primary/15 p-2 shrink-0">
-            <Shield className="h-4 w-4 text-primary" />
+        <div className="rounded-2xl bg-muted/50 p-3 mb-4">
+          <div className="flex items-center gap-3">
+            <div className="rounded-full bg-primary/15 p-2 shrink-0">
+              <Shield className="h-4 w-4 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Your Credit Limit</p>
+              <p className="text-lg font-bold text-foreground">
+                {limitLoading ? '...' : formatUGX(maxAmount)}
+              </p>
+              {allocBonus > 0 && (
+                <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">
+                  +{formatUGX(allocBonus)} earned from tenant allocations
+                </p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setAllocOpen(o => !o)}
+              className="text-[10px] font-bold uppercase tracking-wider text-primary hover:underline shrink-0"
+            >
+              {allocOpen ? 'Hide' : 'See how'}
+            </button>
           </div>
-          <div className="flex-1">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Your Credit Limit</p>
-            <p className="text-lg font-bold text-foreground">
-              {limitLoading ? '...' : formatUGX(maxAmount)}
-            </p>
-          </div>
+
+          {allocOpen && (
+            <div className="mt-3 pt-3 border-t border-dashed border-border space-y-2">
+              <p className="text-[10px] text-muted-foreground leading-snug">
+                Every tenant allocation you record adds <span className="font-bold text-foreground">2× the amount</span> to your credit limit (capped at {formatUGX(30_000_000)}).
+              </p>
+              {recentAllocations.length === 0 ? (
+                <p className="text-[11px] text-muted-foreground text-center py-3">
+                  No allocations yet. Allocate to a tenant to grow your limit.
+                </p>
+              ) : (
+                <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                  {recentAllocations.map((a: any) => {
+                    const added = Number(a.amount) * ALLOC_MULTIPLIER;
+                    const tenantName = a.tenant?.full_name || 'Tenant';
+                    return (
+                      <div
+                        key={a.id}
+                        className="flex items-center justify-between gap-2 rounded-lg bg-background/70 px-2.5 py-2"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[11px] font-semibold text-foreground truncate">
+                            {tenantName}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {formatUGX(Number(a.amount))} · {format(new Date(a.created_at), 'MMM d')}
+                          </p>
+                        </div>
+                        <span className="text-[11px] font-bold text-emerald-600 tabular-nums shrink-0">
+                          +{formatUGX(added)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Form */}
