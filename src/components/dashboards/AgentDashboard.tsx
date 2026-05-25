@@ -166,6 +166,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   }
   const navigate = useNavigate();
   const { profile } = useProfile();
+  // Celebratory toast the moment the agent crosses today's 20% eligibility
+  // threshold (fires once per Kampala day, on mount or via realtime).
+  useAgentUnblockToast(user?.id);
   const { refreshEarnings, totalEarnings } = useAgentEarnings();
   const { wallet, refreshWallet } = useWallet();
   const { commissionBalance, withdrawableBalance, otherBalance, refetch: refreshBalances } = useAgentBalances();
