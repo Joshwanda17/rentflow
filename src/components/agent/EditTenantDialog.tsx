@@ -499,10 +499,15 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
                 <Input
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
+                  onBlur={() => validateField('full_name')}
                   placeholder="Jane Doe"
                   maxLength={100}
                 />
-                {errors.full_name && <p className="text-xs text-destructive mt-1">{errors.full_name}</p>}
+                {errors.full_name ? (
+                  <p className="text-xs text-destructive mt-1">{errors.full_name}</p>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground mt-1">At least 2 characters</p>
+                )}
               </div>
 
               <div>
@@ -512,12 +517,17 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
                 <PhoneInput
                   value={phone}
                   onChange={(v) => setPhone(v)}
+                  onBlur={() => validateField('phone')}
                   onContactPicked={({ name }) => {
                     if (name && !fullName.trim()) setFullName(name);
                   }}
                   placeholder="+256712345678"
                 />
-                {errors.phone && <p className="text-xs text-destructive mt-1">{errors.phone}</p>}
+                {errors.phone ? (
+                  <p className="text-xs text-destructive mt-1">{errors.phone}</p>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground mt-1">Format: +2567XXXXXXXX or 07XXXXXXXX</p>
+                )}
               </div>
 
               <div>
@@ -528,10 +538,15 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  onBlur={() => validateField('email')}
                   placeholder="jane@example.com"
                   maxLength={255}
                 />
-                {errors.email && <p className="text-xs text-destructive mt-1">{errors.email}</p>}
+                {errors.email ? (
+                  <p className="text-xs text-destructive mt-1">{errors.email}</p>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground mt-1">name@domain.com</p>
+                )}
               </div>
 
               <div>
@@ -541,10 +556,15 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
                 <Input
                   value={nationalId}
                   onChange={(e) => setNationalId(e.target.value.toUpperCase())}
+                  onBlur={() => validateField('national_id')}
                   placeholder="CM12345678ABCD"
                   maxLength={14}
                 />
-                {errors.national_id && <p className="text-xs text-destructive mt-1">{errors.national_id}</p>}
+                {errors.national_id ? (
+                  <p className="text-xs text-destructive mt-1">{errors.national_id}</p>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground mt-1">Exactly 14 letters and numbers</p>
+                )}
               </div>
 
               <div className="flex gap-2 pt-2">
