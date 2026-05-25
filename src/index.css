@@ -882,8 +882,8 @@ html.android-compositor-safe [data-radix-popper-content-wrapper] * {
    driver never allocates a texture larger than the viewport. */
 html.android-compositor-safe [role="dialog"] {
   contain: layout paint;
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
+  transform: translate3d(-50%, -50%, 0) !important;
+  -webkit-transform: translate3d(-50%, -50%, 0) !important;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
 }
