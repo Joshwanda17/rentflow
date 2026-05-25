@@ -1385,9 +1385,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
             await supabase.functions.invoke('send-transactional-email', {
               body: {
-                templateName: 'partner-compound',
+                templateName: 'partner-portfolio-compounded',
                 recipientEmail,
-                idempotencyKey: `partner-compound-enable-${detailPartner.profile.id}-${editPortfolio.id}-${Date.now()}`,
+                idempotencyKey: `partner-portfolio-compounded-enable-${detailPartner.profile.id}-${editPortfolio.id}-${Date.now()}`,
                 templateData: {
                   partner_name: detailPartner.profile.full_name || 'Partner',
                   portfolio_id: editPortfolio.portfolio_code || editPortfolio.id,
@@ -1412,7 +1412,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           }
         }
       } catch (emailErr) {
-        console.warn('[partner-compound] edit-trigger email dispatch failed (non-blocking):', emailErr);
+        console.warn('[partner-portfolio-compounded] edit-trigger email dispatch failed (non-blocking):', emailErr);
       }
 
       // Update local state
