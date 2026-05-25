@@ -1175,6 +1175,22 @@ export function WithdrawalRequestsManager({ subCategoryFilter: propSubCategoryFi
                   </SelectContent>
                 </Select>
 
+                {/* Sub-Category Filter */}
+                <Select value={subCategoryFilter} onValueChange={(v) => setSubCategoryFilter(v)}>
+                  <SelectTrigger className="w-[140px] h-8 text-xs">
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    <SelectItem value="repair">🔧 Repair</SelectItem>
+                    <SelectItem value="rent">🏠 Rent</SelectItem>
+                    <SelectItem value="commission">💰 Commission</SelectItem>
+                    <SelectItem value="investment">📈 Investment</SelectItem>
+                    <SelectItem value="roi">📊 ROI</SelectItem>
+                    <SelectItem value="general">📋 General</SelectItem>
+                  </SelectContent>
+                </Select>
+
                 {/* Date Presets */}
                 <div className="flex gap-1">
                   {[
