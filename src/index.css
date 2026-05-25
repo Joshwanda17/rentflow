@@ -53,6 +53,20 @@ section[aria-label*="Notifications" i]:empty {
     max-width: 100%;
     min-width: 0;
   }
+
+  [role="dialog"].app-sheet-content {
+    max-width: 100vw !important;
+    overflow-x: hidden;
+  }
+
+  [role="dialog"].app-sheet-content[data-sheet-side="bottom"],
+  [role="dialog"].app-sheet-content[data-sheet-side="top"] {
+    left: 0 !important;
+    right: 0 !important;
+    width: 100vw !important;
+    transform: translate3d(0, 0, 0) !important;
+    -webkit-transform: translate3d(0, 0, 0) !important;
+  }
 }
 
 @layer components {
