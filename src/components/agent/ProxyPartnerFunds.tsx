@@ -53,6 +53,12 @@ interface PortfolioInfo {
   portfolio_code: string | null;
   account_name: string | null;
   investor_id: string;
+  payment_method?: 'mobile_money' | 'bank_transfer' | 'cash' | null;
+  mobile_network?: 'MTN' | 'Airtel' | null;
+  mobile_money_number?: string | null;
+  bank_name?: string | null;
+  bank_account_name?: string | null;
+  account_number?: string | null;
 }
 
 const ACTIVE_PROXY_WITHDRAWAL_STATUSES = [
