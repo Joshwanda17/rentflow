@@ -474,42 +474,59 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           !recipientEmail.endsWith('@noapp.welile.user');
 
         if (isRealEmail) {
-          // Compute paymentNumber for idempotency: count of prior roi_compounded events for this portfolio
-          const { count: priorCompounds } = await supabase
+          // Build the ACTUAL compounding history anchored at the partner's
+          // contribution date (portfolio.created_at). We replay every prior
+          // `roi_compounded` audit event for this portfolio in order, then
+          // append the cycle we just posted. The final balance equals the
+          // new principal exactly — no synthetic forward projection.
+          const { data: priorLogs } = await supabase
             .from('audit_logs')
-            .select('id', { count: 'exact', head: true })
+            .select('created_at, metadata')
             .eq('action_type', 'roi_compounded')
-            .eq('record_id', portfolio.id);
-          const paymentNumber = (priorCompounds ?? 0); // includes the one we just inserted? insert above already happened, so this is the cycle index
+            .eq('record_id', portfolio.id)
+            .order('created_at', { ascending: true });
 
-          const compoundIso = new Date().toISOString();
-          const compoundDate = new Date(compoundIso).toLocaleDateString('en-GB', {
-            day: '2-digit', month: 'long', year: 'numeric',
-          });
+          // The audit row for THIS compound was inserted just above, so it's
+          // included in `priorLogs`. paymentNumber = total cycles to date.
+          const allLogs = priorLogs ?? [];
+          const paymentNumber = allLogs.length;
 
-          // Build a forward 12-month compounding history anchored at the
-          // NEW principal so the partner sees the full one-year breakdown
-          // (e.g. April → next March) at their portfolio's actual rate.
-          const rate = (Number(portfolio.roi_percentage) || 0) / 100;
-          const startDate = new Date();
+          // Derive the original principal (contribution amount) from the
+          // first compound event: balance_before of cycle 1 = new_principal − roi_amount.
+          // If no logs (shouldn't happen — we just inserted one), fall back.
+          let originalPrincipal = Number(portfolio.investment_amount) - roiAmount; // pre-current-compound principal
+          if (allLogs.length >= 1) {
+            const first: any = allLogs[0].metadata || {};
+            const firstNew = Number(first.new_principal || 0);
+            const firstRoi = Number(first.roi_amount || 0);
+            if (firstNew > 0 && firstRoi >= 0) originalPrincipal = firstNew - firstRoi;
+          }
+
           const compound_history: Array<{
             cycle: number; date: string; balance_before: number; return_amount: number; balance_after: number;
           }> = [];
-          let runningBefore = Number(newAmount);
-          for (let i = 0; i < 12; i++) {
-            const earned = Math.round(runningBefore * rate);
-            const after = runningBefore + earned;
-            const monthDate = new Date(startDate.getFullYear(), startDate.getMonth() + i, 1);
+          let runningBefore = originalPrincipal;
+          allLogs.forEach((log: any, idx: number) => {
+            const md = log.metadata || {};
+            const earned = Number(md.roi_amount || 0);
+            const after = Number(md.new_principal || runningBefore + earned);
+            const when = new Date(log.created_at);
             compound_history.push({
-              cycle: i + 1,
-              date: monthDate.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }),
+              cycle: idx + 1,
+              date: when.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }),
               balance_before: runningBefore,
               return_amount: earned,
               balance_after: after,
             });
             runningBefore = after;
-          }
-          const finalTotal = compound_history[compound_history.length - 1].balance_after;
+          });
+
+          const contributionDateStr = new Date(portfolio.created_at).toLocaleDateString('en-GB', {
+            day: '2-digit', month: 'long', year: 'numeric',
+          });
+          const compoundDate = new Date().toLocaleDateString('en-GB', {
+            day: '2-digit', month: 'long', year: 'numeric',
+          });
 
           await supabase.functions.invoke('send-transactional-email', {
             body: {
@@ -520,7 +537,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                 partner_name: detailPartner.profile.full_name || 'Partner',
                 portfolio_id: portfolio.portfolio_code || portfolio.id,
                 compound_date: compoundDate,
-                initial_partnership_amount: portfolio.investment_amount,
+                contribution_date: contributionDateStr,
+                initial_partnership_amount: originalPrincipal,
                 roi_return: `${portfolio.roi_percentage}%`,
                 return_amount: roiAmount,
                 // For existing partners we show the value AFTER this cycle
@@ -528,6 +546,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                 new_total_partnership_value: Number(newAmount),
                 roi_percentage: portfolio.roi_percentage,
                 payment_number: paymentNumber,
+                // Actual cycles since contribution date — never a 12-month
+                // forward projection. Length = paymentNumber.
                 compound_history,
                 currency: 'UGX',
                 company_name: 'Welile',
