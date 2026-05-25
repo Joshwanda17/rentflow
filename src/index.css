@@ -53,6 +53,20 @@ section[aria-label*="Notifications" i]:empty {
     max-width: 100%;
     min-width: 0;
   }
+
+  [role="dialog"].app-sheet-content {
+    max-width: 100vw !important;
+    overflow-x: hidden;
+  }
+
+  [role="dialog"].app-sheet-content[data-sheet-side="bottom"],
+  [role="dialog"].app-sheet-content[data-sheet-side="top"] {
+    left: 0 !important;
+    right: 0 !important;
+    width: 100vw !important;
+    transform: translate3d(0, 0, 0) !important;
+    -webkit-transform: translate3d(0, 0, 0) !important;
+  }
 }
 
 @layer components {
@@ -898,7 +912,7 @@ html.android-compositor-safe .glass-card {
 /* Kill nested GPU layer promotion inside dialogs/sheets/drawers — the
    compositor doubles sticky/fixed children when their ancestor is
    transformed. Only the outermost overlay gets a promoted layer. */
-html.android-compositor-safe [role="dialog"] *,
+html.android-compositor-safe [role="dialog"] *:not(.app-sheet-content):not(.app-dialog-content),
 html.android-compositor-safe [data-radix-popper-content-wrapper] * {
   transform: none !important;
   -webkit-transform: none !important;
