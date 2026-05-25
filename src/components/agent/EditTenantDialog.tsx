@@ -45,6 +45,8 @@ const editSchema = z.object({
     .or(z.literal('')),
 });
 
+type SavedField = { label: string; oldValue: string; newValue: string; changed: boolean };
+
 export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTenantDialogProps) {
   const [fullName, setFullName] = useState(tenant.full_name);
   const [phone, setPhone] = useState(tenant.phone);
@@ -54,6 +56,8 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [statusBusy, setStatusBusy] = useState(false);
   const [currentStatus, setCurrentStatus] = useState<string | null | undefined>(tenant.tenant_status);
+  const [savedSummary, setSavedSummary] = useState<SavedField[] | null>(null);
+  const [statusSummary, setStatusSummary] = useState<{ oldStatus: string; newStatus: string } | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -63,6 +67,8 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
       setNationalId(tenant.national_id || '');
       setErrors({});
       setCurrentStatus(tenant.tenant_status);
+      setSavedSummary(null);
+      setStatusSummary(null);
     }
   }, [open, tenant]);
 
