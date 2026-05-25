@@ -53,8 +53,8 @@ const editSchema = z.object({
     .toUpperCase()
     .pipe(
       z.string().regex(
-        /^[A-Z0-9]{14}$/,
-        'National ID must be exactly 14 letters/numbers (e.g. CM12345678ABCD)'
+        /^[A-Z0-9]{10,14}$/,
+        'National ID must be 10–14 letters/numbers (e.g. CM12345678ABCD)'
       )
     )
     .optional()
@@ -606,7 +606,7 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
                 {errors.national_id ? (
                   <p className="text-xs text-destructive mt-1">{errors.national_id}</p>
                 ) : (
-                  <p className="text-[11px] text-muted-foreground mt-1">Exactly 14 letters and numbers</p>
+                  <p className="text-[11px] text-muted-foreground mt-1">10–14 letters and numbers</p>
                 )}
               </div>
 
