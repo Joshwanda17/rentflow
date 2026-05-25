@@ -852,6 +852,57 @@ html.no-backdrop-blur [class*="backdrop-blur"] {
   background-color: hsl(var(--card)) !important;
 }
 
+/* =====================================================================
+   Android 12-14 Chrome / Samsung Internet compositor safe-mode.
+   Applied by main.tsx when an affected UA is detected.
+   Fixes:
+    1. Rainbow tearing band on tall blurred cards (oversized GPU texture).
+    2. Duplicated "sticky" rows inside transformed/rounded scroll containers.
+    3. Re-paint smear when Framer Motion leaves `will-change: transform` on.
+   ===================================================================== */
+html.android-compositor-safe [class*="backdrop-blur"],
+html.android-compositor-safe .glass-card {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Kill nested GPU layer promotion inside dialogs/sheets/drawers — the
+   compositor doubles sticky/fixed children when their ancestor is
+   transformed. Only the outermost overlay gets a promoted layer. */
+html.android-compositor-safe [role="dialog"] *,
+html.android-compositor-safe [data-radix-popper-content-wrapper] * {
+  transform: none !important;
+  -webkit-transform: none !important;
+  will-change: auto !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* The overlay itself stays promoted, but constrain its paint so the
+   driver never allocates a texture larger than the viewport. */
+html.android-compositor-safe [role="dialog"] {
+  contain: layout paint;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* Heavy shadows on rounded cards are the second-biggest source of
+   oversized textures. Soften them on affected devices. */
+html.android-compositor-safe .shadow-2xl,
+html.android-compositor-safe .shadow-xl {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Disable position:sticky inside transformed ancestors (root of the
+   "duplicated Auto-Reinvest / Next ROI Date" bug). */
+html.android-compositor-safe [role="dialog"] .sticky,
+html.android-compositor-safe [role="dialog"] [class*="sticky"] {
+  position: relative !important;
+  top: auto !important;
+}
+
 /* Data-saver: hide decorative elements */
 @media (prefers-reduced-data: reduce) {
   [data-decorative], .decorative, [save-data-hidden] {
