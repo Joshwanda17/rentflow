@@ -1018,7 +1018,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -6, scale: 0.98 }}
                     transition={{ type: 'spring', stiffness: 260, damping: 22 }}
-                    className="text-4xl sm:text-5xl font-extrabold tracking-tight leading-none mt-1 tabular-nums"
+                    className="text-4xl sm:text-5xl font-extrabold tracking-tight leading-none mt-1 tabular-nums whitespace-pre-line"
                   >
                     {advanceLoading && !advanceLimit.totalLimit
                       ? '—'
