@@ -1351,89 +1351,10 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
       toast.success(`Portfolio ${editPortfolio.portfolio_code} updated`);
 
-      // If the partner just switched this portfolio INTO compounding mode,
-      // fire the same "Partner Portfolio Compounding Confirmation" email
-      // that the in-detail "Compound ROI" action sends. This gives partners
-      // the full 12-cycle breakdown the moment compounding is enabled.
-      try {
-        const switchedIntoCompounding =
-          editPortfolioRoiMode === 'monthly_compounding' &&
-          editPortfolio.roi_mode !== 'monthly_compounding';
-
-        if (switchedIntoCompounding) {
-          const { data: profileRow } = await supabase
-            .from('profiles')
-            .select('email')
-            .eq('id', detailPartner.profile.id)
-            .maybeSingle();
-          const recipientEmail = profileRow?.email;
-          const isRealEmail =
-            recipientEmail &&
-            !recipientEmail.endsWith('@welile.user') &&
-            !recipientEmail.endsWith('@noapp.welile.user');
-
-          if (isRealEmail) {
-            // Build a forward 12-month compounding history starting from
-            // THIS month so the partner sees the full year breakdown
-            // (e.g. April → next March) anchored in their portfolio rate.
-            const rate = roi / 100;
-            const startDate = new Date();
-            const compound_history: Array<{
-              cycle: number;
-              date: string;
-              balance_before: number;
-              return_amount: number;
-              balance_after: number;
-            }> = [];
-            let runningBefore = amount;
-            for (let i = 0; i < 12; i++) {
-              const earned = Math.round(runningBefore * rate);
-              const after = runningBefore + earned;
-              const monthDate = new Date(startDate.getFullYear(), startDate.getMonth() + i, 1);
-              compound_history.push({
-                cycle: i + 1,
-                date: monthDate.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }),
-                balance_before: runningBefore,
-                return_amount: earned,
-                balance_after: after,
-              });
-              runningBefore = after;
-            }
-            const finalTotal = compound_history[compound_history.length - 1].balance_after;
-            const firstMonthReturn = compound_history[0].return_amount;
-            const compoundDate = compound_history[compound_history.length - 1].date;
-
-            await supabase.functions.invoke('send-transactional-email', {
-              body: {
-                templateName: 'partner-portfolio-compounded',
-                recipientEmail,
-                idempotencyKey: `partner-portfolio-compounded-enable-${detailPartner.profile.id}-${editPortfolio.id}-${Date.now()}`,
-                templateData: {
-                  partner_name: detailPartner.profile.full_name || 'Partner',
-                  portfolio_id: editPortfolio.portfolio_code || editPortfolio.id,
-                  compound_date: compoundDate,
-                  initial_partnership_amount: amount,
-                  roi_return: `${roi}%`,
-                  return_amount: firstMonthReturn,
-                  new_total_partnership_value: finalTotal,
-                  roi_percentage: roi,
-                  payment_number: 12,
-                  // Explicit 12-month forward breakdown — the template
-                  // honours compound_history over any synthesised series.
-                  compound_history,
-                  currency: 'UGX',
-                  company_name: 'Welile',
-                  logo_url: 'https://welilereceipts.com/welile-logo.png',
-                  unsubscribe_url: 'https://welile.com/unsubscribe',
-                  dashboard_url: 'https://welilereceipts.com/auth',
-                },
-              },
-            });
-          }
-        }
-      } catch (emailErr) {
-        console.warn('[partner-portfolio-compounded] edit-trigger email dispatch failed (non-blocking):', emailErr);
-      }
+      // NOTE: mode-switch into "compounding" does NOT send the compound
+      // confirmation email. That email is reserved for an ACTUAL compound
+      // event (Compound ROI button or Nearing Payout compound action),
+      // where a real `roi_compounded` ledger + audit entry exists.
 
       // Update local state
       const updated = detailPartner.portfolios.map(p =>
