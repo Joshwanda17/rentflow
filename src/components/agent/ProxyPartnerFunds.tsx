@@ -410,7 +410,7 @@ export function ProxyPartnerFunds() {
       if (uniquePortfolioIds.length > 0) {
         const { data: portfolioData } = await supabase
           .from('investor_portfolios')
-          .select('id, portfolio_code, account_name, investor_id')
+          .select('id, portfolio_code, account_name, investor_id, payment_method, mobile_network, mobile_money_number, bank_name, bank_account_name, account_number')
           .in('id', uniquePortfolioIds);
         fetchedPortfolios = (portfolioData || []) as PortfolioInfo[];
       }
