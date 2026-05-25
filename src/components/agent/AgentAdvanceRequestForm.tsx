@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { Loader2, ArrowRight, Shield, Banknote, Calendar, FileText, Clock, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
+import { Loader2, ArrowRight, Shield, Banknote, Calendar, FileText, Clock, CheckCircle2, XCircle, AlertTriangle, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -33,7 +33,7 @@ const STATUS_CONFIG: Record<string, { label: string; icon: any; color: string }>
 export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequestFormProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const { limit, loading: limitLoading } = useCreditAccessLimit(user?.id);
+  const { limit, loading: limitLoading, refreshLimit } = useCreditAccessLimit(user?.id);
 
   const [amount, setAmount] = useState('');
   const [cycleDays, setCycleDays] = useState<number>(30);
@@ -68,6 +68,22 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
     enabled: !!user?.id && open,
   });
   const allocBonus = limit?.bonusFromAgentAllocations || 0;
+  const BASE_LIMIT = 30_000;
+  const HARD_CAP = 30_000_000;
+
+  // Breakdown of every component that contributes to the total credit limit.
+  const breakdown = [
+    { key: 'base', label: 'Starter base', value: BASE_LIMIT, source: 'every agent starts here' },
+    { key: 'rentHistory', label: 'Rent history', value: limit?.bonusFromRentHistory || 0, source: 'completed rent plans + repayments' },
+    { key: 'landlordRent', label: 'Landlords you registered', value: limit?.bonusFromLandlordRent || 0, source: '2× rent on landlords you brought in' },
+    { key: 'houses', label: 'Houses listed', value: limit?.bonusFromHousesListed || 0, source: '50K per listing' },
+    { key: 'partners', label: 'Partners onboarded', value: limit?.bonusFromPartnersOnboarded || 0, source: '200K per active partner' },
+    { key: 'ratings', label: 'Tenant ratings', value: limit?.bonusFromRatings || 0, source: 'above 3★ average' },
+    { key: 'receipts', label: 'Verified receipts', value: limit?.bonusFromReceipts || 0, source: '50K per verified receipt' },
+    { key: 'allocations', label: 'Tenant allocations', value: allocBonus, source: '2× of every UGX you allocate to tenants' },
+  ];
+  const breakdownSum = breakdown.reduce((s, b) => s + b.value, 0);
+  const isCapped = breakdownSum >= HARD_CAP;
 
   const { data: myRequests = [], isLoading: historyLoading } = useQuery({
     queryKey: ['my-advance-requests', user?.id],
@@ -156,19 +172,70 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
                 </p>
               )}
             </div>
-            <button
-              type="button"
-              onClick={() => setAllocOpen(o => !o)}
-              className="text-[10px] font-bold uppercase tracking-wider text-primary hover:underline shrink-0"
-            >
-              {allocOpen ? 'Hide' : 'See how'}
-            </button>
+            <div className="flex flex-col items-end gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={() => setAllocOpen(o => !o)}
+                className="text-[10px] font-bold uppercase tracking-wider text-primary hover:underline"
+              >
+                {allocOpen ? 'Hide' : 'See how'}
+              </button>
+              <button
+                type="button"
+                onClick={() => refreshLimit()}
+                className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1"
+                title="Recalculate from latest data"
+              >
+                <RefreshCw className={cn('h-3 w-3', limitLoading && 'animate-spin')} /> Refresh
+              </button>
+            </div>
           </div>
 
           {allocOpen && (
             <div className="mt-3 pt-3 border-t border-dashed border-border space-y-2">
+              {/* Full breakdown — must add up to the displayed credit limit */}
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                How your {formatUGX(maxAmount)} limit is built
+              </p>
+              <div className="space-y-1 rounded-xl bg-background/70 p-2.5">
+                {breakdown.map(b => (
+                  <div key={b.key} className="flex items-start justify-between gap-3 py-0.5">
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-semibold text-foreground truncate">{b.label}</p>
+                      <p className="text-[10px] text-muted-foreground truncate">{b.source}</p>
+                    </div>
+                    <span className={cn(
+                      'text-[11px] font-bold tabular-nums shrink-0',
+                      b.value > 0 ? 'text-emerald-600' : 'text-muted-foreground',
+                    )}>
+                      {b.value > 0 ? '+' : ''}{formatUGX(b.value)}
+                    </span>
+                  </div>
+                ))}
+                <Separator className="my-1" />
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[11px] font-bold text-foreground">Total</span>
+                  <span className="text-sm font-bold text-primary tabular-nums">
+                    {formatUGX(Math.min(breakdownSum, HARD_CAP))}
+                  </span>
+                </div>
+                {breakdownSum !== maxAmount && (
+                  <p className="text-[10px] text-amber-600 mt-1">
+                    Shown limit is {formatUGX(maxAmount)}. Tap Refresh to recompute — recent allocations may not be counted yet.
+                  </p>
+                )}
+                {isCapped && (
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    You've hit the {formatUGX(HARD_CAP)} maximum credit limit.
+                  </p>
+                )}
+              </div>
+
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground pt-2">
+                Recent tenant allocations
+              </p>
               <p className="text-[10px] text-muted-foreground leading-snug">
-                Every tenant allocation you record adds <span className="font-bold text-foreground">2× the amount</span> to your credit limit (capped at {formatUGX(30_000_000)}).
+                Each allocation adds <span className="font-bold text-foreground">2× the amount</span> to your limit.
               </p>
               {recentAllocations.length === 0 ? (
                 <p className="text-[11px] text-muted-foreground text-center py-3">
