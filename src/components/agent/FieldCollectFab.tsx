@@ -40,14 +40,14 @@ export function FieldCollectFab({ onClick }: FieldCollectFabProps) {
       onClick={onClick}
       aria-label="Field collect — record offline payment"
       className={cn(
-        'fixed z-40 bottom-20 right-4 md:bottom-6 md:right-6',
+        'fixed z-40 right-4 md:right-6 fab-shrink-landscape',
         'h-14 px-5 rounded-full shadow-lg shadow-primary/30',
         'bg-primary text-primary-foreground',
         'flex items-center gap-2 font-semibold text-sm',
         'active:scale-[0.96] transition-all touch-manipulation',
         'border-2 border-background'
       )}
-      style={{ WebkitTapHighlightColor: 'transparent' }}
+      style={{ WebkitTapHighlightColor: 'transparent', bottom: 'var(--fab-bottom)' }}
     >
       <Banknote className="h-5 w-5" />
       <span>Field Collect</span>
