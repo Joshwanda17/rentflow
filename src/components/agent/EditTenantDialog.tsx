@@ -212,92 +212,92 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
       return;
     }
 
-    setSaving(true);
-    try {
+    await doSave(async () => {
       const payload = {
         full_name: parsed.data.full_name,
         phone: parsed.data.phone,
         email: parsed.data.email || null,
         national_id: parsed.data.national_id || null,
       };
-      const { data, error } = await supabase
-        .from('profiles')
-        .update(payload)
-        .eq('id', tenant.id)
-        .select('id, full_name, phone, email, national_id');
-      const rowsReturned = data?.length ?? 0;
-      if (error || rowsReturned === 0) {
-        if (isPermissionError(error, rowsReturned)) {
-          const attempted = {
-            'Full Name': parsed.data.full_name,
-            'Phone Number': parsed.data.phone,
-            'Email': parsed.data.email || '—',
-            'National ID': parsed.data.national_id || '—',
-          };
-          const original = {
-            'Full Name': tenant.full_name,
-            'Phone Number': tenant.phone,
-            'Email': tenant.email || '—',
-            'National ID': tenant.national_id || '—',
-          };
-          const blockedFields = (Object.keys(attempted) as (keyof typeof attempted)[])
-            .filter((k) => attempted[k] !== original[k])
-            .map((k) => ({ label: k, oldValue: original[k], attemptedValue: attempted[k] }));
-          setPermissionBlock({
-            scope: 'profile',
-            message:
-              error?.message ||
-              "Your role doesn't allow editing this tenant's identity fields. A manager must approve or apply these changes.",
-            fields: blockedFields.length
-              ? blockedFields
-              : [{ label: 'Tenant profile', oldValue: '—', attemptedValue: '—' }],
-            retry: () => {
-              setPermissionBlock(null);
-              void handleSave();
-            },
-          });
-          toast.error('Permission blocked', { description: 'Escalate to a manager to save these changes.' });
-          return;
-        }
-        throw error || new Error('Update did not return any rows.');
-      }
 
-      const oldVals = {
-        'Full Name': tenant.full_name,
-        'Phone Number': tenant.phone,
-        'Email': tenant.email || '—',
-        'National ID': tenant.national_id || '—',
-      };
-      const newVals = {
-        'Full Name': parsed.data.full_name,
-        'Phone Number': parsed.data.phone,
-        'Email': parsed.data.email || '—',
-        'National ID': parsed.data.national_id || '—',
-      };
-      const summary: SavedField[] = [
-        { label: 'Full Name', oldValue: oldVals['Full Name'], newValue: newVals['Full Name'], changed: oldVals['Full Name'] !== newVals['Full Name'] },
-        { label: 'Phone Number', oldValue: oldVals['Phone Number'], newValue: newVals['Phone Number'], changed: oldVals['Phone Number'] !== newVals['Phone Number'] },
-        { label: 'Email', oldValue: oldVals['Email'], newValue: newVals['Email'], changed: oldVals['Email'] !== newVals['Email'] },
-        { label: 'National ID', oldValue: oldVals['National ID'], newValue: newVals['National ID'], changed: oldVals['National ID'] !== newVals['National ID'] },
-      ];
-      setSavedSummary(summary);
-      const changedFields = summary
-        .filter((f) => f.changed)
-        .map((f) => ({ field: f.label, old_value: f.oldValue, new_value: f.newValue }));
-      if (changedFields.length > 0) {
-        await writeAuditLog(
-          'tenant_profile_edit',
-          changedFields,
-          `Agent edited tenant identity fields (${changedFields.map((f) => f.field).join(', ')})`,
-        );
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .update(payload)
+          .eq('id', tenant.id)
+          .select('id, full_name, phone, email, national_id');
+        const rowsReturned = data?.length ?? 0;
+        if (error || rowsReturned === 0) {
+          if (isPermissionError(error, rowsReturned)) {
+            const attempted = {
+              'Full Name': parsed.data.full_name,
+              'Phone Number': parsed.data.phone,
+              'Email': parsed.data.email || '—',
+              'National ID': parsed.data.national_id || '—',
+            };
+            const original = {
+              'Full Name': tenant.full_name,
+              'Phone Number': tenant.phone,
+              'Email': tenant.email || '—',
+              'National ID': tenant.national_id || '—',
+            };
+            const blockedFields = (Object.keys(attempted) as (keyof typeof attempted)[])
+              .filter((k) => attempted[k] !== original[k])
+              .map((k) => ({ label: k, oldValue: original[k], attemptedValue: attempted[k] }));
+            setPermissionBlock({
+              scope: 'profile',
+              message:
+                error?.message ||
+                "Your role doesn't allow editing this tenant's identity fields. A manager must approve or apply these changes.",
+              fields: blockedFields.length
+                ? blockedFields
+                : [{ label: 'Tenant profile', oldValue: '—', attemptedValue: '—' }],
+              retry: () => {
+                setPermissionBlock(null);
+                void handleSave();
+              },
+            });
+            toast.error('Permission blocked', { description: 'Escalate to a manager to save these changes.' });
+            return;
+          }
+          throw error || new Error('Update did not return any rows.');
+        }
+
+        const oldVals = {
+          'Full Name': tenant.full_name,
+          'Phone Number': tenant.phone,
+          'Email': tenant.email || '—',
+          'National ID': tenant.national_id || '—',
+        };
+        const newVals = {
+          'Full Name': parsed.data.full_name,
+          'Phone Number': parsed.data.phone,
+          'Email': parsed.data.email || '—',
+          'National ID': parsed.data.national_id || '—',
+        };
+        const summary: SavedField[] = [
+          { label: 'Full Name', oldValue: oldVals['Full Name'], newValue: newVals['Full Name'], changed: oldVals['Full Name'] !== newVals['Full Name'] },
+          { label: 'Phone Number', oldValue: oldVals['Phone Number'], newValue: newVals['Phone Number'], changed: oldVals['Phone Number'] !== newVals['Phone Number'] },
+          { label: 'Email', oldValue: oldVals['Email'], newValue: newVals['Email'], changed: oldVals['Email'] !== newVals['Email'] },
+          { label: 'National ID', oldValue: oldVals['National ID'], newValue: newVals['National ID'], changed: oldVals['National ID'] !== newVals['National ID'] },
+        ];
+        setSavedSummary(summary);
+        const changedFields = summary
+          .filter((f) => f.changed)
+          .map((f) => ({ field: f.label, old_value: f.oldValue, new_value: f.newValue }));
+        if (changedFields.length > 0) {
+          await writeAuditLog(
+            'tenant_profile_edit',
+            changedFields,
+            `Agent edited tenant identity fields (${changedFields.map((f) => f.field).join(', ')})`,
+          );
+        }
+        toast.success('Tenant details saved', { description: parsed.data.full_name });
+        onSaved?.(payload);
+      } catch (err: any) {
+        toast.error('Failed to update', { description: err.message || 'Please try again' });
       }
-      toast.success('Tenant details saved', { description: parsed.data.full_name });
-      onSaved?.(payload);
-    } catch (err: any) {
-      toast.error('Failed to update', { description: err.message || 'Please try again' });
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
   const isInactive = currentStatus === 'inactive';
