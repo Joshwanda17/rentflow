@@ -102,8 +102,13 @@ export function PartnerPortfolioCompounded({
 
   const formattedInitial = formatAmount(initial_partnership_amount, currency)
   const formattedReturn = formatAmount(return_amount, currency)
-  // Headline = Principal + Returns Earned this cycle (matches in-app dialog).
-  const headlineNum = (initNum + retNum) > 0 ? (initNum + retNum) : newTotalNum
+  // Headline = explicit New Total Partnership Value from the caller (the
+  // truth shown in the in-app compound dialog: current principal + this
+  // cycle's return). Only fall back to initial+return when the caller
+  // failed to provide it. `initial_partnership_amount` is the ORIGINAL
+  // contribution and drifts from the live principal after the first
+  // compound, so it must never override an explicit value.
+  const headlineNum = newTotalNum > 0 ? newTotalNum : (initNum + retNum)
   const formattedNewTotal = formatAmount(Math.round(headlineNum), currency)
   const roiLabel = resolveRoiLabel(roi_percentage, roi_return, initNum, retNum)
   const timeline = Array.isArray(compound_history) && compound_history.length > 0
