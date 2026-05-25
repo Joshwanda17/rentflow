@@ -163,8 +163,8 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Your Credit Limit</p>
-              <p className="text-lg font-bold text-foreground">
-                {limitLoading ? '...' : formatUGX(maxAmount)}
+              <p className="text-lg font-bold text-foreground whitespace-pre-line">
+                {limitLoading ? '...' : `UGX ${Math.round(maxAmount)}\n`}
               </p>
               {allocBonus > 0 && (
                 <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">
