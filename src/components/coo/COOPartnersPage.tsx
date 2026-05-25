@@ -3745,24 +3745,32 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
             if (firstNew > 0 && firstRoi >= 0) originalPrincipal = firstNew - firstRoi;
           }
 
+          // FORWARD PROJECTION breakdown — excludes the current cycle (its
+          // result IS the New Total Partnership Value headline) and starts
+          // from next month, compounding monthly through portfolio maturity.
           const compound_history: Array<{
-            cycle: number; date: string; balance_before: number; return_amount: number; balance_after: number;
+            cycle: number; month_name: string; date: string; balance_before: number; return_amount: number; balance_after: number;
           }> = [];
-          let runningBefore = originalPrincipal;
-          allLogs.forEach((log: any, idx: number) => {
-            const md = log.metadata || {};
-            const earned = Number(md.roi_amount || 0);
-            const after = Number(md.new_principal || runningBefore + earned);
-            const when = new Date(log.created_at);
+          const totalMonths = Number(p.durationMonths || 12);
+          const remainingMonths = Math.max(0, totalMonths - paymentNumber);
+          const roiPct = Number(p.roiPercentage || 0);
+          const projectionStart = new Date(newRoiDate); // already advanced +1 month
+          let runningPrincipal = Number(newAmount);
+          for (let i = 0; i < remainingMonths; i++) {
+            const d = new Date(projectionStart);
+            d.setMonth(d.getMonth() + i);
+            const earned = Math.round(runningPrincipal * roiPct / 100);
+            const after = runningPrincipal + earned;
             compound_history.push({
-              cycle: idx + 1,
-              date: when.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }),
-              balance_before: runningBefore,
+              cycle: paymentNumber + i + 1,
+              month_name: d.toLocaleDateString('en-GB', { month: 'long' }),
+              date: d.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }),
+              balance_before: runningPrincipal,
               return_amount: earned,
               balance_after: after,
             });
-            runningBefore = after;
-          });
+            runningPrincipal = after;
+          }
 
           // Detect "previously sent" — was a partner-portfolio-compounded email for this recipient
           // already successfully sent before this action?
