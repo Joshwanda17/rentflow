@@ -762,7 +762,7 @@ export function CFOAdvanceRequestPayments() {
                     <span className="text-xs text-muted-foreground">Gross revenue on this advance</span>
                     <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400">+{formatUGX(weEarn)}</span>
                   </div>
-                </body>
+                </div>
 
                 {notes[req.id] && (
                   <div className="rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 p-2">
