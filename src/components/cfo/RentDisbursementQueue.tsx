@@ -22,6 +22,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { TreasuryImpactBanner } from './TreasuryImpactBanner';
 import { useAuth } from '@/hooks/useAuth';
+import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
 
 const fmt = (n: number) =>
   new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', maximumFractionDigits: 0 }).format(n);
@@ -50,6 +51,7 @@ export function RentDisbursementQueue() {
   const [batchRef, setBatchRef] = useState('');
   const [rejectTarget, setRejectTarget] = useState<ApprovedRentItem | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [drilldownAgentId, setDrilldownAgentId] = useState<string | null>(null);
   const qc = useQueryClient();
   const { user } = useAuth();
 
@@ -129,18 +131,23 @@ export function RentDisbursementQueue() {
   // Group rows by agent so CFO can pick one tenant, a few, or all of an
   // agent's tenants at a glance.
   const grouped = useMemo(() => {
-    const map = new Map<string, { agent_id: string; agent_name: string; rows: ApprovedRentItem[] }>();
+    const map = new Map<string, { agent_id: string; agent_name: string; rows: ApprovedRentItem[]; latest: number }>();
     for (const it of items) {
       const key = it.assigned_agent_id || it.agent_id || 'unassigned';
-      const g = map.get(key) ?? { agent_id: key, agent_name: it.agent_name, rows: [] };
+      const ts = new Date(it.created_at).getTime();
+      const g = map.get(key) ?? { agent_id: key, agent_name: it.agent_name, rows: [], latest: 0 };
       g.rows.push(it);
+      if (ts > g.latest) g.latest = ts;
       map.set(key, g);
     }
-    return [...map.values()].sort(
-      (a, b) =>
-        b.rows.reduce((s, r) => s + r.rent_amount, 0) -
-        a.rows.reduce((s, r) => s + r.rent_amount, 0),
-    );
+    // Newest request first, so an agent that just posted jumps to the top.
+    // Within each agent, show their newest tenant request first too.
+    for (const g of map.values()) {
+      g.rows.sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      );
+    }
+    return [...map.values()].sort((a, b) => b.latest - a.latest);
   }, [items]);
 
   const visibleGroups = useMemo(
