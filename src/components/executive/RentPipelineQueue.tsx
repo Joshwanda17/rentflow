@@ -11,9 +11,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
 import { CheckCircle2, XCircle, Clock, MapPin, User, UserCheck, Home, Banknote, ArrowRight, Loader2, Search, MessageCircle, Phone, Pencil, Check, X, PhoneCall, ShieldCheck, AlertCircle, Image as ImageIcon, Camera } from 'lucide-react';
 import { calculateRentRepayment } from '@/lib/rentCalculations';
 import { toast as sonnerToast } from 'sonner';
