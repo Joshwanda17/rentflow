@@ -1094,7 +1094,7 @@ function TenantPane({
       </Card>
 
       {/* Tenant repayment / obligation ledger history */}
-      <TenantStatements tenantId={tenantId} />
+      <TenantStatements tenantId={tenantId} dateRange={dateRange} onDateRangeChange={setDateRange} />
 
       {activeRr?.landlord_id && (
         <Card className="p-3 space-y-1.5">
