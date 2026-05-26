@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import {
   type TenantOpsFilters, type TimeWindowKey, type RentBandKey,
   type LinkBandKey, type PhotosBandKey, type LeafSortKey,
+  type OutstandingKey, type VerificationKey, type FundingSourceKey,
   RENT_BANDS, DEFAULT_FILTERS, isFiltersActive,
   loadPresets, savePreset, deletePreset, type TenantOpsPreset,
 } from '@/lib/tenantOpsFilters';
@@ -45,6 +46,27 @@ const PHOTOS_CHIPS: { key: PhotosBandKey; label: string }[] = [
   { key: 'any',     label: 'Any photos' },
   { key: 'with',    label: 'With photos' },
   { key: 'without', label: 'No photos' },
+];
+
+const OUTSTANDING_CHIPS: { key: OutstandingKey; label: string }[] = [
+  { key: 'any',       label: 'Any balance' },
+  { key: 'paid_up',   label: 'Paid up' },
+  { key: 'partial',   label: 'Partial' },
+  { key: 'overdue',   label: 'Overdue' },
+  { key: 'defaulted', label: 'Defaulted' },
+];
+
+const VERIFICATION_CHIPS: { key: VerificationKey; label: string }[] = [
+  { key: 'any',      label: 'Any AI-ID' },
+  { key: 'verified', label: 'AI-ID verified' },
+  { key: 'pending',  label: 'Pending' },
+  { key: 'missing',  label: 'Missing ID' },
+];
+
+const FUNDING_CHIPS: { key: FundingSourceKey; label: string }[] = [
+  { key: 'any',       label: 'Any source' },
+  { key: 'supporter', label: 'Supporter' },
+  { key: 'platform',  label: 'Platform' },
 ];
 
 const SORT_OPTIONS: { key: LeafSortKey; label: string }[] = [
