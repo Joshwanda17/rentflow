@@ -17,8 +17,11 @@ import {
   Wallet, ShieldAlert, Building2, ReceiptText, Smartphone, SmartphoneNfc,
   Search, Pencil, X, TrendingUp, Users, Sparkles, Download, FileText,
   ChevronRight, ArrowLeft, MessageSquare, StickyNote, CheckCircle2, XCircle,
-  CalendarIcon, Info, AlertTriangle, RefreshCw,
+  CalendarIcon, Info, AlertTriangle, RefreshCw, Filter,
 } from 'lucide-react';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import { useAuth } from '@/hooks/useAuth';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
 import { Switch } from '@/components/ui/switch';
