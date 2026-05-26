@@ -1192,6 +1192,7 @@ const STATUS_GROUPS: Record<TenantFilter, string[]> = {
 
 function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSelectTenant?: (id: string, name: string) => void }) {
   const [filter, setFilter] = useState<TenantFilter>('all');
+  const [search, setSearch] = useState('');
   const { data, isLoading } = useQuery({
     queryKey: ['drilldown-agent-tenants', agentId],
     queryFn: async () => {
@@ -1242,10 +1243,21 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
 
   const filtered = useMemo(() => {
     if (!data) return [];
-    if (filter === 'all') return data;
-    const allowed = STATUS_GROUPS[filter];
-    return data.filter((row) => allowed.includes(row.status));
-  }, [data, filter]);
+    let out = data;
+    if (filter !== 'all') {
+      const allowed = STATUS_GROUPS[filter];
+      out = out.filter((row) => allowed.includes(row.status));
+    }
+    const q = search.trim().toLowerCase();
+    if (q) {
+      out = out.filter((row) => {
+        const name = (row.tenant?.full_name ?? '').toLowerCase();
+        const phone = (row.tenant?.phone ?? '').toLowerCase();
+        return name.includes(q) || phone.includes(q);
+      });
+    }
+    return out;
+  }, [data, filter, search]);
 
   const filterButtons: { key: TenantFilter; label: string }[] = [
     { key: 'all', label: 'All' },
@@ -1261,6 +1273,17 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
           <Users className="h-4 w-4 text-primary" /> Tenants under management
         </div>
         <Badge variant="outline" className="text-[10px]">{filtered.length}</Badge>
+      </div>
+
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+        <Input
+          placeholder="Search tenant name or phone…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-7 h-7 text-xs"
+        />
       </div>
 
       {/* Filter toggles */}
