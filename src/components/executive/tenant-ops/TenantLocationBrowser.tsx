@@ -37,6 +37,53 @@ const LEVEL_ICON: Record<string, any> = {
   agent: User, landlord: Home,
 };
 
+// African countries grouped by sub-region, ordered East → West → South → North → Central.
+// Mirrors the grouping used in FundedTenantsList so both Tenant Ops pages
+// surface the same continental coverage.
+const AFRICA_REGIONS: { region: string; countries: string[] }[] = [
+  {
+    region: 'Eastern Africa',
+    countries: [
+      'Uganda', 'Kenya', 'Tanzania', 'Rwanda', 'Burundi', 'South Sudan',
+      'Ethiopia', 'Eritrea', 'Djibouti', 'Somalia', 'Sudan',
+      'Madagascar', 'Mauritius', 'Seychelles', 'Comoros', 'Mayotte', 'Reunion',
+      'Malawi', 'Zambia', 'Zimbabwe', 'Mozambique',
+    ],
+  },
+  {
+    region: 'Western Africa',
+    countries: [
+      'Nigeria', 'Ghana', 'Senegal', 'Ivory Coast', "Cote d'Ivoire", 'Mali',
+      'Burkina Faso', 'Benin', 'Togo', 'Guinea', 'Guinea-Bissau', 'Sierra Leone',
+      'Liberia', 'Gambia', 'Mauritania', 'Niger', 'Cape Verde', 'Cabo Verde',
+      'Saint Helena',
+    ],
+  },
+  {
+    region: 'Southern Africa',
+    countries: [
+      'South Africa', 'Namibia', 'Botswana', 'Lesotho', 'Eswatini', 'Swaziland', 'Angola',
+    ],
+  },
+  {
+    region: 'Northern Africa',
+    countries: [
+      'Egypt', 'Libya', 'Tunisia', 'Algeria', 'Morocco', 'Western Sahara',
+    ],
+  },
+  {
+    region: 'Central Africa',
+    countries: [
+      'DR Congo', 'Democratic Republic of the Congo', 'Congo', 'Republic of the Congo',
+      'Cameroon', 'Central African Republic', 'Central African Rep.', 'Chad',
+      'Gabon', 'Equatorial Guinea', 'Sao Tome and Principe',
+    ],
+  },
+];
+const AFRICAN_COUNTRY_SET = new Set(
+  AFRICA_REGIONS.flatMap((g) => g.countries.map((c) => c.toLowerCase())),
+);
+
 /**
  * Build a set of normalized lookup keys for a Ugandan administrative-area
  * label so curated names can match live tenant labels despite casing,
@@ -181,6 +228,12 @@ export function TenantLocationBrowser() {
           liveRows={rows ?? []}
           loading={isLoading}
           onPickArea={(area) => setPath({ ...path, ward: area })}
+        />
+      ) : level === 'country' ? (
+        <AfricaCountryPicker
+          rows={rows ?? []}
+          loading={isLoading}
+          onPickCountry={(country) => setPath({ country })}
         />
       ) : (
         <TenantTileGrid rows={rows ?? []} level={level} loading={isLoading} onPick={pick} />
