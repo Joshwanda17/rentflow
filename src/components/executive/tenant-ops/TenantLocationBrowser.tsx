@@ -222,11 +222,11 @@ function UgandaRegionDistrictPicker({
             </button>
             {isOpen && (
               <div className="border-t bg-muted/20 p-2">
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                   {group.districts.map((d) => {
                     const count = countFor(d.name, d.backendRegion);
                     const hasUsers = count > 0;
-                    return (
+                    const card = (
                       <button
                         key={`${group.key}-${d.name}`}
                         onClick={() => onPickDistrict(d.name, d.backendRegion)}
@@ -274,6 +274,15 @@ function UgandaRegionDistrictPicker({
                           </div>
                         </Card>
                       </button>
+                    );
+                    if (!hasUsers) return card;
+                    return (
+                      <Tooltip key={`${group.key}-${d.name}`}>
+                        <TooltipTrigger asChild>{card}</TooltipTrigger>
+                        <TooltipContent side="top" className="text-xs">
+                          {count.toLocaleString()} tenant{count === 1 ? '' : 's'}
+                        </TooltipContent>
+                      </Tooltip>
                     );
                   })}
                 </div>
