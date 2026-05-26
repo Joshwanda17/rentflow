@@ -1521,7 +1521,10 @@ function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord }: { agent
                   >
                     {a.landlords?.name ?? a.landlord_id}
                   </button>
-                  <span className="text-muted-foreground font-mono">{a.landlords?.phone}</span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-muted-foreground font-mono">{a.landlords?.phone ?? '—'}</span>
+                    <ContactActions phone={a.landlords?.phone} size="xs" message={`Hello ${a.landlords?.name ?? ''}, this is Welile Ops.`} />
+                  </div>
                 </li>
               ))}
             </ul>
