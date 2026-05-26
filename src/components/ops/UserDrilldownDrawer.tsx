@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
@@ -81,6 +81,20 @@ export function UserDrilldownDrawer({
   const scrollRef = useRef<HTMLDivElement>(null);
   // Track where the user came from so the tenant pane can show "← Back to agent"
   const [cameFromAgent, setCameFromAgent] = useState(false);
+
+  // Reset transient drawer state whenever the drawer is opened OR the
+  // target IDs change. Without this, opening the drawer for agent B
+  // after previously drilling into a tenant under agent A would keep
+  // the old pickedUser/pickedLandlord/tab and show the wrong person
+  // (e.g. "every agent dashboard shows Namuli Oliver").
+  useEffect(() => {
+    if (!open) return;
+    setPickedUser(null);
+    setPickedLandlordId(null);
+    setCameFromAgent(false);
+    setTab(defaultTab);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, tenantId, agentId, landlordId]);
 
   const handleSelectTenant = (id: string, name: string) => {
     setPickedUser({ id, full_name: name, phone: null });
