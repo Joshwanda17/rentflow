@@ -1054,7 +1054,11 @@ function TenantLeafList({
   setFilters: (f: TenantOpsFilters) => void;
   fundedWindow: { fundedSince: string | null; fundedUntil: string | null };
 }) {
-  const { data, isLoading } = useTenantsAtLeaf(path, fundedWindow);
+  const { data, isLoading } = useTenantsAtLeaf(path, fundedWindow, {
+    outstanding:    filters.outstanding   === 'any' ? null : filters.outstanding,
+    verification:   filters.verification  === 'any' ? null : filters.verification,
+    fundingSource:  filters.fundingSource === 'any' ? null : filters.fundingSource,
+  });
   const [openId, setOpenId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
