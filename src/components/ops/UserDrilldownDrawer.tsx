@@ -73,6 +73,10 @@ export function UserDrilldownDrawer({
   // Global "open any user" — overrides tenantId when a user is picked
   const [pickedUser, setPickedUser] = useState<UserBrief | null>(null);
   const effectiveTenantId = pickedUser?.id ?? tenantId ?? null;
+  // Allow in-drawer navigation to a landlord (e.g. tap a name in the
+  // agent's "Linked landlords" list). Overrides the landlordId prop.
+  const [pickedLandlordId, setPickedLandlordId] = useState<string | null>(null);
+  const effectiveLandlordId = pickedLandlordId ?? landlordId ?? null;
   const isOps = useIsOpsRole();
   const scrollRef = useRef<HTMLDivElement>(null);
   // Track where the user came from so the tenant pane can show "← Back to agent"
@@ -85,6 +89,14 @@ export function UserDrilldownDrawer({
     // Scroll the drawer back to the top so the freshly-loaded tenant
     // profile is visible immediately instead of leaving the user on the
     // (now-hidden) Tenants-under-management section.
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  };
+
+  const handleSelectLandlord = (id: string) => {
+    setPickedLandlordId(id);
+    setTab('landlord');
     requestAnimationFrame(() => {
       scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
     });
@@ -127,7 +139,7 @@ export function UserDrilldownDrawer({
             <TabsTrigger value="agent" disabled={!agentId}>
               <UserCheck className="h-3.5 w-3.5 mr-1" /> Agent
             </TabsTrigger>
-            <TabsTrigger value="landlord" disabled={!landlordId}>
+            <TabsTrigger value="landlord" disabled={!effectiveLandlordId}>
               <Home className="h-3.5 w-3.5 mr-1" /> Landlord
             </TabsTrigger>
           </TabsList>
@@ -138,14 +150,15 @@ export function UserDrilldownDrawer({
                 tenantId={effectiveTenantId}
                 isOps={isOps}
                 onBackToAgent={cameFromAgent && agentId ? () => { setTab('agent'); scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); } : undefined}
+                onSelectLandlord={handleSelectLandlord}
               />
             )}
           </TabsContent>
           <TabsContent value="agent" className="py-4">
-            {agentId && <AgentPane agentId={agentId} isOps={isOps} onSelectTenant={handleSelectTenant} />}
+            {agentId && <AgentPane agentId={agentId} isOps={isOps} onSelectTenant={handleSelectTenant} onSelectLandlord={handleSelectLandlord} />}
           </TabsContent>
           <TabsContent value="landlord" className="py-4">
-            {landlordId && <LandlordPane landlordId={landlordId} isOps={isOps} />}
+            {effectiveLandlordId && <LandlordPane landlordId={effectiveLandlordId} isOps={isOps} />}
           </TabsContent>
         </Tabs>
       </SheetContent>
