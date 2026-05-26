@@ -373,6 +373,52 @@ export function FundedTenantsList() {
         </div>
       )}
 
+      {countryDrilldown && (
+        <Card className="p-3 sm:p-4 border-primary/30 bg-primary/5">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="min-w-0">
+              <div className="inline-flex items-center gap-2 text-sm font-semibold">
+                <Globe2 className="h-4 w-4 text-primary" />
+                {countryDrilldown.country}
+                <span className="text-xs font-normal text-muted-foreground">
+                  · {countryDrilldown.landlordCount} landlords · {countryDrilldown.tenantCount} tenants · {countryDrilldown.payoutCount} payouts · {formatUGX(countryDrilldown.total)}
+                </span>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Tap any landlord to open their profile.
+              </p>
+            </div>
+            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setCountryFilter('all')}>
+              Clear country
+            </Button>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {countryDrilldown.landlords.map((l) => (
+              <button
+                key={l.id || l.name}
+                type="button"
+                onClick={() =>
+                  setDrill({
+                    tenantId: null,
+                    agentId: null,
+                    landlordId: l.id ?? null,
+                    tab: 'landlord',
+                  })
+                }
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border border-border bg-background hover:bg-muted transition"
+                title={`${l.tenants.size} tenants · ${l.payouts} payouts · ${formatUGX(l.total)}`}
+              >
+                <Home className="h-3 w-3 text-primary" />
+                <span className="font-medium truncate max-w-[160px]">{l.name}</span>
+                <span className="text-muted-foreground">
+                  {l.tenants.size}t · {formatUGX(l.total)}
+                </span>
+              </button>
+            ))}
+          </div>
+        </Card>
+      )}
+
       {bulk && (
         <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
           Building combined PDF — {bulk.done} of {bulk.total} cards rendered…
