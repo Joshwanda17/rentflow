@@ -986,8 +986,8 @@ function StatementDateFilter({
 }
 
 function TenantPane({
-  tenantId, isOps, onBackToAgent,
-}: { tenantId: string; isOps: boolean; onBackToAgent?: () => void }) {
+  tenantId, isOps, onBackToAgent, onSelectLandlord,
+}: { tenantId: string; isOps: boolean; onBackToAgent?: () => void; onSelectLandlord?: (id: string) => void }) {
   const qc = useQueryClient();
   const [dateRange, setDateRange] = useState<StatementDateRange>({ preset: 'today' });
   const { data: profile, isLoading } = useProfile(tenantId);
@@ -1170,7 +1170,7 @@ function TenantPane({
 /* ------------------------------------------------------------------ */
 /* Agent pane                                                          */
 /* ------------------------------------------------------------------ */
-function AgentPane({ agentId, isOps, onSelectTenant }: { agentId: string; isOps: boolean; onSelectTenant?: (id: string, name: string) => void }) {
+function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord }: { agentId: string; isOps: boolean; onSelectTenant?: (id: string, name: string) => void; onSelectLandlord?: (id: string) => void }) {
   const qc = useQueryClient();
   const { data: profile, isLoading } = useProfile(agentId);
   const { data: roles = [] } = useUserRoles(agentId);
