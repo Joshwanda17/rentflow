@@ -2133,6 +2133,17 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
                   <p className="font-semibold text-amber-700">{fmtUGX(row.outstanding)}</p>
                   <p className="text-[9px] text-muted-foreground capitalize">{row.status}</p>
                 </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSourceModalRow(row as any);
+                  }}
+                  className="p-1 rounded-md hover:bg-muted transition-colors"
+                  title="View source details"
+                >
+                  <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                </button>
                 {onSelectTenant && (
                   <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
                 )}
