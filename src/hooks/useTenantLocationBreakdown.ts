@@ -38,11 +38,23 @@ export function tenantNextLevel(p: TenantBreadcrumbPath): TenantLocationLevel | 
   return 'tenants';
 }
 
-export function useTenantLocationBreakdown(path: TenantBreadcrumbPath) {
+export interface TenantFundedWindow {
+  fundedSince?: string | null; // ISO timestamp
+  fundedUntil?: string | null; // ISO timestamp
+}
+
+export function useTenantLocationBreakdown(
+  path: TenantBreadcrumbPath,
+  window: TenantFundedWindow = {},
+) {
   const level = tenantNextLevel(path);
   return useQuery({
     enabled: level !== 'tenants',
-    queryKey: ['tenant-location-breakdown', level, path.country, path.region, path.district, path.ward, path.agentId],
+    queryKey: [
+      'tenant-location-breakdown', level,
+      path.country, path.region, path.district, path.ward, path.agentId,
+      window.fundedSince ?? null, window.fundedUntil ?? null,
+    ],
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_tenant_location_breakdown' as any, {
@@ -52,6 +64,8 @@ export function useTenantLocationBreakdown(path: TenantBreadcrumbPath) {
         p_district: path.district ?? null,
         p_ward: path.ward ?? null,
         p_agent_id: path.agentId ?? null,
+        p_funded_since: window.fundedSince ?? null,
+        p_funded_until: window.fundedUntil ?? null,
       });
       if (error) throw error;
       return (data ?? []) as TenantBreakdownRow[];
@@ -77,13 +91,23 @@ export interface TenantLeaf {
   region: string;
   district: string;
   ward: string;
+  landlord_funded_at: string | null;
+  landlord_funded_amount: number | null;
+  landlord_payout_count: number | null;
 }
 
-export function useTenantsAtLeaf(path: TenantBreadcrumbPath) {
+export function useTenantsAtLeaf(
+  path: TenantBreadcrumbPath,
+  window: TenantFundedWindow = {},
+) {
   const enabled = tenantNextLevel(path) === 'tenants';
   return useQuery({
     enabled,
-    queryKey: ['tenants-at-leaf', path.country, path.region, path.district, path.ward, path.agentId, path.landlordId],
+    queryKey: [
+      'tenants-at-leaf',
+      path.country, path.region, path.district, path.ward, path.agentId, path.landlordId,
+      window.fundedSince ?? null, window.fundedUntil ?? null,
+    ],
     staleTime: 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_tenants_at_leaf' as any, {
@@ -94,6 +118,8 @@ export function useTenantsAtLeaf(path: TenantBreadcrumbPath) {
         p_agent_id: path.agentId ?? null,
         p_landlord_id: path.landlordId ?? null,
         p_limit: 300,
+        p_funded_since: window.fundedSince ?? null,
+        p_funded_until: window.fundedUntil ?? null,
       });
       if (error) throw error;
       return (data ?? []) as TenantLeaf[];
