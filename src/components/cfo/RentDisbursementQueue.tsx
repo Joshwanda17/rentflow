@@ -368,7 +368,7 @@ export function RentDisbursementQueue() {
                         : 'bg-background hover:bg-muted border-border',
                     )}
                   >
-                    🌍 All · {items.length} · {fmt(queueTotalRent)}
+                    🌍 All · {filteredItems.length} · {fmt(queueTotalRent)}
                   </button>
                   {countryStats.map(c => (
                     <button
