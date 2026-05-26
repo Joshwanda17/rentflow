@@ -1165,9 +1165,14 @@ function TenantPane({
             {activeLandlord?.name?.trim() || activeLandlord?.phone || 'Landlord record missing'}
           </button>
           {activeLandlord?.phone && (
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <Phone className="h-3 w-3" /> {activeLandlord.phone}
-            </p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-muted-foreground font-mono">{activeLandlord.phone}</span>
+              <ContactActions
+                phone={activeLandlord.phone}
+                size="xs"
+                message={`Hello ${activeLandlord?.name ?? ''}, this is Welile Ops regarding your tenant.`}
+              />
+            </div>
           )}
           {activeLandlord?.property_address && (
             <p className="text-xs text-muted-foreground truncate">
