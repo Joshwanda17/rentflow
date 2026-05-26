@@ -2016,6 +2016,8 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
     w.document.close();
   };
 
+  const [sourceModalRow, setSourceModalRow] = useState<typeof data extends (infer T)[] ? T : never | null>(null);
+
   return (
     <Card className="p-3 space-y-2">
       <div className="flex items-center justify-between">
