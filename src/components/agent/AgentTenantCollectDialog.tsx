@@ -141,13 +141,32 @@ export function AgentTenantCollectDialog({
     setLoading(true);
     setRpcError(null);
     try {
-      const { data, error } = await supabase.rpc('agent_allocate_tenant_payment', {
+      // Race the RPC against a 25s timeout. Without this, a stalled
+      // network (we've seen `TypeError: Failed to fetch` from Supabase
+      // in flaky preview/PWA conditions) leaves the Confirm button
+      // stuck on the spinner forever — users perceive this as the app
+      // freezing.
+      const rpcPromise = supabase.rpc('agent_allocate_tenant_payment', {
         p_agent_id: user.id,
         p_tenant_id: tenant.id,
         p_rent_request_id: rentRequestId,
         p_amount: amount,
         p_notes: notes.trim() || null,
       });
+      const timeoutPromise = new Promise<{ data: null; error: { message: string } }>((resolve) =>
+        setTimeout(
+          () =>
+            resolve({
+              data: null,
+              error: {
+                message:
+                  'Network is too slow or offline. Check your connection and try Confirm again — your float was NOT charged.',
+              },
+            }),
+          25000,
+        ),
+      );
+      const { data, error } = (await Promise.race([rpcPromise, timeoutPromise])) as any;
 
       if (error) {
         const message = await extractFromErrorObject(error, 'Allocation failed');
