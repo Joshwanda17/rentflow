@@ -13942,6 +13942,39 @@ export type Database = {
         }
         Relationships: []
       }
+      tenant_ops_filter_presets: {
+        Row: {
+          created_at: string
+          filters: Json
+          id: string
+          name: string
+          owner_id: string
+          share_slug: string | null
+          updated_at: string
+          visibility: string
+        }
+        Insert: {
+          created_at?: string
+          filters: Json
+          id?: string
+          name: string
+          owner_id?: string
+          share_slug?: string | null
+          updated_at?: string
+          visibility?: string
+        }
+        Update: {
+          created_at?: string
+          filters?: Json
+          id?: string
+          name?: string
+          owner_id?: string
+          share_slug?: string | null
+          updated_at?: string
+          visibility?: string
+        }
+        Relationships: []
+      }
       tenant_ratings: {
         Row: {
           created_at: string
@@ -17315,6 +17348,18 @@ export type Database = {
         Returns: {
           missed_days: number
           tenant_id: string
+        }[]
+      }
+      get_tenant_ops_preset_by_slug: {
+        Args: { p_slug: string }
+        Returns: {
+          created_at: string
+          filters: Json
+          id: string
+          name: string
+          owner_id: string
+          share_slug: string
+          visibility: string
         }[]
       }
       get_tenants_at_leaf:
