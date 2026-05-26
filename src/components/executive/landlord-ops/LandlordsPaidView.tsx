@@ -452,8 +452,83 @@ function LandlordTenantsDrawer({
   landlord: LandlordGroup | null;
   onClose: () => void;
 }) {
+  const qc = useQueryClient();
   const open = !!landlord;
   const landlordId = landlord?.landlord_id;
+  const [busy, setBusy] = useState<null | 'whatsapp' | 'call' | 'true' | 'false'>(null);
+
+  const formatWa = (phone: string) => {
+    let p = phone.replace(/\s+/g, '').replace(/[^0-9+]/g, '');
+    if (p.startsWith('0')) p = '256' + p.slice(1);
+    else if (p.startsWith('+')) p = p.slice(1);
+    return p;
+  };
+
+  const logRequest = async (channel: 'whatsapp' | 'call') => {
+    if (!landlordId) return;
+    setBusy(channel);
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      await supabase
+        .from('landlords')
+        .update({
+          receipt_requested_at: new Date().toISOString(),
+          receipt_requested_by: u.user?.id ?? null,
+          receipt_request_channel: channel,
+        } as any)
+        .eq('id', landlordId);
+      qc.invalidateQueries({ queryKey: ['landlord-ops-paid-landlords-v2'] });
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Could not log receipt request');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleWhatsApp = async () => {
+    if (!landlord?.phone) {
+      toast.error('No phone number on file for this landlord');
+      return;
+    }
+    const wa = formatWa(landlord.phone);
+    const msg = encodeURIComponent(
+      `Hello ${landlord.name}, this is Welile. We sent you a rent payment of ${formatUGX(landlord.total)}. Please reply with a photo of the receipt you issued so we can confirm it. Thank you.`
+    );
+    window.open(`https://wa.me/${wa}?text=${msg}`, '_blank');
+    await logRequest('whatsapp');
+  };
+
+  const handleCall = async () => {
+    if (!landlord?.phone) {
+      toast.error('No phone number on file for this landlord');
+      return;
+    }
+    window.open(`tel:${landlord.phone}`, '_self');
+    await logRequest('call');
+  };
+
+  const markStatus = async (status: 'true_landlord' | 'false_landlord') => {
+    if (!landlordId) return;
+    setBusy(status === 'true_landlord' ? 'true' : 'false');
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      const { error } = await supabase
+        .from('landlords')
+        .update({
+          receipt_verification_status: status,
+          receipt_verification_at: new Date().toISOString(),
+          receipt_verification_by: u.user?.id ?? null,
+        } as any)
+        .eq('id', landlordId);
+      if (error) throw error;
+      toast.success(status === 'true_landlord' ? 'Marked as True Landlord' : 'Marked as False Landlord');
+      qc.invalidateQueries({ queryKey: ['landlord-ops-paid-landlords-v2'] });
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Could not update landlord');
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const { data: tenants, isLoading } = useQuery({
     queryKey: ['landlord-tenants-drawer', landlordId],
