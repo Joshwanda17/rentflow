@@ -15775,6 +15775,8 @@ export type Database = {
         Args: { p_active_count: number; p_ratio: number }
         Returns: string
       }
+      _geo_coverage_caller_allowed: { Args: never; Returns: boolean }
+      _geo_norm: { Args: { p: string }; Returns: string }
       _test_proxy_capability_sync: {
         Args: never
         Returns: {
@@ -16745,12 +16747,46 @@ export type Database = {
         Args: { p_entry_id: string; p_user_id: string }
         Returns: Json
       }
+      get_funded_tenants_at: {
+        Args: {
+          p_city?: string
+          p_country?: string
+          p_district?: string
+          p_limit?: number
+          p_offset?: number
+        }
+        Returns: {
+          landlord_id: string
+          landlord_name: string
+          latest_rent_amount: number
+          latest_status: string
+          rent_request_id: string
+          tenant_city: string
+          tenant_country: string
+          tenant_district: string
+          tenant_id: string
+          tenant_name: string
+          tenant_phone: string
+        }[]
+      }
       get_funder_approval_status: {
         Args: { _user_id: string }
         Returns: {
           approved_at: string
           rejection_reason: string
           status: string
+        }[]
+      }
+      get_geo_user_coverage: {
+        Args: { p_city?: string; p_country?: string; p_district?: string }
+        Returns: {
+          agents: number
+          bucket: string
+          funded_tenants: number
+          funders: number
+          landlords: number
+          level: string
+          tenants: number
         }[]
       }
       get_house_activity_timeline: {
