@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, MapPin, User as UserIcon, UserCheck, Lock, Search } from "lucide-react";
+import { Loader2, MapPin, User as UserIcon, UserCheck, Lock, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -157,6 +157,10 @@ export default function ProfileCompletionGate() {
   const [overrideReason, setOverrideReason] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
+  // Local "remind me later" dismissal — does NOT persist. Because
+  // address_complete stays false in the DB, the gate will reopen on
+  // the next login/session as required by the Trust Mission.
+  const [dismissed, setDismissed] = useState(false);
 
   // Seed the form from whatever the profile already has, so users only
   // fill the blanks.
@@ -315,7 +319,7 @@ export default function ProfileCompletionGate() {
     }
   };
 
-  if (!enabled || !open) return null;
+  if (!enabled || !open || dismissed) return null;
 
   return (
     <Dialog open={open}>
@@ -326,6 +330,19 @@ export default function ProfileCompletionGate() {
         onInteractOutside={(e) => e.preventDefault()}
         className="sm:max-w-lg max-h-[90vh] overflow-y-auto [&>button]:hidden"
       >
+        <button
+          type="button"
+          onClick={() => {
+            setDismissed(true);
+            toast.message("We'll remind you next time", {
+              description: "Finish your profile to unlock the right agent and listings.",
+            });
+          }}
+          aria-label="Close and remind me later"
+          className="absolute right-3 top-3 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <X className="h-4 w-4" />
+        </button>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MapPin className="h-5 w-5 text-primary" />
