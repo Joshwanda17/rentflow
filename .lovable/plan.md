@@ -1,79 +1,82 @@
-## What you'll see
+## Goal
 
-Each row in **Tenants Whose Landlords Were Funded** gains a **"Open profile"** button (next to Share). Tapping it opens a wide **User Drilldown drawer** with three sub-tabs at the top:
+In the User Drilldown drawer (`src/components/ops/UserDrilldownDrawer.tsx`), every phone number an operator sees should expose **Call** and **WhatsApp** quick-action buttons, and **every** tenant and landlord field shown in the drawer should be editable in place.
 
-`[ Tenant ] [ Agent ] [ Landlord ]`
+## What changes
 
-Each tab is its own editor for that person. From the Landlord tab there is a 4th nested action **"Link funder"**.
+### 1. New `ContactActions` row (UI only)
 
-Every editable field saves through a single guarded RPC — no direct table writes from the client — and is logged in `audit_logs` with a 10-char reason.
+A small reusable component used wherever a phone number is rendered:
 
-## Drawer contents per role
+```
+[Name]                   📞 Call   💬 WhatsApp   ✉️ SMS
++256 7XX XXX XXX
+```
 
-**Common (every user)**
-- Full name, phone, role badges, dashboards they can access (read-only list derived from `user_roles`)
-- **Location editor** — reuses the existing `AddressFormFields` + GPS capture from `AgentContactLocationGate` (continent → district → village + optional GPS)
+- `Call` opens `tel:+256...` via `_self`
+- `WhatsApp` opens `https://wa.me/256...?text=<contextual greeting>` (reuses existing `toWhatsAppUrl`) in a new tab
+- `SMS` opens `sms:+256...` (already used elsewhere — keep for parity)
+- Buttons are `h-7` icon-only on mobile, icon-+-label on ≥sm
+- Disabled + grey when no phone is present
+- Each surface passes a short context string (e.g. `"Hello, this is Welile Ops — regarding your tenant Jane"`) so the WhatsApp prefill is meaningful
 
-**Tenant tab**
-- Current rent request: amount, daily repayment, **rent balance (amount_repaid vs total)**, status
-- Inline edit: rent amount, daily repayment, missed-day note
-- **Linked agent** with "Change agent" picker → reuses the existing `TenantAgentLinker` reassign RPC
+**Replace every existing "phone" display with `<ContactActions />`**, including:
 
-**Agent tab**
-- Tenant count, total rent under management, commission YTD (read-only, from `v_user_wallet_strict`)
-- **Linked landlord(s)** — list with "+ Link landlord" picker that writes to `agent_landlord_assignments`
+- `ProfileHeader` (tenant + agent) — header line under the name
+- `TenantPane` "Landlord on file" card (line 1147)
+- Agent → `AgentLandlordsList` rows (line 1490+)
+- Agent → `AgentTenantsList` rows (rebuild existing inline tel/wa links into the same component for consistency)
+- `LandlordPane` header (line 1838) — landlord's phone + caretaker phone
+- `LandlordPane` funders list (line 2016)
+- Listings rows where the listing's landlord phone is shown
+- Anywhere a `landlord?.phone`, `funder?.phone`, `tenant?.phone`, or `caretaker_phone` is rendered
 
-**Landlord tab**
-- Landlord profile + payout MoMo details (edit name/phone/provider)
-- **Rentals listed**: count from `house_listings`, with inline +/- (open a quick "Add listing" mini-form)
-- **Linked funder(s)** — list with "+ Link funder" picker that writes to a new `landlord_funder_links` table
-- LC1 chairperson row shown as **"Not configured — coming soon"** (skipped per your instruction)
+### 2. Tenant — full editability
 
-## Permissions
+`ProfileHeader` already edits name + phone via `ops_update_user_identity`, and `LocationEditor` already saves location via `ops_update_user_location`, and `SmartphoneToggle` already toggles `has_smartphone`. Gaps to close:
 
-Visible / editable only when the viewer has one of:
-- `manager` or `super_admin` — full edit on every field
-- `coo`, `tenant_ops`, `landlord_ops` — edit everything except role assignment
-- `agent` — can only open the drawer for **their own** tenants and edit location + rent details; agent/landlord/funder linking is hidden
+- Surface the **Edit** button on the header without the "tap-the-name-first" hover trick — show a pencil button next to the name whenever `canEdit` is true.
+- Extend the `ProfileHeader` edit form to also include **avatar URL** (optional input) and pass it to `ops_update_user_identity` (RPC will be extended to accept `p_avatar_url` — defaulting to NULL = unchanged).
+- Add a small "Notes" textarea field on the tenant profile (free-text ops note) — backed by a new `profiles.ops_note` column.
 
-Enforced both in the UI and inside the new RPCs / RLS.
+### 3. Landlord — full editability (new RPC)
 
-## Technical plan
+Today the only landlord field that can be edited from the drawer is `has_smartphone`. Add a single `LandlordEditCard` inside `LandlordPane` (under the header card) that edits every meaningful landlord field with one mandatory ≥10-char reason (per Audit Governance):
 
-### 1. New shared component
-`src/components/ops/UserDrilldownDrawer.tsx` — Sheet-based wide drawer with the 3 tabs above. Props: `{ tenantId?, agentId?, landlordId?, openTab? }`. Tabs lazy-load their queries.
+- `name`, `phone`, `mobile_money_number`, `mobile_money_name`
+- `property_address`, `district`, `sub_county`, `village`
+- `monthly_rent` (UGX, numeric input)
+- `bank_name`, `account_number`
+- `description`, `number_of_rooms`
+- `caretaker_name`, `caretaker_phone`
 
-### 2. New sub-components (small, focused)
-- `src/components/ops/drilldown/TenantPane.tsx`
-- `src/components/ops/drilldown/AgentPane.tsx`
-- `src/components/ops/drilldown/LandlordPane.tsx`
-- `src/components/ops/drilldown/LinkPicker.tsx` (reusable `UserSearchPicker` wrapper for tenant→agent, agent→landlord, landlord→funder)
-- `src/components/ops/drilldown/LocationEditor.tsx` (extracts the address form from `AgentContactLocationGate` so both surfaces share it)
+Backed by a new SECURITY DEFINER RPC `ops_update_landlord(p_landlord_id, p_patch jsonb, p_reason text)`:
+- gated by `is_ops_role(auth.uid())`
+- writes only the keys present in `p_patch` (partial update)
+- writes one `audit_logs` row (`action_type='landlord_profile_edit'`, `table_name='landlords'`, `record_id=p_landlord_id`, `reason=p_reason`)
+- emits a `system_event` (`landlord.profile_edited`) per the event-based architecture rule
 
-### 3. New hook
-`src/hooks/useDrilldownPermissions.ts` — returns `{ canEditLocation, canEditFinancial, canEditRoles, canLink }` based on active role + ownership.
+Migration also adds `GRANT EXECUTE ON FUNCTION public.ops_update_landlord(...) TO authenticated`.
 
-### 4. Database migration
-- New table `landlord_funder_links` (landlord_id, funder_id, linked_by, reason, active, timestamps; unique active link per pair).
-- RLS: ops roles full access; agents read-only on their own landlords.
-- New SECURITY DEFINER RPCs (all enforce role + 10-char reason + audit log):
-  - `ops_update_user_location(p_user_id, p_address_jsonb, p_lat, p_lng, p_reason)`
-  - `ops_update_rent_request(p_request_id, p_changes_jsonb, p_reason)`
-  - `ops_link_landlord_funder(p_landlord_id, p_funder_id, p_reason)`
-  - `ops_link_agent_landlord(p_agent_id, p_landlord_id, p_reason)` (tenant→agent reuses existing `reassign_tenant_to_agent` RPC)
+### 4. Files touched
 
-### 5. Wire-up
-- `FundedTenantsList.tsx` row: add **"Open profile"** button → opens drawer with `tenantId`, `agentId`, `landlordId` from the row, defaults to **Landlord** tab.
-- Also expose the drawer from `TenantOpsDashboard` (search box → open by tenant) so the same UI works outside the funded list.
+- `src/components/ops/UserDrilldownDrawer.tsx` — add `ContactActions`, swap every phone display, extend `ProfileHeader` edit form, mount new `LandlordEditCard`.
+- `src/components/ops/LandlordEditCard.tsx` (new) — collapsible per-field editor calling `ops_update_landlord` RPC, with the mandatory reason field and inline validation.
+- One Supabase migration:
+  - `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS ops_note text`
+  - extend `ops_update_user_identity` to accept optional `p_avatar_url`, `p_ops_note`
+  - create `ops_update_landlord(p_landlord_id uuid, p_patch jsonb, p_reason text)`
+  - `GRANT EXECUTE` on both
 
-### 6. Memory
-After landing, add a project-memory leaf `mem://features/ops/user-drilldown` documenting the shared drawer, the four RPC guardrails, and the LC1 skip.
+### Out of scope
 
-## Out of scope (you asked me to skip)
-- LC1 chairperson linking — UI shows "coming soon"; will wire up when you confirm the data model.
+- No new business logic, no balance/ledger interaction.
+- No bulk edits — one record at a time, always with reason ≥10 chars per audit governance.
+- No new search surfaces — only drawer-internal additions.
 
-## Risk notes
-- Editing rent amounts on an active `rent_requests` row affects revenue recognition. The RPC will refuse to change `amount` or `daily_repayment` once `status = 'completed'` or `amount_repaid > 0`; instead surfaces a "Create adjustment" path (out of scope here — placeholder button only).
-- Role list and dashboards remain **read-only** in this iteration; toggling a role rewires the entire app for that user and needs its own approval flow.
+## Constitution check
 
-Approve and I'll build it end-to-end in this loop (migration first, then UI).
+- Audit Governance: every landlord/tenant edit writes an `audit_logs` row with `action_type`, `table_name`, `record_id`, and a mandatory ≥10-char `reason`. ✓
+- Event-based: each edit emits a `system_event` (`landlord.profile_edited` / `tenant.profile_edited`). ✓
+- Role isolation: edit gated by `is_ops_role(auth.uid())` server-side, plus existing `canEdit`/`isOps` UI gate. ✓
+- No wallet/ledger surface touched — pure profile + UX. ✓

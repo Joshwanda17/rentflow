@@ -36,6 +36,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { ListingPhotoUploadDialog } from './ListingPhotoUploadDialog';
 import { ImagePlus } from 'lucide-react';
+import { ContactActions } from './ContactActions';
+import { LandlordEditCard } from './LandlordEditCard';
 
 type UserBrief = { id: string; full_name: string | null; phone: string | null };
 
@@ -195,7 +197,7 @@ function useProfile(id: string) {
       const { data, error } = await supabase
         .from('profiles')
         .select(
-          'id, full_name, phone, avatar_url, continent, country, region, district, city, town, sub_county, parish, village, landmark, residence_lat, residence_lng, address_complete, has_smartphone',
+          'id, full_name, phone, avatar_url, ops_note, continent, country, region, district, city, town, sub_county, parish, village, landmark, residence_lat, residence_lng, address_complete, has_smartphone',
         )
         .eq('id', id)
         .maybeSingle();
@@ -222,10 +224,11 @@ function ProfileHeader({
   profile, roles, userId, canEdit,
 }: { profile: any; roles: string[]; userId?: string; canEdit?: boolean }) {
   const qc = useQueryClient();
-  const [showEditBtn, setShowEditBtn] = useState(false);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState<string>(profile?.full_name ?? '');
   const [phone, setPhone] = useState<string>(profile?.phone ?? '');
+  const [avatarUrl, setAvatarUrl] = useState<string>(profile?.avatar_url ?? '');
+  const [opsNote, setOpsNote] = useState<string>(profile?.ops_note ?? '');
   const [reason, setReason] = useState('');
 
   const save = useMutation({
@@ -237,13 +240,15 @@ function ProfileHeader({
         p_full_name: name,
         p_phone: phone,
         p_reason: reason.trim(),
+        p_avatar_url: avatarUrl,
+        p_ops_note: opsNote,
       } as any);
       if (error) throw error;
     },
     onSuccess: () => {
       toast.success('Profile updated');
       qc.invalidateQueries({ queryKey: ['drilldown-profile', userId] });
-      setEditing(false); setShowEditBtn(false); setReason('');
+      setEditing(false); setReason('');
     },
     onError: (e: any) => toast.error(e.message ?? 'Update failed'),
   });
@@ -260,23 +265,30 @@ function ProfileHeader({
           </Avatar>
           <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={() => canEdit && setShowEditBtn((v) => !v)}
-              className={`text-base font-semibold truncate text-left ${canEdit ? 'hover:underline cursor-pointer' : 'cursor-default'}`}
-              title={canEdit ? 'Tap to edit' : undefined}
-            >
+            <span className="text-base font-semibold truncate">
               {profile?.full_name ?? 'Unnamed user'}
-            </button>
-            {canEdit && showEditBtn && !editing && (
+            </span>
+            {canEdit && !editing && (
               <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => setEditing(true)}>
                 <Pencil className="h-3 w-3 mr-1" /> Edit
               </Button>
             )}
           </div>
-          <p className="text-xs text-muted-foreground flex items-center gap-1">
-            <Phone className="h-3 w-3" /> {profile?.phone ?? '—'}
-          </p>
+          <div className="flex items-center gap-2 flex-wrap mt-0.5">
+            <span className="text-xs text-muted-foreground font-mono">
+              {profile?.phone ?? '— no phone —'}
+            </span>
+            <ContactActions
+              phone={profile?.phone}
+              size="xs"
+              message={`Hello ${profile?.full_name ?? ''}, this is Welile Ops.`}
+            />
+          </div>
+          {profile?.ops_note && !editing && (
+            <p className="text-[11px] mt-1 text-amber-700 bg-amber-50 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-900 rounded px-1.5 py-0.5">
+              <StickyNote className="h-3 w-3 inline mr-1" />{profile.ops_note}
+            </p>
+          )}
           </div>
         </div>
         <div className="flex flex-wrap gap-1 justify-end">
@@ -308,6 +320,14 @@ function ProfileHeader({
           <div>
             <Label className="text-[10px] uppercase text-muted-foreground">Phone</Label>
             <Input value={phone} onChange={(e) => setPhone(e.target.value)} className="h-8 text-sm" />
+          </div>
+          <div>
+            <Label className="text-[10px] uppercase text-muted-foreground">Avatar URL</Label>
+            <Input value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} className="h-8 text-sm" placeholder="https://…" />
+          </div>
+          <div>
+            <Label className="text-[10px] uppercase text-muted-foreground">Ops note (internal)</Label>
+            <Textarea value={opsNote} onChange={(e) => setOpsNote(e.target.value)} className="text-xs" rows={2} placeholder="Visible only to ops staff" />
           </div>
           <Textarea
             placeholder="Reason for change (min 10 chars)"
@@ -1145,9 +1165,14 @@ function TenantPane({
             {activeLandlord?.name?.trim() || activeLandlord?.phone || 'Landlord record missing'}
           </button>
           {activeLandlord?.phone && (
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <Phone className="h-3 w-3" /> {activeLandlord.phone}
-            </p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-muted-foreground font-mono">{activeLandlord.phone}</span>
+              <ContactActions
+                phone={activeLandlord.phone}
+                size="xs"
+                message={`Hello ${activeLandlord?.name ?? ''}, this is Welile Ops regarding your tenant.`}
+              />
+            </div>
           )}
           {activeLandlord?.property_address && (
             <p className="text-xs text-muted-foreground truncate">
@@ -1496,7 +1521,10 @@ function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord }: { agent
                   >
                     {a.landlords?.name ?? a.landlord_id}
                   </button>
-                  <span className="text-muted-foreground font-mono">{a.landlords?.phone}</span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-muted-foreground font-mono">{a.landlords?.phone ?? '—'}</span>
+                    <ContactActions phone={a.landlords?.phone} size="xs" message={`Hello ${a.landlords?.name ?? ''}, this is Welile Ops.`} />
+                  </div>
                 </li>
               ))}
             </ul>
@@ -1677,12 +1705,17 @@ function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord }: { agent
                         disabled={!onSelectLandlord}
                       >
                         {l.landlord?.name ?? l.landlord_id}
-                        {l.landlord?.phone ? ` · ${l.landlord.phone}` : ''}
                       </button>
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}
                   </div>
+                  {l.landlord?.phone && (
+                    <div className="flex items-center gap-2 flex-wrap pl-1">
+                      <span className="text-muted-foreground text-[10px] font-mono">{l.landlord.phone}</span>
+                      <ContactActions phone={l.landlord.phone} size="xs" message={`Hello ${l.landlord?.name ?? ''}, this is Welile Ops about ${l.title ?? 'your listing'}.`} />
+                    </div>
+                  )}
                   <div className="pt-1">
                     <Button
                       type="button"
@@ -1756,7 +1789,7 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
     queryKey: ['drilldown-landlord', landlordId],
     queryFn: async () => {
       const { data } = await supabase.from('landlords')
-        .select('id, name, phone, mobile_money_number, property_address, monthly_rent, verified, has_smartphone')
+        .select('id, name, phone, mobile_money_number, mobile_money_name, property_address, monthly_rent, verified, has_smartphone, caretaker_name, caretaker_phone, district, sub_county, village, bank_name, account_number, description, number_of_rooms, electricity_meter_number, water_meter_number, house_number')
         .eq('id', landlordId).maybeSingle();
       return data;
     },
@@ -1835,13 +1868,25 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
             <Badge className="text-[10px] bg-emerald-100 text-emerald-700 border-emerald-200">Verified</Badge>
           )}
         </div>
-        <p className="text-xs text-muted-foreground flex items-center gap-1"><Phone className="h-3 w-3" /> {landlord?.phone}</p>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-muted-foreground font-mono">{landlord?.phone ?? '— no phone —'}</span>
+          <ContactActions phone={landlord?.phone} size="xs" message={`Hello ${landlord?.name ?? ''}, this is Welile Ops.`} />
+        </div>
         <p className="text-xs text-muted-foreground">MoMo: <span className="font-mono">{landlord?.mobile_money_number ?? '—'}</span></p>
         <p className="text-xs text-muted-foreground">Address: {landlord?.property_address}</p>
         {landlord?.monthly_rent != null && (
           <p className="text-xs">Default rent: <b>{fmtUGX(landlord.monthly_rent)}</b></p>
         )}
+        {landlord?.caretaker_phone && (
+          <div className="flex items-center gap-2 flex-wrap pt-1 border-t border-border/40 mt-1">
+            <span className="text-xs text-muted-foreground">
+              Caretaker: <span className="font-medium text-foreground">{landlord?.caretaker_name ?? '—'}</span> · <span className="font-mono">{landlord.caretaker_phone}</span>
+            </span>
+            <ContactActions phone={landlord.caretaker_phone} size="xs" message={`Hello ${landlord?.caretaker_name ?? 'caretaker'}, this is Welile Ops.`} />
+          </div>
+        )}
         <LandlordSmartphoneToggle landlordId={landlordId} initial={landlord?.has_smartphone ?? true} canEdit={isOps} />
+        <LandlordEditCard landlordId={landlordId} landlord={landlord} canEdit={isOps} />
       </Card>
 
       <Card className="p-3 space-y-2">
@@ -2013,7 +2058,10 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
             {funderLinks.map((l: any) => (
               <li key={l.id} className="flex justify-between border-b border-border/40 py-1">
                 <span className="truncate">{l.funder?.full_name ?? l.funder_id}</span>
-                <span className="text-muted-foreground font-mono">{l.funder?.phone}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-muted-foreground font-mono">{l.funder?.phone ?? '—'}</span>
+                  <ContactActions phone={l.funder?.phone} size="xs" message={`Hello ${l.funder?.full_name ?? ''}, this is Welile Ops.`} />
+                </div>
               </li>
             ))}
           </ul>
@@ -2726,25 +2774,13 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
                     {row.landlord?.name?.trim() || row.landlord?.phone || 'No landlord on file'}
                   </p>
                   {row.tenant?.phone && (
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <a
-                        href={`tel:${row.tenant.phone.replace(/\s+/g, '')}`}
-                        className="inline-flex items-center gap-0.5 text-[10px] text-primary hover:underline"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Phone className="h-2.5 w-2.5" />
-                        {row.tenant.phone}
-                      </a>
-                      <a
-                        href={toWhatsAppUrl(row.tenant.phone)}
-                        className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 hover:underline"
-                        onClick={(e) => e.stopPropagation()}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <MessageSquare className="h-2.5 w-2.5" />
-                        WhatsApp
-                      </a>
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                      <span className="text-[10px] text-muted-foreground font-mono">{row.tenant.phone}</span>
+                      <ContactActions
+                        phone={row.tenant.phone}
+                        size="xs"
+                        message={`Hello ${row.tenant?.full_name ?? ''}, this is Welile Ops regarding your rent.`}
+                      />
                     </div>
                   )}
                 </div>
