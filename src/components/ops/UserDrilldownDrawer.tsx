@@ -20,6 +20,8 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
 import { Switch } from '@/components/ui/switch';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { format, parseISO } from 'date-fns';
 
 type UserBrief = { id: string; full_name: string | null; phone: string | null };
 
@@ -127,7 +129,7 @@ function useProfile(id: string) {
       const { data, error } = await supabase
         .from('profiles')
         .select(
-          'id, full_name, phone, continent, country, region, district, city, town, sub_county, parish, village, landmark, residence_lat, residence_lng, address_complete, has_smartphone',
+          'id, full_name, phone, avatar_url, continent, country, region, district, city, town, sub_county, parish, village, landmark, residence_lat, residence_lng, address_complete, has_smartphone',
         )
         .eq('id', id)
         .maybeSingle();
