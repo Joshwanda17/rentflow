@@ -1084,6 +1084,7 @@ export type Database = {
           momo_transaction_id: string | null
           notes: string | null
           payment_method: Database["public"]["Enums"]["collection_payment_method"]
+          rent_request_id: string | null
           sms_sent_agent: boolean | null
           sms_sent_tenant: boolean | null
           tenant_id: string
@@ -1105,6 +1106,7 @@ export type Database = {
           momo_transaction_id?: string | null
           notes?: string | null
           payment_method: Database["public"]["Enums"]["collection_payment_method"]
+          rent_request_id?: string | null
           sms_sent_agent?: boolean | null
           sms_sent_tenant?: boolean | null
           tenant_id: string
@@ -1126,6 +1128,7 @@ export type Database = {
           momo_transaction_id?: string | null
           notes?: string | null
           payment_method?: Database["public"]["Enums"]["collection_payment_method"]
+          rent_request_id?: string | null
           sms_sent_agent?: boolean | null
           sms_sent_tenant?: boolean | null
           tenant_id?: string
@@ -1168,6 +1171,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
+          },
+          {
+            foreignKeyName: "agent_collections_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "rent_request_formula_drift"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_collections_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "rent_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_collections_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["rent_request_id"]
           },
           {
             foreignKeyName: "agent_collections_tenant_id_fkey"
