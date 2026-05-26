@@ -1180,7 +1180,10 @@ export function TenantOpsDashboard() {
       case 'pipeline':
         return (
           <div className="space-y-4">
-            <RentPipelineQueue stage="agent_ops_approved" />
+            <RentPipelineQueue
+              stage="agent_ops_approved"
+              additionalStatuses={['agent_verified']}
+            />
             <RejectedRequestsQueue stageFilter="agent_ops_approved" title="Rejected at Tenant Ops" />
             <div className="grid grid-cols-2 gap-2">
               <KPICard title="Pending" value={pending} icon={Clock} loading={isLoading} color="bg-amber-500/10 text-amber-600" />
