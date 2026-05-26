@@ -2070,6 +2070,20 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
           )}
         </div>
       )}
+      {photoUploadFor && (
+        <ListingPhotoUploadDialog
+          open={!!photoUploadFor}
+          onOpenChange={(v) => { if (!v) setPhotoUploadFor(null); }}
+          listingId={photoUploadFor.id}
+          listingTitle={photoUploadFor.title}
+          existingUrls={Array.isArray(photoUploadFor.image_urls) ? photoUploadFor.image_urls : []}
+          district={photoUploadFor.district ?? undefined}
+          village={photoUploadFor.village ?? undefined}
+          invalidateKeys={[
+            ['drilldown-landlord-listings', landlordId],
+          ]}
+        />
+      )}
     </div>
   );
 }
