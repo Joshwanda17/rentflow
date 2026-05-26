@@ -1181,7 +1181,17 @@ function TenantStatements({ tenantId }: { tenantId: string }) {
 /* ------------------------------------------------------------------ */
 /* Agent tenants list — tenant · outstanding balance · landlord       */
 /* ------------------------------------------------------------------ */
+type TenantFilter = 'all' | 'active' | 'pending' | 'completed';
+
+const STATUS_GROUPS: Record<TenantFilter, string[]> = {
+  all: [],
+  active: ['active'],
+  pending: ['pending', 'agent_ops_approved', 'agent_verified', 'tenant_ops_approved', 'landlord_ops_approved', 'coo_approved'],
+  completed: ['completed', 'repaid', 'fully_repaid'],
+};
+
 function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSelectTenant?: (id: string, name: string) => void }) {
+  const [filter, setFilter] = useState<TenantFilter>('all');
   const { data, isLoading } = useQuery({
     queryKey: ['drilldown-agent-tenants', agentId],
     queryFn: async () => {
@@ -1230,21 +1240,57 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
     },
   });
 
+  const filtered = useMemo(() => {
+    if (!data) return [];
+    if (filter === 'all') return data;
+    const allowed = STATUS_GROUPS[filter];
+    return data.filter((row) => allowed.includes(row.status));
+  }, [data, filter]);
+
+  const filterButtons: { key: TenantFilter; label: string }[] = [
+    { key: 'all', label: 'All' },
+    { key: 'active', label: 'Active' },
+    { key: 'pending', label: 'Pending' },
+    { key: 'completed', label: 'Completed' },
+  ];
+
   return (
     <Card className="p-3 space-y-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm font-medium">
           <Users className="h-4 w-4 text-primary" /> Tenants under management
         </div>
-        <Badge variant="outline" className="text-[10px]">{data?.length ?? 0}</Badge>
+        <Badge variant="outline" className="text-[10px]">{filtered.length}</Badge>
       </div>
+
+      {/* Filter toggles */}
+      <div className="flex items-center gap-1 flex-wrap">
+        {filterButtons.map((b) => (
+          <button
+            key={b.key}
+            onClick={() => setFilter(b.key)}
+            className={`px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors border ${
+              filter === b.key
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'bg-muted text-muted-foreground border-border hover:bg-muted/80'
+            }`}
+          >
+            {b.label}
+          </button>
+        ))}
+      </div>
+
       {isLoading ? (
         <Loader2 className="h-4 w-4 animate-spin mx-auto" />
-      ) : (data ?? []).length === 0 ? (
-        <p className="text-xs text-muted-foreground">No tenants assigned to this agent yet.</p>
+      ) : filtered.length === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          {filter === 'all'
+            ? 'No tenants assigned to this agent yet.'
+            : `No ${filter} tenants under this agent.`}
+        </p>
       ) : (
         <ul className="space-y-1.5 max-h-80 overflow-y-auto pr-1">
-          {(data ?? []).map((row) => (
+          {filtered.map((row) => (
             <li
               key={row.id}
               onClick={() => onSelectTenant?.(row.tenantId, row.tenant?.full_name ?? 'Unnamed tenant')}
