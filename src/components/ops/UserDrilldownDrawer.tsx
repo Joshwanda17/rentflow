@@ -423,6 +423,22 @@ function TenantPane({ tenantId, isOps }: { tenantId: string; isOps: boolean }) {
     ? Math.max(0, Number(activeRr.total_repayment || 0) - Number(activeRr.amount_repaid || 0))
     : 0;
 
+  // Landlord on the active rent request — `landlord_id` points to `landlords.id`
+  // (NOT a profile), so we must hit the `landlords` table to get the real name
+  // the agent captured at registration.
+  const { data: activeLandlord } = useQuery({
+    queryKey: ['drilldown-tenant-active-landlord', activeRr?.landlord_id],
+    enabled: !!activeRr?.landlord_id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('landlords')
+        .select('id, name, phone, property_address')
+        .eq('id', activeRr.landlord_id)
+        .maybeSingle();
+      return data;
+    },
+  });
+
   const [reassignAgent, setReassignAgent] = useState<UserBrief | null>(null);
   const [reassignReason, setReassignReason] = useState('');
   const reassign = useMutation({
@@ -482,6 +498,27 @@ function TenantPane({ tenantId, isOps }: { tenantId: string; isOps: boolean }) {
           </>
         )}
       </Card>
+
+      {activeRr?.landlord_id && (
+        <Card className="p-3 space-y-1.5">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <Home className="h-4 w-4 text-primary" /> Landlord on file
+          </div>
+          <p className="text-sm font-semibold truncate">
+            {activeLandlord?.name?.trim() || activeLandlord?.phone || 'Landlord record missing'}
+          </p>
+          {activeLandlord?.phone && (
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <Phone className="h-3 w-3" /> {activeLandlord.phone}
+            </p>
+          )}
+          {activeLandlord?.property_address && (
+            <p className="text-xs text-muted-foreground truncate">
+              <MapPin className="h-3 w-3 inline mr-1" />{activeLandlord.property_address}
+            </p>
+          )}
+        </Card>
+      )}
 
       {isOps && (
         <Card className="p-3 space-y-2">
