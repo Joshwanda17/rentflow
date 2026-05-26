@@ -94,11 +94,19 @@ export interface TenantLeaf {
   landlord_funded_at: string | null;
   landlord_funded_amount: number | null;
   landlord_payout_count: number | null;
+  outstanding_status: 'paid_up' | 'partial' | 'overdue' | 'defaulted' | null;
+  verification_status: 'verified' | 'pending' | 'missing' | null;
+  funding_source: 'supporter' | 'platform' | null;
 }
 
 export function useTenantsAtLeaf(
   path: TenantBreadcrumbPath,
   window: TenantFundedWindow = {},
+  extras: {
+    outstanding?: 'paid_up' | 'partial' | 'overdue' | 'defaulted' | null;
+    verification?: 'verified' | 'pending' | 'missing' | null;
+    fundingSource?: 'supporter' | 'platform' | null;
+  } = {},
 ) {
   const enabled = tenantNextLevel(path) === 'tenants';
   return useQuery({
@@ -107,6 +115,7 @@ export function useTenantsAtLeaf(
       'tenants-at-leaf',
       path.country, path.region, path.district, path.ward, path.agentId, path.landlordId,
       window.fundedSince ?? null, window.fundedUntil ?? null,
+      extras.outstanding ?? null, extras.verification ?? null, extras.fundingSource ?? null,
     ],
     staleTime: 60 * 1000,
     queryFn: async () => {
@@ -120,6 +129,9 @@ export function useTenantsAtLeaf(
         p_limit: 300,
         p_funded_since: window.fundedSince ?? null,
         p_funded_until: window.fundedUntil ?? null,
+        p_outstanding: extras.outstanding ?? null,
+        p_verification: extras.verification ?? null,
+        p_funding_source: extras.fundingSource ?? null,
       });
       if (error) throw error;
       return (data ?? []) as TenantLeaf[];
