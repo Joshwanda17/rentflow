@@ -160,13 +160,19 @@ export function AgentTenantCollectDialog({
       // networks were perceiving the previous 25s spinner as a freeze.
       // 15s + progressive toasts gives a clear "still working" signal
       // and bails out cleanly if the request truly stalled.
-      const rpcPromise = supabase.rpc('agent_allocate_tenant_payment', {
-        p_agent_id: user.id,
-        p_tenant_id: tenant.id,
-        p_rent_request_id: rentRequestId,
-        p_amount: amount,
-        p_notes: notes.trim() || null,
-      });
+      // Some browsers (iOS Safari, flaky mobile Chrome) abort the
+      // fetch with a raw `TypeError: Failed to fetch` before the
+      // request even reaches the server. That's a transient transport
+      // error, not a real allocation failure — auto-retry up to 2
+      // times with a short backoff before surfacing it to the agent.
+      const callRpc = () =>
+        supabase.rpc('agent_allocate_tenant_payment', {
+          p_agent_id: user.id,
+          p_tenant_id: tenant.id,
+          p_rent_request_id: rentRequestId,
+          p_amount: amount,
+          p_notes: notes.trim() || null,
+        });
       const timeoutPromise = new Promise<{ data: null; error: { message: string } }>((resolve) =>
         setTimeout(
           () =>
@@ -180,7 +186,45 @@ export function AgentTenantCollectDialog({
           15000,
         ),
       );
-      const { data, error } = (await Promise.race([rpcPromise, timeoutPromise])) as any;
+      let data: any = null;
+      let error: any = null;
+      const maxAttempts = 3;
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          const res = (await Promise.race([callRpc(), timeoutPromise])) as any;
+          data = res?.data ?? null;
+          error = res?.error ?? null;
+        } catch (transportErr: any) {
+          // Native fetch rejection (TypeError: Failed to fetch, etc.)
+          error = { message: transportErr?.message || 'Network request failed' };
+          data = null;
+        }
+        const msgLower = String(error?.message || '').toLowerCase();
+        const isTransientNetwork =
+          !!error &&
+          (msgLower.includes('failed to fetch') ||
+            msgLower.includes('networkerror') ||
+            msgLower.includes('network request failed') ||
+            msgLower.includes('load failed'));
+        if (!isTransientNetwork) break;
+        if (attempt < maxAttempts) {
+          console.warn(
+            `[AgentTenantCollectDialog] transient network error on attempt ${attempt}, retrying…`,
+            error,
+          );
+          toast.loading(`Connection blip — retrying (${attempt}/${maxAttempts - 1})…`, {
+            id: 'allocate-progress',
+          });
+          await new Promise((r) => setTimeout(r, 800 * attempt));
+        } else {
+          // Final attempt failed — replace cryptic "TypeError: Failed to fetch"
+          // with an actionable message. Float was NOT charged (RPC is atomic).
+          error = {
+            message:
+              'Connection dropped before the allocation could be confirmed. Your float was NOT charged. Check your internet and tap Confirm again.',
+          };
+        }
+      }
 
       if (error) {
         const message = await extractFromErrorObject(error, 'Allocation failed');
@@ -275,7 +319,14 @@ export function AgentTenantCollectDialog({
         }
       }
     } catch (err: any) {
-      const msg = err instanceof Error ? err.message : 'Allocation failed. Please try again.';
+      const raw = err instanceof Error ? err.message : 'Allocation failed. Please try again.';
+      const rawLower = raw.toLowerCase();
+      const msg =
+        rawLower.includes('failed to fetch') ||
+        rawLower.includes('networkerror') ||
+        rawLower.includes('load failed')
+          ? 'Connection dropped before the allocation could be confirmed. Your float was NOT charged. Check your internet and tap Confirm again.'
+          : raw;
       // Keep the user IN the confirming view and show the reason inline so
       // they can act on it (reduce amount, top up float, etc.) instead of
       // experiencing it as a "button does nothing" failure.
