@@ -1193,7 +1193,28 @@ function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord }: { agent
   const qc = useQueryClient();
   const { data: profile, isLoading } = useProfile(agentId);
   const { data: roles = [] } = useUserRoles(agentId);
-  const [viewMode, setViewMode] = useState<'tenants' | 'landlords'>('tenants');
+  const [viewMode, setViewMode] = useState<'tenants' | 'landlords' | 'listings'>('tenants');
+
+  const { data: listings = [] } = useQuery({
+    queryKey: ['drilldown-agent-listings', agentId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('house_listings')
+        .select('id, title, monthly_rent, status, village, district, landlord_id, tenant_id, created_at')
+        .eq('agent_id', agentId)
+        .order('created_at', { ascending: false })
+        .limit(100);
+      const rows = data ?? [];
+      const llIds = Array.from(new Set(rows.map((r: any) => r.landlord_id).filter(Boolean)));
+      let llMap = new Map<string, any>();
+      if (llIds.length) {
+        const { data: lls } = await supabase
+          .from('landlords').select('id, name, phone').in('id', llIds);
+        llMap = new Map((lls ?? []).map((l: any) => [l.id, l]));
+      }
+      return rows.map((r: any) => ({ ...r, landlord: llMap.get(r.landlord_id) ?? null }));
+    },
+  });
   const { data: stats } = useQuery({
     queryKey: ['drilldown-agent-stats', agentId],
     queryFn: async () => {
@@ -1380,6 +1401,18 @@ function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord }: { agent
           <Building2 className="h-3.5 w-3.5" /> Linked landlords
           <Badge variant="outline" className="text-[9px] ml-0.5">{stats?.landlords?.length ?? 0}</Badge>
         </button>
+        <button
+          type="button"
+          onClick={() => setViewMode('listings')}
+          className={`flex-1 flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
+            viewMode === 'listings'
+              ? 'bg-background text-foreground shadow-sm border border-border/60'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <Building2 className="h-3.5 w-3.5" /> Houses listed
+          <Badge variant="outline" className="text-[9px] ml-0.5">{listings.length}</Badge>
+        </button>
       </div>
 
       {viewMode === 'tenants' && (
@@ -1437,6 +1470,51 @@ function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord }: { agent
                 Link landlord
               </Button>
             </div>
+          )}
+        </Card>
+      )}
+
+      {viewMode === 'listings' && (
+        <Card className="p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Building2 className="h-4 w-4 text-primary" /> Houses listed
+            </div>
+            <Badge variant="outline" className="text-[10px]">{listings.length}</Badge>
+          </div>
+          {listings.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No houses listed by this agent.</p>
+          ) : (
+            <ul className="space-y-2 text-xs">
+              {listings.map((l: any) => (
+                <li key={l.id} className="border border-border/40 rounded-md p-2 space-y-1">
+                  <div className="flex justify-between gap-2">
+                    <span className="truncate font-medium">{l.title}</span>
+                    <span className="font-semibold whitespace-nowrap">{fmtUGX(l.monthly_rent)}</span>
+                  </div>
+                  <div className="flex justify-between items-center gap-2">
+                    <span className="text-muted-foreground truncate">{l.village ?? l.district ?? '—'}</span>
+                    <Badge variant="outline" className="text-[9px]">{l.status}</Badge>
+                  </div>
+                  <div className="flex justify-between items-center gap-2 pt-1 border-t border-border/30">
+                    <span className="text-muted-foreground">Landlord:</span>
+                    {l.landlord_id ? (
+                      <button
+                        type="button"
+                        onClick={() => onSelectLandlord?.(l.landlord_id)}
+                        className="text-primary hover:underline truncate text-right disabled:no-underline disabled:text-foreground"
+                        disabled={!onSelectLandlord}
+                      >
+                        {l.landlord?.name ?? l.landlord_id}
+                        {l.landlord?.phone ? ` · ${l.landlord.phone}` : ''}
+                      </button>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
           )}
         </Card>
       )}
