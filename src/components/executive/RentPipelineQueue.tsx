@@ -384,13 +384,17 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
   };
 
   const { data: requests, isLoading } = useQuery({
-    queryKey: ['rent-pipeline', stage],
+    queryKey: ['rent-pipeline', stage, additionalStatuses.join(',')],
     queryFn: async () => {
+      const statuses = [stage, ...additionalStatuses];
       const { data } = await supabase
         .from('rent_requests')
-        .select('id, tenant_id, agent_id, landlord_id, lc1_id, rent_amount, duration_days, access_fee, request_fee, total_repayment, daily_repayment, status, created_at, house_category, request_city, request_latitude, request_longitude, assigned_agent_id, payout_method, payout_transaction_reference, approval_comment, agent_ops_comment, tenant_ops_comment, landlord_ops_comment, registration_type, initial_outstanding_balance, tenant_photo_url, house_image_urls, latest_rent_receipt_url, latest_rent_receipt_uploaded_at')
-        .eq('status', stage)
-        .order('created_at', { ascending: true })
+        .select('id, tenant_id, agent_id, landlord_id, lc1_id, rent_amount, duration_days, access_fee, request_fee, total_repayment, daily_repayment, status, created_at, updated_at, resubmitted_at, agent_ops_reviewed_at, tenant_ops_reviewed_at, landlord_ops_reviewed_at, coo_reviewed_at, house_category, request_city, request_latitude, request_longitude, assigned_agent_id, payout_method, payout_transaction_reference, approval_comment, agent_ops_comment, tenant_ops_comment, landlord_ops_comment, registration_type, initial_outstanding_balance, tenant_photo_url, house_image_urls, latest_rent_receipt_url, latest_rent_receipt_uploaded_at')
+        .in('status', statuses)
+        // FIFO by latest activity — most recently bumped/resubmitted/approved-into-stage first
+        .order('resubmitted_at', { ascending: false, nullsFirst: false })
+        .order('updated_at', { ascending: false, nullsFirst: false })
+        .order('created_at', { ascending: false })
         .limit(100);
 
       if (!data || data.length === 0) return [];
