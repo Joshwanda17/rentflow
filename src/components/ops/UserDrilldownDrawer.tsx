@@ -1284,13 +1284,88 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
     { key: 'completed', label: 'Completed' },
   ];
 
+  const downloadCSV = () => {
+    const rows = filtered.map((r) => ({
+      Tenant: r.tenant?.full_name ?? 'Unnamed tenant',
+      Phone: r.tenant?.phone ?? '',
+      Landlord: r.landlord?.name ?? r.landlord?.phone ?? 'No landlord on file',
+      'Outstanding (UGX)': String(r.outstanding),
+      Status: r.status,
+    }));
+    if (!rows.length) { toast.info('No tenants to export'); return; }
+    const headers = Object.keys(rows[0]);
+    const csv = [headers.join(','), ...rows.map((r) => headers.map((h) => `"${(r as any)[h]?.toString().replace(/"/g, '""') ?? ''}"`).join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tenants-${agentId.slice(0, 8)}-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success('CSV downloaded');
+  };
+
+  const downloadPDF = () => {
+    if (!filtered.length) { toast.info('No tenants to export'); return; }
+    const w = window.open('', '_blank');
+    if (!w) { toast.error('Popup blocked — allow popups to download PDF'); return; }
+    const rows = filtered.map((r) => `
+      <tr>
+        <td style="padding:6px;border-bottom:1px solid #e5e7eb;font-size:12px;">${(r.tenant?.full_name ?? 'Unnamed tenant').replace(/</g, '&lt;')}</td>
+        <td style="padding:6px;border-bottom:1px solid #e5e7eb;font-size:12px;">${(r.tenant?.phone ?? '').replace(/</g, '&lt;')}</td>
+        <td style="padding:6px;border-bottom:1px solid #e5e7eb;font-size:12px;">${(r.landlord?.name ?? r.landlord?.phone ?? 'No landlord on file').replace(/</g, '&lt;')}</td>
+        <td style="padding:6px;border-bottom:1px solid #e5e7eb;font-size:12px;text-align:right;">UGX ${Number(r.outstanding).toLocaleString()}</td>
+        <td style="padding:6px;border-bottom:1px solid #e5e7eb;font-size:12px;text-align:center;text-transform:capitalize;">${r.status.replace(/</g, '&lt;')}</td>
+      </tr>
+    `).join('');
+    w.document.write(`
+      <html><head><title>Tenants Under Management</title></head>
+      <body style="font-family:system-ui,sans-serif;padding:24px;">
+        <h2 style="margin:0 0 8px;font-size:18px;">Tenants Under Management</h2>
+        <p style="margin:0 0 16px;font-size:12px;color:#6b7280;">Exported on ${new Date().toLocaleString()} · ${filtered.length} tenants · Filter: ${filter}</p>
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="background:#f3f4f6;">
+              <th style="padding:8px;text-align:left;font-size:12px;">Tenant</th>
+              <th style="padding:8px;text-align:left;font-size:12px;">Phone</th>
+              <th style="padding:8px;text-align:left;font-size:12px;">Landlord</th>
+              <th style="padding:8px;text-align:right;font-size:12px;">Outstanding (UGX)</th>
+              <th style="padding:8px;text-align:center;font-size:12px;">Status</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <script>setTimeout(()=>{window.print();},300);</script>
+      </body></html>
+    `);
+    w.document.close();
+  };
+
   return (
     <Card className="p-3 space-y-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm font-medium">
           <Users className="h-4 w-4 text-primary" /> Tenants under management
         </div>
-        <Badge variant="outline" className="text-[10px]">{filtered.length}</Badge>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={downloadCSV}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted text-muted-foreground border border-border hover:bg-muted/80 transition-colors"
+            title="Download CSV"
+          >
+            <Download className="h-3 w-3" /> CSV
+          </button>
+          <button
+            onClick={downloadPDF}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted text-muted-foreground border border-border hover:bg-muted/80 transition-colors"
+            title="Download PDF"
+          >
+            <FileText className="h-3 w-3" /> PDF
+          </button>
+          <Badge variant="outline" className="text-[10px]">{filtered.length}</Badge>
+        </div>
       </div>
 
       {/* Search */}
