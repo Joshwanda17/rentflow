@@ -551,6 +551,12 @@ export function RentDisbursementQueue() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <UserDrilldownDrawer
+        open={!!drilldownAgentId}
+        onOpenChange={(v) => { if (!v) setDrilldownAgentId(null); }}
+        agentId={drilldownAgentId}
+        defaultTab="agent"
+      />
     </Card>
   );
 }
