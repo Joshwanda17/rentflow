@@ -1465,9 +1465,14 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
                   </p>
                 </div>
               </div>
-              <div className="text-right shrink-0">
-                <p className="font-semibold text-amber-700">{fmtUGX(row.outstanding)}</p>
-                <p className="text-[9px] text-muted-foreground capitalize">{row.status}</p>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <div className="text-right">
+                  <p className="font-semibold text-amber-700">{fmtUGX(row.outstanding)}</p>
+                  <p className="text-[9px] text-muted-foreground capitalize">{row.status}</p>
+                </div>
+                {onSelectTenant && (
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                )}
               </div>
             </li>
           ))}
