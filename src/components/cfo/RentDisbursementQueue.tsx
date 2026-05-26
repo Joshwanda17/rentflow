@@ -308,6 +308,56 @@ export function RentDisbursementQueue() {
           </div>
         ) : (
           <div className="space-y-3">
+            {/* Country breakdown — click a chip to filter the queue by country */}
+            {countryStats.length > 0 && (
+              <div className="rounded-lg border border-border/60 bg-muted/30 p-2">
+                <div className="flex items-center justify-between mb-1.5 px-1">
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                    Requests by country
+                  </p>
+                  {countryFilter !== 'all' && (
+                    <button
+                      type="button"
+                      className="text-[11px] text-primary hover:underline"
+                      onClick={() => setCountryFilter('all')}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setCountryFilter('all')}
+                    className={cn(
+                      'px-2.5 py-1 rounded-md text-xs border transition-colors',
+                      countryFilter === 'all'
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background hover:bg-muted border-border',
+                    )}
+                  >
+                    🌍 All · {items.length} · {fmt(queueTotalRent)}
+                  </button>
+                  {countryStats.map(c => (
+                    <button
+                      key={c.country}
+                      type="button"
+                      onClick={() => setCountryFilter(c.country)}
+                      className={cn(
+                        'px-2.5 py-1 rounded-md text-xs border transition-colors',
+                        countryFilter === c.country
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-background hover:bg-muted border-border',
+                      )}
+                    >
+                      <span className="font-semibold">{c.country}</span>
+                      <span className="opacity-80"> · {c.count} · {fmt(c.total)}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Select all + agent filter */}
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <label className="flex items-center gap-2 text-sm cursor-pointer">
