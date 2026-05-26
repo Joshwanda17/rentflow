@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 import {
   User, Home, UserCheck, MapPin, Loader2, Link2, Plus, Phone,
   Wallet, ShieldAlert, Building2, ReceiptText, Smartphone, SmartphoneNfc,
-  Search, Pencil, X,
+  Search, Pencil, X, TrendingUp, Users, Sparkles,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
@@ -564,16 +564,41 @@ function AgentPane({ agentId, isOps }: { agentId: string; isOps: boolean }) {
   const { data: stats } = useQuery({
     queryKey: ['drilldown-agent-stats', agentId],
     queryFn: async () => {
-      const [tenants, rentSum, landlords] = await Promise.all([
+      const [tenants, rentSum, landlords, wallet, strict, capacity, referrals, partners, advances] = await Promise.all([
         supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('managing_agent_id', agentId),
         supabase.from('rent_requests').select('rent_amount').eq('assigned_agent_id', agentId).limit(1000),
         supabase.from('agent_landlord_assignments').select('landlord_id, landlords(id,name,phone)').eq('agent_id', agentId).eq('status','active'),
+        supabase.from('wallets').select('withdrawable_balance, float_balance, advance_balance, balance, currency, locked_balance').eq('user_id', agentId).maybeSingle(),
+        supabase.rpc('get_user_available_balance', { p_user_id: agentId } as any),
+        supabase.rpc('get_agent_rent_request_capacity', { p_agent_id: agentId } as any),
+        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('referrer_id', agentId),
+        supabase.from('proxy_agent_assignments')
+          .select('beneficiary_id, beneficiary_role, is_managed_account, approval_status, is_active, created_at')
+          .eq('agent_id', agentId)
+          .eq('is_active', true),
+        supabase.from('agent_advances')
+          .select('amount, status, created_at')
+          .eq('agent_id', agentId)
+          .in('status', ['active','outstanding','approved','disbursed']),
       ]);
       const totalRent = (rentSum.data ?? []).reduce((s: number, r: any) => s + Number(r.rent_amount || 0), 0);
+      const partnerRows = partners.data ?? [];
+      const partnersOnboarded = partnerRows.filter((p: any) => p.beneficiary_role === 'supporter').length;
+      const proxyLandlords = partnerRows.filter((p: any) => p.beneficiary_role === 'landlord').length;
+      const managedAccounts = partnerRows.filter((p: any) => p.is_managed_account && p.approval_status === 'approved').length;
+      const outstandingAdvance = (advances.data ?? []).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
       return {
         tenantCount: tenants.count ?? 0,
         totalRent,
         landlords: landlords.data ?? [],
+        wallet: wallet.data ?? null,
+        strictWithdrawable: Number(strict.data ?? 0),
+        capacity: capacity.data ?? null,
+        referralCount: referrals.count ?? 0,
+        partnersOnboarded,
+        proxyLandlords,
+        managedAccounts,
+        outstandingAdvance,
       };
     },
   });
@@ -601,18 +626,118 @@ function AgentPane({ agentId, isOps }: { agentId: string; isOps: boolean }) {
 
   if (isLoading) return <Loader2 className="h-4 w-4 animate-spin mx-auto" />;
 
+  const w = stats?.wallet as any;
+  const cap = stats?.capacity as any;
+
   return (
     <div className="space-y-3">
       <ProfileHeader profile={profile} roles={roles} userId={agentId} canEdit={isOps} />
       <LocationEditor userId={agentId} profile={profile} canEdit={isOps} />
+
+      {/* Wallet — 3-bucket model */}
+      <Card className="p-3 space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <Wallet className="h-4 w-4 text-primary" /> Wallet
+          </div>
+          {w?.currency && (
+            <Badge variant="outline" className="text-[10px]">{w.currency}</Badge>
+          )}
+        </div>
+        <div className="grid grid-cols-3 gap-2 text-[11px]">
+          <div className="rounded-md bg-emerald-50 dark:bg-emerald-950/30 p-2">
+            <p className="text-muted-foreground text-[10px] uppercase">Withdrawable</p>
+            <p className="font-semibold text-emerald-700 dark:text-emerald-300">
+              {fmtUGX(stats?.strictWithdrawable ?? 0)}
+            </p>
+            {w && Number(w.withdrawable_balance ?? 0) !== (stats?.strictWithdrawable ?? 0) && (
+              <p className="text-[9px] text-muted-foreground">cache {fmtUGX(w.withdrawable_balance ?? 0)}</p>
+            )}
+          </div>
+          <div className="rounded-md bg-sky-50 dark:bg-sky-950/30 p-2">
+            <p className="text-muted-foreground text-[10px] uppercase">Float</p>
+            <p className="font-semibold text-sky-700 dark:text-sky-300">
+              {fmtUGX(w?.float_balance ?? 0)}
+            </p>
+          </div>
+          <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 p-2">
+            <p className="text-muted-foreground text-[10px] uppercase">Advance</p>
+            <p className="font-semibold text-amber-700 dark:text-amber-300">
+              {fmtUGX(w?.advance_balance ?? 0)}
+            </p>
+          </div>
+        </div>
+        {Number(w?.locked_balance ?? 0) > 0 && (
+          <p className="text-[10px] text-muted-foreground">
+            Locked / pending holds: {fmtUGX(w.locked_balance)}
+          </p>
+        )}
+        {Number(stats?.outstandingAdvance ?? 0) > 0 && (
+          <p className="text-[10px] text-amber-700">
+            Outstanding advances on file: {fmtUGX(stats?.outstandingAdvance ?? 0)}
+          </p>
+        )}
+      </Card>
+
+      {/* Capacity / credit access */}
+      {cap && (
+        <Card className="p-3 space-y-2">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <TrendingUp className="h-4 w-4 text-primary" /> Rent-allocation capacity
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div>
+              <span className="text-muted-foreground">Daily cap</span>
+              <p className="font-semibold">{fmtUGX(cap.daily_cap ?? cap.max_daily ?? 0)}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Used today</span>
+              <p className="font-semibold">{fmtUGX(cap.used_today ?? cap.allocated_today ?? 0)}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Remaining</span>
+              <p className="font-semibold text-primary">{fmtUGX(cap.remaining ?? 0)}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Active rent plans</span>
+              <p className="font-semibold">{cap.active_requests ?? cap.open_requests ?? 0}</p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       <Card className="p-3 space-y-2">
         <div className="flex items-center gap-2 text-sm font-medium">
           <ReceiptText className="h-4 w-4 text-primary" /> Portfolio
         </div>
         <div className="grid grid-cols-2 gap-2 text-xs">
-          <div><span className="text-muted-foreground">Tenants</span><p className="font-semibold">{stats?.tenantCount ?? 0}</p></div>
+          <div><span className="text-muted-foreground">Tenants managed</span><p className="font-semibold">{stats?.tenantCount ?? 0}</p></div>
           <div><span className="text-muted-foreground">Rent under mgmt</span><p className="font-semibold">{fmtUGX(stats?.totalRent ?? 0)}</p></div>
+          <div><span className="text-muted-foreground">Linked landlords</span><p className="font-semibold">{stats?.landlords?.length ?? 0}</p></div>
+          <div><span className="text-muted-foreground">Proxy landlords</span><p className="font-semibold">{stats?.proxyLandlords ?? 0}</p></div>
+        </div>
+      </Card>
+
+      {/* Network — partners onboarded & referrals */}
+      <Card className="p-3 space-y-2">
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <Users className="h-4 w-4 text-primary" /> Network
+        </div>
+        <div className="grid grid-cols-3 gap-2 text-xs">
+          <div>
+            <span className="text-muted-foreground">Partners onboarded</span>
+            <p className="font-semibold">{stats?.partnersOnboarded ?? 0}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Managed accounts</span>
+            <p className="font-semibold">{stats?.managedAccounts ?? 0}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground flex items-center gap-1">
+              <Sparkles className="h-3 w-3" /> Referrals
+            </span>
+            <p className="font-semibold">{stats?.referralCount ?? 0}</p>
+          </div>
         </div>
       </Card>
 
