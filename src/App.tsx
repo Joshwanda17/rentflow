@@ -265,7 +265,10 @@ PageLoader.displayName = 'PageLoader';
 // Global banner - lazy loaded
 function AppRoutes() {
   const location = useLocation();
-  const disablePullToRefresh = location.pathname === '/funder-onboarding';
+  const PTR_DISABLED_PREFIXES = ['/funder-onboarding', '/executive-hub'];
+  const disablePullToRefresh = PTR_DISABLED_PREFIXES.some(
+    (p) => location.pathname === p || location.pathname.startsWith(p + '/'),
+  );
 
   const handlePullRefresh = async () => {
     try {
