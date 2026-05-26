@@ -437,7 +437,9 @@ function LocationEditor({
 /* ------------------------------------------------------------------ */
 /* Tenant pane                                                         */
 /* ------------------------------------------------------------------ */
-function TenantPane({ tenantId, isOps }: { tenantId: string; isOps: boolean }) {
+function TenantPane({
+  tenantId, isOps, onBackToAgent,
+}: { tenantId: string; isOps: boolean; onBackToAgent?: () => void }) {
   const qc = useQueryClient();
   const { data: profile, isLoading } = useProfile(tenantId);
   const { data: roles = [] } = useUserRoles(tenantId);
@@ -513,6 +515,15 @@ function TenantPane({ tenantId, isOps }: { tenantId: string; isOps: boolean }) {
 
   return (
     <div className="space-y-3">
+      {onBackToAgent && (
+        <button
+          type="button"
+          onClick={onBackToAgent}
+          className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="h-3 w-3" /> Back to agent
+        </button>
+      )}
       <ProfileHeader profile={profile} roles={roles} userId={tenantId} canEdit={isOps} />
       <LocationEditor userId={tenantId} profile={profile} canEdit={isOps /* agent edit handled elsewhere */} />
 
