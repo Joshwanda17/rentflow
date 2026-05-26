@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronRight, MapPin, Loader2, Home, Users, Wallet, UserCheck, Sparkles, Briefcase } from 'lucide-react';
+import { ChevronRight, MapPin, Loader2, Home, Users, Wallet, UserCheck, Sparkles } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
 type Row = {
@@ -31,18 +31,6 @@ type FundedTenant = {
   rent_request_id: string | null;
 };
 
-type AgentBreakdown = {
-  agent_id: string;
-  agent_name: string | null;
-  agent_phone: string | null;
-  agent_country: string | null;
-  agent_district: string | null;
-  agent_city: string | null;
-  tenants_count: number;
-  landlords_count: number;
-  partners_count: number;
-};
-
 const fmt = (n: number) => new Intl.NumberFormat().format(n);
 
 export function GeographicCoveragePanel() {
@@ -50,7 +38,6 @@ export function GeographicCoveragePanel() {
   const [district, setDistrict] = useState<string | null>(null);
   const [city, setCity] = useState<string | null>(null);
   const [drillOpen, setDrillOpen] = useState(false);
-  const [agentDrillOpen, setAgentDrillOpen] = useState(false);
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['geo-coverage', country, district, city],
@@ -115,24 +102,6 @@ export function GeographicCoveragePanel() {
     staleTime: 30_000,
   });
 
-  // Per-agent breakdown drill (tenants/landlords/partners by agent in this scope)
-  const { data: agentRows = [], isLoading: loadingAgents } = useQuery({
-    queryKey: ['agent-geo-breakdown', country, district, city, agentDrillOpen],
-    enabled: agentDrillOpen,
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_agent_geo_breakdown', {
-        p_country: country,
-        p_district: district,
-        p_city: city,
-        p_limit: 500,
-        p_offset: 0,
-      });
-      if (error) throw error;
-      return (data ?? []) as AgentBreakdown[];
-    },
-    staleTime: 30_000,
-  });
-
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -158,17 +127,7 @@ export function GeographicCoveragePanel() {
           <Stat label="Tenants" value={totals.tenants} icon={<Users className="h-3.5 w-3.5" />} />
           <Stat label="Landlords" value={totals.landlords} icon={<Home className="h-3.5 w-3.5" />} />
           <Stat label="Funders" value={totals.funders} icon={<Wallet className="h-3.5 w-3.5" />} />
-          <button
-            onClick={() => setAgentDrillOpen(true)}
-            disabled={totals.agents === 0}
-            className="rounded-md border bg-accent/30 hover:bg-accent/50 disabled:opacity-50 disabled:cursor-not-allowed p-2 text-left transition-colors"
-          >
-            <div className="flex items-center gap-1 text-[10px] text-muted-foreground uppercase">
-              <UserCheck className="h-3.5 w-3.5" /> Agents
-            </div>
-            <div className="text-base font-semibold tabular-nums">{fmt(totals.agents)}</div>
-            <div className="text-[10px] text-muted-foreground">click for breakdown</div>
-          </button>
+          <Stat label="Agents" value={totals.agents} icon={<UserCheck className="h-3.5 w-3.5" />} />
           <button
             onClick={() => setDrillOpen(true)}
             disabled={totals.funded === 0}
@@ -274,55 +233,6 @@ export function GeographicCoveragePanel() {
               ))}
               <div className="px-3 py-2 text-[11px] text-muted-foreground border-t">
                 Showing {fundedTenants.length} record{fundedTenants.length === 1 ? '' : 's'} (max 500).
-              </div>
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
-
-      {/* Per-agent breakdown drill */}
-      <Sheet open={agentDrillOpen} onOpenChange={setAgentDrillOpen}>
-        <SheetContent className="w-full sm:max-w-3xl overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle className="flex items-center gap-2">
-              <Briefcase className="h-4 w-4 text-primary" />
-              Agents in this area — tenants, landlords & partners
-            </SheetTitle>
-            <p className="text-xs text-muted-foreground">
-              Scope: {[country, district, city].filter(Boolean).join(' › ') || 'All locations'}
-            </p>
-          </SheetHeader>
-          {loadingAgents ? (
-            <div className="py-10 flex items-center justify-center text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading…
-            </div>
-          ) : agentRows.length === 0 ? (
-            <div className="py-10 text-center text-sm text-muted-foreground">No agents in this area.</div>
-          ) : (
-            <div className="mt-4 border rounded-md">
-              <div className="grid grid-cols-12 gap-2 px-3 py-2 bg-muted/40 text-[11px] font-semibold uppercase text-muted-foreground">
-                <div className="col-span-4">Agent</div>
-                <div className="col-span-3">Location</div>
-                <div className="col-span-1 text-right">Tenants</div>
-                <div className="col-span-2 text-right">Landlords</div>
-                <div className="col-span-2 text-right">Partners</div>
-              </div>
-              {agentRows.map((a) => (
-                <div key={a.agent_id} className="grid grid-cols-12 gap-2 px-3 py-2 text-sm border-t items-center">
-                  <div className="col-span-4">
-                    <div className="font-medium truncate">{a.agent_name || '—'}</div>
-                    <div className="text-xs text-muted-foreground">{a.agent_phone || ''}</div>
-                  </div>
-                  <div className="col-span-3 text-xs text-muted-foreground truncate">
-                    {[a.agent_city, a.agent_district, a.agent_country].filter(Boolean).join(', ') || '—'}
-                  </div>
-                  <div className="col-span-1 text-right tabular-nums">{fmt(Number(a.tenants_count))}</div>
-                  <div className="col-span-2 text-right tabular-nums">{fmt(Number(a.landlords_count))}</div>
-                  <div className="col-span-2 text-right tabular-nums">{fmt(Number(a.partners_count))}</div>
-                </div>
-              ))}
-              <div className="px-3 py-2 text-[11px] text-muted-foreground border-t">
-                Showing {agentRows.length} agent{agentRows.length === 1 ? '' : 's'} (max 500). Sorted by total reach.
               </div>
             </div>
           )}

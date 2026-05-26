@@ -16588,27 +16588,6 @@ export type Database = {
           transaction_group_id: string
         }[]
       }
-      get_agent_geo_breakdown: {
-        Args: {
-          p_city?: string
-          p_country?: string
-          p_district?: string
-          p_limit?: number
-          p_offset?: number
-        }
-        Returns: {
-          agent_city: string
-          agent_country: string
-          agent_district: string
-          agent_id: string
-          agent_name: string
-          agent_phone: string
-          landlords_count: number
-          partners_count: number
-          tenants_count: number
-          total_count: number
-        }[]
-      }
       get_agent_mission_stats: { Args: { p_agent_id?: string }; Returns: Json }
       get_agent_network_summary: { Args: { p_agent_id: string }; Returns: Json }
       get_agent_ops_balances: {
