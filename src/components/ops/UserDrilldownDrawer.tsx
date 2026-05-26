@@ -1107,7 +1107,7 @@ function AgentWalletStatements({ agentId }: { agentId: string }) {
 /* ------------------------------------------------------------------ */
 /* Agent tenants list — tenant · outstanding balance · landlord       */
 /* ------------------------------------------------------------------ */
-function AgentTenantsList({ agentId }: { agentId: string }) {
+function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSelectTenant?: (id: string, name: string) => void }) {
   const { data, isLoading } = useQuery({
     queryKey: ['drilldown-agent-tenants', agentId],
     queryFn: async () => {
@@ -1145,6 +1145,7 @@ function AgentTenantsList({ agentId }: { agentId: string }) {
           );
           return {
             id: r.id,
+            tenantId: r.tenant_id,
             tenant: tMap.get(r.tenant_id) as any,
             landlord: r.landlord_id ? (lMap.get(r.landlord_id) as any) : null,
             outstanding,
@@ -1172,7 +1173,9 @@ function AgentTenantsList({ agentId }: { agentId: string }) {
           {(data ?? []).map((row) => (
             <li
               key={row.id}
-              className="flex items-center justify-between gap-2 rounded-md border border-border/40 p-2 text-xs"
+              onClick={() => onSelectTenant?.(row.tenantId, row.tenant?.full_name ?? 'Unnamed tenant')}
+              className={`flex items-center justify-between gap-2 rounded-md border border-border/40 p-2 text-xs ${onSelectTenant ? 'cursor-pointer hover:bg-muted/40 transition-colors' : ''}`}
+              title={onSelectTenant ? 'Tap to view full profile' : undefined}
             >
               <div className="min-w-0 flex items-center gap-2">
                 <Avatar className="h-7 w-7 shrink-0">
