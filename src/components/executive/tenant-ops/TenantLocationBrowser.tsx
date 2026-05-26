@@ -234,13 +234,21 @@ function DistrictJumpSearch({
     for (const q of districtQueries) {
       if (!q.data) continue;
       for (const r of q.data.rows) {
-        m[`${q.data.backendRegion}::${r.label}`.toLowerCase()] = r.total;
+        for (const k of normalizedKeys(r.label)) {
+          const key = `${q.data.backendRegion}::${k}`;
+          if ((m[key] ?? 0) < r.total) m[key] = r.total;
+        }
       }
     }
     return m;
   }, [districtQueries]);
-  const countFor = (name: string, backendRegion: string) =>
-    districtTotals[`${backendRegion}::${name}`.toLowerCase()] ?? 0;
+  const countFor = (name: string, backendRegion: string) => {
+    for (const k of normalizedKeys(name)) {
+      const hit = districtTotals[`${backendRegion}::${k}`];
+      if (hit) return hit;
+    }
+    return 0;
+  };
 
   const isLoading = districtQueries.some((q) => q.isLoading);
 
