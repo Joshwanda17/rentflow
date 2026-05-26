@@ -38,9 +38,7 @@ export function useRequireContactLocation(
 
   const needsCapture =
     !!profile &&
-    (profile.residence_lat == null ||
-      profile.residence_lng == null ||
-      !profile.country ||
+    (!profile.country ||
       (profile.country === "Uganda" && !profile.district));
 
   const requireLocation = useCallback(
