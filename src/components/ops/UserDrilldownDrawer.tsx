@@ -16,13 +16,17 @@ import {
   User, Home, UserCheck, MapPin, Loader2, Link2, Plus, Phone,
   Wallet, ShieldAlert, Building2, ReceiptText, Smartphone, SmartphoneNfc,
   Search, Pencil, X, TrendingUp, Users, Sparkles, Download, FileText,
-  ChevronRight, ArrowLeft,
+  ChevronRight, ArrowLeft, MessageSquare, StickyNote, CheckCircle2, XCircle,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
 import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format, parseISO } from 'date-fns';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from '@/components/ui/dialog';
+import { useRentPaymentStatusMutation } from '@/hooks/useRentPaymentStatusMutation';
 
 type UserBrief = { id: string; full_name: string | null; phone: string | null };
 
