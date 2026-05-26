@@ -860,6 +860,115 @@ function TenantExportButtons({
   );
 }
 
+type DateRangePreset = 'today' | 'this_month' | 'custom';
+interface StatementDateRange {
+  preset: DateRangePreset;
+  from?: Date;
+  to?: Date;
+}
+
+function buildDateRange(range: StatementDateRange) {
+  const now = new Date();
+  if (range.preset === 'today') {
+    return { gte: startOfDay(now).toISOString(), lte: endOfDay(now).toISOString() };
+  }
+  if (range.preset === 'this_month') {
+    return { gte: startOfMonth(now).toISOString(), lte: endOfMonth(now).toISOString() };
+  }
+  if (range.preset === 'custom' && range.from && range.to) {
+    return { gte: startOfDay(range.from).toISOString(), lte: endOfDay(range.to).toISOString() };
+  }
+  return { gte: undefined, lte: undefined };
+}
+
+function StatementDateFilter({
+  value,
+  onChange,
+}: {
+  value: StatementDateRange;
+  onChange: (v: StatementDateRange) => void;
+}) {
+  const presets: { key: DateRangePreset; label: string }[] = [
+    { key: 'today', label: 'Today' },
+    { key: 'this_month', label: 'This month' },
+    { key: 'custom', label: 'Custom' },
+  ];
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-1 flex-wrap">
+        {presets.map((p) => (
+          <button
+            key={p.key}
+            type="button"
+            onClick={() => onChange({ ...value, preset: p.key })}
+            className={`px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors border ${
+              value.preset === p.key
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'bg-muted text-muted-foreground border-border hover:bg-muted/80'
+            }`}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+      {value.preset === 'custom' && (
+        <div className="flex items-center gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn(
+                  'h-7 text-xs justify-start text-left font-normal w-[130px]',
+                  !value.from && 'text-muted-foreground',
+                )}
+              >
+                <CalendarIcon className="mr-1 h-3 w-3" />
+                {value.from ? format(value.from, 'dd MMM yyyy') : <span>From</span>}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={value.from}
+                onSelect={(d) => onChange({ ...value, from: d })}
+                initialFocus
+                className={cn('p-3 pointer-events-auto')}
+              />
+            </PopoverContent>
+          </Popover>
+          <span className="text-[10px] text-muted-foreground">to</span>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn(
+                  'h-7 text-xs justify-start text-left font-normal w-[130px]',
+                  !value.to && 'text-muted-foreground',
+                )}
+              >
+                <CalendarIcon className="mr-1 h-3 w-3" />
+                {value.to ? format(value.to, 'dd MMM yyyy') : <span>To</span>}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={value.to}
+                onSelect={(d) => onChange({ ...value, to: d })}
+                initialFocus
+                className={cn('p-3 pointer-events-auto')}
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TenantPane({
   tenantId, isOps, onBackToAgent,
 }: { tenantId: string; isOps: boolean; onBackToAgent?: () => void }) {
