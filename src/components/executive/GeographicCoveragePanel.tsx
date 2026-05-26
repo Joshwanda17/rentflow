@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,6 +25,7 @@ type Row = {
   funders: number;
   agents: number;
   funded_tenants: number;
+  total_buckets?: number;
 };
 
 type FundedTenant = {
@@ -39,9 +40,12 @@ type FundedTenant = {
   latest_status: string | null;
   latest_rent_amount: number | null;
   rent_request_id: string | null;
+  total_count?: number;
 };
 
 const fmt = (n: number) => new Intl.NumberFormat().format(n);
+const PAGE_SIZE = 50;
+const DRILL_PAGE_SIZE = 100;
 
 export function GeographicCoveragePanel() {
   const [country, setCountry] = useState<string | null>(null);
@@ -52,13 +56,19 @@ export function GeographicCoveragePanel() {
   const [fromDate, setFromDate] = useState<Date | undefined>();
   const [toDate, setToDate] = useState<Date | undefined>();
   const [roles, setRoles] = useState<RoleKey[]>([...ALL_ROLES]);
+  const [page, setPage] = useState(0);
+  const [drillPage, setDrillPage] = useState(0);
 
   const p_from = fromDate ? fromDate.toISOString() : null;
   const p_to = toDate ? new Date(toDate.getTime() + 86_399_000).toISOString() : null; // include end-of-day
   const p_roles = roles.length === ALL_ROLES.length ? null : roles;
 
+  // Reset pagination on any scope/filter change
+  useEffect(() => { setPage(0); }, [country, district, city, p_from, p_to, p_roles?.join(','), search]);
+  useEffect(() => { setDrillPage(0); }, [country, district, city, p_from, p_to]);
+
   const { data: rows = [], isLoading, isFetching, refetch } = useQuery({
-    queryKey: ['geo-coverage', country, district, city, p_from, p_to, p_roles?.join(',') ?? 'all'],
+    queryKey: ['geo-coverage', country, district, city, p_from, p_to, p_roles?.join(',') ?? 'all', page],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_geo_user_coverage', {
         p_country: country,
@@ -67,12 +77,20 @@ export function GeographicCoveragePanel() {
         p_from,
         p_to,
         p_roles,
+        p_limit: PAGE_SIZE,
+        p_offset: page * PAGE_SIZE,
       });
       if (error) throw error;
       return (data ?? []) as Row[];
     },
-    staleTime: 60_000,
+    // Matches the 5-minute server-side cache TTL
+    staleTime: 5 * 60_000,
+    gcTime: 10 * 60_000,
+    placeholderData: (prev) => prev,
   });
+
+  const totalBuckets = Number(rows[0]?.total_buckets ?? rows.length);
+  const totalPages = Math.max(1, Math.ceil(totalBuckets / PAGE_SIZE));
 
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -113,7 +131,7 @@ export function GeographicCoveragePanel() {
 
   // Funded-tenant drill (loaded only when sheet opens)
   const { data: fundedTenants = [], isLoading: loadingFunded } = useQuery({
-    queryKey: ['funded-tenants-at', country, district, city, drillOpen, p_from, p_to],
+    queryKey: ['funded-tenants-at', country, district, city, drillOpen, p_from, p_to, drillPage],
     enabled: drillOpen,
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_funded_tenants_at', {
@@ -122,14 +140,19 @@ export function GeographicCoveragePanel() {
         p_city: city,
         p_from,
         p_to,
-        p_limit: 500,
-        p_offset: 0,
+        p_limit: DRILL_PAGE_SIZE,
+        p_offset: drillPage * DRILL_PAGE_SIZE,
       });
       if (error) throw error;
       return (data ?? []) as FundedTenant[];
     },
-    staleTime: 30_000,
+    staleTime: 5 * 60_000,
+    gcTime: 10 * 60_000,
+    placeholderData: (prev) => prev,
   });
+
+  const fundedTotal = Number(fundedTenants[0]?.total_count ?? fundedTenants.length);
+  const drillTotalPages = Math.max(1, Math.ceil(fundedTotal / DRILL_PAGE_SIZE));
 
   const toggleRole = (r: RoleKey) =>
     setRoles((cur) => (cur.includes(r) ? cur.filter((x) => x !== r) : [...cur, r]));
@@ -396,6 +419,20 @@ export function GeographicCoveragePanel() {
             })
           )}
         </div>
+
+        {/* Coverage pagination */}
+        {totalBuckets > PAGE_SIZE && (
+          <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+            <span>
+              Showing <span className="tabular-nums font-medium text-foreground">{page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, totalBuckets)}</span> of {fmt(totalBuckets)}
+            </span>
+            <div className="flex items-center gap-1">
+              <Button size="sm" variant="outline" className="h-7 px-2" disabled={page === 0 || isFetching} onClick={() => setPage((p) => Math.max(0, p - 1))}>Prev</Button>
+              <span className="px-2 tabular-nums">{page + 1} / {totalPages}</span>
+              <Button size="sm" variant="outline" className="h-7 px-2" disabled={page + 1 >= totalPages || isFetching} onClick={() => setPage((p) => p + 1)}>Next</Button>
+            </div>
+          </div>
+        )}
       </CardContent>
 
       {/* Funded tenant drill-through */}
@@ -450,8 +487,15 @@ export function GeographicCoveragePanel() {
                 </div>
               ))}
               <div className="px-3 py-2 text-[11px] text-muted-foreground border-t">
-                Showing {fundedTenants.length} record{fundedTenants.length === 1 ? '' : 's'} (max 500).
+                Showing {drillPage * DRILL_PAGE_SIZE + 1}–{Math.min((drillPage + 1) * DRILL_PAGE_SIZE, fundedTotal)} of {fmt(fundedTotal)}
               </div>
+            </div>
+          )}
+          {fundedTotal > DRILL_PAGE_SIZE && (
+            <div className="flex items-center justify-end gap-1 mt-3">
+              <Button size="sm" variant="outline" className="h-7 px-2" disabled={drillPage === 0 || loadingFunded} onClick={() => setDrillPage((p) => Math.max(0, p - 1))}>Prev</Button>
+              <span className="px-2 text-xs tabular-nums">{drillPage + 1} / {drillTotalPages}</span>
+              <Button size="sm" variant="outline" className="h-7 px-2" disabled={drillPage + 1 >= drillTotalPages || loadingFunded} onClick={() => setDrillPage((p) => p + 1)}>Next</Button>
             </div>
           )}
         </SheetContent>

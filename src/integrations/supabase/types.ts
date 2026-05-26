@@ -6605,6 +6605,30 @@ export type Database = {
         }
         Relationships: []
       }
+      geo_coverage_cache: {
+        Row: {
+          cache_key: string
+          created_at: string
+          expires_at: string
+          payload: Json
+          total_count: number
+        }
+        Insert: {
+          cache_key: string
+          created_at?: string
+          expires_at: string
+          payload: Json
+          total_count?: number
+        }
+        Update: {
+          cache_key?: string
+          created_at?: string
+          expires_at?: string
+          payload?: Json
+          total_count?: number
+        }
+        Relationships: []
+      }
       glossary_terms: {
         Row: {
           also: string[]
@@ -15775,6 +15799,18 @@ export type Database = {
         Args: { p_active_count: number; p_ratio: number }
         Returns: string
       }
+      _geo_cache_key: {
+        Args: {
+          p_city: string
+          p_country: string
+          p_district: string
+          p_from: string
+          p_kind: string
+          p_roles: string[]
+          p_to: string
+        }
+        Returns: string
+      }
       _geo_coverage_caller_allowed: { Args: never; Returns: boolean }
       _geo_norm: { Args: { p: string }; Returns: string }
       _test_proxy_capability_sync: {
@@ -16769,6 +16805,7 @@ export type Database = {
           tenant_id: string
           tenant_name: string
           tenant_phone: string
+          total_count: number
         }[]
       }
       get_funder_approval_status: {
@@ -16785,6 +16822,8 @@ export type Database = {
           p_country?: string
           p_district?: string
           p_from?: string
+          p_limit?: number
+          p_offset?: number
           p_roles?: string[]
           p_to?: string
         }
@@ -16796,6 +16835,7 @@ export type Database = {
           landlords: number
           level: string
           tenants: number
+          total_buckets: number
         }[]
       }
       get_house_activity_timeline: {
@@ -17404,6 +17444,7 @@ export type Database = {
         }
         Returns: Json
       }
+      purge_geo_coverage_cache: { Args: never; Returns: number }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {
