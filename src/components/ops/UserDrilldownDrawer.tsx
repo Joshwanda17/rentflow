@@ -1733,7 +1733,7 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
     queryFn: async () => {
       const { data } = await supabase
         .from('house_listings')
-        .select('id, title, monthly_rent, status, village, district')
+        .select('id, title, monthly_rent, status, village, district, address, image_urls, created_at')
         .eq('landlord_id', landlordId).limit(50);
       return data ?? [];
     },
@@ -1806,12 +1806,35 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
         {listings.length === 0 ? (
           <p className="text-xs text-muted-foreground">No listings recorded.</p>
         ) : (
-          <ul className="space-y-1 text-xs">
+          <ul className="space-y-2 text-xs">
             {listings.map((l: any) => (
-              <li key={l.id} className="flex justify-between gap-2 border-b border-border/40 py-1">
-                <span className="truncate flex-1">{l.title} · <span className="text-muted-foreground">{l.village ?? l.district ?? ''}</span></span>
-                <span className="font-semibold">{fmtUGX(l.monthly_rent)}</span>
-                <Badge variant="outline" className="text-[9px]">{l.status}</Badge>
+              <li key={l.id} className="border border-border/40 rounded-md p-2 space-y-1.5">
+                {Array.isArray(l.image_urls) && l.image_urls.length > 0 ? (
+                  <div className="flex gap-1 overflow-x-auto pb-1 -mx-1 px-1">
+                    {l.image_urls.slice(0, 8).map((src: string, i: number) => (
+                      <a key={i} href={src} target="_blank" rel="noreferrer" className="shrink-0">
+                        <img
+                          src={src}
+                          alt={`${l.title} photo ${i + 1}`}
+                          loading="lazy"
+                          className="h-20 w-24 object-cover rounded border border-border/40"
+                        />
+                      </a>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="h-16 rounded border border-dashed border-border/40 flex items-center justify-center text-[10px] text-muted-foreground">
+                    No photos uploaded
+                  </div>
+                )}
+                <div className="flex justify-between gap-2">
+                  <span className="truncate flex-1 font-medium">{l.title}</span>
+                  <span className="font-semibold whitespace-nowrap">{fmtUGX(l.monthly_rent)}</span>
+                </div>
+                <div className="flex justify-between items-center gap-2">
+                  <span className="text-muted-foreground truncate">{l.village ?? l.district ?? l.address ?? '—'}</span>
+                  <Badge variant="outline" className="text-[9px]">{l.status}</Badge>
+                </div>
               </li>
             ))}
           </ul>
