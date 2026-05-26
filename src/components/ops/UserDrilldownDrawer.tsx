@@ -17,7 +17,7 @@ import {
   Wallet, ShieldAlert, Building2, ReceiptText, Smartphone, SmartphoneNfc,
   Search, Pencil, X, TrendingUp, Users, Sparkles, Download, FileText,
   ChevronRight, ArrowLeft, MessageSquare, StickyNote, CheckCircle2, XCircle,
-  CalendarIcon,
+  CalendarIcon, Info,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
@@ -1854,7 +1854,11 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
         if (!latestByTenant.has(r.tenant_id)) latestByTenant.set(r.tenant_id, r);
       }
       // Seed rows from rent requests
-      const rows: any[] = Array.from(latestByTenant.values());
+      const rows: any[] = Array.from(latestByTenant.values()).map((r) => ({
+        ...r,
+        source: 'rent_request' as const,
+        rent_request_id: r.id,
+      }));
       // Add managed-profile tenants that have no rent request on file
       for (const p of (managedRes.data ?? []) as any[]) {
         if (!latestByTenant.has(p.id)) {
@@ -1867,6 +1871,8 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
             amount_repaid: 0,
             status: 'no_plan',
             created_at: null,
+            source: 'profile' as const,
+            rent_request_id: null,
           });
         }
       }
@@ -1913,6 +1919,13 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
             landlord: r.landlord_id ? (lMap.get(r.landlord_id) as any) : null,
             outstanding,
             status: r.status,
+            source: r.source,
+            rentRequestId: r.rent_request_id,
+            landlordId: r.landlord_id,
+            rentAmount: r.rent_amount,
+            totalRepayment: r.total_repayment,
+            amountRepaid: r.amount_repaid,
+            createdAt: r.created_at,
           };
         })
         .sort((a, b) => b.outstanding - a.outstanding);
@@ -2002,6 +2015,8 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
     `);
     w.document.close();
   };
+
+  const [sourceModalRow, setSourceModalRow] = useState<typeof data extends (infer T)[] ? T : never | null>(null);
 
   return (
     <Card className="p-3 space-y-2">
@@ -2118,6 +2133,17 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
                   <p className="font-semibold text-amber-700">{fmtUGX(row.outstanding)}</p>
                   <p className="text-[9px] text-muted-foreground capitalize">{row.status}</p>
                 </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSourceModalRow(row as any);
+                  }}
+                  className="p-1 rounded-md hover:bg-muted transition-colors"
+                  title="View source details"
+                >
+                  <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                </button>
                 {onSelectTenant && (
                   <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
                 )}
@@ -2126,6 +2152,83 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
           ))}
         </ul>
       )}
+
+      {/* Source details modal */}
+      <Dialog open={!!sourceModalRow} onOpenChange={() => setSourceModalRow(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Source details</DialogTitle>
+            <DialogDescription className="text-xs">
+              Underlying record that links this tenant to the agent.
+            </DialogDescription>
+          </DialogHeader>
+          {sourceModalRow && (
+            <div className="space-y-3 text-xs">
+              <div className="flex items-center gap-2">
+                <Badge
+                  variant={sourceModalRow.source === 'rent_request' ? 'default' : 'secondary'}
+                  className="text-[10px]"
+                >
+                  {sourceModalRow.source === 'rent_request' ? 'Rent request' : 'Profile ownership'}
+                </Badge>
+                <span className="text-muted-foreground">
+                  {sourceModalRow.source === 'rent_request'
+                    ? 'Assigned via rent request'
+                    : 'Linked via managing_agent_id on profile'}
+                </span>
+              </div>
+
+              <div className="space-y-2 rounded-md border border-border/60 p-3 bg-muted/30">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Tenant ID</span>
+                  <span className="font-mono">{sourceModalRow.tenantId}</span>
+                </div>
+                {sourceModalRow.rentRequestId && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Rent request ID</span>
+                    <span className="font-mono">{sourceModalRow.rentRequestId}</span>
+                  </div>
+                )}
+                {sourceModalRow.landlordId && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Landlord ID</span>
+                    <span className="font-mono">{sourceModalRow.landlordId}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Status</span>
+                  <span className="capitalize">{sourceModalRow.status}</span>
+                </div>
+                {sourceModalRow.source === 'rent_request' && (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Rent amount</span>
+                      <span>{fmtUGX(sourceModalRow.rentAmount)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Total repayment</span>
+                      <span>{fmtUGX(sourceModalRow.totalRepayment)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Amount repaid</span>
+                      <span>{fmtUGX(sourceModalRow.amountRepaid)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Created</span>
+                      <span>{sourceModalRow.createdAt ? format(parseISO(sourceModalRow.createdAt), 'dd MMM yyyy') : '—'}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button size="sm" variant="outline" onClick={() => setSourceModalRow(null)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
