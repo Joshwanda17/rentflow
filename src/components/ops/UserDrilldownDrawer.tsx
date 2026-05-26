@@ -737,7 +737,7 @@ function AgentPane({ agentId, isOps, onSelectTenant }: { agentId: string; isOps:
       </Card>
 
       {/* Tenants under management — name, outstanding balance, landlord */}
-      <AgentTenantsList agentId={agentId} />
+      <AgentTenantsList agentId={agentId} onSelectTenant={onSelectTenant} />
 
       {/* Network — partners onboarded & referrals */}
       <Card className="p-3 space-y-2">
