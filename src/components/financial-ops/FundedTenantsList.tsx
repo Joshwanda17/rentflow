@@ -436,15 +436,52 @@ export function FundedTenantsList() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1 space-y-1.5">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="inline-flex items-center gap-1 text-sm font-semibold truncate">
-                      <User className="h-3.5 w-3.5 text-muted-foreground" />
-                      {r.tenant_profile?.full_name ?? 'Unallocated tenant'}
-                    </span>
+                    {r.tenant_id ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setDrill({
+                            tenantId: r.tenant_id ?? null,
+                            agentId: r.agent_id ?? null,
+                            landlordId: r.landlord_id ?? null,
+                            tab: 'tenant',
+                          })
+                        }
+                        className="inline-flex items-center gap-1 text-sm font-semibold hover:underline truncate"
+                        title="Open tenant profile"
+                      >
+                        <User className="h-3.5 w-3.5 text-muted-foreground" />
+                        {r.tenant_profile?.full_name ?? 'Unallocated tenant'}
+                      </button>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-sm font-semibold truncate text-muted-foreground">
+                        <User className="h-3.5 w-3.5" />
+                        Unallocated tenant
+                      </span>
+                    )}
                     <span className="text-muted-foreground text-xs">→</span>
-                    <span className="inline-flex items-center gap-1 text-sm font-semibold text-primary truncate">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setDrill({
+                          tenantId: r.tenant_id ?? null,
+                          agentId: r.agent_id ?? null,
+                          landlordId: r.landlord_id ?? null,
+                          tab: 'landlord',
+                        })
+                      }
+                      className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline truncate"
+                      title="Open landlord profile"
+                    >
                       <Home className="h-3.5 w-3.5" />
                       {r.landlord_name}
-                    </span>
+                    </button>
+                    {r.country && (
+                      <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
+                        <Globe2 className="h-2.5 w-2.5" />
+                        {r.country}
+                      </span>
+                    )}
                     {r.status === 'completed' ? (
                       <Badge className="text-[10px] bg-emerald-100 text-emerald-700 border-emerald-200">
                         Completed
