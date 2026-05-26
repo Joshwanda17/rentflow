@@ -22,6 +22,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { TreasuryImpactBanner } from './TreasuryImpactBanner';
 import { useAuth } from '@/hooks/useAuth';
+import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
 
 const fmt = (n: number) =>
   new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', maximumFractionDigits: 0 }).format(n);
@@ -50,6 +51,7 @@ export function RentDisbursementQueue() {
   const [batchRef, setBatchRef] = useState('');
   const [rejectTarget, setRejectTarget] = useState<ApprovedRentItem | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [drilldownAgentId, setDrilldownAgentId] = useState<string | null>(null);
   const qc = useQueryClient();
   const { user } = useAuth();
 
@@ -129,18 +131,23 @@ export function RentDisbursementQueue() {
   // Group rows by agent so CFO can pick one tenant, a few, or all of an
   // agent's tenants at a glance.
   const grouped = useMemo(() => {
-    const map = new Map<string, { agent_id: string; agent_name: string; rows: ApprovedRentItem[] }>();
+    const map = new Map<string, { agent_id: string; agent_name: string; rows: ApprovedRentItem[]; latest: number }>();
     for (const it of items) {
       const key = it.assigned_agent_id || it.agent_id || 'unassigned';
-      const g = map.get(key) ?? { agent_id: key, agent_name: it.agent_name, rows: [] };
+      const ts = new Date(it.created_at).getTime();
+      const g = map.get(key) ?? { agent_id: key, agent_name: it.agent_name, rows: [], latest: 0 };
       g.rows.push(it);
+      if (ts > g.latest) g.latest = ts;
       map.set(key, g);
     }
-    return [...map.values()].sort(
-      (a, b) =>
-        b.rows.reduce((s, r) => s + r.rent_amount, 0) -
-        a.rows.reduce((s, r) => s + r.rent_amount, 0),
-    );
+    // Newest request first, so an agent that just posted jumps to the top.
+    // Within each agent, show their newest tenant request first too.
+    for (const g of map.values()) {
+      g.rows.sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      );
+    }
+    return [...map.values()].sort((a, b) => b.latest - a.latest);
   }, [items]);
 
   const visibleGroups = useMemo(
@@ -361,20 +368,38 @@ export function RentDisbursementQueue() {
                 const allGroupOn = groupSelectedCount === groupIds.length;
                 const someGroupOn = groupSelectedCount > 0 && !allGroupOn;
                 const groupTotal = group.rows.reduce((s, r) => s + r.rent_amount, 0);
+                const isNew = Date.now() - group.latest < 24 * 60 * 60 * 1000;
+                const isRealAgent = group.agent_id && group.agent_id !== 'unassigned';
                 return (
                   <div key={group.agent_id} className="rounded-lg border">
                     <div className="flex items-center justify-between gap-2 px-3 py-2 bg-muted/40 rounded-t-lg">
-                      <label className="flex items-center gap-2 text-sm cursor-pointer min-w-0 flex-1">
+                      <div className="flex items-center gap-2 text-sm min-w-0 flex-1">
                         <Checkbox
                           checked={allGroupOn ? true : someGroupOn ? 'indeterminate' : false}
                           onCheckedChange={() => toggleAgentGroup(group.rows)}
                         />
                         <Users className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <span className="font-semibold truncate">{group.agent_name}</span>
+                        {isRealAgent ? (
+                          <button
+                            type="button"
+                            onClick={() => setDrilldownAgentId(group.agent_id)}
+                            className="font-semibold truncate text-left hover:text-primary hover:underline focus:outline-none focus-visible:underline"
+                            title="Open agent profile"
+                          >
+                            {group.agent_name}
+                          </button>
+                        ) : (
+                          <span className="font-semibold truncate">{group.agent_name}</span>
+                        )}
+                        {isNew && (
+                          <Badge className="text-[9px] px-1.5 py-0 shrink-0 bg-emerald-500 text-white border-0 animate-pulse">
+                            NEW
+                          </Badge>
+                        )}
                         <Badge variant="outline" className="text-[9px] px-1.5 py-0 shrink-0">
                           {groupSelectedCount}/{group.rows.length}
                         </Badge>
-                      </label>
+                      </div>
                       <span className="text-xs font-bold text-orange-600 shrink-0">{fmt(groupTotal)}</span>
                     </div>
                     <div className="divide-y">
@@ -526,6 +551,12 @@ export function RentDisbursementQueue() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <UserDrilldownDrawer
+        open={!!drilldownAgentId}
+        onOpenChange={(v) => { if (!v) setDrilldownAgentId(null); }}
+        agentId={drilldownAgentId}
+        defaultTab="agent"
+      />
     </Card>
   );
 }
