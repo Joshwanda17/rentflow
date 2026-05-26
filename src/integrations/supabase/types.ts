@@ -18256,6 +18256,7 @@ export type Database = {
         | "rent_request_force_approved"
         | "rent_request.resubmitted_by_agent"
         | "rent_request.returned_for_correction"
+        | "house_listings.region_normalized"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -18508,6 +18509,7 @@ export const Constants = {
         "rent_request_force_approved",
         "rent_request.resubmitted_by_agent",
         "rent_request.returned_for_correction",
+        "house_listings.region_normalized",
       ],
     },
   },
