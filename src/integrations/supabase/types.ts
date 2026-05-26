@@ -1084,6 +1084,7 @@ export type Database = {
           momo_transaction_id: string | null
           notes: string | null
           payment_method: Database["public"]["Enums"]["collection_payment_method"]
+          rent_request_id: string | null
           sms_sent_agent: boolean | null
           sms_sent_tenant: boolean | null
           tenant_id: string
@@ -1105,6 +1106,7 @@ export type Database = {
           momo_transaction_id?: string | null
           notes?: string | null
           payment_method: Database["public"]["Enums"]["collection_payment_method"]
+          rent_request_id?: string | null
           sms_sent_agent?: boolean | null
           sms_sent_tenant?: boolean | null
           tenant_id: string
@@ -1126,6 +1128,7 @@ export type Database = {
           momo_transaction_id?: string | null
           notes?: string | null
           payment_method?: Database["public"]["Enums"]["collection_payment_method"]
+          rent_request_id?: string | null
           sms_sent_agent?: boolean | null
           sms_sent_tenant?: boolean | null
           tenant_id?: string
@@ -1168,6 +1171,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
+          },
+          {
+            foreignKeyName: "agent_collections_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "rent_request_formula_drift"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_collections_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "rent_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_collections_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["rent_request_id"]
           },
           {
             foreignKeyName: "agent_collections_tenant_id_fkey"
@@ -6602,6 +6626,30 @@ export type Database = {
           user_id?: string | null
           wallet_bucket?: string | null
           wallet_id?: string | null
+        }
+        Relationships: []
+      }
+      geo_coverage_cache: {
+        Row: {
+          cache_key: string
+          created_at: string
+          expires_at: string
+          payload: Json
+          total_count: number
+        }
+        Insert: {
+          cache_key: string
+          created_at?: string
+          expires_at: string
+          payload: Json
+          total_count?: number
+        }
+        Update: {
+          cache_key?: string
+          created_at?: string
+          expires_at?: string
+          payload?: Json
+          total_count?: number
         }
         Relationships: []
       }
@@ -15775,6 +15823,18 @@ export type Database = {
         Args: { p_active_count: number; p_ratio: number }
         Returns: string
       }
+      _geo_cache_key: {
+        Args: {
+          p_city: string
+          p_country: string
+          p_district: string
+          p_from: string
+          p_kind: string
+          p_roles: string[]
+          p_to: string
+        }
+        Returns: string
+      }
       _geo_coverage_caller_allowed: { Args: never; Returns: boolean }
       _geo_norm: { Args: { p: string }; Returns: string }
       _test_proxy_capability_sync: {
@@ -16752,8 +16812,10 @@ export type Database = {
           p_city?: string
           p_country?: string
           p_district?: string
+          p_from?: string
           p_limit?: number
           p_offset?: number
+          p_to?: string
         }
         Returns: {
           landlord_id: string
@@ -16767,6 +16829,7 @@ export type Database = {
           tenant_id: string
           tenant_name: string
           tenant_phone: string
+          total_count: number
         }[]
       }
       get_funder_approval_status: {
@@ -16778,7 +16841,16 @@ export type Database = {
         }[]
       }
       get_geo_user_coverage: {
-        Args: { p_city?: string; p_country?: string; p_district?: string }
+        Args: {
+          p_city?: string
+          p_country?: string
+          p_district?: string
+          p_from?: string
+          p_limit?: number
+          p_offset?: number
+          p_roles?: string[]
+          p_to?: string
+        }
         Returns: {
           agents: number
           bucket: string
@@ -16787,6 +16859,7 @@ export type Database = {
           landlords: number
           level: string
           tenants: number
+          total_buckets: number
         }[]
       }
       get_house_activity_timeline: {
@@ -17395,6 +17468,7 @@ export type Database = {
         }
         Returns: Json
       }
+      purge_geo_coverage_cache: { Args: never; Returns: number }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {
