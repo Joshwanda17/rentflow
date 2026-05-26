@@ -159,9 +159,15 @@ const WhatsAppButton = ({ phone, name, label }: { phone: string; name: string; l
 
 interface RentPipelineQueueProps {
   stage: PipelineStage;
+  /**
+   * Extra rent_request.status values that share the same review stage and should
+   * appear in this queue alongside the canonical `stage`. Used to surface legacy
+   * statuses (e.g. `agent_verified`) that pre-date the unified pipeline naming.
+   */
+  additionalStatuses?: string[];
 }
 
-export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
+export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipelineQueueProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
