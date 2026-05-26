@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,7 +8,10 @@ import { Calendar } from '@/components/ui/calendar';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Calendar as CalendarIcon, Bookmark, Download, X, Trash2, AlertCircle } from 'lucide-react';
+import {
+  Calendar as CalendarIcon, Bookmark, Download, X, Trash2, AlertCircle,
+  Share2, Globe, Lock, Link as LinkIcon, Loader2,
+} from 'lucide-react';
 import { format, startOfWeek, startOfMonth, subMonths, endOfMonth, differenceInCalendarDays } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
@@ -17,8 +20,12 @@ import {
   type LinkBandKey, type PhotosBandKey, type LeafSortKey,
   type OutstandingKey, type VerificationKey, type FundingSourceKey,
   RENT_BANDS, DEFAULT_FILTERS, isFiltersActive,
-  loadPresets, savePreset, deletePreset, type TenantOpsPreset,
 } from '@/lib/tenantOpsFilters';
+import {
+  listPresets, createPreset, deletePresetRemote, setPresetVisibility,
+  buildShareUrl, type TenantOpsPresetRemote, type PresetVisibility,
+} from '@/lib/tenantOpsPresets';
+import { toast } from 'sonner';
 
 interface Props {
   filters: TenantOpsFilters;
@@ -82,9 +89,72 @@ const SORT_OPTIONS: { key: LeafSortKey; label: string }[] = [
 export function TenantOpsFilterBar({
   filters, onChange, resultCount, totalCount, onExportCSV, onExportPDF, exportDisabled,
 }: Props) {
-  const [presets, setPresets] = useState<TenantOpsPreset[]>(() => loadPresets());
+  const [presets, setPresets] = useState<TenantOpsPresetRemote[]>([]);
+  const [presetsLoading, setPresetsLoading] = useState(false);
   const [presetName, setPresetName] = useState('');
+  const [presetVis, setPresetVis] = useState<PresetVisibility>('private');
+  const [saving, setSaving] = useState(false);
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const [presetsOpen, setPresetsOpen] = useState(false);
+
+  const refreshPresets = async () => {
+    setPresetsLoading(true);
+    try { setPresets(await listPresets()); }
+    catch (e: any) { toast.error(e?.message ?? 'Failed to load presets'); }
+    finally { setPresetsLoading(false); }
+  };
+  useEffect(() => { if (presetsOpen) void refreshPresets(); }, [presetsOpen]);
+
+  const handleSavePreset = async () => {
+    if (!presetName.trim()) return;
+    setSaving(true);
+    try {
+      const created = await createPreset({
+        name: presetName, filters, visibility: presetVis,
+      });
+      setPresets((p) => [created, ...p.filter((x) => x.id !== created.id)]);
+      setPresetName('');
+      if (created.share_slug) {
+        const url = buildShareUrl(created.share_slug);
+        await navigator.clipboard.writeText(url).catch(() => {});
+        toast.success('Shared preset saved — link copied');
+      } else {
+        toast.success('Preset saved');
+      }
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Failed to save preset');
+    } finally { setSaving(false); }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deletePresetRemote(id);
+      setPresets((p) => p.filter((x) => x.id !== id));
+    } catch (e: any) { toast.error(e?.message ?? 'Failed to delete'); }
+  };
+
+  const handleShareToggle = async (p: TenantOpsPresetRemote) => {
+    try {
+      const next = await setPresetVisibility(
+        p.id, p.visibility === 'shared' ? 'private' : 'shared',
+      );
+      setPresets((rows) => rows.map((r) => (r.id === next.id ? next : r)));
+      if (next.share_slug) {
+        await navigator.clipboard.writeText(buildShareUrl(next.share_slug)).catch(() => {});
+        toast.success('Link copied — anyone with the link can load this preset');
+      } else {
+        toast.success('Preset is now private');
+      }
+    } catch (e: any) { toast.error(e?.message ?? 'Failed to update sharing'); }
+  };
+
+  const handleCopyLink = async (p: TenantOpsPresetRemote) => {
+    if (!p.share_slug) return;
+    try {
+      await navigator.clipboard.writeText(buildShareUrl(p.share_slug));
+      toast.success('Share link copied');
+    } catch { toast.error('Could not copy link'); }
+  };
 
   const patch = (p: Partial<TenantOpsFilters>) => onChange({ ...filters, ...p });
   const active = isFiltersActive(filters);
@@ -410,60 +480,121 @@ export function TenantOpsFilterBar({
           </Badge>
         )}
 
-        <Popover>
+        <Popover open={presetsOpen} onOpenChange={setPresetsOpen}>
           <PopoverTrigger asChild>
             <Button size="sm" variant="outline" className="h-7 px-2 text-[11px] gap-1">
               <Bookmark className="h-3 w-3" /> Presets {presets.length > 0 && `(${presets.length})`}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-[260px] p-2 space-y-2" align="end">
-            {active && (
-              <div className="flex items-center gap-1">
-                <Input
-                  value={presetName}
-                  onChange={(e) => setPresetName(e.target.value)}
-                  placeholder="Name this view…"
-                  className="h-7 text-xs"
-                />
-                <Button
-                  size="sm"
-                  className="h-7 text-[11px]"
-                  disabled={!presetName.trim()}
-                  onClick={() => {
-                    setPresets(savePreset(presetName, filters));
-                    setPresetName('');
-                  }}
-                >
-                  Save
-                </Button>
-              </div>
-            )}
-            {presets.length === 0 ? (
-              <p className="text-[11px] text-muted-foreground py-2 text-center">
-                {active ? 'Save the current view for one-tap recall.' : 'Apply filters to save a preset.'}
-              </p>
-            ) : (
-              presets.map((p) => (
-                <div key={p.id} className="flex items-center gap-1">
+          <PopoverContent className="w-[320px] p-2 space-y-2" align="end">
+            {active ? (
+              <div className="space-y-1.5 border-b pb-2">
+                <div className="flex items-center gap-1">
+                  <Input
+                    value={presetName}
+                    onChange={(e) => setPresetName(e.target.value)}
+                    placeholder="Name this view…"
+                    className="h-7 text-xs"
+                    maxLength={60}
+                  />
                   <Button
                     size="sm"
-                    variant="ghost"
-                    className="h-7 flex-1 justify-start text-xs"
-                    onClick={() => onChange(p.filters)}
+                    className="h-7 text-[11px]"
+                    disabled={!presetName.trim() || saving}
+                    onClick={handleSavePreset}
                   >
-                    {p.name}
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-7 w-7"
-                    onClick={() => setPresets(deletePreset(p.id))}
-                    aria-label="Delete preset"
-                  >
-                    <Trash2 className="h-3 w-3 text-muted-foreground" />
+                    {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Save'}
                   </Button>
                 </div>
-              ))
+                <div className="flex items-center gap-1">
+                  <Button
+                    size="sm"
+                    variant={presetVis === 'private' ? 'default' : 'outline'}
+                    className="h-6 px-2 text-[10px] gap-1 flex-1"
+                    onClick={() => setPresetVis('private')}
+                  >
+                    <Lock className="h-3 w-3" /> Private
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={presetVis === 'shared' ? 'default' : 'outline'}
+                    className="h-6 px-2 text-[10px] gap-1 flex-1"
+                    onClick={() => setPresetVis('shared')}
+                  >
+                    <Globe className="h-3 w-3" /> Shared link
+                  </Button>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  {presetVis === 'shared'
+                    ? 'A copyable share link will be created. Anyone with the link can load this view.'
+                    : 'Only you will see this preset.'}
+                </p>
+              </div>
+            ) : (
+              <p className="text-[11px] text-muted-foreground py-1 text-center">
+                Apply filters above to save a new preset.
+              </p>
+            )}
+            {presetsLoading ? (
+              <div className="flex items-center justify-center py-3 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+              </div>
+            ) : presets.length === 0 ? (
+              <p className="text-[11px] text-muted-foreground py-2 text-center">
+                No saved presets yet.
+              </p>
+            ) : (
+              <div className="space-y-0.5 max-h-72 overflow-y-auto">
+                {presets.map((p) => (
+                  <div key={p.id} className="flex items-center gap-1 group">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 flex-1 justify-start text-xs gap-1.5 min-w-0"
+                      onClick={() => { onChange(p.filters); setPresetsOpen(false); }}
+                      title="Load this preset"
+                    >
+                      {p.visibility === 'shared'
+                        ? <Globe className="h-3 w-3 text-primary shrink-0" />
+                        : <Lock className="h-3 w-3 text-muted-foreground shrink-0" />}
+                      <span className="truncate">{p.name}</span>
+                      {!p.is_mine && (
+                        <Badge variant="secondary" className="text-[9px] h-4 px-1 shrink-0">
+                          shared
+                        </Badge>
+                      )}
+                    </Button>
+                    {p.share_slug && (
+                      <Button
+                        size="icon" variant="ghost" className="h-7 w-7"
+                        onClick={() => handleCopyLink(p)}
+                        aria-label="Copy share link" title="Copy share link"
+                      >
+                        <LinkIcon className="h-3 w-3 text-muted-foreground" />
+                      </Button>
+                    )}
+                    {p.is_mine && (
+                      <>
+                        <Button
+                          size="icon" variant="ghost" className="h-7 w-7"
+                          onClick={() => handleShareToggle(p)}
+                          aria-label="Toggle sharing"
+                          title={p.visibility === 'shared' ? 'Make private' : 'Share with a link'}
+                        >
+                          <Share2 className={cn('h-3 w-3', p.visibility === 'shared' ? 'text-primary' : 'text-muted-foreground')} />
+                        </Button>
+                        <Button
+                          size="icon" variant="ghost" className="h-7 w-7"
+                          onClick={() => handleDelete(p.id)}
+                          aria-label="Delete preset"
+                        >
+                          <Trash2 className="h-3 w-3 text-muted-foreground" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
             )}
           </PopoverContent>
         </Popover>

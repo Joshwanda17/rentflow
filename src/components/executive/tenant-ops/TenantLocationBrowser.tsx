@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
@@ -36,6 +36,8 @@ import {
   DEFAULT_FILTERS, timeWindowToISO, applyLeafFilters,
   exportLeafToCSV, exportLeafToPDF, downloadCSV, type TenantOpsFilters,
 } from '@/lib/tenantOpsFilters';
+import { resolvePresetBySlug } from '@/lib/tenantOpsPresets';
+import { toast } from 'sonner';
 
 const LEVEL_ICON: Record<string, any> = {
   country: MapPin, region: MapPin, district: MapPin, ward: MapPin,
@@ -153,6 +155,35 @@ const LEVEL_PLACEHOLDER: Record<string, string> = {
 export function TenantLocationBrowser() {
   const [path, setPath] = useState<TenantBreadcrumbPath>({});
   const [filters, setFilters] = useState<TenantOpsFilters>(DEFAULT_FILTERS);
+
+  // Load shared preset from ?preset=<slug> on mount.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const slug = params.get('preset');
+    if (!slug) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const preset = await resolvePresetBySlug(slug);
+        if (cancelled) return;
+        if (preset) {
+          setFilters({ ...DEFAULT_FILTERS, ...preset.filters });
+          toast.success(`Loaded shared preset: ${preset.name}`);
+        } else {
+          toast.error('Shared preset not found or no longer available');
+        }
+      } catch (e: any) {
+        if (!cancelled) toast.error(e?.message ?? 'Could not load shared preset');
+      } finally {
+        // strip the param so refreshes don't reapply it after the user changes filters
+        const url = new URL(window.location.href);
+        url.searchParams.delete('preset');
+        window.history.replaceState({}, '', url.toString());
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   const fundedWindow = useMemo(
     () => timeWindowToISO(filters.timeWindow, { from: filters.customFrom, until: filters.customUntil }),
     [filters.timeWindow, filters.customFrom, filters.customUntil],
