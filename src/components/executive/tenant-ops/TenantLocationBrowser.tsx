@@ -196,10 +196,9 @@ export function TenantLocationBrowser() {
 
   return (
     <div className="space-y-3">
-      <TenantOpsFilterBar
-        filters={filters}
-        onChange={setFilters}
-      />
+      {level !== 'tenants' && (
+        <TenantOpsFilterBar filters={filters} onChange={setFilters} />
+      )}
       <Card className="p-2.5 bg-muted/30">
         <div className="flex items-center gap-2">
           <div className="flex-1 min-w-0">
