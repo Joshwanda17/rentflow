@@ -43,11 +43,14 @@ interface ApprovedRentItem {
   agent_name: string;
   has_landlord_wallet: boolean;
   payout_target: 'landlord_wallet' | 'agent_float';
+  request_country: string | null;
+  request_city: string | null;
 }
 
 export function RentDisbursementQueue() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [agentFilter, setAgentFilter] = useState<string>('all');
+  const [countryFilter, setCountryFilter] = useState<string>('all');
   const [batchRef, setBatchRef] = useState('');
   const [rejectTarget, setRejectTarget] = useState<ApprovedRentItem | null>(null);
   const [rejectReason, setRejectReason] = useState('');
@@ -61,7 +64,7 @@ export function RentDisbursementQueue() {
       // Get COO-approved rent requests
       const { data: requests, error } = await supabase
         .from('rent_requests')
-        .select('id, rent_amount, tenant_id, landlord_id, agent_id, assigned_agent_id, access_fee, request_fee, total_repayment, created_at')
+        .select('id, rent_amount, tenant_id, landlord_id, agent_id, assigned_agent_id, access_fee, request_fee, total_repayment, created_at, request_country, request_city')
         .eq('status', 'coo_approved')
         .order('created_at', { ascending: true });
       if (error) throw error;
@@ -111,6 +114,8 @@ export function RentDisbursementQueue() {
           agent_name: agentId ? (profileMap.get(agentId) || 'Unknown Agent') : 'No Agent',
           has_landlord_wallet: hasWallet,
           payout_target: hasWallet ? 'landlord_wallet' as const : 'agent_float' as const,
+          request_country: (r as any).request_country ?? null,
+          request_city: (r as any).request_city ?? null,
         };
       });
     },
