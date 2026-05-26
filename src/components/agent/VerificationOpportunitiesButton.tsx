@@ -143,11 +143,16 @@ export function VerificationOpportunitiesButton() {
     <>
       <button
         onClick={handleOpen}
-        className="fixed bottom-24 sm:bottom-28 right-4 z-40 flex items-center gap-1.5 px-3 py-2 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 touch-manipulation text-xs active:scale-95 transition-transform"
+        className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-md shadow-primary/20 touch-manipulation active:scale-[0.99] transition-transform"
       >
-        <Shield className="h-3.5 w-3.5" />
-        <span className="font-bold">Verify & Earn</span>
-        <Badge variant="outline" className="bg-white/20 border-white/30 text-primary-foreground text-[10px] px-1 py-0">
+        <div className="h-9 w-9 rounded-full bg-white/15 flex items-center justify-center shrink-0">
+          <Shield className="h-5 w-5" />
+        </div>
+        <div className="flex-1 min-w-0 text-left">
+          <p className="font-bold text-sm leading-tight">Verify &amp; Earn</p>
+          <p className="text-[11px] opacity-90 leading-tight mt-0.5">UGX 5,000–10,000 bonuses available</p>
+        </div>
+        <Badge variant="outline" className="bg-white/20 border-white/30 text-primary-foreground text-xs px-2 py-0.5 shrink-0">
           {totalCount}
         </Badge>
       </button>
