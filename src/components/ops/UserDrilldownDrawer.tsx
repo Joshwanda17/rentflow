@@ -1028,3 +1028,70 @@ function LandlordSmartphoneToggle({
     </div>
   );
 }
+
+/* ------------------------------------------------------------------ */
+/* Recent wallet ledger statements for an agent (mirrors what the     */
+/* agent sees on their own wallet dashboard).                          */
+/* ------------------------------------------------------------------ */
+function AgentWalletStatements({ agentId }: { agentId: string }) {
+  const { data: entries = [], isLoading } = useQuery({
+    queryKey: ['drilldown-agent-statements', agentId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('general_ledger')
+        .select('id, transaction_date, amount, direction, category, description')
+        .eq('user_id', agentId)
+        .in('ledger_scope', ['wallet', 'bridge'])
+        .or('classification.neq.admin_correction,category.neq.system_balance_correction')
+        .order('transaction_date', { ascending: false })
+        .limit(25);
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!agentId,
+  });
+
+  return (
+    <Card className="p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <ReceiptText className="h-4 w-4 text-primary" /> Wallet statements
+        </div>
+        <Badge variant="outline" className="text-[10px]">last {entries.length}</Badge>
+      </div>
+      {isLoading ? (
+        <Loader2 className="h-4 w-4 animate-spin mx-auto my-2" />
+      ) : entries.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No wallet activity yet.</p>
+      ) : (
+        <ul className="space-y-1 text-xs max-h-72 overflow-y-auto pr-1">
+          {entries.map((e: any) => {
+            const isIn = e.direction === 'cash_in';
+            return (
+              <li key={e.id} className="flex items-start justify-between gap-2 border-b border-border/40 py-1.5">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-medium truncate capitalize">
+                    {String(e.category ?? '').replace(/_/g, ' ')}
+                  </p>
+                  {e.description && (
+                    <p className="text-[10px] text-muted-foreground truncate">{e.description}</p>
+                  )}
+                  <p className="text-[10px] text-muted-foreground">
+                    {e.transaction_date ? format(parseISO(e.transaction_date), 'dd MMM yyyy, HH:mm') : '—'}
+                  </p>
+                </div>
+                <span
+                  className={`font-semibold whitespace-nowrap text-[11px] ${
+                    isIn ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'
+                  }`}
+                >
+                  {isIn ? '+' : '−'} {fmtUGX(e.amount)}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Card>
+  );
+}
