@@ -1074,6 +1074,13 @@ export function TenantOpsDashboard() {
       icon: History,
       color: 'bg-violet-500/10 text-violet-600 border-violet-200',
     },
+    {
+      id: 'location-browser' as ActiveView,
+      label: 'Browse by Location',
+      description: 'Drill country → region → district → ward → agent → landlord → properties',
+      icon: MapPin,
+      color: 'bg-sky-500/10 text-sky-600 border-sky-200',
+    },
   ];
 
   const goBack = () => {
