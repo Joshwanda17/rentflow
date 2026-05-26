@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
@@ -16,6 +16,7 @@ import {
   User, Home, UserCheck, MapPin, Loader2, Link2, Plus, Phone,
   Wallet, ShieldAlert, Building2, ReceiptText, Smartphone, SmartphoneNfc,
   Search, Pencil, X, TrendingUp, Users, Sparkles, Download, FileText,
+  ChevronRight, ArrowLeft,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
@@ -65,15 +66,29 @@ export function UserDrilldownDrawer({
   const [pickedUser, setPickedUser] = useState<UserBrief | null>(null);
   const effectiveTenantId = pickedUser?.id ?? tenantId ?? null;
   const isOps = useIsOpsRole();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  // Track where the user came from so the tenant pane can show "← Back to agent"
+  const [cameFromAgent, setCameFromAgent] = useState(false);
 
   const handleSelectTenant = (id: string, name: string) => {
     setPickedUser({ id, full_name: name, phone: null });
     setTab('tenant');
+    setCameFromAgent(true);
+    // Scroll the drawer back to the top so the freshly-loaded tenant
+    // profile is visible immediately instead of leaving the user on the
+    // (now-hidden) Tenants-under-management section.
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    });
   };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto p-0">
+      <SheetContent
+        ref={scrollRef as any}
+        side="right"
+        className="w-full sm:max-w-2xl overflow-y-auto p-0"
+      >
         <SheetHeader className="px-4 sm:px-6 pt-5 pb-3 border-b">
           <SheetTitle className="text-lg">User drill-down</SheetTitle>
           <SheetDescription className="text-xs">
@@ -110,7 +125,13 @@ export function UserDrilldownDrawer({
           </TabsList>
 
           <TabsContent value="tenant" className="py-4">
-            {effectiveTenantId && <TenantPane tenantId={effectiveTenantId} isOps={isOps} />}
+            {effectiveTenantId && (
+              <TenantPane
+                tenantId={effectiveTenantId}
+                isOps={isOps}
+                onBackToAgent={cameFromAgent && agentId ? () => { setTab('agent'); scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); } : undefined}
+              />
+            )}
           </TabsContent>
           <TabsContent value="agent" className="py-4">
             {agentId && <AgentPane agentId={agentId} isOps={isOps} onSelectTenant={handleSelectTenant} />}
