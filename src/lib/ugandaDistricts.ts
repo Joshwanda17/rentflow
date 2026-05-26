@@ -90,3 +90,107 @@ export function normalizeUgandaRegion(raw: string | null | undefined): string {
   if (direct) return direct;
   return DISTRICT_TO_REGION[key] ?? cleaned;
 }
+
+/**
+ * UI-friendly grouping of Uganda into FIVE regions (Central, Eastern,
+ * Western, Northern, Southern). Uganda officially has 4 administrative
+ * regions, so "Southern" is a display-only grouping of southern
+ * districts that actually belong to Central / Western. Each entry
+ * keeps the canonical backend region so filtering/queries still
+ * resolve correctly when a district is picked.
+ */
+export interface UgandaDistrictEntry {
+  name: string;
+  /** Canonical region stored in the database (Central/Eastern/Northern/Western). */
+  backendRegion: typeof UGANDA_REGIONS[number];
+}
+
+export interface UgandaRegionGroup {
+  /** Label shown in the UI (e.g. "Central Uganda"). */
+  label: string;
+  /** Short key for state. */
+  key: 'central' | 'eastern' | 'western' | 'northern' | 'southern';
+  districts: UgandaDistrictEntry[];
+}
+
+export const UGANDA_REGION_GROUPS: UgandaRegionGroup[] = [
+  {
+    label: 'Central Uganda',
+    key: 'central',
+    districts: [
+      { name: 'Kampala', backendRegion: 'Central' },
+      { name: 'Wakiso', backendRegion: 'Central' },
+      { name: 'Mukono', backendRegion: 'Central' },
+      { name: 'Mpigi', backendRegion: 'Central' },
+      { name: 'Luwero', backendRegion: 'Central' },
+      { name: 'Mityana', backendRegion: 'Central' },
+      { name: 'Mubende', backendRegion: 'Central' },
+      { name: 'Nakasongola', backendRegion: 'Central' },
+      { name: 'Kayunga', backendRegion: 'Central' },
+      { name: 'Buikwe', backendRegion: 'Central' },
+      { name: 'Butambala', backendRegion: 'Central' },
+      { name: 'Gomba', backendRegion: 'Central' },
+      { name: 'Kyankwanzi', backendRegion: 'Central' },
+    ],
+  },
+  {
+    label: 'Eastern Uganda',
+    key: 'eastern',
+    districts: [
+      { name: 'Jinja', backendRegion: 'Eastern' },
+      { name: 'Mbale', backendRegion: 'Eastern' },
+      { name: 'Soroti', backendRegion: 'Eastern' },
+      { name: 'Iganga', backendRegion: 'Eastern' },
+      { name: 'Tororo', backendRegion: 'Eastern' },
+      { name: 'Busia', backendRegion: 'Eastern' },
+      { name: 'Kapchorwa', backendRegion: 'Eastern' },
+      { name: 'Pallisa', backendRegion: 'Eastern' },
+    ],
+  },
+  {
+    label: 'Western Uganda',
+    key: 'western',
+    districts: [
+      { name: 'Mbarara', backendRegion: 'Western' },
+      { name: 'Kasese', backendRegion: 'Western' },
+      { name: 'Hoima', backendRegion: 'Western' },
+      { name: 'Fort Portal', backendRegion: 'Western' },
+      { name: 'Kabarole', backendRegion: 'Western' },
+      { name: 'Bushenyi', backendRegion: 'Western' },
+      { name: 'Ibanda', backendRegion: 'Western' },
+    ],
+  },
+  {
+    label: 'Northern Uganda',
+    key: 'northern',
+    districts: [
+      { name: 'Gulu', backendRegion: 'Northern' },
+      { name: 'Lira', backendRegion: 'Northern' },
+      { name: 'Arua', backendRegion: 'Northern' },
+      { name: 'Kitgum', backendRegion: 'Northern' },
+      { name: 'Pader', backendRegion: 'Northern' },
+      { name: 'Moyo', backendRegion: 'Northern' },
+      { name: 'Nebbi', backendRegion: 'Northern' },
+      { name: 'Adjumani', backendRegion: 'Northern' },
+    ],
+  },
+  {
+    // Display-only grouping. Districts here are officially in Central
+    // or Western; we keep their canonical backendRegion intact.
+    label: 'Southern Uganda',
+    key: 'southern',
+    districts: [
+      { name: 'Masaka', backendRegion: 'Central' },
+      { name: 'Kalangala', backendRegion: 'Central' },
+      { name: 'Lwengo', backendRegion: 'Central' },
+      { name: 'Lyantonde', backendRegion: 'Central' },
+      { name: 'Rakai', backendRegion: 'Central' },
+      { name: 'Sembabule', backendRegion: 'Central' },
+      { name: 'Kabale', backendRegion: 'Western' },
+      { name: 'Kanungu', backendRegion: 'Western' },
+      { name: 'Kisoro', backendRegion: 'Western' },
+      { name: 'Rukungiri', backendRegion: 'Western' },
+      { name: 'Ntungamo', backendRegion: 'Western' },
+    ],
+  },
+];
