@@ -241,25 +241,6 @@ function UgandaRegionDistrictPicker({
   );
 }
 
-function TenantTileGrid({
-  rows, level, loading, onPick,
-}: { rows: TenantBreakdownRow[]; level: string; loading: boolean; onPick: (r: TenantBreakdownRow) => void }) {
-  const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<QuickFilter>('all');
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return rows.filter(r => {
-      if (q && !r.label.toLowerCase().includes(q)) return false;
-      if (filter === 'linked' && r.occupied === 0) return false;
-      if (filter === 'pending' && r.vacant === 0) return false;
-      if (filter === 'revenue' && r.revenue_ugx <= 0) return false;
-      return true;
-    });
-  }, [rows, search, filter]);
-
-}
-
 /**
  * Curated administrative-area picker for a single district (e.g. Wakiso).
  * Renders EVERY official sub-county / town council / division from
@@ -396,7 +377,7 @@ function DistrictAreaPicker({
   );
 }
 
-function _TenantTileGridRest({
+function TenantTileGrid({
   rows, level, loading, onPick,
 }: { rows: TenantBreakdownRow[]; level: string; loading: boolean; onPick: (r: TenantBreakdownRow) => void }) {
   const [search, setSearch] = useState('');
