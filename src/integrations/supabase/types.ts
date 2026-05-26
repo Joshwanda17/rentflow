@@ -16752,8 +16752,10 @@ export type Database = {
           p_city?: string
           p_country?: string
           p_district?: string
+          p_from?: string
           p_limit?: number
           p_offset?: number
+          p_to?: string
         }
         Returns: {
           landlord_id: string
@@ -16778,7 +16780,14 @@ export type Database = {
         }[]
       }
       get_geo_user_coverage: {
-        Args: { p_city?: string; p_country?: string; p_district?: string }
+        Args: {
+          p_city?: string
+          p_country?: string
+          p_district?: string
+          p_from?: string
+          p_roles?: string[]
+          p_to?: string
+        }
         Returns: {
           agents: number
           bucket: string
