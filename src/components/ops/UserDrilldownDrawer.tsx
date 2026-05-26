@@ -14,10 +14,12 @@ import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import {
   User, Home, UserCheck, MapPin, Loader2, Link2, Plus, Phone,
-  Wallet, ShieldAlert, Building2, ReceiptText,
+  Wallet, ShieldAlert, Building2, ReceiptText, Smartphone, SmartphoneNfc,
+  Search,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
+import { Switch } from '@/components/ui/switch';
 
 type UserBrief = { id: string; full_name: string | null; phone: string | null };
 
@@ -57,6 +59,9 @@ export function UserDrilldownDrawer({
   open, onOpenChange, tenantId, agentId, landlordId, defaultTab = 'landlord',
 }: Props) {
   const [tab, setTab] = useState<'tenant' | 'agent' | 'landlord'>(defaultTab);
+  // Global "open any user" — overrides tenantId when a user is picked
+  const [pickedUser, setPickedUser] = useState<UserBrief | null>(null);
+  const effectiveTenantId = pickedUser?.id ?? tenantId ?? null;
   const isOps = useIsOpsRole();
 
   return (
@@ -70,9 +75,23 @@ export function UserDrilldownDrawer({
           </SheetDescription>
         </SheetHeader>
 
+        {isOps && (
+          <div className="px-4 sm:px-6 pt-3 pb-1 border-b bg-muted/20">
+            <div className="flex items-center gap-2 text-[11px] text-muted-foreground mb-1">
+              <Search className="h-3 w-3" /> Find any user — tenant, agent, landlord, funder, anyone
+            </div>
+            <UserSearchPicker
+              label=""
+              placeholder="Search by name or phone (any country, any agent, any town)"
+              selectedUser={pickedUser as any}
+              onSelect={(u) => { setPickedUser(u as any); if (u) setTab('tenant'); }}
+            />
+          </div>
+        )}
+
         <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="px-4 sm:px-6 pt-3">
           <TabsList className="grid grid-cols-3 w-full">
-            <TabsTrigger value="tenant" disabled={!tenantId}>
+            <TabsTrigger value="tenant" disabled={!effectiveTenantId}>
               <User className="h-3.5 w-3.5 mr-1" /> Tenant
             </TabsTrigger>
             <TabsTrigger value="agent" disabled={!agentId}>
@@ -84,7 +103,7 @@ export function UserDrilldownDrawer({
           </TabsList>
 
           <TabsContent value="tenant" className="py-4">
-            {tenantId && <TenantPane tenantId={tenantId} isOps={isOps} />}
+            {effectiveTenantId && <TenantPane tenantId={effectiveTenantId} isOps={isOps} />}
           </TabsContent>
           <TabsContent value="agent" className="py-4">
             {agentId && <AgentPane agentId={agentId} isOps={isOps} />}
@@ -108,7 +127,7 @@ function useProfile(id: string) {
       const { data, error } = await supabase
         .from('profiles')
         .select(
-          'id, full_name, phone, continent, country, region, district, city, town, sub_county, parish, village, landmark, residence_lat, residence_lng, address_complete',
+          'id, full_name, phone, continent, country, region, district, city, town, sub_county, parish, village, landmark, residence_lat, residence_lng, address_complete, has_smartphone',
         )
         .eq('id', id)
         .maybeSingle();
@@ -170,6 +189,9 @@ function LocationEditor({
     village: profile?.village ?? '',
     landmark: profile?.landmark ?? '',
   });
+  const [hasSmartphone, setHasSmartphone] = useState<boolean>(
+    profile?.has_smartphone ?? true,
+  );
   const [gps, setGps] = useState<{ lat: number | null; lng: number | null; acc: number | null }>(
     { lat: profile?.residence_lat ?? null, lng: profile?.residence_lng ?? null, acc: null },
   );
@@ -203,16 +225,17 @@ function LocationEditor({
         p_longitude: gps.lng,
         p_accuracy: gps.acc,
         p_reason: reason.trim(),
+        p_has_smartphone: hasSmartphone,
       });
       if (error) throw error;
       return data;
     },
     onSuccess: () => {
-      toast.success('Location updated');
+      toast.success('Profile updated');
       qc.invalidateQueries({ queryKey: ['drilldown-profile', userId] });
       setReason('');
     },
-    onError: (e: any) => toast.error(e.message ?? 'Failed to update location'),
+    onError: (e: any) => toast.error(e.message ?? 'Failed to update profile'),
   });
 
   return (
@@ -256,6 +279,15 @@ function LocationEditor({
             <span className="ml-1">Capture</span>
           </Button>
         )}
+      </div>
+      <div className="flex items-center justify-between gap-2 rounded-md border border-border px-2 py-1.5">
+        <div className="flex items-center gap-2 text-xs">
+          {hasSmartphone ? <Smartphone className="h-3.5 w-3.5 text-emerald-600" /> : <SmartphoneNfc className="h-3.5 w-3.5 text-amber-600" />}
+          <span className="font-medium">
+            {hasSmartphone ? 'Has a smartphone' : 'No smartphone (USSD / agent-led)'}
+          </span>
+        </div>
+        <Switch checked={hasSmartphone} onCheckedChange={setHasSmartphone} disabled={!canEdit} />
       </div>
       {canEdit && (
         <>
@@ -512,7 +544,7 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
     queryKey: ['drilldown-landlord', landlordId],
     queryFn: async () => {
       const { data } = await supabase.from('landlords')
-        .select('id, name, phone, mobile_money_number, property_address, monthly_rent, verified')
+        .select('id, name, phone, mobile_money_number, property_address, monthly_rent, verified, has_smartphone')
         .eq('id', landlordId).maybeSingle();
       return data;
     },
@@ -583,6 +615,7 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
         {landlord?.monthly_rent != null && (
           <p className="text-xs">Default rent: <b>{fmtUGX(landlord.monthly_rent)}</b></p>
         )}
+        <LandlordSmartphoneToggle landlordId={landlordId} initial={landlord?.has_smartphone ?? true} canEdit={isOps} />
       </Card>
 
       <Card className="p-3 space-y-2">
@@ -659,6 +692,71 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
         </div>
         <p className="text-xs text-muted-foreground italic">Coming soon — confirm data model to enable.</p>
       </Card>
+    </div>
+  );
+}
+
+function LandlordSmartphoneToggle({
+  landlordId, initial, canEdit,
+}: { landlordId: string; initial: boolean; canEdit: boolean }) {
+  const qc = useQueryClient();
+  const [val, setVal] = useState<boolean>(initial);
+  const [reason, setReason] = useState('');
+  const [editing, setEditing] = useState(false);
+  const save = useMutation({
+    mutationFn: async (next: boolean) => {
+      if (reason.trim().length < 10) throw new Error('Reason must be ≥ 10 characters');
+      const { error } = await supabase.rpc('ops_update_landlord_smartphone', {
+        p_landlord_id: landlordId,
+        p_has_smartphone: next,
+        p_reason: reason.trim(),
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Smartphone flag updated');
+      setEditing(false); setReason('');
+      qc.invalidateQueries({ queryKey: ['drilldown-landlord', landlordId] });
+    },
+    onError: (e: any) => toast.error(e.message ?? 'Update failed'),
+  });
+
+  return (
+    <div className="mt-1 pt-2 border-t border-border/40 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-xs">
+          {val ? <Smartphone className="h-3.5 w-3.5 text-emerald-600" /> : <SmartphoneNfc className="h-3.5 w-3.5 text-amber-600" />}
+          <span className="font-medium">{val ? 'Has smartphone' : 'No smartphone (USSD / agent-led)'}</span>
+        </div>
+        {canEdit && (
+          <Switch
+            checked={val}
+            onCheckedChange={(v) => { setVal(v); setEditing(true); }}
+          />
+        )}
+      </div>
+      {canEdit && editing && (
+        <div className="space-y-1.5">
+          <Input
+            placeholder="Reason (min 10 chars)"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            className="h-8 text-xs"
+          />
+          <div className="flex gap-2">
+            <Button size="sm" className="flex-1 h-7"
+              disabled={save.isPending || reason.trim().length < 10}
+              onClick={() => save.mutate(val)}>
+              {save.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+              Save
+            </Button>
+            <Button size="sm" variant="ghost" className="h-7"
+              onClick={() => { setVal(initial); setEditing(false); setReason(''); }}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
