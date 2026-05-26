@@ -671,25 +671,28 @@ function TenantQuickActions({
 }
 
 function TenantExportButtons({
-  tenantId, profile, activeRr, balance, activeLandlord,
+  tenantId, profile, activeRr, balance, activeLandlord, dateRange,
 }: {
   tenantId: string;
   profile: any;
   activeRr: any;
   balance: number;
   activeLandlord: any;
+  dateRange: StatementDateRange;
 }) {
   const [busy, setBusy] = useState<null | 'csv' | 'pdf'>(null);
 
   const fetchStatements = async () => {
-    const { data, error } = await supabase
+    const { gte, lte } = buildDateRange(dateRange);
+    let q = supabase
       .from('general_ledger')
       .select('transaction_date, amount, direction, category, description')
       .eq('user_id', tenantId)
       .in('category', ['rent_obligation', 'tenant_repayment', 'rent_repayment'])
-      .neq('classification', 'admin_correction')
-      .order('transaction_date', { ascending: false })
-      .limit(500);
+      .neq('classification', 'admin_correction');
+    if (gte) q = q.gte('transaction_date', gte);
+    if (lte) q = q.lte('transaction_date', lte);
+    const { data, error } = await q.order('transaction_date', { ascending: false }).limit(500);
     if (error) throw error;
     return data ?? [];
   };
