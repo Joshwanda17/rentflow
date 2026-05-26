@@ -279,6 +279,55 @@ export function GeographicCoveragePanel() {
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Per-agent breakdown drill */}
+      <Sheet open={agentDrillOpen} onOpenChange={setAgentDrillOpen}>
+        <SheetContent className="w-full sm:max-w-3xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Briefcase className="h-4 w-4 text-primary" />
+              Agents in this area — tenants, landlords & partners
+            </SheetTitle>
+            <p className="text-xs text-muted-foreground">
+              Scope: {[country, district, city].filter(Boolean).join(' › ') || 'All locations'}
+            </p>
+          </SheetHeader>
+          {loadingAgents ? (
+            <div className="py-10 flex items-center justify-center text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading…
+            </div>
+          ) : agentRows.length === 0 ? (
+            <div className="py-10 text-center text-sm text-muted-foreground">No agents in this area.</div>
+          ) : (
+            <div className="mt-4 border rounded-md">
+              <div className="grid grid-cols-12 gap-2 px-3 py-2 bg-muted/40 text-[11px] font-semibold uppercase text-muted-foreground">
+                <div className="col-span-4">Agent</div>
+                <div className="col-span-3">Location</div>
+                <div className="col-span-1 text-right">Tenants</div>
+                <div className="col-span-2 text-right">Landlords</div>
+                <div className="col-span-2 text-right">Partners</div>
+              </div>
+              {agentRows.map((a) => (
+                <div key={a.agent_id} className="grid grid-cols-12 gap-2 px-3 py-2 text-sm border-t items-center">
+                  <div className="col-span-4">
+                    <div className="font-medium truncate">{a.agent_name || '—'}</div>
+                    <div className="text-xs text-muted-foreground">{a.agent_phone || ''}</div>
+                  </div>
+                  <div className="col-span-3 text-xs text-muted-foreground truncate">
+                    {[a.agent_city, a.agent_district, a.agent_country].filter(Boolean).join(', ') || '—'}
+                  </div>
+                  <div className="col-span-1 text-right tabular-nums">{fmt(Number(a.tenants_count))}</div>
+                  <div className="col-span-2 text-right tabular-nums">{fmt(Number(a.landlords_count))}</div>
+                  <div className="col-span-2 text-right tabular-nums">{fmt(Number(a.partners_count))}</div>
+                </div>
+              ))}
+              <div className="px-3 py-2 text-[11px] text-muted-foreground border-t">
+                Showing {agentRows.length} agent{agentRows.length === 1 ? '' : 's'} (max 500). Sorted by total reach.
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </Card>
   );
 }
