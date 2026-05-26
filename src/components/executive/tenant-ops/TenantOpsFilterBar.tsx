@@ -26,6 +26,7 @@ interface Props {
   resultCount?: number;
   totalCount?: number;
   onExportCSV?: () => void;
+  onExportPDF?: () => void;
   exportDisabled?: boolean;
 }
 
@@ -79,7 +80,7 @@ const SORT_OPTIONS: { key: LeafSortKey; label: string }[] = [
 ];
 
 export function TenantOpsFilterBar({
-  filters, onChange, resultCount, totalCount, onExportCSV, exportDisabled,
+  filters, onChange, resultCount, totalCount, onExportCSV, onExportPDF, exportDisabled,
 }: Props) {
   const [presets, setPresets] = useState<TenantOpsPreset[]>(() => loadPresets());
   const [presetName, setPresetName] = useState('');
