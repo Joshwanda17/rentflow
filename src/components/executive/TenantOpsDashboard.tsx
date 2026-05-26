@@ -22,6 +22,7 @@ import { TenantRegistrationReview } from './TenantRegistrationReview';
 import { AgentAllocationReport } from './AgentAllocationReport';
 import { TenantOpsLandlordFloatPanel } from './TenantOpsLandlordFloatPanel';
 import { TenantOpsLandlordFloatTimeline } from './TenantOpsLandlordFloatTimeline';
+import { LocationBrowser } from './landlord-ops/LocationBrowser';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -59,7 +60,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { ChevronDown } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
-type ActiveView = 'overview' | 'pipeline' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'transfer-audit' | 'collect-rent' | 'agent-tenants' | 'tenant-detail' | 'registration-review' | 'advance-requests' | 'agent-allocations' | 'daily-collections' | 'landlord-float' | 'landlord-float-timeline';
+type ActiveView = 'overview' | 'pipeline' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'transfer-audit' | 'collect-rent' | 'agent-tenants' | 'tenant-detail' | 'registration-review' | 'advance-requests' | 'agent-allocations' | 'daily-collections' | 'landlord-float' | 'landlord-float-timeline' | 'location-browser';
 
 interface NavCard {
   id: ActiveView;
@@ -1073,6 +1074,13 @@ export function TenantOpsDashboard() {
       icon: History,
       color: 'bg-violet-500/10 text-violet-600 border-violet-200',
     },
+    {
+      id: 'location-browser' as ActiveView,
+      label: 'Browse by Location',
+      description: 'Drill country → region → district → ward → agent → landlord → properties',
+      icon: MapPin,
+      color: 'bg-sky-500/10 text-sky-600 border-sky-200',
+    },
   ];
 
   const goBack = () => {
@@ -1277,6 +1285,8 @@ export function TenantOpsDashboard() {
         return <TenantOpsLandlordFloatPanel />;
       case 'landlord-float-timeline':
         return <TenantOpsLandlordFloatTimeline />;
+      case 'location-browser':
+        return <LocationBrowser />;
       case 'daily-collections':
         return <DailyCollectionMonitoringDashboard mode="editable" title="Daily Collection Monitoring" />;
       default:
@@ -1320,6 +1330,21 @@ export function TenantOpsDashboard() {
                 <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">Open landlord-payout earmarks · trace agent → tenant → landlord</p>
               </div>
               <ArrowRight className="h-5 w-5 text-[#9234EA] shrink-0" />
+            </button>
+
+            {/* HERO #2: Booking.com-style location drill-down */}
+            <button
+              onClick={() => { setActiveView('location-browser'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+              className="w-full rounded-xl border-2 border-sky-500/50 bg-gradient-to-r from-sky-500/10 via-sky-500/5 to-transparent p-3.5 flex items-center gap-3 text-left min-h-[64px] touch-manipulation active:scale-[0.98] transition-transform shadow-sm"
+            >
+              <div className="p-2 rounded-lg bg-sky-500/15">
+                <MapPin className="h-5 w-5 text-sky-600 shrink-0" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-sm text-foreground leading-tight">Drill down by Location</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">Country → Region → District → Ward → Agent → Landlord → Properties</p>
+              </div>
+              <ArrowRight className="h-5 w-5 text-sky-600 shrink-0" />
             </button>
 
             {/* Sticky mobile quick-actions — always reachable */}
