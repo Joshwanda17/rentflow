@@ -1307,6 +1307,21 @@ export function TenantOpsDashboard() {
             transition={{ duration: 0.15 }}
             className="space-y-3"
           >
+            {/* HERO: Tenants whose landlords were funded — always first */}
+            <button
+              onClick={() => { setActiveView('landlord-float'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+              className="w-full rounded-xl border-2 border-[#9234EA]/50 bg-gradient-to-r from-[#9234EA]/10 via-[#9234EA]/5 to-transparent p-3.5 flex items-center gap-3 text-left min-h-[64px] touch-manipulation active:scale-[0.98] transition-transform shadow-sm"
+            >
+              <div className="p-2 rounded-lg bg-[#9234EA]/15">
+                <Landmark className="h-5 w-5 text-[#9234EA] shrink-0" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-sm text-foreground leading-tight">Tenants whose Landlords were Funded</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">Open landlord-payout earmarks · trace agent → tenant → landlord</p>
+              </div>
+              <ArrowRight className="h-5 w-5 text-[#9234EA] shrink-0" />
+            </button>
+
             {/* Sticky mobile quick-actions — always reachable */}
             <div className="sticky top-0 z-30 -mx-2 px-2 py-1.5 bg-background/95 backdrop-blur border-b sm:hidden">
               <div className="grid grid-cols-4 gap-1.5">
