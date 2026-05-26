@@ -1718,14 +1718,24 @@ function TenantStatements({
     enabled: !!tenantId,
   });
 
+  const rangeLabel =
+    dateRange.preset === 'today'
+      ? 'Today'
+      : dateRange.preset === 'this_month'
+        ? 'This month'
+        : dateRange.preset === 'custom' && dateRange.from && dateRange.to
+          ? `${format(dateRange.from, 'dd MMM')} – ${format(dateRange.to, 'dd MMM')}`
+          : 'All time';
+
   return (
     <Card className="p-3 space-y-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm font-medium">
           <ReceiptText className="h-4 w-4 text-primary" /> Transactions & statements
         </div>
-        <Badge variant="outline" className="text-[10px]">last {entries.length}</Badge>
+        <Badge variant="outline" className="text-[10px]">{entries.length} · {rangeLabel}</Badge>
       </div>
+      <StatementDateFilter value={dateRange} onChange={onDateRangeChange} />
       {isLoading ? (
         <Loader2 className="h-4 w-4 animate-spin mx-auto my-2" />
       ) : entries.length === 0 ? (
