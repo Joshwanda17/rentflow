@@ -16,7 +16,7 @@ import {
   User, Home, UserCheck, MapPin, Loader2, Link2, Plus, Phone,
   Wallet, ShieldAlert, Building2, ReceiptText, Smartphone, SmartphoneNfc,
   Search, Pencil, X, TrendingUp, Users, Sparkles, Download, FileText,
-  ChevronRight, ArrowLeft, MessageSquare, StickyNote, CheckCircle2, XCircle,
+  ChevronRight, ChevronLeft, ArrowLeft, MessageSquare, StickyNote, CheckCircle2, XCircle,
   CalendarIcon, Info, AlertTriangle, RefreshCw, Filter,
 } from 'lucide-react';
 import {
