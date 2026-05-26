@@ -1192,6 +1192,7 @@ const STATUS_GROUPS: Record<TenantFilter, string[]> = {
 
 function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSelectTenant?: (id: string, name: string) => void }) {
   const [filter, setFilter] = useState<TenantFilter>('all');
+  const [search, setSearch] = useState('');
   const { data, isLoading } = useQuery({
     queryKey: ['drilldown-agent-tenants', agentId],
     queryFn: async () => {
@@ -1242,10 +1243,21 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
 
   const filtered = useMemo(() => {
     if (!data) return [];
-    if (filter === 'all') return data;
-    const allowed = STATUS_GROUPS[filter];
-    return data.filter((row) => allowed.includes(row.status));
-  }, [data, filter]);
+    let out = data;
+    if (filter !== 'all') {
+      const allowed = STATUS_GROUPS[filter];
+      out = out.filter((row) => allowed.includes(row.status));
+    }
+    const q = search.trim().toLowerCase();
+    if (q) {
+      out = out.filter((row) => {
+        const name = (row.tenant?.full_name ?? '').toLowerCase();
+        const phone = (row.tenant?.phone ?? '').toLowerCase();
+        return name.includes(q) || phone.includes(q);
+      });
+    }
+    return out;
+  }, [data, filter, search]);
 
   const filterButtons: { key: TenantFilter; label: string }[] = [
     { key: 'all', label: 'All' },
