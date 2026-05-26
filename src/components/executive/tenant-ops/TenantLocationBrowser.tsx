@@ -710,7 +710,6 @@ function TenantTileGrid({
   rows, level, loading, onPick,
 }: { rows: TenantBreakdownRow[]; level: string; loading: boolean; onPick: (r: TenantBreakdownRow) => void }) {
   const [search, setSearch] = useState('');
-  // (region grouping for top-level country view is handled by AfricaCountryPicker)
   const [filter, setFilter] = useState<QuickFilter>('all');
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
