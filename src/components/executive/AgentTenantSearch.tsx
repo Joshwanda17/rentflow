@@ -5,10 +5,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Search, Loader2, Users, User, Phone, ChevronRight, ArrowLeft, Wallet, AlertTriangle, Share2 } from 'lucide-react';
+import { Search, Loader2, Users, User, Phone, ChevronRight, ArrowLeft, Wallet, AlertTriangle, Share2, Home } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { generateAgentTenantPdf } from '@/lib/generateAgentTenantPdf';
+import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
 
 interface AgentResult {
   id: string;
