@@ -140,12 +140,23 @@ export function AgentTenantCollectDialog({
     }
     setLoading(true);
     setRpcError(null);
+    // Progressive feedback so Chrome users on slow networks don't feel
+    // the app has frozen. Two toasts at 4s and 10s, cancelled on resolve.
+    const slowToast = setTimeout(() => {
+      toast.loading('Still processing… holding your float steady.', {
+        id: 'allocate-progress',
+      });
+    }, 4000);
+    const verySlowToast = setTimeout(() => {
+      toast.loading('Network is slow — waiting a few more seconds. Do NOT tap again.', {
+        id: 'allocate-progress',
+      });
+    }, 10000);
     try {
-      // Race the RPC against a 25s timeout. Without this, a stalled
-      // network (we've seen `TypeError: Failed to fetch` from Supabase
-      // in flaky preview/PWA conditions) leaves the Confirm button
-      // stuck on the spinner forever — users perceive this as the app
-      // freezing.
+      // Race the RPC against a 15s timeout. Chrome users on flaky
+      // networks were perceiving the previous 25s spinner as a freeze.
+      // 15s + progressive toasts gives a clear "still working" signal
+      // and bails out cleanly if the request truly stalled.
       const rpcPromise = supabase.rpc('agent_allocate_tenant_payment', {
         p_agent_id: user.id,
         p_tenant_id: tenant.id,
@@ -163,7 +174,7 @@ export function AgentTenantCollectDialog({
                   'Network is too slow or offline. Check your connection and try Confirm again — your float was NOT charged.',
               },
             }),
-          25000,
+          15000,
         ),
       );
       const { data, error } = (await Promise.race([rpcPromise, timeoutPromise])) as any;
@@ -268,6 +279,9 @@ export function AgentTenantCollectDialog({
       setRpcError(msg);
       toast.error('Allocation failed', { description: msg });
     } finally {
+      clearTimeout(slowToast);
+      clearTimeout(verySlowToast);
+      toast.dismiss('allocate-progress');
       setLoading(false);
     }
   };
