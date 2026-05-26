@@ -441,6 +441,231 @@ function LocationEditor({
 /* ------------------------------------------------------------------ */
 /* Tenant pane                                                         */
 /* ------------------------------------------------------------------ */
+function TenantQuickActions({
+  tenantId, tenantName, tenantPhone, activeRentRequestId,
+}: {
+  tenantId: string;
+  tenantName: string | null;
+  tenantPhone: string | null;
+  activeRentRequestId: string | null;
+}) {
+  const qc = useQueryClient();
+  const { user } = useAuth() as any;
+  const [statusOpen, setStatusOpen] = useState(false);
+  const [statusChoice, setStatusChoice] = useState<'paying' | 'not_paying'>('not_paying');
+  const [statusReason, setStatusReason] = useState('');
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [note, setNote] = useState('');
+
+  const setStatus = useRentPaymentStatusMutation(undefined);
+
+  const phoneHref = tenantPhone ? `tel:${tenantPhone.replace(/\s+/g, '')}` : null;
+  const smsHref = tenantPhone
+    ? `sms:${tenantPhone.replace(/\s+/g, '')}?body=${encodeURIComponent(
+        `Hi${tenantName ? ' ' + tenantName.split(' ')[0] : ''}, this is your Welile agent. `,
+      )}`
+    : null;
+
+  const saveNote = useMutation({
+    mutationFn: async () => {
+      const trimmed = note.trim();
+      if (trimmed.length < 5) throw new Error('Note must be at least 5 characters');
+      if (!user?.id) throw new Error('Not signed in');
+      const { error } = await supabase
+        .from('ops_inbox_state')
+        .upsert(
+          {
+            ops_user_id: user.id,
+            tenant_id: tenantId,
+            notes: trimmed,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'ops_user_id,tenant_id' },
+        );
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Note saved');
+      setNote('');
+      setNoteOpen(false);
+      qc.invalidateQueries({ queryKey: ['ops-inbox'] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? 'Could not save note'),
+  });
+
+  const submitStatus = () => {
+    if (!activeRentRequestId) {
+      toast.error('No active rent request to update');
+      return;
+    }
+    if (statusChoice === 'not_paying' && statusReason.trim().length < 10) {
+      toast.error('Reason must be at least 10 characters');
+      return;
+    }
+    setStatus.mutate(
+      {
+        rentRequestId: activeRentRequestId,
+        status: statusChoice,
+        reason: statusReason.trim() || 'Marked as paying',
+      },
+      {
+        onSuccess: () => {
+          setStatusOpen(false);
+          setStatusReason('');
+        },
+      },
+    );
+  };
+
+  const Action = ({
+    icon: Icon, label, onClick, disabled, color = 'primary',
+  }: {
+    icon: any; label: string; onClick: () => void; disabled?: boolean;
+    color?: 'primary' | 'success' | 'warning';
+  }) => {
+    const colorMap = {
+      primary: 'bg-primary/10 text-primary',
+      success: 'bg-emerald-500/10 text-emerald-600',
+      warning: 'bg-amber-500/10 text-amber-600',
+    } as const;
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        className="flex flex-col items-center justify-center gap-1 rounded-xl border border-border bg-card p-2.5 text-center transition-all hover:bg-accent/40 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
+      >
+        <div className={`p-2 rounded-lg ${colorMap[color]}`}>
+          <Icon className="h-4 w-4" />
+        </div>
+        <span className="text-[10px] font-semibold leading-tight">{label}</span>
+      </button>
+    );
+  };
+
+  return (
+    <>
+      <Card className="p-2">
+        <div className="grid grid-cols-4 gap-2">
+          <Action
+            icon={Phone}
+            label="Call"
+            disabled={!phoneHref}
+            onClick={() => phoneHref && window.open(phoneHref, '_self')}
+          />
+          <Action
+            icon={MessageSquare}
+            label="Message"
+            color="success"
+            disabled={!smsHref}
+            onClick={() => smsHref && window.open(smsHref, '_self')}
+          />
+          <Action
+            icon={CheckCircle2}
+            label="Mark status"
+            color="warning"
+            disabled={!activeRentRequestId}
+            onClick={() => setStatusOpen(true)}
+          />
+          <Action
+            icon={StickyNote}
+            label="Add note"
+            onClick={() => setNoteOpen(true)}
+          />
+        </div>
+        {!activeRentRequestId && (
+          <p className="mt-1.5 text-[10px] text-muted-foreground text-center">
+            No active rent request — Mark status is disabled.
+          </p>
+        )}
+      </Card>
+
+      {/* Mark status dialog */}
+      <Dialog open={statusOpen} onOpenChange={setStatusOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Mark payment status</DialogTitle>
+            <DialogDescription>
+              {tenantName ?? 'This tenant'} — controls whether they count toward your daily target.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setStatusChoice('paying')}
+                className={`flex items-center justify-center gap-1.5 rounded-lg border p-2.5 text-xs font-semibold transition-all ${
+                  statusChoice === 'paying'
+                    ? 'border-emerald-500 bg-emerald-500/10 text-emerald-700'
+                    : 'border-border text-muted-foreground'
+                }`}
+              >
+                <CheckCircle2 className="h-4 w-4" /> Paying
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusChoice('not_paying')}
+                className={`flex items-center justify-center gap-1.5 rounded-lg border p-2.5 text-xs font-semibold transition-all ${
+                  statusChoice === 'not_paying'
+                    ? 'border-amber-500 bg-amber-500/10 text-amber-700'
+                    : 'border-border text-muted-foreground'
+                }`}
+              >
+                <XCircle className="h-4 w-4" /> Not paying
+              </button>
+            </div>
+            {statusChoice === 'not_paying' && (
+              <div className="space-y-1">
+                <Label className="text-xs">Reason (min 10 chars)</Label>
+                <Textarea
+                  value={statusReason}
+                  onChange={(e) => setStatusReason(e.target.value)}
+                  placeholder="Why is this tenant not paying right now?"
+                  rows={3}
+                  className="text-sm"
+                />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" size="sm" onClick={() => setStatusOpen(false)}>Cancel</Button>
+            <Button size="sm" onClick={submitStatus} disabled={setStatus.isPending}>
+              {setStatus.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add note dialog */}
+      <Dialog open={noteOpen} onOpenChange={setNoteOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Add note</DialogTitle>
+            <DialogDescription>
+              Private note attached to {tenantName ?? 'this tenant'}'s ops inbox row.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="What should the team know?"
+            rows={4}
+            className="text-sm"
+          />
+          <DialogFooter>
+            <Button variant="ghost" size="sm" onClick={() => setNoteOpen(false)}>Cancel</Button>
+            <Button size="sm" onClick={() => saveNote.mutate()} disabled={saveNote.isPending}>
+              {saveNote.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+              Save note
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 function TenantPane({
   tenantId, isOps, onBackToAgent,
 }: { tenantId: string; isOps: boolean; onBackToAgent?: () => void }) {
