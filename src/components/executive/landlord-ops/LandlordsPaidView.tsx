@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
   Loader2, Banknote, Search, CheckCircle2, Clock, ChevronRight,
-  Phone, Users, CalendarClock,
+  Phone, Users, CalendarClock, MessageCircle, ShieldCheck, ShieldX, Receipt,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
 } from '@/components/ui/drawer';
+import { toast } from 'sonner';
 
 type Period = 'all' | '30d' | '7d' | 'today';
 type ConfFilter = 'all' | 'confirmed' | 'pending';
@@ -48,6 +49,10 @@ interface LandlordGroup {
   pendingCount: number;
   lastPaidAt: string;
   records: DisbursementRow[];
+  receipt_verification_status: 'true_landlord' | 'false_landlord' | null;
+  receipt_verification_at: string | null;
+  receipt_requested_at: string | null;
+  receipt_request_channel: 'whatsapp' | 'call' | null;
 }
 
 function periodCutoff(p: Period): Date | null {
@@ -108,9 +113,9 @@ export function LandlordsPaidView() {
       for (let i = 0; i < landlordIds.length; i += 200) {
         const { data: ll } = await supabase
           .from('landlords')
-          .select('id, name, phone, mobile_money_number')
+          .select('id, name, phone, mobile_money_number, receipt_verification_status, receipt_verification_at, receipt_requested_at, receipt_request_channel')
           .in('id', landlordIds.slice(i, i + 200));
-        for (const l of ll || []) landlordMap.set(l.id, l);
+        for (const l of ll || []) landlordMap.set(l.id, l as any);
       }
 
       // 4. Delivery confirmations for disbursement rows
