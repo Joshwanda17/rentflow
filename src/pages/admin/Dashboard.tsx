@@ -144,7 +144,7 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
+      <div className="flex-1 overflow-y-auto max-w-5xl mx-auto px-4 py-8 space-y-8 w-full">
         <div>
           <h1 className="text-2xl font-black text-foreground">Dashboard Access Panel</h1>
           <p className="text-sm text-muted-foreground mt-1">Open any executive or operations dashboard you have access to</p>
