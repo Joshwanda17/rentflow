@@ -216,6 +216,52 @@ export function TenantOpsFilterBar({
 
       {/* Status / presets / export row */}
       <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5 basis-full">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mr-1">
+            Balance
+          </span>
+          {OUTSTANDING_CHIPS.map((c) => (
+            <Button
+              key={c.key}
+              size="sm"
+              variant={filters.outstanding === c.key ? 'default' : 'outline'}
+              className="h-7 px-2 text-[11px]"
+              onClick={() => patch({ outstanding: c.key })}
+            >
+              {c.label}
+            </Button>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5 basis-full">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mr-1">
+            Verification
+          </span>
+          {VERIFICATION_CHIPS.map((c) => (
+            <Button
+              key={c.key}
+              size="sm"
+              variant={filters.verification === c.key ? 'default' : 'outline'}
+              className="h-7 px-2 text-[11px]"
+              onClick={() => patch({ verification: c.key })}
+            >
+              {c.label}
+            </Button>
+          ))}
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground ml-2 mr-1">
+            Source
+          </span>
+          {FUNDING_CHIPS.map((c) => (
+            <Button
+              key={c.key}
+              size="sm"
+              variant={filters.fundingSource === c.key ? 'default' : 'outline'}
+              className="h-7 px-2 text-[11px]"
+              onClick={() => patch({ fundingSource: c.key })}
+            >
+              {c.label}
+            </Button>
+          ))}
+        </div>
         {active && (
           <Button
             size="sm"
