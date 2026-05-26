@@ -531,6 +531,7 @@ export function ProxyPartnerFunds() {
         strictMap[row.user_id] = Number(row.withdrawable) || 0;
       });
       setStrictWithdrawableByPartner(strictMap);
+      setAgentStrictWithdrawable(strictMap[user.id] || 0);
       // Resolve a partner key for every row: prefer linked_party (legacy
       // custody), fall back to user_id when it matches a known partner
       // (Custody V2). Anything that doesn't resolve is dropped.
