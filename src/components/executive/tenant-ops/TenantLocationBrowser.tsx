@@ -4,8 +4,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Loader2, MapPin, User, Home, ChevronRight, Phone, Image as ImageIcon, Search, X } from 'lucide-react';
+import { Loader2, MapPin, User, Home, ChevronRight, Phone, Image as ImageIcon, Search, X, Maximize2 } from 'lucide-react';
 import { TenantLocationBreadcrumbs } from './TenantLocationBreadcrumbs';
+import { ImageZoomLightbox } from '@/components/executive/landlord-ops/ImageZoomLightbox';
 import { formatUGX } from '@/lib/rentCalculations';
 import {
   useTenantLocationBreakdown,
@@ -259,6 +260,9 @@ function TenantCard({ t, expanded, onToggle }: { t: TenantLeaf; expanded: boolea
   const initials = (t.tenant_name || '?').split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
   const tenantImg = t.tenant_photo_url || t.tenant_avatar_url || undefined;
   const houseImgs = (t.house_image_urls ?? []).filter(Boolean);
+  const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
+  const galleryImgs = tenantImg ? [tenantImg, ...houseImgs] : houseImgs;
+  const openAt = (i: number) => (e: React.MouseEvent) => { e.stopPropagation(); setLightboxIdx(i); };
 
   return (
     <Card className="p-3 cursor-pointer hover:border-primary transition" onClick={onToggle}>
@@ -299,18 +303,60 @@ function TenantCard({ t, expanded, onToggle }: { t: TenantLeaf; expanded: boolea
             </div>
           )}
           {houseImgs.length > 0 ? (
-            <div className="grid grid-cols-3 gap-1.5">
-              {houseImgs.slice(0, 6).map((url, i) => (
-                <a key={i} href={url} target="_blank" rel="noreferrer" className="block aspect-square rounded overflow-hidden bg-muted">
-                  <img src={url} alt={`House photo ${i + 1}`} className="w-full h-full object-cover" loading="lazy" />
-                </a>
-              ))}
+            <div className="space-y-1.5">
+              <button
+                type="button"
+                onClick={openAt(tenantImg ? 1 : 0)}
+                className="relative block w-full aspect-[16/10] rounded-lg overflow-hidden bg-muted group"
+              >
+                <img
+                  src={houseImgs[0]}
+                  alt={`House photo 1`}
+                  className="w-full h-full object-cover group-hover:scale-[1.02] transition"
+                  loading="lazy"
+                />
+                <div className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-[10px] text-white">
+                  <Maximize2 className="h-3 w-3" />
+                  {houseImgs.length} photo{houseImgs.length === 1 ? '' : 's'} · tap to zoom
+                </div>
+              </button>
+              {houseImgs.length > 1 && (
+                <div className="grid grid-cols-4 gap-1.5">
+                  {houseImgs.slice(1, 5).map((url, i) => {
+                    const realIdx = (tenantImg ? 1 : 0) + (i + 1);
+                    const isOverflow = i === 3 && houseImgs.length > 5;
+                    return (
+                      <button
+                        key={realIdx}
+                        type="button"
+                        onClick={openAt(realIdx)}
+                        className="relative block aspect-square rounded overflow-hidden bg-muted"
+                      >
+                        <img src={url} alt={`House photo ${i + 2}`} className="w-full h-full object-cover" loading="lazy" />
+                        {isOverflow && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/55 text-white text-xs font-semibold">
+                            +{houseImgs.length - 5}
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           ) : (
             <p className="text-[11px] text-muted-foreground flex items-center gap-1">
               <ImageIcon className="h-3 w-3" /> No house photos uploaded yet.
             </p>
           )}
+
+          <ImageZoomLightbox
+            images={galleryImgs}
+            startIndex={lightboxIdx}
+            open={lightboxIdx !== null}
+            onClose={() => setLightboxIdx(null)}
+            altPrefix={t.tenant_name || 'Tenant'}
+          />
         </div>
       )}
     </Card>
