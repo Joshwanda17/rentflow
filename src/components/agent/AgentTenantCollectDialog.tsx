@@ -851,6 +851,7 @@ export function AgentTenantCollectDialog({
             </Button>
           </div>
         )}
+        </div>
       </DialogContent>
     </Dialog>
 
