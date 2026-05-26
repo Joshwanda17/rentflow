@@ -345,6 +345,7 @@ export function AgentTenantCollectDialog({
           // Mobile: true bottom sheet (slides from bottom, ~88vh, internal
           // scroll, sticky header). Desktop: standard centered card.
           [
+            "app-dialog-bottom-sheet",
             "!left-0 !right-0 !top-auto !bottom-0",
             "!translate-x-0 !translate-y-0",
             "!max-w-none !w-full",
