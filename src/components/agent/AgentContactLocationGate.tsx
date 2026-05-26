@@ -124,17 +124,12 @@ export default function AgentContactLocationGate({
     );
   };
 
-  // Auto-attempt GPS once when opened
-  useEffect(() => {
-    if (open && lat === null && !gpsLoading) captureGPS();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
-
-  const ready = !!resolvedCountry && (!isUganda || !!district) && lat !== null && lng !== null;
+  // GPS is optional — agents can save address-only and still earn the bonus.
+  const ready = !!resolvedCountry && (!isUganda || !!district);
 
   const handleSubmit = async () => {
     if (!ready) {
-      toast.error("Fill country, district and capture GPS first");
+      toast.error(isUganda ? "Pick a country and district first" : "Pick a country first");
       return;
     }
     setSubmitting(true);
@@ -155,16 +150,23 @@ export default function AgentContactLocationGate({
             parish: parish.trim(),
             village: village.trim(),
           },
-          p_latitude: lat!,
-          p_longitude: lng!,
+          p_latitude: lat ?? undefined,
+          p_longitude: lng ?? undefined,
           p_accuracy: accuracy ?? undefined,
           p_landmark: landmark.trim() || undefined,
         } as any,
       );
       if (error) throw error;
-      toast.success("Location saved", {
-        description: "Trust score updated. You can now continue.",
-      });
+      const bonus = (data as any)?.bonus;
+      if (bonus?.status === "credited") {
+        toast.success("Location saved · +UGX 100 bonus", {
+          description: "Bonus credited to your withdrawable wallet.",
+        });
+      } else {
+        toast.success("Location saved", {
+          description: "Thanks — you can continue.",
+        });
+      }
       onComplete();
     } catch (e: any) {
       console.error("[AgentContactLocationGate] save failed", e);
@@ -178,12 +180,12 @@ export default function AgentContactLocationGate({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o && !blocking) onCancel?.(); }}>
-      <DialogContent
-        onPointerDownOutside={(e) => blocking && e.preventDefault()}
-        onEscapeKeyDown={(e) => blocking && e.preventDefault()}
-        onInteractOutside={(e) => blocking && e.preventDefault()}
-        className="sm:max-w-lg max-h-[90vh] overflow-y-auto [&>button]:hidden"
-      >
+        <DialogContent
+          onPointerDownOutside={(e) => blocking && e.preventDefault()}
+          onEscapeKeyDown={(e) => blocking && e.preventDefault()}
+          onInteractOutside={(e) => blocking && e.preventDefault()}
+          className="w-[calc(100vw-1.5rem)] sm:max-w-lg max-h-[90vh] overflow-y-auto p-4 sm:p-6 [&>button]:hidden"
+        >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MapPin className="h-5 w-5 text-primary" />
@@ -195,33 +197,13 @@ export default function AgentContactLocationGate({
           </DialogDescription>
         </DialogHeader>
 
-        {/* GPS block */}
-        <div className="rounded-xl border bg-muted/30 p-3 space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="text-sm font-medium flex items-center gap-1.5">
-              <Crosshair className="h-4 w-4 text-primary" /> GPS coordinates
-            </div>
-            <Button
-              type="button"
-              size="sm"
-              variant={lat ? "outline" : "default"}
-              onClick={captureGPS}
-              disabled={gpsLoading}
-            >
-              {gpsLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : (lat ? "Recapture" : "Capture now")}
-            </Button>
-          </div>
-          {lat !== null && lng !== null ? (
-            <p className="text-xs text-muted-foreground">
-              {lat.toFixed(6)}, {lng.toFixed(6)} · ±{Math.round(accuracy ?? 0)}m
-            </p>
-          ) : (
-            <p className="text-xs text-destructive">GPS required — tap "Capture now"</p>
-          )}
+        {/* Bonus banner */}
+        <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm">
+          Earn <strong>UGX 100</strong> to your withdrawable wallet for completing this location.
         </div>
 
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Country <span className="text-destructive">*</span></Label>
               <Select value={country} onValueChange={setCountry}>
@@ -253,7 +235,7 @@ export default function AgentContactLocationGate({
 
           {isUganda ? (
             <>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label>Region</Label>
                   <Input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="e.g. Central" maxLength={60} />
@@ -263,18 +245,18 @@ export default function AgentContactLocationGate({
                   <DistrictCombobox value={district} onChange={setDistrict} />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5"><Label>City</Label><Input value={city} onChange={(e)=>setCity(e.target.value)} maxLength={60} /></div>
                 <div className="space-y-1.5"><Label>Town</Label><Input value={town} onChange={(e)=>setTown(e.target.value)} maxLength={60} /></div>
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1.5"><Label>Ward</Label><Input value={subCounty} onChange={(e)=>setSubCounty(e.target.value)} maxLength={60} /></div>
                 <div className="space-y-1.5"><Label>Cell</Label><Input value={parish} onChange={(e)=>setParish(e.target.value)} maxLength={60} /></div>
                 <div className="space-y-1.5"><Label>Village</Label><Input value={village} onChange={(e)=>setVillage(e.target.value)} maxLength={60} /></div>
               </div>
             </>
           ) : (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5"><Label>Region / State</Label><Input value={region} onChange={(e)=>setRegion(e.target.value)} maxLength={60} /></div>
               <div className="space-y-1.5"><Label>City</Label><Input value={city} onChange={(e)=>setCity(e.target.value)} maxLength={60} /></div>
               <div className="space-y-1.5"><Label>District / County</Label><Input value={district} onChange={(e)=>setDistrict(e.target.value)} maxLength={60} /></div>
