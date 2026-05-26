@@ -1,4 +1,6 @@
 import { useState, useMemo } from 'react';
+import { useQueries } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -94,12 +96,42 @@ function UgandaRegionDistrictPicker({
   onPickDistrict: (district: string, backendRegion: string) => void;
 }) {
   const [openRegion, setOpenRegion] = useState<string | null>('central');
-  // Note: per-UI-group tenant totals are intentionally omitted. UI groups
-  // (e.g. Southern) draw districts from multiple backend regions, so a
-  // simple sum of backend region totals would double-count tenants across
-  // Central / Western / Southern. Accurate per-group totals would require
-  // a district-level breakdown, which we skip here in favour of the
-  // district tiles below (each shows its own count after drill-down).
+
+  // Fetch district-level tenant counts for each of the 4 backend regions
+  // in parallel so we can purple-highlight every district that has at
+  // least one tenant, and show live counts per district + per group.
+  const districtQueries = useQueries({
+    queries: (['Central', 'Eastern', 'Northern', 'Western'] as const).map((br) => ({
+      queryKey: ['tenant-location-breakdown', 'district', 'Uganda', br],
+      staleTime: 5 * 60 * 1000,
+      queryFn: async () => {
+        const { data, error } = await supabase.rpc('get_tenant_location_breakdown' as any, {
+          p_level: 'district',
+          p_country: 'Uganda',
+          p_region: br,
+          p_district: null,
+          p_ward: null,
+          p_agent_id: null,
+        });
+        if (error) throw error;
+        return { backendRegion: br, rows: (data ?? []) as TenantBreakdownRow[] };
+      },
+    })),
+  });
+
+  // Map "backendRegion::district" (lowercased) → tenant total.
+  const districtTotals = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const q of districtQueries) {
+      if (!q.data) continue;
+      for (const r of q.data.rows) {
+        m[`${q.data.backendRegion}::${r.label}`.toLowerCase()] = r.total;
+      }
+    }
+    return m;
+  }, [districtQueries]);
+  const countFor = (name: string, backendRegion: string) =>
+    districtTotals[`${backendRegion}::${name}`.toLowerCase()] ?? 0;
 
   return (
     <div className="space-y-2">
@@ -110,7 +142,8 @@ function UgandaRegionDistrictPicker({
       )}
       {UGANDA_REGION_GROUPS.map((group) => {
         const isOpen = openRegion === group.key;
-        // Sum tenants across all backend regions that this UI group draws from.
+        const groupTotal = group.districts.reduce((s, d) => s + countFor(d.name, d.backendRegion), 0);
+        const groupActive = group.districts.filter((d) => countFor(d.name, d.backendRegion) > 0).length;
         return (
           <Card key={group.key} className="overflow-hidden">
             <button
@@ -125,6 +158,11 @@ function UgandaRegionDistrictPicker({
                 <Badge variant="secondary" className="text-[10px] shrink-0">
                   {group.districts.length} districts
                 </Badge>
+                {groupActive > 0 && (
+                  <Badge className="text-[10px] shrink-0 bg-purple-600 hover:bg-purple-600 text-white border-transparent">
+                    {groupActive} active · {groupTotal.toLocaleString()} tenants
+                  </Badge>
+                )}
               </div>
               <ChevronDown
                 className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`}
@@ -133,26 +171,59 @@ function UgandaRegionDistrictPicker({
             {isOpen && (
               <div className="border-t bg-muted/20 p-2">
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-                  {group.districts.map((d) => (
-                    <button
-                      key={`${group.key}-${d.name}`}
-                      onClick={() => onPickDistrict(d.name, d.backendRegion)}
-                      className="group text-left"
-                    >
-                      <Card className="p-2.5 h-full hover:border-primary hover:shadow-sm transition active:scale-[0.98]">
-                        <div className="flex items-center justify-between gap-1.5">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                            <span className="text-xs font-semibold truncate">{d.name}</span>
+                  {group.districts.map((d) => {
+                    const count = countFor(d.name, d.backendRegion);
+                    const hasUsers = count > 0;
+                    return (
+                      <button
+                        key={`${group.key}-${d.name}`}
+                        onClick={() => onPickDistrict(d.name, d.backendRegion)}
+                        className="group text-left"
+                      >
+                        <Card
+                          className={`p-2.5 h-full transition active:scale-[0.98] ${
+                            hasUsers
+                              ? 'bg-purple-50 border-purple-400 hover:border-purple-600 hover:shadow-sm dark:bg-purple-950/30 dark:border-purple-700'
+                              : 'hover:border-primary hover:shadow-sm'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-1.5">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <MapPin
+                                className={`h-3.5 w-3.5 shrink-0 ${
+                                  hasUsers ? 'text-purple-600 dark:text-purple-400' : 'text-muted-foreground'
+                                }`}
+                              />
+                              <span
+                                className={`text-xs font-semibold truncate ${
+                                  hasUsers ? 'text-purple-900 dark:text-purple-100' : ''
+                                }`}
+                              >
+                                {d.name}
+                              </span>
+                            </div>
+                            <ChevronRight
+                              className={`h-3.5 w-3.5 shrink-0 ${
+                                hasUsers
+                                  ? 'text-purple-600 dark:text-purple-400'
+                                  : 'text-muted-foreground group-hover:text-primary'
+                              }`}
+                            />
                           </div>
-                          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary shrink-0" />
-                        </div>
-                        <p className="mt-1 text-[10px] text-muted-foreground">
-                          {d.backendRegion} region
-                        </p>
-                      </Card>
-                    </button>
-                  ))}
+                          <div className="mt-1 flex items-center justify-between gap-1">
+                            <p className="text-[10px] text-muted-foreground">
+                              {d.backendRegion} region
+                            </p>
+                            {hasUsers && (
+                              <span className="text-[10px] font-semibold text-purple-700 dark:text-purple-300">
+                                {count.toLocaleString()}
+                              </span>
+                            )}
+                          </div>
+                        </Card>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
