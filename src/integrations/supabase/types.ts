@@ -17283,6 +17283,8 @@ export type Database = {
           p_agent_id?: string
           p_country?: string
           p_district?: string
+          p_funded_since?: string
+          p_funded_until?: string
           p_level: string
           p_region?: string
           p_ward?: string
@@ -17320,6 +17322,8 @@ export type Database = {
           p_agent_id: string
           p_country: string
           p_district: string
+          p_funded_since?: string
+          p_funded_until?: string
           p_landlord_id: string
           p_limit?: number
           p_region: string
@@ -17332,8 +17336,11 @@ export type Database = {
           district: string
           house_category: string
           house_image_urls: string[]
+          landlord_funded_amount: number
+          landlord_funded_at: string
           landlord_id: string
           landlord_name: string
+          landlord_payout_count: number
           region: string
           rent_amount: number
           rent_request_id: string
