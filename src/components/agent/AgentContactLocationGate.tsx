@@ -16,7 +16,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, MapPin, Crosshair } from "lucide-react";
+import { Loader2, MapPin, Crosshair, Check, ChevronsUpDown } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { UGANDA_DISTRICTS } from "@/lib/ugandaDistricts";
@@ -250,12 +260,7 @@ export default function AgentContactLocationGate({
                 </div>
                 <div className="space-y-1.5">
                   <Label>District <span className="text-destructive">*</span></Label>
-                  <Select value={district} onValueChange={setDistrict}>
-                    <SelectTrigger><SelectValue placeholder="District" /></SelectTrigger>
-                    <SelectContent>
-                      {UGANDA_DISTRICTS.map((d) => (<SelectItem key={d} value={d}>{d}</SelectItem>))}
-                    </SelectContent>
-                  </Select>
+                  <DistrictCombobox value={district} onChange={setDistrict} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
