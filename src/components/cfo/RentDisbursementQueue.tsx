@@ -462,13 +462,13 @@ export function RentDisbursementQueue() {
             <div className="space-y-3 max-h-[420px] overflow-y-auto">
               {visibleGroups.length === 0 && (
                 <div className="text-center py-6 text-xs text-muted-foreground">
-                  No tenants for this agent.{' '}
+                  No tenants match the current filters.{' '}
                   <button
                     type="button"
                     className="text-primary hover:underline"
-                    onClick={() => setAgentFilter('all')}
+                    onClick={() => { setAgentFilter('all'); setCountryFilter('all'); setDateFilter('all'); }}
                   >
-                    Clear filter
+                    Clear all filters
                   </button>
                 </div>
               )}
