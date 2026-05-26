@@ -529,6 +529,12 @@ function TenantPane({
         </button>
       )}
       <ProfileHeader profile={profile} roles={roles} userId={tenantId} canEdit={isOps} />
+      <TenantQuickActions
+        tenantId={tenantId}
+        tenantName={profile?.full_name ?? null}
+        tenantPhone={profile?.phone ?? null}
+        activeRentRequestId={activeRr?.id ?? null}
+      />
       <LocationEditor userId={tenantId} profile={profile} canEdit={isOps /* agent edit handled elsewhere */} />
 
       <Card className="p-3 space-y-2">
