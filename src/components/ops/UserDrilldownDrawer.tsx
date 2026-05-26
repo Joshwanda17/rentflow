@@ -1474,6 +1474,51 @@ function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord }: { agent
         </Card>
       )}
 
+      {viewMode === 'listings' && (
+        <Card className="p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Building2 className="h-4 w-4 text-primary" /> Houses listed
+            </div>
+            <Badge variant="outline" className="text-[10px]">{listings.length}</Badge>
+          </div>
+          {listings.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No houses listed by this agent.</p>
+          ) : (
+            <ul className="space-y-2 text-xs">
+              {listings.map((l: any) => (
+                <li key={l.id} className="border border-border/40 rounded-md p-2 space-y-1">
+                  <div className="flex justify-between gap-2">
+                    <span className="truncate font-medium">{l.title}</span>
+                    <span className="font-semibold whitespace-nowrap">{fmtUGX(l.monthly_rent)}</span>
+                  </div>
+                  <div className="flex justify-between items-center gap-2">
+                    <span className="text-muted-foreground truncate">{l.village ?? l.district ?? '—'}</span>
+                    <Badge variant="outline" className="text-[9px]">{l.status}</Badge>
+                  </div>
+                  <div className="flex justify-between items-center gap-2 pt-1 border-t border-border/30">
+                    <span className="text-muted-foreground">Landlord:</span>
+                    {l.landlord_id ? (
+                      <button
+                        type="button"
+                        onClick={() => onSelectLandlord?.(l.landlord_id)}
+                        className="text-primary hover:underline truncate text-right disabled:no-underline disabled:text-foreground"
+                        disabled={!onSelectLandlord}
+                      >
+                        {l.landlord?.name ?? l.landlord_id}
+                        {l.landlord?.phone ? ` · ${l.landlord.phone}` : ''}
+                      </button>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      )}
+
       {/* Network — partners onboarded & referrals */}
       <Card className="p-3 space-y-2">
         <div className="flex items-center gap-2 text-sm font-medium">
