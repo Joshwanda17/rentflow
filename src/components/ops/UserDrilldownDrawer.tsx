@@ -1749,6 +1749,9 @@ function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord }: { agent
 function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolean }) {
   const qc = useQueryClient();
   const [photoUploadFor, setPhotoUploadFor] = useState<any | null>(null);
+  const [galleryPage, setGalleryPage] = useState(0);
+
+  useEffect(() => { setGalleryPage(0); }, [landlordId]);
   const { data: landlord, isLoading } = useQuery({
     queryKey: ['drilldown-landlord', landlordId],
     queryFn: async () => {
