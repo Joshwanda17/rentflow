@@ -92,6 +92,7 @@ function formatUGX(n: number) {
 
 export function FundedTenantsList() {
   const [q, setQ] = useState('');
+  const [countryChipSearch, setCountryChipSearch] = useState('');
   const [share, setShare] = useState<LandlordPayoutShareData | null>(null);
   const [bulk, setBulk] = useState<{ done: number; total: number } | null>(null);
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
