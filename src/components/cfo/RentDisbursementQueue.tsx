@@ -43,11 +43,14 @@ interface ApprovedRentItem {
   agent_name: string;
   has_landlord_wallet: boolean;
   payout_target: 'landlord_wallet' | 'agent_float';
+  request_country: string | null;
+  request_city: string | null;
 }
 
 export function RentDisbursementQueue() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [agentFilter, setAgentFilter] = useState<string>('all');
+  const [countryFilter, setCountryFilter] = useState<string>('all');
   const [batchRef, setBatchRef] = useState('');
   const [rejectTarget, setRejectTarget] = useState<ApprovedRentItem | null>(null);
   const [rejectReason, setRejectReason] = useState('');
@@ -61,7 +64,7 @@ export function RentDisbursementQueue() {
       // Get COO-approved rent requests
       const { data: requests, error } = await supabase
         .from('rent_requests')
-        .select('id, rent_amount, tenant_id, landlord_id, agent_id, assigned_agent_id, access_fee, request_fee, total_repayment, created_at')
+        .select('id, rent_amount, tenant_id, landlord_id, agent_id, assigned_agent_id, access_fee, request_fee, total_repayment, created_at, request_country, request_city')
         .eq('status', 'coo_approved')
         .order('created_at', { ascending: true });
       if (error) throw error;
@@ -111,6 +114,8 @@ export function RentDisbursementQueue() {
           agent_name: agentId ? (profileMap.get(agentId) || 'Unknown Agent') : 'No Agent',
           has_landlord_wallet: hasWallet,
           payout_target: hasWallet ? 'landlord_wallet' as const : 'agent_float' as const,
+          request_country: (r as any).request_country ?? null,
+          request_city: (r as any).request_city ?? null,
         };
       });
     },
@@ -150,9 +155,32 @@ export function RentDisbursementQueue() {
     return [...map.values()].sort((a, b) => b.latest - a.latest);
   }, [items]);
 
+  // Country breakdown — counts + total rent per country across the whole queue.
+  const countryStats = useMemo(() => {
+    const map = new Map<string, { country: string; count: number; total: number }>();
+    for (const it of items) {
+      const key = (it.request_country || '').trim() || 'Unknown';
+      const s = map.get(key) ?? { country: key, count: 0, total: 0 };
+      s.count += 1;
+      s.total += it.rent_amount;
+      map.set(key, s);
+    }
+    return [...map.values()].sort((a, b) => b.total - a.total);
+  }, [items]);
+
+  const countryFilteredGroups = useMemo(() => {
+    if (countryFilter === 'all') return grouped;
+    return grouped
+      .map(g => ({
+        ...g,
+        rows: g.rows.filter(r => ((r.request_country || '').trim() || 'Unknown') === countryFilter),
+      }))
+      .filter(g => g.rows.length > 0);
+  }, [grouped, countryFilter]);
+
   const visibleGroups = useMemo(
-    () => (agentFilter === 'all' ? grouped : grouped.filter(g => g.agent_id === agentFilter)),
-    [grouped, agentFilter],
+    () => (agentFilter === 'all' ? countryFilteredGroups : countryFilteredGroups.filter(g => g.agent_id === agentFilter)),
+    [countryFilteredGroups, agentFilter],
   );
   const visibleItems = useMemo(() => visibleGroups.flatMap(g => g.rows), [visibleGroups]);
   const allSelected = visibleItems.length > 0 && visibleItems.every(i => selected.has(i.id));
@@ -280,6 +308,56 @@ export function RentDisbursementQueue() {
           </div>
         ) : (
           <div className="space-y-3">
+            {/* Country breakdown — click a chip to filter the queue by country */}
+            {countryStats.length > 0 && (
+              <div className="rounded-lg border border-border/60 bg-muted/30 p-2">
+                <div className="flex items-center justify-between mb-1.5 px-1">
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                    Requests by country
+                  </p>
+                  {countryFilter !== 'all' && (
+                    <button
+                      type="button"
+                      className="text-[11px] text-primary hover:underline"
+                      onClick={() => setCountryFilter('all')}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setCountryFilter('all')}
+                    className={cn(
+                      'px-2.5 py-1 rounded-md text-xs border transition-colors',
+                      countryFilter === 'all'
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background hover:bg-muted border-border',
+                    )}
+                  >
+                    🌍 All · {items.length} · {fmt(queueTotalRent)}
+                  </button>
+                  {countryStats.map(c => (
+                    <button
+                      key={c.country}
+                      type="button"
+                      onClick={() => setCountryFilter(c.country)}
+                      className={cn(
+                        'px-2.5 py-1 rounded-md text-xs border transition-colors',
+                        countryFilter === c.country
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-background hover:bg-muted border-border',
+                      )}
+                    >
+                      <span className="font-semibold">{c.country}</span>
+                      <span className="opacity-80"> · {c.count} · {fmt(c.total)}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Select all + agent filter */}
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <label className="flex items-center gap-2 text-sm cursor-pointer">
