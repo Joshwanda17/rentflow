@@ -1035,31 +1035,31 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
                     profileId: profile?.id,
                   });
                   if (floatLoading) {
-                    toast.info("Loading your float…", {
+                    sonnerToast.info("Loading your float…", {
                       description: "Hold on a moment while we fetch your operations float balance.",
                     });
                     return;
                   }
                   if (floatError) {
-                    toast.error("Couldn't load your Operations Float", {
+                    sonnerToast.error("Couldn't load your Operations Float", {
                       description: "Tap Retry above, or check your connection and try again.",
                     });
                     return;
                   }
                   if (agentFloatBalance < 500) {
-                    toast.error("Insufficient operations float", {
+                    sonnerToast.error("Insufficient operations float", {
                       description: `You have ${formatUGX(agentFloatBalance)} in float. Top up your operations float before paying tenant rent.`,
                     });
                     return;
                   }
                   if (summary.activeRequest?.status === 'rejected') {
-                    toast.error("This rent request was rejected", {
+                    sonnerToast.error("This rent request was rejected", {
                       description: "You can't pay from float on a rejected request. Resubmit or start a new request for this tenant.",
                     });
                     return;
                   }
                   if (summary.currentOutstanding <= 0) {
-                    toast.info("Nothing outstanding to pay", {
+                    sonnerToast.info("Nothing outstanding to pay", {
                       description: "This tenant has no outstanding rent right now.",
                     });
                     return;
