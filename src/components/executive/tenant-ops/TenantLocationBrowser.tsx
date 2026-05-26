@@ -258,6 +258,159 @@ function TenantTileGrid({
     });
   }, [rows, search, filter]);
 
+}
+
+/**
+ * Curated administrative-area picker for a single district (e.g. Wakiso).
+ * Renders EVERY official sub-county / town council / division from
+ * UGANDA_DISTRICT_AREAS and overlays live tenant counts from the RPC,
+ * matching by case-insensitive label. Areas with at least one tenant
+ * are highlighted in purple, mirroring the district picker UX.
+ */
+function DistrictAreaPicker({
+  districtName,
+  liveRows,
+  loading,
+  onPickArea,
+}: {
+  districtName: string;
+  liveRows: TenantBreakdownRow[];
+  loading: boolean;
+  onPickArea: (area: string) => void;
+}) {
+  const areas = UGANDA_DISTRICT_AREAS[districtName] ?? [];
+  const [search, setSearch] = useState('');
+
+  // Live counts keyed by lowercased ward label.
+  const liveCounts = useMemo(() => {
+    const m: Record<string, TenantBreakdownRow> = {};
+    for (const r of liveRows) m[r.label.trim().toLowerCase()] = r;
+    return m;
+  }, [liveRows]);
+
+  const countFor = (name: string) => {
+    const key = name.trim().toLowerCase();
+    // Try exact, then strip common suffixes (Division/Town Council) for fuzzy match.
+    if (liveCounts[key]) return liveCounts[key].total;
+    const stripped = key.replace(/\s+(division|town council|sub[- ]county|municipality)$/i, '').trim();
+    return liveCounts[stripped]?.total ?? 0;
+  };
+
+  const q = search.trim().toLowerCase();
+  const filtered = q ? areas.filter((a) => a.toLowerCase().includes(q)) : areas;
+  const activeCount = areas.filter((a) => countFor(a) > 0).length;
+  const totalTenants = areas.reduce((s, a) => s + countFor(a), 0);
+
+  return (
+    <div className="space-y-2">
+      <Card className="p-3 flex flex-wrap items-center gap-2 bg-muted/20">
+        <MapPin className="h-4 w-4 text-primary shrink-0" />
+        <span className="text-sm font-semibold">{districtName} District</span>
+        <Badge variant="secondary" className="text-[10px]">
+          {areas.length} administrative areas
+        </Badge>
+        {activeCount > 0 && (
+          <Badge className="text-[10px] bg-purple-600 hover:bg-purple-600 text-white border-transparent">
+            {activeCount} active · {totalTenants.toLocaleString()} tenants
+          </Badge>
+        )}
+      </Card>
+
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={`Search ${districtName} areas…`}
+          className="pl-8 pr-8 h-9"
+        />
+        {search && (
+          <button
+            onClick={() => setSearch('')}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            aria-label="Clear search"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
+      {loading && (
+        <div className="flex justify-center py-2">
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+        {filtered.map((area) => {
+          const count = countFor(area);
+          const hasUsers = count > 0;
+          return (
+            <button key={area} onClick={() => onPickArea(area)} className="group text-left">
+              <Card
+                className={`p-2.5 h-full transition active:scale-[0.98] ${
+                  hasUsers
+                    ? 'bg-purple-50 border-purple-400 hover:border-purple-600 hover:shadow-sm dark:bg-purple-950/30 dark:border-purple-700'
+                    : 'hover:border-primary hover:shadow-sm'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-1.5">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <MapPin
+                      className={`h-3.5 w-3.5 shrink-0 ${
+                        hasUsers ? 'text-purple-600 dark:text-purple-400' : 'text-muted-foreground'
+                      }`}
+                    />
+                    <span
+                      className={`text-xs font-semibold truncate ${
+                        hasUsers ? 'text-purple-900 dark:text-purple-100' : ''
+                      }`}
+                    >
+                      {area}
+                    </span>
+                  </div>
+                  <ChevronRight
+                    className={`h-3.5 w-3.5 shrink-0 ${
+                      hasUsers
+                        ? 'text-purple-600 dark:text-purple-400'
+                        : 'text-muted-foreground group-hover:text-primary'
+                    }`}
+                  />
+                </div>
+                {hasUsers && (
+                  <p className="mt-1 text-[10px] font-semibold text-purple-700 dark:text-purple-300">
+                    {count.toLocaleString()} tenant{count === 1 ? '' : 's'}
+                  </p>
+                )}
+              </Card>
+            </button>
+          );
+        })}
+      </div>
+      {filtered.length === 0 && (
+        <Card className="py-8 text-center text-sm text-muted-foreground">
+          No areas match your search.
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function _TenantTileGridRest({
+  rows, level, loading, onPick,
+}: { rows: TenantBreakdownRow[]; level: string; loading: boolean; onPick: (r: TenantBreakdownRow) => void }) {
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<QuickFilter>('all');
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return rows.filter(r => {
+      if (q && !r.label.toLowerCase().includes(q)) return false;
+      if (filter === 'linked' && r.occupied === 0) return false;
+      if (filter === 'pending' && r.vacant === 0) return false;
+      if (filter === 'revenue' && r.revenue_ugx <= 0) return false;
+      return true;
+    });
+  }, [rows, search, filter]);
   const Toolbar = (
     <div className="space-y-2">
       <div className="relative">
