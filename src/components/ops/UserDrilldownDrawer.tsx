@@ -1724,6 +1724,21 @@ function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord }: { agent
           </div>
         </div>
       </Card>
+      {photoUploadFor && (
+        <ListingPhotoUploadDialog
+          open={!!photoUploadFor}
+          onOpenChange={(v) => { if (!v) setPhotoUploadFor(null); }}
+          listingId={photoUploadFor.id}
+          listingTitle={photoUploadFor.title}
+          existingUrls={Array.isArray(photoUploadFor.image_urls) ? photoUploadFor.image_urls : []}
+          district={photoUploadFor.district ?? undefined}
+          village={photoUploadFor.village ?? undefined}
+          invalidateKeys={[
+            ['drilldown-agent-listings', agentId],
+            ['drilldown-landlord-listings', photoUploadFor.landlord_id],
+          ]}
+        />
+      )}
     </div>
   );
 }
