@@ -1126,6 +1126,13 @@ function TenantLeafList({
           const stamp = new Date().toISOString().slice(0, 10);
           downloadCSV(`tenants-funded-${stamp}.csv`, csv);
         }}
+        onExportPDF={() => {
+          const subtitle = [path.ward, path.district, path.region, path.country]
+            .filter(Boolean).join(' · ');
+          void exportLeafToPDF(filtered, {
+            subtitle: subtitle || undefined,
+          });
+        }}
       />
       <div className="relative">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
