@@ -1070,6 +1070,7 @@ function TenantPane({
         activeRr={activeRr}
         balance={balance}
         activeLandlord={activeLandlord}
+        dateRange={dateRange}
       />
       <LocationEditor userId={tenantId} profile={profile} canEdit={isOps /* agent edit handled elsewhere */} />
 
