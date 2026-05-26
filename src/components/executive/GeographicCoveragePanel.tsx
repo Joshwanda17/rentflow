@@ -4,11 +4,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronRight, MapPin, Loader2, Home, Users, Wallet, UserCheck, Sparkles, Search, Calendar as CalendarIcon, X, Filter } from 'lucide-react';
+import { ChevronRight, MapPin, Loader2, Home, Users, Wallet, UserCheck, Sparkles, Search, Calendar as CalendarIcon, X, Filter, Globe2, ArrowLeft, RefreshCw } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -55,7 +57,7 @@ export function GeographicCoveragePanel() {
   const p_to = toDate ? new Date(toDate.getTime() + 86_399_000).toISOString() : null; // include end-of-day
   const p_roles = roles.length === ALL_ROLES.length ? null : roles;
 
-  const { data: rows = [], isLoading } = useQuery({
+  const { data: rows = [], isLoading, isFetching, refetch } = useQuery({
     queryKey: ['geo-coverage', country, district, city, p_from, p_to, p_roles?.join(',') ?? 'all'],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_geo_user_coverage', {
@@ -142,23 +144,87 @@ export function GeographicCoveragePanel() {
   const activeFilterCount =
     (search ? 1 : 0) + (fromDate ? 1 : 0) + (toDate ? 1 : 0) + (roles.length !== ALL_ROLES.length ? 1 : 0);
 
+  const scopeLabel = [country, district, city].filter(Boolean).join(' › ') || 'All countries';
+  const nextLevelLabel = currentLevel === 'country' ? 'district' : currentLevel === 'district' ? 'city / town' : null;
+
   return (
+    <TooltipProvider delayDuration={200}>
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <CardTitle className="text-base flex items-center gap-2">
             <MapPin className="h-4 w-4 text-primary" />
             Geographic Coverage
-          </CardTitle>
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <button onClick={reset} className="hover:text-primary underline-offset-2 hover:underline">All countries</button>
-            {country && (<><ChevronRight className="h-3 w-3" /><button onClick={() => { setDistrict(null); setCity(null); }} className="hover:text-primary">{country}</button></>)}
-            {district && (<><ChevronRight className="h-3 w-3" /><button onClick={() => setCity(null)} className="hover:text-primary">{district}</button></>)}
-            {city && (<><ChevronRight className="h-3 w-3" /><span className="text-foreground font-medium">{city}</span></>)}
-            {(country || district || city) && (
-              <Button size="sm" variant="ghost" className="h-6 px-2 ml-1" onClick={back}>Back</Button>
+            {isFetching && !isLoading && (
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" aria-label="Refreshing" />
             )}
+          </CardTitle>
+          <div className="flex items-center gap-1">
+            {(country || district || city) && (
+              <Button size="sm" variant="ghost" className="h-7 px-2 gap-1" onClick={back}>
+                <ArrowLeft className="h-3.5 w-3.5" /> Back
+              </Button>
+            )}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => refetch()} aria-label="Refresh">
+                  <RefreshCw className={cn('h-3.5 w-3.5', isFetching && 'animate-spin')} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Refresh data</TooltipContent>
+            </Tooltip>
           </div>
+        </div>
+        {/* Breadcrumb trail */}
+        <div className="mt-2 flex items-center gap-1 text-xs flex-wrap">
+          <button
+            onClick={reset}
+            className={cn(
+              'flex items-center gap-1 px-2 py-1 rounded hover:bg-accent transition-colors',
+              !country ? 'bg-accent text-foreground font-medium' : 'text-muted-foreground',
+            )}
+          >
+            <Globe2 className="h-3 w-3" /> All countries
+          </button>
+          {country && (
+            <>
+              <ChevronRight className="h-3 w-3 text-muted-foreground" />
+              <button
+                onClick={() => { setDistrict(null); setCity(null); }}
+                className={cn(
+                  'px-2 py-1 rounded hover:bg-accent transition-colors',
+                  !district ? 'bg-accent text-foreground font-medium' : 'text-muted-foreground',
+                )}
+              >
+                {country}
+              </button>
+            </>
+          )}
+          {district && (
+            <>
+              <ChevronRight className="h-3 w-3 text-muted-foreground" />
+              <button
+                onClick={() => setCity(null)}
+                className={cn(
+                  'px-2 py-1 rounded hover:bg-accent transition-colors',
+                  !city ? 'bg-accent text-foreground font-medium' : 'text-muted-foreground',
+                )}
+              >
+                {district}
+              </button>
+            </>
+          )}
+          {city && (
+            <>
+              <ChevronRight className="h-3 w-3 text-muted-foreground" />
+              <span className="px-2 py-1 rounded bg-accent text-foreground font-medium">{city}</span>
+            </>
+          )}
+          {nextLevelLabel && filteredRows.length > 0 && (
+            <span className="ml-auto text-[10px] text-muted-foreground">
+              Click a row to drill into {nextLevelLabel}
+            </span>
+          )}
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -251,40 +317,83 @@ export function GeographicCoveragePanel() {
             <div className="col-span-3 text-right">Funded tenants</div>
           </div>
           {isLoading ? (
-            <div className="p-6 flex items-center justify-center text-muted-foreground text-sm">
-              <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading…
+            <div role="status" aria-label="Loading geographic coverage">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="grid grid-cols-12 gap-2 px-3 py-3 border-t items-center">
+                  <div className="col-span-4"><Skeleton className="h-4 w-2/3" /></div>
+                  <div className="col-span-1"><Skeleton className="h-4 w-full" /></div>
+                  <div className="col-span-2"><Skeleton className="h-4 w-full" /></div>
+                  <div className="col-span-1"><Skeleton className="h-4 w-full" /></div>
+                  <div className="col-span-1"><Skeleton className="h-4 w-full" /></div>
+                  <div className="col-span-3"><Skeleton className="h-4 w-1/2 ml-auto" /></div>
+                </div>
+              ))}
             </div>
           ) : filteredRows.length === 0 ? (
             <div className="p-6 text-center text-sm text-muted-foreground">No records in this area.</div>
           ) : (
-            filteredRows.map((r) => (
-              <button
-                key={r.bucket}
-                onClick={() => onRowClick(r.bucket)}
-                disabled={currentLevel === 'city' || r.bucket === 'Unknown'}
-                className="w-full grid grid-cols-12 gap-2 px-3 py-2 text-sm hover:bg-accent/40 disabled:hover:bg-transparent disabled:cursor-default border-t text-left items-center"
-              >
-                <div className="col-span-4 font-medium flex items-center gap-1 truncate">
-                  {r.bucket}
-                  {currentLevel !== 'city' && r.bucket !== 'Unknown' && (
-                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-                  )}
-                </div>
-                <div className="col-span-1 text-right tabular-nums">{fmt(Number(r.tenants))}</div>
-                <div className="col-span-2 text-right tabular-nums">{fmt(Number(r.landlords))}</div>
-                <div className="col-span-1 text-right tabular-nums">{fmt(Number(r.funders))}</div>
-                <div className="col-span-1 text-right tabular-nums">{fmt(Number(r.agents))}</div>
-                <div className="col-span-3 text-right">
-                  {Number(r.funded_tenants) > 0 ? (
-                    <Badge variant="secondary" className="bg-primary/10 text-primary">
-                      {fmt(Number(r.funded_tenants))}
-                    </Badge>
-                  ) : (
-                    <span className="text-muted-foreground tabular-nums">0</span>
-                  )}
-                </div>
-              </button>
-            ))
+            filteredRows.map((r) => {
+              const total = Number(r.tenants) + Number(r.landlords) + Number(r.funders) + Number(r.agents);
+              const isDrillable = currentLevel !== 'city' && r.bucket !== 'Unknown';
+              return (
+                <Tooltip key={r.bucket}>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => onRowClick(r.bucket)}
+                      disabled={!isDrillable}
+                      className="w-full grid grid-cols-12 gap-2 px-3 py-2 text-sm hover:bg-accent/40 disabled:hover:bg-transparent disabled:cursor-default border-t text-left items-center"
+                    >
+                      <div className="col-span-4 font-medium flex items-center gap-1 truncate">
+                        {r.bucket}
+                        {isDrillable && (
+                          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                        )}
+                      </div>
+                      <CountCell value={r.tenants} label="tenant" bucket={r.bucket} className="col-span-1" />
+                      <CountCell value={r.landlords} label="landlord" bucket={r.bucket} className="col-span-2" />
+                      <CountCell value={r.funders} label="funder" bucket={r.bucket} className="col-span-1" />
+                      <CountCell value={r.agents} label="agent" bucket={r.bucket} className="col-span-1" />
+                      <div className="col-span-3 text-right">
+                        {Number(r.funded_tenants) > 0 ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge variant="secondary" className="bg-primary/10 text-primary cursor-help">
+                                {fmt(Number(r.funded_tenants))}
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <div className="text-xs">
+                                <div className="font-semibold">{fmt(Number(r.funded_tenants))} funded tenant{Number(r.funded_tenants) === 1 ? '' : 's'}</div>
+                                <div className="text-muted-foreground mt-0.5">in {r.bucket}</div>
+                                <div className="text-muted-foreground mt-0.5">Landlord received a Welile rent disbursement.</div>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          <span className="text-muted-foreground tabular-nums">0</span>
+                        )}
+                      </div>
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="left" className="max-w-xs">
+                    <div className="text-xs space-y-1">
+                      <div className="font-semibold">{r.bucket}</div>
+                      <div className="text-muted-foreground">{fmt(total)} total user{total === 1 ? '' : 's'} in this {currentLevel}</div>
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 pt-1 border-t">
+                        <span className="text-muted-foreground">Tenants</span><span className="text-right tabular-nums">{fmt(Number(r.tenants))}</span>
+                        <span className="text-muted-foreground">Landlords</span><span className="text-right tabular-nums">{fmt(Number(r.landlords))}</span>
+                        <span className="text-muted-foreground">Funders</span><span className="text-right tabular-nums">{fmt(Number(r.funders))}</span>
+                        <span className="text-muted-foreground">Agents</span><span className="text-right tabular-nums">{fmt(Number(r.agents))}</span>
+                        <span className="text-muted-foreground">Funded</span><span className="text-right tabular-nums text-primary">{fmt(Number(r.funded_tenants))}</span>
+                      </div>
+                      {isDrillable && (
+                        <div className="text-[10px] text-muted-foreground pt-1 italic">Click to drill into {nextLevelLabel}</div>
+                      )}
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              );
+            })
           )}
         </div>
       </CardContent>
@@ -298,12 +407,22 @@ export function GeographicCoveragePanel() {
               Tenants whose landlord was funded
             </SheetTitle>
             <p className="text-xs text-muted-foreground">
-              Scope: {[country, district, city].filter(Boolean).join(' › ') || 'All locations'}
+              Scope: {scopeLabel}
             </p>
           </SheetHeader>
           {loadingFunded ? (
-            <div className="py-10 flex items-center justify-center text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading…
+            <div className="mt-4 border rounded-md" role="status" aria-label="Loading funded tenants">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="grid grid-cols-12 gap-2 px-3 py-3 border-t first:border-t-0 items-center">
+                  <div className="col-span-4 space-y-1">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-3 w-1/2" />
+                  </div>
+                  <div className="col-span-3"><Skeleton className="h-4 w-full" /></div>
+                  <div className="col-span-3"><Skeleton className="h-3 w-full" /></div>
+                  <div className="col-span-2"><Skeleton className="h-5 w-16 ml-auto" /></div>
+                </div>
+              ))}
             </div>
           ) : fundedTenants.length === 0 ? (
             <div className="py-10 text-center text-sm text-muted-foreground">No funded tenants in this area.</div>
@@ -338,6 +457,7 @@ export function GeographicCoveragePanel() {
         </SheetContent>
       </Sheet>
     </Card>
+    </TooltipProvider>
   );
 }
 
@@ -347,6 +467,30 @@ function Stat({ label, value, icon }: { label: string; value: number; icon: Reac
       <div className="flex items-center gap-1 text-[10px] text-muted-foreground uppercase">{icon}{label}</div>
       <div className="text-base font-semibold tabular-nums">{fmt(value)}</div>
     </div>
+  );
+}
+
+function CountCell({
+  value,
+  label,
+  bucket,
+  className,
+}: {
+  value: number;
+  label: string;
+  bucket: string;
+  className?: string;
+}) {
+  const n = Number(value) || 0;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className={cn('text-right tabular-nums cursor-help', className)}>{fmt(n)}</div>
+      </TooltipTrigger>
+      <TooltipContent>
+        <span className="text-xs">{fmt(n)} {label}{n === 1 ? '' : 's'} in {bucket}</span>
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
