@@ -1212,22 +1212,40 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
       const rows = Array.from(latestByTenant.values());
       const tenantIds = rows.map((r) => r.tenant_id).filter(Boolean);
       const landlordIds = Array.from(new Set(rows.map((r) => r.landlord_id).filter(Boolean)));
-      const [tenants, landlords] = await Promise.all([
+      const [tenants, landlords, ledgerRes] = await Promise.all([
         tenantIds.length
           ? supabase.from('profiles').select('id, full_name, phone, avatar_url').in('id', tenantIds)
           : Promise.resolve({ data: [] as any[] }),
         landlordIds.length
           ? supabase.from('landlords').select('id, name, phone').in('id', landlordIds as any)
           : Promise.resolve({ data: [] as any[] }),
+        tenantIds.length
+          ? supabase.from('general_ledger')
+              .select('user_id, category, direction, amount')
+              .in('user_id', tenantIds)
+              .in('category', ['rent_obligation', 'tenant_repayment', 'rent_repayment'])
+          : Promise.resolve({ data: [] as any[] }),
       ]);
       const tMap = new Map((tenants.data ?? []).map((t: any) => [t.id, t]));
       const lMap = new Map((landlords.data ?? []).map((l: any) => [l.id, l]));
+      // Lifetime outstanding from the ledger — same formula as Tenant Ops &
+      // rent statements: SUM(rent_obligation cash_out) − SUM(repayments cash_in),
+      // clamped to 0. Source of truth across the platform.
+      const outstandingByTenant = new Map<string, number>();
+      for (const tid of tenantIds) outstandingByTenant.set(tid, 0);
+      for (const r of (ledgerRes.data ?? []) as any[]) {
+        if (!r.user_id) continue;
+        const amt = Number(r.amount || 0);
+        const cur = outstandingByTenant.get(r.user_id) || 0;
+        if (r.category === 'rent_obligation' && r.direction === 'cash_out') {
+          outstandingByTenant.set(r.user_id, cur + amt);
+        } else if (r.direction === 'cash_in') {
+          outstandingByTenant.set(r.user_id, cur - amt);
+        }
+      }
       return rows
         .map((r) => {
-          const outstanding = Math.max(
-            0,
-            Number(r.total_repayment || 0) - Number(r.amount_repaid || 0),
-          );
+          const outstanding = Math.max(0, outstandingByTenant.get(r.tenant_id) || 0);
           return {
             id: r.id,
             tenantId: r.tenant_id,
