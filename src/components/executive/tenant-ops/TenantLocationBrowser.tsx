@@ -8,6 +8,8 @@ import { Loader2, MapPin, User, Home, ChevronRight, Phone, Image as ImageIcon, S
 import { TenantLocationBreadcrumbs } from './TenantLocationBreadcrumbs';
 import { ImageZoomLightbox } from '@/components/executive/landlord-ops/ImageZoomLightbox';
 import { formatUGX } from '@/lib/rentCalculations';
+import { UGANDA_REGION_GROUPS } from '@/lib/ugandaDistricts';
+import { ChevronDown } from 'lucide-react';
 import {
   useTenantLocationBreakdown,
   useTenantsAtLeaf,
@@ -59,9 +61,113 @@ export function TenantLocationBrowser() {
 
       {level === 'tenants' ? (
         <TenantLeafList path={path} />
+      ) : level === 'region' && (path.country ?? '').toLowerCase() === 'uganda' ? (
+        <UgandaRegionDistrictPicker
+          rows={rows ?? []}
+          loading={isLoading}
+          onPickDistrict={(district, backendRegion) =>
+            setPath({ ...path, region: backendRegion, district })
+          }
+        />
       ) : (
         <TenantTileGrid rows={rows ?? []} level={level} loading={isLoading} onPick={pick} />
       )}
+    </div>
+  );
+}
+
+/**
+ * Uganda-only picker. Shows 5 regions (Central / Eastern / Western /
+ * Northern / Southern) as collapsible sections with their districts
+ * listed underneath. Tapping a district jumps straight to the ward
+ * level using the district's canonical backend region — Uganda has
+ * only 4 official regions, so "Southern" districts still resolve to
+ * Central/Western behind the scenes.
+ */
+function UgandaRegionDistrictPicker({
+  rows,
+  loading,
+  onPickDistrict,
+}: {
+  rows: TenantBreakdownRow[];
+  loading: boolean;
+  onPickDistrict: (district: string, backendRegion: string) => void;
+}) {
+  const [openRegion, setOpenRegion] = useState<string | null>('central');
+
+  // Map backend region label → tenant count from the live rows so each
+  // region header can show a live total.
+  const regionTotals = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const r of rows) m[r.label.toLowerCase()] = (m[r.label.toLowerCase()] ?? 0) + r.total;
+    return m;
+  }, [rows]);
+
+  return (
+    <div className="space-y-2">
+      {loading && (
+        <div className="flex justify-center py-2">
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+        </div>
+      )}
+      {UGANDA_REGION_GROUPS.map((group) => {
+        const isOpen = openRegion === group.key;
+        // Sum tenants across all backend regions that this UI group draws from.
+        const backendRegions = Array.from(new Set(group.districts.map((d) => d.backendRegion.toLowerCase())));
+        const liveTotal = backendRegions.reduce((sum, r) => sum + (regionTotals[r] ?? 0), 0);
+        return (
+          <Card key={group.key} className="overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setOpenRegion(isOpen ? null : group.key)}
+              className="w-full flex items-center justify-between gap-2 p-3 hover:bg-muted/40 transition"
+              aria-expanded={isOpen}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <MapPin className="h-4 w-4 text-primary shrink-0" />
+                <span className="font-semibold text-sm truncate">{group.label}</span>
+                <Badge variant="secondary" className="text-[10px] shrink-0">
+                  {group.districts.length} districts
+                </Badge>
+                {liveTotal > 0 && (
+                  <Badge variant="default" className="text-[10px] shrink-0">
+                    {liveTotal.toLocaleString()} tenants
+                  </Badge>
+                )}
+              </div>
+              <ChevronDown
+                className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
+            {isOpen && (
+              <div className="border-t bg-muted/20 p-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                  {group.districts.map((d) => (
+                    <button
+                      key={`${group.key}-${d.name}`}
+                      onClick={() => onPickDistrict(d.name, d.backendRegion)}
+                      className="group text-left"
+                    >
+                      <Card className="p-2.5 h-full hover:border-primary hover:shadow-sm transition active:scale-[0.98]">
+                        <div className="flex items-center justify-between gap-1.5">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            <span className="text-xs font-semibold truncate">{d.name}</span>
+                          </div>
+                          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary shrink-0" />
+                        </div>
+                        <p className="mt-1 text-[10px] text-muted-foreground">
+                          {d.backendRegion} region
+                        </p>
+                      </Card>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Card>
+        );
+      })}
     </div>
   );
 }
