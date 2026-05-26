@@ -14,10 +14,12 @@ import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import {
   User, Home, UserCheck, MapPin, Loader2, Link2, Plus, Phone,
-  Wallet, ShieldAlert, Building2, ReceiptText,
+  Wallet, ShieldAlert, Building2, ReceiptText, Smartphone, SmartphoneNfc,
+  Search,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
+import { Switch } from '@/components/ui/switch';
 
 type UserBrief = { id: string; full_name: string | null; phone: string | null };
 
@@ -57,6 +59,9 @@ export function UserDrilldownDrawer({
   open, onOpenChange, tenantId, agentId, landlordId, defaultTab = 'landlord',
 }: Props) {
   const [tab, setTab] = useState<'tenant' | 'agent' | 'landlord'>(defaultTab);
+  // Global "open any user" — overrides tenantId when a user is picked
+  const [pickedUser, setPickedUser] = useState<UserBrief | null>(null);
+  const effectiveTenantId = pickedUser?.id ?? tenantId ?? null;
   const isOps = useIsOpsRole();
 
   return (
@@ -70,9 +75,23 @@ export function UserDrilldownDrawer({
           </SheetDescription>
         </SheetHeader>
 
+        {isOps && (
+          <div className="px-4 sm:px-6 pt-3 pb-1 border-b bg-muted/20">
+            <div className="flex items-center gap-2 text-[11px] text-muted-foreground mb-1">
+              <Search className="h-3 w-3" /> Find any user — tenant, agent, landlord, funder, anyone
+            </div>
+            <UserSearchPicker
+              label=""
+              placeholder="Search by name or phone (any country, any agent, any town)"
+              selectedUser={pickedUser as any}
+              onSelect={(u) => { setPickedUser(u as any); if (u) setTab('tenant'); }}
+            />
+          </div>
+        )}
+
         <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="px-4 sm:px-6 pt-3">
           <TabsList className="grid grid-cols-3 w-full">
-            <TabsTrigger value="tenant" disabled={!tenantId}>
+            <TabsTrigger value="tenant" disabled={!effectiveTenantId}>
               <User className="h-3.5 w-3.5 mr-1" /> Tenant
             </TabsTrigger>
             <TabsTrigger value="agent" disabled={!agentId}>
@@ -84,7 +103,7 @@ export function UserDrilldownDrawer({
           </TabsList>
 
           <TabsContent value="tenant" className="py-4">
-            {tenantId && <TenantPane tenantId={tenantId} isOps={isOps} />}
+            {effectiveTenantId && <TenantPane tenantId={effectiveTenantId} isOps={isOps} />}
           </TabsContent>
           <TabsContent value="agent" className="py-4">
             {agentId && <AgentPane agentId={agentId} isOps={isOps} />}
