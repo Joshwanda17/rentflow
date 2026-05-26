@@ -147,6 +147,132 @@ export function TenantLocationBrowser() {
 }
 
 /**
+ * Searchable dropdown that lists every Uganda district grouped by
+ * region. Districts with tenants are flagged with a purple indicator so
+ * the user can instantly see which divisions are active before jumping.
+ * Selecting a district navigates straight to its area/ward view.
+ */
+function DistrictJumpSearch({
+  onJump,
+}: {
+  onJump: (payload: { district: string; backendRegion: string }) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+
+  const districtQueries = useQueries({
+    queries: (['Central', 'Eastern', 'Northern', 'Western'] as const).map((br) => ({
+      queryKey: ['tenant-location-breakdown', 'district', 'Uganda', br],
+      staleTime: 5 * 60 * 1000,
+      queryFn: async () => {
+        const { data, error } = await supabase.rpc('get_tenant_location_breakdown' as any, {
+          p_level: 'district',
+          p_country: 'Uganda',
+          p_region: br,
+          p_district: null,
+          p_ward: null,
+          p_agent_id: null,
+        });
+        if (error) throw error;
+        return { backendRegion: br, rows: (data ?? []) as TenantBreakdownRow[] };
+      },
+    })),
+  });
+
+  const districtTotals = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const q of districtQueries) {
+      if (!q.data) continue;
+      for (const r of q.data.rows) {
+        m[`${q.data.backendRegion}::${r.label}`.toLowerCase()] = r.total;
+      }
+    }
+    return m;
+  }, [districtQueries]);
+  const countFor = (name: string, backendRegion: string) =>
+    districtTotals[`${backendRegion}::${name}`.toLowerCase()] ?? 0;
+
+  const isLoading = districtQueries.some((q) => q.isLoading);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 px-2 text-[11px] shrink-0 gap-1"
+          title="Jump to a division"
+        >
+          <CommandIcon className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">Jump to division</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[280px] p-0" align="end">
+        <Command>
+          <CommandInput
+            placeholder="Search divisions…"
+            value={search}
+            onValueChange={setSearch}
+          />
+          <CommandList>
+            {isLoading && (
+              <div className="py-4 flex justify-center">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              </div>
+            )}
+            {!isLoading && <CommandEmpty>No division found.</CommandEmpty>}
+            {!isLoading &&
+              UGANDA_REGION_GROUPS.map((group) => {
+                const items = group.districts.filter((d) =>
+                  d.name.toLowerCase().includes(search.trim().toLowerCase())
+                );
+                if (items.length === 0) return null;
+                return (
+                  <CommandGroup key={group.key} heading={group.label}>
+                    {items.map((d) => {
+                      const count = countFor(d.name, d.backendRegion);
+                      const hasUsers = count > 0;
+                      return (
+                        <CommandItem
+                          key={`${group.key}-${d.name}`}
+                          onSelect={() => {
+                            onJump({ district: d.name, backendRegion: d.backendRegion });
+                            setOpen(false);
+                            setSearch('');
+                          }}
+                          className="flex items-center justify-between gap-2 cursor-pointer"
+                        >
+                          <span className="flex items-center gap-2 truncate">
+                            <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                            <span className="truncate text-sm">{d.name}</span>
+                          </span>
+                          <span className="flex items-center gap-1.5 shrink-0">
+                            {hasUsers && (
+                              <>
+                                <span className="h-2 w-2 rounded-full bg-purple-500" />
+                                <span className="text-[10px] font-medium text-purple-600 dark:text-purple-400">
+                                  {count.toLocaleString()}
+                                </span>
+                              </>
+                            )}
+                            {!hasUsers && (
+                              <span className="text-[10px] text-muted-foreground">0</span>
+                            )}
+                          </span>
+                        </CommandItem>
+                      );
+                    })}
+                  </CommandGroup>
+                );
+              })}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/**
  * Uganda-only picker. Shows 5 regions (Central / Eastern / Western /
  * Northern / Southern) as collapsible sections with their districts
  * listed underneath. Tapping a district jumps straight to the ward
