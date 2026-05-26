@@ -1044,35 +1044,64 @@ function TenantTileGrid({
   );
 }
 
-function TenantLeafList({ path }: { path: TenantBreadcrumbPath }) {
-  // (placeholder anchor — AfricaCountryPicker is declared above this block)
-  const { data, isLoading } = useTenantsAtLeaf(path);
+function TenantLeafList({
+  path,
+  filters,
+  setFilters,
+  fundedWindow,
+}: {
+  path: TenantBreadcrumbPath;
+  filters: TenantOpsFilters;
+  setFilters: (f: TenantOpsFilters) => void;
+  fundedWindow: { fundedSince: string | null; fundedUntil: string | null };
+}) {
+  const { data, isLoading } = useTenantsAtLeaf(path, fundedWindow);
   const [openId, setOpenId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<'all' | 'linked' | 'pending' | 'photos'>('all');
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return (data ?? []).filter(t => {
-      if (q) {
-        const hay = [t.tenant_name, t.tenant_phone, t.landlord_name, t.agent_name].filter(Boolean).join(' ').toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
-      if (filter === 'linked' && !t.landlord_id) return false;
-      if (filter === 'pending' && t.landlord_id) return false;
-      if (filter === 'photos' && !(t.house_image_urls ?? []).some(Boolean)) return false;
-      return true;
+    const base = (data ?? []).filter(t => {
+      if (!q) return true;
+      const hay = [t.tenant_name, t.tenant_phone, t.landlord_name, t.agent_name]
+        .filter(Boolean).join(' ').toLowerCase();
+      return hay.includes(q);
     });
-  }, [data, search, filter]);
+    return applyLeafFilters(base, filters);
+  }, [data, search, filters]);
 
   if (isLoading) {
     return <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
   }
   if (!data || data.length === 0) {
-    return <Card className="py-10 text-center text-sm text-muted-foreground">No tenants in this scope yet.</Card>;
+    return (
+      <div className="space-y-2">
+        <TenantOpsFilterBar
+          filters={filters}
+          onChange={setFilters}
+          resultCount={0}
+          totalCount={0}
+        />
+        <Card className="py-10 text-center text-sm text-muted-foreground">
+          No tenants in this scope match the active filters.
+        </Card>
+      </div>
+    );
   }
   return (
     <div className="space-y-2">
+      <TenantOpsFilterBar
+        filters={filters}
+        onChange={setFilters}
+        resultCount={filtered.length}
+        totalCount={data.length}
+        exportDisabled={filtered.length === 0}
+        onExportCSV={() => {
+          const csv = exportLeafToCSV(filtered);
+          const stamp = new Date().toISOString().slice(0, 10);
+          downloadCSV(`tenants-funded-${stamp}.csv`, csv);
+        }}
+      />
       <div className="relative">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
@@ -1090,22 +1119,6 @@ function TenantLeafList({ path }: { path: TenantBreadcrumbPath }) {
             <X className="h-4 w-4" />
           </button>
         )}
-      </div>
-      <div className="flex flex-wrap gap-1.5">
-        {(['all', 'linked', 'pending', 'photos'] as const).map(f => (
-          <Button
-            key={f}
-            size="sm"
-            variant={filter === f ? 'default' : 'outline'}
-            className="h-7 px-2.5 text-[11px]"
-            onClick={() => setFilter(f)}
-          >
-            {f === 'all' ? 'All' : f === 'linked' ? 'Linked' : f === 'pending' ? 'Pending' : 'Has photos'}
-          </Button>
-        ))}
-        <span className="ml-auto self-center text-[11px] text-muted-foreground">
-          {filtered.length} of {data.length} tenant{data.length === 1 ? '' : 's'}
-        </span>
       </div>
       {filtered.length === 0 ? (
         <Card className="py-8 text-center text-sm text-muted-foreground">No tenants match.</Card>
