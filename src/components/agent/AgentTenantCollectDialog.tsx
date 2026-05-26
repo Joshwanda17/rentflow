@@ -342,20 +342,32 @@ export function AgentTenantCollectDialog({
     <Dialog open={open} onOpenChange={(o) => { if (!o && !loading) handleClose(); }}>
       <DialogContent
         className={
-          // While entering an amount we pin to the top so the mobile
-          // numeric keyboard doesn't shove the dialog off-screen.
-          // Once we render the success/result view (no inputs), we let
-          // it sit centered so users don't see a large white void
-          // under a half-screen card.
-          result
-            ? "max-w-sm max-h-[90vh] overflow-y-auto pointer-events-auto"
-            : "max-w-sm max-h-[90vh] overflow-y-auto pointer-events-auto top-[2vh] translate-y-0 sm:top-[50%] sm:-translate-y-1/2"
+          // Mobile: true bottom sheet (slides from bottom, ~88vh, internal
+          // scroll, sticky header). Desktop: standard centered card.
+          [
+            "!left-0 !right-0 !top-auto !bottom-0",
+            "!translate-x-0 !translate-y-0",
+            "!max-w-none !w-full",
+            "!rounded-t-3xl !rounded-b-none",
+            "!p-0 !gap-0",
+            "h-[88vh]",
+            "flex flex-col overflow-hidden",
+            "pointer-events-auto",
+            "sm:!left-[50%] sm:!top-[50%] sm:!bottom-auto sm:!right-auto",
+            "sm:!translate-x-[-50%] sm:!translate-y-[-50%]",
+            "sm:!max-w-md sm:!w-full",
+            "sm:!rounded-2xl",
+            "sm:h-auto sm:max-h-[90vh]",
+          ].join(" ")
         }
         onInteractOutside={(e) => e.preventDefault()}
         onPointerDownOutside={(e) => e.preventDefault()}
       >
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base">
+        <div className="sm:hidden flex justify-center pt-2 pb-1 shrink-0">
+          <div className="h-1.5 w-12 rounded-full bg-muted-foreground/30" />
+        </div>
+        <DialogHeader className="shrink-0 px-5 pt-2 pb-3 border-b border-border/50 bg-background">
+          <DialogTitle className="flex items-center gap-2 text-base text-left">
             {confirming ? (
               <>
                 <AlertCircle className="h-5 w-5 text-warning" />
@@ -370,7 +382,8 @@ export function AgentTenantCollectDialog({
           </DialogTitle>
         </DialogHeader>
 
-        {/* Header: on the entry form it's the educational "how it grows" card.
+        <div className="flex-1 overflow-y-auto px-5 py-3 space-y-3 overscroll-contain pb-[calc(env(safe-area-inset-bottom)+16px)]">
+        {/* Body: on the entry form it's the educational "how it grows" card.
             On the Confirm Payment step it switches to a live readout of the
             agent's current borrow limit and the impact of THIS allocation. */}
         {confirming ? (() => {
@@ -838,6 +851,7 @@ export function AgentTenantCollectDialog({
             </Button>
           </div>
         )}
+        </div>
       </DialogContent>
     </Dialog>
 
