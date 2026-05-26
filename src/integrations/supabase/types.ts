@@ -17552,6 +17552,10 @@ export type Database = {
         Args: { p_funder_id: string; p_landlord_id: string; p_reason: string }
         Returns: Json
       }
+      ops_link_user_to_agent: {
+        Args: { p_agent_id: string; p_reason: string; p_user_id: string }
+        Returns: Json
+      }
       ops_query_tenants: {
         Args: { p_cursor?: string; p_limit?: number; p_segment_id: string }
         Returns: {

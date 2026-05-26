@@ -349,22 +349,34 @@ function TenantPane({ tenantId, isOps }: { tenantId: string; isOps: boolean }) {
   const [reassignReason, setReassignReason] = useState('');
   const reassign = useMutation({
     mutationFn: async () => {
-      if (!activeRr) throw new Error('No active rent request');
       if (!reassignAgent) throw new Error('Pick an agent');
       if (reassignReason.trim().length < 10) throw new Error('Reason ≥ 10 chars');
-      const { error } = await supabase.rpc('reassign_rent_request_agent', {
-        p_rent_request_id: activeRr.id,
-        p_new_agent_id: reassignAgent.id,
+      // Always link the user → agent at the profile level (works for any user,
+      // even with no active rent request).
+      const { error: linkErr } = await supabase.rpc('ops_link_user_to_agent', {
+        p_user_id: tenantId,
+        p_agent_id: reassignAgent.id,
         p_reason: reassignReason.trim(),
       } as any);
-      if (error) throw error;
+      if (linkErr) throw linkErr;
+      // If there is an active rent request, also reassign it so collections
+      // route to the new agent immediately.
+      if (activeRr) {
+        const { error } = await supabase.rpc('reassign_rent_request_agent', {
+          p_rent_request_id: activeRr.id,
+          p_new_agent_id: reassignAgent.id,
+          p_reason: reassignReason.trim(),
+        } as any);
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
-      toast.success('Agent reassigned');
+      toast.success('User linked to agent');
       setReassignAgent(null); setReassignReason('');
       qc.invalidateQueries({ queryKey: ['drilldown-tenant-rr', tenantId] });
+      qc.invalidateQueries({ queryKey: ['drilldown-profile', tenantId] });
     },
-    onError: (e: any) => toast.error(e.message ?? 'Reassign failed'),
+    onError: (e: any) => toast.error(e.message ?? 'Link failed'),
   });
 
   if (isLoading) return <Loader2 className="h-4 w-4 animate-spin mx-auto" />;
@@ -393,13 +405,16 @@ function TenantPane({ tenantId, isOps }: { tenantId: string; isOps: boolean }) {
         )}
       </Card>
 
-      {isOps && activeRr && (
+      {isOps && (
         <Card className="p-3 space-y-2">
           <div className="flex items-center gap-2 text-sm font-medium">
-            <Link2 className="h-4 w-4 text-primary" /> Linked agent
+            <Link2 className="h-4 w-4 text-primary" /> Link to agent
           </div>
+          <p className="text-[11px] text-muted-foreground">
+            Assigns the managing agent on this user's profile{activeRr ? ' and reassigns the active rent request' : ''}. Works for any user — tenant, funder, landlord contact, or anyone else.
+          </p>
           <UserSearchPicker
-            label="Reassign to agent"
+            label="Pick agent"
             selectedUser={reassignAgent as any}
             onSelect={(u) => setReassignAgent(u as any)}
             roleFilter="agent"
@@ -416,7 +431,7 @@ function TenantPane({ tenantId, isOps }: { tenantId: string; isOps: boolean }) {
             onClick={() => reassign.mutate()}
           >
             {reassign.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
-            Reassign
+            {activeRr ? 'Link & reassign rent' : 'Link to agent'}
           </Button>
         </Card>
       )}
