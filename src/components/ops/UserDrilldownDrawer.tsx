@@ -2021,7 +2021,7 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
     w.document.close();
   };
 
-  const [sourceModalRow, setSourceModalRow] = useState<typeof data extends (infer T)[] ? T : never | null>(null);
+  const [sourceModalRow, setSourceModalRow] = useState<any>(null);
 
   return (
     <Card className="p-3 space-y-2">
