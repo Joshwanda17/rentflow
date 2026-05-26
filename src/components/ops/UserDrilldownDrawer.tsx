@@ -1234,6 +1234,39 @@ function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord }: { agent
       return rows.map((r: any) => ({ ...r, landlord: llMap.get(r.landlord_id) ?? null }));
     },
   });
+
+  const statusOptions = useMemo(() => {
+    const s = new Set(listings.map((l: any) => l.status).filter(Boolean));
+    return Array.from(s).sort();
+  }, [listings]);
+
+  const locationOptions = useMemo(() => {
+    const locs = new Set<string>();
+    listings.forEach((l: any) => {
+      if (l.village) locs.add(l.village);
+      if (l.district) locs.add(l.district);
+    });
+    return Array.from(locs).sort();
+  }, [listings]);
+
+  const filteredListings = useMemo(() => {
+    const q = listingsSearch.trim().toLowerCase();
+    const { gte, lte } = buildDateRange(listingsDateRange);
+    return listings.filter((l: any) => {
+      if (q) {
+        const text = `${l.title ?? ''} ${l.village ?? ''} ${l.district ?? ''} ${l.landlord?.name ?? ''} ${l.landlord?.phone ?? ''}`.toLowerCase();
+        if (!text.includes(q)) return false;
+      }
+      if (listingsStatusFilter !== 'all' && l.status !== listingsStatusFilter) return false;
+      if (listingsLocationFilter !== 'all') {
+        if (l.village !== listingsLocationFilter && l.district !== listingsLocationFilter) return false;
+      }
+      if (gte && l.created_at && l.created_at < gte) return false;
+      if (lte && l.created_at && l.created_at > lte) return false;
+      return true;
+    });
+  }, [listings, listingsSearch, listingsStatusFilter, listingsLocationFilter, listingsDateRange]);
+
   const { data: stats } = useQuery({
     queryKey: ['drilldown-agent-stats', agentId],
     queryFn: async () => {
