@@ -264,6 +264,89 @@ export function FundedTenantsList() {
         </Button>
       </div>
 
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+          <CalendarDays className="h-3.5 w-3.5" /> Funded in:
+        </div>
+        <Select value={dateFilter} onValueChange={(v) => { setDateFilter(v as DateFilter); setCountryFilter('all'); }}>
+          <SelectTrigger className="h-8 text-xs w-[160px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All time</SelectItem>
+            <SelectItem value="7d">Last 7 days</SelectItem>
+            <SelectItem value="30d">Last 30 days</SelectItem>
+            <SelectItem value="custom">Custom…</SelectItem>
+          </SelectContent>
+        </Select>
+        {dateFilter === 'custom' && (
+          <div className="inline-flex items-center gap-1.5">
+            <Input
+              type="number"
+              min={1}
+              max={365}
+              value={customDays}
+              onChange={(e) => { setCustomDays(Number(e.target.value) || 1); setCountryFilter('all'); }}
+              className="h-8 w-20 text-xs"
+            />
+            <span className="text-xs text-muted-foreground">days</span>
+          </div>
+        )}
+      </div>
+
+      {countryStats.length > 0 && (
+        <div className="space-y-1.5">
+          <div className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">
+            <Globe2 className="h-3.5 w-3.5" /> Countries funded
+            {dateFilter !== 'all' && (
+              <span className="normal-case font-normal text-muted-foreground">
+                · {dateFilter === '7d' ? 'last 7 days' : dateFilter === '30d' ? 'last 30 days' : `last ${customDays} days`}
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={() => setCountryFilter('all')}
+              className={`px-2.5 py-1 rounded-full text-xs border transition ${
+                countryFilter === 'all'
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-background hover:bg-muted border-border'
+              }`}
+            >
+              All ({dateFiltered.length})
+            </button>
+            {countryStats.map((c) => (
+              <button
+                key={c.country}
+                type="button"
+                onClick={() => setCountryFilter(c.country)}
+                className={`px-2.5 py-1 rounded-full text-xs border transition inline-flex items-center gap-1.5 ${
+                  countryFilter === c.country
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-background hover:bg-muted border-border'
+                }`}
+                title={`${c.count} payouts · ${formatUGX(c.total)}`}
+              >
+                <span className="font-medium">{c.country}</span>
+                <span className={countryFilter === c.country ? 'opacity-90' : 'text-muted-foreground'}>
+                  {c.count} · {formatUGX(c.total)}
+                </span>
+              </button>
+            ))}
+            {countryFilter !== 'all' && (
+              <button
+                type="button"
+                onClick={() => setCountryFilter('all')}
+                className="px-2.5 py-1 rounded-full text-xs text-muted-foreground hover:text-foreground underline"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {bulk && (
         <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
           Building combined PDF — {bulk.done} of {bulk.total} cards rendered…
