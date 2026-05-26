@@ -1768,9 +1768,17 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                   className="rounded-2xl border border-border/60 bg-card overflow-hidden transition-shadow hover:shadow-md"
                 >
                   {/* Tenant row — mobile-first; tap row to expand, tap name for full profile */}
-                  <button
+                  <div
+                    role="button"
+                    tabIndex={0}
                     onClick={() => toggleExpand(tenant.id)}
-                    className="w-full p-3.5 text-left active:bg-muted/30 transition-colors"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        toggleExpand(tenant.id);
+                      }
+                    }}
+                    className="w-full p-3.5 text-left active:bg-muted/30 transition-colors cursor-pointer"
                     style={{ touchAction: 'manipulation', minHeight: '64px' }}
                   >
                     <div className="flex items-center gap-3">
@@ -1904,7 +1912,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                         Profile
                       </Button>
                     </div>
-                  </button>
+                  </div>
 
                   {/* ───── Expanded Details ───── */}
                   <AnimatePresence>
@@ -2067,7 +2075,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                                         setCollectTarget({ tenant, reqId: req.id, owing });
                                         setCollectDialogOpen(true);
                                       }}
-                                      className="flex items-center justify-center gap-2 h-12 rounded-xl bg-success text-success-foreground font-bold text-sm active:scale-95 transition-transform w-full shadow-sm"
+                                      className="relative z-20 flex items-center justify-center gap-2 h-12 rounded-xl bg-success text-success-foreground font-bold text-sm active:scale-95 transition-transform w-full shadow-sm cursor-pointer"
                                       style={{ touchAction: 'manipulation' }}
                                     >
                                       <Banknote className="h-5 w-5" />
