@@ -12,6 +12,9 @@ export type RentBandKey =
 
 export type LinkBandKey = 'any' | 'linked' | 'pending';
 export type PhotosBandKey = 'any' | 'with' | 'without';
+export type OutstandingKey = 'any' | 'paid_up' | 'partial' | 'overdue' | 'defaulted';
+export type VerificationKey = 'any' | 'verified' | 'pending' | 'missing';
+export type FundingSourceKey = 'any' | 'supporter' | 'platform';
 
 export type LeafSortKey =
   | 'name_asc'
@@ -27,6 +30,9 @@ export interface TenantOpsFilters {
   rentBand: RentBandKey;
   linkBand: LinkBandKey;
   photosBand: PhotosBandKey;
+  outstanding: OutstandingKey;
+  verification: VerificationKey;
+  fundingSource: FundingSourceKey;
   sort: LeafSortKey;
 }
 
@@ -35,6 +41,9 @@ export const DEFAULT_FILTERS: TenantOpsFilters = {
   rentBand: 'any',
   linkBand: 'any',
   photosBand: 'any',
+  outstanding: 'any',
+  verification: 'any',
+  fundingSource: 'any',
   sort: 'name_asc',
 };
 
@@ -73,7 +82,10 @@ export function isFiltersActive(f: TenantOpsFilters): boolean {
     f.timeWindow !== 'all' ||
     f.rentBand !== 'any' ||
     f.linkBand !== 'any' ||
-    f.photosBand !== 'any'
+    f.photosBand !== 'any' ||
+    f.outstanding !== 'any' ||
+    f.verification !== 'any' ||
+    f.fundingSource !== 'any'
   );
 }
 
@@ -91,6 +103,9 @@ export function applyLeafFilters(rows: TenantLeaf[], f: TenantOpsFilters): Tenan
     const hasPhotos = (r.house_image_urls ?? []).some(Boolean);
     if (f.photosBand === 'with'    && !hasPhotos) return false;
     if (f.photosBand === 'without' &&  hasPhotos) return false;
+    if (f.outstanding   !== 'any' && (r.outstanding_status   ?? null) !== f.outstanding)   return false;
+    if (f.verification  !== 'any' && (r.verification_status  ?? null) !== f.verification)  return false;
+    if (f.fundingSource !== 'any' && (r.funding_source       ?? null) !== f.fundingSource) return false;
     return true;
   });
   out = [...out].sort((a, b) => {
@@ -149,6 +164,7 @@ export function exportLeafToCSV(rows: TenantLeaf[]): string {
     'tenant_name','tenant_phone','country','region','district','ward',
     'agent_name','landlord_name','rent_amount','landlord_funded_at',
     'landlord_funded_amount','landlord_payout_count',
+    'outstanding_status','verification_status','funding_source',
   ];
   const esc = (v: unknown) => {
     const s = v == null ? '' : String(v);
@@ -160,6 +176,7 @@ export function exportLeafToCSV(rows: TenantLeaf[]): string {
       r.tenant_name, r.tenant_phone, r.country, r.region, r.district, r.ward,
       r.agent_name, r.landlord_name, r.rent_amount,
       r.landlord_funded_at, r.landlord_funded_amount, r.landlord_payout_count,
+      r.outstanding_status, r.verification_status, r.funding_source,
     ].map(esc).join(','));
   }
   return lines.join('\n');

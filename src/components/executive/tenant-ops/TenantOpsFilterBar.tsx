@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import {
   type TenantOpsFilters, type TimeWindowKey, type RentBandKey,
   type LinkBandKey, type PhotosBandKey, type LeafSortKey,
+  type OutstandingKey, type VerificationKey, type FundingSourceKey,
   RENT_BANDS, DEFAULT_FILTERS, isFiltersActive,
   loadPresets, savePreset, deletePreset, type TenantOpsPreset,
 } from '@/lib/tenantOpsFilters';
@@ -45,6 +46,27 @@ const PHOTOS_CHIPS: { key: PhotosBandKey; label: string }[] = [
   { key: 'any',     label: 'Any photos' },
   { key: 'with',    label: 'With photos' },
   { key: 'without', label: 'No photos' },
+];
+
+const OUTSTANDING_CHIPS: { key: OutstandingKey; label: string }[] = [
+  { key: 'any',       label: 'Any balance' },
+  { key: 'paid_up',   label: 'Paid up' },
+  { key: 'partial',   label: 'Partial' },
+  { key: 'overdue',   label: 'Overdue' },
+  { key: 'defaulted', label: 'Defaulted' },
+];
+
+const VERIFICATION_CHIPS: { key: VerificationKey; label: string }[] = [
+  { key: 'any',      label: 'Any AI-ID' },
+  { key: 'verified', label: 'AI-ID verified' },
+  { key: 'pending',  label: 'Pending' },
+  { key: 'missing',  label: 'Missing ID' },
+];
+
+const FUNDING_CHIPS: { key: FundingSourceKey; label: string }[] = [
+  { key: 'any',       label: 'Any source' },
+  { key: 'supporter', label: 'Supporter' },
+  { key: 'platform',  label: 'Platform' },
 ];
 
 const SORT_OPTIONS: { key: LeafSortKey; label: string }[] = [
@@ -194,6 +216,52 @@ export function TenantOpsFilterBar({
 
       {/* Status / presets / export row */}
       <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5 basis-full">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mr-1">
+            Balance
+          </span>
+          {OUTSTANDING_CHIPS.map((c) => (
+            <Button
+              key={c.key}
+              size="sm"
+              variant={filters.outstanding === c.key ? 'default' : 'outline'}
+              className="h-7 px-2 text-[11px]"
+              onClick={() => patch({ outstanding: c.key })}
+            >
+              {c.label}
+            </Button>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5 basis-full">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mr-1">
+            Verification
+          </span>
+          {VERIFICATION_CHIPS.map((c) => (
+            <Button
+              key={c.key}
+              size="sm"
+              variant={filters.verification === c.key ? 'default' : 'outline'}
+              className="h-7 px-2 text-[11px]"
+              onClick={() => patch({ verification: c.key })}
+            >
+              {c.label}
+            </Button>
+          ))}
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground ml-2 mr-1">
+            Source
+          </span>
+          {FUNDING_CHIPS.map((c) => (
+            <Button
+              key={c.key}
+              size="sm"
+              variant={filters.fundingSource === c.key ? 'default' : 'outline'}
+              className="h-7 px-2 text-[11px]"
+              onClick={() => patch({ fundingSource: c.key })}
+            >
+              {c.label}
+            </Button>
+          ))}
+        </div>
         {active && (
           <Button
             size="sm"

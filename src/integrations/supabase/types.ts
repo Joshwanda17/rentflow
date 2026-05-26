@@ -17317,41 +17317,83 @@ export type Database = {
           tenant_id: string
         }[]
       }
-      get_tenants_at_leaf: {
-        Args: {
-          p_agent_id: string
-          p_country: string
-          p_district: string
-          p_funded_since?: string
-          p_funded_until?: string
-          p_landlord_id: string
-          p_limit?: number
-          p_region: string
-          p_ward: string
-        }
-        Returns: {
-          agent_id: string
-          agent_name: string
-          country: string
-          district: string
-          house_category: string
-          house_image_urls: string[]
-          landlord_funded_amount: number
-          landlord_funded_at: string
-          landlord_id: string
-          landlord_name: string
-          landlord_payout_count: number
-          region: string
-          rent_amount: number
-          rent_request_id: string
-          tenant_avatar_url: string
-          tenant_id: string
-          tenant_name: string
-          tenant_phone: string
-          tenant_photo_url: string
-          ward: string
-        }[]
-      }
+      get_tenants_at_leaf:
+        | {
+            Args: {
+              p_agent_id: string
+              p_country: string
+              p_district: string
+              p_funded_since?: string
+              p_funded_until?: string
+              p_landlord_id: string
+              p_limit?: number
+              p_region: string
+              p_ward: string
+            }
+            Returns: {
+              agent_id: string
+              agent_name: string
+              country: string
+              district: string
+              house_category: string
+              house_image_urls: string[]
+              landlord_funded_amount: number
+              landlord_funded_at: string
+              landlord_id: string
+              landlord_name: string
+              landlord_payout_count: number
+              region: string
+              rent_amount: number
+              rent_request_id: string
+              tenant_avatar_url: string
+              tenant_id: string
+              tenant_name: string
+              tenant_phone: string
+              tenant_photo_url: string
+              ward: string
+            }[]
+          }
+        | {
+            Args: {
+              p_agent_id: string
+              p_country: string
+              p_district: string
+              p_funded_since?: string
+              p_funded_until?: string
+              p_funding_source?: string
+              p_landlord_id: string
+              p_limit?: number
+              p_outstanding?: string
+              p_region: string
+              p_verification?: string
+              p_ward: string
+            }
+            Returns: {
+              agent_id: string
+              agent_name: string
+              country: string
+              district: string
+              funding_source: string
+              house_category: string
+              house_image_urls: string[]
+              landlord_funded_amount: number
+              landlord_funded_at: string
+              landlord_id: string
+              landlord_name: string
+              landlord_payout_count: number
+              outstanding_status: string
+              region: string
+              rent_amount: number
+              rent_request_id: string
+              tenant_avatar_url: string
+              tenant_id: string
+              tenant_name: string
+              tenant_phone: string
+              tenant_photo_url: string
+              verification_status: string
+              ward: string
+            }[]
+          }
       get_trust_coverage_stats: { Args: never; Returns: Json }
       get_user_available_balance: {
         Args: { p_user_id: string }
