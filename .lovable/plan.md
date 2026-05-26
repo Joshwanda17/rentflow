@@ -1,102 +1,113 @@
-## Goal
+# Agent-Controlled Daily Target
 
-Make Tenant Ops genuinely usable when there are 1,000,000+ tenants. Replace the current "18-view sprawl" with a 3-tab shape that the manager can work in for the entire shift without ever feeling lost. Treat Tenant Ops as the **reference pattern**; once approved and proven, replicate the exact same shape (different data) to Agent Ops and Landlord Ops in a follow-up plan.
+## Problem
 
-## The 3-tab shape (locked across all three dashboards)
+`v_agent_daily_eligibility` counts **every** rent_request in statuses `pending → repaying` toward `expected_daily`, even when:
 
-```text
-┌─ Tenant Ops ──────────────────────────────────────────────┐
-│  [INBOX]   [SEGMENTS]   [SEARCH]            ⚙ Saved views │
-├───────────────────────────────────────────────────────────┤
-│                                                            │
-│  (Tab body — see below)                                    │
-│                                                            │
-└───────────────────────────────────────────────────────────┘
-       ↳ click any row → BEHAVIOR DRAWER slides in from right
-```
+- The tenant has fully repaid (`amount_repaid >= total_repayment`) but the row was never closed.
+- The tenant has effectively stopped paying / moved out, but the agent has no way to tell the system.
 
-### Tab 1 — Inbox (default landing)
+Result: `expected_daily` is inflated → `effective_pct` collapses → agents like Onesmus / Benjamin sit at "Bad/Blocked" even when they collected everything that's actually collectable.
 
-The only place that's realtime. Answers "what do I act on right now?"
+Agents need a per-tenant switch: **"This tenant is paying"** vs **"This tenant is not paying"**, and the daily-target math must respect it. The system should also auto-drop fully-repaid rents.
 
-- **5 severity buckets**, shown as horizontal pills with live counts:
-  `🔴 Critical · 🟠 At-risk · 🟡 Watch · 🔵 New · ⚪ Snoozed`
-- Each bucket opens a virtualised list of action cards (not table rows). Card shows:
-  name + phone, one-line **reason** ("4 days overdue, no agent visit in 7d, trust −12"), trend arrow, and 3 verbs: **Act · Snooze · Escalate**.
-- "Act" opens the existing TenantDetailPanel inside a drawer (no route change).
-- Snoozing writes to a new `ops_inbox_state` row keyed on (ops_user, tenant_id) and removes the card for 24h.
-- Realtime: subscribe only to `ops_inbox_events` (one row per bucket-change), not to `profiles` or `rent_requests`.
+## What we'll build
 
-### Tab 2 — Segments
+### 1. Per-rent payment status (set by the agent)
 
-The bulk-action surface. Not realtime; refresh button + 60s poll.
+New column on `rent_requests`:
 
-- Left rail: list of **saved smart segments** (e.g. "Kampala · overdue 3+ days · no agent · trust < 500"). Ships with 6 starter segments.
-- Main area: virtualised list (TanStack Virtual) over a single keyset-paginated RPC `ops_query_tenants(segment_id, cursor, limit)`.
-- Top bar shows row count from `mv_tenant_segment_counts` (refreshed every 5 min), so the manager always sees scale honestly ("48,213 tenants match").
-- Bulk actions on the current segment: SMS blast, assign agent, mark for visit, export CSV — all already-existing flows wired to a "Selected: N / All N" toggle.
+- `agent_payment_status` enum: `paying` (default) · `not_paying` · `completed_auto`
+- `agent_payment_status_reason` text (≥10 chars, mandatory when set to `not_paying`, per Audit Governance)
+- `agent_payment_status_set_at`, `agent_payment_status_set_by`
 
-### Tab 3 — Search
+Only the rent's `agent_id` (or manager/operations) can update these fields (RLS + RPC `agent_set_rent_payment_status(rent_request_id, status, reason)`). Every change writes to `audit_logs` and emits a `system_event` `agent.rent.payment_status_changed` (per Trust Mission).
 
-One-record lookup. Same input field as today's AgentTenantSearch, server-side ILIKE on phone/name/national-id with a 25-result cap and a "view all matches in Segments" link.
+### 2. Eligibility view respects the flag
 
-### Behavior drawer (shared primitive — Tenant Ops ships it, others reuse)
+Update `v_agent_daily_eligibility` `eligible_rents` CTE to additionally exclude:
 
-Slides in over any row in any tab. Six fixed sections, top to bottom:
+- `agent_payment_status = 'not_paying'`
+- rows where `COALESCE(total_repayment,0) - COALESCE(amount_repaid,0) <= 0` (fully repaid → auto-drop, regardless of status)
 
-1. **Header** — avatar, name, phone, trust score with 30-day delta arrow.
-2. **Trend strip** — 30-day sparkline: payments made vs. expected.
-3. **Cohort** — "This tenant vs. neighbourhood median" mini bar (paid %, on-time %, days-since-visit).
-4. **Trust factor breakdown** — 6 factors from `welile_trust_score_cache` with last-7d delta per factor.
-5. **Last 5 events** — pulled from `system_events` for this user, newest first.
-6. **Verbs** — same Act / Snooze / Escalate / Open full profile.
+`expected_daily`, `today_pct`, `yesterday_pct`, `effective_pct` and the BEFORE-INSERT trigger automatically use the corrected denominator — no changes needed to `enforce_agent_daily_eligibility` or to `useAgentCapacityMap` / `AgentRentCapacitySelfCard`.
 
-## Build order (Tenant Ops only — Agent + Landlord come later)
+### 3. Optional nightly auto-completion (housekeeping)
 
-1. **Backend foundations** (one migration)
-   - `ops_inbox_state` table (ops_user_id, tenant_id, snoozed_until, escalated_at).
-   - `ops_saved_segments` table (owner, name, filter_json, is_starter).
-   - `mv_tenant_segment_counts` materialised view + nightly refresh cron.
-   - RPC `ops_tenant_inbox(p_ops_user, p_bucket, p_limit, p_cursor)` returning ranked tenants with `reason`, `severity`, `trust_delta_30d`.
-   - RPC `ops_query_tenants(p_segment_id, p_cursor, p_limit)` keyset-paginated.
-   - RPC `ops_tenant_behavior(p_tenant_id)` returning the 6 drawer sections as one JSON payload.
-   - Seed 6 starter segments.
+Cron `auto-close-fully-repaid-rents` (daily 02:00 Kampala): sets `status = 'completed'` on rent_requests where `amount_repaid >= total_repayment` and current status ∈ active set. Fixes the historical backlog that is silently inflating today's targets.
 
-2. **Shared primitives** (new files)
-   - `src/components/ops/OpsShell.tsx` — the 3-tab frame.
-   - `src/components/ops/InboxBucketList.tsx` — virtualised action cards.
-   - `src/components/ops/SegmentBrowser.tsx` — left rail + virtualised list + bulk action bar.
-   - `src/components/ops/BehaviorDrawer.tsx` — the shared drawer.
-   - `src/hooks/useOpsInbox.ts`, `useOpsSegment.ts`, `useTenantBehavior.ts`.
+### 4. Agent UI — the "Paying / Not paying" switch
 
-3. **Tenant Ops rewrite**
-   - New `TenantOpsDashboardV2.tsx` composes `OpsShell` + tenant-flavoured inbox reasons + tenant segments.
-   - Keep the existing `TenantOpsDashboard.tsx` reachable behind a "Classic view" toggle for one release so nothing is lost.
-   - Mobile-first: the 3 tabs collapse to a bottom tab bar; segment left-rail becomes a top dropdown.
+- **`PriorityCollectionQueue`** row: small status pill ("Paying" / "Not paying") + tap-to-toggle. Toggle opens a sheet that requires:
+  - Status: Not paying / Paying
+  - Reason (10-char min, dropdown: `moved_out`, `refused_to_pay`, `dispute`, `lost_job`, `unreachable`, `other` + free text)
+  - Confirms via `agent_set_rent_payment_status` RPC
+- **`AgentTenantsSheet`** and **`TenantProfileView`**: same pill + edit action, plus a short audit list ("Marked not paying — 2026-05-26 — moved_out").
+- **`AgentRentCapacitySelfCard`**: explainer line under the daily target — "Excludes N tenant(s) you marked Not Paying and M auto-completed."
+- **`DailyRentExpectedCard`** / `TodayCollectionsCard`: same denominator (already reads from the RPC, so nothing to wire — it just goes down).
 
-4. **QA at scale**
-   - Seed 10,000 fake tenants in a `pg_temp` script run locally; verify inbox + segment paginate without timeouts.
-   - Verify Realtime stays under 1 subscription per ops session.
+### 5. Manager visibility
 
-## What we explicitly do NOT do in this plan
+Executive `AgentCapacityBadge` / Agent Ops hub gets a column "Excluded rents" so managers can see who is parking tenants as Not Paying. A spike triggers review (no auto-block — agents control their own list, managers audit).
 
-- We do **not** touch Agent Ops or Landlord Ops. Those get their own plans once Tenant Ops is validated in production.
-- We do **not** change any ledger, wallet, or rent-pipeline logic. UI only + new ops-scoped tables + 3 read-only RPCs.
-- We do **not** delete the existing TenantOpsDashboard component yet — kept behind a toggle.
+## Out of scope
+
+- Reactivating a `not_paying` tenant via tenant deposit: if `agent_collections` posts a positive amount for that rent_request, a trigger flips status back to `paying` and writes the audit row. (Included — small trigger, prevents drift.)
+- No changes to `rent_requests` lifecycle / disbursement flow.
+- No changes to the 20% threshold or the 5-tier classifier.
 
 ## Technical details
 
-- **Virtualisation**: `@tanstack/react-virtual` (already in tree).
-- **Realtime channel**: single `ops:inbox:{ops_user_id}` channel, fanned out from one `ops_inbox_events` table (insert per severity-bucket change) — avoids subscribing to large mutable tables.
-- **Severity ranking**: computed server-side from existing signals — `rent_requests.days_overdue`, `welile_trust_score_cache.score_delta_7d`, `agent_visits.last_at`, `wallets.advance_balance`. No new scoring logic.
-- **RLS**: all 3 RPCs `SECURITY DEFINER SET search_path = public`, gated by `has_role(auth.uid(), ANY('manager','operations','coo','super_admin'))`.
-- **Starter segments** (seeded): Overdue 3+ days · Overdue 7+ days no visit · New (last 7d) unverified · Trust drop ≥10 in 7d · Advance balance > 0 with no payment in 14d · Kampala overdue.
+**Migration**
 
-## Acceptance
+```sql
+ALTER TABLE public.rent_requests
+  ADD COLUMN agent_payment_status text NOT NULL DEFAULT 'paying'
+    CHECK (agent_payment_status IN ('paying','not_paying','completed_auto')),
+  ADD COLUMN agent_payment_status_reason text,
+  ADD COLUMN agent_payment_status_set_at timestamptz,
+  ADD COLUMN agent_payment_status_set_by uuid REFERENCES auth.users(id);
 
-- A manager can land on Tenant Ops, see ≤ 50 cards across 5 buckets, and act on the top one without scrolling.
-- A manager can run a saved segment over 48k+ tenants and bulk-SMS them in ≤ 3 clicks.
-- Opening the Behavior drawer on any tenant loads in ≤ 800ms (single RPC).
-- Old TenantOpsDashboard still reachable via "Classic view" toggle for one release.
+CREATE INDEX idx_rr_agent_payment_status
+  ON public.rent_requests(agent_id, agent_payment_status);
+```
 
-Approve this and I'll start with the migration + shared primitives.
+**View change** — replace `eligible_rents` CTE:
+
+```sql
+eligible_rents AS (
+  SELECT ar.*
+  FROM active_rents ar
+  LEFT JOIN reversed rv ON rv.rent_request_id = ar.rent_request_id
+  WHERE (rv.rent_request_id IS NULL OR COALESCE(ar.amount_repaid,0) > 0)
+    AND ar.agent_payment_status = 'paying'
+    AND COALESCE(ar.total_repayment,0) - COALESCE(ar.amount_repaid,0) > 0
+)
+```
+
+(Pull `agent_payment_status`, `total_repayment` into `active_rents`.)
+
+**RPC** `agent_set_rent_payment_status(p_rr_id uuid, p_status text, p_reason text)`:
+
+- SECURITY DEFINER, `SET search_path = public`.
+- Asserts caller is the rent's `agent_id` OR has role `manager` / `operations` / `coo` / `super_admin`.
+- Requires `length(p_reason) >= 10` when `p_status = 'not_paying'`.
+- Writes `rent_requests`, `audit_logs` (`action_type='rent.payment_status_changed'`), inserts `system_events`, and calls `capture_trust_signal` for the agent (factor: behavior).
+
+**Reactivation trigger** on `agent_collections` AFTER INSERT: if the target rent_request is `not_paying` and `amount > 0`, set back to `paying` + audit.
+
+**Frontend**
+
+- New hook `useRentPaymentStatusMutation` wrapping the RPC + React Query invalidation of `['agent-daily-eligibility', agentId]`, `['priority-collection-queue']`, `['agent-tenants']`.
+- New shared `<RentPaymentStatusPill rentRequest=... editable />` component used in `PriorityCollectionQueue`, `AgentTenantsSheet`, `TenantProfileView`.
+- New `<MarkNotPayingSheet />` (reason dropdown + 10-char enforced textarea + Confirm).
+
+**No frontend math changes** — denominator drops automatically because everything reads from `get_agent_daily_eligibility`.
+
+## Verification
+
+1. SQL: for an agent with a fully-repaid `repaying` row, `expected_daily` drops by that row's `daily_repayment`.
+2. RPC: agent A cannot flip agent B's rent (RLS denies).
+3. UI: marking a tenant Not Paying in `PriorityCollectionQueue` updates the daily target chip on `AgentRentCapacitySelfCard` within the realtime refresh window.
+4. Audit: `audit_logs` shows a row with the reason; `system_events` has `agent.rent.payment_status_changed`.
+5. Reactivation: collecting from a Not-Paying tenant flips status back and re-includes it in expected_daily next refresh.
