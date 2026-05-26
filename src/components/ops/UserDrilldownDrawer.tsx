@@ -544,7 +544,7 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
     queryKey: ['drilldown-landlord', landlordId],
     queryFn: async () => {
       const { data } = await supabase.from('landlords')
-        .select('id, name, phone, mobile_money_number, property_address, monthly_rent, verified')
+        .select('id, name, phone, mobile_money_number, property_address, monthly_rent, verified, has_smartphone')
         .eq('id', landlordId).maybeSingle();
       return data;
     },
@@ -615,6 +615,7 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
         {landlord?.monthly_rent != null && (
           <p className="text-xs">Default rent: <b>{fmtUGX(landlord.monthly_rent)}</b></p>
         )}
+        <LandlordSmartphoneToggle landlordId={landlordId} initial={landlord?.has_smartphone ?? true} canEdit={isOps} />
       </Card>
 
       <Card className="p-3 space-y-2">
@@ -691,6 +692,71 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
         </div>
         <p className="text-xs text-muted-foreground italic">Coming soon — confirm data model to enable.</p>
       </Card>
+    </div>
+  );
+}
+
+function LandlordSmartphoneToggle({
+  landlordId, initial, canEdit,
+}: { landlordId: string; initial: boolean; canEdit: boolean }) {
+  const qc = useQueryClient();
+  const [val, setVal] = useState<boolean>(initial);
+  const [reason, setReason] = useState('');
+  const [editing, setEditing] = useState(false);
+  const save = useMutation({
+    mutationFn: async (next: boolean) => {
+      if (reason.trim().length < 10) throw new Error('Reason must be ≥ 10 characters');
+      const { error } = await supabase.rpc('ops_update_landlord_smartphone', {
+        p_landlord_id: landlordId,
+        p_has_smartphone: next,
+        p_reason: reason.trim(),
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Smartphone flag updated');
+      setEditing(false); setReason('');
+      qc.invalidateQueries({ queryKey: ['drilldown-landlord', landlordId] });
+    },
+    onError: (e: any) => toast.error(e.message ?? 'Update failed'),
+  });
+
+  return (
+    <div className="mt-1 pt-2 border-t border-border/40 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-xs">
+          {val ? <Smartphone className="h-3.5 w-3.5 text-emerald-600" /> : <SmartphoneNfc className="h-3.5 w-3.5 text-amber-600" />}
+          <span className="font-medium">{val ? 'Has smartphone' : 'No smartphone (USSD / agent-led)'}</span>
+        </div>
+        {canEdit && (
+          <Switch
+            checked={val}
+            onCheckedChange={(v) => { setVal(v); setEditing(true); }}
+          />
+        )}
+      </div>
+      {canEdit && editing && (
+        <div className="space-y-1.5">
+          <Input
+            placeholder="Reason (min 10 chars)"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            className="h-8 text-xs"
+          />
+          <div className="flex gap-2">
+            <Button size="sm" className="flex-1 h-7"
+              disabled={save.isPending || reason.trim().length < 10}
+              onClick={() => save.mutate(val)}>
+              {save.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+              Save
+            </Button>
+            <Button size="sm" variant="ghost" className="h-7"
+              onClick={() => { setVal(initial); setEditing(false); setReason(''); }}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
