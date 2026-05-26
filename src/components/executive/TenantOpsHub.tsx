@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { Sparkles, History } from 'lucide-react';
 import { TenantOpsDashboard } from './TenantOpsDashboard';
 import { TenantOpsDashboardV2 } from './TenantOpsDashboardV2';
-import { GeographicCoveragePanel } from './GeographicCoveragePanel';
 
 const STORAGE_KEY = 'tenant-ops-view-mode';
 
@@ -22,7 +21,6 @@ export function TenantOpsHub() {
 
   return (
     <div className="space-y-3">
-      <GeographicCoveragePanel />
       <div className="flex items-center justify-end gap-2">
         <Button
           variant={mode === 'v2' ? 'default' : 'outline'}
