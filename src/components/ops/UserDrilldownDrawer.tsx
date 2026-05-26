@@ -1683,6 +1683,18 @@ function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord }: { agent
                       <span className="text-muted-foreground">—</span>
                     )}
                   </div>
+                  <div className="pt-1">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-[11px] w-full"
+                      onClick={() => setPhotoUploadFor(l)}
+                    >
+                      <ImagePlus className="h-3 w-3 mr-1" />
+                      Add photos ({Array.isArray(l.image_urls) ? l.image_urls.length : 0})
+                    </Button>
+                  </div>
                 </li>
               ))}
             </ul>
