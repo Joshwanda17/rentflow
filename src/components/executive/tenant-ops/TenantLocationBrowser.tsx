@@ -21,6 +21,7 @@ import {
   type TenantBreakdownRow,
   type TenantLeaf,
 } from '@/hooks/useTenantLocationBreakdown';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const LEVEL_ICON: Record<string, any> = {
   country: MapPin, region: MapPin, district: MapPin, ward: MapPin,
