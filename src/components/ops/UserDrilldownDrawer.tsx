@@ -1909,7 +1909,7 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
           outstandingByTenant.set(r.user_id, cur - amt);
         }
       }
-      return rows
+      const mappedRows = rows
         .map((r) => {
           const outstanding = Math.max(0, outstandingByTenant.get(r.tenant_id) || 0);
           return {
@@ -1929,6 +1929,11 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
           };
         })
         .sort((a, b) => b.outstanding - a.outstanding);
+      return {
+        rows: mappedRows,
+        rentRequestCount: (rrsRes.data ?? []).length,
+        managedProfileCount: (managedRes.data ?? []).length,
+      };
     },
   });
 
