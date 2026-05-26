@@ -143,6 +143,19 @@ export function RentDisbursementQueue() {
     );
   }, [items]);
 
+  const visibleGroups = useMemo(
+    () => (agentFilter === 'all' ? grouped : grouped.filter(g => g.agent_id === agentFilter)),
+    [grouped, agentFilter],
+  );
+  const visibleItems = useMemo(() => visibleGroups.flatMap(g => g.rows), [visibleGroups]);
+  const allSelected = visibleItems.length > 0 && visibleItems.every(i => selected.has(i.id));
+  const toggleAll = () => {
+    const next = new Set(selected);
+    if (allSelected) visibleItems.forEach(i => next.delete(i.id));
+    else visibleItems.forEach(i => next.add(i.id));
+    setSelected(next);
+  };
+
   const toggleAgentGroup = (rows: ApprovedRentItem[]) => {
     const ids = rows.map(r => r.id);
     const allOn = ids.every(id => selected.has(id));
