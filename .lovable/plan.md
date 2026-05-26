@@ -1,41 +1,28 @@
-# Surface "Verify & Earn" as an inline CTA on mobile
+## Why the "Pay from Your Float" button feels frozen
 
-## Problem
+`TenantProfileView` opens inside a `Sheet`, and our `src/components/ui/sheet.tsx` was bumped to:
+- overlay: `z-[110]`
+- content: `z-[120]`
 
-`VerificationOpportunitiesButton` (the "Verify & Earn 17" pill) renders as a fixed FAB at `bottom-24 right-4` on mobile. On the same right edge there is already `FieldCollectFab` anchored at `bottom: var(--fab-bottom)` (~84–100 px on mobile) plus `CreditVerificationButton` at `bottom-36`. The three FABs **stack and overlap** on small screens, so "Verify & Earn" ends up tucked **behind / under** the Field Collect FAB. That's what the user is calling out — a primary earnings affordance should never be hidden behind another button.
+But `src/components/ui/dialog.tsx` is still at the shadcn default:
+- overlay: `z-50`
+- content: `z-50`
+
+`AgentTenantCollectDialog` (a Dialog) opens behind the Sheet. Radix still grabs focus and the mobile numeric keyboard appears, but the dialog is visually trapped under the Sheet → user can't see or click it → looks frozen. A local `z-[70]` was added on `AgentTenantCollectDialog`, which is still below `120`, so it didn't help.
 
 ## Fix
 
-Move the Verify & Earn trigger out of the FAB stack and render it as a **prominent inline CTA at the top of the agent dashboard** on mobile. The bottom sheet (Houses / Tenants tabs, GPS-gated verification flows) stays exactly as it is.
+Two small, surgical edits in presentation code only:
 
-### 1. `src/components/agent/VerificationOpportunitiesButton.tsx`
+1. **`src/components/ui/dialog.tsx`** — raise the base z-index so every Dialog in the app always sits above any Sheet:
+   - `DialogOverlay`: `z-50` → `z-[140]`
+   - `DialogContent`: `z-50` → `z-[150]`
 
-- Replace the `fixed bottom-24 …` `<button>` (lines 144–153) with an **inline** trigger:
-  - Full-width pill/card: gradient/`bg-primary` background, Shield icon on left, "Verify & Earn" label, right-aligned count badge, subtle "UGX 5–10K bonuses" subline.
-  - Tailwind: `w-full rounded-2xl px-4 py-3 flex items-center gap-3 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-md active:scale-[0.99] touch-manipulation`.
-  - Same `onClick={handleOpen}` and same `if (totalCount === 0) return null;` early return.
-- Keep the existing `<Sheet>` block untouched.
-- No `fixed` / `bottom-*` / `z-*` classes on the trigger anymore.
+2. **`src/components/agent/AgentTenantCollectDialog.tsx`** — remove the now-redundant local `z-[70]` from the `DialogContent` className so it inherits the new global stacking.
 
-### 2. `src/components/dashboards/AgentDashboard.tsx`
+No business logic, RPC, or wallet code changes. No other Dialog usages need updates — they automatically benefit.
 
-- **Remove** `<VerificationOpportunitiesButton />` at line 1009 (it was sitting in the FAB layer).
-- **Mount it inline** as the first child of `<main className="agent-dashboard-main …">` (around line 433, just before the hero / wallet card), so it appears at the top of the scrollable content on every dashboard tab.
-- Wrap nothing else around it — the component returns `null` when `totalCount === 0`, so when there's nothing to verify the dashboard layout is unchanged.
+## Verification
 
-### 3. Leave the other FABs alone
-
-- `CreditVerificationButton` (bottom-36) and `FieldCollectFab` (`var(--fab-bottom)`) stay as-is — the user only flagged "Verify & Earn". Removing one FAB from the stack also gives `CreditVerificationButton` clearer room on small screens as a side benefit.
-
-### 4. Verify
-
-- Mobile preview (390×844): open `/dashboard/agent` with `totalCount > 0` → inline Verify & Earn banner is the first thing visible at the top of the dashboard content; tapping it opens the same bottom sheet; no FAB on the bottom-right for this button.
-- Mobile preview with `totalCount === 0`: dashboard renders normally, no empty banner.
-- Desktop (≥1024): same inline banner appears at the top of the agent dashboard column — consistent across breakpoints, no overlap with the right-edge FABs (`FieldCollectFab`, `CreditVerificationButton`).
-- The sheet's Houses / Tenants tabs, GPS-gated verify flows, and bonus payouts behave exactly as before — no logic change inside the sheet.
-
-## Out of scope
-
-- No backend or RPC changes.
-- No changes to `FieldCollectFab` or `CreditVerificationButton`.
-- No changes to the Android backdrop-blur / compositor tearing detector (separate issue).
+- Open a tenant from the Agent dashboard → tap **Pay from Your Float** → confirm the payment dialog appears above the tenant sheet, is interactive, and the "Confirm" RPC fires (existing 25 s timeout already in place).
+- Spot-check one other Dialog (e.g. any confirm dialog opened from a normal page, not inside a Sheet) to confirm it still looks correct at the new z-index.
