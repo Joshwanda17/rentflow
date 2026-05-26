@@ -3,7 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, MapPin, User, Home, ChevronRight, Phone, Image as ImageIcon } from 'lucide-react';
-import { LocationBreadcrumbs } from '@/components/executive/landlord-ops/LocationBreadcrumbs';
+import { TenantLocationBreadcrumbs } from './TenantLocationBreadcrumbs';
 import { formatUGX } from '@/lib/rentCalculations';
 import {
   useTenantLocationBreakdown,
@@ -40,7 +40,7 @@ export function TenantLocationBrowser() {
   return (
     <div className="space-y-3">
       <Card className="p-2.5 bg-muted/30">
-        <LocationBreadcrumbs path={path as any} onJump={(p) => setPath(p as TenantBreadcrumbPath)} />
+        <TenantLocationBreadcrumbs path={path} onJump={(p) => setPath(p)} />
       </Card>
 
       {level === 'tenants' ? (
