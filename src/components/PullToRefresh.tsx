@@ -29,12 +29,13 @@ export function PullToRefresh({
   });
 
   if (disabled) {
-    return <div className={className}>{children}</div>;
+    return <div className={className} data-pull-to-refresh="disabled">{children}</div>;
   }
 
   return (
     <div
       {...handlers}
+      data-pull-to-refresh="active"
       className={cn('relative overflow-auto', className)}
       style={{ touchAction: 'pan-y' }}
     >
