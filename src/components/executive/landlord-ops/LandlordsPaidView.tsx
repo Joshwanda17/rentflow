@@ -391,6 +391,16 @@ export function LandlordsPaidView() {
                   <div className="text-right shrink-0">
                     <p className="font-bold font-mono text-sm">{formatUGX(g.total)}</p>
                     <div className="flex items-center justify-end gap-1 mt-0.5">
+                      {g.receipt_verification_status === 'true_landlord' && (
+                        <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 text-[10px] px-1.5 py-0 h-4">
+                          <ShieldCheck className="h-2.5 w-2.5 mr-0.5" />True
+                        </Badge>
+                      )}
+                      {g.receipt_verification_status === 'false_landlord' && (
+                        <Badge className="bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30 text-[10px] px-1.5 py-0 h-4">
+                          <ShieldX className="h-2.5 w-2.5 mr-0.5" />False
+                        </Badge>
+                      )}
                       {g.confirmedCount > 0 && (
                         <Badge className="bg-success/10 text-success border-success/30 text-[10px] px-1.5 py-0 h-4">
                           <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />{g.confirmedCount}
