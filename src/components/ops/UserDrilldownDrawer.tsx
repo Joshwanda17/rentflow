@@ -1867,14 +1867,19 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
                 {Array.isArray(l.image_urls) && l.image_urls.length > 0 ? (
                   <div className="flex gap-1 overflow-x-auto pb-1 -mx-1 px-1">
                     {l.image_urls.slice(0, 8).map((src: string, i: number) => (
-                      <a key={i} href={src} target="_blank" rel="noreferrer" className="shrink-0">
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => openLightbox(l.image_urls, i, l.title)}
+                        className="shrink-0"
+                      >
                         <img
                           src={src}
                           alt={`${l.title} photo ${i + 1}`}
                           loading="lazy"
                           className="h-20 w-24 object-cover rounded border border-border/40"
                         />
-                      </a>
+                      </button>
                     ))}
                   </div>
                 ) : (
