@@ -120,11 +120,6 @@ export default function AgentContactLocationGate({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const isValid =
-    !!resolvedCountry &&
-    (!isUganda || !!district) &&
-    !!village.trim() || (!isUganda && !!city.trim()) ;
-
   const ready = !!resolvedCountry && (!isUganda || !!district) && lat !== null && lng !== null;
 
   const handleSubmit = async () => {
