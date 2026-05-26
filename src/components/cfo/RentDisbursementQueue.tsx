@@ -368,20 +368,38 @@ export function RentDisbursementQueue() {
                 const allGroupOn = groupSelectedCount === groupIds.length;
                 const someGroupOn = groupSelectedCount > 0 && !allGroupOn;
                 const groupTotal = group.rows.reduce((s, r) => s + r.rent_amount, 0);
+                const isNew = Date.now() - group.latest < 24 * 60 * 60 * 1000;
+                const isRealAgent = group.agent_id && group.agent_id !== 'unassigned';
                 return (
                   <div key={group.agent_id} className="rounded-lg border">
                     <div className="flex items-center justify-between gap-2 px-3 py-2 bg-muted/40 rounded-t-lg">
-                      <label className="flex items-center gap-2 text-sm cursor-pointer min-w-0 flex-1">
+                      <div className="flex items-center gap-2 text-sm min-w-0 flex-1">
                         <Checkbox
                           checked={allGroupOn ? true : someGroupOn ? 'indeterminate' : false}
                           onCheckedChange={() => toggleAgentGroup(group.rows)}
                         />
                         <Users className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <span className="font-semibold truncate">{group.agent_name}</span>
+                        {isRealAgent ? (
+                          <button
+                            type="button"
+                            onClick={() => setDrilldownAgentId(group.agent_id)}
+                            className="font-semibold truncate text-left hover:text-primary hover:underline focus:outline-none focus-visible:underline"
+                            title="Open agent profile"
+                          >
+                            {group.agent_name}
+                          </button>
+                        ) : (
+                          <span className="font-semibold truncate">{group.agent_name}</span>
+                        )}
+                        {isNew && (
+                          <Badge className="text-[9px] px-1.5 py-0 shrink-0 bg-emerald-500 text-white border-0 animate-pulse">
+                            NEW
+                          </Badge>
+                        )}
                         <Badge variant="outline" className="text-[9px] px-1.5 py-0 shrink-0">
                           {groupSelectedCount}/{group.rows.length}
                         </Badge>
-                      </label>
+                      </div>
                       <span className="text-xs font-bold text-orange-600 shrink-0">{fmt(groupTotal)}</span>
                     </div>
                     <div className="divide-y">
