@@ -355,3 +355,44 @@ function labelFor(level: 'country' | 'district' | 'city') {
   if (level === 'district') return 'District';
   return 'City / Town';
 }
+
+function DateRangePopover({
+  label,
+  date,
+  onChange,
+}: {
+  label: string;
+  date: Date | undefined;
+  onChange: (d: Date | undefined) => void;
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className={cn('h-9 gap-1.5', !date && 'text-muted-foreground')}
+        >
+          <CalendarIcon className="h-3.5 w-3.5" />
+          {date ? `${label}: ${format(date, 'PP')}` : label}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="single"
+          selected={date}
+          onSelect={onChange}
+          initialFocus
+          className={cn('p-3 pointer-events-auto')}
+        />
+        {date && (
+          <div className="p-2 border-t">
+            <Button size="sm" variant="ghost" className="w-full text-xs" onClick={() => onChange(undefined)}>
+              Clear
+            </Button>
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
