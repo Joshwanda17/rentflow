@@ -34,7 +34,7 @@ import {
 import { TenantOpsFilterBar } from './TenantOpsFilterBar';
 import {
   DEFAULT_FILTERS, timeWindowToISO, applyLeafFilters,
-  exportLeafToCSV, downloadCSV, type TenantOpsFilters,
+  exportLeafToCSV, exportLeafToPDF, downloadCSV, type TenantOpsFilters,
 } from '@/lib/tenantOpsFilters';
 
 const LEVEL_ICON: Record<string, any> = {
