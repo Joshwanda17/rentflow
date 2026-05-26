@@ -305,8 +305,8 @@ export function AgentTenantCollectDialog({
     <Dialog open={open} onOpenChange={(o) => { if (!o && !loading) handleClose(); }}>
       <DialogContent
         className="max-w-sm max-h-[90vh] overflow-y-auto z-[70] pointer-events-auto top-[2vh] translate-y-0 sm:top-[50%] sm:-translate-y-1/2"
-        onInteractOutside={(e) => e.preventDefault()}
-        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => { if (loading) e.preventDefault(); }}
+        onPointerDownOutside={(e) => { if (loading) e.preventDefault(); }}
       >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
