@@ -321,3 +321,48 @@ export const UGANDA_REGION_GROUPS: UgandaRegionGroup[] = [
     ],
   },
 ];
+
+/**
+ * Curated administrative areas (sub-counties, town councils, municipal
+ * divisions, city divisions) for each Uganda district. Used by the
+ * Tenant Location Browser so that drilling into a district shows EVERY
+ * official area — not just the ones with tenants already on the
+ * platform. Areas with users are highlighted in purple at render time.
+ *
+ * Only districts with a curated entry get the rich picker; others fall
+ * back to the live-only ward tile grid.
+ */
+export const UGANDA_DISTRICT_AREAS: Record<string, string[]> = {
+  Wakiso: [
+    // Entebbe Municipality
+    'Entebbe Division A',
+    'Entebbe Division B',
+    // Nansana Municipality
+    'Nansana Division',
+    'Nabweru Division',
+    'Gombe Division',
+    'Busukuma Division',
+    // Kira Municipality
+    'Kira Division',
+    'Bweyogerere Division',
+    'Namugongo Division',
+    // Makindye-Ssabagabo Municipality
+    'Bunamwaya Division',
+    'Masajja Division',
+    'Ndejje Division',
+    // Sub-counties / Town Councils
+    'Wakiso Town Council',
+    'Kasangati Town Council',
+    'Kyengera Town Council',
+    'Katabi Town Council',
+    'Kakiri Town Council',
+    'Masulita Town Council',
+    'Namayumba Town Council',
+    'Nsangi',
+    'Ssisa',
+    'Kasanje',
+    'Mende',
+    'Nangabo',
+    'Wakiso',
+  ],
+};
