@@ -241,7 +241,28 @@ export function FundedTenantsList() {
                     )}
                   </div>
                   <div className="flex items-center gap-3 text-[11px] text-muted-foreground flex-wrap">
-                    <span>Agent: <b className="text-foreground">{r.agent_profile?.full_name ?? '—'}</b></span>
+                    <span>
+                      Agent:{' '}
+                      {r.agent_id ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDrill({
+                              tenantId: r.tenant_id ?? null,
+                              agentId: r.agent_id ?? null,
+                              landlordId: r.landlord_id ?? null,
+                            });
+                          }}
+                          className="font-semibold text-primary hover:underline"
+                          title="Open agent profile"
+                        >
+                          {r.agent_profile?.full_name ?? '—'}
+                        </button>
+                      ) : (
+                        <b className="text-foreground">—</b>
+                      )}
+                    </span>
                     <span>{r.mobile_money_provider}: <span className="font-mono">{r.landlord_phone}</span></span>
                     {(r.finops_momo_reference || r.external_reference) && (
                       <span className="inline-flex items-center gap-1">
