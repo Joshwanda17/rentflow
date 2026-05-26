@@ -585,7 +585,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
                   <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
                     {REGIONS.map(r => (
-                      <SelectItem key={r} value={r}>{r}</SelectItem>
+                      <SelectItem key={r} value={r}>{regionLabel(r)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -596,7 +596,18 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
                   placeholder="District"
                   value={form.district}
                   onChange={e => setForm(f => ({ ...f, district: e.target.value }))}
+                  onBlur={e => {
+                    const normalized = normalizeDistrict(e.target.value);
+                    if (normalized && normalized !== e.target.value.trim()) {
+                      setForm(f => ({ ...f, district: normalized }));
+                    }
+                  }}
                 />
+                {districtWarning(form.district) && (
+                  <p className="text-[10px] text-warning leading-tight mt-1">
+                    {districtWarning(form.district)}
+                  </p>
+                )}
               </div>
             </div>
             <div>
