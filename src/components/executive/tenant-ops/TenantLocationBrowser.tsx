@@ -37,6 +37,53 @@ const LEVEL_ICON: Record<string, any> = {
   agent: User, landlord: Home,
 };
 
+// African countries grouped by sub-region, ordered East → West → South → North → Central.
+// Mirrors the grouping used in FundedTenantsList so both Tenant Ops pages
+// surface the same continental coverage.
+const AFRICA_REGIONS: { region: string; countries: string[] }[] = [
+  {
+    region: 'Eastern Africa',
+    countries: [
+      'Uganda', 'Kenya', 'Tanzania', 'Rwanda', 'Burundi', 'South Sudan',
+      'Ethiopia', 'Eritrea', 'Djibouti', 'Somalia', 'Sudan',
+      'Madagascar', 'Mauritius', 'Seychelles', 'Comoros', 'Mayotte', 'Reunion',
+      'Malawi', 'Zambia', 'Zimbabwe', 'Mozambique',
+    ],
+  },
+  {
+    region: 'Western Africa',
+    countries: [
+      'Nigeria', 'Ghana', 'Senegal', 'Ivory Coast', "Cote d'Ivoire", 'Mali',
+      'Burkina Faso', 'Benin', 'Togo', 'Guinea', 'Guinea-Bissau', 'Sierra Leone',
+      'Liberia', 'Gambia', 'Mauritania', 'Niger', 'Cape Verde', 'Cabo Verde',
+      'Saint Helena',
+    ],
+  },
+  {
+    region: 'Southern Africa',
+    countries: [
+      'South Africa', 'Namibia', 'Botswana', 'Lesotho', 'Eswatini', 'Swaziland', 'Angola',
+    ],
+  },
+  {
+    region: 'Northern Africa',
+    countries: [
+      'Egypt', 'Libya', 'Tunisia', 'Algeria', 'Morocco', 'Western Sahara',
+    ],
+  },
+  {
+    region: 'Central Africa',
+    countries: [
+      'DR Congo', 'Democratic Republic of the Congo', 'Congo', 'Republic of the Congo',
+      'Cameroon', 'Central African Republic', 'Central African Rep.', 'Chad',
+      'Gabon', 'Equatorial Guinea', 'Sao Tome and Principe',
+    ],
+  },
+];
+const AFRICAN_COUNTRY_SET = new Set(
+  AFRICA_REGIONS.flatMap((g) => g.countries.map((c) => c.toLowerCase())),
+);
+
 /**
  * Build a set of normalized lookup keys for a Ugandan administrative-area
  * label so curated names can match live tenant labels despite casing,
@@ -181,6 +228,12 @@ export function TenantLocationBrowser() {
           liveRows={rows ?? []}
           loading={isLoading}
           onPickArea={(area) => setPath({ ...path, ward: area })}
+        />
+      ) : level === 'country' ? (
+        <AfricaCountryPicker
+          rows={rows ?? []}
+          loading={isLoading}
+          onPickCountry={(country) => setPath({ country })}
         />
       ) : (
         <TenantTileGrid rows={rows ?? []} level={level} loading={isLoading} onPick={pick} />
@@ -653,6 +706,215 @@ function DistrictAreaPicker({
   );
 }
 
+/**
+ * Top-level country picker. Shows every African country grouped by
+ * sub-region (Eastern / Western / Southern / Northern / Central),
+ * overlays live tenant counts from the RPC, and lists any non-African
+ * countries that already have tenants at the bottom under "Other".
+ */
+function AfricaCountryPicker({
+  rows,
+  loading,
+  onPickCountry,
+}: {
+  rows: TenantBreakdownRow[];
+  loading: boolean;
+  onPickCountry: (country: string) => void;
+}) {
+  const [search, setSearch] = useState('');
+  const [openRegion, setOpenRegion] = useState<string | null>('Eastern Africa');
+
+  // Live tenant counts keyed by lowercased country label.
+  const liveByCountry = useMemo(() => {
+    const m = new Map<string, TenantBreakdownRow>();
+    for (const r of rows) {
+      const k = (r.label ?? '').trim().toLowerCase();
+      if (!k) continue;
+      const cur = m.get(k);
+      if (!cur || r.total > cur.total) m.set(k, r);
+    }
+    return m;
+  }, [rows]);
+  const lookup = (name: string) => liveByCountry.get(name.trim().toLowerCase());
+
+  const otherCountries = useMemo(
+    () => rows.filter((r) => !AFRICAN_COUNTRY_SET.has((r.label ?? '').trim().toLowerCase())),
+    [rows],
+  );
+
+  const q = search.trim().toLowerCase();
+  const matches = (s: string) => !q || s.toLowerCase().includes(q);
+
+  return (
+    <div className="space-y-2">
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search countries…"
+          className="pl-8 pr-8 h-9"
+        />
+        {search && (
+          <button
+            onClick={() => setSearch('')}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            aria-label="Clear search"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
+      {loading && (
+        <div className="flex justify-center py-2">
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+        </div>
+      )}
+
+      {AFRICA_REGIONS.map((group) => {
+        const items = group.countries.filter((c) => matches(c));
+        if (items.length === 0) return null;
+        // Dedupe by lowercased name so e.g. "DR Congo" + "Democratic Republic of the Congo"
+        // only render once in the grid.
+        const seen = new Set<string>();
+        const dedup = items.filter((c) => {
+          const k = c.toLowerCase();
+          if (seen.has(k)) return false;
+          seen.add(k);
+          return true;
+        });
+        const isOpen = openRegion === group.region || !!q;
+        const groupActive = dedup.filter((c) => (lookup(c)?.total ?? 0) > 0).length;
+        const groupTotal = dedup.reduce((s, c) => s + (lookup(c)?.total ?? 0), 0);
+        return (
+          <Card key={group.region} className="overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setOpenRegion(isOpen && !q ? null : group.region)}
+              className="w-full flex items-center justify-between gap-2 p-3 hover:bg-muted/40 transition"
+              aria-expanded={isOpen}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <MapPin className="h-4 w-4 text-primary shrink-0" />
+                <span className="font-semibold text-sm truncate">{group.region}</span>
+                <Badge variant="secondary" className="text-[10px] shrink-0">
+                  {dedup.length} countries
+                </Badge>
+                {groupActive > 0 && (
+                  <Badge className="text-[10px] shrink-0 bg-purple-600 hover:bg-purple-600 text-white border-transparent">
+                    {groupActive} active · {groupTotal.toLocaleString()} tenants
+                  </Badge>
+                )}
+              </div>
+              <ChevronDown
+                className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
+            {isOpen && (
+              <div className="border-t bg-muted/20 p-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                  {dedup.map((c) => {
+                    const live = lookup(c);
+                    const count = live?.total ?? 0;
+                    const hasUsers = count > 0;
+                    // When live data uses a slightly different label
+                    // (e.g. "Democratic Republic of the Congo" vs "DR Congo"),
+                    // route the drill to the live label so the next-level RPC matches.
+                    const drillLabel = live?.label ?? c;
+                    return (
+                      <button
+                        key={`${group.region}-${c}`}
+                        onClick={() => onPickCountry(drillLabel)}
+                        className="group text-left"
+                      >
+                        <Card
+                          className={`p-2.5 h-full transition active:scale-[0.98] ${
+                            hasUsers
+                              ? 'bg-purple-50 border-purple-400 hover:border-purple-600 hover:shadow-sm dark:bg-purple-950/30 dark:border-purple-700'
+                              : 'hover:border-primary hover:shadow-sm'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-1.5">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <MapPin
+                                className={`h-3.5 w-3.5 shrink-0 ${
+                                  hasUsers ? 'text-purple-600 dark:text-purple-400' : 'text-muted-foreground'
+                                }`}
+                              />
+                              <span
+                                className={`text-xs font-semibold truncate ${
+                                  hasUsers ? 'text-purple-900 dark:text-purple-100' : ''
+                                }`}
+                              >
+                                {c}
+                              </span>
+                            </div>
+                            <ChevronRight
+                              className={`h-3.5 w-3.5 shrink-0 ${
+                                hasUsers
+                                  ? 'text-purple-600 dark:text-purple-400'
+                                  : 'text-muted-foreground group-hover:text-primary'
+                              }`}
+                            />
+                          </div>
+                          {hasUsers && (
+                            <p className="mt-1 text-[10px] font-semibold text-purple-700 dark:text-purple-300">
+                              {count.toLocaleString()} tenant{count === 1 ? '' : 's'}
+                            </p>
+                          )}
+                        </Card>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </Card>
+        );
+      })}
+
+      {otherCountries.filter((r) => matches(r.label)).length > 0 && (
+        <Card className="overflow-hidden">
+          <div className="p-3 flex items-center gap-2 border-b bg-muted/20">
+            <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
+            <span className="font-semibold text-sm">Other countries</span>
+            <Badge variant="secondary" className="text-[10px]">
+              {otherCountries.filter((r) => matches(r.label)).length}
+            </Badge>
+          </div>
+          <div className="p-2 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+            {otherCountries
+              .filter((r) => matches(r.label))
+              .map((r) => (
+                <button
+                  key={r.key}
+                  onClick={() => onPickCountry(r.label)}
+                  className="group text-left"
+                >
+                  <Card className="p-2.5 h-full bg-purple-50 border-purple-400 hover:border-purple-600 hover:shadow-sm dark:bg-purple-950/30 dark:border-purple-700 transition active:scale-[0.98]">
+                    <div className="flex items-center justify-between gap-1.5">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <MapPin className="h-3.5 w-3.5 shrink-0 text-purple-600 dark:text-purple-400" />
+                        <span className="text-xs font-semibold truncate text-purple-900 dark:text-purple-100">
+                          {r.label}
+                        </span>
+                      </div>
+                      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-purple-600 dark:text-purple-400" />
+                    </div>
+                    <p className="mt-1 text-[10px] font-semibold text-purple-700 dark:text-purple-300">
+                      {r.total.toLocaleString()} tenant{r.total === 1 ? '' : 's'}
+                    </p>
+                  </Card>
+                </button>
+              ))}
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 function TenantTileGrid({
   rows, level, loading, onPick,
 }: { rows: TenantBreakdownRow[]; level: string; loading: boolean; onPick: (r: TenantBreakdownRow) => void }) {
@@ -769,6 +1031,7 @@ function TenantTileGrid({
 }
 
 function TenantLeafList({ path }: { path: TenantBreadcrumbPath }) {
+  // (placeholder anchor — AfricaCountryPicker is declared above this block)
   const { data, isLoading } = useTenantsAtLeaf(path);
   const [openId, setOpenId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
