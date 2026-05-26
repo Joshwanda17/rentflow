@@ -760,6 +760,13 @@ function TenantPane({
         tenantPhone={profile?.phone ?? null}
         activeRentRequestId={activeRr?.id ?? null}
       />
+      <TenantExportButtons
+        tenantId={tenantId}
+        profile={profile}
+        activeRr={activeRr}
+        balance={balance}
+        activeLandlord={activeLandlord}
+      />
       <LocationEditor userId={tenantId} profile={profile} canEdit={isOps /* agent edit handled elsewhere */} />
 
       <Card className="p-3 space-y-2">
