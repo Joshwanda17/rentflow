@@ -7472,6 +7472,13 @@ export type Database = {
           phone: string
           property_address: string
           ready_to_receive: boolean | null
+          receipt_request_channel: string | null
+          receipt_requested_at: string | null
+          receipt_requested_by: string | null
+          receipt_verification_at: string | null
+          receipt_verification_by: string | null
+          receipt_verification_note: string | null
+          receipt_verification_status: string | null
           region: string | null
           registered_by: string | null
           rent_balance_due: number
@@ -7524,6 +7531,13 @@ export type Database = {
           phone: string
           property_address: string
           ready_to_receive?: boolean | null
+          receipt_request_channel?: string | null
+          receipt_requested_at?: string | null
+          receipt_requested_by?: string | null
+          receipt_verification_at?: string | null
+          receipt_verification_by?: string | null
+          receipt_verification_note?: string | null
+          receipt_verification_status?: string | null
           region?: string | null
           registered_by?: string | null
           rent_balance_due?: number
@@ -7576,6 +7590,13 @@ export type Database = {
           phone?: string
           property_address?: string
           ready_to_receive?: boolean | null
+          receipt_request_channel?: string | null
+          receipt_requested_at?: string | null
+          receipt_requested_by?: string | null
+          receipt_verification_at?: string | null
+          receipt_verification_by?: string | null
+          receipt_verification_note?: string | null
+          receipt_verification_status?: string | null
           region?: string | null
           registered_by?: string | null
           rent_balance_due?: number
