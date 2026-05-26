@@ -16,6 +16,7 @@ import {
   MessageCircle, Pencil, UsersRound, Zap, Bot, RefreshCw,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { useCaptureLocation } from '@/hooks/useCaptureLocation';
 import { createShortLink } from '@/lib/createShortLink';
 import { AgentTenantCollectDialog } from './AgentTenantCollectDialog';
