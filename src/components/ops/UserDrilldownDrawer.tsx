@@ -1919,6 +1919,13 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
             landlord: r.landlord_id ? (lMap.get(r.landlord_id) as any) : null,
             outstanding,
             status: r.status,
+            source: r.source,
+            rentRequestId: r.rent_request_id,
+            landlordId: r.landlord_id,
+            rentAmount: r.rent_amount,
+            totalRepayment: r.total_repayment,
+            amountRepaid: r.amount_repaid,
+            createdAt: r.created_at,
           };
         })
         .sort((a, b) => b.outstanding - a.outstanding);
