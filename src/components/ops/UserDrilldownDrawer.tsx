@@ -1198,12 +1198,23 @@ function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord }: { agent
   const { data: listings = [] } = useQuery({
     queryKey: ['drilldown-agent-listings', agentId],
     queryFn: async () => {
+      // Same person may have multiple profile UUIDs (per Identity Account Mapping).
+      // Resolve all sibling profile ids that share this agent's phone, then query
+      // house_listings for any of those agent_ids.
+      const { data: me } = await supabase
+        .from('profiles').select('phone').eq('id', agentId).maybeSingle();
+      const agentIds = new Set<string>([agentId]);
+      if (me?.phone) {
+        const { data: siblings } = await supabase
+          .from('profiles').select('id').eq('phone', me.phone);
+        (siblings ?? []).forEach((s: any) => agentIds.add(s.id));
+      }
       const { data } = await supabase
         .from('house_listings')
-        .select('id, title, monthly_rent, status, village, district, landlord_id, tenant_id, created_at')
-        .eq('agent_id', agentId)
+        .select('id, title, monthly_rent, status, village, district, landlord_id, tenant_id, agent_id, created_at')
+        .in('agent_id', Array.from(agentIds))
         .order('created_at', { ascending: false })
-        .limit(100);
+        .limit(200);
       const rows = data ?? [];
       const llIds = Array.from(new Set(rows.map((r: any) => r.landlord_id).filter(Boolean)));
       let llMap = new Map<string, any>();
