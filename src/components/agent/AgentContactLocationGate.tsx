@@ -308,3 +308,65 @@ export default function AgentContactLocationGate({
     </Dialog>
   );
 }
+
+function DistrictCombobox({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className={cn(
+            "w-full justify-between font-normal",
+            !value && "text-muted-foreground",
+          )}
+        >
+          {value || "Select district"}
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-[--radix-popover-trigger-width] p-0 z-[200]"
+        align="start"
+      >
+        <Command>
+          <CommandInput placeholder="Search district…" />
+          <CommandList className="max-h-64">
+            <CommandEmpty>No district found.</CommandEmpty>
+            <CommandGroup>
+              {UGANDA_DISTRICTS.map((d) => (
+                <CommandItem
+                  key={d}
+                  value={d}
+                  onSelect={(v) => {
+                    onChange(v);
+                    setOpen(false);
+                  }}
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4",
+                      value.toLowerCase() === d.toLowerCase()
+                        ? "opacity-100"
+                        : "opacity-0",
+                    )}
+                  />
+                  {d}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
