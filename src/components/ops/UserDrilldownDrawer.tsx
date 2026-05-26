@@ -1161,6 +1161,7 @@ function AgentPane({ agentId, isOps, onSelectTenant }: { agentId: string; isOps:
   const qc = useQueryClient();
   const { data: profile, isLoading } = useProfile(agentId);
   const { data: roles = [] } = useUserRoles(agentId);
+  const [viewMode, setViewMode] = useState<'tenants' | 'landlords'>('tenants');
   const { data: stats } = useQuery({
     queryKey: ['drilldown-agent-stats', agentId],
     queryFn: async () => {
