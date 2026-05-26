@@ -33,6 +33,8 @@ import RentAccessLimitActivity from './RentAccessLimitActivity';
 import { TenantPaymentCalendar } from './TenantPaymentCalendar';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Sparkles, ChevronRight } from 'lucide-react';
+import AgentContactLocationGate from './AgentContactLocationGate';
+import { useRequireContactLocation } from '@/hooks/useRequireContactLocation';
 
 interface TenantProfileViewProps {
   tenantId: string;
@@ -156,10 +158,9 @@ function Stat({
 export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) {
   const { toast } = useToast();
   const { user } = useAuth();
-  // Force-capture this tenant's detailed location (Agent Field Mandate).
-  // Banner appears whenever GPS / district / country are missing.
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { floatBalance: agentFloatBalance, isLoading: floatLoading, error: floatError, refetch: refetchFloat } = useAgentLandlordFloat(user?.id);
+  // Agent Field Mandate — tenant location capture banner + gate.
+  const tenantLoc = useRequireContactLocation(tenantId, 'tenant');
   const [profile, setProfile] = useState<TenantProfile | null>(null);
   const [requests, setRequests] = useState<RentRequestRow[]>([]);
   const [repayments, setRepayments] = useState<RepaymentRow[]>([]);
@@ -678,6 +679,30 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
           setProfile(prev => prev ? { ...prev, ...updated } : prev);
           loadFullProfile({ silent: true });
         }}
+      />
+
+      {tenantLoc.needsCapture && (
+        <div className="px-3 sm:px-4 pt-3">
+          <button
+            type="button"
+            onClick={tenantLoc.openGate}
+            className="w-full rounded-xl border border-warning/40 bg-warning/10 px-3 py-2.5 text-left flex items-center gap-2"
+          >
+            <span className="text-warning text-sm font-semibold flex-1">
+              📍 Capture this tenant's location — required before payouts/collections
+            </span>
+            <span className="text-xs text-warning font-bold">Tap</span>
+          </button>
+        </div>
+      )}
+      <AgentContactLocationGate
+        open={tenantLoc.gateOpen}
+        targetId={tenantId}
+        targetRole="tenant"
+        targetName={profile.full_name}
+        blocking={false}
+        onComplete={tenantLoc.onCaptured}
+        onCancel={tenantLoc.closeGate}
       />
 
       <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 space-y-4 max-w-2xl mx-auto w-full">
