@@ -123,6 +123,20 @@ export function AgentTenantCollectDialog({
     }
   }, [open, maxAllowable]);
 
+  // Skip the redundant amount-entry step: the agent already tapped a button on
+  // the tenant profile that said "Pay USh <amount>". Jump straight to Confirm
+  // so the next tap actually allocates. Without this the dialog opened on the
+  // entry form and the obvious-looking button (the "Max" pill) was a no-op,
+  // making the dialog feel frozen.
+  useEffect(() => {
+    if (!open) return;
+    if (confirming || result || draftSaved) return;
+    if (!isOnline) return;
+    if (amount >= 100 && amount <= maxAllowable) {
+      setConfirming(true);
+    }
+  }, [open, amount, maxAllowable, isOnline, confirming, result, draftSaved]);
+
   const handleAllocate = async () => {
     // Defensive logging — previously this handler appeared to "fail
     // silently" because the click never reached it (nested Dialog
