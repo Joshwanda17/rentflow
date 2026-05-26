@@ -636,6 +636,94 @@ function LandlordTenantsDrawer({
           )}
         </DrawerHeader>
 
+        {/* Receipt verification actions */}
+        <div className="border-b bg-muted/30 px-4 py-3 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+              <Receipt className="h-3.5 w-3.5" /> Ask for receipt
+            </p>
+            {landlord?.receipt_verification_status === 'true_landlord' && (
+              <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 text-[10px]">
+                <ShieldCheck className="h-3 w-3 mr-1" />True Landlord
+              </Badge>
+            )}
+            {landlord?.receipt_verification_status === 'false_landlord' && (
+              <Badge className="bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30 text-[10px]">
+                <ShieldX className="h-3 w-3 mr-1" />False Landlord
+              </Badge>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleWhatsApp}
+              disabled={!landlord?.phone || busy !== null}
+              className="h-9 text-xs gap-1.5 border-emerald-500/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10"
+            >
+              <MessageCircle className="h-4 w-4" /> WhatsApp
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleCall}
+              disabled={!landlord?.phone || busy !== null}
+              className="h-9 text-xs gap-1.5 border-sky-500/30 text-sky-700 dark:text-sky-400 hover:bg-sky-500/10"
+            >
+              <Phone className="h-4 w-4" /> Call
+            </Button>
+          </div>
+
+          {landlord?.receipt_requested_at && (
+            <p className="text-[10px] text-muted-foreground">
+              Last requested via {landlord.receipt_request_channel ?? 'contact'}{' '}
+              {formatDistanceToNow(new Date(landlord.receipt_requested_at), { addSuffix: true })}
+            </p>
+          )}
+
+          <div className="pt-1">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+              Mark landlord
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                size="sm"
+                onClick={() => markStatus('true_landlord')}
+                disabled={busy !== null}
+                className={cn(
+                  'h-9 text-xs gap-1.5',
+                  landlord?.receipt_verification_status === 'true_landlord'
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                    : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
+                )}
+              >
+                {busy === 'true' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                True Landlord
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => markStatus('false_landlord')}
+                disabled={busy !== null}
+                className={cn(
+                  'h-9 text-xs gap-1.5',
+                  landlord?.receipt_verification_status === 'false_landlord'
+                    ? 'bg-red-600 hover:bg-red-700 text-white'
+                    : 'bg-red-500/10 hover:bg-red-500/20 text-red-700 dark:text-red-400 border border-red-500/30'
+                )}
+              >
+                {busy === 'false' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldX className="h-4 w-4" />}
+                False Landlord
+              </Button>
+            </div>
+            {landlord?.receipt_verification_at && (
+              <p className="text-[10px] text-muted-foreground mt-1.5">
+                Last verified {formatDistanceToNow(new Date(landlord.receipt_verification_at), { addSuffix: true })}
+              </p>
+            )}
+          </div>
+        </div>
+
         <div className="overflow-y-auto p-4 space-y-2">
           {isLoading ? (
             <div className="flex justify-center py-12">
