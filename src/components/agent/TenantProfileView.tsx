@@ -156,6 +156,9 @@ function Stat({
 export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) {
   const { toast } = useToast();
   const { user } = useAuth();
+  // Force-capture this tenant's detailed location (Agent Field Mandate).
+  // Banner appears whenever GPS / district / country are missing.
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { floatBalance: agentFloatBalance, isLoading: floatLoading, error: floatError, refetch: refetchFloat } = useAgentLandlordFloat(user?.id);
   const [profile, setProfile] = useState<TenantProfile | null>(null);
   const [requests, setRequests] = useState<RentRequestRow[]>([]);
