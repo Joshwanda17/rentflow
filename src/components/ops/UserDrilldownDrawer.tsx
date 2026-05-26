@@ -1828,16 +1828,26 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
   const { data, isLoading } = useQuery({
     queryKey: ['drilldown-agent-tenants', agentId],
     queryFn: async () => {
-      // Union two sources of "tenants under this agent":
+      // Union three sources of "tenants under this agent":
       //   1. rent_requests.assigned_agent_id  (transactional assignment)
-      //   2. profiles.managing_agent_id       (long-term ownership)
-      // Either alone misses real tenants — e.g. an agent who manages 60+
-      // people via profile ownership but has no active rent request yet.
-      const [rrsRes, managedRes] = await Promise.all([
+      //   2. rent_requests.agent_id           (originating/owning agent — most common)
+      //   3. profiles.managing_agent_id       (long-term ownership)
+      // `agent_id` is the field the field-ops captures during onboarding;
+      // `assigned_agent_id` is set later by Tenant Ops. Many agents (e.g.
+      // Mukisa Enock) have 60+ tenants on `agent_id` and 0 on
+      // `assigned_agent_id`, so checking only the latter hides their portfolio.
+      const cols = 'id, tenant_id, landlord_id, rent_amount, total_repayment, amount_repaid, status, created_at';
+      const [rrsAssignedRes, rrsOwnedRes, managedRes] = await Promise.all([
         supabase
           .from('rent_requests')
-          .select('id, tenant_id, landlord_id, rent_amount, total_repayment, amount_repaid, status, created_at')
+          .select(cols)
           .eq('assigned_agent_id', agentId)
+          .order('created_at', { ascending: false })
+          .limit(500),
+        supabase
+          .from('rent_requests')
+          .select(cols)
+          .eq('agent_id', agentId)
           .order('created_at', { ascending: false })
           .limit(500),
         supabase
@@ -1846,7 +1856,12 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
           .eq('managing_agent_id', agentId)
           .limit(1000),
       ]);
-      const list = rrsRes.data ?? [];
+      // Merge & dedupe rent_request rows by id (a row could match both).
+      const rrMap = new Map<string, any>();
+      for (const r of [...(rrsAssignedRes.data ?? []), ...(rrsOwnedRes.data ?? [])]) {
+        if (r?.id && !rrMap.has(r.id)) rrMap.set(r.id, r);
+      }
+      const list = Array.from(rrMap.values());
       // Keep latest rent request per tenant
       const latestByTenant = new Map<string, any>();
       for (const r of list) {
@@ -1931,7 +1946,7 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
         .sort((a, b) => b.outstanding - a.outstanding);
       return {
         rows: mappedRows,
-        rentRequestCount: (rrsRes.data ?? []).length,
+        rentRequestCount: list.length,
         managedProfileCount: (managedRes.data ?? []).length,
       };
     },
