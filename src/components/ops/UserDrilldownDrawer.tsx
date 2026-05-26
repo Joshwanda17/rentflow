@@ -1193,7 +1193,28 @@ function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord }: { agent
   const qc = useQueryClient();
   const { data: profile, isLoading } = useProfile(agentId);
   const { data: roles = [] } = useUserRoles(agentId);
-  const [viewMode, setViewMode] = useState<'tenants' | 'landlords'>('tenants');
+  const [viewMode, setViewMode] = useState<'tenants' | 'landlords' | 'listings'>('tenants');
+
+  const { data: listings = [] } = useQuery({
+    queryKey: ['drilldown-agent-listings', agentId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('house_listings')
+        .select('id, title, monthly_rent, status, village, district, landlord_id, tenant_id, created_at')
+        .eq('agent_id', agentId)
+        .order('created_at', { ascending: false })
+        .limit(100);
+      const rows = data ?? [];
+      const llIds = Array.from(new Set(rows.map((r: any) => r.landlord_id).filter(Boolean)));
+      let llMap = new Map<string, any>();
+      if (llIds.length) {
+        const { data: lls } = await supabase
+          .from('landlords').select('id, name, phone').in('id', llIds);
+        llMap = new Map((lls ?? []).map((l: any) => [l.id, l]));
+      }
+      return rows.map((r: any) => ({ ...r, landlord: llMap.get(r.landlord_id) ?? null }));
+    },
+  });
   const { data: stats } = useQuery({
     queryKey: ['drilldown-agent-stats', agentId],
     queryFn: async () => {
@@ -1379,6 +1400,18 @@ function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord }: { agent
         >
           <Building2 className="h-3.5 w-3.5" /> Linked landlords
           <Badge variant="outline" className="text-[9px] ml-0.5">{stats?.landlords?.length ?? 0}</Badge>
+        </button>
+        <button
+          type="button"
+          onClick={() => setViewMode('listings')}
+          className={`flex-1 flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
+            viewMode === 'listings'
+              ? 'bg-background text-foreground shadow-sm border border-border/60'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <Building2 className="h-3.5 w-3.5" /> Houses listed
+          <Badge variant="outline" className="text-[9px] ml-0.5">{listings.length}</Badge>
         </button>
       </div>
 
