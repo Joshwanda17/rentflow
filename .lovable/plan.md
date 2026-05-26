@@ -1,40 +1,41 @@
-# Fix /executive-hub Mobile Scroll
+# Surface "Verify & Earn" as an inline CTA on mobile
 
-## Root cause
+## Problem
 
-`/executive-hub` is wrapped (like every route) by `<PullToRefresh>` in `src/App.tsx` (line 290). On mobile, `PullToRefresh` swallows page scroll on long dashboards such as **Tenant Ops** and **Agent Ops**. Two interacting issues cause this:
+`VerificationOpportunitiesButton` (the "Verify & Earn 17" pill) renders as a fixed FAB at `bottom-24 right-4` on mobile. On the same right edge there is already `FieldCollectFab` anchored at `bottom: var(--fab-bottom)` (~84–100 px on mobile) plus `CreditVerificationButton` at `bottom-36`. The three FABs **stack and overlap** on small screens, so "Verify & Earn" ends up tucked **behind / under** the Field Collect FAB. That's what the user is calling out — a primary earnings affordance should never be hidden behind another button.
 
-1. **Wrapper is a phantom scroll container.** `PullToRefresh` renders `<div className="relative overflow-auto min-h-screen" style={{ touchAction: 'pan-y' }}>`. With `min-h-screen` and no `max-height`, the wrapper auto-grows to its content, so its own `scrollTop` is always `0`. Page scroll actually happens on `<body>`.
-2. **`usePullToRefresh` reads the wrong scroll position.** It checks `(e.currentTarget as HTMLElement).scrollTop` (the wrapper, always `0`), so `isAtTop` is **always `true`**. Anywhere on the page, the smallest downward swipe (`diff > 0`) is interpreted as a pull-to-refresh gesture and applies `transform: translateY(Npx)` to the content. On Android Chrome / iOS Safari this stalls native body scroll, which is what the user perceives as "not scrollable."
+## Fix
 
-This is invisible on short pages (CEO/CMO/CTO dashboards fit on one screen on phones). It hits Tenant Ops and Agent Ops because their stacked panels, KPI rows, tabs, and `AgentOpsBottomNav` push total height well past `100dvh`.
+Move the Verify & Earn trigger out of the FAB stack and render it as a **prominent inline CTA at the top of the agent dashboard** on mobile. The bottom sheet (Houses / Tenants tabs, GPS-gated verification flows) stays exactly as it is.
 
-## Fix (small, surgical)
+### 1. `src/components/agent/VerificationOpportunitiesButton.tsx`
 
-### 1. Exempt `/executive-hub` from PullToRefresh
+- Replace the `fixed bottom-24 …` `<button>` (lines 144–153) with an **inline** trigger:
+  - Full-width pill/card: gradient/`bg-primary` background, Shield icon on left, "Verify & Earn" label, right-aligned count badge, subtle "UGX 5–10K bonuses" subline.
+  - Tailwind: `w-full rounded-2xl px-4 py-3 flex items-center gap-3 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-md active:scale-[0.99] touch-manipulation`.
+  - Same `onClick={handleOpen}` and same `if (totalCount === 0) return null;` early return.
+- Keep the existing `<Sheet>` block untouched.
+- No `fixed` / `bottom-*` / `z-*` classes on the trigger anymore.
 
-In `src/App.tsx`, extend the existing exempt list:
+### 2. `src/components/dashboards/AgentDashboard.tsx`
 
-```ts
-const PTR_DISABLED_PREFIXES = ['/funder-onboarding', '/executive-hub'];
-const disablePullToRefresh = PTR_DISABLED_PREFIXES.some(p =>
-  location.pathname === p || location.pathname.startsWith(p + '/'),
-);
-```
+- **Remove** `<VerificationOpportunitiesButton />` at line 1009 (it was sitting in the FAB layer).
+- **Mount it inline** as the first child of `<main className="agent-dashboard-main …">` (around line 433, just before the hero / wallet card), so it appears at the top of the scrollable content on every dashboard tab.
+- Wrap nothing else around it — the component returns `null` when `totalCount === 0`, so when there's nothing to verify the dashboard layout is unchanged.
 
-When disabled, `PullToRefresh` already returns `<div className={className}>{children}</div>` (no `overflow-auto`, no touch handlers), so the body becomes the real scroll container and the page scrolls naturally on mobile. The dashboard header's `sticky top-0` stays correct because it then sticks to the document viewport (not the wrapper).
+### 3. Leave the other FABs alone
 
-### 2. Keep the in-dashboard refresh affordances
+- `CreditVerificationButton` (bottom-36) and `FieldCollectFab` (`var(--fab-bottom)`) stay as-is — the user only flagged "Verify & Earn". Removing one FAB from the stack also gives `CreditVerificationButton` clearer room on small screens as a side benefit.
 
-Both dashboards already have explicit refresh paths (React Query auto-refetch on focus, "Back to overview" + tab switches re-query), so removing pull-to-refresh costs nothing here. Pull-to-refresh remains active on tenant / agent / landlord / supporter dashboards where it's actually useful.
+### 4. Verify
 
-### 3. Verify
+- Mobile preview (390×844): open `/dashboard/agent` with `totalCount > 0` → inline Verify & Earn banner is the first thing visible at the top of the dashboard content; tapping it opens the same bottom sheet; no FAB on the bottom-right for this button.
+- Mobile preview with `totalCount === 0`: dashboard renders normally, no empty banner.
+- Desktop (≥1024): same inline banner appears at the top of the agent dashboard column — consistent across breakpoints, no overlap with the right-edge FABs (`FieldCollectFab`, `CreditVerificationButton`).
+- The sheet's Houses / Tenants tabs, GPS-gated verify flows, and bonus payouts behave exactly as before — no logic change inside the sheet.
 
-- Resize preview to 390×844 (mobile), open `/executive-hub?tab=tenant-ops` → scroll the whole page top to bottom and back.
-- Same for `?tab=agent-ops` (Home view, then open a sub-view via the dropdown), `?tab=ceo`, `?tab=cmo`.
-- Check the sticky `<header>` in `ExecutiveHub.tsx` still sticks at the top on scroll.
-- Confirm pull-to-refresh still works on `/dashboard/tenant` and `/dashboard/agent`.
+## Out of scope
 
-## Out of scope (note for later)
-
-The underlying `usePullToRefresh` bug (reading `currentTarget.scrollTop` on a non-scrolling wrapper instead of `window.scrollY` / `document.scrollingElement.scrollTop`) affects every long page wrapped by it. A proper fix is to read the document scroll position, but that's a wider behavior change and should ship in its own task with regression testing across all dashboards. This plan only unblocks `/executive-hub` immediately.
+- No backend or RPC changes.
+- No changes to `FieldCollectFab` or `CreditVerificationButton`.
+- No changes to the Android backdrop-blur / compositor tearing detector (separate issue).
