@@ -19,10 +19,10 @@ root.innerHTML = `<div style="min-height:100vh;min-height:100dvh;display:flex;fl
 try {
   const ua = navigator.userAgent || '';
   const isAndroid = /Android/i.test(ua);
-  const mem = (navigator as any).deviceMemory ?? 8;
-  const cores = navigator.hardwareConcurrency ?? 8;
   const userForced = localStorage.getItem('welile-no-blur') === '1';
-  if (userForced || (isAndroid && (mem <= 4 || cores <= 4))) {
+  // The GPU tearing bug affects many Androids regardless of RAM/cores (due to Mali/Adreno driver issues in WebView).
+  // Disable backdrop-filter globally on all Android devices to guarantee stability.
+  if (userForced || isAndroid) {
     document.documentElement.classList.add('no-backdrop-blur');
   }
 } catch {}

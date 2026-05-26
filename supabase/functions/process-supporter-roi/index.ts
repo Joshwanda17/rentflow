@@ -229,15 +229,13 @@ Deno.serve(async (req) => {
         } else {
           // ═══ STANDARD WALLET CREDIT via RPC ═══
           //
-          // Routing rule (managed-proxy): if the partner has an ACTIVE,
-          // APPROVED proxy assignment with is_managed_account=true, the
-          // wallet credit goes to the PROXY AGENT's wallet — never the
-          // partner's. The partner is notified by email naming the agent;
-          // the agent receives a separate "proxy payout received" email.
+          // We always credit the partner's wallet directly, even if they have
+          // an active proxy assignment. The proxy agent will initiate a withdrawal
+          // from the partner's wallet later.
           const managedProxy = await resolveManagedProxy(supabase, rr.supporter_id);
-          const walletRecipientId = managedProxy ? managedProxy.agentId : rr.supporter_id;
+          const walletRecipientId = rr.supporter_id;
           const walletDescription = managedProxy
-            ? `Proxy payout on behalf of partner ${rr.supporter_id} (managed by ${managedProxy.agentName || 'proxy agent'}) — reward #${paymentNumber} for rent facilitation of UGX ${Number(rr.rent_amount).toLocaleString()}`
+            ? `15% monthly reward (payment #${paymentNumber}) on rent facilitation of UGX ${Number(rr.rent_amount).toLocaleString()} (managed by ${managedProxy.agentName || 'proxy agent'})`
             : `15% monthly reward (payment #${paymentNumber}) on rent facilitation of UGX ${Number(rr.rent_amount).toLocaleString()}`;
 
           const { error: walletLedgerErr } = await supabase.rpc('create_ledger_transaction', {
@@ -274,11 +272,11 @@ Deno.serve(async (req) => {
           if (walletLedgerErr) throw walletLedgerErr;
 
           if (managedProxy) {
-            // Partner notification — money went to their proxy.
+            // Partner notification — money went to their wallet, agent will deliver.
             await supabase.from('notifications').insert({
               user_id: rr.supporter_id,
-              title: '💰 Monthly Reward Sent to Your Proxy Agent',
-              message: `Your reward of UGX ${roiAmount.toLocaleString()} (payment #${paymentNumber}) was credited to your proxy agent ${managedProxy.agentName || 'agent'}'s wallet, who manages your account.`,
+              title: '💰 Monthly Reward Credited to Wallet',
+              message: `Your reward of UGX ${roiAmount.toLocaleString()} (payment #${paymentNumber}) was credited to your wallet. Your proxy agent ${managedProxy.agentName || 'agent'} will initiate a withdrawal for delivery.`,
               type: 'earning',
               metadata: {
                 rent_request_id: rr.id,
@@ -288,11 +286,11 @@ Deno.serve(async (req) => {
                 proxy_assignment_id: managedProxy.assignmentId,
               },
             });
-            // Proxy agent notification — explain why their wallet was credited.
+            // Proxy agent notification — explain they need to initiate withdrawal.
             await supabase.from('notifications').insert({
               user_id: managedProxy.agentId,
-              title: '🤝 Proxy Payout Received',
-              message: `UGX ${roiAmount.toLocaleString()} (reward #${paymentNumber}) was credited to your wallet on behalf of your managed partner.`,
+              title: '🤝 Proxy Payout Ready for Delivery',
+              message: `UGX ${roiAmount.toLocaleString()} (reward #${paymentNumber}) was credited to your partner's wallet. Please initiate a withdrawal from the Proxy Partners tab.`,
               type: 'earning',
               metadata: {
                 rent_request_id: rr.id,
@@ -317,7 +315,7 @@ Deno.serve(async (req) => {
             const { data: partnerProfile } = await supabase
               .from('profiles').select('email, full_name').eq('id', rr.supporter_id).maybeSingle();
             if (partnerProfile?.email) {
-              const walletOwnerId = managedProxy ? managedProxy.agentId : rr.supporter_id;
+              const walletOwnerId = rr.supporter_id;
               const { data: partnerWallet } = await supabase
                 .from('wallets').select('id').eq('user_id', walletOwnerId).maybeSingle();
               const walletLast4 = partnerWallet?.id ? partnerWallet.id.replace(/-/g, '').slice(-4) : '';
@@ -332,7 +330,7 @@ Deno.serve(async (req) => {
                   amount: roiAmount,
                   transactionId: `ROI-${rr.id.slice(0, 8).toUpperCase()}-${paymentNumber}`,
                   walletIdLast4: walletLast4,
-                  payoutMethod: managedProxy ? `Proxy Agent Wallet (${managedProxy.agentName || 'Agent'})` : 'Wallet',
+                  payoutMethod: 'Wallet',
                   isManagedByAgent: !!managedProxy,
                   agentName: managedProxy?.agentName || undefined,
                   // Pass principal so template derives the actual ROI %
@@ -360,7 +358,7 @@ Deno.serve(async (req) => {
                   transactionId: `ROI-${rr.id.slice(0, 8).toUpperCase()}-${paymentNumber}`,
                   txGroupId: `${rr.id}-${paymentNumber}`,
                   payoutKind: 'Monthly Returns',
-                  reason: 'Managed Proxy Account',
+                  reason: 'Partner wallet credited. Please initiate delivery withdrawal.',
                 }),
                 'process-supporter-roi',
               );
