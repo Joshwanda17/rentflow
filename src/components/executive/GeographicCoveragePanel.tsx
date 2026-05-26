@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronRight, MapPin, Loader2, Home, Users, Wallet, UserCheck, Sparkles } from 'lucide-react';
+import { ChevronRight, MapPin, Loader2, Home, Users, Wallet, UserCheck, Sparkles, Briefcase } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
 type Row = {
@@ -31,6 +31,18 @@ type FundedTenant = {
   rent_request_id: string | null;
 };
 
+type AgentBreakdown = {
+  agent_id: string;
+  agent_name: string | null;
+  agent_phone: string | null;
+  agent_country: string | null;
+  agent_district: string | null;
+  agent_city: string | null;
+  tenants_count: number;
+  landlords_count: number;
+  partners_count: number;
+};
+
 const fmt = (n: number) => new Intl.NumberFormat().format(n);
 
 export function GeographicCoveragePanel() {
@@ -38,6 +50,7 @@ export function GeographicCoveragePanel() {
   const [district, setDistrict] = useState<string | null>(null);
   const [city, setCity] = useState<string | null>(null);
   const [drillOpen, setDrillOpen] = useState(false);
+  const [agentDrillOpen, setAgentDrillOpen] = useState(false);
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['geo-coverage', country, district, city],
@@ -102,6 +115,24 @@ export function GeographicCoveragePanel() {
     staleTime: 30_000,
   });
 
+  // Per-agent breakdown drill (tenants/landlords/partners by agent in this scope)
+  const { data: agentRows = [], isLoading: loadingAgents } = useQuery({
+    queryKey: ['agent-geo-breakdown', country, district, city, agentDrillOpen],
+    enabled: agentDrillOpen,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_agent_geo_breakdown', {
+        p_country: country,
+        p_district: district,
+        p_city: city,
+        p_limit: 500,
+        p_offset: 0,
+      });
+      if (error) throw error;
+      return (data ?? []) as AgentBreakdown[];
+    },
+    staleTime: 30_000,
+  });
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -127,7 +158,17 @@ export function GeographicCoveragePanel() {
           <Stat label="Tenants" value={totals.tenants} icon={<Users className="h-3.5 w-3.5" />} />
           <Stat label="Landlords" value={totals.landlords} icon={<Home className="h-3.5 w-3.5" />} />
           <Stat label="Funders" value={totals.funders} icon={<Wallet className="h-3.5 w-3.5" />} />
-          <Stat label="Agents" value={totals.agents} icon={<UserCheck className="h-3.5 w-3.5" />} />
+          <button
+            onClick={() => setAgentDrillOpen(true)}
+            disabled={totals.agents === 0}
+            className="rounded-md border bg-accent/30 hover:bg-accent/50 disabled:opacity-50 disabled:cursor-not-allowed p-2 text-left transition-colors"
+          >
+            <div className="flex items-center gap-1 text-[10px] text-muted-foreground uppercase">
+              <UserCheck className="h-3.5 w-3.5" /> Agents
+            </div>
+            <div className="text-base font-semibold tabular-nums">{fmt(totals.agents)}</div>
+            <div className="text-[10px] text-muted-foreground">click for breakdown</div>
+          </button>
           <button
             onClick={() => setDrillOpen(true)}
             disabled={totals.funded === 0}
