@@ -17,16 +17,20 @@ import {
   Wallet, ShieldAlert, Building2, ReceiptText, Smartphone, SmartphoneNfc,
   Search, Pencil, X, TrendingUp, Users, Sparkles, Download, FileText,
   ChevronRight, ArrowLeft, MessageSquare, StickyNote, CheckCircle2, XCircle,
+  CalendarIcon,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
 import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, startOfDay, endOfDay, startOfMonth, endOfMonth } from 'date-fns';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import { useRentPaymentStatusMutation } from '@/hooks/useRentPaymentStatusMutation';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 
 type UserBrief = { id: string; full_name: string | null; phone: string | null };
 
