@@ -1861,6 +1861,14 @@ const STATUS_GROUPS: Record<TenantFilter, string[]> = {
   completed: ['completed', 'repaid', 'fully_repaid'],
 };
 
+function toWhatsAppUrl(raw: string): string {
+  const digits = raw.replace(/\D/g, '');
+  const national = digits.startsWith('0') ? digits.slice(1) : digits;
+  const intl = national.startsWith('256') ? national : '256' + national;
+  const text = encodeURIComponent('Hello, this is your Welile agent.');
+  return `https://wa.me/${intl}?text=${text}`;
+}
+
 function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSelectTenant?: (id: string, name: string) => void }) {
   const [filter, setFilter] = useState<TenantFilter>('all');
   const [search, setSearch] = useState('');
@@ -2200,6 +2208,28 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
                     <Home className="h-2.5 w-2.5" />
                     {row.landlord?.name?.trim() || row.landlord?.phone || 'No landlord on file'}
                   </p>
+                  {row.tenant?.phone && (
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <a
+                        href={`tel:${row.tenant.phone.replace(/\s+/g, '')}`}
+                        className="inline-flex items-center gap-0.5 text-[10px] text-primary hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Phone className="h-2.5 w-2.5" />
+                        {row.tenant.phone}
+                      </a>
+                      <a
+                        href={toWhatsAppUrl(row.tenant.phone)}
+                        className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <MessageSquare className="h-2.5 w-2.5" />
+                        WhatsApp
+                      </a>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
