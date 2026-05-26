@@ -193,3 +193,58 @@ export function downloadCSV(filename: string, csv: string) {
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+const fmtUGX = (n: number | null | undefined) =>
+  n == null ? '' : `UGX ${Number(n).toLocaleString('en-UG')}`;
+const fmtDate = (iso: string | null | undefined) =>
+  iso ? new Date(iso).toISOString().slice(0, 10) : '';
+
+export async function exportLeafToPDF(
+  rows: TenantLeaf[],
+  meta: { title?: string; subtitle?: string } = {},
+): Promise<void> {
+  const { jsPDF } = await import('jspdf');
+  const autoTableMod: any = await import('jspdf-autotable');
+  const autoTable = autoTableMod.default ?? autoTableMod;
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
+
+  const title = meta.title ?? 'Tenants whose Landlords were Funded';
+  doc.setFontSize(14); doc.text(title, 14, 14);
+  doc.setFontSize(9); doc.setTextColor(100);
+  const sub = `${meta.subtitle ?? ''} · ${rows.length} tenants · generated ${new Date().toLocaleString('en-UG')}`;
+  doc.text(sub.trim().replace(/^·\s*/, ''), 14, 20);
+
+  const totalFunded = rows.reduce((s, r) => s + Number(r.landlord_funded_amount ?? 0), 0);
+  const totalPayouts = rows.reduce((s, r) => s + Number(r.landlord_payout_count ?? 0), 0);
+  doc.setTextColor(0);
+  doc.text(`Total funded: ${fmtUGX(totalFunded)}   ·   Total payouts: ${totalPayouts}`, 14, 26);
+
+  autoTable(doc, {
+    startY: 30,
+    head: [[
+      'Tenant', 'Phone', 'Location', 'Landlord', 'Agent', 'Rent',
+      'Funded on', 'Funded amount', 'Payouts', 'Verification', 'Outstanding', 'Source',
+    ]],
+    body: rows.map((r) => [
+      r.tenant_name ?? '',
+      r.tenant_phone ?? '',
+      [r.ward, r.district, r.region].filter(Boolean).join(', '),
+      r.landlord_name ?? '—',
+      r.agent_name ?? '—',
+      fmtUGX(r.rent_amount),
+      fmtDate(r.landlord_funded_at),
+      fmtUGX(r.landlord_funded_amount),
+      r.landlord_payout_count ?? 0,
+      r.verification_status ?? '—',
+      r.outstanding_status ?? '—',
+      r.funding_source ?? '—',
+    ]),
+    styles: { fontSize: 7, cellPadding: 1.5, overflow: 'linebreak' },
+    headStyles: { fillColor: [88, 28, 135], textColor: 255 },
+    alternateRowStyles: { fillColor: [248, 245, 252] },
+    margin: { left: 8, right: 8 },
+  });
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  doc.save(`tenants-funded-${stamp}.pdf`);
+}

@@ -34,7 +34,7 @@ import {
 import { TenantOpsFilterBar } from './TenantOpsFilterBar';
 import {
   DEFAULT_FILTERS, timeWindowToISO, applyLeafFilters,
-  exportLeafToCSV, downloadCSV, type TenantOpsFilters,
+  exportLeafToCSV, exportLeafToPDF, downloadCSV, type TenantOpsFilters,
 } from '@/lib/tenantOpsFilters';
 
 const LEVEL_ICON: Record<string, any> = {
@@ -1125,6 +1125,13 @@ function TenantLeafList({
           const csv = exportLeafToCSV(filtered);
           const stamp = new Date().toISOString().slice(0, 10);
           downloadCSV(`tenants-funded-${stamp}.csv`, csv);
+        }}
+        onExportPDF={() => {
+          const subtitle = [path.ward, path.district, path.region, path.country]
+            .filter(Boolean).join(' · ');
+          void exportLeafToPDF(filtered, {
+            subtitle: subtitle || undefined,
+          });
         }}
       />
       <div className="relative">
