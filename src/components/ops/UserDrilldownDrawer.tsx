@@ -973,6 +973,7 @@ function TenantPane({
   tenantId, isOps, onBackToAgent,
 }: { tenantId: string; isOps: boolean; onBackToAgent?: () => void }) {
   const qc = useQueryClient();
+  const [dateRange, setDateRange] = useState<StatementDateRange>({ preset: 'today' });
   const { data: profile, isLoading } = useProfile(tenantId);
   const { data: roles = [] } = useUserRoles(tenantId);
   const { data: rentReqs = [] } = useQuery({
