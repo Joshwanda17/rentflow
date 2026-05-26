@@ -1776,6 +1776,20 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
     onError: (e: any) => toast.error(e.message ?? 'Link failed'),
   });
 
+  const [lightbox, setLightbox] = useState<{
+    images: string[];
+    index: number;
+    title: string;
+    open: boolean;
+  }>({ images: [], index: 0, title: '', open: false });
+
+  const openLightbox = (images: string[], startIndex: number, title: string) => {
+    setLightbox({ images, index: startIndex, title, open: true });
+  };
+  const closeLightbox = () => setLightbox((s) => ({ ...s, open: false }));
+  const prevImage = () => setLightbox((s) => ({ ...s, index: (s.index - 1 + s.images.length) % s.images.length }));
+  const nextImage = () => setLightbox((s) => ({ ...s, index: (s.index + 1) % s.images.length }));
+
   if (isLoading) return <Loader2 className="h-4 w-4 animate-spin mx-auto" />;
 
   return (
