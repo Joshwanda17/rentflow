@@ -1197,6 +1197,11 @@ function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord }: { agent
   const { data: profile, isLoading } = useProfile(agentId);
   const { data: roles = [] } = useUserRoles(agentId);
   const [viewMode, setViewMode] = useState<'tenants' | 'landlords' | 'listings'>('tenants');
+  // Listings filters
+  const [listingsSearch, setListingsSearch] = useState('');
+  const [listingsStatusFilter, setListingsStatusFilter] = useState<string>('all');
+  const [listingsLocationFilter, setListingsLocationFilter] = useState<string>('all');
+  const [listingsDateRange, setListingsDateRange] = useState<StatementDateRange>({ preset: 'this_month' });
 
   const { data: listings = [], refetch: refetchListings, isFetching: listingsFetching } = useQuery({
     queryKey: ['drilldown-agent-listings', agentId],
