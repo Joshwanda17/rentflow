@@ -182,31 +182,89 @@ export function FundedTenantsList() {
       .sort((a, b) => b.total - a.total);
   }, [dateFiltered]);
 
-  const countryDrilldown = useMemo(() => {
-    if (countryFilter === 'all') return null;
-    const rows = dateFiltered.filter((r) => (r.country?.trim() || 'Unknown') === countryFilter);
-    const landlords = new Map<string, { id: string; name: string; tenants: Set<string>; payouts: number; total: number }>();
-    const tenants = new Set<string>();
-    let total = 0;
-    rows.forEach((r) => {
-      total += Number(r.amount || 0);
-      if (r.tenant_id) tenants.add(r.tenant_id);
-      const key = r.landlord_id || r.landlord_name || 'unknown';
-      const cur = landlords.get(key) ?? { id: r.landlord_id, name: r.landlord_name, tenants: new Set<string>(), payouts: 0, total: 0 };
-      cur.payouts += 1;
-      cur.total += Number(r.amount || 0);
-      if (r.tenant_id) cur.tenants.add(r.tenant_id);
-      landlords.set(key, cur);
+  const regionStats = useMemo(() => {
+    const m = new Map<string, { count: number; total: number; countries: Set<string> }>();
+    AFRICA_REGIONS.forEach((group) => {
+      m.set(group.region, { count: 0, total: 0, countries: new Set<string>() });
     });
-    return {
-      country: countryFilter,
-      tenantCount: tenants.size,
-      landlordCount: landlords.size,
-      payoutCount: rows.length,
-      total,
-      landlords: Array.from(landlords.values()).sort((a, b) => b.total - a.total),
-    };
-  }, [dateFiltered, countryFilter]);
+    dateFiltered.forEach((r) => {
+      const c = r.country?.trim() || 'Unknown';
+      for (const group of AFRICA_REGIONS) {
+        if (group.countries.includes(c)) {
+          const cur = m.get(group.region)!;
+          cur.count += 1;
+          cur.total += Number(r.amount || 0);
+          cur.countries.add(c);
+          break;
+        }
+      }
+    });
+    return Array.from(m.entries())
+      .map(([region, v]) => ({ region, ...v }))
+      .sort((a, b) => b.total - a.total);
+  }, [dateFiltered]);
+
+  const drilldown = useMemo(() => {
+    if (countryFilter !== 'all') {
+      const rows = dateFiltered.filter((r) => (r.country?.trim() || 'Unknown') === countryFilter);
+      const landlords = new Map<string, { id: string; name: string; tenants: Set<string>; payouts: number; total: number }>();
+      const tenants = new Set<string>();
+      let total = 0;
+      rows.forEach((r) => {
+        total += Number(r.amount || 0);
+        if (r.tenant_id) tenants.add(r.tenant_id);
+        const key = r.landlord_id || r.landlord_name || 'unknown';
+        const cur = landlords.get(key) ?? { id: r.landlord_id, name: r.landlord_name, tenants: new Set<string>(), payouts: 0, total: 0 };
+        cur.payouts += 1;
+        cur.total += Number(r.amount || 0);
+        if (r.tenant_id) cur.tenants.add(r.tenant_id);
+        landlords.set(key, cur);
+      });
+      return {
+        type: 'country' as const,
+        name: countryFilter,
+        tenantCount: tenants.size,
+        landlordCount: landlords.size,
+        payoutCount: rows.length,
+        total,
+        landlords: Array.from(landlords.values()).sort((a, b) => b.total - a.total),
+        countryStats: [] as { country: string; count: number; total: number }[],
+      };
+    }
+    if (regionFilter) {
+      const regionCountries = new Set(AFRICA_REGIONS.find((g) => g.region === regionFilter)?.countries || []);
+      const rows = dateFiltered.filter((r) => regionCountries.has(r.country?.trim() || ''));
+      const landlords = new Map<string, { id: string; name: string; tenants: Set<string>; payouts: number; total: number }>();
+      const tenants = new Set<string>();
+      const countryMap = new Map<string, { count: number; total: number }>();
+      let total = 0;
+      rows.forEach((r) => {
+        total += Number(r.amount || 0);
+        if (r.tenant_id) tenants.add(r.tenant_id);
+        const c = r.country?.trim() || 'Unknown';
+        const cm = countryMap.get(c) ?? { count: 0, total: 0 };
+        cm.count += 1; cm.total += Number(r.amount || 0);
+        countryMap.set(c, cm);
+        const key = r.landlord_id || r.landlord_name || 'unknown';
+        const cur = landlords.get(key) ?? { id: r.landlord_id, name: r.landlord_name, tenants: new Set<string>(), payouts: 0, total: 0 };
+        cur.payouts += 1;
+        cur.total += Number(r.amount || 0);
+        if (r.tenant_id) cur.tenants.add(r.tenant_id);
+        landlords.set(key, cur);
+      });
+      return {
+        type: 'region' as const,
+        name: regionFilter,
+        tenantCount: tenants.size,
+        landlordCount: landlords.size,
+        payoutCount: rows.length,
+        total,
+        landlords: Array.from(landlords.values()).sort((a, b) => b.total - a.total),
+        countryStats: Array.from(countryMap.entries()).map(([country, v]) => ({ country, ...v })).sort((a, b) => b.total - a.total),
+      };
+    }
+    return null;
+  }, [dateFiltered, countryFilter, regionFilter]);
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
