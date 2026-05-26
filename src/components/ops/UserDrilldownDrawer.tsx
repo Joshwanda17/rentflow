@@ -16,7 +16,7 @@ import {
   User, Home, UserCheck, MapPin, Loader2, Link2, Plus, Phone,
   Wallet, ShieldAlert, Building2, ReceiptText,
 } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
 
 type UserBrief = { id: string; full_name: string | null; phone: string | null };
