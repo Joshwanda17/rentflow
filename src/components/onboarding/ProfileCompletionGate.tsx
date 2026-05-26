@@ -90,7 +90,7 @@ type ProfileRow = {
 };
 
 type AgentRow = {
-  agent_id: string;
+  agent_id: string; // we map rpc.id → agent_id for consistency
   full_name: string | null;
   phone: string | null;
 };
@@ -213,7 +213,11 @@ export default function ProfileCompletionGate() {
         console.warn("[ProfileCompletionGate] agent search error", error);
         return [];
       }
-      return (data || []) as AgentRow[];
+      return (data || []).map((r) => ({
+        agent_id: r.id,
+        full_name: r.full_name,
+        phone: null,
+      })) as AgentRow[];
     },
   });
 
@@ -262,8 +266,8 @@ export default function ProfileCompletionGate() {
         .eq("id", user.id);
       if (error) throw error;
 
-      // Audit trail (best-effort)
-      const logRows = [
+      // Audit trail (best-effort, never blocks the user)
+      const logRows: Array<Record<string, unknown>> = [
         {
           user_id: user.id,
           action: "address_set",
@@ -289,7 +293,6 @@ export default function ProfileCompletionGate() {
         logRows.push({
           user_id: user.id,
           action: "referrer_override",
-          // @ts-expect-error — jsonb columns
           previous_value: { referrer_id: profile.referrer_id },
           new_value: { referrer_id: newReferrerId },
           reason: overrideReason.trim(),
