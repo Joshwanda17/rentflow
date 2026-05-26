@@ -34,6 +34,8 @@ import { useRentPaymentStatusMutation } from '@/hooks/useRentPaymentStatusMutati
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import { ListingPhotoUploadDialog } from './ListingPhotoUploadDialog';
+import { ImagePlus } from 'lucide-react';
 
 type UserBrief = { id: string; full_name: string | null; phone: string | null };
 
