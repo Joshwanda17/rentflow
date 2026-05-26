@@ -476,7 +476,7 @@ export function FundedTenantsList() {
                 <button
                   key={country}
                   type="button"
-                  onClick={() => setCountryFilter(country)}
+                  onClick={() => { setCountryFilter(country); setRegionFilter(null); }}
                   className={`px-2.5 py-1 rounded-full text-xs border transition inline-flex items-center gap-1.5 ${
                     active
                       ? 'bg-primary text-primary-foreground border-primary'
@@ -501,35 +501,53 @@ export function FundedTenantsList() {
                 <div className="flex flex-wrap gap-1.5">
                   <button
                     type="button"
-                    onClick={() => setCountryFilter('all')}
+                    onClick={() => { setCountryFilter('all'); setRegionFilter(null); }}
                     className={`px-2.5 py-1 rounded-full text-xs border transition ${
-                      countryFilter === 'all'
+                      countryFilter === 'all' && !regionFilter
                         ? 'bg-primary text-primary-foreground border-primary'
                         : 'bg-background hover:bg-muted border-border'
                     }`}
                   >
                     All ({dateFiltered.length})
                   </button>
-                  {countryFilter !== 'all' && (
+                  {(countryFilter !== 'all' || regionFilter) && (
                     <button
                       type="button"
-                      onClick={() => setCountryFilter('all')}
+                      onClick={() => { setCountryFilter('all'); setRegionFilter(null); }}
                       className="px-2.5 py-1 rounded-full text-xs text-muted-foreground hover:text-foreground underline"
                     >
                       Clear
                     </button>
                   )}
                 </div>
-                {AFRICA_REGIONS.map((group) => (
-                  <div key={group.region} className="space-y-1">
-                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground/80 font-semibold">
-                      {group.region}
+                {AFRICA_REGIONS.map((group) => {
+                  const rs = regionStats.find((r) => r.region === group.region);
+                  const regionActive = regionFilter === group.region;
+                  return (
+                    <div key={group.region} className="space-y-1">
+                      <button
+                        type="button"
+                        onClick={() => { setRegionFilter(group.region); setCountryFilter('all'); }}
+                        className={`text-[10px] uppercase tracking-wide font-semibold px-2 py-0.5 rounded-full border transition inline-flex items-center gap-1.5 ${
+                          regionActive
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-background hover:bg-muted border-border text-muted-foreground/80'
+                        }`}
+                        title={rs ? `${rs.count} payouts · ${rs.countries.size} countries · ${formatUGX(rs.total)}` : 'No payouts in range'}
+                      >
+                        {group.region}
+                        {rs && rs.count > 0 && (
+                          <span className={regionActive ? 'opacity-90' : 'text-muted-foreground font-normal'}>
+                            {rs.count} · {formatUGX(rs.total)}
+                          </span>
+                        )}
+                      </button>
+                      <div className="flex flex-wrap gap-1.5">
+                        {group.countries.map((country) => renderChip(country))}
+                      </div>
                     </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {group.countries.map((country) => renderChip(country))}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
                 {otherCountries.length > 0 && (
                   <div className="space-y-1">
                     <div className="text-[10px] uppercase tracking-wide text-muted-foreground/80 font-semibold">
@@ -546,27 +564,45 @@ export function FundedTenantsList() {
         </div>
       )}
 
-      {countryDrilldown && (
+      {drilldown && (
         <Card className="p-3 sm:p-4 border-primary/30 bg-primary/5">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div className="min-w-0">
               <div className="inline-flex items-center gap-2 text-sm font-semibold">
                 <Globe2 className="h-4 w-4 text-primary" />
-                {countryDrilldown.country}
+                {drilldown.name}
                 <span className="text-xs font-normal text-muted-foreground">
-                  · {countryDrilldown.landlordCount} landlords · {countryDrilldown.tenantCount} tenants · {countryDrilldown.payoutCount} payouts · {formatUGX(countryDrilldown.total)}
+                  · {drilldown.landlordCount} landlords · {drilldown.tenantCount} tenants · {drilldown.payoutCount} payouts · {formatUGX(drilldown.total)}
                 </span>
               </div>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                Tap any landlord to open their profile.
+                {drilldown.type === 'region'
+                  ? 'Tap any country or landlord to drill deeper.'
+                  : 'Tap any landlord to open their profile.'}
               </p>
             </div>
-            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setCountryFilter('all')}>
-              Clear country
+            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setCountryFilter('all'); setRegionFilter(null); }}>
+              Clear filter
             </Button>
           </div>
+          {drilldown.type === 'region' && drilldown.countryStats.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {drilldown.countryStats.map((c) => (
+                <button
+                  key={c.country}
+                  type="button"
+                  onClick={() => { setCountryFilter(c.country); setRegionFilter(null); }}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border border-border bg-background hover:bg-muted transition"
+                >
+                  <Globe2 className="h-3 w-3 text-primary" />
+                  <span className="font-medium">{c.country}</span>
+                  <span className="text-muted-foreground">{c.count} · {formatUGX(c.total)}</span>
+                </button>
+              ))}
+            </div>
+          )}
           <div className="mt-2 flex flex-wrap gap-1.5">
-            {countryDrilldown.landlords.map((l) => (
+            {drilldown.landlords.map((l) => (
               <button
                 key={l.id || l.name}
                 type="button"
