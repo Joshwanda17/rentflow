@@ -115,6 +115,12 @@ export function ProxyPartnerFunds() {
   const [partnerWithdrawalStatus, setPartnerWithdrawalStatus] = useState<Record<string, string>>({});
   const [partnerWithdrawalIds, setPartnerWithdrawalIds] = useState<Record<string, string>>({});
   const [strictWithdrawableByPartner, setStrictWithdrawableByPartner] = useState<Record<string, number>>({});
+  // Partners whose proxy assignment is `is_managed_account=true`. Their ROI
+  // is credited to the AGENT's wallet (not their own), so the ceiling clamp
+  // must use the agent's strict withdrawable instead of the partner's zero.
+  const [managedPartnerIds, setManagedPartnerIds] = useState<Set<string>>(new Set());
+  // Agent's own strict withdrawable — shared ceiling across managed cards.
+  const [agentStrictWithdrawable, setAgentStrictWithdrawable] = useState<number>(0);
   // Removed managedPartnerIds state as ROI now always goes to the partner's wallet.
   // Sum of in-flight (pending/processing/manager_approved/cfo_approved/requested)
   // withdrawal amounts per partner. Treated as already-paid for display so the
