@@ -273,17 +273,42 @@ export function RentDisbursementQueue() {
           </div>
         ) : (
           <div className="space-y-3">
-            {/* Select all */}
-            <div className="flex items-center justify-between">
+            {/* Select all + agent filter */}
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <label className="flex items-center gap-2 text-sm cursor-pointer">
                 <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
-                Select all ({items.length})
+                Select all ({visibleItems.length}
+                {agentFilter !== 'all' && items.length !== visibleItems.length
+                  ? ` of ${items.length}`
+                  : ''}
+                )
               </label>
-              {selected.size > 0 && (
-                <Badge className="bg-primary/10 text-primary border-primary/30">
-                  {selected.size} selected · {fmt(totalRent)}
-                </Badge>
-              )}
+              <div className="flex items-center gap-2">
+                <Select value={agentFilter} onValueChange={setAgentFilter}>
+                  <SelectTrigger className="h-8 text-xs w-[240px]">
+                    <Users className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+                    <SelectValue placeholder="Filter by agent" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[320px]">
+                    <SelectItem value="all">All agents ({grouped.length})</SelectItem>
+                    {grouped.map(g => {
+                      const gTotal = g.rows.reduce((s, r) => s + r.rent_amount, 0);
+                      return (
+                        <SelectItem key={g.agent_id} value={g.agent_id}>
+                          <span className="truncate">
+                            {g.agent_name} · {g.rows.length} · {fmt(gTotal)}
+                          </span>
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+                {selected.size > 0 && (
+                  <Badge className="bg-primary/10 text-primary border-primary/30">
+                    {selected.size} selected · {fmt(totalRent)}
+                  </Badge>
+                )}
+              </div>
             </div>
 
             {/* Revenue summary for selection */}
@@ -318,7 +343,19 @@ export function RentDisbursementQueue() {
 
             {/* Grouped list (by agent) */}
             <div className="space-y-3 max-h-[420px] overflow-y-auto">
-              {grouped.map(group => {
+              {visibleGroups.length === 0 && (
+                <div className="text-center py-6 text-xs text-muted-foreground">
+                  No tenants for this agent.{' '}
+                  <button
+                    type="button"
+                    className="text-primary hover:underline"
+                    onClick={() => setAgentFilter('all')}
+                  >
+                    Clear filter
+                  </button>
+                </div>
+              )}
+              {visibleGroups.map(group => {
                 const groupIds = group.rows.map(r => r.id);
                 const groupSelectedCount = groupIds.filter(id => selected.has(id)).length;
                 const allGroupOn = groupSelectedCount === groupIds.length;
