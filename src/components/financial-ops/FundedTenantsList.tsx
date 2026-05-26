@@ -44,6 +44,7 @@ export function FundedTenantsList() {
     tenantId: string | null;
     agentId: string | null;
     landlordId: string | null;
+    tab?: 'tenant' | 'agent' | 'landlord';
   } | null>(null);
 
   const { data: rows = [], isLoading } = useQuery({
@@ -252,6 +253,7 @@ export function FundedTenantsList() {
                               tenantId: r.tenant_id ?? null,
                               agentId: r.agent_id ?? null,
                               landlordId: r.landlord_id ?? null,
+                              tab: 'agent',
                             });
                           }}
                           className="font-semibold text-primary hover:underline"
@@ -331,12 +333,13 @@ export function FundedTenantsList() {
       />
 
       <UserDrilldownDrawer
+        key={drill ? `${drill.agentId ?? ''}-${drill.tenantId ?? ''}-${drill.landlordId ?? ''}-${drill.tab ?? 'landlord'}` : 'closed'}
         open={!!drill}
         onOpenChange={(o) => !o && setDrill(null)}
         tenantId={drill?.tenantId ?? null}
         agentId={drill?.agentId ?? null}
         landlordId={drill?.landlordId ?? null}
-        defaultTab="landlord"
+        defaultTab={drill?.tab ?? 'landlord'}
       />
     </div>
   );
