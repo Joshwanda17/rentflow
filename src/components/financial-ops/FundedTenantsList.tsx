@@ -20,6 +20,47 @@ import {
 } from '@/components/ui/select';
 import { Globe2, CalendarDays } from 'lucide-react';
 
+// African countries grouped by sub-region, ordered East → West → South → North.
+const AFRICA_REGIONS: { region: string; countries: string[] }[] = [
+  {
+    region: 'Eastern Africa',
+    countries: [
+      'Uganda', 'Kenya', 'Tanzania', 'Rwanda', 'Burundi', 'South Sudan',
+      'Ethiopia', 'Somalia', 'Djibouti', 'Eritrea', 'Madagascar', 'Mauritius',
+      'Seychelles', 'Comoros', 'Malawi', 'Mozambique', 'Zambia', 'Zimbabwe',
+    ],
+  },
+  {
+    region: 'Western Africa',
+    countries: [
+      'Nigeria', 'Ghana', "Côte d'Ivoire", 'Senegal', 'Mali', 'Burkina Faso',
+      'Niger', 'Guinea', 'Guinea-Bissau', 'Sierra Leone', 'Liberia', 'Togo',
+      'Benin', 'Gambia', 'Cape Verde', 'Mauritania',
+    ],
+  },
+  {
+    region: 'Southern Africa',
+    countries: [
+      'South Africa', 'Namibia', 'Botswana', 'Lesotho', 'Eswatini', 'Angola',
+    ],
+  },
+  {
+    region: 'Northern Africa',
+    countries: [
+      'Egypt', 'Sudan', 'Libya', 'Tunisia', 'Algeria', 'Morocco', 'Western Sahara',
+    ],
+  },
+  {
+    region: 'Central Africa',
+    countries: [
+      'DR Congo', 'Congo', 'Cameroon', 'Central African Republic', 'Chad',
+      'Gabon', 'Equatorial Guinea', 'São Tomé and Príncipe',
+    ],
+  },
+];
+
+const AFRICAN_COUNTRY_SET = new Set(AFRICA_REGIONS.flatMap((r) => r.countries));
+
 type Row = {
   id: string;
   agent_id: string;
