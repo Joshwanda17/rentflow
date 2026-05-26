@@ -461,7 +461,7 @@ function TenantPane({ tenantId, isOps }: { tenantId: string; isOps: boolean }) {
 
   return (
     <div className="space-y-3">
-      <ProfileHeader profile={profile} roles={roles} />
+      <ProfileHeader profile={profile} roles={roles} userId={tenantId} canEdit={isOps} />
       <LocationEditor userId={tenantId} profile={profile} canEdit={isOps /* agent edit handled elsewhere */} />
 
       <Card className="p-3 space-y-2">
@@ -566,7 +566,7 @@ function AgentPane({ agentId, isOps }: { agentId: string; isOps: boolean }) {
 
   return (
     <div className="space-y-3">
-      <ProfileHeader profile={profile} roles={roles} />
+      <ProfileHeader profile={profile} roles={roles} userId={agentId} canEdit={isOps} />
       <LocationEditor userId={agentId} profile={profile} canEdit={isOps} />
 
       <Card className="p-3 space-y-2">
