@@ -1932,8 +1932,15 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
                     ))}
                   </div>
                 ) : (
-                  <div className="h-16 rounded border border-dashed border-border/40 flex items-center justify-center text-[10px] text-muted-foreground">
-                    No photos uploaded
+                  <div className="rounded border border-dashed border-border/40 bg-muted/20 p-2.5 space-y-1">
+                    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                      <ImagePlus className="h-3.5 w-3.5" />
+                      <span className="font-medium">No photos yet</span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground leading-relaxed">
+                      Images help tenants evaluate the property and boost trust scores.
+                      Tap <strong className="text-foreground">Add photos</strong> below to upload.
+                    </p>
                   </div>
                 )}
                 <div className="flex justify-between gap-2">
