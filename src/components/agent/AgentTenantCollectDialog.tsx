@@ -330,7 +330,7 @@ export function AgentTenantCollectDialog({
         targetId={tenant.id}
         targetRole="tenant"
         targetName={tenant.full_name}
-        blocking
+        blocking={false}
         onComplete={() => locGate.onCaptured()}
         onCancel={() => onOpenChange(false)}
       />

@@ -208,7 +208,7 @@ export function AgentLandlordPayoutDialog({ open, onOpenChange, property, onSucc
         targetId={property.id}
         targetRole="landlord"
         targetName={property.name}
-        blocking
+        blocking={false}
         onComplete={() => locGate.onCaptured()}
         onCancel={() => onOpenChange(false)}
       />

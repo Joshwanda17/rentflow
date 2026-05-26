@@ -278,7 +278,7 @@ export default function AgentContactLocationGate({
         <div className="flex justify-end gap-2 pt-2">
           {!blocking && (
             <Button variant="outline" onClick={() => onCancel?.()} disabled={submitting}>
-              Cancel
+              Do it later
             </Button>
           )}
           <Button onClick={handleSubmit} disabled={!ready || submitting}>
