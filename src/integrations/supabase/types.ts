@@ -10972,6 +10972,7 @@ export type Database = {
           must_change_password: boolean | null
           national_id: string | null
           occupation: string | null
+          ops_note: string | null
           parish: string | null
           phone: string
           prefers_easy_read: boolean
@@ -11043,6 +11044,7 @@ export type Database = {
           must_change_password?: boolean | null
           national_id?: string | null
           occupation?: string | null
+          ops_note?: string | null
           parish?: string | null
           phone: string
           prefers_easy_read?: boolean
@@ -11114,6 +11116,7 @@ export type Database = {
           must_change_password?: boolean | null
           national_id?: string | null
           occupation?: string | null
+          ops_note?: string | null
           parish?: string | null
           phone?: string
           prefers_easy_read?: boolean
@@ -17659,6 +17662,10 @@ export type Database = {
         Args: { _job_id: string; _reason: string }
         Returns: Json
       }
+      ops_update_landlord: {
+        Args: { p_landlord_id: string; p_patch: Json; p_reason: string }
+        Returns: Json
+      }
       ops_update_landlord_smartphone: {
         Args: {
           p_has_smartphone: boolean
@@ -17667,15 +17674,27 @@ export type Database = {
         }
         Returns: Json
       }
-      ops_update_user_identity: {
-        Args: {
-          p_full_name: string
-          p_phone: string
-          p_reason: string
-          p_user_id: string
-        }
-        Returns: Json
-      }
+      ops_update_user_identity:
+        | {
+            Args: {
+              p_full_name: string
+              p_phone: string
+              p_reason: string
+              p_user_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_avatar_url?: string
+              p_full_name: string
+              p_ops_note?: string
+              p_phone: string
+              p_reason: string
+              p_user_id: string
+            }
+            Returns: Json
+          }
       ops_update_user_location:
         | {
             Args: {
