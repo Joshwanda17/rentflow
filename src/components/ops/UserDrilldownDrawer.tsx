@@ -1784,7 +1784,7 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
     queryKey: ['drilldown-landlord', landlordId],
     queryFn: async () => {
       const { data } = await supabase.from('landlords')
-        .select('id, name, phone, mobile_money_number, property_address, monthly_rent, verified, has_smartphone')
+        .select('id, name, phone, mobile_money_number, mobile_money_name, property_address, monthly_rent, verified, has_smartphone, caretaker_name, caretaker_phone, district, sub_county, village, bank_name, account_number, description, number_of_rooms, electricity_meter_number, water_meter_number, house_number')
         .eq('id', landlordId).maybeSingle();
       return data;
     },
