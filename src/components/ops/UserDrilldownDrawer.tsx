@@ -731,6 +731,9 @@ function AgentPane({ agentId, isOps }: { agentId: string; isOps: boolean }) {
         </div>
       </Card>
 
+      {/* Tenants under management — name, outstanding balance, landlord */}
+      <AgentTenantsList agentId={agentId} />
+
       {/* Network — partners onboarded & referrals */}
       <Card className="p-3 space-y-2">
         <div className="flex items-center gap-2 text-sm font-medium">
