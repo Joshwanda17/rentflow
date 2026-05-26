@@ -34,6 +34,8 @@ import { useRentPaymentStatusMutation } from '@/hooks/useRentPaymentStatusMutati
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import { ListingPhotoUploadDialog } from './ListingPhotoUploadDialog';
+import { ImagePlus } from 'lucide-react';
 
 type UserBrief = { id: string; full_name: string | null; phone: string | null };
 
@@ -1202,6 +1204,7 @@ function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord }: { agent
   const [listingsStatusFilter, setListingsStatusFilter] = useState<string>('all');
   const [listingsLocationFilter, setListingsLocationFilter] = useState<string>('all');
   const [listingsDateRange, setListingsDateRange] = useState<StatementDateRange>({ preset: 'this_month' });
+  const [photoUploadFor, setPhotoUploadFor] = useState<any | null>(null);
 
   const { data: listings = [], refetch: refetchListings, isFetching: listingsFetching } = useQuery({
     queryKey: ['drilldown-agent-listings', agentId],
@@ -1680,6 +1683,18 @@ function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord }: { agent
                       <span className="text-muted-foreground">—</span>
                     )}
                   </div>
+                  <div className="pt-1">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-[11px] w-full"
+                      onClick={() => setPhotoUploadFor(l)}
+                    >
+                      <ImagePlus className="h-3 w-3 mr-1" />
+                      Add photos ({Array.isArray(l.image_urls) ? l.image_urls.length : 0})
+                    </Button>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -1709,6 +1724,21 @@ function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord }: { agent
           </div>
         </div>
       </Card>
+      {photoUploadFor && (
+        <ListingPhotoUploadDialog
+          open={!!photoUploadFor}
+          onOpenChange={(v) => { if (!v) setPhotoUploadFor(null); }}
+          listingId={photoUploadFor.id}
+          listingTitle={photoUploadFor.title}
+          existingUrls={Array.isArray(photoUploadFor.image_urls) ? photoUploadFor.image_urls : []}
+          district={photoUploadFor.district ?? undefined}
+          village={photoUploadFor.village ?? undefined}
+          invalidateKeys={[
+            ['drilldown-agent-listings', agentId],
+            ['drilldown-landlord-listings', photoUploadFor.landlord_id],
+          ]}
+        />
+      )}
     </div>
   );
 }
@@ -1718,6 +1748,7 @@ function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord }: { agent
 /* ------------------------------------------------------------------ */
 function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolean }) {
   const qc = useQueryClient();
+  const [photoUploadFor, setPhotoUploadFor] = useState<any | null>(null);
   const { data: landlord, isLoading } = useQuery({
     queryKey: ['drilldown-landlord', landlordId],
     queryFn: async () => {
@@ -1895,6 +1926,16 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
                   <span className="text-muted-foreground truncate">{l.village ?? l.district ?? l.address ?? '—'}</span>
                   <Badge variant="outline" className="text-[9px]">{l.status}</Badge>
                 </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-[11px] w-full"
+                  onClick={() => setPhotoUploadFor(l)}
+                >
+                  <ImagePlus className="h-3 w-3 mr-1" />
+                  Add photos ({Array.isArray(l.image_urls) ? l.image_urls.length : 0})
+                </Button>
               </li>
             ))}
           </ul>
@@ -2028,6 +2069,20 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
             </div>
           )}
         </div>
+      )}
+      {photoUploadFor && (
+        <ListingPhotoUploadDialog
+          open={!!photoUploadFor}
+          onOpenChange={(v) => { if (!v) setPhotoUploadFor(null); }}
+          listingId={photoUploadFor.id}
+          listingTitle={photoUploadFor.title}
+          existingUrls={Array.isArray(photoUploadFor.image_urls) ? photoUploadFor.image_urls : []}
+          district={photoUploadFor.district ?? undefined}
+          village={photoUploadFor.village ?? undefined}
+          invalidateKeys={[
+            ['drilldown-landlord-listings', landlordId],
+          ]}
+        />
       )}
     </div>
   );
