@@ -97,6 +97,7 @@ export function FundedTenantsList() {
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const [customDays, setCustomDays] = useState<number>(14);
   const [countryFilter, setCountryFilter] = useState<string>('all');
+  const [regionFilter, setRegionFilter] = useState<string | null>(null);
   const [drill, setDrill] = useState<{
     tenantId: string | null;
     agentId: string | null;
@@ -181,37 +182,99 @@ export function FundedTenantsList() {
       .sort((a, b) => b.total - a.total);
   }, [dateFiltered]);
 
-  const countryDrilldown = useMemo(() => {
-    if (countryFilter === 'all') return null;
-    const rows = dateFiltered.filter((r) => (r.country?.trim() || 'Unknown') === countryFilter);
-    const landlords = new Map<string, { id: string; name: string; tenants: Set<string>; payouts: number; total: number }>();
-    const tenants = new Set<string>();
-    let total = 0;
-    rows.forEach((r) => {
-      total += Number(r.amount || 0);
-      if (r.tenant_id) tenants.add(r.tenant_id);
-      const key = r.landlord_id || r.landlord_name || 'unknown';
-      const cur = landlords.get(key) ?? { id: r.landlord_id, name: r.landlord_name, tenants: new Set<string>(), payouts: 0, total: 0 };
-      cur.payouts += 1;
-      cur.total += Number(r.amount || 0);
-      if (r.tenant_id) cur.tenants.add(r.tenant_id);
-      landlords.set(key, cur);
+  const regionStats = useMemo(() => {
+    const m = new Map<string, { count: number; total: number; countries: Set<string> }>();
+    AFRICA_REGIONS.forEach((group) => {
+      m.set(group.region, { count: 0, total: 0, countries: new Set<string>() });
     });
-    return {
-      country: countryFilter,
-      tenantCount: tenants.size,
-      landlordCount: landlords.size,
-      payoutCount: rows.length,
-      total,
-      landlords: Array.from(landlords.values()).sort((a, b) => b.total - a.total),
-    };
-  }, [dateFiltered, countryFilter]);
+    dateFiltered.forEach((r) => {
+      const c = r.country?.trim() || 'Unknown';
+      for (const group of AFRICA_REGIONS) {
+        if (group.countries.includes(c)) {
+          const cur = m.get(group.region)!;
+          cur.count += 1;
+          cur.total += Number(r.amount || 0);
+          cur.countries.add(c);
+          break;
+        }
+      }
+    });
+    return Array.from(m.entries())
+      .map(([region, v]) => ({ region, ...v }))
+      .sort((a, b) => b.total - a.total);
+  }, [dateFiltered]);
+
+  const drilldown = useMemo(() => {
+    if (countryFilter !== 'all') {
+      const rows = dateFiltered.filter((r) => (r.country?.trim() || 'Unknown') === countryFilter);
+      const landlords = new Map<string, { id: string; name: string; tenants: Set<string>; payouts: number; total: number }>();
+      const tenants = new Set<string>();
+      let total = 0;
+      rows.forEach((r) => {
+        total += Number(r.amount || 0);
+        if (r.tenant_id) tenants.add(r.tenant_id);
+        const key = r.landlord_id || r.landlord_name || 'unknown';
+        const cur = landlords.get(key) ?? { id: r.landlord_id, name: r.landlord_name, tenants: new Set<string>(), payouts: 0, total: 0 };
+        cur.payouts += 1;
+        cur.total += Number(r.amount || 0);
+        if (r.tenant_id) cur.tenants.add(r.tenant_id);
+        landlords.set(key, cur);
+      });
+      return {
+        type: 'country' as const,
+        name: countryFilter,
+        tenantCount: tenants.size,
+        landlordCount: landlords.size,
+        payoutCount: rows.length,
+        total,
+        landlords: Array.from(landlords.values()).sort((a, b) => b.total - a.total),
+        countryStats: [] as { country: string; count: number; total: number }[],
+      };
+    }
+    if (regionFilter) {
+      const regionCountries = new Set(AFRICA_REGIONS.find((g) => g.region === regionFilter)?.countries || []);
+      const rows = dateFiltered.filter((r) => regionCountries.has(r.country?.trim() || ''));
+      const landlords = new Map<string, { id: string; name: string; tenants: Set<string>; payouts: number; total: number }>();
+      const tenants = new Set<string>();
+      const countryMap = new Map<string, { count: number; total: number }>();
+      let total = 0;
+      rows.forEach((r) => {
+        total += Number(r.amount || 0);
+        if (r.tenant_id) tenants.add(r.tenant_id);
+        const c = r.country?.trim() || 'Unknown';
+        const cm = countryMap.get(c) ?? { count: 0, total: 0 };
+        cm.count += 1; cm.total += Number(r.amount || 0);
+        countryMap.set(c, cm);
+        const key = r.landlord_id || r.landlord_name || 'unknown';
+        const cur = landlords.get(key) ?? { id: r.landlord_id, name: r.landlord_name, tenants: new Set<string>(), payouts: 0, total: 0 };
+        cur.payouts += 1;
+        cur.total += Number(r.amount || 0);
+        if (r.tenant_id) cur.tenants.add(r.tenant_id);
+        landlords.set(key, cur);
+      });
+      return {
+        type: 'region' as const,
+        name: regionFilter,
+        tenantCount: tenants.size,
+        landlordCount: landlords.size,
+        payoutCount: rows.length,
+        total,
+        landlords: Array.from(landlords.values()).sort((a, b) => b.total - a.total),
+        countryStats: Array.from(countryMap.entries()).map(([country, v]) => ({ country, ...v })).sort((a, b) => b.total - a.total),
+      };
+    }
+    return null;
+  }, [dateFiltered, countryFilter, regionFilter]);
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    const base = countryFilter === 'all'
-      ? dateFiltered
-      : dateFiltered.filter((r) => (r.country?.trim() || 'Unknown') === countryFilter);
+    let base = dateFiltered;
+    if (countryFilter !== 'all') {
+      base = base.filter((r) => (r.country?.trim() || 'Unknown') === countryFilter);
+    } else if (regionFilter) {
+      const regionCountries = new Set(AFRICA_REGIONS.find((g) => g.region === regionFilter)?.countries || []);
+      base = base.filter((r) => regionCountries.has(r.country?.trim() || ''));
+    }
     if (!needle) return base;
     return base.filter((r) => {
       const hay = [
@@ -227,7 +290,7 @@ export function FundedTenantsList() {
         .toLowerCase();
       return hay.includes(needle);
     });
-  }, [dateFiltered, countryFilter, q]);
+  }, [dateFiltered, countryFilter, regionFilter, q]);
 
   const totalAmount = useMemo(
     () => filtered.reduce((s, r) => s + Number(r.amount || 0), 0),
@@ -251,9 +314,10 @@ export function FundedTenantsList() {
     if (dateFilter === '7d') parts.push('last 7 days');
     else if (dateFilter === '30d') parts.push('last 30 days');
     else if (dateFilter === 'custom') parts.push(`last ${Math.max(1, customDays || 1)} days`);
-    if (countryFilter !== 'all') parts.push(countryFilter);
+    if (regionFilter) parts.push(regionFilter);
+    else if (countryFilter !== 'all') parts.push(countryFilter);
     return parts.join(' · ');
-  }, [dateFilter, customDays, countryFilter]);
+  }, [dateFilter, customDays, countryFilter, regionFilter]);
 
   const scopeSlug = useMemo(() => {
     const slug = (s: string) =>
@@ -263,9 +327,10 @@ export function FundedTenantsList() {
     else if (dateFilter === '30d') parts.push('last-30d');
     else if (dateFilter === 'custom') parts.push(`last-${Math.max(1, customDays || 1)}d`);
     else parts.push('all-time');
-    if (countryFilter !== 'all') parts.push(slug(countryFilter));
+    if (regionFilter) parts.push(slug(regionFilter));
+    else if (countryFilter !== 'all') parts.push(slug(countryFilter));
     return parts.join('-');
-  }, [dateFilter, customDays, countryFilter]);
+  }, [dateFilter, customDays, countryFilter, regionFilter]);
 
   const handleBulkPdf = async () => {
     if (!filtered.length) return;
@@ -365,7 +430,7 @@ export function FundedTenantsList() {
         <div className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
           <CalendarDays className="h-3.5 w-3.5" /> Funded in:
         </div>
-        <Select value={dateFilter} onValueChange={(v) => { setDateFilter(v as DateFilter); setCountryFilter('all'); }}>
+        <Select value={dateFilter} onValueChange={(v) => { setDateFilter(v as DateFilter); setCountryFilter('all'); setRegionFilter(null); }}>
           <SelectTrigger className="h-8 text-xs w-[160px]">
             <SelectValue />
           </SelectTrigger>
@@ -383,7 +448,7 @@ export function FundedTenantsList() {
               min={1}
               max={365}
               value={customDays}
-              onChange={(e) => { setCustomDays(Number(e.target.value) || 1); setCountryFilter('all'); }}
+              onChange={(e) => { setCustomDays(Number(e.target.value) || 1); setCountryFilter('all'); setRegionFilter(null); }}
               className="h-8 w-20 text-xs"
             />
             <span className="text-xs text-muted-foreground">days</span>
@@ -411,7 +476,7 @@ export function FundedTenantsList() {
                 <button
                   key={country}
                   type="button"
-                  onClick={() => setCountryFilter(country)}
+                  onClick={() => { setCountryFilter(country); setRegionFilter(null); }}
                   className={`px-2.5 py-1 rounded-full text-xs border transition inline-flex items-center gap-1.5 ${
                     active
                       ? 'bg-primary text-primary-foreground border-primary'
@@ -436,35 +501,53 @@ export function FundedTenantsList() {
                 <div className="flex flex-wrap gap-1.5">
                   <button
                     type="button"
-                    onClick={() => setCountryFilter('all')}
+                    onClick={() => { setCountryFilter('all'); setRegionFilter(null); }}
                     className={`px-2.5 py-1 rounded-full text-xs border transition ${
-                      countryFilter === 'all'
+                      countryFilter === 'all' && !regionFilter
                         ? 'bg-primary text-primary-foreground border-primary'
                         : 'bg-background hover:bg-muted border-border'
                     }`}
                   >
                     All ({dateFiltered.length})
                   </button>
-                  {countryFilter !== 'all' && (
+                  {(countryFilter !== 'all' || regionFilter) && (
                     <button
                       type="button"
-                      onClick={() => setCountryFilter('all')}
+                      onClick={() => { setCountryFilter('all'); setRegionFilter(null); }}
                       className="px-2.5 py-1 rounded-full text-xs text-muted-foreground hover:text-foreground underline"
                     >
                       Clear
                     </button>
                   )}
                 </div>
-                {AFRICA_REGIONS.map((group) => (
-                  <div key={group.region} className="space-y-1">
-                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground/80 font-semibold">
-                      {group.region}
+                {AFRICA_REGIONS.map((group) => {
+                  const rs = regionStats.find((r) => r.region === group.region);
+                  const regionActive = regionFilter === group.region;
+                  return (
+                    <div key={group.region} className="space-y-1">
+                      <button
+                        type="button"
+                        onClick={() => { setRegionFilter(group.region); setCountryFilter('all'); }}
+                        className={`text-[10px] uppercase tracking-wide font-semibold px-2 py-0.5 rounded-full border transition inline-flex items-center gap-1.5 ${
+                          regionActive
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-background hover:bg-muted border-border text-muted-foreground/80'
+                        }`}
+                        title={rs ? `${rs.count} payouts · ${rs.countries.size} countries · ${formatUGX(rs.total)}` : 'No payouts in range'}
+                      >
+                        {group.region}
+                        {rs && rs.count > 0 && (
+                          <span className={regionActive ? 'opacity-90' : 'text-muted-foreground font-normal'}>
+                            {rs.count} · {formatUGX(rs.total)}
+                          </span>
+                        )}
+                      </button>
+                      <div className="flex flex-wrap gap-1.5">
+                        {group.countries.map((country) => renderChip(country))}
+                      </div>
                     </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {group.countries.map((country) => renderChip(country))}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
                 {otherCountries.length > 0 && (
                   <div className="space-y-1">
                     <div className="text-[10px] uppercase tracking-wide text-muted-foreground/80 font-semibold">
@@ -481,27 +564,45 @@ export function FundedTenantsList() {
         </div>
       )}
 
-      {countryDrilldown && (
+      {drilldown && (
         <Card className="p-3 sm:p-4 border-primary/30 bg-primary/5">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div className="min-w-0">
               <div className="inline-flex items-center gap-2 text-sm font-semibold">
                 <Globe2 className="h-4 w-4 text-primary" />
-                {countryDrilldown.country}
+                {drilldown.name}
                 <span className="text-xs font-normal text-muted-foreground">
-                  · {countryDrilldown.landlordCount} landlords · {countryDrilldown.tenantCount} tenants · {countryDrilldown.payoutCount} payouts · {formatUGX(countryDrilldown.total)}
+                  · {drilldown.landlordCount} landlords · {drilldown.tenantCount} tenants · {drilldown.payoutCount} payouts · {formatUGX(drilldown.total)}
                 </span>
               </div>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                Tap any landlord to open their profile.
+                {drilldown.type === 'region'
+                  ? 'Tap any country or landlord to drill deeper.'
+                  : 'Tap any landlord to open their profile.'}
               </p>
             </div>
-            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setCountryFilter('all')}>
-              Clear country
+            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setCountryFilter('all'); setRegionFilter(null); }}>
+              Clear filter
             </Button>
           </div>
+          {drilldown.type === 'region' && drilldown.countryStats.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {drilldown.countryStats.map((c) => (
+                <button
+                  key={c.country}
+                  type="button"
+                  onClick={() => { setCountryFilter(c.country); setRegionFilter(null); }}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border border-border bg-background hover:bg-muted transition"
+                >
+                  <Globe2 className="h-3 w-3 text-primary" />
+                  <span className="font-medium">{c.country}</span>
+                  <span className="text-muted-foreground">{c.count} · {formatUGX(c.total)}</span>
+                </button>
+              ))}
+            </div>
+          )}
           <div className="mt-2 flex flex-wrap gap-1.5">
-            {countryDrilldown.landlords.map((l) => (
+            {drilldown.landlords.map((l) => (
               <button
                 key={l.id || l.name}
                 type="button"
