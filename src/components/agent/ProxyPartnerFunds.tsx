@@ -115,6 +115,12 @@ export function ProxyPartnerFunds() {
   const [partnerWithdrawalStatus, setPartnerWithdrawalStatus] = useState<Record<string, string>>({});
   const [partnerWithdrawalIds, setPartnerWithdrawalIds] = useState<Record<string, string>>({});
   const [strictWithdrawableByPartner, setStrictWithdrawableByPartner] = useState<Record<string, number>>({});
+  // Partners whose proxy assignment is `is_managed_account=true`. Their ROI
+  // is credited to the AGENT's wallet (not their own), so the ceiling clamp
+  // must use the agent's strict withdrawable instead of the partner's zero.
+  const [managedPartnerIds, setManagedPartnerIds] = useState<Set<string>>(new Set());
+  // Agent's own strict withdrawable — shared ceiling across managed cards.
+  const [agentStrictWithdrawable, setAgentStrictWithdrawable] = useState<number>(0);
   // Removed managedPartnerIds state as ROI now always goes to the partner's wallet.
   // Sum of in-flight (pending/processing/manager_approved/cfo_approved/requested)
   // withdrawal amounts per partner. Treated as already-paid for display so the
@@ -314,7 +320,16 @@ export function ProxyPartnerFunds() {
       const proxyPartnerIds = Array.from(
         new Set((proxyAssignments || []).map((r: any) => r.beneficiary_id).filter(Boolean)),
       ) as string[];
-      // Removed managedSet logic since all ROI stays in the partner's wallet.
+      // Managed-proxy partners — ROI for these lands in the AGENT's wallet
+      // (per Managed-Proxy Payout Routing). Without this set, the ceiling
+      // clamp uses the partner's zero withdrawable and silently drops every
+      // managed card from the list (the bug Caro reported).
+      const managedSet = new Set<string>(
+        (proxyAssignments || [])
+          .filter((r: any) => r.is_managed_account === true && r.beneficiary_id)
+          .map((r: any) => r.beneficiary_id as string),
+      );
+      setManagedPartnerIds(managedSet);
 
       // Source IDs (portfolios) belonging to those proxy partners.
       let v2PortfolioIds: string[] = [];
@@ -516,6 +531,7 @@ export function ProxyPartnerFunds() {
         strictMap[row.user_id] = Number(row.withdrawable) || 0;
       });
       setStrictWithdrawableByPartner(strictMap);
+      setAgentStrictWithdrawable(strictMap[user.id] || 0);
       // Resolve a partner key for every row: prefer linked_party (legacy
       // custody), fall back to user_id when it matches a known partner
       // (Custody V2). Anything that doesn't resolve is dropped.
@@ -710,11 +726,43 @@ export function ProxyPartnerFunds() {
       inFlightAmount: number;
     }> = {};
 
+    // ── Managed-proxy budget ──────────────────────────────────────────
+    // For managed-proxy partners, ROI lives in the AGENT's wallet, so the
+    // partner's strict withdrawable is always 0. Use the agent's strict
+    // withdrawable as a SHARED ceiling, distributed FIFO (newest approval
+    // first) across all managed partners. Without this, every managed card
+    // gets clamped to zero and silently disappears after CFO approval.
+    const managedPartnerIdsArr = Object.keys(opsByPartner).filter((pid) =>
+      managedPartnerIds.has(pid),
+    );
+    const managedNewestAtByPartner: Record<string, number> = {};
+    managedPartnerIdsArr.forEach((pid) => {
+      managedNewestAtByPartner[pid] = Math.max(
+        ...opsByPartner[pid].map((r) => new Date(r.createdAt).getTime()),
+      );
+    });
+    let managedBudgetRemaining = Math.max(0, agentStrictWithdrawable);
+    const managedCeilingByPartner: Record<string, number> = {};
+    managedPartnerIdsArr
+      .slice()
+      .sort((a, b) => (managedNewestAtByPartner[b] || 0) - (managedNewestAtByPartner[a] || 0))
+      .forEach((pid) => {
+        const totalApproved = opsByPartner[pid].reduce((s, r) => s + r.amount, 0);
+        const allocated = Math.min(totalApproved, managedBudgetRemaining);
+        managedCeilingByPartner[pid] = allocated;
+        managedBudgetRemaining -= allocated;
+      });
+
     Object.entries(opsByPartner).forEach(([partnerId, rows]) => {
       const totalApproved = rows.reduce((sum, row) => sum + row.amount, 0);
       const totalInFlight = activeWithdrawalsByPartner[partnerId] || 0;
       const historicalOpen = Math.max(0, totalApproved);
-      const ceilingSource = strictWithdrawableByPartner[partnerId] ?? historicalOpen;
+      // Managed partners → use the FIFO-allocated slice of the agent's
+      // strict wallet. Non-managed (Custody v2) → keep the existing
+      // partner-wallet clamp.
+      const ceilingSource = managedPartnerIds.has(partnerId)
+        ? (managedCeilingByPartner[partnerId] ?? 0)
+        : (strictWithdrawableByPartner[partnerId] ?? historicalOpen);
       const liveOpen = Math.max(
         0,
         Math.min(historicalOpen, ceilingSource + totalInFlight),
@@ -796,7 +844,7 @@ export function ProxyPartnerFunds() {
         if (b.totalReturns !== a.totalReturns) return b.totalReturns - a.totalReturns;
         return a.partnerName.localeCompare(b.partnerName);
       });
-  }, [approvedOps, completedWithdrawals, activeWithdrawalsByPartner, strictWithdrawableByPartner, profiles, portfolioMap, dismissalMap, user?.id]);
+  }, [approvedOps, completedWithdrawals, activeWithdrawalsByPartner, strictWithdrawableByPartner, agentStrictWithdrawable, managedPartnerIds, profiles, portfolioMap, dismissalMap, user?.id]);
 
   const handleWithdraw = async (partner: PartnerBalance) => {
     setSelectedPartnerId(partner.partnerId);
