@@ -1077,6 +1077,14 @@ function TenantLeafList({
     return <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
   }
   if (!data || data.length === 0) {
+    const winLabel: Record<string, string> = {
+      '24h': 'the last 24 hours',
+      '7d':  'the last 7 days',
+      '30d': 'the last 30 days',
+      '90d': 'the last 90 days',
+      'custom': 'the selected custom range',
+    };
+    const win = winLabel[filters.timeWindow as string];
     return (
       <div className="space-y-2">
         <TenantOpsFilterBar
@@ -1085,8 +1093,22 @@ function TenantLeafList({
           resultCount={0}
           totalCount={0}
         />
-        <Card className="py-10 text-center text-sm text-muted-foreground">
-          No tenants in this scope match the active filters.
+        <Card className="py-10 px-4 text-center text-sm text-muted-foreground space-y-3">
+          <p>
+            {win
+              ? <>No landlords were funded in <span className="font-medium text-foreground">{win}</span> for this location.</>
+              : <>No tenants in this scope match the active filters.</>}
+          </p>
+          {win && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-3 text-[11px]"
+              onClick={() => setFilters({ ...filters, timeWindow: 'all', customFrom: null, customUntil: null })}
+            >
+              Clear time window
+            </Button>
+          )}
         </Card>
       </div>
     );
