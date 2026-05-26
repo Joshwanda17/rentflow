@@ -1875,6 +1875,23 @@ export function LandlordOpsDashboard() {
   // ─── HOME: Mobile-first card navigation ───
   return (
     <div className="space-y-4">
+      {/* HERO: Tenants whose Landlords were Funded — always first */}
+      <button
+        onClick={() => setView('landlords-paid')}
+        className="w-full rounded-xl border-2 border-emerald-500/50 bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent p-3.5 flex items-center gap-3 text-left min-h-[64px] touch-manipulation active:scale-[0.98] transition-transform shadow-sm"
+      >
+        <div className="p-2 rounded-lg bg-emerald-500/15">
+          <Banknote className="h-5 w-5 text-emerald-600 shrink-0" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-bold text-sm text-foreground leading-tight">Tenants whose Landlords were Funded</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+            {paidLandlordsCount !== undefined ? `${paidLandlordsCount} landlords paid · ` : ''}View disbursements from tenant rent
+          </p>
+        </div>
+        <ChevronRight className="h-5 w-5 text-emerald-600 shrink-0" />
+      </button>
+
       {/* Browse by Location — quick access */}
       <button
         onClick={() => setView('houses-by-landlord')}
