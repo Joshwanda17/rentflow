@@ -155,9 +155,32 @@ export function RentDisbursementQueue() {
     return [...map.values()].sort((a, b) => b.latest - a.latest);
   }, [items]);
 
+  // Country breakdown — counts + total rent per country across the whole queue.
+  const countryStats = useMemo(() => {
+    const map = new Map<string, { country: string; count: number; total: number }>();
+    for (const it of items) {
+      const key = (it.request_country || '').trim() || 'Unknown';
+      const s = map.get(key) ?? { country: key, count: 0, total: 0 };
+      s.count += 1;
+      s.total += it.rent_amount;
+      map.set(key, s);
+    }
+    return [...map.values()].sort((a, b) => b.total - a.total);
+  }, [items]);
+
+  const countryFilteredGroups = useMemo(() => {
+    if (countryFilter === 'all') return grouped;
+    return grouped
+      .map(g => ({
+        ...g,
+        rows: g.rows.filter(r => ((r.request_country || '').trim() || 'Unknown') === countryFilter),
+      }))
+      .filter(g => g.rows.length > 0);
+  }, [grouped, countryFilter]);
+
   const visibleGroups = useMemo(
-    () => (agentFilter === 'all' ? grouped : grouped.filter(g => g.agent_id === agentFilter)),
-    [grouped, agentFilter],
+    () => (agentFilter === 'all' ? countryFilteredGroups : countryFilteredGroups.filter(g => g.agent_id === agentFilter)),
+    [countryFilteredGroups, agentFilter],
   );
   const visibleItems = useMemo(() => visibleGroups.flatMap(g => g.rows), [visibleGroups]);
   const allSelected = visibleItems.length > 0 && visibleItems.every(i => selected.has(i.id));
