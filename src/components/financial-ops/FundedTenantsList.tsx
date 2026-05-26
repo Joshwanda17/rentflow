@@ -97,6 +97,7 @@ export function FundedTenantsList() {
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const [customDays, setCustomDays] = useState<number>(14);
   const [countryFilter, setCountryFilter] = useState<string>('all');
+  const [regionFilter, setRegionFilter] = useState<string | null>(null);
   const [drill, setDrill] = useState<{
     tenantId: string | null;
     agentId: string | null;
@@ -365,7 +366,7 @@ export function FundedTenantsList() {
         <div className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
           <CalendarDays className="h-3.5 w-3.5" /> Funded in:
         </div>
-        <Select value={dateFilter} onValueChange={(v) => { setDateFilter(v as DateFilter); setCountryFilter('all'); }}>
+        <Select value={dateFilter} onValueChange={(v) => { setDateFilter(v as DateFilter); setCountryFilter('all'); setRegionFilter(null); }}>
           <SelectTrigger className="h-8 text-xs w-[160px]">
             <SelectValue />
           </SelectTrigger>
@@ -383,7 +384,7 @@ export function FundedTenantsList() {
               min={1}
               max={365}
               value={customDays}
-              onChange={(e) => { setCustomDays(Number(e.target.value) || 1); setCountryFilter('all'); }}
+              onChange={(e) => { setCustomDays(Number(e.target.value) || 1); setCountryFilter('all'); setRegionFilter(null); }}
               className="h-8 w-20 text-xs"
             />
             <span className="text-xs text-muted-foreground">days</span>
