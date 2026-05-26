@@ -5,11 +5,12 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Loader2, CheckCircle2, Search, Share2, User, Home, Receipt, FileDown } from 'lucide-react';
+import { Loader2, CheckCircle2, Search, Share2, User, Home, Receipt, FileDown, UserCog } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { LandlordPayoutShareCard, type LandlordPayoutShareData } from './LandlordPayoutShareCard';
 import { buildBulkPayoutsPdfBlob, downloadBlob } from './landlordPayoutPdf';
 import { toast } from 'sonner';
+import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
 
 type Row = {
   id: string;
@@ -39,6 +40,11 @@ export function FundedTenantsList() {
   const [q, setQ] = useState('');
   const [share, setShare] = useState<LandlordPayoutShareData | null>(null);
   const [bulk, setBulk] = useState<{ done: number; total: number } | null>(null);
+  const [drill, setDrill] = useState<{
+    tenantId: string | null;
+    agentId: string | null;
+    landlordId: string | null;
+  } | null>(null);
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['finops-funded-landlord-payouts'],
@@ -245,10 +251,11 @@ export function FundedTenantsList() {
                 </div>
                 <div className="text-right shrink-0">
                   <p className="text-base sm:text-lg font-bold">{formatUGX(r.amount)}</p>
+                  <div className="flex flex-col gap-1 mt-1">
                   <Button
                     size="sm"
                     variant="outline"
-                    className="mt-1 h-7 text-xs"
+                    className="h-7 text-xs"
                     onClick={() =>
                       setShare({
                         amount: r.amount,
@@ -266,6 +273,22 @@ export function FundedTenantsList() {
                   >
                     <Share2 className="h-3 w-3 mr-1" /> Share
                   </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="h-7 text-xs"
+                    onClick={() =>
+                      setDrill({
+                        tenantId: r.tenant_id ?? null,
+                        agentId: r.agent_id ?? null,
+                        landlordId: r.landlord_id ?? null,
+                      })
+                    }
+                    title="Open profile, edit location, link agent/landlord/funder"
+                  >
+                    <UserCog className="h-3 w-3 mr-1" /> Open profile
+                  </Button>
+                  </div>
                 </div>
               </div>
             </Card>
@@ -277,6 +300,15 @@ export function FundedTenantsList() {
         open={!!share}
         onOpenChange={(o) => !o && setShare(null)}
         data={share}
+      />
+
+      <UserDrilldownDrawer
+        open={!!drill}
+        onOpenChange={(o) => !o && setDrill(null)}
+        tenantId={drill?.tenantId ?? null}
+        agentId={drill?.agentId ?? null}
+        landlordId={drill?.landlordId ?? null}
+        defaultTab="landlord"
       />
     </div>
   );
