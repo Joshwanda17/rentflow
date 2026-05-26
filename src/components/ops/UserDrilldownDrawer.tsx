@@ -1705,12 +1705,17 @@ function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord }: { agent
                         disabled={!onSelectLandlord}
                       >
                         {l.landlord?.name ?? l.landlord_id}
-                        {l.landlord?.phone ? ` · ${l.landlord.phone}` : ''}
                       </button>
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}
                   </div>
+                  {l.landlord?.phone && (
+                    <div className="flex items-center gap-2 flex-wrap pl-1">
+                      <span className="text-muted-foreground text-[10px] font-mono">{l.landlord.phone}</span>
+                      <ContactActions phone={l.landlord.phone} size="xs" message={`Hello ${l.landlord?.name ?? ''}, this is Welile Ops about ${l.title ?? 'your listing'}.`} />
+                    </div>
+                  )}
                   <div className="pt-1">
                     <Button
                       type="button"
