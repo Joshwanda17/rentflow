@@ -6,6 +6,7 @@ import {
   UserCog, Building2, Home,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
+import { normalizeUgandaRegion, normalizeDistrict } from '@/lib/ugandaDistricts';
 
 export interface HierarchyHouse {
   id: string;
@@ -79,8 +80,18 @@ export function LocationHierarchyView({ houses, profiles, country = 'Uganda' }: 
   const tree = useMemo(() => {
     const root = new Map<string, Map<string, Map<string, Map<string, HierarchyHouse[]>>>>();
     for (const h of houses) {
-      const region = h.region?.trim() || 'Unknown region';
-      const district = (h.district?.trim()) || 'Unknown district';
+      // Roll up legacy/mis-bucketed values: e.g. region="Kampala" really
+      // belongs to "Central" region with district="Kampala".
+      const rawRegion = h.region?.trim() || '';
+      const rawDistrict = h.district?.trim() || '';
+      const region = country === 'Uganda'
+        ? normalizeUgandaRegion(rawRegion || rawDistrict)
+        : (rawRegion || 'Unknown region');
+      const districtCandidate = rawDistrict
+        || (rawRegion && normalizeUgandaRegion(rawRegion) !== rawRegion ? rawRegion : '');
+      const district = country === 'Uganda'
+        ? (normalizeDistrict(districtCandidate) || 'Unknown district')
+        : (rawDistrict || 'Unknown district');
       const agentId = h.agent_id || 'unknown-agent';
       const landlordId = h.landlord_id || 'unknown-landlord';
       if (!root.has(region)) root.set(region, new Map());
