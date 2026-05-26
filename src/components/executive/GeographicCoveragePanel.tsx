@@ -4,8 +4,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronRight, MapPin, Loader2, Home, Users, Wallet, UserCheck, Sparkles } from 'lucide-react';
+import { ChevronRight, MapPin, Loader2, Home, Users, Wallet, UserCheck, Sparkles, Search, Calendar as CalendarIcon, X, Filter } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Input } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
+
+type RoleKey = 'tenant' | 'landlord' | 'funder' | 'agent';
+const ALL_ROLES: RoleKey[] = ['tenant', 'landlord', 'funder', 'agent'];
 
 type Row = {
   level: 'country' | 'district' | 'city';
@@ -38,14 +46,25 @@ export function GeographicCoveragePanel() {
   const [district, setDistrict] = useState<string | null>(null);
   const [city, setCity] = useState<string | null>(null);
   const [drillOpen, setDrillOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [fromDate, setFromDate] = useState<Date | undefined>();
+  const [toDate, setToDate] = useState<Date | undefined>();
+  const [roles, setRoles] = useState<RoleKey[]>([...ALL_ROLES]);
+
+  const p_from = fromDate ? fromDate.toISOString() : null;
+  const p_to = toDate ? new Date(toDate.getTime() + 86_399_000).toISOString() : null; // include end-of-day
+  const p_roles = roles.length === ALL_ROLES.length ? null : roles;
 
   const { data: rows = [], isLoading } = useQuery({
-    queryKey: ['geo-coverage', country, district, city],
+    queryKey: ['geo-coverage', country, district, city, p_from, p_to, p_roles?.join(',') ?? 'all'],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_geo_user_coverage', {
         p_country: country,
         p_district: district,
         p_city: city,
+        p_from,
+        p_to,
+        p_roles,
       });
       if (error) throw error;
       return (data ?? []) as Row[];
@@ -53,8 +72,14 @@ export function GeographicCoveragePanel() {
     staleTime: 60_000,
   });
 
+  const filteredRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((r) => r.bucket.toLowerCase().includes(q));
+  }, [rows, search]);
+
   const totals = useMemo(() => {
-    return rows.reduce(
+    return filteredRows.reduce(
       (acc, r) => {
         acc.tenants += Number(r.tenants) || 0;
         acc.landlords += Number(r.landlords) || 0;
@@ -65,7 +90,7 @@ export function GeographicCoveragePanel() {
       },
       { tenants: 0, landlords: 0, funders: 0, agents: 0, funded: 0 },
     );
-  }, [rows]);
+  }, [filteredRows]);
 
   const currentLevel: 'country' | 'district' | 'city' =
     !country ? 'country' : !district ? 'district' : 'city';
@@ -86,13 +111,15 @@ export function GeographicCoveragePanel() {
 
   // Funded-tenant drill (loaded only when sheet opens)
   const { data: fundedTenants = [], isLoading: loadingFunded } = useQuery({
-    queryKey: ['funded-tenants-at', country, district, city, drillOpen],
+    queryKey: ['funded-tenants-at', country, district, city, drillOpen, p_from, p_to],
     enabled: drillOpen,
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_funded_tenants_at', {
         p_country: country,
         p_district: district,
         p_city: city,
+        p_from,
+        p_to,
         p_limit: 500,
         p_offset: 0,
       });
@@ -101,6 +128,19 @@ export function GeographicCoveragePanel() {
     },
     staleTime: 30_000,
   });
+
+  const toggleRole = (r: RoleKey) =>
+    setRoles((cur) => (cur.includes(r) ? cur.filter((x) => x !== r) : [...cur, r]));
+
+  const clearFilters = () => {
+    setSearch('');
+    setFromDate(undefined);
+    setToDate(undefined);
+    setRoles([...ALL_ROLES]);
+  };
+
+  const activeFilterCount =
+    (search ? 1 : 0) + (fromDate ? 1 : 0) + (toDate ? 1 : 0) + (roles.length !== ALL_ROLES.length ? 1 : 0);
 
   return (
     <Card>
@@ -122,6 +162,65 @@ export function GeographicCoveragePanel() {
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
+        {/* Filters */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-[180px]">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              placeholder={`Search ${labelFor(currentLevel).toLowerCase()}…`}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-9 pl-7"
+            />
+          </div>
+
+          <DateRangePopover
+            label="From"
+            date={fromDate}
+            onChange={setFromDate}
+          />
+          <DateRangePopover
+            label="To"
+            date={toDate}
+            onChange={setToDate}
+          />
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="h-9 gap-1.5">
+                <Filter className="h-3.5 w-3.5" />
+                Roles
+                <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">
+                  {roles.length}/{ALL_ROLES.length}
+                </Badge>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-48 p-2" align="end">
+              {ALL_ROLES.map((r) => (
+                <label key={r} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-accent cursor-pointer text-sm capitalize">
+                  <input
+                    type="checkbox"
+                    checked={roles.includes(r)}
+                    onChange={() => toggleRole(r)}
+                    className="h-4 w-4"
+                  />
+                  {r}s
+                </label>
+              ))}
+              <div className="border-t mt-1 pt-1 flex gap-1">
+                <Button size="sm" variant="ghost" className="h-7 flex-1 text-xs" onClick={() => setRoles([...ALL_ROLES])}>All</Button>
+                <Button size="sm" variant="ghost" className="h-7 flex-1 text-xs" onClick={() => setRoles([])}>None</Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {activeFilterCount > 0 && (
+            <Button variant="ghost" size="sm" className="h-9 gap-1" onClick={clearFilters}>
+              <X className="h-3.5 w-3.5" /> Clear
+            </Button>
+          )}
+        </div>
+
         {/* Totals bar */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
           <Stat label="Tenants" value={totals.tenants} icon={<Users className="h-3.5 w-3.5" />} />
@@ -155,10 +254,10 @@ export function GeographicCoveragePanel() {
             <div className="p-6 flex items-center justify-center text-muted-foreground text-sm">
               <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading…
             </div>
-          ) : rows.length === 0 ? (
+          ) : filteredRows.length === 0 ? (
             <div className="p-6 text-center text-sm text-muted-foreground">No records in this area.</div>
           ) : (
-            rows.map((r) => (
+            filteredRows.map((r) => (
               <button
                 key={r.bucket}
                 onClick={() => onRowClick(r.bucket)}
