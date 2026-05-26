@@ -204,11 +204,33 @@ export function FundedTenantsList() {
     paid_at: r.finops_disbursed_at ?? r.created_at,
   });
 
+  const scopeLabel = useMemo(() => {
+    const parts: string[] = [];
+    if (dateFilter === '7d') parts.push('last 7 days');
+    else if (dateFilter === '30d') parts.push('last 30 days');
+    else if (dateFilter === 'custom') parts.push(`last ${Math.max(1, customDays || 1)} days`);
+    if (countryFilter !== 'all') parts.push(countryFilter);
+    return parts.join(' · ');
+  }, [dateFilter, customDays, countryFilter]);
+
+  const scopeSlug = useMemo(() => {
+    const slug = (s: string) =>
+      s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    const parts: string[] = [];
+    if (dateFilter === '7d') parts.push('last-7d');
+    else if (dateFilter === '30d') parts.push('last-30d');
+    else if (dateFilter === 'custom') parts.push(`last-${Math.max(1, customDays || 1)}d`);
+    else parts.push('all-time');
+    if (countryFilter !== 'all') parts.push(slug(countryFilter));
+    return parts.join('-');
+  }, [dateFilter, customDays, countryFilter]);
+
   const handleBulkPdf = async () => {
     if (!filtered.length) return;
+    const scopeText = scopeLabel ? ` (${scopeLabel})` : '';
     if (filtered.length > 50) {
       const ok = window.confirm(
-        `You're about to export ${filtered.length} payouts into one PDF. This may take a minute. Continue?`,
+        `You're about to export ${filtered.length} payouts${scopeText} into one PDF. This may take a minute. Continue?`,
       );
       if (!ok) return;
     }
@@ -219,8 +241,11 @@ export function FundedTenantsList() {
         (done, total) => setBulk({ done, total }),
       );
       const stamp = new Date().toISOString().slice(0, 10);
-      downloadBlob(blob, `welile-funded-landlord-payouts-${stamp}-x${filtered.length}.pdf`);
-      toast.success(`Exported ${filtered.length} payouts to PDF`);
+      downloadBlob(
+        blob,
+        `welile-funded-landlord-payouts-${stamp}-${scopeSlug}-x${filtered.length}.pdf`,
+      );
+      toast.success(`Exported ${filtered.length} payouts${scopeText} to PDF`);
     } catch (e: any) {
       toast.error(e?.message ?? 'Failed to build bulk PDF');
     } finally {
