@@ -1939,7 +1939,7 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
 
   const filtered = useMemo(() => {
     if (!data) return [];
-    let out = data;
+    let out = data.rows;
     if (filter !== 'all') {
       const allowed = STATUS_GROUPS[filter];
       out = out.filter((row) => allowed.includes(row.status));
