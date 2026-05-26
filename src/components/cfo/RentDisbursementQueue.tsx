@@ -51,6 +51,7 @@ export function RentDisbursementQueue() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [agentFilter, setAgentFilter] = useState<string>('all');
   const [countryFilter, setCountryFilter] = useState<string>('all');
+  const [dateFilter, setDateFilter] = useState<'all' | '7d' | '30d'>('all');
   const [batchRef, setBatchRef] = useState('');
   const [rejectTarget, setRejectTarget] = useState<ApprovedRentItem | null>(null);
   const [rejectReason, setRejectReason] = useState('');
