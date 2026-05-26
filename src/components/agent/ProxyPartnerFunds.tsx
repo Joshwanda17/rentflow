@@ -726,11 +726,43 @@ export function ProxyPartnerFunds() {
       inFlightAmount: number;
     }> = {};
 
+    // ── Managed-proxy budget ──────────────────────────────────────────
+    // For managed-proxy partners, ROI lives in the AGENT's wallet, so the
+    // partner's strict withdrawable is always 0. Use the agent's strict
+    // withdrawable as a SHARED ceiling, distributed FIFO (newest approval
+    // first) across all managed partners. Without this, every managed card
+    // gets clamped to zero and silently disappears after CFO approval.
+    const managedPartnerIdsArr = Object.keys(opsByPartner).filter((pid) =>
+      managedPartnerIds.has(pid),
+    );
+    const managedNewestAtByPartner: Record<string, number> = {};
+    managedPartnerIdsArr.forEach((pid) => {
+      managedNewestAtByPartner[pid] = Math.max(
+        ...opsByPartner[pid].map((r) => new Date(r.createdAt).getTime()),
+      );
+    });
+    let managedBudgetRemaining = Math.max(0, agentStrictWithdrawable);
+    const managedCeilingByPartner: Record<string, number> = {};
+    managedPartnerIdsArr
+      .slice()
+      .sort((a, b) => (managedNewestAtByPartner[b] || 0) - (managedNewestAtByPartner[a] || 0))
+      .forEach((pid) => {
+        const totalApproved = opsByPartner[pid].reduce((s, r) => s + r.amount, 0);
+        const allocated = Math.min(totalApproved, managedBudgetRemaining);
+        managedCeilingByPartner[pid] = allocated;
+        managedBudgetRemaining -= allocated;
+      });
+
     Object.entries(opsByPartner).forEach(([partnerId, rows]) => {
       const totalApproved = rows.reduce((sum, row) => sum + row.amount, 0);
       const totalInFlight = activeWithdrawalsByPartner[partnerId] || 0;
       const historicalOpen = Math.max(0, totalApproved);
-      const ceilingSource = strictWithdrawableByPartner[partnerId] ?? historicalOpen;
+      // Managed partners → use the FIFO-allocated slice of the agent's
+      // strict wallet. Non-managed (Custody v2) → keep the existing
+      // partner-wallet clamp.
+      const ceilingSource = managedPartnerIds.has(partnerId)
+        ? (managedCeilingByPartner[partnerId] ?? 0)
+        : (strictWithdrawableByPartner[partnerId] ?? historicalOpen);
       const liveOpen = Math.max(
         0,
         Math.min(historicalOpen, ceilingSource + totalInFlight),
