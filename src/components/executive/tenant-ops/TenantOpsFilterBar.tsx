@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,7 +8,10 @@ import { Calendar } from '@/components/ui/calendar';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Calendar as CalendarIcon, Bookmark, Download, X, Trash2, AlertCircle } from 'lucide-react';
+import {
+  Calendar as CalendarIcon, Bookmark, Download, X, Trash2, AlertCircle,
+  Share2, Globe, Lock, Link as LinkIcon, Loader2,
+} from 'lucide-react';
 import { format, startOfWeek, startOfMonth, subMonths, endOfMonth, differenceInCalendarDays } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
@@ -17,8 +20,12 @@ import {
   type LinkBandKey, type PhotosBandKey, type LeafSortKey,
   type OutstandingKey, type VerificationKey, type FundingSourceKey,
   RENT_BANDS, DEFAULT_FILTERS, isFiltersActive,
-  loadPresets, savePreset, deletePreset, type TenantOpsPreset,
 } from '@/lib/tenantOpsFilters';
+import {
+  listPresets, createPreset, deletePresetRemote, setPresetVisibility,
+  buildShareUrl, type TenantOpsPresetRemote, type PresetVisibility,
+} from '@/lib/tenantOpsPresets';
+import { toast } from 'sonner';
 
 interface Props {
   filters: TenantOpsFilters;
