@@ -31,6 +31,11 @@ import {
   CommandGroup,
   CommandItem,
 } from '@/components/ui/command';
+import { TenantOpsFilterBar } from './TenantOpsFilterBar';
+import {
+  DEFAULT_FILTERS, timeWindowToISO, applyLeafFilters,
+  exportLeafToCSV, downloadCSV, type TenantOpsFilters,
+} from '@/lib/tenantOpsFilters';
 
 const LEVEL_ICON: Record<string, any> = {
   country: MapPin, region: MapPin, district: MapPin, ward: MapPin,
@@ -147,8 +152,13 @@ const LEVEL_PLACEHOLDER: Record<string, string> = {
 
 export function TenantLocationBrowser() {
   const [path, setPath] = useState<TenantBreadcrumbPath>({});
+  const [filters, setFilters] = useState<TenantOpsFilters>(DEFAULT_FILTERS);
+  const fundedWindow = useMemo(
+    () => timeWindowToISO(filters.timeWindow, { from: filters.customFrom, until: filters.customUntil }),
+    [filters.timeWindow, filters.customFrom, filters.customUntil],
+  );
   const level = tenantNextLevel(path);
-  const { data: rows, isLoading } = useTenantLocationBreakdown(path);
+  const { data: rows, isLoading } = useTenantLocationBreakdown(path, fundedWindow);
   const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
   const [agentDrilldownId, setAgentDrilldownId] = useState<string | null>(null);
@@ -186,6 +196,10 @@ export function TenantLocationBrowser() {
 
   return (
     <div className="space-y-3">
+      <TenantOpsFilterBar
+        filters={filters}
+        onChange={setFilters}
+      />
       <Card className="p-2.5 bg-muted/30">
         <div className="flex items-center gap-2">
           <div className="flex-1 min-w-0">
@@ -213,7 +227,7 @@ export function TenantLocationBrowser() {
       </Card>
 
       {level === 'tenants' ? (
-        <TenantLeafList path={path} />
+        <TenantLeafList path={path} filters={filters} setFilters={setFilters} fundedWindow={fundedWindow} />
       ) : level === 'region' && (path.country ?? '').toLowerCase() === 'uganda' ? (
         <UgandaRegionDistrictPicker
           rows={rows ?? []}
