@@ -25,21 +25,24 @@ export function useWalletMovementCounts(userId?: string) {
           .eq('user_id', userId)
           .eq('ledger_scope', 'wallet')
           .gte('transaction_date', since24h)
-          .or('classification.neq.admin_correction,category.neq.system_balance_correction'),
+          .neq('classification', 'admin_correction')
+          .neq('category', 'system_balance_correction'),
         supabase
           .from('general_ledger')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', userId)
           .eq('ledger_scope', 'wallet')
           .gte('transaction_date', since7d)
-          .or('classification.neq.admin_correction,category.neq.system_balance_correction'),
+          .neq('classification', 'admin_correction')
+          .neq('category', 'system_balance_correction'),
         supabase
           .from('general_ledger')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', userId)
           .eq('ledger_scope', 'wallet')
           .gte('transaction_date', since30d)
-          .or('classification.neq.admin_correction,category.neq.system_balance_correction'),
+          .neq('classification', 'admin_correction')
+          .neq('category', 'system_balance_correction'),
       ]);
 
       return {
