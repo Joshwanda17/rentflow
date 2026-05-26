@@ -17,16 +17,20 @@ import {
   Wallet, ShieldAlert, Building2, ReceiptText, Smartphone, SmartphoneNfc,
   Search, Pencil, X, TrendingUp, Users, Sparkles, Download, FileText,
   ChevronRight, ArrowLeft, MessageSquare, StickyNote, CheckCircle2, XCircle,
+  CalendarIcon,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
 import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, startOfDay, endOfDay, startOfMonth, endOfMonth } from 'date-fns';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import { useRentPaymentStatusMutation } from '@/hooks/useRentPaymentStatusMutation';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 
 type UserBrief = { id: string; full_name: string | null; phone: string | null };
 
@@ -667,25 +671,28 @@ function TenantQuickActions({
 }
 
 function TenantExportButtons({
-  tenantId, profile, activeRr, balance, activeLandlord,
+  tenantId, profile, activeRr, balance, activeLandlord, dateRange,
 }: {
   tenantId: string;
   profile: any;
   activeRr: any;
   balance: number;
   activeLandlord: any;
+  dateRange: StatementDateRange;
 }) {
   const [busy, setBusy] = useState<null | 'csv' | 'pdf'>(null);
 
   const fetchStatements = async () => {
-    const { data, error } = await supabase
+    const { gte, lte } = buildDateRange(dateRange);
+    let q = supabase
       .from('general_ledger')
       .select('transaction_date, amount, direction, category, description')
       .eq('user_id', tenantId)
       .in('category', ['rent_obligation', 'tenant_repayment', 'rent_repayment'])
-      .neq('classification', 'admin_correction')
-      .order('transaction_date', { ascending: false })
-      .limit(500);
+      .neq('classification', 'admin_correction');
+    if (gte) q = q.gte('transaction_date', gte);
+    if (lte) q = q.lte('transaction_date', lte);
+    const { data, error } = await q.order('transaction_date', { ascending: false }).limit(500);
     if (error) throw error;
     return data ?? [];
   };
@@ -856,10 +863,120 @@ function TenantExportButtons({
   );
 }
 
+type DateRangePreset = 'today' | 'this_month' | 'custom';
+interface StatementDateRange {
+  preset: DateRangePreset;
+  from?: Date;
+  to?: Date;
+}
+
+function buildDateRange(range: StatementDateRange) {
+  const now = new Date();
+  if (range.preset === 'today') {
+    return { gte: startOfDay(now).toISOString(), lte: endOfDay(now).toISOString() };
+  }
+  if (range.preset === 'this_month') {
+    return { gte: startOfMonth(now).toISOString(), lte: endOfMonth(now).toISOString() };
+  }
+  if (range.preset === 'custom' && range.from && range.to) {
+    return { gte: startOfDay(range.from).toISOString(), lte: endOfDay(range.to).toISOString() };
+  }
+  return { gte: undefined, lte: undefined };
+}
+
+function StatementDateFilter({
+  value,
+  onChange,
+}: {
+  value: StatementDateRange;
+  onChange: (v: StatementDateRange) => void;
+}) {
+  const presets: { key: DateRangePreset; label: string }[] = [
+    { key: 'today', label: 'Today' },
+    { key: 'this_month', label: 'This month' },
+    { key: 'custom', label: 'Custom' },
+  ];
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-1 flex-wrap">
+        {presets.map((p) => (
+          <button
+            key={p.key}
+            type="button"
+            onClick={() => onChange({ ...value, preset: p.key })}
+            className={`px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors border ${
+              value.preset === p.key
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'bg-muted text-muted-foreground border-border hover:bg-muted/80'
+            }`}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+      {value.preset === 'custom' && (
+        <div className="flex items-center gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn(
+                  'h-7 text-xs justify-start text-left font-normal w-[130px]',
+                  !value.from && 'text-muted-foreground',
+                )}
+              >
+                <CalendarIcon className="mr-1 h-3 w-3" />
+                {value.from ? format(value.from, 'dd MMM yyyy') : <span>From</span>}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={value.from}
+                onSelect={(d) => onChange({ ...value, from: d })}
+                initialFocus
+                className={cn('p-3 pointer-events-auto')}
+              />
+            </PopoverContent>
+          </Popover>
+          <span className="text-[10px] text-muted-foreground">to</span>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn(
+                  'h-7 text-xs justify-start text-left font-normal w-[130px]',
+                  !value.to && 'text-muted-foreground',
+                )}
+              >
+                <CalendarIcon className="mr-1 h-3 w-3" />
+                {value.to ? format(value.to, 'dd MMM yyyy') : <span>To</span>}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={value.to}
+                onSelect={(d) => onChange({ ...value, to: d })}
+                initialFocus
+                className={cn('p-3 pointer-events-auto')}
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TenantPane({
   tenantId, isOps, onBackToAgent,
 }: { tenantId: string; isOps: boolean; onBackToAgent?: () => void }) {
   const qc = useQueryClient();
+  const [dateRange, setDateRange] = useState<StatementDateRange>({ preset: 'today' });
   const { data: profile, isLoading } = useProfile(tenantId);
   const { data: roles = [] } = useUserRoles(tenantId);
   const { data: rentReqs = [] } = useQuery({
@@ -956,6 +1073,7 @@ function TenantPane({
         activeRr={activeRr}
         balance={balance}
         activeLandlord={activeLandlord}
+        dateRange={dateRange}
       />
       <LocationEditor userId={tenantId} profile={profile} canEdit={isOps /* agent edit handled elsewhere */} />
 
@@ -979,7 +1097,7 @@ function TenantPane({
       </Card>
 
       {/* Tenant repayment / obligation ledger history */}
-      <TenantStatements tenantId={tenantId} />
+      <TenantStatements tenantId={tenantId} dateRange={dateRange} onDateRangeChange={setDateRange} />
 
       {activeRr?.landlord_id && (
         <Card className="p-3 space-y-1.5">
@@ -1574,23 +1692,40 @@ function AgentWalletStatements({ agentId }: { agentId: string }) {
 /* ------------------------------------------------------------------ */
 /* Tenant statements — rent obligations & repayments from ledger     */
 /* ------------------------------------------------------------------ */
-function TenantStatements({ tenantId }: { tenantId: string }) {
+function TenantStatements({
+  tenantId, dateRange, onDateRangeChange,
+}: {
+  tenantId: string;
+  dateRange: StatementDateRange;
+  onDateRangeChange: (v: StatementDateRange) => void;
+}) {
+  const { gte, lte } = buildDateRange(dateRange);
   const { data: entries = [], isLoading } = useQuery({
-    queryKey: ['drilldown-tenant-statements', tenantId],
+    queryKey: ['drilldown-tenant-statements', tenantId, dateRange.preset, gte, lte],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from('general_ledger')
         .select('id, transaction_date, amount, direction, category, description')
         .eq('user_id', tenantId)
         .in('category', ['rent_obligation', 'tenant_repayment', 'rent_repayment'])
-        .neq('classification', 'admin_correction')
-        .order('transaction_date', { ascending: false })
-        .limit(25);
+        .neq('classification', 'admin_correction');
+      if (gte) q = q.gte('transaction_date', gte);
+      if (lte) q = q.lte('transaction_date', lte);
+      const { data, error } = await q.order('transaction_date', { ascending: false }).limit(500);
       if (error) throw error;
       return data ?? [];
     },
     enabled: !!tenantId,
   });
+
+  const rangeLabel =
+    dateRange.preset === 'today'
+      ? 'Today'
+      : dateRange.preset === 'this_month'
+        ? 'This month'
+        : dateRange.preset === 'custom' && dateRange.from && dateRange.to
+          ? `${format(dateRange.from, 'dd MMM')} – ${format(dateRange.to, 'dd MMM')}`
+          : 'All time';
 
   return (
     <Card className="p-3 space-y-2">
@@ -1598,8 +1733,9 @@ function TenantStatements({ tenantId }: { tenantId: string }) {
         <div className="flex items-center gap-2 text-sm font-medium">
           <ReceiptText className="h-4 w-4 text-primary" /> Transactions & statements
         </div>
-        <Badge variant="outline" className="text-[10px]">last {entries.length}</Badge>
+        <Badge variant="outline" className="text-[10px]">{entries.length} · {rangeLabel}</Badge>
       </div>
+      <StatementDateFilter value={dateRange} onChange={onDateRangeChange} />
       {isLoading ? (
         <Loader2 className="h-4 w-4 animate-spin mx-auto my-2" />
       ) : entries.length === 0 ? (
