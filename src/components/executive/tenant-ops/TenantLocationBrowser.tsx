@@ -1,12 +1,12 @@
 import { useState, useMemo } from 'react';
-import { useQueries } from '@tanstack/react-query';
+import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Loader2, MapPin, User, Home, ChevronRight, Phone, Image as ImageIcon, Search, X, Maximize2 } from 'lucide-react';
+import { Loader2, MapPin, User, Home, ChevronRight, Phone, Image as ImageIcon, Search, X, Maximize2, RefreshCw } from 'lucide-react';
 import { TenantLocationBreadcrumbs } from './TenantLocationBreadcrumbs';
 import { ImageZoomLightbox } from '@/components/executive/landlord-ops/ImageZoomLightbox';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -41,6 +41,19 @@ export function TenantLocationBrowser() {
   const [path, setPath] = useState<TenantBreadcrumbPath>({});
   const level = tenantNextLevel(path);
   const { data: rows, isLoading } = useTenantLocationBreakdown(path);
+  const queryClient = useQueryClient();
+  const [refreshing, setRefreshing] = useState(false);
+  const refreshCounts = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['tenant-location-breakdown'] }),
+        queryClient.invalidateQueries({ queryKey: ['tenants-at-leaf'] }),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const pick = (row: TenantBreakdownRow) => {
     const p: TenantBreadcrumbPath = { ...path };
@@ -58,7 +71,22 @@ export function TenantLocationBrowser() {
   return (
     <div className="space-y-3">
       <Card className="p-2.5 bg-muted/30">
-        <TenantLocationBreadcrumbs path={path} onJump={(p) => setPath(p)} />
+        <div className="flex items-center gap-2">
+          <div className="flex-1 min-w-0">
+            <TenantLocationBreadcrumbs path={path} onJump={(p) => setPath(p)} />
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={refreshCounts}
+            disabled={refreshing}
+            className="h-7 px-2 text-[11px] shrink-0"
+            title="Refresh tenant counts"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+            <span className="ml-1 hidden sm:inline">Refresh counts</span>
+          </Button>
+        </div>
       </Card>
 
       {level === 'tenants' ? (
