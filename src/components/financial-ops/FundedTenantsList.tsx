@@ -299,7 +299,11 @@ export function FundedTenantsList() {
           className="shrink-0 gap-1.5"
           onClick={handleBulkPdf}
           disabled={!filtered.length || !!bulk}
-          title="Download a single PDF containing every visible payout (one card per page)"
+          title={
+            scopeLabel
+              ? `Download ${filtered.length} payouts (${scopeLabel}) as one PDF — one card per page`
+              : `Download all ${filtered.length} visible payouts as one PDF — one card per page`
+          }
         >
           {bulk ? (
             <>
@@ -309,7 +313,7 @@ export function FundedTenantsList() {
           ) : (
             <>
               <FileDown className="h-3.5 w-3.5" />
-              Bulk PDF
+              Bulk PDF ({filtered.length}{scopeLabel ? ` · ${scopeLabel}` : ''})
             </>
           )}
         </Button>
