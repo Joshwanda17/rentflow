@@ -1863,13 +1863,25 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
             <Badge className="text-[10px] bg-emerald-100 text-emerald-700 border-emerald-200">Verified</Badge>
           )}
         </div>
-        <p className="text-xs text-muted-foreground flex items-center gap-1"><Phone className="h-3 w-3" /> {landlord?.phone}</p>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-muted-foreground font-mono">{landlord?.phone ?? '— no phone —'}</span>
+          <ContactActions phone={landlord?.phone} size="xs" message={`Hello ${landlord?.name ?? ''}, this is Welile Ops.`} />
+        </div>
         <p className="text-xs text-muted-foreground">MoMo: <span className="font-mono">{landlord?.mobile_money_number ?? '—'}</span></p>
         <p className="text-xs text-muted-foreground">Address: {landlord?.property_address}</p>
         {landlord?.monthly_rent != null && (
           <p className="text-xs">Default rent: <b>{fmtUGX(landlord.monthly_rent)}</b></p>
         )}
+        {landlord?.caretaker_phone && (
+          <div className="flex items-center gap-2 flex-wrap pt-1 border-t border-border/40 mt-1">
+            <span className="text-xs text-muted-foreground">
+              Caretaker: <span className="font-medium text-foreground">{landlord?.caretaker_name ?? '—'}</span> · <span className="font-mono">{landlord.caretaker_phone}</span>
+            </span>
+            <ContactActions phone={landlord.caretaker_phone} size="xs" message={`Hello ${landlord?.caretaker_name ?? 'caretaker'}, this is Welile Ops.`} />
+          </div>
+        )}
         <LandlordSmartphoneToggle landlordId={landlordId} initial={landlord?.has_smartphone ?? true} canEdit={isOps} />
+        <LandlordEditCard landlordId={landlordId} landlord={landlord} canEdit={isOps} />
       </Card>
 
       <Card className="p-3 space-y-2">
