@@ -32,7 +32,16 @@ interface DisbursementRow {
   transaction_reference: string | null;
   agent_confirmed: boolean | null;
   landlord_id: string | null;
-  landlord: { id: string; name: string; phone: string | null; mobile_money_number: string | null } | null;
+  landlord: {
+    id: string;
+    name: string;
+    phone: string | null;
+    mobile_money_number: string | null;
+    receipt_verification_status?: 'true_landlord' | 'false_landlord' | null;
+    receipt_verification_at?: string | null;
+    receipt_requested_at?: string | null;
+    receipt_request_channel?: 'whatsapp' | 'call' | null;
+  } | null;
   delivery: any | null;
   source: 'disbursement' | 'rent_request';
   status: string;
@@ -109,7 +118,7 @@ export function LandlordsPaidView() {
         ...((disb || []).map(d => d.landlord_id).filter(Boolean) as string[]),
         ...(allRR.map(r => r.landlord_id).filter(Boolean) as string[]),
       ]));
-      const landlordMap = new Map<string, { id: string; name: string; phone: string | null; mobile_money_number: string | null }>();
+      const landlordMap = new Map<string, DisbursementRow['landlord']>();
       for (let i = 0; i < landlordIds.length; i += 200) {
         const { data: ll } = await supabase
           .from('landlords')
@@ -204,6 +213,10 @@ export function LandlordsPaidView() {
           pendingCount: 0,
           lastPaidAt: r.disbursed_at,
           records: [],
+          receipt_verification_status: r.landlord?.receipt_verification_status ?? null,
+          receipt_verification_at: r.landlord?.receipt_verification_at ?? null,
+          receipt_requested_at: r.landlord?.receipt_requested_at ?? null,
+          receipt_request_channel: r.landlord?.receipt_request_channel ?? null,
         };
         map.set(key, g);
       }
