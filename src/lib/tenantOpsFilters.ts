@@ -164,6 +164,7 @@ export function exportLeafToCSV(rows: TenantLeaf[]): string {
     'tenant_name','tenant_phone','country','region','district','ward',
     'agent_name','landlord_name','rent_amount','landlord_funded_at',
     'landlord_funded_amount','landlord_payout_count',
+    'outstanding_status','verification_status','funding_source',
   ];
   const esc = (v: unknown) => {
     const s = v == null ? '' : String(v);
@@ -175,6 +176,7 @@ export function exportLeafToCSV(rows: TenantLeaf[]): string {
       r.tenant_name, r.tenant_phone, r.country, r.region, r.district, r.ward,
       r.agent_name, r.landlord_name, r.rent_amount,
       r.landlord_funded_at, r.landlord_funded_amount, r.landlord_payout_count,
+      r.outstanding_status, r.verification_status, r.funding_source,
     ].map(esc).join(','));
   }
   return lines.join('\n');
