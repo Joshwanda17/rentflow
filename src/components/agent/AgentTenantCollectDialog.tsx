@@ -17,6 +17,8 @@ import { useOffline } from '@/contexts/OfflineContext';
 import { CommissionCelebration } from './CommissionCelebration';
 import { captureOfflineDraft } from '@/lib/offlineCollectionDrafts';
 import { setCriticalFlowActive } from '@/lib/criticalFlowGuard';
+import AgentContactLocationGate from './AgentContactLocationGate';
+import { useRequireContactLocation } from '@/hooks/useRequireContactLocation';
 
 /**
  * Translate raw RPC / Postgres errors into something an agent can act on.
@@ -77,6 +79,7 @@ export function AgentTenantCollectDialog({
   open, onOpenChange, tenant, rentRequestId, outstandingBalance, onSuccess,
 }: AgentTenantCollectDialogProps) {
   const { user } = useAuth();
+  const locGate = useRequireContactLocation(tenant?.id ?? null, 'tenant', tenant?.full_name);
   const { floatBalance, refetch: refetchBalances } = useAgentLandlordFloat(user?.id);
   const { limit: creditLimit } = useCreditAccessLimit(user?.id);
   const queryClient = useQueryClient();
@@ -318,6 +321,21 @@ export function AgentTenantCollectDialog({
   };
 
   if (!tenant) return null;
+
+  // Force agent to capture the tenant's location BEFORE the collect dialog mounts.
+  if (open && locGate.needsCapture) {
+    return (
+      <AgentContactLocationGate
+        open
+        targetId={tenant.id}
+        targetRole="tenant"
+        targetName={tenant.full_name}
+        blocking
+        onComplete={() => locGate.onCaptured()}
+        onCancel={() => onOpenChange(false)}
+      />
+    );
+  }
 
   return (
     <>

@@ -15960,6 +15960,18 @@ export type Database = {
             }
             Returns: Json
           }
+      agent_capture_contact_location: {
+        Args: {
+          p_accuracy?: number
+          p_address: Json
+          p_landmark?: string
+          p_latitude: number
+          p_longitude: number
+          p_target_id: string
+          p_target_role: string
+        }
+        Returns: Json
+      }
       agent_delete_rejected_rent_request: {
         Args: { p_reason: string; p_request_id: string }
         Returns: string
@@ -17307,6 +17319,10 @@ export type Database = {
       }
       has_agent_capability: {
         Args: { _agent_id: string; _capability: string }
+        Returns: boolean
+      }
+      has_agent_contact_relationship: {
+        Args: { _agent_id: string; _target_id: string }
         Returns: boolean
       }
       has_dashboard_access: {
