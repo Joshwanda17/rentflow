@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { Sparkles, History } from 'lucide-react';
 import { TenantOpsDashboard } from './TenantOpsDashboard';
 import { TenantOpsDashboardV2 } from './TenantOpsDashboardV2';
-import { GeographicCoveragePanel } from './GeographicCoveragePanel';
 
 const STORAGE_KEY = 'tenant-ops-view-mode';
 
