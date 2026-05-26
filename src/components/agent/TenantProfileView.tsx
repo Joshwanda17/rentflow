@@ -1023,7 +1023,18 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
                 </div>
               </div>
               <Button
-                onClick={() => setCollectDialogOpen(true)}
+                onClick={() => {
+                  console.log('[TenantProfileView] Pay-from-Float tapped', {
+                    hasActiveRequest: !!summary.activeRequest,
+                    currentOutstanding: summary.currentOutstanding,
+                    agentFloatBalance,
+                    floatLoading,
+                    floatError,
+                    rejected: summary.activeRequest?.status === 'rejected',
+                    profileId: profile?.id,
+                  });
+                  setCollectDialogOpen(true);
+                }}
                 className="w-full gap-2 text-base h-14 font-bold rounded-xl shadow-lg active:scale-[0.97] transition-transform"
                 variant="success"
                 size="xl"
