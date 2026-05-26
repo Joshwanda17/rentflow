@@ -185,7 +185,14 @@ function ProfileHeader({
   return (
     <div className="space-y-2">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
+        <div className="min-w-0 flex items-start gap-3">
+          <Avatar className="h-12 w-12 ring-2 ring-primary/20 shrink-0">
+            <AvatarImage src={profile?.avatar_url ?? undefined} alt={profile?.full_name ?? 'User'} />
+            <AvatarFallback className="text-sm font-semibold">
+              {(profile?.full_name ?? 'U').slice(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
@@ -204,6 +211,7 @@ function ProfileHeader({
           <p className="text-xs text-muted-foreground flex items-center gap-1">
             <Phone className="h-3 w-3" /> {profile?.phone ?? '—'}
           </p>
+          </div>
         </div>
         <div className="flex flex-wrap gap-1 justify-end">
           {roles.length === 0 && <Badge variant="outline" className="text-[10px]">no role</Badge>}
