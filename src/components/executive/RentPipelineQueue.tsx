@@ -1075,17 +1075,17 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
 
                   <div>
                     <label className="text-xs text-muted-foreground mb-1 block">Verification Method</label>
-                    <Select value={landlordVerificationMethod} onValueChange={setLandlordVerificationMethod}>
-                      <SelectTrigger className="h-9">
-                        <SelectValue placeholder="How was the landlord verified?" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="phone_call">Phone Call</SelectItem>
-                        <SelectItem value="physical_visit">Physical Visit</SelectItem>
-                        <SelectItem value="lc1_confirmation">LC1 Confirmation</SelectItem>
-                        <SelectItem value="video_call">Video Call</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <select
+                      value={landlordVerificationMethod}
+                      onChange={(e) => setLandlordVerificationMethod(e.target.value)}
+                      className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      <option value="" disabled>How was the landlord verified?</option>
+                      <option value="phone_call">Phone Call</option>
+                      <option value="physical_visit">Physical Visit</option>
+                      <option value="lc1_confirmation">LC1 Confirmation</option>
+                      <option value="video_call">Video Call</option>
+                    </select>
                   </div>
 
                   <div>
