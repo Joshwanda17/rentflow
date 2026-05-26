@@ -16,7 +16,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, MapPin, Crosshair } from "lucide-react";
+import { Loader2, MapPin, Crosshair, Check, ChevronsUpDown } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { UGANDA_DISTRICTS } from "@/lib/ugandaDistricts";
@@ -250,12 +260,7 @@ export default function AgentContactLocationGate({
                 </div>
                 <div className="space-y-1.5">
                   <Label>District <span className="text-destructive">*</span></Label>
-                  <Select value={district} onValueChange={setDistrict}>
-                    <SelectTrigger><SelectValue placeholder="District" /></SelectTrigger>
-                    <SelectContent>
-                      {UGANDA_DISTRICTS.map((d) => (<SelectItem key={d} value={d}>{d}</SelectItem>))}
-                    </SelectContent>
-                  </Select>
+                  <DistrictCombobox value={district} onChange={setDistrict} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -301,5 +306,67 @@ export default function AgentContactLocationGate({
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function DistrictCombobox({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className={cn(
+            "w-full justify-between font-normal",
+            !value && "text-muted-foreground",
+          )}
+        >
+          {value || "Select district"}
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-[--radix-popover-trigger-width] p-0 z-[200]"
+        align="start"
+      >
+        <Command>
+          <CommandInput placeholder="Search district…" />
+          <CommandList className="max-h-64">
+            <CommandEmpty>No district found.</CommandEmpty>
+            <CommandGroup>
+              {UGANDA_DISTRICTS.map((d) => (
+                <CommandItem
+                  key={d}
+                  value={d}
+                  onSelect={(v) => {
+                    onChange(v);
+                    setOpen(false);
+                  }}
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4",
+                      value.toLowerCase() === d.toLowerCase()
+                        ? "opacity-100"
+                        : "opacity-0",
+                    )}
+                  />
+                  {d}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
