@@ -17,7 +17,7 @@ import {
   Wallet, ShieldAlert, Building2, ReceiptText, Smartphone, SmartphoneNfc,
   Search, Pencil, X, TrendingUp, Users, Sparkles, Download, FileText,
   ChevronRight, ArrowLeft, MessageSquare, StickyNote, CheckCircle2, XCircle,
-  CalendarIcon, Info, AlertTriangle,
+  CalendarIcon, Info, AlertTriangle, RefreshCw,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
@@ -1195,7 +1195,7 @@ function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord }: { agent
   const { data: roles = [] } = useUserRoles(agentId);
   const [viewMode, setViewMode] = useState<'tenants' | 'landlords' | 'listings'>('tenants');
 
-  const { data: listings = [] } = useQuery({
+  const { data: listings = [], refetch: refetchListings, isFetching: listingsFetching } = useQuery({
     queryKey: ['drilldown-agent-listings', agentId],
     queryFn: async () => {
       // Same person may have multiple profile UUIDs (per Identity Account Mapping).
@@ -1491,10 +1491,33 @@ function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord }: { agent
             <div className="flex items-center gap-2 text-sm font-medium">
               <Building2 className="h-4 w-4 text-primary" /> Houses listed
             </div>
-            <Badge variant="outline" className="text-[10px]">{listings.length}</Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-[10px]">{listings.length}</Badge>
+              <button
+                type="button"
+                onClick={() => refetchListings()}
+                disabled={listingsFetching}
+                className="p-1 rounded-md hover:bg-muted transition-colors disabled:opacity-50"
+                title="Refresh listings"
+              >
+                {listingsFetching ? <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" /> : <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />}
+              </button>
+            </div>
           </div>
           {listings.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No houses listed by this agent.</p>
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">
+                No house listings found for this agent.
+              </p>
+              <div className="rounded-md bg-muted/40 p-2.5 space-y-1 text-[11px] text-muted-foreground">
+                <p className="font-medium text-foreground text-xs">What we looked for:</p>
+                <ul className="list-disc list-inside space-y-0.5">
+                  <li>Records in <span className="font-mono text-[10px] bg-muted px-1 rounded">house_listings</span> where <span className="font-mono text-[10px] bg-muted px-1 rounded">agent_id</span> matches this agent.</li>
+                  <li>If this agent has multiple profile IDs (same phone), those are included too.</li>
+                </ul>
+                <p className="pt-1">If houses were recently added, tap the refresh button above.</p>
+              </div>
+            </div>
           ) : (
             <ul className="space-y-2 text-xs">
               {listings.map((l: any) => (
