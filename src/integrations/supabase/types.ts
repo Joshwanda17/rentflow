@@ -16037,8 +16037,8 @@ export type Database = {
           p_accuracy?: number
           p_address: Json
           p_landmark?: string
-          p_latitude: number
-          p_longitude: number
+          p_latitude?: number
+          p_longitude?: number
           p_target_id: string
           p_target_role: string
         }
