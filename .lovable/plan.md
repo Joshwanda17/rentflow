@@ -1,81 +1,79 @@
-## Goal
+## What you'll see
 
-Force every agent to capture a precise location for each person they onboard or manage (tenants, landlords, partners, sub-agents). No agent-side workflow can complete without it.
+Each row in **Tenants Whose Landlords Were Funded** gains a **"Open profile"** button (next to Share). Tapping it opens a wide **User Drilldown drawer** with three sub-tabs at the top:
 
-## Scope
+`[ Tenant ] [ Agent ] [ Landlord ]`
 
-Applies to all agent-initiated creation/edit flows for:
-- Tenants (rent collection setup, tenant onboarding, allocation)
-- Landlords (landlord registration via agent)
-- Partners (proxy partner registration)
-- Sub-agents (agent-registered agents)
+Each tab is its own editor for that person. From the Landlord tab there is a 4th nested action **"Link funder"**.
 
-Out of scope: end-user self-onboarding (already covered by ProfileCompletionGate).
+Every editable field saves through a single guarded RPC — no direct table writes from the client — and is logged in `audit_logs` with a 10-char reason.
 
-## What gets captured
+## Drawer contents per role
 
-Reuse the same hybrid address structure already added in `ProfileCompletionGate`:
+**Common (every user)**
+- Full name, phone, role badges, dashboards they can access (read-only list derived from `user_roles`)
+- **Location editor** — reuses the existing `AddressFormFields` + GPS capture from `AgentContactLocationGate` (continent → district → village + optional GPS)
 
-- Continent, Country, Region, District, City/Town, Ward, Cell/Village (dropdowns for Uganda, free-text elsewhere)
-- GPS coordinates (auto-captured via `navigator.geolocation`, required, with manual "pin on map" fallback)
-- Free-text landmark / nearest known place (required)
+**Tenant tab**
+- Current rent request: amount, daily repayment, **rent balance (amount_repaid vs total)**, status
+- Inline edit: rent amount, daily repayment, missed-day note
+- **Linked agent** with "Change agent" picker → reuses the existing `TenantAgentLinker` reassign RPC
 
-GPS is mandatory because this is an agent field action — aligns with the **AGENT FIELD MANDATE** (every agent workflow writes geo + AI ID to `agent_visits`).
+**Agent tab**
+- Tenant count, total rent under management, commission YTD (read-only, from `v_user_wallet_strict`)
+- **Linked landlord(s)** — list with "+ Link landlord" picker that writes to `agent_landlord_assignments`
 
-## Behavior
+**Landlord tab**
+- Landlord profile + payout MoMo details (edit name/phone/provider)
+- **Rentals listed**: count from `house_listings`, with inline +/- (open a quick "Add listing" mini-form)
+- **Linked funder(s)** — list with "+ Link funder" picker that writes to a new `landlord_funder_links` table
+- LC1 chairperson row shown as **"Not configured — coming soon"** (skipped per your instruction)
 
-1. **New record**: Agent cannot submit the create form until address block + GPS are filled.
-2. **Existing record without location**: When an agent opens any managed contact (tenant/landlord/partner/sub-agent) that is missing location data, a blocking modal `AgentContactLocationGate` appears. Cannot dismiss, cannot proceed to collect rent / pay out / allocate float until saved.
-3. On save:
-   - Update target's `profiles` address columns.
-   - Insert a row into `agent_visits` (`visit_type='location_capture'`, with GPS + AI ID + target user_id) — satisfies trust-signal mandate.
-   - Call `capture_trust_signal` RPC to bump the contact's Welile Trust Score (verification+GPS factor).
-   - Emit `system_event` `agent.contact_location_captured`.
+## Permissions
 
-## Technical Plan
+Visible / editable only when the viewer has one of:
+- `manager` or `super_admin` — full edit on every field
+- `coo`, `tenant_ops`, `landlord_ops` — edit everything except role assignment
+- `agent` — can only open the drawer for **their own** tenants and edit location + rent details; agent/landlord/funder linking is hidden
 
-### 1. Shared component
-`src/components/agent/AgentContactLocationGate.tsx`
-- Reuses the address form pieces from `ProfileCompletionGate` (extract into `src/components/shared/AddressFormFields.tsx` so both gates share one source of truth).
-- Props: `targetUserId`, `targetRole`, `open`, `onComplete`.
-- GPS capture with retry + manual fallback.
-- Calls `agent-capture-contact-location` edge function.
+Enforced both in the UI and inside the new RPCs / RLS.
 
-### 2. Edge function
-`supabase/functions/agent-capture-contact-location/index.ts`
-- Auth: `adminClient.auth.getUser(token)`, manual `corsHeaders`.
-- Validates agent role, validates target relationship (agent must own/manage target).
-- Updates `profiles` address columns.
-- Inserts `agent_visits` row with geo + agent AI ID.
-- Calls `capture_trust_signal` RPC.
-- Emits `system_event`.
+## Technical plan
 
-### 3. Wire-in points (gate triggers)
-Add a guard hook `useRequireContactLocation(targetUserId)` that returns `{ blocked, GateComponent }`. Mount it in:
-- `AgentTenantCollectDialog` (block Confirm until target tenant has address+GPS)
-- Tenant profile sheet `TenantProfileView` (block all action buttons)
-- Landlord-by-agent flows (rent_request landlord card)
-- Proxy partner registration / partner detail (agent view)
-- Sub-agent invite / sub-agent detail
+### 1. New shared component
+`src/components/ops/UserDrilldownDrawer.tsx` — Sheet-based wide drawer with the 3 tabs above. Props: `{ tenantId?, agentId?, landlordId?, openTab? }`. Tabs lazy-load their queries.
 
-### 4. Schema
-Likely additive only — `profiles` already has address fields from previous migration. New columns needed:
-- `profiles.location_captured_by_agent_id uuid`
-- `profiles.location_captured_at timestamptz`
-- `profiles.location_gps_lat numeric`, `location_gps_lng numeric`, `location_gps_accuracy_m numeric`
+### 2. New sub-components (small, focused)
+- `src/components/ops/drilldown/TenantPane.tsx`
+- `src/components/ops/drilldown/AgentPane.tsx`
+- `src/components/ops/drilldown/LandlordPane.tsx`
+- `src/components/ops/drilldown/LinkPicker.tsx` (reusable `UserSearchPicker` wrapper for tenant→agent, agent→landlord, landlord→funder)
+- `src/components/ops/drilldown/LocationEditor.tsx` (extracts the address form from `AgentContactLocationGate` so both surfaces share it)
 
-(Confirm during build that these don't already exist; migration only adds missing ones.)
+### 3. New hook
+`src/hooks/useDrilldownPermissions.ts` — returns `{ canEditLocation, canEditFinancial, canEditRoles, canLink }` based on active role + ownership.
 
-### 5. RLS
-- Agents can UPDATE address columns on `profiles` rows where they have an active managing relationship (tenant assigned to them, landlord linked via `rent_requests`, proxy partner link, sub-agent parent_agent_id). New `has_agent_relationship(_agent_id, _target_id)` SECURITY DEFINER function for the policy.
+### 4. Database migration
+- New table `landlord_funder_links` (landlord_id, funder_id, linked_by, reason, active, timestamps; unique active link per pair).
+- RLS: ops roles full access; agents read-only on their own landlords.
+- New SECURITY DEFINER RPCs (all enforce role + 10-char reason + audit log):
+  - `ops_update_user_location(p_user_id, p_address_jsonb, p_lat, p_lng, p_reason)`
+  - `ops_update_rent_request(p_request_id, p_changes_jsonb, p_reason)`
+  - `ops_link_landlord_funder(p_landlord_id, p_funder_id, p_reason)`
+  - `ops_link_agent_landlord(p_agent_id, p_landlord_id, p_reason)` (tenant→agent reuses existing `reassign_tenant_to_agent` RPC)
 
-### 6. UI/UX
-- Modal title: "Capture {role} location" — non-dismissible.
-- Sticky "Use my current location" button at top.
-- Inline validation, single Save action.
-- After save: success toast + auto-close + re-runs the original action.
+### 5. Wire-up
+- `FundedTenantsList.tsx` row: add **"Open profile"** button → opens drawer with `tenantId`, `agentId`, `landlordId` from the row, defaults to **Landlord** tab.
+- Also expose the drawer from `TenantOpsDashboard` (search box → open by tenant) so the same UI works outside the funded list.
 
-## Open questions (will confirm during build, not blocking the plan)
+### 6. Memory
+After landing, add a project-memory leaf `mem://features/ops/user-drilldown` documenting the shared drawer, the four RPC guardrails, and the LC1 skip.
 
-- Whether existing `profiles` already has the GPS columns from the prior ProfileCompletionGate migration — if yes, skip those.
-- Exact list of "managed" relationships for sub-agents (need to confirm sub-agent table name).
+## Out of scope (you asked me to skip)
+- LC1 chairperson linking — UI shows "coming soon"; will wire up when you confirm the data model.
+
+## Risk notes
+- Editing rent amounts on an active `rent_requests` row affects revenue recognition. The RPC will refuse to change `amount` or `daily_repayment` once `status = 'completed'` or `amount_repaid > 0`; instead surfaces a "Create adjustment" path (out of scope here — placeholder button only).
+- Role list and dashboards remain **read-only** in this iteration; toggling a role rewires the entire app for that user and needs its own approval flow.
+
+Approve and I'll build it end-to-end in this loop (migration first, then UI).
