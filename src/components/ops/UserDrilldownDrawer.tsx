@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 import {
   User, Home, UserCheck, MapPin, Loader2, Link2, Plus, Phone,
   Wallet, ShieldAlert, Building2, ReceiptText, Smartphone, SmartphoneNfc,
-  Search,
+  Search, Pencil, X,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
@@ -150,12 +150,55 @@ function useUserRoles(id: string) {
   });
 }
 
-function ProfileHeader({ profile, roles }: { profile: any; roles: string[] }) {
+function ProfileHeader({
+  profile, roles, userId, canEdit,
+}: { profile: any; roles: string[]; userId?: string; canEdit?: boolean }) {
+  const qc = useQueryClient();
+  const [showEditBtn, setShowEditBtn] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState<string>(profile?.full_name ?? '');
+  const [phone, setPhone] = useState<string>(profile?.phone ?? '');
+  const [reason, setReason] = useState('');
+
+  const save = useMutation({
+    mutationFn: async () => {
+      if (!userId) throw new Error('Missing user');
+      if (reason.trim().length < 10) throw new Error('Reason must be ≥ 10 characters');
+      const { error } = await supabase.rpc('ops_update_user_identity', {
+        p_user_id: userId,
+        p_full_name: name,
+        p_phone: phone,
+        p_reason: reason.trim(),
+      } as any);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Profile updated');
+      qc.invalidateQueries({ queryKey: ['drilldown-profile', userId] });
+      setEditing(false); setShowEditBtn(false); setReason('');
+    },
+    onError: (e: any) => toast.error(e.message ?? 'Update failed'),
+  });
+
   return (
     <div className="space-y-2">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-base font-semibold truncate">{profile?.full_name ?? 'Unnamed user'}</p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => canEdit && setShowEditBtn((v) => !v)}
+              className={`text-base font-semibold truncate text-left ${canEdit ? 'hover:underline cursor-pointer' : 'cursor-default'}`}
+              title={canEdit ? 'Tap to edit' : undefined}
+            >
+              {profile?.full_name ?? 'Unnamed user'}
+            </button>
+            {canEdit && showEditBtn && !editing && (
+              <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => setEditing(true)}>
+                <Pencil className="h-3 w-3 mr-1" /> Edit
+              </Button>
+            )}
+          </div>
           <p className="text-xs text-muted-foreground flex items-center gap-1">
             <Phone className="h-3 w-3" /> {profile?.phone ?? '—'}
           </p>
@@ -172,6 +215,41 @@ function ProfileHeader({ profile, roles }: { profile: any; roles: string[] }) {
           {roles.length ? roles.map((r) => r.replace('_', ' ')).join(', ') : 'none'}
         </span>
       </p>
+      {canEdit && editing && (
+        <Card className="p-3 space-y-2 border-primary/40">
+          <div className="flex items-center justify-between">
+            <div className="text-xs font-medium flex items-center gap-1">
+              <Pencil className="h-3 w-3" /> Edit identity
+            </div>
+            <Button size="sm" variant="ghost" className="h-6 px-1" onClick={() => setEditing(false)}>
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+          <div>
+            <Label className="text-[10px] uppercase text-muted-foreground">Full name</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} className="h-8 text-sm" />
+          </div>
+          <div>
+            <Label className="text-[10px] uppercase text-muted-foreground">Phone</Label>
+            <Input value={phone} onChange={(e) => setPhone(e.target.value)} className="h-8 text-sm" />
+          </div>
+          <Textarea
+            placeholder="Reason for change (min 10 chars)"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            className="text-xs"
+            rows={2}
+          />
+          <Button
+            size="sm" className="w-full"
+            disabled={save.isPending || reason.trim().length < 10}
+            onClick={() => save.mutate()}
+          >
+            {save.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+            Save changes
+          </Button>
+        </Card>
+      )}
     </div>
   );
 }
@@ -383,7 +461,7 @@ function TenantPane({ tenantId, isOps }: { tenantId: string; isOps: boolean }) {
 
   return (
     <div className="space-y-3">
-      <ProfileHeader profile={profile} roles={roles} />
+      <ProfileHeader profile={profile} roles={roles} userId={tenantId} canEdit={isOps} />
       <LocationEditor userId={tenantId} profile={profile} canEdit={isOps /* agent edit handled elsewhere */} />
 
       <Card className="p-3 space-y-2">
@@ -488,7 +566,7 @@ function AgentPane({ agentId, isOps }: { agentId: string; isOps: boolean }) {
 
   return (
     <div className="space-y-3">
-      <ProfileHeader profile={profile} roles={roles} />
+      <ProfileHeader profile={profile} roles={roles} userId={agentId} canEdit={isOps} />
       <LocationEditor userId={agentId} profile={profile} canEdit={isOps} />
 
       <Card className="p-3 space-y-2">
