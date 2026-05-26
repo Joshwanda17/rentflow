@@ -11,6 +11,14 @@ import { LandlordPayoutShareCard, type LandlordPayoutShareData } from './Landlor
 import { buildBulkPayoutsPdfBlob, downloadBlob } from './landlordPayoutPdf';
 import { toast } from 'sonner';
 import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Globe2, CalendarDays } from 'lucide-react';
 
 type Row = {
   id: string;
@@ -26,9 +34,13 @@ type Row = {
   finops_momo_reference: string | null;
   external_reference: string | null;
   created_at: string;
+  rent_request_id: string | null;
+  country: string | null;
   agent_profile?: { full_name: string | null; phone: string | null } | null;
   tenant_profile?: { full_name: string | null } | null;
 };
+type DateFilter = 'all' | '7d' | '30d' | 'custom';
+
 
 const FUNDED_STATUSES = ['awaiting_agent_receipt', 'completed', 'disbursed'] as const;
 
@@ -40,6 +52,9 @@ export function FundedTenantsList() {
   const [q, setQ] = useState('');
   const [share, setShare] = useState<LandlordPayoutShareData | null>(null);
   const [bulk, setBulk] = useState<{ done: number; total: number } | null>(null);
+  const [dateFilter, setDateFilter] = useState<DateFilter>('all');
+  const [customDays, setCustomDays] = useState<number>(14);
+  const [countryFilter, setCountryFilter] = useState<string>('all');
   const [drill, setDrill] = useState<{
     tenantId: string | null;
     agentId: string | null;
@@ -53,7 +68,7 @@ export function FundedTenantsList() {
       const { data, error } = await supabase
         .from('landlord_payouts')
         .select(
-          'id, agent_id, tenant_id, landlord_id, landlord_name, landlord_phone, mobile_money_provider, amount, status, finops_disbursed_at, finops_momo_reference, external_reference, created_at',
+          'id, agent_id, tenant_id, landlord_id, landlord_name, landlord_phone, mobile_money_provider, amount, status, finops_disbursed_at, finops_momo_reference, external_reference, created_at, rent_request_id',
         )
         .in('status', FUNDED_STATUSES as unknown as string[])
         .order('finops_disbursed_at', { ascending: false, nullsFirst: false })
@@ -66,17 +81,33 @@ export function FundedTenantsList() {
         new Set([
           ...list.map((r) => r.agent_id),
           ...list.map((r) => r.tenant_id).filter(Boolean) as string[],
+          ...list.map((r) => r.landlord_id).filter(Boolean) as string[],
         ]),
       );
       if (ids.length) {
         const { data: profs } = await supabase
           .from('profiles')
-          .select('id, full_name, phone')
+          .select('id, full_name, phone, country')
           .in('id', ids);
         const map = new Map((profs ?? []).map((p) => [p.id, p]));
         list.forEach((r) => {
           r.agent_profile = (map.get(r.agent_id) as any) ?? null;
           if (r.tenant_id) r.tenant_profile = (map.get(r.tenant_id) as any) ?? null;
+          const ll = r.landlord_id ? (map.get(r.landlord_id) as any) : null;
+          r.country = ll?.country ?? null;
+        });
+      }
+
+      const rrIds = Array.from(new Set(list.map((r) => r.rent_request_id).filter(Boolean) as string[]));
+      if (rrIds.length) {
+        const { data: rrs } = await supabase
+          .from('rent_requests')
+          .select('id, request_country')
+          .in('id', rrIds);
+        const rrMap = new Map((rrs ?? []).map((r: any) => [r.id, r.request_country as string | null]));
+        list.forEach((r) => {
+          const c = r.rent_request_id ? rrMap.get(r.rent_request_id) ?? null : null;
+          if (c) r.country = c;
         });
       }
       return list;
@@ -84,10 +115,37 @@ export function FundedTenantsList() {
     refetchInterval: 60_000,
   });
 
+  const dateFiltered = useMemo(() => {
+    if (dateFilter === 'all') return rows;
+    const days = dateFilter === '7d' ? 7 : dateFilter === '30d' ? 30 : Math.max(1, customDays || 1);
+    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+    return rows.filter((r) => {
+      const ts = new Date(r.finops_disbursed_at ?? r.created_at).getTime();
+      return ts >= cutoff;
+    });
+  }, [rows, dateFilter, customDays]);
+
+  const countryStats = useMemo(() => {
+    const m = new Map<string, { count: number; total: number }>();
+    dateFiltered.forEach((r) => {
+      const key = r.country?.trim() || 'Unknown';
+      const cur = m.get(key) ?? { count: 0, total: 0 };
+      cur.count += 1;
+      cur.total += Number(r.amount || 0);
+      m.set(key, cur);
+    });
+    return Array.from(m.entries())
+      .map(([country, v]) => ({ country, ...v }))
+      .sort((a, b) => b.total - a.total);
+  }, [dateFiltered]);
+
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    if (!needle) return rows;
-    return rows.filter((r) => {
+    const base = countryFilter === 'all'
+      ? dateFiltered
+      : dateFiltered.filter((r) => (r.country?.trim() || 'Unknown') === countryFilter);
+    if (!needle) return base;
+    return base.filter((r) => {
       const hay = [
         r.landlord_name,
         r.landlord_phone,
@@ -95,12 +153,13 @@ export function FundedTenantsList() {
         r.agent_profile?.full_name ?? '',
         r.finops_momo_reference ?? '',
         r.external_reference ?? '',
+        r.country ?? '',
       ]
         .join(' ')
         .toLowerCase();
       return hay.includes(needle);
     });
-  }, [rows, q]);
+  }, [dateFiltered, countryFilter, q]);
 
   const totalAmount = useMemo(
     () => filtered.reduce((s, r) => s + Number(r.amount || 0), 0),
@@ -204,6 +263,89 @@ export function FundedTenantsList() {
           )}
         </Button>
       </div>
+
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+          <CalendarDays className="h-3.5 w-3.5" /> Funded in:
+        </div>
+        <Select value={dateFilter} onValueChange={(v) => { setDateFilter(v as DateFilter); setCountryFilter('all'); }}>
+          <SelectTrigger className="h-8 text-xs w-[160px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All time</SelectItem>
+            <SelectItem value="7d">Last 7 days</SelectItem>
+            <SelectItem value="30d">Last 30 days</SelectItem>
+            <SelectItem value="custom">Custom…</SelectItem>
+          </SelectContent>
+        </Select>
+        {dateFilter === 'custom' && (
+          <div className="inline-flex items-center gap-1.5">
+            <Input
+              type="number"
+              min={1}
+              max={365}
+              value={customDays}
+              onChange={(e) => { setCustomDays(Number(e.target.value) || 1); setCountryFilter('all'); }}
+              className="h-8 w-20 text-xs"
+            />
+            <span className="text-xs text-muted-foreground">days</span>
+          </div>
+        )}
+      </div>
+
+      {countryStats.length > 0 && (
+        <div className="space-y-1.5">
+          <div className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">
+            <Globe2 className="h-3.5 w-3.5" /> Countries funded
+            {dateFilter !== 'all' && (
+              <span className="normal-case font-normal text-muted-foreground">
+                · {dateFilter === '7d' ? 'last 7 days' : dateFilter === '30d' ? 'last 30 days' : `last ${customDays} days`}
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={() => setCountryFilter('all')}
+              className={`px-2.5 py-1 rounded-full text-xs border transition ${
+                countryFilter === 'all'
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-background hover:bg-muted border-border'
+              }`}
+            >
+              All ({dateFiltered.length})
+            </button>
+            {countryStats.map((c) => (
+              <button
+                key={c.country}
+                type="button"
+                onClick={() => setCountryFilter(c.country)}
+                className={`px-2.5 py-1 rounded-full text-xs border transition inline-flex items-center gap-1.5 ${
+                  countryFilter === c.country
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-background hover:bg-muted border-border'
+                }`}
+                title={`${c.count} payouts · ${formatUGX(c.total)}`}
+              >
+                <span className="font-medium">{c.country}</span>
+                <span className={countryFilter === c.country ? 'opacity-90' : 'text-muted-foreground'}>
+                  {c.count} · {formatUGX(c.total)}
+                </span>
+              </button>
+            ))}
+            {countryFilter !== 'all' && (
+              <button
+                type="button"
+                onClick={() => setCountryFilter('all')}
+                className="px-2.5 py-1 rounded-full text-xs text-muted-foreground hover:text-foreground underline"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {bulk && (
         <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
