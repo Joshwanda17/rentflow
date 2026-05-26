@@ -139,6 +139,32 @@ export function FundedTenantsList() {
       .sort((a, b) => b.total - a.total);
   }, [dateFiltered]);
 
+  const countryDrilldown = useMemo(() => {
+    if (countryFilter === 'all') return null;
+    const rows = dateFiltered.filter((r) => (r.country?.trim() || 'Unknown') === countryFilter);
+    const landlords = new Map<string, { id: string; name: string; tenants: Set<string>; payouts: number; total: number }>();
+    const tenants = new Set<string>();
+    let total = 0;
+    rows.forEach((r) => {
+      total += Number(r.amount || 0);
+      if (r.tenant_id) tenants.add(r.tenant_id);
+      const key = r.landlord_id || r.landlord_name || 'unknown';
+      const cur = landlords.get(key) ?? { id: r.landlord_id, name: r.landlord_name, tenants: new Set<string>(), payouts: 0, total: 0 };
+      cur.payouts += 1;
+      cur.total += Number(r.amount || 0);
+      if (r.tenant_id) cur.tenants.add(r.tenant_id);
+      landlords.set(key, cur);
+    });
+    return {
+      country: countryFilter,
+      tenantCount: tenants.size,
+      landlordCount: landlords.size,
+      payoutCount: rows.length,
+      total,
+      landlords: Array.from(landlords.values()).sort((a, b) => b.total - a.total),
+    };
+  }, [dateFiltered, countryFilter]);
+
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
     const base = countryFilter === 'all'
@@ -347,6 +373,52 @@ export function FundedTenantsList() {
         </div>
       )}
 
+      {countryDrilldown && (
+        <Card className="p-3 sm:p-4 border-primary/30 bg-primary/5">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="min-w-0">
+              <div className="inline-flex items-center gap-2 text-sm font-semibold">
+                <Globe2 className="h-4 w-4 text-primary" />
+                {countryDrilldown.country}
+                <span className="text-xs font-normal text-muted-foreground">
+                  · {countryDrilldown.landlordCount} landlords · {countryDrilldown.tenantCount} tenants · {countryDrilldown.payoutCount} payouts · {formatUGX(countryDrilldown.total)}
+                </span>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Tap any landlord to open their profile.
+              </p>
+            </div>
+            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setCountryFilter('all')}>
+              Clear country
+            </Button>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {countryDrilldown.landlords.map((l) => (
+              <button
+                key={l.id || l.name}
+                type="button"
+                onClick={() =>
+                  setDrill({
+                    tenantId: null,
+                    agentId: null,
+                    landlordId: l.id ?? null,
+                    tab: 'landlord',
+                  })
+                }
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border border-border bg-background hover:bg-muted transition"
+                title={`${l.tenants.size} tenants · ${l.payouts} payouts · ${formatUGX(l.total)}`}
+              >
+                <Home className="h-3 w-3 text-primary" />
+                <span className="font-medium truncate max-w-[160px]">{l.name}</span>
+                <span className="text-muted-foreground">
+                  {l.tenants.size}t · {formatUGX(l.total)}
+                </span>
+              </button>
+            ))}
+          </div>
+        </Card>
+      )}
+
       {bulk && (
         <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
           Building combined PDF — {bulk.done} of {bulk.total} cards rendered…
@@ -364,15 +436,52 @@ export function FundedTenantsList() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1 space-y-1.5">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="inline-flex items-center gap-1 text-sm font-semibold truncate">
-                      <User className="h-3.5 w-3.5 text-muted-foreground" />
-                      {r.tenant_profile?.full_name ?? 'Unallocated tenant'}
-                    </span>
+                    {r.tenant_id ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setDrill({
+                            tenantId: r.tenant_id ?? null,
+                            agentId: r.agent_id ?? null,
+                            landlordId: r.landlord_id ?? null,
+                            tab: 'tenant',
+                          })
+                        }
+                        className="inline-flex items-center gap-1 text-sm font-semibold hover:underline truncate"
+                        title="Open tenant profile"
+                      >
+                        <User className="h-3.5 w-3.5 text-muted-foreground" />
+                        {r.tenant_profile?.full_name ?? 'Unallocated tenant'}
+                      </button>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-sm font-semibold truncate text-muted-foreground">
+                        <User className="h-3.5 w-3.5" />
+                        Unallocated tenant
+                      </span>
+                    )}
                     <span className="text-muted-foreground text-xs">→</span>
-                    <span className="inline-flex items-center gap-1 text-sm font-semibold text-primary truncate">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setDrill({
+                          tenantId: r.tenant_id ?? null,
+                          agentId: r.agent_id ?? null,
+                          landlordId: r.landlord_id ?? null,
+                          tab: 'landlord',
+                        })
+                      }
+                      className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline truncate"
+                      title="Open landlord profile"
+                    >
                       <Home className="h-3.5 w-3.5" />
                       {r.landlord_name}
-                    </span>
+                    </button>
+                    {r.country && (
+                      <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
+                        <Globe2 className="h-2.5 w-2.5" />
+                        {r.country}
+                      </span>
+                    )}
                     {r.status === 'completed' ? (
                       <Badge className="text-[10px] bg-emerald-100 text-emerald-700 border-emerald-200">
                         Completed
