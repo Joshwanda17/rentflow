@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Loader2, MapPin, User, Home, ChevronRight, Phone, Image as ImageIcon, Search, X, Maximize2, RefreshCw } from 'lucide-react';
+import { Loader2, MapPin, User, Home, ChevronRight, Phone, Image as ImageIcon, Search, X, Maximize2, RefreshCw, Command as CommandIcon } from 'lucide-react';
 import { TenantLocationBreadcrumbs } from './TenantLocationBreadcrumbs';
 import { ImageZoomLightbox } from '@/components/executive/landlord-ops/ImageZoomLightbox';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -22,6 +22,15 @@ import {
   type TenantLeaf,
 } from '@/hooks/useTenantLocationBreakdown';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import {
+  Command,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+} from '@/components/ui/command';
 
 const LEVEL_ICON: Record<string, any> = {
   country: MapPin, region: MapPin, district: MapPin, ward: MapPin,
