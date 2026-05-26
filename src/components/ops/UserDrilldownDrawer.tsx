@@ -2053,7 +2053,10 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
             {funderLinks.map((l: any) => (
               <li key={l.id} className="flex justify-between border-b border-border/40 py-1">
                 <span className="truncate">{l.funder?.full_name ?? l.funder_id}</span>
-                <span className="text-muted-foreground font-mono">{l.funder?.phone}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-muted-foreground font-mono">{l.funder?.phone ?? '—'}</span>
+                  <ContactActions phone={l.funder?.phone} size="xs" message={`Hello ${l.funder?.full_name ?? ''}, this is Welile Ops.`} />
+                </div>
               </li>
             ))}
           </ul>
