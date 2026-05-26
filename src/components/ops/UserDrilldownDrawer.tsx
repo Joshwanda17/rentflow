@@ -1858,7 +1858,25 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
               startIndex: idx,
             }))
           );
-          if (gallery.length === 0) return null;
+          if (gallery.length === 0) {
+            return (
+              <div className="rounded-md bg-muted/30 p-3 space-y-1.5">
+                <div className="flex items-start gap-2">
+                  <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium">No house photos yet</p>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      This landlord&apos;s listings do not have any images. Agents typically upload house
+                      photos during the onboarding visit or from the agent dashboard.
+                    </p>
+                  </div>
+                </div>
+                <p className="text-[11px] text-muted-foreground pl-6">
+                  To add photos, tap <strong className="text-foreground">Add photos</strong> on any listing below.
+                </p>
+              </div>
+            );
+          }
           return (
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
