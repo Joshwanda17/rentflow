@@ -42,6 +42,12 @@ export function AgentTenantSearch() {
   const [searched, setSearched] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<AgentResult | null>(null);
   const [sharing, setSharing] = useState(false);
+  const [drilldown, setDrilldown] = useState<{
+    tenantId: string | null;
+    agentId: string | null;
+    landlordId: string | null;
+    tab?: 'tenant' | 'agent' | 'landlord';
+  } | null>(null);
 
   const handleSharePdf = async () => {
     if (!selectedAgent || !tenants || tenants.length === 0) return;
