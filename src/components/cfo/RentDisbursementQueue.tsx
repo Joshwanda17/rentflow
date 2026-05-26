@@ -118,12 +118,6 @@ export function RentDisbursementQueue() {
   const totalRent = useMemo(() => selectedItems.reduce((s, i) => s + i.rent_amount, 0), [selectedItems]);
   const totalRevenue = useMemo(() => selectedItems.reduce((s, i) => s + i.access_fee + i.request_fee, 0), [selectedItems]);
   const totalRepaymentExpected = useMemo(() => selectedItems.reduce((s, i) => s + i.total_repayment, 0), [selectedItems]);
-  const allSelected = items.length > 0 && selected.size === items.length;
-
-  const toggleAll = () => {
-    if (allSelected) setSelected(new Set());
-    else setSelected(new Set(items.map(i => i.id)));
-  };
 
   const toggle = (id: string) => {
     const next = new Set(selected);
