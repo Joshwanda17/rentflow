@@ -666,6 +666,196 @@ function TenantQuickActions({
   );
 }
 
+function TenantExportButtons({
+  tenantId, profile, activeRr, balance, activeLandlord,
+}: {
+  tenantId: string;
+  profile: any;
+  activeRr: any;
+  balance: number;
+  activeLandlord: any;
+}) {
+  const [busy, setBusy] = useState<null | 'csv' | 'pdf'>(null);
+
+  const fetchStatements = async () => {
+    const { data, error } = await supabase
+      .from('general_ledger')
+      .select('transaction_date, amount, direction, category, description')
+      .eq('user_id', tenantId)
+      .in('category', ['rent_obligation', 'tenant_repayment', 'rent_repayment'])
+      .neq('classification', 'admin_correction')
+      .order('transaction_date', { ascending: false })
+      .limit(500);
+    if (error) throw error;
+    return data ?? [];
+  };
+
+  const safeName = (profile?.full_name || 'tenant').replace(/[^a-z0-9]+/gi, '_').toLowerCase();
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+
+  const downloadBlob = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const exportCsv = async () => {
+    try {
+      setBusy('csv');
+      const statements = await fetchStatements();
+      const lines: string[] = [];
+      lines.push('Tenant Profile Export');
+      lines.push(`Generated,${new Date().toISOString()}`);
+      lines.push('');
+      lines.push('Section,Field,Value');
+      lines.push(`Profile,Name,"${(profile?.full_name ?? '').replace(/"/g, '""')}"`);
+      lines.push(`Profile,Phone,"${profile?.phone ?? ''}"`);
+      lines.push(`Profile,District,"${profile?.district ?? ''}"`);
+      lines.push(`Profile,Country,"${profile?.country ?? ''}"`);
+      if (activeRr) {
+        lines.push(`Active Rent,Rent Amount UGX,${Number(activeRr.rent_amount || 0)}`);
+        lines.push(`Active Rent,Daily Repayment UGX,${Number(activeRr.daily_repayment || 0)}`);
+        lines.push(`Active Rent,Total Repayment UGX,${Number(activeRr.total_repayment || 0)}`);
+        lines.push(`Active Rent,Amount Repaid UGX,${Number(activeRr.amount_repaid || 0)}`);
+        lines.push(`Active Rent,Outstanding UGX,${balance}`);
+        lines.push(`Active Rent,Status,"${activeRr.status ?? ''}"`);
+      }
+      if (activeLandlord) {
+        lines.push(`Landlord,Name,"${(activeLandlord.name ?? '').replace(/"/g, '""')}"`);
+        lines.push(`Landlord,Phone,"${activeLandlord.phone ?? ''}"`);
+        lines.push(`Landlord,Address,"${(activeLandlord.property_address ?? '').replace(/"/g, '""')}"`);
+      }
+      lines.push('');
+      lines.push('Statements');
+      lines.push('Date,Category,Direction,Amount UGX,Description');
+      for (const e of statements as any[]) {
+        const date = e.transaction_date ? format(parseISO(e.transaction_date), 'yyyy-MM-dd HH:mm') : '';
+        const desc = String(e.description ?? '').replace(/"/g, '""');
+        lines.push(`${date},${e.category},${e.direction},${Number(e.amount || 0)},"${desc}"`);
+      }
+      const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      downloadBlob(blob, `tenant_${safeName}_${todayStr}.csv`);
+      toast.success('CSV downloaded');
+    } catch (e: any) {
+      toast.error(e?.message ?? 'CSV export failed');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const exportPdf = async () => {
+    try {
+      setBusy('pdf');
+      const statements = await fetchStatements();
+      const { jsPDF } = await import('jspdf');
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      let y = 14;
+
+      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(14);
+      pdf.text('Tenant Profile Statement', 14, y); y += 6;
+      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
+      pdf.text(`Generated ${format(new Date(), 'dd MMM yyyy, HH:mm')}`, 14, y); y += 8;
+
+      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11);
+      pdf.text('Profile', 14, y); y += 5;
+      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10);
+      const profileLines = [
+        ['Name', profile?.full_name ?? '—'],
+        ['Phone', profile?.phone ?? '—'],
+        ['District', profile?.district ?? '—'],
+        ['Country', profile?.country ?? '—'],
+      ];
+      for (const [k, v] of profileLines) {
+        pdf.text(`${k}:`, 14, y); pdf.text(String(v), 50, y); y += 5;
+      }
+      y += 3;
+
+      if (activeRr) {
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11);
+        pdf.text('Active Rent Plan', 14, y); y += 5;
+        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10);
+        const rentLines: [string, string][] = [
+          ['Rent amount', fmtUGX(activeRr.rent_amount)],
+          ['Daily repayment', fmtUGX(activeRr.daily_repayment)],
+          ['Total repayment', fmtUGX(activeRr.total_repayment)],
+          ['Repaid', fmtUGX(activeRr.amount_repaid)],
+          ['Outstanding', fmtUGX(balance)],
+          ['Status', String(activeRr.status ?? '—')],
+        ];
+        for (const [k, v] of rentLines) {
+          pdf.text(`${k}:`, 14, y); pdf.text(v, 60, y); y += 5;
+        }
+        y += 3;
+      }
+
+      if (activeLandlord) {
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11);
+        pdf.text('Landlord', 14, y); y += 5;
+        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10);
+        const llLines: [string, string][] = [
+          ['Name', activeLandlord.name ?? '—'],
+          ['Phone', activeLandlord.phone ?? '—'],
+          ['Address', activeLandlord.property_address ?? '—'],
+        ];
+        for (const [k, v] of llLines) {
+          pdf.text(`${k}:`, 14, y); pdf.text(String(v).slice(0, 80), 50, y); y += 5;
+        }
+        y += 3;
+      }
+
+      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11);
+      pdf.text(`Statements (${(statements as any[]).length})`, 14, y); y += 5;
+      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(9);
+      pdf.text('Date', 14, y);
+      pdf.text('Category', 50, y);
+      pdf.text('Dir', 100, y);
+      pdf.text('Amount (UGX)', pageW - 14, y, { align: 'right' });
+      y += 4;
+      pdf.setLineWidth(0.2); pdf.line(14, y, pageW - 14, y); y += 3;
+      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
+      for (const e of statements as any[]) {
+        if (y > pageH - 14) { pdf.addPage(); y = 14; }
+        const date = e.transaction_date ? format(parseISO(e.transaction_date), 'dd MMM yy HH:mm') : '—';
+        const cat = String(e.category ?? '').replace(/_/g, ' ');
+        const dir = e.direction === 'cash_in' ? 'IN' : 'OUT';
+        const amt = Number(e.amount || 0).toLocaleString();
+        pdf.text(date, 14, y);
+        pdf.text(cat.slice(0, 28), 50, y);
+        pdf.text(dir, 100, y);
+        pdf.text(amt, pageW - 14, y, { align: 'right' });
+        y += 4.5;
+      }
+
+      pdf.save(`tenant_${safeName}_${todayStr}.pdf`);
+      toast.success('PDF downloaded');
+    } catch (e: any) {
+      toast.error(e?.message ?? 'PDF export failed');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <Card className="p-2.5 flex items-center justify-between gap-2">
+      <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+        <Download className="h-3.5 w-3.5" /> Export profile
+      </div>
+      <div className="flex gap-1.5">
+        <Button size="sm" variant="outline" className="h-7 text-xs" disabled={busy !== null} onClick={exportCsv}>
+          {busy === 'csv' ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="h-3 w-3 mr-1" />} CSV
+        </Button>
+        <Button size="sm" variant="outline" className="h-7 text-xs" disabled={busy !== null} onClick={exportPdf}>
+          {busy === 'pdf' ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="h-3 w-3 mr-1" />} PDF
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
 function TenantPane({
   tenantId, isOps, onBackToAgent,
 }: { tenantId: string; isOps: boolean; onBackToAgent?: () => void }) {
