@@ -1803,6 +1803,46 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
           </div>
           <Badge variant="outline" className="text-[10px]">{listings.length}</Badge>
         </div>
+        {(() => {
+          const gallery = listings.flatMap((l: any) =>
+            (Array.isArray(l.image_urls) ? l.image_urls : []).map((src: string) => ({
+              src,
+              title: l.title,
+              location: l.village ?? l.district ?? l.address ?? '',
+            }))
+          );
+          if (gallery.length === 0) return null;
+          return (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Photo gallery</span>
+                <Badge variant="outline" className="text-[9px]">{gallery.length} photos</Badge>
+              </div>
+              <div className="grid grid-cols-3 gap-1">
+                {gallery.map((g, i) => (
+                  <a
+                    key={i}
+                    href={g.src}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="relative group block aspect-square overflow-hidden rounded border border-border/40"
+                    title={`${g.title}${g.location ? ' · ' + g.location : ''}`}
+                  >
+                    <img
+                      src={g.src}
+                      alt={g.title}
+                      loading="lazy"
+                      className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                    />
+                    <div className="absolute inset-x-0 bottom-0 bg-black/60 px-1 py-0.5 text-[9px] text-white truncate opacity-0 group-hover:opacity-100">
+                      {g.title}
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
         {listings.length === 0 ? (
           <p className="text-xs text-muted-foreground">No listings recorded.</p>
         ) : (
