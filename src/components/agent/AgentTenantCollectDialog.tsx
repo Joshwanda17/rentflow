@@ -17,6 +17,8 @@ import { useOffline } from '@/contexts/OfflineContext';
 import { CommissionCelebration } from './CommissionCelebration';
 import { captureOfflineDraft } from '@/lib/offlineCollectionDrafts';
 import { setCriticalFlowActive } from '@/lib/criticalFlowGuard';
+import AgentContactLocationGate from './AgentContactLocationGate';
+import { useRequireContactLocation } from '@/hooks/useRequireContactLocation';
 
 /**
  * Translate raw RPC / Postgres errors into something an agent can act on.
@@ -77,6 +79,24 @@ export function AgentTenantCollectDialog({
   open, onOpenChange, tenant, rentRequestId, outstandingBalance, onSuccess,
 }: AgentTenantCollectDialogProps) {
   const { user } = useAuth();
+  const locGate = useRequireContactLocation(tenant?.id ?? null, 'tenant', tenant?.full_name);
+
+  // If the tenant has no captured location yet, force the agent to capture it
+  // before the actual collect dialog UI mounts. The gate is blocking.
+  if (open && tenant && locGate.needsCapture) {
+    return (
+      <AgentContactLocationGate
+        open
+        targetId={tenant.id}
+        targetRole="tenant"
+        targetName={tenant.full_name}
+        blocking
+        onComplete={() => locGate.onCaptured()}
+        onCancel={() => onOpenChange(false)}
+      />
+    );
+  }
+
   const { floatBalance, refetch: refetchBalances } = useAgentLandlordFloat(user?.id);
   const { limit: creditLimit } = useCreditAccessLimit(user?.id);
   const queryClient = useQueryClient();
