@@ -320,7 +320,16 @@ export function ProxyPartnerFunds() {
       const proxyPartnerIds = Array.from(
         new Set((proxyAssignments || []).map((r: any) => r.beneficiary_id).filter(Boolean)),
       ) as string[];
-      // Removed managedSet logic since all ROI stays in the partner's wallet.
+      // Managed-proxy partners — ROI for these lands in the AGENT's wallet
+      // (per Managed-Proxy Payout Routing). Without this set, the ceiling
+      // clamp uses the partner's zero withdrawable and silently drops every
+      // managed card from the list (the bug Caro reported).
+      const managedSet = new Set<string>(
+        (proxyAssignments || [])
+          .filter((r: any) => r.is_managed_account === true && r.beneficiary_id)
+          .map((r: any) => r.beneficiary_id as string),
+      );
+      setManagedPartnerIds(managedSet);
 
       // Source IDs (portfolios) belonging to those proxy partners.
       let v2PortfolioIds: string[] = [];
