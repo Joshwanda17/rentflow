@@ -7113,6 +7113,36 @@ export type Database = {
           },
         ]
       }
+      house_listings_region_normalization_log: {
+        Row: {
+          house_id: string
+          id: string
+          new_district: string | null
+          new_region: string | null
+          old_district: string | null
+          old_region: string | null
+          run_at: string
+        }
+        Insert: {
+          house_id: string
+          id?: string
+          new_district?: string | null
+          new_region?: string | null
+          old_district?: string | null
+          old_region?: string | null
+          run_at?: string
+        }
+        Update: {
+          house_id?: string
+          id?: string
+          new_district?: string | null
+          new_region?: string | null
+          old_district?: string | null
+          old_region?: string | null
+          run_at?: string
+        }
+        Relationships: []
+      }
       house_questions: {
         Row: {
           answer_text: string | null
@@ -17522,6 +17552,8 @@ export type Database = {
       }
       normalize_momo_tid: { Args: { p_tid: string }; Returns: string }
       normalize_phone_last9: { Args: { phone: string }; Returns: string }
+      normalize_uganda_district: { Args: { p_raw: string }; Returns: string }
+      normalize_uganda_region: { Args: { p_raw: string }; Returns: string }
       notify_landlord_registration_helper: {
         Args: { p_landlord_id: string }
         Returns: undefined
