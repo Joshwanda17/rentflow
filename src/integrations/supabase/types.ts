@@ -10927,6 +10927,7 @@ export type Database = {
           funder_rejection_reason: string | null
           funder_verified_at: string | null
           funder_verified_by: string | null
+          has_smartphone: boolean
           id: string
           is_frozen: boolean
           is_seller: boolean
@@ -10997,6 +10998,7 @@ export type Database = {
           funder_rejection_reason?: string | null
           funder_verified_at?: string | null
           funder_verified_by?: string | null
+          has_smartphone?: boolean
           id: string
           is_frozen?: boolean
           is_seller?: boolean
@@ -11067,6 +11069,7 @@ export type Database = {
           funder_rejection_reason?: string | null
           funder_verified_at?: string | null
           funder_verified_by?: string | null
+          has_smartphone?: boolean
           id?: string
           is_frozen?: boolean
           is_seller?: boolean
@@ -17620,17 +17623,38 @@ export type Database = {
         Args: { _job_id: string; _reason: string }
         Returns: Json
       }
-      ops_update_user_location: {
+      ops_update_landlord_smartphone: {
         Args: {
-          p_accuracy: number
-          p_address: Json
-          p_latitude: number
-          p_longitude: number
+          p_has_smartphone: boolean
+          p_landlord_id: string
           p_reason: string
-          p_user_id: string
         }
         Returns: Json
       }
+      ops_update_user_location:
+        | {
+            Args: {
+              p_accuracy: number
+              p_address: Json
+              p_latitude: number
+              p_longitude: number
+              p_reason: string
+              p_user_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_accuracy: number
+              p_address: Json
+              p_has_smartphone?: boolean
+              p_latitude: number
+              p_longitude: number
+              p_reason: string
+              p_user_id: string
+            }
+            Returns: Json
+          }
       populate_wallet_review_queue: {
         Args: never
         Returns: {
