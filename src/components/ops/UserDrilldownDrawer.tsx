@@ -577,7 +577,7 @@ function AgentPane({ agentId, isOps }: { agentId: string; isOps: boolean }) {
           .eq('agent_id', agentId)
           .eq('is_active', true),
         supabase.from('agent_advances')
-          .select('amount, status, created_at')
+          .select('outstanding_balance, status, created_at')
           .eq('agent_id', agentId)
           .in('status', ['active','outstanding','approved','disbursed']),
       ]);
@@ -586,7 +586,7 @@ function AgentPane({ agentId, isOps }: { agentId: string; isOps: boolean }) {
       const partnersOnboarded = partnerRows.filter((p: any) => p.beneficiary_role === 'supporter').length;
       const proxyLandlords = partnerRows.filter((p: any) => p.beneficiary_role === 'landlord').length;
       const managedAccounts = partnerRows.filter((p: any) => p.is_managed_account && p.approval_status === 'approved').length;
-      const outstandingAdvance = (advances.data ?? []).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+      const outstandingAdvance = (advances.data ?? []).reduce((s: number, r: any) => s + Number(r.outstanding_balance || 0), 0);
       return {
         tenantCount: tenants.count ?? 0,
         totalRent,
