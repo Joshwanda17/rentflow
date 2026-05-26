@@ -17,8 +17,11 @@ import {
   Wallet, ShieldAlert, Building2, ReceiptText, Smartphone, SmartphoneNfc,
   Search, Pencil, X, TrendingUp, Users, Sparkles, Download, FileText,
   ChevronRight, ArrowLeft, MessageSquare, StickyNote, CheckCircle2, XCircle,
-  CalendarIcon, Info, AlertTriangle, RefreshCw,
+  CalendarIcon, Info, AlertTriangle, RefreshCw, Filter,
 } from 'lucide-react';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import { useAuth } from '@/hooks/useAuth';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
 import { Switch } from '@/components/ui/switch';
@@ -1194,6 +1197,11 @@ function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord }: { agent
   const { data: profile, isLoading } = useProfile(agentId);
   const { data: roles = [] } = useUserRoles(agentId);
   const [viewMode, setViewMode] = useState<'tenants' | 'landlords' | 'listings'>('tenants');
+  // Listings filters
+  const [listingsSearch, setListingsSearch] = useState('');
+  const [listingsStatusFilter, setListingsStatusFilter] = useState<string>('all');
+  const [listingsLocationFilter, setListingsLocationFilter] = useState<string>('all');
+  const [listingsDateRange, setListingsDateRange] = useState<StatementDateRange>({ preset: 'this_month' });
 
   const { data: listings = [], refetch: refetchListings, isFetching: listingsFetching } = useQuery({
     queryKey: ['drilldown-agent-listings', agentId],
@@ -1226,6 +1234,39 @@ function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord }: { agent
       return rows.map((r: any) => ({ ...r, landlord: llMap.get(r.landlord_id) ?? null }));
     },
   });
+
+  const statusOptions = useMemo(() => {
+    const s = new Set(listings.map((l: any) => l.status).filter(Boolean));
+    return Array.from(s).sort();
+  }, [listings]);
+
+  const locationOptions = useMemo(() => {
+    const locs = new Set<string>();
+    listings.forEach((l: any) => {
+      if (l.village) locs.add(l.village);
+      if (l.district) locs.add(l.district);
+    });
+    return Array.from(locs).sort();
+  }, [listings]);
+
+  const filteredListings = useMemo(() => {
+    const q = listingsSearch.trim().toLowerCase();
+    const { gte, lte } = buildDateRange(listingsDateRange);
+    return listings.filter((l: any) => {
+      if (q) {
+        const text = `${l.title ?? ''} ${l.village ?? ''} ${l.district ?? ''} ${l.landlord?.name ?? ''} ${l.landlord?.phone ?? ''}`.toLowerCase();
+        if (!text.includes(q)) return false;
+      }
+      if (listingsStatusFilter !== 'all' && l.status !== listingsStatusFilter) return false;
+      if (listingsLocationFilter !== 'all') {
+        if (l.village !== listingsLocationFilter && l.district !== listingsLocationFilter) return false;
+      }
+      if (gte && l.created_at && l.created_at < gte) return false;
+      if (lte && l.created_at && l.created_at > lte) return false;
+      return true;
+    });
+  }, [listings, listingsSearch, listingsStatusFilter, listingsLocationFilter, listingsDateRange]);
+
   const { data: stats } = useQuery({
     queryKey: ['drilldown-agent-stats', agentId],
     queryFn: async () => {
@@ -1492,7 +1533,9 @@ function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord }: { agent
               <Building2 className="h-4 w-4 text-primary" /> Houses listed
             </div>
             <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-[10px]">{listings.length}</Badge>
+              <Badge variant="outline" className="text-[10px]">
+                {filteredListings.length}{listings.length !== filteredListings.length ? ` / ${listings.length}` : ''}
+              </Badge>
               <button
                 type="button"
                 onClick={() => refetchListings()}
@@ -1504,10 +1547,81 @@ function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord }: { agent
               </button>
             </div>
           </div>
-          {listings.length === 0 ? (
+
+          {/* Search & Filters */}
+          <div className="space-y-2">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Search title, village, district, landlord..."
+                value={listingsSearch}
+                onChange={(e) => setListingsSearch(e.target.value)}
+                className="h-8 pl-8 text-xs"
+              />
+              {listingsSearch && (
+                <button
+                  type="button"
+                  onClick={() => setListingsSearch('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-muted"
+                >
+                  <X className="h-3 w-3 text-muted-foreground" />
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <Select value={listingsStatusFilter} onValueChange={setListingsStatusFilter}>
+                <SelectTrigger className="h-7 text-[11px] w-auto min-w-[90px] px-2">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs">All statuses</SelectItem>
+                  {statusOptions.map((s) => (
+                    <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={listingsLocationFilter} onValueChange={setListingsLocationFilter}>
+                <SelectTrigger className="h-7 text-[11px] w-auto min-w-[100px] px-2">
+                  <SelectValue placeholder="Location" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs">All locations</SelectItem>
+                  {locationOptions.map((loc) => (
+                    <SelectItem key={loc} value={loc} className="text-xs">{loc}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <div className="flex-1 min-w-[180px]">
+                <StatementDateFilter value={listingsDateRange} onChange={setListingsDateRange} />
+              </div>
+
+              {(listingsSearch || listingsStatusFilter !== 'all' || listingsLocationFilter !== 'all' || listingsDateRange.preset !== 'this_month') && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-[11px] px-2"
+                  onClick={() => {
+                    setListingsSearch('');
+                    setListingsStatusFilter('all');
+                    setListingsLocationFilter('all');
+                    setListingsDateRange({ preset: 'this_month' });
+                  }}
+                >
+                  <X className="h-3 w-3 mr-1" /> Clear
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {filteredListings.length === 0 ? (
             <div className="space-y-2">
               <p className="text-xs text-muted-foreground">
-                No house listings found for this agent.
+                {listings.length === 0
+                  ? 'No house listings found for this agent.'
+                  : `No listings match your filters (${listings.length} total).`}
               </p>
               <div className="rounded-md bg-muted/40 p-2.5 space-y-1 text-[11px] text-muted-foreground">
                 <p className="font-medium text-foreground text-xs">What we looked for:</p>
@@ -1520,7 +1634,7 @@ function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord }: { agent
             </div>
           ) : (
             <ul className="space-y-2 text-xs">
-              {listings.map((l: any) => (
+              {filteredListings.map((l: any) => (
                 <li key={l.id} className="border border-border/40 rounded-md p-2 space-y-1">
                   <div className="flex justify-between gap-2">
                     <span className="truncate font-medium">{l.title}</span>
