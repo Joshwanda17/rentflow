@@ -1321,8 +1321,85 @@ function AgentPane({ agentId, isOps, onSelectTenant }: { agentId: string; isOps:
         </div>
       </Card>
 
-      {/* Tenants under management — name, outstanding balance, landlord */}
-      <AgentTenantsList agentId={agentId} onSelectTenant={onSelectTenant} />
+      {/* Toggle between tenants and linked landlords */}
+      <div className="flex items-center gap-2 rounded-md bg-muted/30 p-1.5 border border-border/40">
+        <button
+          type="button"
+          onClick={() => setViewMode('tenants')}
+          className={`flex-1 flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
+            viewMode === 'tenants'
+              ? 'bg-background text-foreground shadow-sm border border-border/60'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <Users className="h-3.5 w-3.5" /> Tenants
+          <Badge variant="outline" className="text-[9px] ml-0.5">{stats?.tenantCount ?? 0}</Badge>
+        </button>
+        <button
+          type="button"
+          onClick={() => setViewMode('landlords')}
+          className={`flex-1 flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
+            viewMode === 'landlords'
+              ? 'bg-background text-foreground shadow-sm border border-border/60'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <Building2 className="h-3.5 w-3.5" /> Linked landlords
+          <Badge variant="outline" className="text-[9px] ml-0.5">{stats?.landlords?.length ?? 0}</Badge>
+        </button>
+      </div>
+
+      {viewMode === 'tenants' && (
+        <AgentTenantsList agentId={agentId} onSelectTenant={onSelectTenant} />
+      )}
+
+      {viewMode === 'landlords' && (
+        <Card className="p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Building2 className="h-4 w-4 text-primary" /> Linked landlords
+            </div>
+            <Badge variant="outline" className="text-[10px]">{stats?.landlords?.length ?? 0}</Badge>
+          </div>
+          {(stats?.landlords ?? []).length === 0 ? (
+            <p className="text-xs text-muted-foreground">No landlords linked yet.</p>
+          ) : (
+            <ul className="space-y-1 text-xs">
+              {(stats?.landlords ?? []).map((a: any) => (
+                <li key={a.landlord_id} className="flex justify-between border-b border-border/40 py-1">
+                  <span className="truncate">{a.landlords?.name ?? a.landlord_id}</span>
+                  <span className="text-muted-foreground font-mono">{a.landlords?.phone}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {isOps && (
+            <div className="pt-2 border-t border-border/40 space-y-2">
+              <UserSearchPicker
+                label="+ Link landlord"
+                selectedUser={linkLandlord as any}
+                onSelect={(u) => setLinkLandlord(u as any)}
+                roleFilter="landlord"
+              />
+              <Input
+                placeholder="Reason (min 10 chars)"
+                value={linkReason}
+                onChange={(e) => setLinkReason(e.target.value)}
+                className="h-8 text-sm"
+              />
+              <Button
+                size="sm" className="w-full"
+                disabled={!linkLandlord || link.isPending}
+                onClick={() => link.mutate()}
+              >
+                {link.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Plus className="h-3 w-3 mr-1" />}
+                Link landlord
+              </Button>
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* Network — partners onboarded & referrals */}
       <Card className="p-3 space-y-2">
@@ -1345,52 +1422,6 @@ function AgentPane({ agentId, isOps, onSelectTenant }: { agentId: string; isOps:
             <p className="font-semibold">{stats?.referralCount ?? 0}</p>
           </div>
         </div>
-      </Card>
-
-      <Card className="p-3 space-y-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <Building2 className="h-4 w-4 text-primary" /> Linked landlords
-          </div>
-          <Badge variant="outline" className="text-[10px]">{stats?.landlords?.length ?? 0}</Badge>
-        </div>
-        {(stats?.landlords ?? []).length === 0 ? (
-          <p className="text-xs text-muted-foreground">No landlords linked yet.</p>
-        ) : (
-          <ul className="space-y-1 text-xs">
-            {(stats?.landlords ?? []).map((a: any) => (
-              <li key={a.landlord_id} className="flex justify-between border-b border-border/40 py-1">
-                <span className="truncate">{a.landlords?.name ?? a.landlord_id}</span>
-                <span className="text-muted-foreground font-mono">{a.landlords?.phone}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {isOps && (
-          <div className="pt-2 border-t border-border/40 space-y-2">
-            <UserSearchPicker
-              label="+ Link landlord"
-              selectedUser={linkLandlord as any}
-              onSelect={(u) => setLinkLandlord(u as any)}
-              roleFilter="landlord"
-            />
-            <Input
-              placeholder="Reason (min 10 chars)"
-              value={linkReason}
-              onChange={(e) => setLinkReason(e.target.value)}
-              className="h-8 text-sm"
-            />
-            <Button
-              size="sm" className="w-full"
-              disabled={!linkLandlord || link.isPending}
-              onClick={() => link.mutate()}
-            >
-              {link.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Plus className="h-3 w-3 mr-1" />}
-              Link landlord
-            </Button>
-          </div>
-        )}
       </Card>
     </div>
   );
