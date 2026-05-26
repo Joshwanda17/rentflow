@@ -1938,7 +1938,7 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
   });
 
   const filtered = useMemo(() => {
-    if (!data) return [];
+    if (!data || !Array.isArray((data as any).rows)) return [];
     let out = data.rows;
     if (filter !== 'all') {
       const allowed = STATUS_GROUPS[filter];
@@ -2077,35 +2077,35 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
       </div>
 
       {/* Source breakdown */}
-      {data?.rows && data.rows.length > 0 && (
+      {Array.isArray(data?.rows) && data!.rows.length > 0 && (
         <div className="flex items-center gap-2 rounded-md bg-muted/40 px-2.5 py-1.5 text-[11px]">
           <span className="text-muted-foreground shrink-0">Sources:</span>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1" title="Tenants with an assigned rent request">
               <span className="inline-block w-2 h-2 rounded-full bg-sky-500" />
-              <span className="font-medium">{data.rows.filter((r) => !String(r.id).startsWith('managed-')).length}</span>
+              <span className="font-medium">{data!.rows.filter((r) => !String(r.id).startsWith('managed-')).length}</span>
               <span className="text-muted-foreground hidden sm:inline">rent request</span>
             </div>
             <div className="flex items-center gap-1" title="Tenants linked via profile ownership only">
               <span className="inline-block w-2 h-2 rounded-full bg-amber-500" />
-              <span className="font-medium">{data.rows.filter((r) => String(r.id).startsWith('managed-')).length}</span>
+              <span className="font-medium">{data!.rows.filter((r) => String(r.id).startsWith('managed-')).length}</span>
               <span className="text-muted-foreground hidden sm:inline">profile ownership</span>
             </div>
           </div>
-          <span className="ml-auto text-muted-foreground">{data.rows.length} total</span>
+          <span className="ml-auto text-muted-foreground">{data!.rows.length} total</span>
         </div>
       )}
 
       {/* Sparse list warning */}
-      {data && data.rows.length <= 2 && (data.rentRequestCount > 0 || data.managedProfileCount > 0) && (
+      {Array.isArray(data?.rows) && data!.rows.length <= 2 && ((data!.rentRequestCount ?? 0) > 0 || (data!.managedProfileCount ?? 0) > 0) && (
         <Alert className="py-2 px-3 text-[11px] border-amber-200 bg-amber-50 text-amber-900">
           <div className="flex items-start gap-2">
             <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-0.5" />
             <AlertDescription className="leading-relaxed">
               <span className="font-semibold block mb-0.5">Sparse tenant list</span>
-              This agent has <strong>{data.rentRequestCount}</strong> rent request
-              {data.rentRequestCount !== 1 ? 's' : ''} and <strong>{data.managedProfileCount}</strong> managed profile
-              {data.managedProfileCount !== 1 ? 's' : ''}. Tenants are merged from both <code className="font-mono text-[10px] bg-amber-100/60 px-1 rounded">rent_requests</code> and <code className="font-mono text-[10px] bg-amber-100/60 px-1 rounded">profiles.managing_agent_id</code>, but some may not appear if profile/landlord lookups fail or if the same tenant exists in both sources.
+              This agent has <strong>{data!.rentRequestCount ?? 0}</strong> rent request
+              {(data!.rentRequestCount ?? 0) !== 1 ? 's' : ''} and <strong>{data!.managedProfileCount ?? 0}</strong> managed profile
+              {(data!.managedProfileCount ?? 0) !== 1 ? 's' : ''}. Tenants are merged from both <code className="font-mono text-[10px] bg-amber-100/60 px-1 rounded">rent_requests</code> and <code className="font-mono text-[10px] bg-amber-100/60 px-1 rounded">profiles.managing_agent_id</code>, but some may not appear if profile/landlord lookups fail or if the same tenant exists in both sources.
             </AlertDescription>
           </div>
         </Alert>
