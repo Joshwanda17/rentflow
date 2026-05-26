@@ -20,6 +20,8 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
 import { Switch } from '@/components/ui/switch';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { format, parseISO } from 'date-fns';
 
 type UserBrief = { id: string; full_name: string | null; phone: string | null };
 
@@ -127,7 +129,7 @@ function useProfile(id: string) {
       const { data, error } = await supabase
         .from('profiles')
         .select(
-          'id, full_name, phone, continent, country, region, district, city, town, sub_county, parish, village, landmark, residence_lat, residence_lng, address_complete, has_smartphone',
+          'id, full_name, phone, avatar_url, continent, country, region, district, city, town, sub_county, parish, village, landmark, residence_lat, residence_lng, address_complete, has_smartphone',
         )
         .eq('id', id)
         .maybeSingle();
@@ -183,7 +185,14 @@ function ProfileHeader({
   return (
     <div className="space-y-2">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
+        <div className="min-w-0 flex items-start gap-3">
+          <Avatar className="h-12 w-12 ring-2 ring-primary/20 shrink-0">
+            <AvatarImage src={profile?.avatar_url ?? undefined} alt={profile?.full_name ?? 'User'} />
+            <AvatarFallback className="text-sm font-semibold">
+              {(profile?.full_name ?? 'U').slice(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
@@ -202,6 +211,7 @@ function ProfileHeader({
           <p className="text-xs text-muted-foreground flex items-center gap-1">
             <Phone className="h-3 w-3" /> {profile?.phone ?? '—'}
           </p>
+          </div>
         </div>
         <div className="flex flex-wrap gap-1 justify-end">
           {roles.length === 0 && <Badge variant="outline" className="text-[10px]">no role</Badge>}
@@ -679,6 +689,9 @@ function AgentPane({ agentId, isOps }: { agentId: string; isOps: boolean }) {
         )}
       </Card>
 
+      {/* Recent wallet statements (last 25 entries, user-facing filter) */}
+      <AgentWalletStatements agentId={agentId} />
+
       {/* Capacity / credit access */}
       {cap && (
         <Card className="p-3 space-y-2">
@@ -1013,5 +1026,72 @@ function LandlordSmartphoneToggle({
         </div>
       )}
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Recent wallet ledger statements for an agent (mirrors what the     */
+/* agent sees on their own wallet dashboard).                          */
+/* ------------------------------------------------------------------ */
+function AgentWalletStatements({ agentId }: { agentId: string }) {
+  const { data: entries = [], isLoading } = useQuery({
+    queryKey: ['drilldown-agent-statements', agentId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('general_ledger')
+        .select('id, transaction_date, amount, direction, category, description')
+        .eq('user_id', agentId)
+        .in('ledger_scope', ['wallet', 'bridge'])
+        .or('classification.neq.admin_correction,category.neq.system_balance_correction')
+        .order('transaction_date', { ascending: false })
+        .limit(25);
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!agentId,
+  });
+
+  return (
+    <Card className="p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <ReceiptText className="h-4 w-4 text-primary" /> Wallet statements
+        </div>
+        <Badge variant="outline" className="text-[10px]">last {entries.length}</Badge>
+      </div>
+      {isLoading ? (
+        <Loader2 className="h-4 w-4 animate-spin mx-auto my-2" />
+      ) : entries.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No wallet activity yet.</p>
+      ) : (
+        <ul className="space-y-1 text-xs max-h-72 overflow-y-auto pr-1">
+          {entries.map((e: any) => {
+            const isIn = e.direction === 'cash_in';
+            return (
+              <li key={e.id} className="flex items-start justify-between gap-2 border-b border-border/40 py-1.5">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-medium truncate capitalize">
+                    {String(e.category ?? '').replace(/_/g, ' ')}
+                  </p>
+                  {e.description && (
+                    <p className="text-[10px] text-muted-foreground truncate">{e.description}</p>
+                  )}
+                  <p className="text-[10px] text-muted-foreground">
+                    {e.transaction_date ? format(parseISO(e.transaction_date), 'dd MMM yyyy, HH:mm') : '—'}
+                  </p>
+                </div>
+                <span
+                  className={`font-semibold whitespace-nowrap text-[11px] ${
+                    isIn ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'
+                  }`}
+                >
+                  {isIn ? '+' : '−'} {fmtUGX(e.amount)}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Card>
   );
 }
