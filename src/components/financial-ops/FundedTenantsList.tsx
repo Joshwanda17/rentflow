@@ -497,12 +497,29 @@ export function FundedTenantsList() {
             const otherCountries = countryStats
               .map((c) => c.country)
               .filter((name) => !AFRICAN_COUNTRY_SET.has(name));
+            const chipNeedle = countryChipSearch.trim().toLowerCase();
+            const regionMatches = (group: typeof AFRICA_REGIONS[number]) =>
+              !chipNeedle || group.region.toLowerCase().includes(chipNeedle) ||
+              group.countries.some((c) => c.toLowerCase().includes(chipNeedle));
+            const countryMatches = (country: string) =>
+              !chipNeedle || country.toLowerCase().includes(chipNeedle);
+            const visibleRegions = AFRICA_REGIONS.filter(regionMatches);
+            const visibleOther = otherCountries.filter(countryMatches);
             return (
               <div className="space-y-2">
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="relative flex-1 min-w-[200px] max-w-sm">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      value={countryChipSearch}
+                      onChange={(e) => setCountryChipSearch(e.target.value)}
+                      placeholder="Find a country or region…"
+                      className="pl-8 h-8 text-xs"
+                    />
+                  </div>
                   <button
                     type="button"
-                    onClick={() => { setCountryFilter('all'); setRegionFilter(null); }}
+                    onClick={() => { setCountryFilter('all'); setRegionFilter(null); setCountryChipSearch(''); }}
                     className={`px-2.5 py-1 rounded-full text-xs border transition ${
                       countryFilter === 'all' && !regionFilter
                         ? 'bg-primary text-primary-foreground border-primary'
@@ -511,24 +528,26 @@ export function FundedTenantsList() {
                   >
                     All ({dateFiltered.length})
                   </button>
-                  {(countryFilter !== 'all' || regionFilter) && (
+                  {(countryFilter !== 'all' || regionFilter || countryChipSearch) && (
                     <button
                       type="button"
-                      onClick={() => { setCountryFilter('all'); setRegionFilter(null); }}
+                      onClick={() => { setCountryFilter('all'); setRegionFilter(null); setCountryChipSearch(''); }}
                       className="px-2.5 py-1 rounded-full text-xs text-muted-foreground hover:text-foreground underline"
                     >
                       Clear
                     </button>
                   )}
                 </div>
-                {AFRICA_REGIONS.map((group) => {
+                {visibleRegions.map((group) => {
                   const rs = regionStats.find((r) => r.region === group.region);
                   const regionActive = regionFilter === group.region;
+                  const visibleCountries = group.countries.filter(countryMatches);
+                  if (!visibleCountries.length && chipNeedle) return null;
                   return (
                     <div key={group.region} className="space-y-1">
                       <button
                         type="button"
-                        onClick={() => { setRegionFilter(group.region); setCountryFilter('all'); }}
+                        onClick={() => { setRegionFilter(group.region); setCountryFilter('all'); setCountryChipSearch(''); }}
                         className={`text-[10px] uppercase tracking-wide font-semibold px-2 py-0.5 rounded-full border transition inline-flex items-center gap-1.5 ${
                           regionActive
                             ? 'bg-primary text-primary-foreground border-primary'
@@ -544,20 +563,23 @@ export function FundedTenantsList() {
                         )}
                       </button>
                       <div className="flex flex-wrap gap-1.5">
-                        {group.countries.map((country) => renderChip(country))}
+                        {visibleCountries.map((country) => renderChip(country))}
                       </div>
                     </div>
                   );
                 })}
-                {otherCountries.length > 0 && (
+                {visibleOther.length > 0 && (
                   <div className="space-y-1">
                     <div className="text-[10px] uppercase tracking-wide text-muted-foreground/80 font-semibold">
                       Other
                     </div>
                     <div className="flex flex-wrap gap-1.5">
-                      {otherCountries.map((country) => renderChip(country))}
+                      {visibleOther.map((country) => renderChip(country))}
                     </div>
                   </div>
+                )}
+                {chipNeedle && visibleRegions.length === 0 && visibleOther.length === 0 && (
+                  <p className="text-xs text-muted-foreground py-2">No country or region matches “{countryChipSearch}”.</p>
                 )}
               </div>
             );
