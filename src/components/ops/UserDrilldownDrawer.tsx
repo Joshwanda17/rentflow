@@ -36,6 +36,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { ListingPhotoUploadDialog } from './ListingPhotoUploadDialog';
 import { ImagePlus } from 'lucide-react';
+import { ContactActions } from './ContactActions';
+import { LandlordEditCard } from './LandlordEditCard';
 
 type UserBrief = { id: string; full_name: string | null; phone: string | null };
 
