@@ -1861,6 +1861,14 @@ const STATUS_GROUPS: Record<TenantFilter, string[]> = {
   completed: ['completed', 'repaid', 'fully_repaid'],
 };
 
+function toWhatsAppUrl(raw: string): string {
+  const digits = raw.replace(/\D/g, '');
+  const national = digits.startsWith('0') ? digits.slice(1) : digits;
+  const intl = national.startsWith('256') ? national : '256' + national;
+  const text = encodeURIComponent('Hello, this is your Welile agent.');
+  return `https://wa.me/${intl}?text=${text}`;
+}
+
 function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSelectTenant?: (id: string, name: string) => void }) {
   const [filter, setFilter] = useState<TenantFilter>('all');
   const [search, setSearch] = useState('');
