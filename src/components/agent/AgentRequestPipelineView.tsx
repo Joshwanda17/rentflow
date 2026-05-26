@@ -43,10 +43,10 @@ const SUBMITTED_STATUSES = [
 const APPROVED_STATUSES = ['funded', 'disbursed'];
 
 const STAGE_LABEL: Record<string, string> = {
-  pending: 'Tenant Ops review',
-  tenant_ops_approved: 'Agent Ops review',
-  agent_verified: 'Landlord Ops review',
-  agent_ops_approved: 'Landlord Ops review',
+  pending: 'Agent Ops review',
+  agent_ops_approved: 'Tenant Ops review',
+  agent_verified: 'Tenant Ops review',
+  tenant_ops_approved: 'Landlord Ops review',
   landlord_ops_approved: 'COO review',
   coo_approved: 'CFO funding',
   funded: 'Funded — awaiting disbursal',
