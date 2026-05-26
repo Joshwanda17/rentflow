@@ -37,6 +37,56 @@ const LEVEL_ICON: Record<string, any> = {
   agent: User, landlord: Home,
 };
 
+/**
+ * Build a set of normalized lookup keys for a Ugandan administrative-area
+ * label so curated names can match live tenant labels despite casing,
+ * punctuation, diacritics, common suffix variants, and small spelling drift.
+ *
+ * Returned keys are tried in order (most-specific first).
+ */
+function normalizedKeys(raw: string): string[] {
+  if (!raw) return [];
+  // 1. Lowercase + strip diacritics (e.g. "Buyíkwe" → "buyikwe").
+  const base = raw
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+
+  // 2. Strip common admin suffixes ("Nakawa Division" ↔ "Nakawa").
+  const suffixRe = /\s+(division|town\s*council|sub[-\s]*county|municipality|municipal\s*council|city|county|parish|ward)$/i;
+  let stripped = base;
+  while (suffixRe.test(stripped)) stripped = stripped.replace(suffixRe, '').trim();
+
+  // 3. Collapse punctuation/whitespace → single space form.
+  const collapse = (s: string) =>
+    s.replace(/[''`.,()\/&]+/g, ' ').replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
+
+  // 4. Alphanumeric-only form (handles "St. Balikuddembe" vs "St Balikuddembe",
+  //    "Kawempe-North" vs "Kawempe North", missing/extra spaces, etc.).
+  const alnum = (s: string) => s.replace(/[^a-z0-9]+/g, '');
+
+  // 5. Common spelling-drift normalizer for Luganda transliteration:
+  //    double letters → single, "ph"→"f", "ck"→"k", silent vowel pairs collapsed.
+  const phonetic = (s: string) =>
+    s
+      .replace(/ph/g, 'f')
+      .replace(/ck/g, 'k')
+      .replace(/(.)\1+/g, '$1') // drop repeats: "Naalya"→"Nalya", "Buddo"→"Budo"
+      .replace(/[^a-z0-9]+/g, '');
+
+  const variants = new Set<string>();
+  for (const v of [base, stripped]) {
+    const c = collapse(v);
+    if (c) variants.add(c);
+    const a = alnum(c);
+    if (a) variants.add(a);
+    const p = phonetic(c);
+    if (p) variants.add(p);
+  }
+  return Array.from(variants);
+}
+
 type QuickFilter = 'all' | 'linked' | 'pending' | 'revenue';
 
 const LEVEL_PLACEHOLDER: Record<string, string> = {
@@ -184,13 +234,21 @@ function DistrictJumpSearch({
     for (const q of districtQueries) {
       if (!q.data) continue;
       for (const r of q.data.rows) {
-        m[`${q.data.backendRegion}::${r.label}`.toLowerCase()] = r.total;
+        for (const k of normalizedKeys(r.label)) {
+          const key = `${q.data.backendRegion}::${k}`;
+          if ((m[key] ?? 0) < r.total) m[key] = r.total;
+        }
       }
     }
     return m;
   }, [districtQueries]);
-  const countFor = (name: string, backendRegion: string) =>
-    districtTotals[`${backendRegion}::${name}`.toLowerCase()] ?? 0;
+  const countFor = (name: string, backendRegion: string) => {
+    for (const k of normalizedKeys(name)) {
+      const hit = districtTotals[`${backendRegion}::${k}`];
+      if (hit) return hit;
+    }
+    return 0;
+  };
 
   const isLoading = districtQueries.some((q) => q.isLoading);
 
@@ -319,13 +377,21 @@ function UgandaRegionDistrictPicker({
     for (const q of districtQueries) {
       if (!q.data) continue;
       for (const r of q.data.rows) {
-        m[`${q.data.backendRegion}::${r.label}`.toLowerCase()] = r.total;
+        for (const k of normalizedKeys(r.label)) {
+          const key = `${q.data.backendRegion}::${k}`;
+          if ((m[key] ?? 0) < r.total) m[key] = r.total;
+        }
       }
     }
     return m;
   }, [districtQueries]);
-  const countFor = (name: string, backendRegion: string) =>
-    districtTotals[`${backendRegion}::${name}`.toLowerCase()] ?? 0;
+  const countFor = (name: string, backendRegion: string) => {
+    for (const k of normalizedKeys(name)) {
+      const hit = districtTotals[`${backendRegion}::${k}`];
+      if (hit) return hit;
+    }
+    return 0;
+  };
 
   return (
     <div className="space-y-2">
@@ -458,19 +524,24 @@ function DistrictAreaPicker({
   const areas = UGANDA_DISTRICT_AREAS[districtName] ?? [];
   const [search, setSearch] = useState('');
 
-  // Live counts keyed by lowercased ward label.
+  // Live counts indexed by multiple normalized forms so curated labels match
+  // live labels even with casing, punctuation, diacritics, or spelling drift.
   const liveCounts = useMemo(() => {
     const m: Record<string, TenantBreakdownRow> = {};
-    for (const r of liveRows) m[r.label.trim().toLowerCase()] = r;
+    for (const r of liveRows) {
+      for (const k of normalizedKeys(r.label)) {
+        // Don't let a smaller match overwrite a larger one
+        if (!m[k] || r.total > (m[k]?.total ?? 0)) m[k] = r;
+      }
+    }
     return m;
   }, [liveRows]);
 
   const countFor = (name: string) => {
-    const key = name.trim().toLowerCase();
-    // Try exact, then strip common suffixes (Division/Town Council) for fuzzy match.
-    if (liveCounts[key]) return liveCounts[key].total;
-    const stripped = key.replace(/\s+(division|town council|sub[- ]county|municipality)$/i, '').trim();
-    return liveCounts[stripped]?.total ?? 0;
+    for (const k of normalizedKeys(name)) {
+      if (liveCounts[k]) return liveCounts[k].total;
+    }
+    return 0;
   };
 
   const q = search.trim().toLowerCase();
