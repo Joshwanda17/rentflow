@@ -1275,6 +1275,17 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
         <Badge variant="outline" className="text-[10px]">{filtered.length}</Badge>
       </div>
 
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+        <Input
+          placeholder="Search tenant name or phone…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-7 h-7 text-xs"
+        />
+      </div>
+
       {/* Filter toggles */}
       <div className="flex items-center gap-1 flex-wrap">
         {filterButtons.map((b) => (
