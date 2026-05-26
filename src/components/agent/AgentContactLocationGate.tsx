@@ -124,17 +124,12 @@ export default function AgentContactLocationGate({
     );
   };
 
-  // Auto-attempt GPS once when opened
-  useEffect(() => {
-    if (open && lat === null && !gpsLoading) captureGPS();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
-
-  const ready = !!resolvedCountry && (!isUganda || !!district) && lat !== null && lng !== null;
+  // GPS is optional — agents can save address-only and still earn the bonus.
+  const ready = !!resolvedCountry && (!isUganda || !!district);
 
   const handleSubmit = async () => {
     if (!ready) {
-      toast.error("Fill country, district and capture GPS first");
+      toast.error(isUganda ? "Pick a country and district first" : "Pick a country first");
       return;
     }
     setSubmitting(true);
@@ -155,16 +150,23 @@ export default function AgentContactLocationGate({
             parish: parish.trim(),
             village: village.trim(),
           },
-          p_latitude: lat!,
-          p_longitude: lng!,
+          p_latitude: lat ?? undefined,
+          p_longitude: lng ?? undefined,
           p_accuracy: accuracy ?? undefined,
           p_landmark: landmark.trim() || undefined,
         } as any,
       );
       if (error) throw error;
-      toast.success("Location saved", {
-        description: "Trust score updated. You can now continue.",
-      });
+      const bonus = (data as any)?.bonus;
+      if (bonus?.status === "credited") {
+        toast.success("Location saved · +UGX 100 bonus", {
+          description: "Bonus credited to your withdrawable wallet.",
+        });
+      } else {
+        toast.success("Location saved", {
+          description: "Thanks — you can continue.",
+        });
+      }
       onComplete();
     } catch (e: any) {
       console.error("[AgentContactLocationGate] save failed", e);
