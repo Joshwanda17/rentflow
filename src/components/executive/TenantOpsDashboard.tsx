@@ -24,7 +24,6 @@ import { TenantOpsLandlordFloatPanel } from './TenantOpsLandlordFloatPanel';
 import { TenantOpsLandlordFloatTimeline } from './TenantOpsLandlordFloatTimeline';
 import { LocationBrowser } from './landlord-ops/LocationBrowser';
 import { TenantLocationBrowser } from './tenant-ops/TenantLocationBrowser';
-import { FundedTenantsList } from '@/components/financial-ops/FundedTenantsList';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -1293,7 +1292,7 @@ export function TenantOpsDashboard() {
       case 'location-browser':
         return <LocationBrowser />;
       case 'tenant-location-browser':
-        return <FundedTenantsList />;
+        return <TenantLocationBrowser />;
       case 'daily-collections':
         return <DailyCollectionMonitoringDashboard mode="editable" title="Daily Collection Monitoring" />;
       default:
