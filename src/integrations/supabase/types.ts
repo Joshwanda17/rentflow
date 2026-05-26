@@ -10791,8 +10791,76 @@ export type Database = {
         }
         Relationships: []
       }
+      profile_completion_log: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          new_value: Json | null
+          previous_value: Json | null
+          reason: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          new_value?: Json | null
+          previous_value?: Json | null
+          reason?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          new_value?: Json | null
+          previous_value?: Json | null
+          reason?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_completion_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "profile_completion_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_completion_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "profile_completion_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "profile_completion_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
+          address_complete: boolean
+          address_completed_at: string | null
           agent_tier: Database["public"]["Enums"]["agent_tier"] | null
           agent_type: string | null
           always_share_location: boolean | null
@@ -10800,6 +10868,7 @@ export type Database = {
           business_advance_notify_email: boolean
           business_advance_notify_sms: boolean
           city: string | null
+          continent: string | null
           country: string | null
           country_code: string | null
           created_at: string
@@ -10832,10 +10901,14 @@ export type Database = {
           monthly_rent: number | null
           must_change_password: boolean | null
           national_id: string | null
+          occupation: string | null
           parish: string | null
           phone: string
           prefers_easy_read: boolean
+          primary_persona: string | null
           referrer_id: string | null
+          referrer_locked: boolean
+          referrer_override_at: string | null
           region: string | null
           rent_discount_active: boolean
           residence_lat: number | null
@@ -10847,6 +10920,7 @@ export type Database = {
           sub_county: string | null
           tenant_status: string
           territory: string | null
+          town: string | null
           updated_at: string
           verified: boolean
           village: string | null
@@ -10855,6 +10929,8 @@ export type Database = {
           whatsapp_verified_at: string | null
         }
         Insert: {
+          address_complete?: boolean
+          address_completed_at?: string | null
           agent_tier?: Database["public"]["Enums"]["agent_tier"] | null
           agent_type?: string | null
           always_share_location?: boolean | null
@@ -10862,6 +10938,7 @@ export type Database = {
           business_advance_notify_email?: boolean
           business_advance_notify_sms?: boolean
           city?: string | null
+          continent?: string | null
           country?: string | null
           country_code?: string | null
           created_at?: string
@@ -10894,10 +10971,14 @@ export type Database = {
           monthly_rent?: number | null
           must_change_password?: boolean | null
           national_id?: string | null
+          occupation?: string | null
           parish?: string | null
           phone: string
           prefers_easy_read?: boolean
+          primary_persona?: string | null
           referrer_id?: string | null
+          referrer_locked?: boolean
+          referrer_override_at?: string | null
           region?: string | null
           rent_discount_active?: boolean
           residence_lat?: number | null
@@ -10909,6 +10990,7 @@ export type Database = {
           sub_county?: string | null
           tenant_status?: string
           territory?: string | null
+          town?: string | null
           updated_at?: string
           verified?: boolean
           village?: string | null
@@ -10917,6 +10999,8 @@ export type Database = {
           whatsapp_verified_at?: string | null
         }
         Update: {
+          address_complete?: boolean
+          address_completed_at?: string | null
           agent_tier?: Database["public"]["Enums"]["agent_tier"] | null
           agent_type?: string | null
           always_share_location?: boolean | null
@@ -10924,6 +11008,7 @@ export type Database = {
           business_advance_notify_email?: boolean
           business_advance_notify_sms?: boolean
           city?: string | null
+          continent?: string | null
           country?: string | null
           country_code?: string | null
           created_at?: string
@@ -10956,10 +11041,14 @@ export type Database = {
           monthly_rent?: number | null
           must_change_password?: boolean | null
           national_id?: string | null
+          occupation?: string | null
           parish?: string | null
           phone?: string
           prefers_easy_read?: boolean
+          primary_persona?: string | null
           referrer_id?: string | null
+          referrer_locked?: boolean
+          referrer_override_at?: string | null
           region?: string | null
           rent_discount_active?: boolean
           residence_lat?: number | null
@@ -10971,6 +11060,7 @@ export type Database = {
           sub_county?: string | null
           tenant_status?: string
           territory?: string | null
+          town?: string | null
           updated_at?: string
           verified?: boolean
           village?: string | null
