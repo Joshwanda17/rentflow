@@ -8,8 +8,9 @@ import { Calendar } from '@/components/ui/calendar';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Calendar as CalendarIcon, Bookmark, Download, X, Trash2 } from 'lucide-react';
-import { format } from 'date-fns';
+import { Calendar as CalendarIcon, Bookmark, Download, X, Trash2, AlertCircle } from 'lucide-react';
+import { format, startOfWeek, startOfMonth, subMonths, endOfMonth, differenceInCalendarDays } from 'date-fns';
+import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 import {
   type TenantOpsFilters, type TimeWindowKey, type RentBandKey,
@@ -82,12 +83,70 @@ export function TenantOpsFilterBar({
 }: Props) {
   const [presets, setPresets] = useState<TenantOpsPreset[]>(() => loadPresets());
   const [presetName, setPresetName] = useState('');
+  const [popoverOpen, setPopoverOpen] = useState(false);
 
   const patch = (p: Partial<TenantOpsFilters>) => onChange({ ...filters, ...p });
   const active = isFiltersActive(filters);
 
   const customFrom  = filters.customFrom ? new Date(filters.customFrom) : undefined;
   const customUntil = filters.customUntil ? new Date(filters.customUntil) : undefined;
+
+  // Draft range while the popover is open (only commits on Apply).
+  const [draft, setDraft] = useState<DateRange | undefined>(
+    customFrom || customUntil
+      ? { from: customFrom, to: customUntil ? new Date(customUntil.getTime() - 24 * 60 * 60 * 1000) : undefined }
+      : undefined,
+  );
+
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+
+  const draftError =
+    draft?.from && draft?.to && draft.to < draft.from
+      ? 'End date must be on or after the start date.'
+      : draft?.from && draft.from > today
+      ? 'Start date cannot be in the future.'
+      : null;
+
+  const draftDays =
+    draft?.from && draft?.to ? differenceInCalendarDays(draft.to, draft.from) + 1 : 0;
+
+  const applyDraft = () => {
+    if (!draft?.from || draftError) return;
+    const to = draft.to ?? draft.from;
+    patch({
+      timeWindow: 'custom',
+      customFrom: draft.from.toISOString(),
+      // exclusive upper bound: add 1 day so the end day is fully included.
+      customUntil: new Date(to.getTime() + 24 * 60 * 60 * 1000).toISOString(),
+    });
+    setPopoverOpen(false);
+  };
+
+  const clearDraft = () => {
+    setDraft(undefined);
+    patch({ timeWindow: 'all', customFrom: null, customUntil: null });
+  };
+
+  const quickPick = (kind: 'this_week' | 'this_month' | 'last_month' | 'last_7' | 'last_30') => {
+    const now = new Date();
+    let from: Date; let to: Date;
+    switch (kind) {
+      case 'this_week':  from = startOfWeek(now, { weekStartsOn: 1 }); to = now; break;
+      case 'this_month': from = startOfMonth(now); to = now; break;
+      case 'last_month': from = startOfMonth(subMonths(now, 1)); to = endOfMonth(subMonths(now, 1)); break;
+      case 'last_7':     from = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000); to = now; break;
+      case 'last_30':    from = new Date(now.getTime() - 29 * 24 * 60 * 60 * 1000); to = now; break;
+    }
+    setDraft({ from, to });
+  };
+
+  const customLabel =
+    filters.timeWindow === 'custom' && (customFrom || customUntil)
+      ? `${customFrom ? format(customFrom, 'MMM d') : '…'} – ${
+          customUntil ? format(new Date(customUntil.getTime() - 24 * 60 * 60 * 1000), 'MMM d') : '…'
+        }`
+      : 'Custom range';
 
   return (
     <Card className="p-2.5 space-y-2 bg-muted/20">
@@ -107,7 +166,24 @@ export function TenantOpsFilterBar({
             {c.label}
           </Button>
         ))}
-        <Popover>
+        <Popover
+          open={popoverOpen}
+          onOpenChange={(o) => {
+            setPopoverOpen(o);
+            if (o) {
+              setDraft(
+                customFrom || customUntil
+                  ? {
+                      from: customFrom,
+                      to: customUntil
+                        ? new Date(customUntil.getTime() - 24 * 60 * 60 * 1000)
+                        : undefined,
+                    }
+                  : undefined,
+              );
+            }
+          }}
+        >
           <PopoverTrigger asChild>
             <Button
               size="sm"
@@ -115,40 +191,95 @@ export function TenantOpsFilterBar({
               className="h-7 px-2.5 text-[11px] gap-1"
             >
               <CalendarIcon className="h-3 w-3" />
-              {filters.timeWindow === 'custom' && (customFrom || customUntil)
-                ? `${customFrom ? format(customFrom, 'MMM d') : '…'} – ${customUntil ? format(customUntil, 'MMM d') : '…'}`
-                : 'Custom range'}
+              {customLabel}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
-            <div className="p-3 space-y-2">
+            <div className="p-3 space-y-3 w-[320px]">
               <div>
-                <p className="text-[10px] font-semibold uppercase text-muted-foreground mb-1">From</p>
-                <Calendar
-                  mode="single"
-                  selected={customFrom}
-                  onSelect={(d) =>
-                    patch({
-                      timeWindow: 'custom',
-                      customFrom: d ? d.toISOString() : null,
-                    })
-                  }
-                  className={cn('p-0 pointer-events-auto')}
-                />
+                <p className="text-[10px] font-semibold uppercase text-muted-foreground mb-1.5">
+                  Pick funded date range
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  {[
+                    { k: 'last_7'    as const, l: 'Last 7d' },
+                    { k: 'last_30'   as const, l: 'Last 30d' },
+                    { k: 'this_week' as const, l: 'This week' },
+                    { k: 'this_month'as const, l: 'This month' },
+                    { k: 'last_month'as const, l: 'Last month' },
+                  ].map((q) => (
+                    <Button
+                      key={q.k}
+                      size="sm"
+                      variant="outline"
+                      className="h-6 px-2 text-[10px]"
+                      onClick={() => quickPick(q.k)}
+                    >
+                      {q.l}
+                    </Button>
+                  ))}
+                </div>
               </div>
-              <div>
-                <p className="text-[10px] font-semibold uppercase text-muted-foreground mb-1">Until</p>
-                <Calendar
-                  mode="single"
-                  selected={customUntil}
-                  onSelect={(d) =>
-                    patch({
-                      timeWindow: 'custom',
-                      customUntil: d ? new Date(d.getTime() + 24 * 60 * 60 * 1000).toISOString() : null,
-                    })
-                  }
-                  className={cn('p-0 pointer-events-auto')}
-                />
+              <Calendar
+                mode="range"
+                selected={draft}
+                onSelect={setDraft}
+                numberOfMonths={1}
+                disabled={{ after: new Date() }}
+                defaultMonth={draft?.from ?? customFrom ?? new Date()}
+                className={cn('p-0 pointer-events-auto')}
+              />
+              <div className="rounded-md border bg-muted/30 px-2 py-1.5 text-[11px]">
+                {draftError ? (
+                  <span className="flex items-center gap-1 text-destructive">
+                    <AlertCircle className="h-3 w-3" /> {draftError}
+                  </span>
+                ) : draft?.from ? (
+                  <span className="text-foreground">
+                    <span className="font-medium">
+                      {format(draft.from, 'MMM d, yyyy')}
+                    </span>
+                    {draft.to && draft.to.getTime() !== draft.from.getTime() && (
+                      <>
+                        {' → '}
+                        <span className="font-medium">{format(draft.to, 'MMM d, yyyy')}</span>
+                        <span className="text-muted-foreground"> · {draftDays} day{draftDays === 1 ? '' : 's'}</span>
+                      </>
+                    )}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">
+                    Tap the start day, then the end day — or use a shortcut above.
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2 text-[11px] text-muted-foreground"
+                  onClick={clearDraft}
+                >
+                  Clear
+                </Button>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-2 text-[11px]"
+                    onClick={() => setPopoverOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="h-7 px-3 text-[11px]"
+                    onClick={applyDraft}
+                    disabled={!draft?.from || !!draftError}
+                  >
+                    Apply
+                  </Button>
+                </div>
               </div>
             </div>
           </PopoverContent>
