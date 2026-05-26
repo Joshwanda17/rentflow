@@ -458,19 +458,24 @@ function DistrictAreaPicker({
   const areas = UGANDA_DISTRICT_AREAS[districtName] ?? [];
   const [search, setSearch] = useState('');
 
-  // Live counts keyed by lowercased ward label.
+  // Live counts indexed by multiple normalized forms so curated labels match
+  // live labels even with casing, punctuation, diacritics, or spelling drift.
   const liveCounts = useMemo(() => {
     const m: Record<string, TenantBreakdownRow> = {};
-    for (const r of liveRows) m[r.label.trim().toLowerCase()] = r;
+    for (const r of liveRows) {
+      for (const k of normalizedKeys(r.label)) {
+        // Don't let a smaller match overwrite a larger one
+        if (!m[k] || r.total > (m[k]?.total ?? 0)) m[k] = r;
+      }
+    }
     return m;
   }, [liveRows]);
 
   const countFor = (name: string) => {
-    const key = name.trim().toLowerCase();
-    // Try exact, then strip common suffixes (Division/Town Council) for fuzzy match.
-    if (liveCounts[key]) return liveCounts[key].total;
-    const stripped = key.replace(/\s+(division|town council|sub[- ]county|municipality)$/i, '').trim();
-    return liveCounts[stripped]?.total ?? 0;
+    for (const k of normalizedKeys(name)) {
+      if (liveCounts[k]) return liveCounts[k].total;
+    }
+    return 0;
   };
 
   const q = search.trim().toLowerCase();
