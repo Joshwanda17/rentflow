@@ -95,7 +95,7 @@ export function UserDrilldownDrawer({
       <SheetContent
         ref={scrollRef as any}
         side="right"
-        className="w-full sm:max-w-2xl overflow-y-auto p-0"
+        className="w-screen h-screen max-w-none sm:max-w-none overflow-y-auto p-0"
       >
         <SheetHeader className="px-4 sm:px-6 pt-5 pb-3 border-b">
           <SheetTitle className="text-lg">User drill-down</SheetTitle>
