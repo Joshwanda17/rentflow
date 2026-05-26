@@ -11,6 +11,14 @@ import { LandlordPayoutShareCard, type LandlordPayoutShareData } from './Landlor
 import { buildBulkPayoutsPdfBlob, downloadBlob } from './landlordPayoutPdf';
 import { toast } from 'sonner';
 import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Globe2, CalendarDays } from 'lucide-react';
 
 type Row = {
   id: string;
@@ -26,9 +34,13 @@ type Row = {
   finops_momo_reference: string | null;
   external_reference: string | null;
   created_at: string;
+  rent_request_id: string | null;
+  country: string | null;
   agent_profile?: { full_name: string | null; phone: string | null } | null;
   tenant_profile?: { full_name: string | null } | null;
 };
+type DateFilter = 'all' | '7d' | '30d' | 'custom';
+
 
 const FUNDED_STATUSES = ['awaiting_agent_receipt', 'completed', 'disbursed'] as const;
 
@@ -40,6 +52,9 @@ export function FundedTenantsList() {
   const [q, setQ] = useState('');
   const [share, setShare] = useState<LandlordPayoutShareData | null>(null);
   const [bulk, setBulk] = useState<{ done: number; total: number } | null>(null);
+  const [dateFilter, setDateFilter] = useState<DateFilter>('all');
+  const [customDays, setCustomDays] = useState<number>(14);
+  const [countryFilter, setCountryFilter] = useState<string>('all');
   const [drill, setDrill] = useState<{
     tenantId: string | null;
     agentId: string | null;
@@ -53,7 +68,7 @@ export function FundedTenantsList() {
       const { data, error } = await supabase
         .from('landlord_payouts')
         .select(
-          'id, agent_id, tenant_id, landlord_id, landlord_name, landlord_phone, mobile_money_provider, amount, status, finops_disbursed_at, finops_momo_reference, external_reference, created_at',
+          'id, agent_id, tenant_id, landlord_id, landlord_name, landlord_phone, mobile_money_provider, amount, status, finops_disbursed_at, finops_momo_reference, external_reference, created_at, rent_request_id',
         )
         .in('status', FUNDED_STATUSES as unknown as string[])
         .order('finops_disbursed_at', { ascending: false, nullsFirst: false })
@@ -66,17 +81,33 @@ export function FundedTenantsList() {
         new Set([
           ...list.map((r) => r.agent_id),
           ...list.map((r) => r.tenant_id).filter(Boolean) as string[],
+          ...list.map((r) => r.landlord_id).filter(Boolean) as string[],
         ]),
       );
       if (ids.length) {
         const { data: profs } = await supabase
           .from('profiles')
-          .select('id, full_name, phone')
+          .select('id, full_name, phone, country')
           .in('id', ids);
         const map = new Map((profs ?? []).map((p) => [p.id, p]));
         list.forEach((r) => {
           r.agent_profile = (map.get(r.agent_id) as any) ?? null;
           if (r.tenant_id) r.tenant_profile = (map.get(r.tenant_id) as any) ?? null;
+          const ll = r.landlord_id ? (map.get(r.landlord_id) as any) : null;
+          r.country = ll?.country ?? null;
+        });
+      }
+
+      const rrIds = Array.from(new Set(list.map((r) => r.rent_request_id).filter(Boolean) as string[]));
+      if (rrIds.length) {
+        const { data: rrs } = await supabase
+          .from('rent_requests')
+          .select('id, request_country')
+          .in('id', rrIds);
+        const rrMap = new Map((rrs ?? []).map((r: any) => [r.id, r.request_country as string | null]));
+        list.forEach((r) => {
+          const c = r.rent_request_id ? rrMap.get(r.rent_request_id) ?? null : null;
+          if (c) r.country = c;
         });
       }
       return list;
@@ -84,10 +115,37 @@ export function FundedTenantsList() {
     refetchInterval: 60_000,
   });
 
+  const dateFiltered = useMemo(() => {
+    if (dateFilter === 'all') return rows;
+    const days = dateFilter === '7d' ? 7 : dateFilter === '30d' ? 30 : Math.max(1, customDays || 1);
+    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+    return rows.filter((r) => {
+      const ts = new Date(r.finops_disbursed_at ?? r.created_at).getTime();
+      return ts >= cutoff;
+    });
+  }, [rows, dateFilter, customDays]);
+
+  const countryStats = useMemo(() => {
+    const m = new Map<string, { count: number; total: number }>();
+    dateFiltered.forEach((r) => {
+      const key = r.country?.trim() || 'Unknown';
+      const cur = m.get(key) ?? { count: 0, total: 0 };
+      cur.count += 1;
+      cur.total += Number(r.amount || 0);
+      m.set(key, cur);
+    });
+    return Array.from(m.entries())
+      .map(([country, v]) => ({ country, ...v }))
+      .sort((a, b) => b.total - a.total);
+  }, [dateFiltered]);
+
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    if (!needle) return rows;
-    return rows.filter((r) => {
+    const base = countryFilter === 'all'
+      ? dateFiltered
+      : dateFiltered.filter((r) => (r.country?.trim() || 'Unknown') === countryFilter);
+    if (!needle) return base;
+    return base.filter((r) => {
       const hay = [
         r.landlord_name,
         r.landlord_phone,
@@ -95,12 +153,13 @@ export function FundedTenantsList() {
         r.agent_profile?.full_name ?? '',
         r.finops_momo_reference ?? '',
         r.external_reference ?? '',
+        r.country ?? '',
       ]
         .join(' ')
         .toLowerCase();
       return hay.includes(needle);
     });
-  }, [rows, q]);
+  }, [dateFiltered, countryFilter, q]);
 
   const totalAmount = useMemo(
     () => filtered.reduce((s, r) => s + Number(r.amount || 0), 0),
