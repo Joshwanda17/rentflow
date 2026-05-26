@@ -66,6 +66,11 @@ export function UserDrilldownDrawer({
   const effectiveTenantId = pickedUser?.id ?? tenantId ?? null;
   const isOps = useIsOpsRole();
 
+  const handleSelectTenant = (id: string, name: string) => {
+    setPickedUser({ id, full_name: name, phone: null });
+    setTab('tenant');
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto p-0">
@@ -108,7 +113,7 @@ export function UserDrilldownDrawer({
             {effectiveTenantId && <TenantPane tenantId={effectiveTenantId} isOps={isOps} />}
           </TabsContent>
           <TabsContent value="agent" className="py-4">
-            {agentId && <AgentPane agentId={agentId} isOps={isOps} />}
+            {agentId && <AgentPane agentId={agentId} isOps={isOps} onSelectTenant={handleSelectTenant} />}
           </TabsContent>
           <TabsContent value="landlord" className="py-4">
             {landlordId && <LandlordPane landlordId={landlordId} isOps={isOps} />}
@@ -509,6 +514,9 @@ function TenantPane({ tenantId, isOps }: { tenantId: string; isOps: boolean }) {
         )}
       </Card>
 
+      {/* Tenant repayment / obligation ledger history */}
+      <TenantStatements tenantId={tenantId} />
+
       {activeRr?.landlord_id && (
         <Card className="p-3 space-y-1.5">
           <div className="flex items-center gap-2 text-sm font-medium">
@@ -567,7 +575,7 @@ function TenantPane({ tenantId, isOps }: { tenantId: string; isOps: boolean }) {
 /* ------------------------------------------------------------------ */
 /* Agent pane                                                          */
 /* ------------------------------------------------------------------ */
-function AgentPane({ agentId, isOps }: { agentId: string; isOps: boolean }) {
+function AgentPane({ agentId, isOps, onSelectTenant }: { agentId: string; isOps: boolean; onSelectTenant?: (id: string, name: string) => void }) {
   const qc = useQueryClient();
   const { data: profile, isLoading } = useProfile(agentId);
   const { data: roles = [] } = useUserRoles(agentId);
@@ -732,7 +740,7 @@ function AgentPane({ agentId, isOps }: { agentId: string; isOps: boolean }) {
       </Card>
 
       {/* Tenants under management — name, outstanding balance, landlord */}
-      <AgentTenantsList agentId={agentId} />
+      <AgentTenantsList agentId={agentId} onSelectTenant={onSelectTenant} />
 
       {/* Network — partners onboarded & referrals */}
       <Card className="p-3 space-y-2">
@@ -1100,9 +1108,80 @@ function AgentWalletStatements({ agentId }: { agentId: string }) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Tenant statements — rent obligations & repayments from ledger     */
+/* ------------------------------------------------------------------ */
+function TenantStatements({ tenantId }: { tenantId: string }) {
+  const { data: entries = [], isLoading } = useQuery({
+    queryKey: ['drilldown-tenant-statements', tenantId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('general_ledger')
+        .select('id, transaction_date, amount, direction, category, description')
+        .eq('user_id', tenantId)
+        .in('category', ['rent_obligation', 'tenant_repayment', 'rent_repayment'])
+        .neq('classification', 'admin_correction')
+        .order('transaction_date', { ascending: false })
+        .limit(25);
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!tenantId,
+  });
+
+  return (
+    <Card className="p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <ReceiptText className="h-4 w-4 text-primary" /> Transactions & statements
+        </div>
+        <Badge variant="outline" className="text-[10px]">last {entries.length}</Badge>
+      </div>
+      {isLoading ? (
+        <Loader2 className="h-4 w-4 animate-spin mx-auto my-2" />
+      ) : entries.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No rent transactions on file yet.</p>
+      ) : (
+        <ul className="space-y-1 text-xs max-h-72 overflow-y-auto pr-1">
+          {entries.map((e: any) => {
+            const isIn = e.direction === 'cash_in';
+            const isObligation = e.category === 'rent_obligation';
+            return (
+              <li key={e.id} className="flex items-start justify-between gap-2 border-b border-border/40 py-1.5">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-medium truncate capitalize">
+                    {String(e.category ?? '').replace(/_/g, ' ')}
+                  </p>
+                  {e.description && (
+                    <p className="text-[10px] text-muted-foreground truncate">{e.description}</p>
+                  )}
+                  <p className="text-[10px] text-muted-foreground">
+                    {e.transaction_date ? format(parseISO(e.transaction_date), 'dd MMM yyyy, HH:mm') : '—'}
+                  </p>
+                </div>
+                <span
+                  className={`font-semibold whitespace-nowrap text-[11px] ${
+                    isObligation
+                      ? 'text-amber-700 dark:text-amber-400'
+                      : isIn
+                        ? 'text-emerald-700 dark:text-emerald-400'
+                        : 'text-rose-700 dark:text-rose-400'
+                  }`}
+                >
+                  {isObligation ? '' : isIn ? '+' : '−'} {fmtUGX(e.amount)}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Agent tenants list — tenant · outstanding balance · landlord       */
 /* ------------------------------------------------------------------ */
-function AgentTenantsList({ agentId }: { agentId: string }) {
+function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSelectTenant?: (id: string, name: string) => void }) {
   const { data, isLoading } = useQuery({
     queryKey: ['drilldown-agent-tenants', agentId],
     queryFn: async () => {
@@ -1140,6 +1219,7 @@ function AgentTenantsList({ agentId }: { agentId: string }) {
           );
           return {
             id: r.id,
+            tenantId: r.tenant_id,
             tenant: tMap.get(r.tenant_id) as any,
             landlord: r.landlord_id ? (lMap.get(r.landlord_id) as any) : null,
             outstanding,
@@ -1167,7 +1247,9 @@ function AgentTenantsList({ agentId }: { agentId: string }) {
           {(data ?? []).map((row) => (
             <li
               key={row.id}
-              className="flex items-center justify-between gap-2 rounded-md border border-border/40 p-2 text-xs"
+              onClick={() => onSelectTenant?.(row.tenantId, row.tenant?.full_name ?? 'Unnamed tenant')}
+              className={`flex items-center justify-between gap-2 rounded-md border border-border/40 p-2 text-xs ${onSelectTenant ? 'cursor-pointer hover:bg-muted/40 transition-colors' : ''}`}
+              title={onSelectTenant ? 'Tap to view full profile' : undefined}
             >
               <div className="min-w-0 flex items-center gap-2">
                 <Avatar className="h-7 w-7 shrink-0">
