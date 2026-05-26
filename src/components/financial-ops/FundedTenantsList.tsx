@@ -53,8 +53,9 @@ const AFRICA_REGIONS: { region: string; countries: string[] }[] = [
   {
     region: 'Central Africa',
     countries: [
-      'DR Congo', 'Congo', 'Cameroon', 'Central African Republic', 'Chad',
-      'Gabon', 'Equatorial Guinea', 'São Tomé and Príncipe',
+      'DR Congo', 'Congo', 'Cameroon', 'Central African Republic',
+      'Central African Rep.', 'Chad', 'Gabon', 'Equatorial Guinea',
+      'São Tomé and Príncipe', 'São Tomé & Príncipe',
     ],
   },
 ];
