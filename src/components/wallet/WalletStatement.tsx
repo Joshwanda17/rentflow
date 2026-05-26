@@ -153,12 +153,14 @@ export function WalletStatement() {
           .from('general_ledger')
           .select('id, transaction_date, amount, direction, category, description, reference_id, linked_party')
           .eq('user_id', user.id)
+          .eq('ledger_scope', 'wallet')
           // Hide admin/CFO reconciliation legs (admin_correction + system_balance_correction)
           // from end users — they are bookkeeping-only. Production-classified reversals must
           // remain visible so the statement matches the headline balance.
-          .or('classification.neq.admin_correction,category.neq.system_balance_correction')
-          .order('transaction_date', { ascending: true })
-          .limit(200),
+          .neq('classification', 'admin_correction')
+          .neq('category', 'system_balance_correction')
+          .order('transaction_date', { ascending: false })
+          .limit(500),
         supabase.from('profiles').select('full_name').eq('id', user.id).single(),
         supabase
           .from('agent_earnings')
