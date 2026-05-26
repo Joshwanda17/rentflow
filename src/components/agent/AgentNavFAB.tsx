@@ -124,7 +124,13 @@ export default function AgentNavFAB() {
 
   const isAgent = role === 'agent';
 
-  const onHome = location.pathname === '/' || location.pathname === '/dashboard';
+  // Treat the role-scoped dashboard routes (e.g. `/dashboard/agent`) as
+  // "home" too — otherwise the Back pill renders on the agent landing page
+  // and collides with the fixed bottom role-switcher on small phones.
+  const onHome =
+    location.pathname === '/' ||
+    location.pathname === '/dashboard' ||
+    /^\/dashboard\/(agent|tenant|landlord|funder|manager|owner)\/?$/.test(location.pathname);
 
   // Lightweight in-memory route history (most-recent last, max 5 unique entries).
   // Persisted to sessionStorage so a refresh doesn't strand the agent.
@@ -321,7 +327,10 @@ export default function AgentNavFAB() {
     buttons[next]?.focus();
   };
 
-  if (!isAgent || modalOpen) return null;
+  // Hide entirely on the agent home — the user is already home, and the
+  // disabled Home circle would otherwise overlap the WhatsApp / Field Collect
+  // FABs at the bottom-left of small phones.
+  if (!isAgent || modalOpen || onHome) return null;
 
   return (
     <AnimatePresence>
@@ -333,8 +342,11 @@ export default function AgentNavFAB() {
         transition={{ type: 'spring', stiffness: 220, damping: 22 }}
         className={cn(
           'md:hidden fixed left-3 right-3 z-[60] flex flex-col items-start gap-2',
-          // sit above the bottom safe area + above the WhatsApp FAB stack
-          'bottom-[max(1rem,env(safe-area-inset-bottom))]',
+          // Sit comfortably above the bottom role switcher and the WhatsApp
+          // FAB stack (uses the global --fab-bottom variable so every floating
+          // element keeps the same clearance).
+          'bottom-[var(--fab-bottom)]',
+          'fab-shrink-landscape',
         )}
       >
         {/* Recent screens — scrollable horizontal chip strip */}

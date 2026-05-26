@@ -156,9 +156,12 @@ export function buildPartnerCompoundRequest(input: PartnerCompoundInput) {
     ? input.roiPercentage
     : derivedPct;
   return {
-    templateName: "partner-compound",
+    // Existing partners (auto cron compound on a live portfolio).
+    // First-time partners who choose compound at portfolio creation
+    // still use the original `partner-compound` template.
+    templateName: "partner-portfolio-compounded",
     recipientEmail: input.recipientEmail,
-    idempotencyKey: `partner-compound-${input.partnerId}-${input.portfolioId}-${input.paymentNumber}`,
+    idempotencyKey: `partner-portfolio-compounded-${input.partnerId}-${input.portfolioId}-${input.paymentNumber}`,
     templateData: {
       partner_name: input.partnerName || "Partner",
       portfolio_id: shortPortfolioId(input.portfolioId),

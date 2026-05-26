@@ -27,8 +27,18 @@ interface PartnerWithdrawalRequest {
   requested_at: string;
   partner_ops_approved_at: string | null;
   coo_approved_at: string | null;
+  sub_category?: string | null;
   user?: { full_name: string; phone: string; avatar_url: string | null };
 }
+
+const SUB_CATEGORY_LABELS: Record<string, { label: string; color: string }> = {
+  general: { label: 'General', color: 'bg-slate-100 text-slate-700 border-slate-300' },
+  repair: { label: 'Repair', color: 'bg-amber-100 text-amber-700 border-amber-300' },
+  rent: { label: 'Rent', color: 'bg-blue-100 text-blue-700 border-blue-300' },
+  commission: { label: 'Commission', color: 'bg-emerald-100 text-emerald-700 border-emerald-300' },
+  investment: { label: 'Investment', color: 'bg-purple-100 text-purple-700 border-purple-300' },
+  roi: { label: 'ROI', color: 'bg-rose-100 text-rose-700 border-rose-300' },
+};
 
 import { formatDynamic } from '@/lib/currencyFormat';
 const formatCurrency = formatDynamic;
@@ -189,6 +199,45 @@ export function CFOPartnerPayoutProcessing() {
           </div>
         </CardHeader>
         <CardContent>
+          {/* Sub-category summary */}
+          {(() => {
+            const repairCount = requests.filter(r => r.sub_category === 'repair').length;
+            const rentCount = requests.filter(r => r.sub_category === 'rent').length;
+            const commissionCount = requests.filter(r => r.sub_category === 'commission').length;
+            const investmentCount = requests.filter(r => r.sub_category === 'investment').length;
+            const roiCount = requests.filter(r => r.sub_category === 'roi').length;
+            if (!repairCount && !rentCount && !commissionCount && !investmentCount && !roiCount) return null;
+            return (
+              <div className="flex flex-wrap items-center gap-2 mb-3 pb-3 border-b">
+                <span className="text-xs text-muted-foreground">By category:</span>
+                {repairCount > 0 && (
+                  <Badge variant="outline" className="text-xs gap-1 bg-amber-50 text-amber-700 border-amber-200">
+                    🔧 Repair: <span className="font-bold">{repairCount}</span>
+                  </Badge>
+                )}
+                {rentCount > 0 && (
+                  <Badge variant="outline" className="text-xs gap-1 bg-blue-50 text-blue-700 border-blue-200">
+                    🏠 Rent: <span className="font-bold">{rentCount}</span>
+                  </Badge>
+                )}
+                {commissionCount > 0 && (
+                  <Badge variant="outline" className="text-xs gap-1 bg-emerald-50 text-emerald-700 border-emerald-200">
+                    💰 Commission: <span className="font-bold">{commissionCount}</span>
+                  </Badge>
+                )}
+                {investmentCount > 0 && (
+                  <Badge variant="outline" className="text-xs gap-1 bg-purple-50 text-purple-700 border-purple-200">
+                    📈 Investment: <span className="font-bold">{investmentCount}</span>
+                  </Badge>
+                )}
+                {roiCount > 0 && (
+                  <Badge variant="outline" className="text-xs gap-1 bg-rose-50 text-rose-700 border-rose-200">
+                    📊 ROI: <span className="font-bold">{roiCount}</span>
+                  </Badge>
+                )}
+              </div>
+            );
+          })()}
           <div className="space-y-2">
             {requests.map(req => (
               <div
@@ -203,7 +252,14 @@ export function CFOPartnerPayoutProcessing() {
                       <p className="text-xs text-muted-foreground">{req.user?.phone}</p>
                     </div>
                   </div>
-                  <p className="text-base font-black">{formatCurrency(req.amount)}</p>
+                  <div className="text-right">
+                    <p className="text-base font-black">{formatCurrency(req.amount)}</p>
+                    {req.sub_category && req.sub_category !== 'general' && (
+                      <Badge variant="outline" className={`text-[10px] mt-0.5 ${SUB_CATEGORY_LABELS[req.sub_category]?.color || 'bg-slate-100 text-slate-700'}`}>
+                        {SUB_CATEGORY_LABELS[req.sub_category]?.label || req.sub_category}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
 
                 {req.reason && (

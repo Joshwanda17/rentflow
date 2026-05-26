@@ -63,6 +63,7 @@ import { useOfflineAgentDashboard } from '@/hooks/useOfflineAgentDashboard';
 import { useWallet } from '@/hooks/useWallet';
 import { useAgentBalances } from '@/hooks/useAgentBalances';
 import { useAgentLandlordFloat } from '@/hooks/useAgentLandlordFloat';
+import { useAgentDashboardRealtime } from '@/hooks/useAgentDashboardRealtime';
 import { EarningsRankSystemSheet } from '@/components/agent/EarningsRankSystemSheet';
 import { AgentMenuDrawer } from '@/components/agent/AgentMenuDrawer';
 import { AgentHubTabs, type AgentHubTab } from '@/components/agent/AgentHubTabs';
@@ -176,6 +177,18 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   // Kept for the lower AgentLandlordFloatCard / sheets (CFO escrow, NOT the wallet float)
   const { floatBalance: landlordPayoutFloat } = useAgentLandlordFloat();
   const { isOnline } = useOffline();
+
+  // Instant mobile dashboard refresh: one debounced channel listens for any
+  // agent-scoped commission, wallet movement, or float change and re-pulls
+  // the headline numbers so the agent sees money arrive without reloading.
+  useAgentDashboardRealtime({
+    agentId: user?.id,
+    onChange: () => {
+      void refreshWallet();
+      void refreshBalances();
+      void refreshEarnings();
+    },
+  });
   
   const { 
     stats, 
@@ -404,7 +417,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const quickActions = [] as any[];
 
   return (
-    <div className="h-[100dvh] bg-background flex flex-col overflow-hidden">
+    <div className="agent-dashboard-shell h-[100dvh] bg-background flex flex-col overflow-hidden">
       <OfflineBanner />
       <PendingDraftsBanner />
       
@@ -416,8 +429,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         menuItems={menuItems}
       />
 
-      <div className="flex-1 overflow-y-auto pb-nav">
-        <main className="px-4 pt-5 pb-16 space-y-5 max-w-lg mx-auto">
+      <div className="agent-dashboard-scroll flex-1 overflow-y-auto overflow-x-hidden pb-nav">
+        <main className="agent-dashboard-main w-full min-w-0 px-4 pt-5 pb-16 space-y-5 max-w-lg mx-auto">
+        <VerificationOpportunitiesButton />
         {/* Offline Notice */}
         {!isOnline && (
           <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-warning/10 border border-warning/20">
@@ -993,7 +1007,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <LandlordRecoveryLedger open={recoveryLedgerOpen} onOpenChange={setRecoveryLedgerOpen} />
       <FloatPayoutStatusTracker open={payoutStatusOpen} onOpenChange={setPayoutStatusOpen} />
       <FloatTransactionHistory open={floatHistoryOpen} onOpenChange={setFloatHistoryOpen} />
-      <VerificationOpportunitiesButton />
       <CreditVerificationButton />
       <AgentMyRentRequestsSheet open={myRentRequestsOpen} onOpenChange={setMyRentRequestsOpen} />
       <AgentTenantsSheet open={tenantsSheetOpen} onOpenChange={setTenantsSheetOpen} />

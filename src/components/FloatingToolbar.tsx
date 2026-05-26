@@ -70,13 +70,16 @@ export default function FloatingToolbar() {
         </motion.a>
       </motion.div>
 
-      {/* Mobile-only WhatsApp button */}
+      {/* Mobile-only WhatsApp button — anchored to the LEFT so it never
+          collides with the agent's right-side stack (FieldCollect FAB,
+          wallet TRANSFER action, etc.). */}
       <motion.a
         href="https://wa.me/256777607640"
         target="_blank"
         rel="noopener noreferrer"
         whileTap={{ scale: 0.93 }}
-        className="md:hidden fixed bottom-36 right-4 z-[60] h-10 w-10 rounded-full bg-[#25D366] text-white shadow-lg shadow-[#25D366]/30 flex items-center justify-center border border-white/15 active:scale-95 transition-transform touch-manipulation"
+        className="md:hidden fixed left-4 z-[60] h-10 w-10 rounded-full bg-[#25D366] text-white shadow-lg shadow-[#25D366]/30 flex items-center justify-center border border-white/15 active:scale-95 transition-transform touch-manipulation fab-hide-landscape"
+        style={{ bottom: 'var(--fab-bottom)' }}
         aria-label="Chat on WhatsApp"
       >
         <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden="true">

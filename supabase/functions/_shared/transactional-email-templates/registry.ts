@@ -5,6 +5,7 @@ import { template as partnershipAgreementTemplate } from './partnership-agreemen
 import { template as partnershipTopupTemplate } from './partnership-topup.tsx'
 import { template as partnershipSplitAllocationTemplate } from './partnership-split-allocation.tsx'
 import { template as partnerCompoundTemplate } from './partner-compound.tsx'
+import { template as partnerPortfolioCompoundedTemplate } from './partner-portfolio-compounded.tsx'
 import { template as portfolioRenewalTemplate } from './portfolio-renewal.tsx'
 import { template as portfolioMaturityTemplate } from './portfolio-maturity.tsx'
 import { template as partnerAccountCreatedTemplate } from './partner-account-created.tsx'
@@ -23,6 +24,7 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'partnership-topup': partnershipTopupTemplate,
   'partnership-split-allocation': partnershipSplitAllocationTemplate,
   'partner-compound': partnerCompoundTemplate,
+  'partner-portfolio-compounded': partnerPortfolioCompoundedTemplate,
   'portfolio-renewal': portfolioRenewalTemplate,
   'portfolio-maturity': portfolioMaturityTemplate,
   'partner-account-created': partnerAccountCreatedTemplate,

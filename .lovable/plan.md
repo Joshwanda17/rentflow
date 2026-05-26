@@ -1,102 +1,41 @@
-## Goal
+# Surface "Verify & Earn" as an inline CTA on mobile
 
-Make Tenant Ops genuinely usable when there are 1,000,000+ tenants. Replace the current "18-view sprawl" with a 3-tab shape that the manager can work in for the entire shift without ever feeling lost. Treat Tenant Ops as the **reference pattern**; once approved and proven, replicate the exact same shape (different data) to Agent Ops and Landlord Ops in a follow-up plan.
+## Problem
 
-## The 3-tab shape (locked across all three dashboards)
+`VerificationOpportunitiesButton` (the "Verify & Earn 17" pill) renders as a fixed FAB at `bottom-24 right-4` on mobile. On the same right edge there is already `FieldCollectFab` anchored at `bottom: var(--fab-bottom)` (~84–100 px on mobile) plus `CreditVerificationButton` at `bottom-36`. The three FABs **stack and overlap** on small screens, so "Verify & Earn" ends up tucked **behind / under** the Field Collect FAB. That's what the user is calling out — a primary earnings affordance should never be hidden behind another button.
 
-```text
-┌─ Tenant Ops ──────────────────────────────────────────────┐
-│  [INBOX]   [SEGMENTS]   [SEARCH]            ⚙ Saved views │
-├───────────────────────────────────────────────────────────┤
-│                                                            │
-│  (Tab body — see below)                                    │
-│                                                            │
-└───────────────────────────────────────────────────────────┘
-       ↳ click any row → BEHAVIOR DRAWER slides in from right
-```
+## Fix
 
-### Tab 1 — Inbox (default landing)
+Move the Verify & Earn trigger out of the FAB stack and render it as a **prominent inline CTA at the top of the agent dashboard** on mobile. The bottom sheet (Houses / Tenants tabs, GPS-gated verification flows) stays exactly as it is.
 
-The only place that's realtime. Answers "what do I act on right now?"
+### 1. `src/components/agent/VerificationOpportunitiesButton.tsx`
 
-- **5 severity buckets**, shown as horizontal pills with live counts:
-  `🔴 Critical · 🟠 At-risk · 🟡 Watch · 🔵 New · ⚪ Snoozed`
-- Each bucket opens a virtualised list of action cards (not table rows). Card shows:
-  name + phone, one-line **reason** ("4 days overdue, no agent visit in 7d, trust −12"), trend arrow, and 3 verbs: **Act · Snooze · Escalate**.
-- "Act" opens the existing TenantDetailPanel inside a drawer (no route change).
-- Snoozing writes to a new `ops_inbox_state` row keyed on (ops_user, tenant_id) and removes the card for 24h.
-- Realtime: subscribe only to `ops_inbox_events` (one row per bucket-change), not to `profiles` or `rent_requests`.
+- Replace the `fixed bottom-24 …` `<button>` (lines 144–153) with an **inline** trigger:
+  - Full-width pill/card: gradient/`bg-primary` background, Shield icon on left, "Verify & Earn" label, right-aligned count badge, subtle "UGX 5–10K bonuses" subline.
+  - Tailwind: `w-full rounded-2xl px-4 py-3 flex items-center gap-3 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-md active:scale-[0.99] touch-manipulation`.
+  - Same `onClick={handleOpen}` and same `if (totalCount === 0) return null;` early return.
+- Keep the existing `<Sheet>` block untouched.
+- No `fixed` / `bottom-*` / `z-*` classes on the trigger anymore.
 
-### Tab 2 — Segments
+### 2. `src/components/dashboards/AgentDashboard.tsx`
 
-The bulk-action surface. Not realtime; refresh button + 60s poll.
+- **Remove** `<VerificationOpportunitiesButton />` at line 1009 (it was sitting in the FAB layer).
+- **Mount it inline** as the first child of `<main className="agent-dashboard-main …">` (around line 433, just before the hero / wallet card), so it appears at the top of the scrollable content on every dashboard tab.
+- Wrap nothing else around it — the component returns `null` when `totalCount === 0`, so when there's nothing to verify the dashboard layout is unchanged.
 
-- Left rail: list of **saved smart segments** (e.g. "Kampala · overdue 3+ days · no agent · trust < 500"). Ships with 6 starter segments.
-- Main area: virtualised list (TanStack Virtual) over a single keyset-paginated RPC `ops_query_tenants(segment_id, cursor, limit)`.
-- Top bar shows row count from `mv_tenant_segment_counts` (refreshed every 5 min), so the manager always sees scale honestly ("48,213 tenants match").
-- Bulk actions on the current segment: SMS blast, assign agent, mark for visit, export CSV — all already-existing flows wired to a "Selected: N / All N" toggle.
+### 3. Leave the other FABs alone
 
-### Tab 3 — Search
+- `CreditVerificationButton` (bottom-36) and `FieldCollectFab` (`var(--fab-bottom)`) stay as-is — the user only flagged "Verify & Earn". Removing one FAB from the stack also gives `CreditVerificationButton` clearer room on small screens as a side benefit.
 
-One-record lookup. Same input field as today's AgentTenantSearch, server-side ILIKE on phone/name/national-id with a 25-result cap and a "view all matches in Segments" link.
+### 4. Verify
 
-### Behavior drawer (shared primitive — Tenant Ops ships it, others reuse)
+- Mobile preview (390×844): open `/dashboard/agent` with `totalCount > 0` → inline Verify & Earn banner is the first thing visible at the top of the dashboard content; tapping it opens the same bottom sheet; no FAB on the bottom-right for this button.
+- Mobile preview with `totalCount === 0`: dashboard renders normally, no empty banner.
+- Desktop (≥1024): same inline banner appears at the top of the agent dashboard column — consistent across breakpoints, no overlap with the right-edge FABs (`FieldCollectFab`, `CreditVerificationButton`).
+- The sheet's Houses / Tenants tabs, GPS-gated verify flows, and bonus payouts behave exactly as before — no logic change inside the sheet.
 
-Slides in over any row in any tab. Six fixed sections, top to bottom:
+## Out of scope
 
-1. **Header** — avatar, name, phone, trust score with 30-day delta arrow.
-2. **Trend strip** — 30-day sparkline: payments made vs. expected.
-3. **Cohort** — "This tenant vs. neighbourhood median" mini bar (paid %, on-time %, days-since-visit).
-4. **Trust factor breakdown** — 6 factors from `welile_trust_score_cache` with last-7d delta per factor.
-5. **Last 5 events** — pulled from `system_events` for this user, newest first.
-6. **Verbs** — same Act / Snooze / Escalate / Open full profile.
-
-## Build order (Tenant Ops only — Agent + Landlord come later)
-
-1. **Backend foundations** (one migration)
-   - `ops_inbox_state` table (ops_user_id, tenant_id, snoozed_until, escalated_at).
-   - `ops_saved_segments` table (owner, name, filter_json, is_starter).
-   - `mv_tenant_segment_counts` materialised view + nightly refresh cron.
-   - RPC `ops_tenant_inbox(p_ops_user, p_bucket, p_limit, p_cursor)` returning ranked tenants with `reason`, `severity`, `trust_delta_30d`.
-   - RPC `ops_query_tenants(p_segment_id, p_cursor, p_limit)` keyset-paginated.
-   - RPC `ops_tenant_behavior(p_tenant_id)` returning the 6 drawer sections as one JSON payload.
-   - Seed 6 starter segments.
-
-2. **Shared primitives** (new files)
-   - `src/components/ops/OpsShell.tsx` — the 3-tab frame.
-   - `src/components/ops/InboxBucketList.tsx` — virtualised action cards.
-   - `src/components/ops/SegmentBrowser.tsx` — left rail + virtualised list + bulk action bar.
-   - `src/components/ops/BehaviorDrawer.tsx` — the shared drawer.
-   - `src/hooks/useOpsInbox.ts`, `useOpsSegment.ts`, `useTenantBehavior.ts`.
-
-3. **Tenant Ops rewrite**
-   - New `TenantOpsDashboardV2.tsx` composes `OpsShell` + tenant-flavoured inbox reasons + tenant segments.
-   - Keep the existing `TenantOpsDashboard.tsx` reachable behind a "Classic view" toggle for one release so nothing is lost.
-   - Mobile-first: the 3 tabs collapse to a bottom tab bar; segment left-rail becomes a top dropdown.
-
-4. **QA at scale**
-   - Seed 10,000 fake tenants in a `pg_temp` script run locally; verify inbox + segment paginate without timeouts.
-   - Verify Realtime stays under 1 subscription per ops session.
-
-## What we explicitly do NOT do in this plan
-
-- We do **not** touch Agent Ops or Landlord Ops. Those get their own plans once Tenant Ops is validated in production.
-- We do **not** change any ledger, wallet, or rent-pipeline logic. UI only + new ops-scoped tables + 3 read-only RPCs.
-- We do **not** delete the existing TenantOpsDashboard component yet — kept behind a toggle.
-
-## Technical details
-
-- **Virtualisation**: `@tanstack/react-virtual` (already in tree).
-- **Realtime channel**: single `ops:inbox:{ops_user_id}` channel, fanned out from one `ops_inbox_events` table (insert per severity-bucket change) — avoids subscribing to large mutable tables.
-- **Severity ranking**: computed server-side from existing signals — `rent_requests.days_overdue`, `welile_trust_score_cache.score_delta_7d`, `agent_visits.last_at`, `wallets.advance_balance`. No new scoring logic.
-- **RLS**: all 3 RPCs `SECURITY DEFINER SET search_path = public`, gated by `has_role(auth.uid(), ANY('manager','operations','coo','super_admin'))`.
-- **Starter segments** (seeded): Overdue 3+ days · Overdue 7+ days no visit · New (last 7d) unverified · Trust drop ≥10 in 7d · Advance balance > 0 with no payment in 14d · Kampala overdue.
-
-## Acceptance
-
-- A manager can land on Tenant Ops, see ≤ 50 cards across 5 buckets, and act on the top one without scrolling.
-- A manager can run a saved segment over 48k+ tenants and bulk-SMS them in ≤ 3 clicks.
-- Opening the Behavior drawer on any tenant loads in ≤ 800ms (single RPC).
-- Old TenantOpsDashboard still reachable via "Classic view" toggle for one release.
-
-Approve this and I'll start with the migration + shared primitives.
+- No backend or RPC changes.
+- No changes to `FieldCollectFab` or `CreditVerificationButton`.
+- No changes to the Android backdrop-blur / compositor tearing detector (separate issue).

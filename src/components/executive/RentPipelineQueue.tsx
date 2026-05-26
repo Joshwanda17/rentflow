@@ -382,7 +382,7 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
     queryFn: async () => {
       const { data } = await supabase
         .from('rent_requests')
-        .select('id, tenant_id, agent_id, landlord_id, lc1_id, rent_amount, duration_days, access_fee, request_fee, total_repayment, daily_repayment, status, created_at, house_category, request_city, request_latitude, request_longitude, assigned_agent_id, payout_method, payout_transaction_reference, approval_comment, agent_ops_comment, tenant_ops_comment, landlord_ops_comment, registration_type, initial_outstanding_balance, tenant_photo_url, house_image_urls')
+        .select('id, tenant_id, agent_id, landlord_id, lc1_id, rent_amount, duration_days, access_fee, request_fee, total_repayment, daily_repayment, status, created_at, house_category, request_city, request_latitude, request_longitude, assigned_agent_id, payout_method, payout_transaction_reference, approval_comment, agent_ops_comment, tenant_ops_comment, landlord_ops_comment, registration_type, initial_outstanding_balance, tenant_photo_url, house_image_urls, latest_rent_receipt_url, latest_rent_receipt_uploaded_at')
         .eq('status', stage)
         .order('created_at', { ascending: true })
         .limit(100);
@@ -879,6 +879,39 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
                   </div>
                 )}
               </div>
+
+              {/* Latest rent receipt from landlord — highlighted for operator review */}
+              {selectedRequest.latest_rent_receipt_url && (
+                <div className="rounded-xl border-2 border-amber-400/60 bg-amber-50 dark:bg-amber-950/20 p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="text-sm font-semibold flex items-center gap-1.5 text-amber-900 dark:text-amber-200">
+                      <Camera className="h-4 w-4" />
+                      Tenant's Latest Rent Receipt (from Landlord)
+                    </h4>
+                    {selectedRequest.latest_rent_receipt_uploaded_at && (
+                      <span className="text-[10px] text-amber-800/70 dark:text-amber-300/70">
+                        {new Date(selectedRequest.latest_rent_receipt_uploaded_at).toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                  <a
+                    href={selectedRequest.latest_rent_receipt_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block"
+                  >
+                    <img
+                      src={selectedRequest.latest_rent_receipt_url}
+                      alt="Tenant's latest rent receipt"
+                      className="w-full max-h-96 rounded-lg object-contain border-2 border-amber-300 bg-white hover:ring-2 hover:ring-amber-500 transition-all cursor-zoom-in"
+                      loading="lazy"
+                    />
+                  </a>
+                  <p className="text-[10px] text-amber-800/80 dark:text-amber-300/80">
+                    Most recent receipt the landlord issued to this tenant. Click to enlarge.
+                  </p>
+                </div>
+              )}
 
               {/* Tenant passport + house photos — visible verification evidence */}
               {(selectedRequest.tenant_photo_url || (selectedRequest.house_image_urls && selectedRequest.house_image_urls.length > 0)) && (

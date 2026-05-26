@@ -53,6 +53,12 @@ interface PortfolioInfo {
   portfolio_code: string | null;
   account_name: string | null;
   investor_id: string;
+  payment_method?: 'mobile_money' | 'bank_transfer' | 'cash' | null;
+  mobile_network?: 'MTN' | 'Airtel' | null;
+  mobile_money_number?: string | null;
+  bank_name?: string | null;
+  bank_account_name?: string | null;
+  account_number?: string | null;
 }
 
 const ACTIVE_PROXY_WITHDRAWAL_STATUSES = [
@@ -104,6 +110,7 @@ export function ProxyPartnerFunds() {
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [prefillAmount, setPrefillAmount] = useState<number>(0);
   const [prefillReason, setPrefillReason] = useState('');
+  const [prefillPayout, setPrefillPayout] = useState<any>(null);
   const [selectedPartnerId, setSelectedPartnerId] = useState<string>('');
   const [partnerWithdrawalStatus, setPartnerWithdrawalStatus] = useState<Record<string, string>>({});
   const [partnerWithdrawalIds, setPartnerWithdrawalIds] = useState<Record<string, string>>({});
@@ -394,7 +401,7 @@ export function ProxyPartnerFunds() {
       if (uniquePortfolioIds.length > 0) {
         const { data: portfolioData } = await supabase
           .from('investor_portfolios')
-          .select('id, portfolio_code, account_name, investor_id')
+          .select('id, portfolio_code, account_name, investor_id, payment_method, mobile_network, mobile_money_number, bank_name, bank_account_name, account_number')
           .in('id', uniquePortfolioIds);
         fetchedPortfolios = (portfolioData || []) as PortfolioInfo[];
       }
@@ -799,6 +806,85 @@ export function ProxyPartnerFunds() {
       ? ` (Portfolio: ${partner.accountName || partner.portfolioCode})`
       : '';
     setPrefillReason(`Proxy payout delivery for ${partner.partnerName}${portfolioLabel}`);
+
+    // Auto-populate payout destination so the agent never re-keys partner
+    // MoMo / bank details on a proxy withdrawal. Resolution order:
+    //   1. The portfolio's saved payment route (set by Partner Ops).
+    //   2. The partner's `saved_payout_methods` (their default, then most
+    //      recently added) — same source the partner sees when withdrawing
+    //      for themselves.
+    //   3. The partner's `profiles.mobile_money_number` as a last resort.
+    // If none of those exist, prefillPayout stays null and the form shows
+    // empty fields for manual entry (audited).
+    const pInfo = partner.portfolioId ? portfolioMap[partner.portfolioId] : null;
+    let resolved: any = null;
+    if (pInfo?.payment_method === 'mobile_money') {
+      resolved = {
+        payoutMode: pInfo.mobile_network === 'Airtel' ? 'airtel' : 'mtn',
+        momoNumber: pInfo.mobile_money_number || '',
+        momoName: pInfo.account_name || partner.partnerName || '',
+      };
+    } else if (pInfo?.payment_method === 'bank_transfer') {
+      resolved = {
+        payoutMode: 'bank',
+        bankName: pInfo.bank_name || '',
+        bankAccountName: pInfo.bank_account_name || partner.partnerName || '',
+        bankAccountNumber: pInfo.account_number || '',
+      };
+    } else if (pInfo?.payment_method === 'cash') {
+      resolved = { payoutMode: 'cash' };
+    }
+
+    if (!resolved) {
+      try {
+        const { data: saved } = await supabase
+          .from('saved_payout_methods' as never)
+          .select('*')
+          .eq('user_id', partner.partnerId)
+          .order('is_default', { ascending: false })
+          .order('last_used_at', { ascending: false, nullsFirst: false })
+          .order('created_at', { ascending: false })
+          .limit(1);
+        const s: any = (saved ?? [])[0];
+        if (s?.payout_mode === 'mobile_money') {
+          resolved = {
+            payoutMode: s.momo_provider === 'Airtel' ? 'airtel' : 'mtn',
+            momoNumber: s.momo_number || '',
+            momoName: s.momo_name || partner.partnerName || '',
+          };
+        } else if (s?.payout_mode === 'bank_transfer') {
+          resolved = {
+            payoutMode: 'bank',
+            bankName: s.bank_name || '',
+            bankAccountName: s.bank_account_name || partner.partnerName || '',
+            bankAccountNumber: s.bank_account_number || '',
+          };
+        } else if (s?.payout_mode === 'cash') {
+          resolved = { payoutMode: 'cash' };
+        }
+      } catch { /* non-fatal: fall through to profile lookup */ }
+    }
+
+    if (!resolved) {
+      try {
+        const { data: prof } = await supabase
+          .from('profiles')
+          .select('mobile_money_number, mobile_money_provider, full_name')
+          .eq('id', partner.partnerId)
+          .maybeSingle();
+        if (prof?.mobile_money_number) {
+          const prov = (prof.mobile_money_provider || '').toLowerCase();
+          resolved = {
+            payoutMode: prov === 'airtel' ? 'airtel' : 'mtn',
+            momoNumber: prof.mobile_money_number,
+            momoName: prof.full_name || partner.partnerName || '',
+          };
+        }
+      } catch { /* non-fatal */ }
+    }
+
+    setPrefillPayout(resolved);
+
     setWithdrawOpen(true);
 
     try {
@@ -1378,6 +1464,7 @@ export function ProxyPartnerFunds() {
         onSuccess={handleWithdrawSuccess}
         prefillAmount={prefillAmount}
         prefillReason={prefillReason}
+        prefillPayout={prefillPayout}
         linkedParty={selectedPartnerId}
       />
 

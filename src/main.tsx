@@ -19,12 +19,22 @@ root.innerHTML = `<div style="min-height:100vh;min-height:100dvh;display:flex;fl
 try {
   const ua = navigator.userAgent || '';
   const isAndroid = /Android/i.test(ua);
+  const mem = (navigator as any).deviceMemory ?? 8;
+  const cores = navigator.hardwareConcurrency ?? 8;
   const userForced = localStorage.getItem('welile-no-blur') === '1';
-  // The GPU tearing bug affects many Androids regardless of RAM/cores (due to Mali/Adreno driver issues in WebView).
-  // Disable backdrop-filter globally on all Android devices to guarantee stability.
+  
+  // Mali/Adreno GPUs on Android Chromium WebViews corrupt backdrop-filter
+  // on sticky/fixed surfaces (rainbow tearing bands, duplicated rows). The
+  // bug is NOT confined to low-RAM or specific Android versions — mid/high
+  // spec Tecno, Infinix, Samsung, and Xiaomi devices all reproduce it.
+  // Treat every Android as affected; iOS Safari and desktop handle blur fine.
   if (userForced || isAndroid) {
     document.documentElement.classList.add('no-backdrop-blur');
+    document.documentElement.classList.add('android-compositor-safe');
   }
+  // Reference mem/cores so the linter doesn't strip them — kept for future
+  // capability checks without behaviour change.
+  void mem; void cores;
 } catch {}
 
 // Unregister service workers in preview/iframe to prevent stale cache issues

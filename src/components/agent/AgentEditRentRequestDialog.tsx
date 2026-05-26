@@ -278,7 +278,9 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
         description = 'The agent_resubmit_rent_request function is not deployed. Contact support to redeploy it.';
       } else if (/reopen limit reached/i.test(raw)) {
         title = 'Reopen limit reached';
-        description = 'You have already resubmitted this request 3 times. A manager must reopen it.';
+        const m = raw.match(/Reopen limit reached \((\d+)\)/i);
+        const cap = m ? m[1] : '5';
+        description = `You have already resubmitted this request ${cap} times. A manager must reopen it from the Rejected Requests queue.`;
       } else if (/only the agent who created/i.test(raw)) {
         title = 'Not your request';
         description = 'Only the agent who created this request can resubmit it.';

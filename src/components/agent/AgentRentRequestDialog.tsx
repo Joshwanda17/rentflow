@@ -309,6 +309,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [gpsLoading, setGpsLoading] = useState(false);
   const [housePhotos, setHousePhotos] = useState<{ file: File; preview: string }[]>([]);
   const [tenantPhoto, setTenantPhoto] = useState<{ file: File; preview: string } | null>(null);
+  const [latestRentReceipt, setLatestRentReceipt] = useState<{ file: File; preview: string } | null>(null);
   const [guarantorConsent, setGuarantorConsent] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
@@ -356,20 +357,32 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     );
   }, []);
 
-  const handlePhotoAdd = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    const remaining = 3 - housePhotos.length;
-    if (remaining <= 0) { toast.error('Maximum 3 photos'); return; }
-    const toAdd = files.slice(0, remaining);
-    const newPhotos = toAdd.map(f => ({ file: f, preview: URL.createObjectURL(f) }));
-    setHousePhotos(prev => [...prev, ...newPhotos]);
+  // Four required outside views of the house
+  const HOUSE_PHOTO_SLOTS = [
+    { key: 'front', label: 'Front of house', hint: 'Main entrance / front facade' },
+    { key: 'back', label: 'Back of house', hint: 'Rear side of the building' },
+    { key: 'left', label: 'Left side', hint: 'Left exterior wall' },
+    { key: 'right', label: 'Right side', hint: 'Right exterior wall' },
+  ] as const;
+
+  const handlePhotoAddAt = useCallback((index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (e.target) e.target.value = '';
-  }, [housePhotos.length]);
+    if (!file) return;
+    setHousePhotos(prev => {
+      const next = [...prev];
+      if (next[index]) URL.revokeObjectURL(next[index].preview);
+      next[index] = { file, preview: URL.createObjectURL(file) };
+      return next;
+    });
+  }, []);
 
   const removePhoto = useCallback((index: number) => {
     setHousePhotos(prev => {
-      URL.revokeObjectURL(prev[index].preview);
-      return prev.filter((_, i) => i !== index);
+      const next = [...prev];
+      if (next[index]) URL.revokeObjectURL(next[index].preview);
+      next.splice(index, 1);
+      return next;
     });
   }, []);
 
@@ -389,6 +402,54 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       return null;
     });
   }, []);
+
+  const handleLatestRentReceipt = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const input = e.target;
+    if (input) input.value = '';
+    if (!file) return;
+    try {
+      // Optimize immediately so we don't hold a multi-MB raw camera photo in memory
+      // (low-end phones OOM when the preview blob + original File both live in state).
+      const optimized = await optimizeImage(file, { maxWidth: 1600, quality: 0.85 });
+      setLatestRentReceipt(prev => {
+        if (prev) URL.revokeObjectURL(prev.preview);
+        return { file: optimized.file, preview: optimized.previewUrl };
+      });
+    } catch (err) {
+      console.warn('Receipt optimize failed, falling back to raw file:', err);
+      setLatestRentReceipt(prev => {
+        if (prev) URL.revokeObjectURL(prev.preview);
+        return { file, preview: URL.createObjectURL(file) };
+      });
+    }
+  }, []);
+
+  const removeLatestRentReceipt = useCallback(() => {
+    setLatestRentReceipt(prev => {
+      if (prev) URL.revokeObjectURL(prev.preview);
+      return null;
+    });
+  }, []);
+
+  const uploadLatestRentReceipt = async (requestId: string): Promise<string | null> => {
+    if (!user || !latestRentReceipt) return null;
+    try {
+      // Already optimized at capture-time; just upload as-is.
+      const file = latestRentReceipt.file;
+      const ext = file.name.split('.').pop() || 'webp';
+      const path = `${user.id}/${requestId}/latest_rent_receipt.${ext}`;
+      const { error } = await supabase.storage
+        .from('house-images')
+        .upload(path, file, { cacheControl: '86400', upsert: true });
+      if (error) throw error;
+      const { data } = supabase.storage.from('house-images').getPublicUrl(path);
+      return data.publicUrl;
+    } catch (err) {
+      console.warn('Latest rent receipt upload failed:', err);
+      return null;
+    }
+  };
 
   const uploadTenantPhoto = async (requestId: string, tenantUserId?: string | null): Promise<string | null> => {
     if (!user || !tenantPhoto) return null;
@@ -464,6 +525,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setHousePhotos([]);
     if (tenantPhoto) URL.revokeObjectURL(tenantPhoto.preview);
     setTenantPhoto(null);
+    if (latestRentReceipt) URL.revokeObjectURL(latestRentReceipt.preview);
+    setLatestRentReceipt(null);
     setGuarantorConsent(false);
     setValidationErrors([]);
     setSubmissionError(null);
@@ -549,6 +612,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     if (!preferredLanguage) errors.push('Preferred language is required');
 
     if (!tenantPhoto) errors.push('Tenant passport photo is required');
+    if (!latestRentReceipt) errors.push("Photo of tenant's latest rent receipt is required");
 
     // Outstanding flow uses a searchable landlord picker (LC already linked).
     // Other flows still collect landlord + LC1 inline.
@@ -861,6 +925,20 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         }
       }
 
+      // Upload latest rent receipt photo from the landlord (required)
+      if (latestRentReceipt && rentReq?.id) {
+        const receiptUrl = await uploadLatestRentReceipt(rentReq.id);
+        if (receiptUrl) {
+          await supabase
+            .from('rent_requests')
+            .update({
+              latest_rent_receipt_url: receiptUrl,
+              latest_rent_receipt_uploaded_at: new Date().toISOString(),
+            } as any)
+            .eq('id', rentReq.id);
+        }
+      }
+
       // Build activation link if tenant is new
       if (!tenantResult.existing && tenantResult.activation_token) {
         const link = `${getPublicOrigin()}/join?t=${tenantResult.activation_token}`;
@@ -1081,6 +1159,55 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
             >
               {/* Agent rent exposure capacity (100M UGX cap) */}
               <AgentCapacityBanner agentId={user?.id} />
+
+              {/* Latest rent receipt from landlord (required for all flows) */}
+              <div className="space-y-2 p-4 rounded-2xl border-2 border-amber-400/40 bg-amber-50/60 dark:bg-amber-500/5">
+                <h4 className="text-sm font-semibold flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-amber-600" />
+                  📄 Tenant's Latest Rent Receipt *
+                </h4>
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  Upload a clear photo of the most recent rent receipt the landlord
+                  gave the tenant. Used to verify rent amount, payment history and
+                  tenancy before approval.
+                </p>
+                <div className="flex items-start gap-3">
+                  {latestRentReceipt ? (
+                    <div className="relative h-28 w-28 rounded-lg overflow-hidden border border-border shrink-0">
+                      <img
+                        src={latestRentReceipt.preview}
+                        alt="Latest rent receipt"
+                        className="w-full h-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={removeLatestRentReceipt}
+                        className="absolute top-1 right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs font-bold"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="h-28 w-28 rounded-lg border-2 border-dashed border-amber-500/40 flex flex-col items-center justify-center cursor-pointer hover:border-amber-500 hover:bg-amber-100/40 dark:hover:bg-amber-500/10 transition-colors shrink-0">
+                      <span className="text-2xl">🧾</span>
+                      <span className="text-[10px] text-muted-foreground mt-0.5 text-center px-1 leading-tight">
+                        Tap to capture
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={handleLatestRentReceipt}
+                      />
+                    </label>
+                  )}
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    Make sure the receipt date, amount and landlord name are clearly
+                    visible. Blurry or cropped photos will be rejected.
+                  </p>
+                </div>
+              </div>
 
               {/* ===== 1. RENT DETAILS — PRIMARY SECTION ===== */}
               {incomeType === 'outstanding' ? (
@@ -1638,37 +1765,48 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   )}
                 </div>
 
-                {/* House Photos (max 3) */}
+                {/* House Photos — 4 outside views */}
                 <div className="space-y-2">
                   <Label className="text-xs flex items-center gap-1">
-                    📸 House Photos (up to 3)
+                    📸 House Photos — capture all 4 outside views
                   </Label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {housePhotos.map((photo, idx) => (
-                      <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-border">
-                        <img src={photo.preview} alt={`House ${idx + 1}`} className="w-full h-full object-cover" />
-                        <button
-                          type="button"
-                          onClick={() => removePhoto(idx)}
-                          className="absolute top-1 right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs font-bold"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
-                    {housePhotos.length < 3 && (
-                      <label className="aspect-square rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors">
-                        <span className="text-xl text-muted-foreground/50">📷</span>
-                        <span className="text-[10px] text-muted-foreground/50 mt-1">Add Photo</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          capture="environment"
-                          className="hidden"
-                          onChange={handlePhotoAdd}
-                        />
-                      </label>
-                    )}
+                  <p className="text-[11px] text-muted-foreground">
+                    Take one photo of each outside part of the house: front, back, left side and right side.
+                  </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {HOUSE_PHOTO_SLOTS.map((slot, idx) => {
+                      const photo = housePhotos[idx];
+                      return (
+                        <div key={slot.key} className="space-y-1">
+                          {photo ? (
+                            <div className="relative aspect-square rounded-lg overflow-hidden border border-border">
+                              <img src={photo.preview} alt={slot.label} className="w-full h-full object-cover" />
+                              <button
+                                type="button"
+                                onClick={() => removePhoto(idx)}
+                                className="absolute top-1 right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs font-bold"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ) : (
+                            <label className="aspect-square rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors text-center px-1">
+                              <span className="text-xl text-muted-foreground/60">📷</span>
+                              <span className="text-[10px] font-medium text-foreground/80 mt-1 leading-tight">{slot.label}</span>
+                              <span className="text-[9px] text-muted-foreground/60 mt-0.5 leading-tight">{slot.hint}</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                capture="environment"
+                                className="hidden"
+                                onChange={(e) => handlePhotoAddAt(idx, e)}
+                              />
+                            </label>
+                          )}
+                          <p className="text-[10px] text-center text-muted-foreground truncate">{slot.label}</p>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>

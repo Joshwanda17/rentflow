@@ -10,6 +10,19 @@ section[aria-label*="Notifications" i]:empty {
 }
 
 @media (max-width: 640px) {
+  html,
+  body,
+  #root {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    overflow-x: clip;
+  }
+
+  body {
+    position: relative;
+  }
+
   [data-sonner-toaster] {
     display: contents !important;
     right: 0 !important;
@@ -23,6 +36,36 @@ section[aria-label*="Notifications" i]:empty {
   [data-sonner-toast] {
     width: min(calc(100vw - 24px), 356px) !important;
     margin-inline: auto !important;
+  }
+
+  .agent-dashboard-shell,
+  .agent-dashboard-scroll,
+  .agent-dashboard-main {
+    width: 100%;
+    max-width: 100vw;
+    min-width: 0;
+    overflow-x: hidden;
+    overflow-x: clip;
+    overscroll-behavior-x: none;
+  }
+
+  .agent-dashboard-main > * {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  [role="dialog"].app-sheet-content {
+    max-width: 100vw !important;
+    overflow-x: hidden;
+  }
+
+  [role="dialog"].app-sheet-content[data-sheet-side="bottom"],
+  [role="dialog"].app-sheet-content[data-sheet-side="top"] {
+    left: 0 !important;
+    right: 0 !important;
+    width: 100vw !important;
+    transform: translate3d(0, 0, 0) !important;
+    -webkit-transform: translate3d(0, 0, 0) !important;
   }
 }
 
@@ -210,7 +253,50 @@ section[aria-label*="Notifications" i]:empty {
 
 @layer utilities {
   /* Animations */
+  .animate-fade-in {
+    animation: fade-in 0.2s ease-out;
+  }
 
+  .animate-fade-in-up {
+    animation: fade-in-up 0.2s ease-out;
+  }
+
+  .animate-scale-in {
+    animation: scale-in 0.15s ease-out;
+  }
+
+  .animate-slide-in-right {
+    animation: slide-in-right 0.2s ease-out;
+  }
+
+  .animate-pulse-subtle {
+    animation: pulse-subtle 2s ease-in-out infinite;
+  }
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes fade-in-up {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes scale-in {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  @keyframes slide-in-right {
+    from { opacity: 0; transform: translateX(10px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  @keyframes pulse-subtle {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
 
   /* Safe area for mobile */
   .safe-area-top {
@@ -809,6 +895,96 @@ html.no-backdrop-blur [class*="backdrop-blur"] {
   background-color: hsl(var(--card)) !important;
 }
 
+/* =====================================================================
+   Android 12-14 Chrome / Samsung Internet compositor safe-mode.
+   Applied by main.tsx when an affected UA is detected.
+   Fixes:
+    1. Rainbow tearing band on tall blurred cards (oversized GPU texture).
+    2. Duplicated "sticky" rows inside transformed/rounded scroll containers.
+    3. Re-paint smear when Framer Motion leaves `will-change: transform` on.
+   ===================================================================== */
+html.android-compositor-safe [class*="backdrop-blur"],
+html.android-compositor-safe .glass-card {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Kill nested GPU layer promotion inside dialogs/sheets/drawers — the
+   compositor doubles sticky/fixed children when their ancestor is
+   transformed. Only the outermost overlay gets a promoted layer. */
+html.android-compositor-safe [role="dialog"] *:not(.app-sheet-content):not(.app-dialog-content),
+html.android-compositor-safe [data-radix-popper-content-wrapper] * {
+  transform: none !important;
+  -webkit-transform: none !important;
+  will-change: auto !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* The overlay itself stays promoted, but constrain its paint so the
+   driver never allocates a texture larger than the viewport. */
+html.android-compositor-safe [role="dialog"].app-dialog-content {
+  contain: layout paint;
+  transform: translate3d(-50%, -50%, 0) !important;
+  -webkit-transform: translate3d(-50%, -50%, 0) !important;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+html.android-compositor-safe [role="dialog"].app-sheet-content[data-sheet-side="bottom"],
+html.android-compositor-safe [role="dialog"].app-sheet-content[data-sheet-side="top"] {
+  contain: layout paint;
+  transform: translate3d(0, 0, 0) !important;
+  -webkit-transform: translate3d(0, 0, 0) !important;
+  left: 0 !important;
+  right: 0 !important;
+  max-width: 100vw !important;
+  overflow-x: hidden;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+html.android-compositor-safe [role="dialog"].app-sheet-content[data-sheet-side="left"],
+html.android-compositor-safe [role="dialog"].app-sheet-content[data-sheet-side="right"] {
+  contain: layout paint;
+  max-width: 100vw !important;
+  overflow-x: hidden;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* Heavy shadows on rounded cards are the second-biggest source of
+   oversized textures. Soften them on affected devices. */
+html.android-compositor-safe .shadow-2xl,
+html.android-compositor-safe .shadow-xl {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Disable position:sticky inside transformed ancestors (root of the
+   "duplicated Auto-Reinvest / Next ROI Date" bug). */
+html.android-compositor-safe [role="dialog"] .sticky,
+html.android-compositor-safe [role="dialog"] [class*="sticky"] {
+  position: relative !important;
+  top: auto !important;
+}
+
+/* The main scroll shells get framer-motion / pull-to-refresh transforms
+   left on them which promote a full-viewport-tall GPU layer. On low-end
+   Mali/Adreno GPUs that texture overruns the max size and the driver
+   returns a corrupted buffer (rainbow tearing band). Force them to paint
+   into the parent layer. */
+html.android-compositor-safe .agent-dashboard-shell,
+html.android-compositor-safe .agent-dashboard-main,
+html.android-compositor-safe [data-pull-to-refresh],
+html.android-compositor-safe [data-pull-to-refresh] > * {
+  transform: none !important;
+  -webkit-transform: none !important;
+  will-change: auto !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  filter: none !important;
+}
+
 /* Data-saver: hide decorative elements */
 @media (prefers-reduced-data: reduce) {
   [data-decorative], .decorative, [save-data-hidden] {
@@ -828,12 +1004,40 @@ html.no-backdrop-blur [class*="backdrop-blur"] {
 }
 
 /* Clearance for fixed bottom role / tab nav on mobile.
-   Bottom nav is ~64px; add safe-area-inset-bottom for iPhone home indicator. */
+   Bottom nav is ~72px (56px min-h + py-2); add safe-area-inset-bottom for
+   iPhone home indicator PLUS a comfortable 24px buffer so the last row of
+   content (e.g. the agent hub tab strip) never sits flush behind the nav. */
 .pb-nav {
-  padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(9rem + env(safe-area-inset-bottom, 0px));
 }
 @media (min-width: 1024px) {
   .pb-nav { padding-bottom: 1rem; }
+}
+
+/* Single source of truth for how far floating action buttons must sit above
+   the bottom of the viewport so they never collide with the fixed bottom
+   role switcher (~72px) or the iPhone home indicator (safe-area-inset-bottom).
+   The +12px gives every FAB a visible breathing gap above the nav.
+
+   Used by: FieldCollectFab, FloatingToolbar (WhatsApp), AgentNavFAB, and any
+   future mobile FAB. Reference it as `bottom: var(--fab-bottom)` (or the
+   Tailwind arbitrary value `bottom-[var(--fab-bottom)]`). */
+:root {
+  --fab-bottom: calc(72px + env(safe-area-inset-bottom, 0px) + 12px);
+  --fab-bottom-stacked: calc(72px + env(safe-area-inset-bottom, 0px) + 76px);
+}
+@media (min-width: 768px) {
+  /* Desktop has no bottom role switcher — anchor FABs to a small inset only. */
+  :root {
+    --fab-bottom: 1.5rem;
+    --fab-bottom-stacked: 5.5rem;
+  }
+}
+/* Short landscape phones (≤ 500px tall): collapse non-critical FABs so they
+   don't dominate the limited vertical space or overlap each other. */
+@media (max-height: 500px) and (orientation: landscape) {
+  .fab-hide-landscape { display: none !important; }
+  .fab-shrink-landscape { transform: scale(0.85); transform-origin: bottom right; }
 }
 
 /* Sticky header that respects the iOS notch */

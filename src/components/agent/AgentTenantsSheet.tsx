@@ -960,9 +960,37 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[92vh] rounded-t-3xl flex flex-col p-0 gap-0 overflow-y-auto">
+      <SheetContent
+        side="bottom"
+        className={`${view === 'pipeline' && !profileTenantId ? 'h-screen max-h-screen rounded-none' : 'h-[92vh] rounded-t-3xl'} flex flex-col p-0 gap-0 overflow-y-auto`}
+      >
         {profileTenantId ? (
           <TenantProfileView tenantId={profileTenantId} onBack={() => setProfileTenantId(null)} />
+        ) : view === 'pipeline' ? (
+          /* Full-screen Submissions takeover — covers the entire screen
+             until the agent deliberately taps Back. */
+          <div className="flex flex-col h-full bg-background">
+            <div className="sticky top-0 z-40 flex items-center justify-between gap-2 px-3 py-2 bg-background/95 backdrop-blur border-b border-border/60">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setView('tenants')}
+                className="h-11 px-3 rounded-xl text-base font-semibold gap-1"
+                style={{ touchAction: 'manipulation' }}
+              >
+                <ArrowLeft className="h-5 w-5" />
+                Back
+              </Button>
+              <div className="flex items-center gap-2 text-base font-bold">
+                <Users className="h-5 w-5 text-primary" />
+                Submissions
+              </div>
+              <div className="w-[72px]" />
+            </div>
+            <div className="flex-1 overflow-y-auto px-4 py-3">
+              <AgentRequestPipelineView />
+            </div>
+          </div>
         ) : (
         <>
         {/* ───── Header (scrolls with the rest of the page) ───── */}
@@ -1139,8 +1167,8 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
             </SheetTitle>
           </SheetHeader>
 
-          {/* Top-level view toggle: live tenants vs request pipeline */}
-          <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-muted/50">
+          {/* Top-level view toggle: live tenants vs request pipeline — sticky on mobile so agents can always switch views */}
+          <div className="sticky top-0 z-30 grid grid-cols-2 gap-2 p-1 rounded-xl bg-muted/50 backdrop-blur supports-[backdrop-filter]:bg-muted/60">
             <button
               onClick={() => setView('tenants')}
               className={`py-2 rounded-lg text-sm font-semibold transition-all ${
@@ -1152,9 +1180,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
             </button>
             <button
               onClick={() => setView('pipeline')}
-              className={`py-2 rounded-lg text-sm font-semibold transition-all ${
-                view === 'pipeline' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'
-              }`}
+              className="py-2 rounded-lg text-sm font-semibold text-muted-foreground transition-all"
               style={{ touchAction: 'manipulation', minHeight: '40px' }}
             >
               Submissions
@@ -1169,7 +1195,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           </div>
           {/* Quick search — pinned at the top of the sheet so agents can
               jump straight to a tenant without scrolling past stats. */}
-          <div className="sticky top-0 z-20 -mx-4 px-4 pt-1 pb-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+          <div className="sticky top-14 z-20 -mx-4 px-4 pt-1 pb-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -1668,11 +1694,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         </div>
 
         {/* ───── Body ───── */}
-        {view === 'pipeline' ? (
-          <div className="flex-1 overflow-y-auto px-4 py-3">
-            <AgentRequestPipelineView />
-          </div>
-        ) : mapMode ? (
+        {mapMode ? (
           <div className="flex-1 overflow-hidden px-4 py-3">
             <PropertyMapView
               tenants={processedTenants}

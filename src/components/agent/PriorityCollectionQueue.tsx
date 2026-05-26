@@ -1,13 +1,17 @@
 import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
-import { AlertTriangle, Navigation, Phone, ChevronRight, MapPin } from 'lucide-react';
+import { AlertTriangle, Navigation, Phone, Ban, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { differenceInDays } from 'date-fns';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
+import { RentPaymentStatusSheet } from './RentPaymentStatusSheet';
+import type { AgentPaymentStatus } from '@/hooks/useRentPaymentStatusMutation';
 
 interface CollectionItem {
+  rent_request_id: string;
   tenant_id: string;
   tenant_name: string;
   tenant_phone: string;
@@ -20,6 +24,7 @@ interface CollectionItem {
   latitude?: number | null;
   longitude?: number | null;
   risk_level: 'low' | 'medium' | 'high' | 'critical' | 'completed';
+  agent_payment_status: AgentPaymentStatus;
 }
 
 interface Props {
@@ -29,12 +34,14 @@ interface Props {
 }
 
 export function PriorityCollectionQueue({ open, onOpenChange, agentId }: Props) {
+  const [editTarget, setEditTarget] = useState<CollectionItem | null>(null);
+
   const { data: queue = [], isLoading } = useQuery({
     queryKey: ['priority-collection-queue', agentId],
     queryFn: async () => {
       const { data: requests } = await supabase
         .from('rent_requests')
-        .select('tenant_id, rent_amount, daily_repayment, amount_repaid, total_repayment, disbursed_at, status, request_latitude, request_longitude')
+        .select('id, tenant_id, rent_amount, daily_repayment, amount_repaid, total_repayment, disbursed_at, status, request_latitude, request_longitude, agent_payment_status')
         .eq('agent_id', agentId)
         .neq('status', 'rejected');
 
@@ -60,6 +67,7 @@ export function PriorityCollectionQueue({ open, onOpenChange, agentId }: Props) 
         const risk: CollectionItem['risk_level'] = isCompleted ? 'completed' : daysOverdue >= 10 ? 'critical' : daysOverdue >= 5 ? 'high' : daysOverdue >= 2 ? 'medium' : 'low';
 
         return {
+          rent_request_id: r.id,
           tenant_id: r.tenant_id,
           tenant_name: profileMap[r.tenant_id]?.name || 'Unknown',
           tenant_phone: profileMap[r.tenant_id]?.phone || '',
@@ -72,6 +80,7 @@ export function PriorityCollectionQueue({ open, onOpenChange, agentId }: Props) 
           latitude: r.request_latitude,
           longitude: r.request_longitude,
           risk_level: risk,
+          agent_payment_status: ((r as any).agent_payment_status ?? 'paying') as AgentPaymentStatus,
         };
       }).sort((a, b) => {
         if (a.risk_level === 'completed' && b.risk_level !== 'completed') return 1;
@@ -102,6 +111,7 @@ export function PriorityCollectionQueue({ open, onOpenChange, agentId }: Props) 
   };
 
   const totalOwed = queue.reduce((s, i) => s + i.outstanding, 0);
+  const notPayingCount = queue.filter(q => q.agent_payment_status === 'not_paying').length;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -112,9 +122,14 @@ export function PriorityCollectionQueue({ open, onOpenChange, agentId }: Props) 
             Priority Collections
           </SheetTitle>
           <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">{queue.length} tenants total</span>
+            <span className="text-muted-foreground">
+              {queue.length} tenants{notPayingCount > 0 ? ` · ${notPayingCount} not paying` : ''}
+            </span>
             <span className="font-bold text-destructive">{formatUGX(totalOwed)} owed</span>
           </div>
+          <p className="text-[11px] text-muted-foreground text-left">
+            Tap a tenant's status pill to mark them as Not Paying. They will be excluded from your daily 20% target.
+          </p>
         </SheetHeader>
 
         <div className="overflow-y-auto p-3 space-y-2" style={{ maxHeight: 'calc(85vh - 100px)' }}>
@@ -128,7 +143,11 @@ export function PriorityCollectionQueue({ open, onOpenChange, agentId }: Props) 
             queue.map((item, idx) => (
               <div
                 key={item.tenant_id + idx}
-                className={cn("rounded-xl border p-3 space-y-2 transition-all", riskColors[item.risk_level])}
+                className={cn(
+                  "rounded-xl border p-3 space-y-2 transition-all",
+                  riskColors[item.risk_level],
+                  item.agent_payment_status === 'not_paying' && 'opacity-60'
+                )}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 min-w-0">
@@ -148,6 +167,22 @@ export function PriorityCollectionQueue({ open, onOpenChange, agentId }: Props) 
                   <span>•</span>
                   <span>Paid: {formatUGX(item.amount_repaid)}</span>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => setEditTarget(item)}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-semibold border transition-colors',
+                    item.agent_payment_status === 'not_paying'
+                      ? 'border-destructive/40 bg-destructive/10 text-destructive'
+                      : 'border-success/40 bg-success/10 text-success'
+                  )}
+                  aria-label={`Toggle paying status for ${item.tenant_name}`}
+                >
+                  {item.agent_payment_status === 'not_paying'
+                    ? (<><Ban className="h-3 w-3" /> Not Paying — tap to restore</>)
+                    : (<><CheckCircle2 className="h-3 w-3" /> Paying — tap if not paying</>)}
+                </button>
 
                 <div className="flex items-center gap-1.5">
                   {item.tenant_phone && (
@@ -174,6 +209,15 @@ export function PriorityCollectionQueue({ open, onOpenChange, agentId }: Props) 
             ))
           )}
         </div>
+
+        <RentPaymentStatusSheet
+          open={!!editTarget}
+          onOpenChange={(v) => { if (!v) setEditTarget(null); }}
+          rentRequestId={editTarget?.rent_request_id ?? null}
+          tenantName={editTarget?.tenant_name}
+          currentStatus={editTarget?.agent_payment_status ?? 'paying'}
+          agentId={agentId}
+        />
       </SheetContent>
     </Sheet>
   );

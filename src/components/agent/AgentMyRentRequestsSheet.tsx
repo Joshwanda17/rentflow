@@ -201,7 +201,27 @@ export function AgentMyRentRequestsSheet({ open, onOpenChange }: AgentMyRentRequ
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[90vh] rounded-t-2xl p-0 flex flex-col">
+      <SheetContent
+        side="bottom"
+        className="h-[90vh] rounded-t-2xl p-0 flex flex-col"
+        onPointerDownOutside={(e) => {
+          // Nested Radix Dialog/AlertDialog (e.g. AgentEditRentRequestDialog,
+          // the delete confirmation) portals to <body>. On Android, the same
+          // tap that opens the inner overlay also fires a pointerdown on this
+          // Sheet which Radix interprets as "outside" and closes Submissions,
+          // dumping the user back to the agent dashboard.
+          const target = e.target as HTMLElement | null;
+          if (target?.closest('[role="dialog"], [role="alertdialog"]')) {
+            e.preventDefault();
+          }
+        }}
+        onInteractOutside={(e) => {
+          const target = e.target as HTMLElement | null;
+          if (target?.closest('[role="dialog"], [role="alertdialog"]')) {
+            e.preventDefault();
+          }
+        }}
+      >
         <SheetHeader className="p-4 pb-2 border-b">
           <div className="flex items-center justify-between">
             <SheetTitle className="flex items-center gap-2">
