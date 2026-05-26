@@ -1033,17 +1033,41 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
                     rejected: summary.activeRequest?.status === 'rejected',
                     profileId: profile?.id,
                   });
+                  if (floatLoading) {
+                    toast.info("Loading your float…", {
+                      description: "Hold on a moment while we fetch your operations float balance.",
+                    });
+                    return;
+                  }
+                  if (floatError) {
+                    toast.error("Couldn't load your Operations Float", {
+                      description: "Tap Retry above, or check your connection and try again.",
+                    });
+                    return;
+                  }
+                  if (agentFloatBalance < 500) {
+                    toast.error("Insufficient operations float", {
+                      description: `You have ${formatUGX(agentFloatBalance)} in float. Top up your operations float before paying tenant rent.`,
+                    });
+                    return;
+                  }
+                  if (summary.activeRequest?.status === 'rejected') {
+                    toast.error("This rent request was rejected", {
+                      description: "You can't pay from float on a rejected request. Resubmit or start a new request for this tenant.",
+                    });
+                    return;
+                  }
+                  if (summary.currentOutstanding <= 0) {
+                    toast.info("Nothing outstanding to pay", {
+                      description: "This tenant has no outstanding rent right now.",
+                    });
+                    return;
+                  }
                   setCollectDialogOpen(true);
                 }}
                 className="w-full gap-2 text-base h-14 font-bold rounded-xl shadow-lg active:scale-[0.97] transition-transform"
                 variant="success"
                 size="xl"
-                disabled={
-                  floatLoading ||
-                  !!floatError ||
-                  agentFloatBalance < 500 ||
-                  summary.activeRequest?.status === 'rejected'
-                }
               >
                 {floatLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Banknote className="h-6 w-6" />}
                 {floatLoading ? 'Loading float...' : `Pay ${formatUGX(Math.min(summary.currentOutstanding, agentFloatBalance))}`}
