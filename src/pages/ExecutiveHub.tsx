@@ -30,8 +30,8 @@ export default function ExecutiveHub() {
   const DashboardComponent = current.component;
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-30 bg-card/95 backdrop-blur border-b border-border px-4 py-3">
+    <div className="flex flex-col h-[100dvh] bg-background overflow-hidden">
+      <header className="shrink-0 z-30 bg-card/95 backdrop-blur border-b border-border px-4 py-3">
         <div className="max-w-7xl mx-auto flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard/tenant')} className="shrink-0">
             <ArrowLeft className="h-5 w-5" />
@@ -61,8 +61,10 @@ export default function ExecutiveHub() {
           </Button>
         </div>
       </header>
-      <div className="max-w-7xl mx-auto p-4">
-        <DashboardComponent />
+      <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
+        <div className="max-w-7xl mx-auto p-4 pb-24">
+          <DashboardComponent />
+        </div>
       </div>
     </div>
   );
