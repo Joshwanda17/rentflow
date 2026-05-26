@@ -73,6 +73,10 @@ export function UserDrilldownDrawer({
   // Global "open any user" — overrides tenantId when a user is picked
   const [pickedUser, setPickedUser] = useState<UserBrief | null>(null);
   const effectiveTenantId = pickedUser?.id ?? tenantId ?? null;
+  // Allow in-drawer navigation to a landlord (e.g. tap a name in the
+  // agent's "Linked landlords" list). Overrides the landlordId prop.
+  const [pickedLandlordId, setPickedLandlordId] = useState<string | null>(null);
+  const effectiveLandlordId = pickedLandlordId ?? landlordId ?? null;
   const isOps = useIsOpsRole();
   const scrollRef = useRef<HTMLDivElement>(null);
   // Track where the user came from so the tenant pane can show "← Back to agent"
@@ -85,6 +89,14 @@ export function UserDrilldownDrawer({
     // Scroll the drawer back to the top so the freshly-loaded tenant
     // profile is visible immediately instead of leaving the user on the
     // (now-hidden) Tenants-under-management section.
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  };
+
+  const handleSelectLandlord = (id: string) => {
+    setPickedLandlordId(id);
+    setTab('landlord');
     requestAnimationFrame(() => {
       scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
     });
@@ -127,7 +139,7 @@ export function UserDrilldownDrawer({
             <TabsTrigger value="agent" disabled={!agentId}>
               <UserCheck className="h-3.5 w-3.5 mr-1" /> Agent
             </TabsTrigger>
-            <TabsTrigger value="landlord" disabled={!landlordId}>
+            <TabsTrigger value="landlord" disabled={!effectiveLandlordId}>
               <Home className="h-3.5 w-3.5 mr-1" /> Landlord
             </TabsTrigger>
           </TabsList>
@@ -138,14 +150,15 @@ export function UserDrilldownDrawer({
                 tenantId={effectiveTenantId}
                 isOps={isOps}
                 onBackToAgent={cameFromAgent && agentId ? () => { setTab('agent'); scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); } : undefined}
+                onSelectLandlord={handleSelectLandlord}
               />
             )}
           </TabsContent>
           <TabsContent value="agent" className="py-4">
-            {agentId && <AgentPane agentId={agentId} isOps={isOps} onSelectTenant={handleSelectTenant} />}
+            {agentId && <AgentPane agentId={agentId} isOps={isOps} onSelectTenant={handleSelectTenant} onSelectLandlord={handleSelectLandlord} />}
           </TabsContent>
           <TabsContent value="landlord" className="py-4">
-            {landlordId && <LandlordPane landlordId={landlordId} isOps={isOps} />}
+            {effectiveLandlordId && <LandlordPane landlordId={effectiveLandlordId} isOps={isOps} />}
           </TabsContent>
         </Tabs>
       </SheetContent>
@@ -973,8 +986,8 @@ function StatementDateFilter({
 }
 
 function TenantPane({
-  tenantId, isOps, onBackToAgent,
-}: { tenantId: string; isOps: boolean; onBackToAgent?: () => void }) {
+  tenantId, isOps, onBackToAgent, onSelectLandlord,
+}: { tenantId: string; isOps: boolean; onBackToAgent?: () => void; onSelectLandlord?: (id: string) => void }) {
   const qc = useQueryClient();
   const [dateRange, setDateRange] = useState<StatementDateRange>({ preset: 'today' });
   const { data: profile, isLoading } = useProfile(tenantId);
@@ -1104,9 +1117,14 @@ function TenantPane({
           <div className="flex items-center gap-2 text-sm font-medium">
             <Home className="h-4 w-4 text-primary" /> Landlord on file
           </div>
-          <p className="text-sm font-semibold truncate">
+          <button
+            type="button"
+            onClick={() => onSelectLandlord?.(activeRr.landlord_id)}
+            className="text-left text-sm font-semibold truncate text-primary hover:underline disabled:no-underline disabled:text-foreground"
+            disabled={!onSelectLandlord}
+          >
             {activeLandlord?.name?.trim() || activeLandlord?.phone || 'Landlord record missing'}
-          </p>
+          </button>
           {activeLandlord?.phone && (
             <p className="text-xs text-muted-foreground flex items-center gap-1">
               <Phone className="h-3 w-3" /> {activeLandlord.phone}
@@ -1157,7 +1175,7 @@ function TenantPane({
 /* ------------------------------------------------------------------ */
 /* Agent pane                                                          */
 /* ------------------------------------------------------------------ */
-function AgentPane({ agentId, isOps, onSelectTenant }: { agentId: string; isOps: boolean; onSelectTenant?: (id: string, name: string) => void }) {
+function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord }: { agentId: string; isOps: boolean; onSelectTenant?: (id: string, name: string) => void; onSelectLandlord?: (id: string) => void }) {
   const qc = useQueryClient();
   const { data: profile, isLoading } = useProfile(agentId);
   const { data: roles = [] } = useUserRoles(agentId);
@@ -1367,8 +1385,15 @@ function AgentPane({ agentId, isOps, onSelectTenant }: { agentId: string; isOps:
           ) : (
             <ul className="space-y-1 text-xs">
               {(stats?.landlords ?? []).map((a: any) => (
-                <li key={a.landlord_id} className="flex justify-between border-b border-border/40 py-1">
-                  <span className="truncate">{a.landlords?.name ?? a.landlord_id}</span>
+                <li key={a.landlord_id} className="flex justify-between border-b border-border/40 py-1 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onSelectLandlord?.(a.landlord_id)}
+                    className="truncate text-left text-primary hover:underline disabled:no-underline disabled:text-foreground"
+                    disabled={!onSelectLandlord}
+                  >
+                    {a.landlords?.name ?? a.landlord_id}
+                  </button>
                   <span className="text-muted-foreground font-mono">{a.landlords?.phone}</span>
                 </li>
               ))}
