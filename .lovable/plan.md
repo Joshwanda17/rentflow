@@ -1,28 +1,81 @@
-## Why the "Pay from Your Float" button feels frozen
+## Goal
 
-`TenantProfileView` opens inside a `Sheet`, and our `src/components/ui/sheet.tsx` was bumped to:
-- overlay: `z-[110]`
-- content: `z-[120]`
+Force every agent to capture a precise location for each person they onboard or manage (tenants, landlords, partners, sub-agents). No agent-side workflow can complete without it.
 
-But `src/components/ui/dialog.tsx` is still at the shadcn default:
-- overlay: `z-50`
-- content: `z-50`
+## Scope
 
-`AgentTenantCollectDialog` (a Dialog) opens behind the Sheet. Radix still grabs focus and the mobile numeric keyboard appears, but the dialog is visually trapped under the Sheet → user can't see or click it → looks frozen. A local `z-[70]` was added on `AgentTenantCollectDialog`, which is still below `120`, so it didn't help.
+Applies to all agent-initiated creation/edit flows for:
+- Tenants (rent collection setup, tenant onboarding, allocation)
+- Landlords (landlord registration via agent)
+- Partners (proxy partner registration)
+- Sub-agents (agent-registered agents)
 
-## Fix
+Out of scope: end-user self-onboarding (already covered by ProfileCompletionGate).
 
-Two small, surgical edits in presentation code only:
+## What gets captured
 
-1. **`src/components/ui/dialog.tsx`** — raise the base z-index so every Dialog in the app always sits above any Sheet:
-   - `DialogOverlay`: `z-50` → `z-[140]`
-   - `DialogContent`: `z-50` → `z-[150]`
+Reuse the same hybrid address structure already added in `ProfileCompletionGate`:
 
-2. **`src/components/agent/AgentTenantCollectDialog.tsx`** — remove the now-redundant local `z-[70]` from the `DialogContent` className so it inherits the new global stacking.
+- Continent, Country, Region, District, City/Town, Ward, Cell/Village (dropdowns for Uganda, free-text elsewhere)
+- GPS coordinates (auto-captured via `navigator.geolocation`, required, with manual "pin on map" fallback)
+- Free-text landmark / nearest known place (required)
 
-No business logic, RPC, or wallet code changes. No other Dialog usages need updates — they automatically benefit.
+GPS is mandatory because this is an agent field action — aligns with the **AGENT FIELD MANDATE** (every agent workflow writes geo + AI ID to `agent_visits`).
 
-## Verification
+## Behavior
 
-- Open a tenant from the Agent dashboard → tap **Pay from Your Float** → confirm the payment dialog appears above the tenant sheet, is interactive, and the "Confirm" RPC fires (existing 25 s timeout already in place).
-- Spot-check one other Dialog (e.g. any confirm dialog opened from a normal page, not inside a Sheet) to confirm it still looks correct at the new z-index.
+1. **New record**: Agent cannot submit the create form until address block + GPS are filled.
+2. **Existing record without location**: When an agent opens any managed contact (tenant/landlord/partner/sub-agent) that is missing location data, a blocking modal `AgentContactLocationGate` appears. Cannot dismiss, cannot proceed to collect rent / pay out / allocate float until saved.
+3. On save:
+   - Update target's `profiles` address columns.
+   - Insert a row into `agent_visits` (`visit_type='location_capture'`, with GPS + AI ID + target user_id) — satisfies trust-signal mandate.
+   - Call `capture_trust_signal` RPC to bump the contact's Welile Trust Score (verification+GPS factor).
+   - Emit `system_event` `agent.contact_location_captured`.
+
+## Technical Plan
+
+### 1. Shared component
+`src/components/agent/AgentContactLocationGate.tsx`
+- Reuses the address form pieces from `ProfileCompletionGate` (extract into `src/components/shared/AddressFormFields.tsx` so both gates share one source of truth).
+- Props: `targetUserId`, `targetRole`, `open`, `onComplete`.
+- GPS capture with retry + manual fallback.
+- Calls `agent-capture-contact-location` edge function.
+
+### 2. Edge function
+`supabase/functions/agent-capture-contact-location/index.ts`
+- Auth: `adminClient.auth.getUser(token)`, manual `corsHeaders`.
+- Validates agent role, validates target relationship (agent must own/manage target).
+- Updates `profiles` address columns.
+- Inserts `agent_visits` row with geo + agent AI ID.
+- Calls `capture_trust_signal` RPC.
+- Emits `system_event`.
+
+### 3. Wire-in points (gate triggers)
+Add a guard hook `useRequireContactLocation(targetUserId)` that returns `{ blocked, GateComponent }`. Mount it in:
+- `AgentTenantCollectDialog` (block Confirm until target tenant has address+GPS)
+- Tenant profile sheet `TenantProfileView` (block all action buttons)
+- Landlord-by-agent flows (rent_request landlord card)
+- Proxy partner registration / partner detail (agent view)
+- Sub-agent invite / sub-agent detail
+
+### 4. Schema
+Likely additive only — `profiles` already has address fields from previous migration. New columns needed:
+- `profiles.location_captured_by_agent_id uuid`
+- `profiles.location_captured_at timestamptz`
+- `profiles.location_gps_lat numeric`, `location_gps_lng numeric`, `location_gps_accuracy_m numeric`
+
+(Confirm during build that these don't already exist; migration only adds missing ones.)
+
+### 5. RLS
+- Agents can UPDATE address columns on `profiles` rows where they have an active managing relationship (tenant assigned to them, landlord linked via `rent_requests`, proxy partner link, sub-agent parent_agent_id). New `has_agent_relationship(_agent_id, _target_id)` SECURITY DEFINER function for the policy.
+
+### 6. UI/UX
+- Modal title: "Capture {role} location" — non-dismissible.
+- Sticky "Use my current location" button at top.
+- Inline validation, single Save action.
+- After save: success toast + auto-close + re-runs the original action.
+
+## Open questions (will confirm during build, not blocking the plan)
+
+- Whether existing `profiles` already has the GPS columns from the prior ProfileCompletionGate migration — if yes, skip those.
+- Exact list of "managed" relationships for sub-agents (need to confirm sub-agent table name).
