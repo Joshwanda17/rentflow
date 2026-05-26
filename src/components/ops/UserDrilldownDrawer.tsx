@@ -1819,10 +1819,12 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
         </div>
         {(() => {
           const gallery = listings.flatMap((l: any) =>
-            (Array.isArray(l.image_urls) ? l.image_urls : []).map((src: string) => ({
+            (Array.isArray(l.image_urls) ? l.image_urls : []).map((src: string, idx: number) => ({
               src,
               title: l.title,
               location: l.village ?? l.district ?? l.address ?? '',
+              images: l.image_urls,
+              startIndex: idx,
             }))
           );
           if (gallery.length === 0) return null;
@@ -1834,12 +1836,11 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
               </div>
               <div className="grid grid-cols-3 gap-1">
                 {gallery.map((g, i) => (
-                  <a
+                  <button
                     key={i}
-                    href={g.src}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="relative group block aspect-square overflow-hidden rounded border border-border/40"
+                    type="button"
+                    onClick={() => openLightbox(g.images, g.startIndex, g.title)}
+                    className="relative group block aspect-square overflow-hidden rounded border border-border/40 text-left"
                     title={`${g.title}${g.location ? ' · ' + g.location : ''}`}
                   >
                     <img
@@ -1851,7 +1852,7 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
                     <div className="absolute inset-x-0 bottom-0 bg-black/60 px-1 py-0.5 text-[9px] text-white truncate opacity-0 group-hover:opacity-100">
                       {g.title}
                     </div>
-                  </a>
+                  </button>
                 ))}
               </div>
             </div>
