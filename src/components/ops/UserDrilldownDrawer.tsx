@@ -2769,25 +2769,13 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
                     {row.landlord?.name?.trim() || row.landlord?.phone || 'No landlord on file'}
                   </p>
                   {row.tenant?.phone && (
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <a
-                        href={`tel:${row.tenant.phone.replace(/\s+/g, '')}`}
-                        className="inline-flex items-center gap-0.5 text-[10px] text-primary hover:underline"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Phone className="h-2.5 w-2.5" />
-                        {row.tenant.phone}
-                      </a>
-                      <a
-                        href={toWhatsAppUrl(row.tenant.phone)}
-                        className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 hover:underline"
-                        onClick={(e) => e.stopPropagation()}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <MessageSquare className="h-2.5 w-2.5" />
-                        WhatsApp
-                      </a>
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                      <span className="text-[10px] text-muted-foreground font-mono">{row.tenant.phone}</span>
+                      <ContactActions
+                        phone={row.tenant.phone}
+                        size="xs"
+                        message={`Hello ${row.tenant?.full_name ?? ''}, this is Welile Ops regarding your rent.`}
+                      />
                     </div>
                   )}
                 </div>
