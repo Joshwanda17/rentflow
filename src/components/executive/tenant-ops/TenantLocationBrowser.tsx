@@ -12,6 +12,7 @@ import { ImageZoomLightbox } from '@/components/executive/landlord-ops/ImageZoom
 import { formatUGX } from '@/lib/rentCalculations';
 import { UGANDA_REGION_GROUPS, UGANDA_DISTRICT_AREAS } from '@/lib/ugandaDistricts';
 import { ChevronDown } from 'lucide-react';
+import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
 import {
   useTenantLocationBreakdown,
   useTenantsAtLeaf,
@@ -43,6 +44,7 @@ export function TenantLocationBrowser() {
   const { data: rows, isLoading } = useTenantLocationBreakdown(path);
   const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
+  const [agentDrilldownId, setAgentDrilldownId] = useState<string | null>(null);
   const refreshCounts = async () => {
     setRefreshing(true);
     try {
@@ -56,6 +58,13 @@ export function TenantLocationBrowser() {
   };
 
   const pick = (row: TenantBreakdownRow) => {
+    // Tapping an agent tile opens the full agent profile drawer
+    // (wallet, float, capacity, landlords, partners, referrals) instead
+    // of drilling another level deeper into the location tree.
+    if (level === 'agent' && row.agent_id) {
+      setAgentDrilldownId(row.agent_id);
+      return;
+    }
     const p: TenantBreadcrumbPath = { ...path };
     switch (level) {
       case 'country':  p.country  = row.label; break;
@@ -109,6 +118,13 @@ export function TenantLocationBrowser() {
       ) : (
         <TenantTileGrid rows={rows ?? []} level={level} loading={isLoading} onPick={pick} />
       )}
+
+      <UserDrilldownDrawer
+        open={!!agentDrilldownId}
+        onOpenChange={(o) => { if (!o) setAgentDrilldownId(null); }}
+        agentId={agentDrilldownId}
+        defaultTab="agent"
+      />
     </div>
   );
 }
