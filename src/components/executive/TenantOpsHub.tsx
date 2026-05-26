@@ -21,7 +21,6 @@ export function TenantOpsHub() {
 
   return (
     <div className="space-y-3">
-      <GeographicCoveragePanel />
       <div className="flex items-center justify-end gap-2">
         <Button
           variant={mode === 'v2' ? 'default' : 'outline'}
