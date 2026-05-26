@@ -323,7 +323,16 @@ export function AgentTenantCollectDialog({
     <>
     <Dialog open={open} onOpenChange={(o) => { if (!o && !loading) handleClose(); }}>
       <DialogContent
-        className="max-w-sm max-h-[90vh] overflow-y-auto pointer-events-auto top-[2vh] translate-y-0 sm:top-[50%] sm:-translate-y-1/2"
+        className={
+          // While entering an amount we pin to the top so the mobile
+          // numeric keyboard doesn't shove the dialog off-screen.
+          // Once we render the success/result view (no inputs), we let
+          // it sit centered so users don't see a large white void
+          // under a half-screen card.
+          result
+            ? "max-w-sm max-h-[90vh] overflow-y-auto pointer-events-auto"
+            : "max-w-sm max-h-[90vh] overflow-y-auto pointer-events-auto top-[2vh] translate-y-0 sm:top-[50%] sm:-translate-y-1/2"
+        }
         onInteractOutside={(e) => e.preventDefault()}
         onPointerDownOutside={(e) => e.preventDefault()}
       >
