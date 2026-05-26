@@ -160,6 +160,13 @@ export function FundedTenantsList() {
         <p className="text-sm text-muted-foreground mt-1">
           Every landlord payout Financial Ops has settled — most recent first.
         </p>
+        <Button
+          size="sm" variant="outline" className="mt-2 gap-1.5"
+          onClick={() => setDrill({ tenantId: null, agentId: null, landlordId: null })}
+        >
+          <UserCog className="h-3.5 w-3.5" />
+          Drill into any user (search globally)
+        </Button>
       </div>
 
       <div className="flex items-center gap-2">
