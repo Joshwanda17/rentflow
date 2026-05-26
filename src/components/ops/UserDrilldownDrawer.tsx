@@ -224,10 +224,11 @@ function ProfileHeader({
   profile, roles, userId, canEdit,
 }: { profile: any; roles: string[]; userId?: string; canEdit?: boolean }) {
   const qc = useQueryClient();
-  const [showEditBtn, setShowEditBtn] = useState(false);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState<string>(profile?.full_name ?? '');
   const [phone, setPhone] = useState<string>(profile?.phone ?? '');
+  const [avatarUrl, setAvatarUrl] = useState<string>(profile?.avatar_url ?? '');
+  const [opsNote, setOpsNote] = useState<string>(profile?.ops_note ?? '');
   const [reason, setReason] = useState('');
 
   const save = useMutation({
@@ -239,13 +240,15 @@ function ProfileHeader({
         p_full_name: name,
         p_phone: phone,
         p_reason: reason.trim(),
+        p_avatar_url: avatarUrl,
+        p_ops_note: opsNote,
       } as any);
       if (error) throw error;
     },
     onSuccess: () => {
       toast.success('Profile updated');
       qc.invalidateQueries({ queryKey: ['drilldown-profile', userId] });
-      setEditing(false); setShowEditBtn(false); setReason('');
+      setEditing(false); setReason('');
     },
     onError: (e: any) => toast.error(e.message ?? 'Update failed'),
   });
@@ -262,23 +265,30 @@ function ProfileHeader({
           </Avatar>
           <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={() => canEdit && setShowEditBtn((v) => !v)}
-              className={`text-base font-semibold truncate text-left ${canEdit ? 'hover:underline cursor-pointer' : 'cursor-default'}`}
-              title={canEdit ? 'Tap to edit' : undefined}
-            >
+            <span className="text-base font-semibold truncate">
               {profile?.full_name ?? 'Unnamed user'}
-            </button>
-            {canEdit && showEditBtn && !editing && (
+            </span>
+            {canEdit && !editing && (
               <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => setEditing(true)}>
                 <Pencil className="h-3 w-3 mr-1" /> Edit
               </Button>
             )}
           </div>
-          <p className="text-xs text-muted-foreground flex items-center gap-1">
-            <Phone className="h-3 w-3" /> {profile?.phone ?? '—'}
-          </p>
+          <div className="flex items-center gap-2 flex-wrap mt-0.5">
+            <span className="text-xs text-muted-foreground font-mono">
+              {profile?.phone ?? '— no phone —'}
+            </span>
+            <ContactActions
+              phone={profile?.phone}
+              size="xs"
+              message={`Hello ${profile?.full_name ?? ''}, this is Welile Ops.`}
+            />
+          </div>
+          {profile?.ops_note && !editing && (
+            <p className="text-[11px] mt-1 text-amber-700 bg-amber-50 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-900 rounded px-1.5 py-0.5">
+              <StickyNote className="h-3 w-3 inline mr-1" />{profile.ops_note}
+            </p>
+          )}
           </div>
         </div>
         <div className="flex flex-wrap gap-1 justify-end">
@@ -310,6 +320,14 @@ function ProfileHeader({
           <div>
             <Label className="text-[10px] uppercase text-muted-foreground">Phone</Label>
             <Input value={phone} onChange={(e) => setPhone(e.target.value)} className="h-8 text-sm" />
+          </div>
+          <div>
+            <Label className="text-[10px] uppercase text-muted-foreground">Avatar URL</Label>
+            <Input value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} className="h-8 text-sm" placeholder="https://…" />
+          </div>
+          <div>
+            <Label className="text-[10px] uppercase text-muted-foreground">Ops note (internal)</Label>
+            <Textarea value={opsNote} onChange={(e) => setOpsNote(e.target.value)} className="text-xs" rows={2} placeholder="Visible only to ops staff" />
           </div>
           <Textarea
             placeholder="Reason for change (min 10 chars)"
