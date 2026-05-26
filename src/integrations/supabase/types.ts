@@ -7555,6 +7555,45 @@ export type Database = {
         }
         Relationships: []
       }
+      landlord_funder_links: {
+        Row: {
+          active: boolean
+          created_at: string
+          funder_id: string
+          id: string
+          landlord_id: string
+          linked_by: string | null
+          notes: string | null
+          reason: string
+          unlinked_at: string | null
+          unlinked_by: string | null
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          funder_id: string
+          id?: string
+          landlord_id: string
+          linked_by?: string | null
+          notes?: string | null
+          reason: string
+          unlinked_at?: string | null
+          unlinked_by?: string | null
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          funder_id?: string
+          id?: string
+          landlord_id?: string
+          linked_by?: string | null
+          notes?: string | null
+          reason?: string
+          unlinked_at?: string | null
+          unlinked_by?: string | null
+        }
+        Relationships: []
+      }
       landlord_leads: {
         Row: {
           created_at: string
@@ -17360,6 +17399,7 @@ export type Database = {
       }
       is_financial_ops_staff: { Args: { p_user: string }; Returns: boolean }
       is_funder_approved: { Args: { _user_id: string }; Returns: boolean }
+      is_ops_role: { Args: { _user_id: string }; Returns: boolean }
       is_parent_agent: { Args: { _agent_id: string }; Returns: boolean }
       is_proxy_for: {
         Args: { _agent_id: string; _beneficiary_id: string }
@@ -17501,6 +17541,14 @@ export type Database = {
         }
         Returns: Json
       }
+      ops_link_agent_landlord: {
+        Args: { p_agent_id: string; p_landlord_id: string; p_reason: string }
+        Returns: Json
+      }
+      ops_link_landlord_funder: {
+        Args: { p_funder_id: string; p_landlord_id: string; p_reason: string }
+        Returns: Json
+      }
       ops_query_tenants: {
         Args: { p_cursor?: string; p_limit?: number; p_segment_id: string }
         Returns: {
@@ -17570,6 +17618,17 @@ export type Database = {
       }
       ops_undo_agent_capability_job: {
         Args: { _job_id: string; _reason: string }
+        Returns: Json
+      }
+      ops_update_user_location: {
+        Args: {
+          p_accuracy: number
+          p_address: Json
+          p_latitude: number
+          p_longitude: number
+          p_reason: string
+          p_user_id: string
+        }
         Returns: Json
       }
       populate_wallet_review_queue: {
