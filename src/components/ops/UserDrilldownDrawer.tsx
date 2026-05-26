@@ -2024,6 +2024,26 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
         ))}
       </div>
 
+      {/* Source breakdown */}
+      {data && data.length > 0 && (
+        <div className="flex items-center gap-2 rounded-md bg-muted/40 px-2.5 py-1.5 text-[11px]">
+          <span className="text-muted-foreground shrink-0">Sources:</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1" title="Tenants with an assigned rent request">
+              <span className="inline-block w-2 h-2 rounded-full bg-sky-500" />
+              <span className="font-medium">{data.filter((r) => !String(r.id).startsWith('managed-')).length}</span>
+              <span className="text-muted-foreground hidden sm:inline">rent request</span>
+            </div>
+            <div className="flex items-center gap-1" title="Tenants linked via profile ownership only">
+              <span className="inline-block w-2 h-2 rounded-full bg-amber-500" />
+              <span className="font-medium">{data.filter((r) => String(r.id).startsWith('managed-')).length}</span>
+              <span className="text-muted-foreground hidden sm:inline">profile ownership</span>
+            </div>
+          </div>
+          <span className="ml-auto text-muted-foreground">{data.length} total</span>
+        </div>
+      )}
+
       {isLoading ? (
         <Loader2 className="h-4 w-4 animate-spin mx-auto" />
       ) : filtered.length === 0 ? (
