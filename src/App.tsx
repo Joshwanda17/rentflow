@@ -30,6 +30,7 @@ const CurrencyProvider = lazyWithRetry(() => import("@/hooks/useCurrency").then(
 // Auth providers — deferred since they're not needed for first paint
 const PinAuthProvider = lazyWithRetry(() => import("@/hooks/usePinAuth").then(m => ({ default: m.PinAuthProvider })));
 const BiometricAuthProvider = lazyWithRetry(() => import("@/hooks/useBiometricAuth").then(m => ({ default: m.BiometricAuthProvider })));
+const ProfileCompletionGate = lazyWithRetry(() => import("@/components/onboarding/ProfileCompletionGate"));
 
 // Deferred providers - loaded after first paint
 const CartProvider = lazyWithRetry(() => import("@/hooks/useCart").then(m => ({ default: m.CartProvider })));
@@ -564,7 +565,7 @@ const App = () => {
                         <PWAInstallPrompt />
                         <Toaster />
                         <SonnerToaster />
-                        
+                        <ProfileCompletionGate />
                       </Suspense>
                     </CurrencyProvider>
                   </LanguageProvider>
