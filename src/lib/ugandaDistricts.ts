@@ -41,3 +41,13 @@ export function districtWarning(raw: string | null | undefined): string | null {
   const cityLabel = key.charAt(0).toUpperCase() + key.slice(1);
   return `${cityLabel} is a city under ${parent} District — saved as ${parent}.`;
 }
+
+/**
+ * Display label for area/region pickers that mix districts and cities.
+ * Cities are annotated with their parent district so users never confuse
+ * a city (e.g. Entebbe) with a standalone district.
+ */
+export function regionLabel(value: string): string {
+  const parent = CITY_TO_DISTRICT[value.trim().toLowerCase()];
+  return parent ? `${value} (${parent})` : value;
+}
