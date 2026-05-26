@@ -87,9 +87,9 @@ export default function AdminDashboardPage() {
   const visibleOperations = operationsDashboards.filter(d => hasPermission(d.permissionKey));
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-screen flex flex-col bg-background overflow-hidden">
       {/* Sticky top bar so the back action is always reachable */}
-      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-border">
+      <div className="shrink-0 z-40 bg-background/95 backdrop-blur border-b border-border">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-2.5 flex items-center justify-between gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
