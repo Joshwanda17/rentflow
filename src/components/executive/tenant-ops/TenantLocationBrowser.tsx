@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, MapPin, User, Home, ChevronRight, Phone, Image as ImageIcon } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Loader2, MapPin, User, Home, ChevronRight, Phone, Image as ImageIcon, Search, X } from 'lucide-react';
 import { TenantLocationBreadcrumbs } from './TenantLocationBreadcrumbs';
 import { formatUGX } from '@/lib/rentCalculations';
 import {
@@ -17,6 +19,17 @@ import {
 const LEVEL_ICON: Record<string, any> = {
   country: MapPin, region: MapPin, district: MapPin, ward: MapPin,
   agent: User, landlord: Home,
+};
+
+type QuickFilter = 'all' | 'linked' | 'pending' | 'revenue';
+
+const LEVEL_PLACEHOLDER: Record<string, string> = {
+  country: 'Search countries…',
+  region: 'Search regions…',
+  district: 'Search districts…',
+  ward: 'Search wards…',
+  agent: 'Search agents…',
+  landlord: 'Search landlords…',
 };
 
 export function TenantLocationBrowser() {
@@ -55,12 +68,68 @@ export function TenantLocationBrowser() {
 function TenantTileGrid({
   rows, level, loading, onPick,
 }: { rows: TenantBreakdownRow[]; level: string; loading: boolean; onPick: (r: TenantBreakdownRow) => void }) {
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<QuickFilter>('all');
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return rows.filter(r => {
+      if (q && !r.label.toLowerCase().includes(q)) return false;
+      if (filter === 'linked' && r.occupied === 0) return false;
+      if (filter === 'pending' && r.vacant === 0) return false;
+      if (filter === 'revenue' && r.revenue_ugx <= 0) return false;
+      return true;
+    });
+  }, [rows, search, filter]);
+
+  const Toolbar = (
+    <div className="space-y-2">
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={LEVEL_PLACEHOLDER[level] ?? 'Search…'}
+          className="pl-8 pr-8 h-9"
+        />
+        {search && (
+          <button
+            onClick={() => setSearch('')}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            aria-label="Clear search"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {(['all', 'linked', 'pending', 'revenue'] as QuickFilter[]).map(f => (
+          <Button
+            key={f}
+            size="sm"
+            variant={filter === f ? 'default' : 'outline'}
+            className="h-7 px-2.5 text-[11px]"
+            onClick={() => setFilter(f)}
+          >
+            {f === 'all' ? 'All' : f === 'linked' ? 'Has linked' : f === 'pending' ? 'Has pending' : 'Has revenue'}
+          </Button>
+        ))}
+        <span className="ml-auto self-center text-[11px] text-muted-foreground">
+          {filtered.length} of {rows.length}
+        </span>
+      </div>
+    </div>
+  );
+
   if (loading) {
     return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <Card key={i} className="h-[110px] animate-pulse bg-muted/30" />
-        ))}
+      <div className="space-y-2">
+        {Toolbar}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Card key={i} className="h-[110px] animate-pulse bg-muted/30" />
+          ))}
+        </div>
       </div>
     );
   }
@@ -73,8 +142,15 @@ function TenantTileGrid({
   }
   const Icon = LEVEL_ICON[level] ?? MapPin;
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-      {rows.map(r => {
+    <div className="space-y-2">
+      {Toolbar}
+      {filtered.length === 0 ? (
+        <Card className="py-8 text-center text-sm text-muted-foreground">
+          No matches. Try a different search or filter.
+        </Card>
+      ) : (
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+      {filtered.map(r => {
         const linkedPct = r.total ? Math.round((r.occupied / r.total) * 100) : 0;
         return (
           <button key={r.key} onClick={() => onPick(r)} className="group text-left">
@@ -100,6 +176,8 @@ function TenantTileGrid({
           </button>
         );
       })}
+      </div>
+      )}
     </div>
   );
 }
@@ -107,6 +185,22 @@ function TenantTileGrid({
 function TenantLeafList({ path }: { path: TenantBreadcrumbPath }) {
   const { data, isLoading } = useTenantsAtLeaf(path);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<'all' | 'linked' | 'pending' | 'photos'>('all');
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return (data ?? []).filter(t => {
+      if (q) {
+        const hay = [t.tenant_name, t.tenant_phone, t.landlord_name, t.agent_name].filter(Boolean).join(' ').toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      if (filter === 'linked' && !t.landlord_id) return false;
+      if (filter === 'pending' && t.landlord_id) return false;
+      if (filter === 'photos' && !(t.house_image_urls ?? []).some(Boolean)) return false;
+      return true;
+    });
+  }, [data, search, filter]);
 
   if (isLoading) {
     return <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
@@ -116,10 +210,47 @@ function TenantLeafList({ path }: { path: TenantBreadcrumbPath }) {
   }
   return (
     <div className="space-y-2">
-      <p className="text-xs text-muted-foreground">{data.length} tenant{data.length === 1 ? '' : 's'}</p>
-      {data.map(t => (
-        <TenantCard key={t.tenant_id} t={t} expanded={openId === t.tenant_id} onToggle={() => setOpenId(openId === t.tenant_id ? null : t.tenant_id)} />
-      ))}
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search tenant, phone, landlord or agent…"
+          className="pl-8 pr-8 h-9"
+        />
+        {search && (
+          <button
+            onClick={() => setSearch('')}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            aria-label="Clear search"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {(['all', 'linked', 'pending', 'photos'] as const).map(f => (
+          <Button
+            key={f}
+            size="sm"
+            variant={filter === f ? 'default' : 'outline'}
+            className="h-7 px-2.5 text-[11px]"
+            onClick={() => setFilter(f)}
+          >
+            {f === 'all' ? 'All' : f === 'linked' ? 'Linked' : f === 'pending' ? 'Pending' : 'Has photos'}
+          </Button>
+        ))}
+        <span className="ml-auto self-center text-[11px] text-muted-foreground">
+          {filtered.length} of {data.length} tenant{data.length === 1 ? '' : 's'}
+        </span>
+      </div>
+      {filtered.length === 0 ? (
+        <Card className="py-8 text-center text-sm text-muted-foreground">No tenants match.</Card>
+      ) : (
+        filtered.map(t => (
+          <TenantCard key={t.tenant_id} t={t} expanded={openId === t.tenant_id} onToggle={() => setOpenId(openId === t.tenant_id ? null : t.tenant_id)} />
+        ))
+      )}
     </div>
   );
 }
