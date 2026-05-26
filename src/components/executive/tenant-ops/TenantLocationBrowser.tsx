@@ -823,6 +823,7 @@ function TenantTileGrid({
 }
 
 function TenantLeafList({ path }: { path: TenantBreadcrumbPath }) {
+  // (placeholder anchor — AfricaCountryPicker is declared above this block)
   const { data, isLoading } = useTenantsAtLeaf(path);
   const [openId, setOpenId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
