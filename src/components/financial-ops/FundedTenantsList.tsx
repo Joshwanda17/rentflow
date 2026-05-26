@@ -268,9 +268,13 @@ export function FundedTenantsList() {
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    const base = countryFilter === 'all'
-      ? dateFiltered
-      : dateFiltered.filter((r) => (r.country?.trim() || 'Unknown') === countryFilter);
+    let base = dateFiltered;
+    if (countryFilter !== 'all') {
+      base = base.filter((r) => (r.country?.trim() || 'Unknown') === countryFilter);
+    } else if (regionFilter) {
+      const regionCountries = new Set(AFRICA_REGIONS.find((g) => g.region === regionFilter)?.countries || []);
+      base = base.filter((r) => regionCountries.has(r.country?.trim() || ''));
+    }
     if (!needle) return base;
     return base.filter((r) => {
       const hay = [
@@ -286,7 +290,7 @@ export function FundedTenantsList() {
         .toLowerCase();
       return hay.includes(needle);
     });
-  }, [dateFiltered, countryFilter, q]);
+  }, [dateFiltered, countryFilter, regionFilter, q]);
 
   const totalAmount = useMemo(
     () => filtered.reduce((s, r) => s + Number(r.amount || 0), 0),
@@ -310,9 +314,10 @@ export function FundedTenantsList() {
     if (dateFilter === '7d') parts.push('last 7 days');
     else if (dateFilter === '30d') parts.push('last 30 days');
     else if (dateFilter === 'custom') parts.push(`last ${Math.max(1, customDays || 1)} days`);
-    if (countryFilter !== 'all') parts.push(countryFilter);
+    if (regionFilter) parts.push(regionFilter);
+    else if (countryFilter !== 'all') parts.push(countryFilter);
     return parts.join(' · ');
-  }, [dateFilter, customDays, countryFilter]);
+  }, [dateFilter, customDays, countryFilter, regionFilter]);
 
   const scopeSlug = useMemo(() => {
     const slug = (s: string) =>
@@ -322,9 +327,10 @@ export function FundedTenantsList() {
     else if (dateFilter === '30d') parts.push('last-30d');
     else if (dateFilter === 'custom') parts.push(`last-${Math.max(1, customDays || 1)}d`);
     else parts.push('all-time');
-    if (countryFilter !== 'all') parts.push(slug(countryFilter));
+    if (regionFilter) parts.push(slug(regionFilter));
+    else if (countryFilter !== 'all') parts.push(slug(countryFilter));
     return parts.join('-');
-  }, [dateFilter, customDays, countryFilter]);
+  }, [dateFilter, customDays, countryFilter, regionFilter]);
 
   const handleBulkPdf = async () => {
     if (!filtered.length) return;
