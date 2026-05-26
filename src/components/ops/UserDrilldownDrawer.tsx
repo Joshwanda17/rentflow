@@ -1854,7 +1854,11 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
         if (!latestByTenant.has(r.tenant_id)) latestByTenant.set(r.tenant_id, r);
       }
       // Seed rows from rent requests
-      const rows: any[] = Array.from(latestByTenant.values());
+      const rows: any[] = Array.from(latestByTenant.values()).map((r) => ({
+        ...r,
+        source: 'rent_request' as const,
+        rent_request_id: r.id,
+      }));
       // Add managed-profile tenants that have no rent request on file
       for (const p of (managedRes.data ?? []) as any[]) {
         if (!latestByTenant.has(p.id)) {
@@ -1867,6 +1871,8 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
             amount_repaid: 0,
             status: 'no_plan',
             created_at: null,
+            source: 'profile' as const,
+            rent_request_id: null,
           });
         }
       }
