@@ -283,23 +283,38 @@ export function RentDisbursementQueue() {
     onError: (e: any) => toast.error(e.message || 'Failed to reject'),
   });
 
-  // Summary totals for ALL queued items
-  const queueTotalRent = useMemo(() => items.reduce((s, i) => s + i.rent_amount, 0), [items]);
-  const queueTotalRevenue = useMemo(() => items.reduce((s, i) => s + i.access_fee + i.request_fee, 0), [items]);
+  // Summary totals for the currently filtered queue.
+  const queueTotalRent = useMemo(() => filteredItems.reduce((s, i) => s + i.rent_amount, 0), [filteredItems]);
+  const queueTotalRevenue = useMemo(() => filteredItems.reduce((s, i) => s + i.access_fee + i.request_fee, 0), [filteredItems]);
+
+  const dateFilterLabel: Record<string, string> = { all: 'All time', '7d': 'Last 7 days', '30d': 'Last 30 days' };
 
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base flex items-center gap-2">
-          <Home className="h-4 w-4 text-primary" />
-          Fund Agent Landlord Payout Float
-          {items.length > 0 && (
-            <Badge variant="outline" className="text-[10px] ml-1 bg-primary/10 text-primary border-primary/30">
-              {items.length} approved · {fmt(queueTotalRent)}
-            </Badge>
-          )}
-        </CardTitle>
-        {items.length > 0 && (
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Home className="h-4 w-4 text-primary" />
+            Fund Agent Landlord Payout Float
+            {filteredItems.length > 0 && (
+              <Badge variant="outline" className="text-[10px] ml-1 bg-primary/10 text-primary border-primary/30">
+                {filteredItems.length} approved{dateFilter !== 'all' ? ` · ${dateFilterLabel[dateFilter]}` : ''} · {fmt(queueTotalRent)}
+              </Badge>
+            )}
+          </CardTitle>
+          <Select value={dateFilter} onValueChange={(v) => { setDateFilter(v as any); setSelected(new Set()); }}>
+            <SelectTrigger className="h-7 text-xs w-[150px]">
+              <CalendarDays className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+              <SelectValue placeholder="Date range" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All time</SelectItem>
+              <SelectItem value="7d">Last 7 days</SelectItem>
+              <SelectItem value="30d">Last 30 days</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {filteredItems.length > 0 && (
           <p className="text-xs text-muted-foreground mt-1">
             COO-approved rent. Funding lands in the assigned agent's <b>Landlord Payout Float</b> — the agent then pays the landlord via MoMo + OTP. Revenue earned: <span className="font-bold text-emerald-600">{fmt(queueTotalRevenue)}</span>
           </p>
@@ -308,11 +323,20 @@ export function RentDisbursementQueue() {
       <CardContent>
         {isLoading ? (
           <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
-        ) : items.length === 0 ? (
+        ) : filteredItems.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <CheckCircle2 className="h-10 w-10 mx-auto mb-2 text-emerald-500" />
             <p className="font-medium">No Pending Rent Payouts</p>
-            <p className="text-xs">All approved rent requests have been disbursed</p>
+            <p className="text-xs">
+              {dateFilter !== 'all'
+                ? `No requests match ${dateFilterLabel[dateFilter]}. `
+                : 'All approved rent requests have been disbursed'}
+              {dateFilter !== 'all' && (
+                <button type="button" className="text-primary hover:underline" onClick={() => setDateFilter('all')}>
+                  Show all
+                </button>
+              )}
+            </p>
           </div>
         ) : (
           <div className="space-y-3">
