@@ -1926,6 +1926,16 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
                   <span className="text-muted-foreground truncate">{l.village ?? l.district ?? l.address ?? '—'}</span>
                   <Badge variant="outline" className="text-[9px]">{l.status}</Badge>
                 </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-[11px] w-full"
+                  onClick={() => setPhotoUploadFor(l)}
+                >
+                  <ImagePlus className="h-3 w-3 mr-1" />
+                  Add photos ({Array.isArray(l.image_urls) ? l.image_urls.length : 0})
+                </Button>
               </li>
             ))}
           </ul>
