@@ -10,7 +10,7 @@ import { Loader2, MapPin, User, Home, ChevronRight, Phone, Image as ImageIcon, S
 import { TenantLocationBreadcrumbs } from './TenantLocationBreadcrumbs';
 import { ImageZoomLightbox } from '@/components/executive/landlord-ops/ImageZoomLightbox';
 import { formatUGX } from '@/lib/rentCalculations';
-import { UGANDA_REGION_GROUPS } from '@/lib/ugandaDistricts';
+import { UGANDA_REGION_GROUPS, UGANDA_DISTRICT_AREAS } from '@/lib/ugandaDistricts';
 import { ChevronDown } from 'lucide-react';
 import {
   useTenantLocationBreakdown,
@@ -70,6 +70,13 @@ export function TenantLocationBrowser() {
           onPickDistrict={(district, backendRegion) =>
             setPath({ ...path, region: backendRegion, district })
           }
+        />
+      ) : level === 'ward' && path.district && UGANDA_DISTRICT_AREAS[path.district] ? (
+        <DistrictAreaPicker
+          districtName={path.district}
+          liveRows={rows ?? []}
+          loading={isLoading}
+          onPickArea={(area) => setPath({ ...path, ward: area })}
         />
       ) : (
         <TenantTileGrid rows={rows ?? []} level={level} loading={isLoading} onPick={pick} />
