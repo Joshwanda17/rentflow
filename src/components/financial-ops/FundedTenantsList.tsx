@@ -400,46 +400,83 @@ export function FundedTenantsList() {
               </span>
             )}
           </div>
-          <div className="flex flex-wrap gap-1.5">
-            <button
-              type="button"
-              onClick={() => setCountryFilter('all')}
-              className={`px-2.5 py-1 rounded-full text-xs border transition ${
-                countryFilter === 'all'
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-background hover:bg-muted border-border'
-              }`}
-            >
-              All ({dateFiltered.length})
-            </button>
-            {countryStats.map((c) => (
-              <button
-                key={c.country}
-                type="button"
-                onClick={() => setCountryFilter(c.country)}
-                className={`px-2.5 py-1 rounded-full text-xs border transition inline-flex items-center gap-1.5 ${
-                  countryFilter === c.country
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'bg-background hover:bg-muted border-border'
-                }`}
-                title={`${c.count} payouts · ${formatUGX(c.total)}`}
-              >
-                <span className="font-medium">{c.country}</span>
-                <span className={countryFilter === c.country ? 'opacity-90' : 'text-muted-foreground'}>
-                  {c.count} · {formatUGX(c.total)}
-                </span>
-              </button>
-            ))}
-            {countryFilter !== 'all' && (
-              <button
-                type="button"
-                onClick={() => setCountryFilter('all')}
-                className="px-2.5 py-1 rounded-full text-xs text-muted-foreground hover:text-foreground underline"
-              >
-                Clear
-              </button>
-            )}
-          </div>
+          {(() => {
+            const statsMap = new Map(countryStats.map((c) => [c.country, c]));
+            const renderChip = (country: string) => {
+              const c = statsMap.get(country);
+              const active = countryFilter === country;
+              const hasData = !!c && c.count > 0;
+              return (
+                <button
+                  key={country}
+                  type="button"
+                  onClick={() => setCountryFilter(country)}
+                  className={`px-2.5 py-1 rounded-full text-xs border transition inline-flex items-center gap-1.5 ${
+                    active
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : hasData
+                      ? 'bg-background hover:bg-muted border-border'
+                      : 'bg-background/40 hover:bg-muted border-border/60 text-muted-foreground'
+                  }`}
+                  title={c ? `${c.count} payouts · ${formatUGX(c.total)}` : 'No payouts in range'}
+                >
+                  <span className="font-medium">{country}</span>
+                  <span className={active ? 'opacity-90' : 'text-muted-foreground'}>
+                    {c ? `${c.count} · ${formatUGX(c.total)}` : '0'}
+                  </span>
+                </button>
+              );
+            };
+            const otherCountries = countryStats
+              .map((c) => c.country)
+              .filter((name) => !AFRICAN_COUNTRY_SET.has(name));
+            return (
+              <div className="space-y-2">
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setCountryFilter('all')}
+                    className={`px-2.5 py-1 rounded-full text-xs border transition ${
+                      countryFilter === 'all'
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background hover:bg-muted border-border'
+                    }`}
+                  >
+                    All ({dateFiltered.length})
+                  </button>
+                  {countryFilter !== 'all' && (
+                    <button
+                      type="button"
+                      onClick={() => setCountryFilter('all')}
+                      className="px-2.5 py-1 rounded-full text-xs text-muted-foreground hover:text-foreground underline"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                {AFRICA_REGIONS.map((group) => (
+                  <div key={group.region} className="space-y-1">
+                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground/80 font-semibold">
+                      {group.region}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {group.countries.map((country) => renderChip(country))}
+                    </div>
+                  </div>
+                ))}
+                {otherCountries.length > 0 && (
+                  <div className="space-y-1">
+                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground/80 font-semibold">
+                      Other
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {otherCountries.map((country) => renderChip(country))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
 
