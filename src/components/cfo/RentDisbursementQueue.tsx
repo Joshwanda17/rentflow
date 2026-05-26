@@ -163,10 +163,10 @@ export function RentDisbursementQueue() {
     return [...map.values()].sort((a, b) => b.latest - a.latest);
   }, [filteredItems]);
 
-  // Country breakdown — counts + total rent per country across the whole queue.
+  // Country breakdown — counts + total rent per country across the filtered queue.
   const countryStats = useMemo(() => {
     const map = new Map<string, { country: string; count: number; total: number }>();
-    for (const it of items) {
+    for (const it of filteredItems) {
       const key = (it.request_country || '').trim() || 'Unknown';
       const s = map.get(key) ?? { country: key, count: 0, total: 0 };
       s.count += 1;
@@ -174,7 +174,7 @@ export function RentDisbursementQueue() {
       map.set(key, s);
     }
     return [...map.values()].sort((a, b) => b.total - a.total);
-  }, [items]);
+  }, [filteredItems]);
 
   const countryFilteredGroups = useMemo(() => {
     if (countryFilter === 'all') return grouped;
