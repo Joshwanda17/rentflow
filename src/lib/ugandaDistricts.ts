@@ -92,12 +92,12 @@ export function normalizeUgandaRegion(raw: string | null | undefined): string {
 }
 
 /**
- * UI-friendly grouping of Uganda into FIVE regions (Central, Eastern,
- * Western, Northern, Southern). Uganda officially has 4 administrative
- * regions, so "Southern" is a display-only grouping of southern
- * districts that actually belong to Central / Western. Each entry
- * keeps the canonical backend region so filtering/queries still
- * resolve correctly when a district is picked.
+ * UI grouping of Uganda into its 4 official administrative regions
+ * (Central, Eastern, Western, Northern). Southern districts like
+ * Masaka, Rakai, Kabale, Kisoro etc. live under their canonical
+ * region (Central or Western) — they are NOT split into a separate
+ * "Southern" bucket, otherwise the same tenants would be double-
+ * counted across Central and Southern.
  */
 export interface UgandaDistrictEntry {
   name: string;
@@ -109,7 +109,7 @@ export interface UgandaRegionGroup {
   /** Label shown in the UI (e.g. "Central Uganda"). */
   label: string;
   /** Short key for state. */
-  key: 'central' | 'eastern' | 'western' | 'northern' | 'southern';
+  key: 'central' | 'eastern' | 'western' | 'northern';
   districts: UgandaDistrictEntry[];
 }
 
@@ -131,6 +131,12 @@ export const UGANDA_REGION_GROUPS: UgandaRegionGroup[] = [
       { name: 'Butambala', backendRegion: 'Central' },
       { name: 'Gomba', backendRegion: 'Central' },
       { name: 'Kyankwanzi', backendRegion: 'Central' },
+      { name: 'Masaka', backendRegion: 'Central' },
+      { name: 'Kalangala', backendRegion: 'Central' },
+      { name: 'Lwengo', backendRegion: 'Central' },
+      { name: 'Lyantonde', backendRegion: 'Central' },
+      { name: 'Rakai', backendRegion: 'Central' },
+      { name: 'Sembabule', backendRegion: 'Central' },
     ],
   },
   {
@@ -158,6 +164,11 @@ export const UGANDA_REGION_GROUPS: UgandaRegionGroup[] = [
       { name: 'Kabarole', backendRegion: 'Western' },
       { name: 'Bushenyi', backendRegion: 'Western' },
       { name: 'Ibanda', backendRegion: 'Western' },
+      { name: 'Kabale', backendRegion: 'Western' },
+      { name: 'Kanungu', backendRegion: 'Western' },
+      { name: 'Kisoro', backendRegion: 'Western' },
+      { name: 'Rukungiri', backendRegion: 'Western' },
+      { name: 'Ntungamo', backendRegion: 'Western' },
     ],
   },
   {
@@ -172,25 +183,6 @@ export const UGANDA_REGION_GROUPS: UgandaRegionGroup[] = [
       { name: 'Moyo', backendRegion: 'Northern' },
       { name: 'Nebbi', backendRegion: 'Northern' },
       { name: 'Adjumani', backendRegion: 'Northern' },
-    ],
-  },
-  {
-    // Display-only grouping. Districts here are officially in Central
-    // or Western; we keep their canonical backendRegion intact.
-    label: 'Southern Uganda',
-    key: 'southern',
-    districts: [
-      { name: 'Masaka', backendRegion: 'Central' },
-      { name: 'Kalangala', backendRegion: 'Central' },
-      { name: 'Lwengo', backendRegion: 'Central' },
-      { name: 'Lyantonde', backendRegion: 'Central' },
-      { name: 'Rakai', backendRegion: 'Central' },
-      { name: 'Sembabule', backendRegion: 'Central' },
-      { name: 'Kabale', backendRegion: 'Western' },
-      { name: 'Kanungu', backendRegion: 'Western' },
-      { name: 'Kisoro', backendRegion: 'Western' },
-      { name: 'Rukungiri', backendRegion: 'Western' },
-      { name: 'Ntungamo', backendRegion: 'Western' },
     ],
   },
 ];
