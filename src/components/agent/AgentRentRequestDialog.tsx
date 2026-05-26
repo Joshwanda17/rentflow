@@ -43,6 +43,7 @@ import {
 import { toast } from 'sonner';
 import { formatUGX, calculateRentRepayment } from '@/lib/rentCalculations';
 import { hapticSuccess } from '@/lib/haptics';
+import { normalizeDistrict, districtWarning } from '@/lib/ugandaDistricts';
 
 interface AgentRentRequestDialogProps {
   open: boolean;
@@ -833,7 +834,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       if (!isOutstanding) {
         const profileLocation: Record<string, string> = {};
         if (propertyCity.trim()) profileLocation.city = propertyCity.trim();
-        if (propertyDistrict.trim()) profileLocation.district = propertyDistrict.trim();
+        if (propertyDistrict.trim()) {
+          profileLocation.district = normalizeDistrict(propertyDistrict);
+        }
         if (lc1Village.trim()) profileLocation.village = lc1Village.trim();
         if (Object.keys(profileLocation).length > 0) {
           profileLocation.country = 'Uganda';
@@ -1884,9 +1887,20 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <Input
                       value={propertyDistrict}
                       onChange={(e) => setPropertyDistrict(e.target.value)}
+                      onBlur={(e) => {
+                        const normalized = normalizeDistrict(e.target.value);
+                        if (normalized && normalized !== e.target.value.trim()) {
+                          setPropertyDistrict(normalized);
+                        }
+                      }}
                       placeholder="e.g. Wakiso"
                       className="h-10"
                     />
+                    {districtWarning(propertyDistrict) && (
+                      <p className="text-[10px] text-warning leading-tight">
+                        {districtWarning(propertyDistrict)}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
