@@ -66,6 +66,11 @@ export function UserDrilldownDrawer({
   const effectiveTenantId = pickedUser?.id ?? tenantId ?? null;
   const isOps = useIsOpsRole();
 
+  const handleSelectTenant = (id: string, name: string) => {
+    setPickedUser({ id, full_name: name, phone: null });
+    setTab('tenant');
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto p-0">
@@ -108,7 +113,7 @@ export function UserDrilldownDrawer({
             {effectiveTenantId && <TenantPane tenantId={effectiveTenantId} isOps={isOps} />}
           </TabsContent>
           <TabsContent value="agent" className="py-4">
-            {agentId && <AgentPane agentId={agentId} isOps={isOps} />}
+            {agentId && <AgentPane agentId={agentId} isOps={isOps} onSelectTenant={handleSelectTenant} />}
           </TabsContent>
           <TabsContent value="landlord" className="py-4">
             {landlordId && <LandlordPane landlordId={landlordId} isOps={isOps} />}
