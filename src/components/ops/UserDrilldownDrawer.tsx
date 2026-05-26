@@ -1117,9 +1117,14 @@ function TenantPane({
           <div className="flex items-center gap-2 text-sm font-medium">
             <Home className="h-4 w-4 text-primary" /> Landlord on file
           </div>
-          <p className="text-sm font-semibold truncate">
+          <button
+            type="button"
+            onClick={() => onSelectLandlord?.(activeRr.landlord_id)}
+            className="text-left text-sm font-semibold truncate text-primary hover:underline disabled:no-underline disabled:text-foreground"
+            disabled={!onSelectLandlord}
+          >
             {activeLandlord?.name?.trim() || activeLandlord?.phone || 'Landlord record missing'}
-          </p>
+          </button>
           {activeLandlord?.phone && (
             <p className="text-xs text-muted-foreground flex items-center gap-1">
               <Phone className="h-3 w-3" /> {activeLandlord.phone}
@@ -1380,8 +1385,15 @@ function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord }: { agent
           ) : (
             <ul className="space-y-1 text-xs">
               {(stats?.landlords ?? []).map((a: any) => (
-                <li key={a.landlord_id} className="flex justify-between border-b border-border/40 py-1">
-                  <span className="truncate">{a.landlords?.name ?? a.landlord_id}</span>
+                <li key={a.landlord_id} className="flex justify-between border-b border-border/40 py-1 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onSelectLandlord?.(a.landlord_id)}
+                    className="truncate text-left text-primary hover:underline disabled:no-underline disabled:text-foreground"
+                    disabled={!onSelectLandlord}
+                  >
+                    {a.landlords?.name ?? a.landlord_id}
+                  </button>
                   <span className="text-muted-foreground font-mono">{a.landlords?.phone}</span>
                 </li>
               ))}
