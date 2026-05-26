@@ -30,6 +30,9 @@ interface TenantEntry {
   total_repayment: number;
   outstanding: number;
   wallet_balance: number;
+  landlord_id: string | null;
+  landlord_name: string | null;
+  landlord_phone: string | null;
 }
 
 export function AgentTenantSearch() {
