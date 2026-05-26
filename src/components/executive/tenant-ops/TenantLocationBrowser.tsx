@@ -94,14 +94,12 @@ function UgandaRegionDistrictPicker({
   onPickDistrict: (district: string, backendRegion: string) => void;
 }) {
   const [openRegion, setOpenRegion] = useState<string | null>('central');
-
-  // Map backend region label → tenant count from the live rows so each
-  // region header can show a live total.
-  const regionTotals = useMemo(() => {
-    const m: Record<string, number> = {};
-    for (const r of rows) m[r.label.toLowerCase()] = (m[r.label.toLowerCase()] ?? 0) + r.total;
-    return m;
-  }, [rows]);
+  // Note: per-UI-group tenant totals are intentionally omitted. UI groups
+  // (e.g. Southern) draw districts from multiple backend regions, so a
+  // simple sum of backend region totals would double-count tenants across
+  // Central / Western / Southern. Accurate per-group totals would require
+  // a district-level breakdown, which we skip here in favour of the
+  // district tiles below (each shows its own count after drill-down).
 
   return (
     <div className="space-y-2">
@@ -113,8 +111,6 @@ function UgandaRegionDistrictPicker({
       {UGANDA_REGION_GROUPS.map((group) => {
         const isOpen = openRegion === group.key;
         // Sum tenants across all backend regions that this UI group draws from.
-        const backendRegions = Array.from(new Set(group.districts.map((d) => d.backendRegion.toLowerCase())));
-        const liveTotal = backendRegions.reduce((sum, r) => sum + (regionTotals[r] ?? 0), 0);
         return (
           <Card key={group.key} className="overflow-hidden">
             <button
@@ -129,11 +125,6 @@ function UgandaRegionDistrictPicker({
                 <Badge variant="secondary" className="text-[10px] shrink-0">
                   {group.districts.length} districts
                 </Badge>
-                {liveTotal > 0 && (
-                  <Badge variant="default" className="text-[10px] shrink-0">
-                    {liveTotal.toLocaleString()} tenants
-                  </Badge>
-                )}
               </div>
               <ChevronDown
                 className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`}

@@ -109,7 +109,7 @@ export interface UgandaRegionGroup {
   /** Label shown in the UI (e.g. "Central Uganda"). */
   label: string;
   /** Short key for state. */
-  key: 'central' | 'eastern' | 'western' | 'northern';
+  key: 'central' | 'eastern' | 'western' | 'northern' | 'southern';
   districts: UgandaDistrictEntry[];
 }
 
@@ -131,12 +131,6 @@ export const UGANDA_REGION_GROUPS: UgandaRegionGroup[] = [
       { name: 'Butambala', backendRegion: 'Central' },
       { name: 'Gomba', backendRegion: 'Central' },
       { name: 'Kyankwanzi', backendRegion: 'Central' },
-      { name: 'Masaka', backendRegion: 'Central' },
-      { name: 'Kalangala', backendRegion: 'Central' },
-      { name: 'Lwengo', backendRegion: 'Central' },
-      { name: 'Lyantonde', backendRegion: 'Central' },
-      { name: 'Rakai', backendRegion: 'Central' },
-      { name: 'Sembabule', backendRegion: 'Central' },
     ],
   },
   {
@@ -164,11 +158,6 @@ export const UGANDA_REGION_GROUPS: UgandaRegionGroup[] = [
       { name: 'Kabarole', backendRegion: 'Western' },
       { name: 'Bushenyi', backendRegion: 'Western' },
       { name: 'Ibanda', backendRegion: 'Western' },
-      { name: 'Kabale', backendRegion: 'Western' },
-      { name: 'Kanungu', backendRegion: 'Western' },
-      { name: 'Kisoro', backendRegion: 'Western' },
-      { name: 'Rukungiri', backendRegion: 'Western' },
-      { name: 'Ntungamo', backendRegion: 'Western' },
     ],
   },
   {
@@ -183,6 +172,25 @@ export const UGANDA_REGION_GROUPS: UgandaRegionGroup[] = [
       { name: 'Moyo', backendRegion: 'Northern' },
       { name: 'Nebbi', backendRegion: 'Northern' },
       { name: 'Adjumani', backendRegion: 'Northern' },
+    ],
+  },
+  {
+    label: 'Southern Uganda',
+    key: 'southern',
+    districts: [
+      // Greater Masaka sub-region (backend stores them as Central)
+      { name: 'Masaka', backendRegion: 'Central' },
+      { name: 'Kalangala', backendRegion: 'Central' },
+      { name: 'Lwengo', backendRegion: 'Central' },
+      { name: 'Lyantonde', backendRegion: 'Central' },
+      { name: 'Rakai', backendRegion: 'Central' },
+      { name: 'Sembabule', backendRegion: 'Central' },
+      // Kigezi sub-region (backend stores them as Western)
+      { name: 'Kabale', backendRegion: 'Western' },
+      { name: 'Kanungu', backendRegion: 'Western' },
+      { name: 'Kisoro', backendRegion: 'Western' },
+      { name: 'Rukungiri', backendRegion: 'Western' },
+      { name: 'Ntungamo', backendRegion: 'Western' },
     ],
   },
 ];
