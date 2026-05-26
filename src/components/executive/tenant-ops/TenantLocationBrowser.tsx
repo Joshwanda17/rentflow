@@ -94,6 +94,13 @@ export function TenantLocationBrowser() {
           <div className="flex-1 min-w-0">
             <TenantLocationBreadcrumbs path={path} onJump={(p) => setPath(p)} />
           </div>
+          {level !== 'tenants' && (
+            <DistrictJumpSearch
+              onJump={({ district, backendRegion }) =>
+                setPath({ country: 'Uganda', region: backendRegion, district })
+              }
+            />
+          )}
           <Button
             size="sm"
             variant="outline"
