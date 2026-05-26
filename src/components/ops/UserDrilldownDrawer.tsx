@@ -1796,20 +1796,48 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
   const { data, isLoading } = useQuery({
     queryKey: ['drilldown-agent-tenants', agentId],
     queryFn: async () => {
-      const { data: rrs } = await supabase
-        .from('rent_requests')
-        .select('id, tenant_id, landlord_id, rent_amount, total_repayment, amount_repaid, status, created_at')
-        .eq('assigned_agent_id', agentId)
-        .order('created_at', { ascending: false })
-        .limit(500);
-      const list = rrs ?? [];
+      // Union two sources of "tenants under this agent":
+      //   1. rent_requests.assigned_agent_id  (transactional assignment)
+      //   2. profiles.managing_agent_id       (long-term ownership)
+      // Either alone misses real tenants — e.g. an agent who manages 60+
+      // people via profile ownership but has no active rent request yet.
+      const [rrsRes, managedRes] = await Promise.all([
+        supabase
+          .from('rent_requests')
+          .select('id, tenant_id, landlord_id, rent_amount, total_repayment, amount_repaid, status, created_at')
+          .eq('assigned_agent_id', agentId)
+          .order('created_at', { ascending: false })
+          .limit(500),
+        supabase
+          .from('profiles')
+          .select('id')
+          .eq('managing_agent_id', agentId)
+          .limit(1000),
+      ]);
+      const list = rrsRes.data ?? [];
       // Keep latest rent request per tenant
       const latestByTenant = new Map<string, any>();
       for (const r of list) {
         if (!r.tenant_id) continue;
         if (!latestByTenant.has(r.tenant_id)) latestByTenant.set(r.tenant_id, r);
       }
-      const rows = Array.from(latestByTenant.values());
+      // Seed rows from rent requests
+      const rows: any[] = Array.from(latestByTenant.values());
+      // Add managed-profile tenants that have no rent request on file
+      for (const p of (managedRes.data ?? []) as any[]) {
+        if (!latestByTenant.has(p.id)) {
+          rows.push({
+            id: `managed-${p.id}`,
+            tenant_id: p.id,
+            landlord_id: null,
+            rent_amount: 0,
+            total_repayment: 0,
+            amount_repaid: 0,
+            status: 'no_plan',
+            created_at: null,
+          });
+        }
+      }
       const tenantIds = rows.map((r) => r.tenant_id).filter(Boolean);
       const landlordIds = Array.from(new Set(rows.map((r) => r.landlord_id).filter(Boolean)));
       const [tenants, landlords, ledgerRes] = await Promise.all([
