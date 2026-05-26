@@ -1195,7 +1195,7 @@ function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord }: { agent
   const { data: roles = [] } = useUserRoles(agentId);
   const [viewMode, setViewMode] = useState<'tenants' | 'landlords' | 'listings'>('tenants');
 
-  const { data: listings = [] } = useQuery({
+  const { data: listings = [], refetch: refetchListings, isFetching: listingsFetching } = useQuery({
     queryKey: ['drilldown-agent-listings', agentId],
     queryFn: async () => {
       // Same person may have multiple profile UUIDs (per Identity Account Mapping).
