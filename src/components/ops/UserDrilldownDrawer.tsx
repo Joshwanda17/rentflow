@@ -2152,6 +2152,83 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
           ))}
         </ul>
       )}
+
+      {/* Source details modal */}
+      <Dialog open={!!sourceModalRow} onOpenChange={() => setSourceModalRow(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Source details</DialogTitle>
+            <DialogDescription className="text-xs">
+              Underlying record that links this tenant to the agent.
+            </DialogDescription>
+          </DialogHeader>
+          {sourceModalRow && (
+            <div className="space-y-3 text-xs">
+              <div className="flex items-center gap-2">
+                <Badge
+                  variant={sourceModalRow.source === 'rent_request' ? 'default' : 'secondary'}
+                  className="text-[10px]"
+                >
+                  {sourceModalRow.source === 'rent_request' ? 'Rent request' : 'Profile ownership'}
+                </Badge>
+                <span className="text-muted-foreground">
+                  {sourceModalRow.source === 'rent_request'
+                    ? 'Assigned via rent request'
+                    : 'Linked via managing_agent_id on profile'}
+                </span>
+              </div>
+
+              <div className="space-y-2 rounded-md border border-border/60 p-3 bg-muted/30">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Tenant ID</span>
+                  <span className="font-mono">{sourceModalRow.tenantId}</span>
+                </div>
+                {sourceModalRow.rentRequestId && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Rent request ID</span>
+                    <span className="font-mono">{sourceModalRow.rentRequestId}</span>
+                  </div>
+                )}
+                {sourceModalRow.landlordId && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Landlord ID</span>
+                    <span className="font-mono">{sourceModalRow.landlordId}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Status</span>
+                  <span className="capitalize">{sourceModalRow.status}</span>
+                </div>
+                {sourceModalRow.source === 'rent_request' && (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Rent amount</span>
+                      <span>{fmtUGX(sourceModalRow.rentAmount)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Total repayment</span>
+                      <span>{fmtUGX(sourceModalRow.totalRepayment)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Amount repaid</span>
+                      <span>{fmtUGX(sourceModalRow.amountRepaid)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Created</span>
+                      <span>{sourceModalRow.createdAt ? format(parseISO(sourceModalRow.createdAt), 'dd MMM yyyy') : '—'}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button size="sm" variant="outline" onClick={() => setSourceModalRow(null)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
