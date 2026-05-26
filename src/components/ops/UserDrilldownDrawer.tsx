@@ -16,7 +16,7 @@ import {
   User, Home, UserCheck, MapPin, Loader2, Link2, Plus, Phone,
   Wallet, ShieldAlert, Building2, ReceiptText, Smartphone, SmartphoneNfc,
   Search, Pencil, X, TrendingUp, Users, Sparkles, Download, FileText,
-  ChevronRight, ArrowLeft, MessageSquare, StickyNote, CheckCircle2, XCircle,
+  ChevronRight, ChevronLeft, ArrowLeft, MessageSquare, StickyNote, CheckCircle2, XCircle,
   CalendarIcon, Info, AlertTriangle, RefreshCw, Filter,
 } from 'lucide-react';
 import {
@@ -1776,6 +1776,20 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
     onError: (e: any) => toast.error(e.message ?? 'Link failed'),
   });
 
+  const [lightbox, setLightbox] = useState<{
+    images: string[];
+    index: number;
+    title: string;
+    open: boolean;
+  }>({ images: [], index: 0, title: '', open: false });
+
+  const openLightbox = (images: string[], startIndex: number, title: string) => {
+    setLightbox({ images, index: startIndex, title, open: true });
+  };
+  const closeLightbox = () => setLightbox((s) => ({ ...s, open: false }));
+  const prevImage = () => setLightbox((s) => ({ ...s, index: (s.index - 1 + s.images.length) % s.images.length }));
+  const nextImage = () => setLightbox((s) => ({ ...s, index: (s.index + 1) % s.images.length }));
+
   if (isLoading) return <Loader2 className="h-4 w-4 animate-spin mx-auto" />;
 
   return (
@@ -1805,10 +1819,12 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
         </div>
         {(() => {
           const gallery = listings.flatMap((l: any) =>
-            (Array.isArray(l.image_urls) ? l.image_urls : []).map((src: string) => ({
+            (Array.isArray(l.image_urls) ? l.image_urls : []).map((src: string, idx: number) => ({
               src,
               title: l.title,
               location: l.village ?? l.district ?? l.address ?? '',
+              images: l.image_urls,
+              startIndex: idx,
             }))
           );
           if (gallery.length === 0) return null;
@@ -1820,12 +1836,11 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
               </div>
               <div className="grid grid-cols-3 gap-1">
                 {gallery.map((g, i) => (
-                  <a
+                  <button
                     key={i}
-                    href={g.src}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="relative group block aspect-square overflow-hidden rounded border border-border/40"
+                    type="button"
+                    onClick={() => openLightbox(g.images, g.startIndex, g.title)}
+                    className="relative group block aspect-square overflow-hidden rounded border border-border/40 text-left"
                     title={`${g.title}${g.location ? ' · ' + g.location : ''}`}
                   >
                     <img
@@ -1837,7 +1852,7 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
                     <div className="absolute inset-x-0 bottom-0 bg-black/60 px-1 py-0.5 text-[9px] text-white truncate opacity-0 group-hover:opacity-100">
                       {g.title}
                     </div>
-                  </a>
+                  </button>
                 ))}
               </div>
             </div>
@@ -1852,14 +1867,19 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
                 {Array.isArray(l.image_urls) && l.image_urls.length > 0 ? (
                   <div className="flex gap-1 overflow-x-auto pb-1 -mx-1 px-1">
                     {l.image_urls.slice(0, 8).map((src: string, i: number) => (
-                      <a key={i} href={src} target="_blank" rel="noreferrer" className="shrink-0">
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => openLightbox(l.image_urls, i, l.title)}
+                        className="shrink-0"
+                      >
                         <img
                           src={src}
                           alt={`${l.title} photo ${i + 1}`}
                           loading="lazy"
                           className="h-20 w-24 object-cover rounded border border-border/40"
                         />
-                      </a>
+                      </button>
                     ))}
                   </div>
                 ) : (
@@ -1933,6 +1953,82 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
         </div>
         <p className="text-xs text-muted-foreground italic">Coming soon — confirm data model to enable.</p>
       </Card>
+
+      {/* Full-screen lightbox */}
+      {lightbox.open && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/95 flex flex-col"
+          onClick={(e) => { if (e.target === e.currentTarget) closeLightbox(); }}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-sm text-white font-medium truncate">{lightbox.title}</p>
+              <p className="text-[11px] text-white/60">
+                {lightbox.index + 1} / {lightbox.images.length}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={closeLightbox}
+              className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+              aria-label="Close"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          {/* Image stage */}
+          <div className="flex-1 flex items-center justify-center px-4 relative">
+            {lightbox.images.length > 1 && (
+              <button
+                type="button"
+                onClick={prevImage}
+                className="absolute left-2 sm:left-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors z-10"
+                aria-label="Previous"
+              >
+                <ChevronLeft className="h-6 w-6" />
+              </button>
+            )}
+            <img
+              src={lightbox.images[lightbox.index]}
+              alt={`${lightbox.title} ${lightbox.index + 1}`}
+              className="max-h-full max-w-full object-contain rounded"
+              onClick={(e) => e.stopPropagation()}
+            />
+            {lightbox.images.length > 1 && (
+              <button
+                type="button"
+                onClick={nextImage}
+                className="absolute right-2 sm:right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors z-10"
+                aria-label="Next"
+              >
+                <ChevronRight className="h-6 w-6" />
+              </button>
+            )}
+          </div>
+
+          {/* Thumbnail strip */}
+          {lightbox.images.length > 1 && (
+            <div className="flex gap-1 overflow-x-auto px-4 py-3 justify-center">
+              {lightbox.images.map((src, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setLightbox((s) => ({ ...s, index: i }))}
+                  className={`shrink-0 rounded border-2 overflow-hidden ${i === lightbox.index ? 'border-primary' : 'border-transparent'}`}
+                >
+                  <img
+                    src={src}
+                    alt={`thumb ${i + 1}`}
+                    className="h-12 w-16 object-cover"
+                  />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
