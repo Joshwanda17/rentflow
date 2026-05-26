@@ -89,9 +89,72 @@ const SORT_OPTIONS: { key: LeafSortKey; label: string }[] = [
 export function TenantOpsFilterBar({
   filters, onChange, resultCount, totalCount, onExportCSV, onExportPDF, exportDisabled,
 }: Props) {
-  const [presets, setPresets] = useState<TenantOpsPreset[]>(() => loadPresets());
+  const [presets, setPresets] = useState<TenantOpsPresetRemote[]>([]);
+  const [presetsLoading, setPresetsLoading] = useState(false);
   const [presetName, setPresetName] = useState('');
+  const [presetVis, setPresetVis] = useState<PresetVisibility>('private');
+  const [saving, setSaving] = useState(false);
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const [presetsOpen, setPresetsOpen] = useState(false);
+
+  const refreshPresets = async () => {
+    setPresetsLoading(true);
+    try { setPresets(await listPresets()); }
+    catch (e: any) { toast.error(e?.message ?? 'Failed to load presets'); }
+    finally { setPresetsLoading(false); }
+  };
+  useEffect(() => { if (presetsOpen) void refreshPresets(); }, [presetsOpen]);
+
+  const handleSavePreset = async () => {
+    if (!presetName.trim()) return;
+    setSaving(true);
+    try {
+      const created = await createPreset({
+        name: presetName, filters, visibility: presetVis,
+      });
+      setPresets((p) => [created, ...p.filter((x) => x.id !== created.id)]);
+      setPresetName('');
+      if (created.share_slug) {
+        const url = buildShareUrl(created.share_slug);
+        await navigator.clipboard.writeText(url).catch(() => {});
+        toast.success('Shared preset saved — link copied');
+      } else {
+        toast.success('Preset saved');
+      }
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Failed to save preset');
+    } finally { setSaving(false); }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deletePresetRemote(id);
+      setPresets((p) => p.filter((x) => x.id !== id));
+    } catch (e: any) { toast.error(e?.message ?? 'Failed to delete'); }
+  };
+
+  const handleShareToggle = async (p: TenantOpsPresetRemote) => {
+    try {
+      const next = await setPresetVisibility(
+        p.id, p.visibility === 'shared' ? 'private' : 'shared',
+      );
+      setPresets((rows) => rows.map((r) => (r.id === next.id ? next : r)));
+      if (next.share_slug) {
+        await navigator.clipboard.writeText(buildShareUrl(next.share_slug)).catch(() => {});
+        toast.success('Link copied — anyone with the link can load this preset');
+      } else {
+        toast.success('Preset is now private');
+      }
+    } catch (e: any) { toast.error(e?.message ?? 'Failed to update sharing'); }
+  };
+
+  const handleCopyLink = async (p: TenantOpsPresetRemote) => {
+    if (!p.share_slug) return;
+    try {
+      await navigator.clipboard.writeText(buildShareUrl(p.share_slug));
+      toast.success('Share link copied');
+    } catch { toast.error('Could not copy link'); }
+  };
 
   const patch = (p: Partial<TenantOpsFilters>) => onChange({ ...filters, ...p });
   const active = isFiltersActive(filters);
