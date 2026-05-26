@@ -44,6 +44,7 @@ export function FundedTenantsList() {
     tenantId: string | null;
     agentId: string | null;
     landlordId: string | null;
+    tab?: 'tenant' | 'agent' | 'landlord';
   } | null>(null);
 
   const { data: rows = [], isLoading } = useQuery({
@@ -241,7 +242,29 @@ export function FundedTenantsList() {
                     )}
                   </div>
                   <div className="flex items-center gap-3 text-[11px] text-muted-foreground flex-wrap">
-                    <span>Agent: <b className="text-foreground">{r.agent_profile?.full_name ?? '—'}</b></span>
+                    <span>
+                      Agent:{' '}
+                      {r.agent_id ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDrill({
+                              tenantId: r.tenant_id ?? null,
+                              agentId: r.agent_id ?? null,
+                              landlordId: r.landlord_id ?? null,
+                              tab: 'agent',
+                            });
+                          }}
+                          className="font-semibold text-primary hover:underline"
+                          title="Open agent profile"
+                        >
+                          {r.agent_profile?.full_name ?? '—'}
+                        </button>
+                      ) : (
+                        <b className="text-foreground">—</b>
+                      )}
+                    </span>
                     <span>{r.mobile_money_provider}: <span className="font-mono">{r.landlord_phone}</span></span>
                     {(r.finops_momo_reference || r.external_reference) && (
                       <span className="inline-flex items-center gap-1">
@@ -310,12 +333,13 @@ export function FundedTenantsList() {
       />
 
       <UserDrilldownDrawer
+        key={drill ? `${drill.agentId ?? ''}-${drill.tenantId ?? ''}-${drill.landlordId ?? ''}-${drill.tab ?? 'landlord'}` : 'closed'}
         open={!!drill}
         onOpenChange={(o) => !o && setDrill(null)}
         tenantId={drill?.tenantId ?? null}
         agentId={drill?.agentId ?? null}
         landlordId={drill?.landlordId ?? null}
-        defaultTab="landlord"
+        defaultTab={drill?.tab ?? 'landlord'}
       />
     </div>
   );

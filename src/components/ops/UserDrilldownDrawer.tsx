@@ -731,6 +731,9 @@ function AgentPane({ agentId, isOps }: { agentId: string; isOps: boolean }) {
         </div>
       </Card>
 
+      {/* Tenants under management — name, outstanding balance, landlord */}
+      <AgentTenantsList agentId={agentId} />
+
       {/* Network — partners onboarded & referrals */}
       <Card className="p-3 space-y-2">
         <div className="flex items-center gap-2 text-sm font-medium">
@@ -1090,6 +1093,108 @@ function AgentWalletStatements({ agentId }: { agentId: string }) {
               </li>
             );
           })}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Agent tenants list — tenant · outstanding balance · landlord       */
+/* ------------------------------------------------------------------ */
+function AgentTenantsList({ agentId }: { agentId: string }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['drilldown-agent-tenants', agentId],
+    queryFn: async () => {
+      const { data: rrs } = await supabase
+        .from('rent_requests')
+        .select('id, tenant_id, landlord_id, rent_amount, total_repayment, amount_repaid, status, created_at')
+        .eq('assigned_agent_id', agentId)
+        .order('created_at', { ascending: false })
+        .limit(500);
+      const list = rrs ?? [];
+      // Keep latest rent request per tenant
+      const latestByTenant = new Map<string, any>();
+      for (const r of list) {
+        if (!r.tenant_id) continue;
+        if (!latestByTenant.has(r.tenant_id)) latestByTenant.set(r.tenant_id, r);
+      }
+      const rows = Array.from(latestByTenant.values());
+      const tenantIds = rows.map((r) => r.tenant_id).filter(Boolean);
+      const landlordIds = Array.from(new Set(rows.map((r) => r.landlord_id).filter(Boolean)));
+      const [tenants, landlords] = await Promise.all([
+        tenantIds.length
+          ? supabase.from('profiles').select('id, full_name, phone, avatar_url').in('id', tenantIds)
+          : Promise.resolve({ data: [] as any[] }),
+        landlordIds.length
+          ? supabase.from('landlords').select('id, name, phone').in('id', landlordIds as any)
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+      const tMap = new Map((tenants.data ?? []).map((t: any) => [t.id, t]));
+      const lMap = new Map((landlords.data ?? []).map((l: any) => [l.id, l]));
+      return rows
+        .map((r) => {
+          const outstanding = Math.max(
+            0,
+            Number(r.total_repayment || 0) - Number(r.amount_repaid || 0),
+          );
+          return {
+            id: r.id,
+            tenant: tMap.get(r.tenant_id) as any,
+            landlord: r.landlord_id ? (lMap.get(r.landlord_id) as any) : null,
+            outstanding,
+            status: r.status,
+          };
+        })
+        .sort((a, b) => b.outstanding - a.outstanding);
+    },
+  });
+
+  return (
+    <Card className="p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <Users className="h-4 w-4 text-primary" /> Tenants under management
+        </div>
+        <Badge variant="outline" className="text-[10px]">{data?.length ?? 0}</Badge>
+      </div>
+      {isLoading ? (
+        <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+      ) : (data ?? []).length === 0 ? (
+        <p className="text-xs text-muted-foreground">No tenants assigned to this agent yet.</p>
+      ) : (
+        <ul className="space-y-1.5 max-h-80 overflow-y-auto pr-1">
+          {(data ?? []).map((row) => (
+            <li
+              key={row.id}
+              className="flex items-center justify-between gap-2 rounded-md border border-border/40 p-2 text-xs"
+            >
+              <div className="min-w-0 flex items-center gap-2">
+                <Avatar className="h-7 w-7 shrink-0">
+                  <AvatarImage
+                    src={row.tenant?.avatar_url ?? undefined}
+                    alt={row.tenant?.full_name ?? 'Tenant'}
+                  />
+                  <AvatarFallback className="text-[10px]">
+                    {(row.tenant?.full_name ?? 'T').slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <p className="font-medium truncate">
+                    {row.tenant?.full_name ?? 'Unnamed tenant'}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
+                    <Home className="h-2.5 w-2.5" />
+                    {row.landlord?.name?.trim() || row.landlord?.phone || 'No landlord on file'}
+                  </p>
+                </div>
+              </div>
+              <div className="text-right shrink-0">
+                <p className="font-semibold text-amber-700">{fmtUGX(row.outstanding)}</p>
+                <p className="text-[9px] text-muted-foreground capitalize">{row.status}</p>
+              </div>
+            </li>
+          ))}
         </ul>
       )}
     </Card>
