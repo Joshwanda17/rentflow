@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 import {
   User, Home, UserCheck, MapPin, Loader2, Link2, Plus, Phone,
   Wallet, ShieldAlert, Building2, ReceiptText, Smartphone, SmartphoneNfc,
-  Search,
+  Search, Pencil, X,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
