@@ -1288,6 +1288,8 @@ export function TenantOpsDashboard() {
         return <TenantOpsLandlordFloatTimeline />;
       case 'location-browser':
         return <LocationBrowser />;
+      case 'tenant-location-browser':
+        return <TenantLocationBrowser />;
       case 'daily-collections':
         return <DailyCollectionMonitoringDashboard mode="editable" title="Daily Collection Monitoring" />;
       default:
