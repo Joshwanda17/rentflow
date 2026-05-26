@@ -689,6 +689,9 @@ function AgentPane({ agentId, isOps }: { agentId: string; isOps: boolean }) {
         )}
       </Card>
 
+      {/* Recent wallet statements (last 25 entries, user-facing filter) */}
+      <AgentWalletStatements agentId={agentId} />
+
       {/* Capacity / credit access */}
       {cap && (
         <Card className="p-3 space-y-2">
