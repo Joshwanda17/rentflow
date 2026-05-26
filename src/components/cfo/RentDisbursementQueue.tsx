@@ -134,11 +134,18 @@ export function RentDisbursementQueue() {
     setSelected(next);
   };
 
+  // Date-window filter: which requests are within the chosen lookback.
+  const filteredItems = useMemo(() => {
+    if (dateFilter === 'all') return items;
+    const cutoff = Date.now() - (dateFilter === '7d' ? 7 : 30) * 24 * 60 * 60 * 1000;
+    return items.filter(it => new Date(it.created_at).getTime() >= cutoff);
+  }, [items, dateFilter]);
+
   // Group rows by agent so CFO can pick one tenant, a few, or all of an
   // agent's tenants at a glance.
   const grouped = useMemo(() => {
     const map = new Map<string, { agent_id: string; agent_name: string; rows: ApprovedRentItem[]; latest: number }>();
-    for (const it of items) {
+    for (const it of filteredItems) {
       const key = it.assigned_agent_id || it.agent_id || 'unassigned';
       const ts = new Date(it.created_at).getTime();
       const g = map.get(key) ?? { agent_id: key, agent_name: it.agent_name, rows: [], latest: 0 };
@@ -154,7 +161,7 @@ export function RentDisbursementQueue() {
       );
     }
     return [...map.values()].sort((a, b) => b.latest - a.latest);
-  }, [items]);
+  }, [filteredItems]);
 
   // Country breakdown — counts + total rent per country across the whole queue.
   const countryStats = useMemo(() => {
