@@ -1880,14 +1880,20 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
               </div>
             );
           }
+          const PAGE_SIZE = 15;
+          const totalPages = Math.ceil(gallery.length / PAGE_SIZE);
+          const clampedPage = Math.min(galleryPage, totalPages - 1);
+          const pageGallery = gallery.slice(clampedPage * PAGE_SIZE, (clampedPage + 1) * PAGE_SIZE);
           return (
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Photo gallery</span>
-                <Badge variant="outline" className="text-[9px]">{gallery.length} photos</Badge>
+                <Badge variant="outline" className="text-[9px]">
+                  {clampedPage * PAGE_SIZE + 1}-{Math.min((clampedPage + 1) * PAGE_SIZE, gallery.length)} of {gallery.length}
+                </Badge>
               </div>
               <div className="grid grid-cols-3 gap-1">
-                {gallery.map((g, i) => (
+                {pageGallery.map((g, i) => (
                   <button
                     key={i}
                     type="button"
@@ -1907,6 +1913,29 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
                   </button>
                 ))}
               </div>
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setGalleryPage((p) => Math.max(0, p - 1))}
+                    disabled={clampedPage === 0}
+                    className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" /> Prev
+                  </button>
+                  <span className="text-[10px] text-muted-foreground">
+                    Page {clampedPage + 1} of {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setGalleryPage((p) => Math.min(totalPages - 1, p + 1))}
+                    disabled={clampedPage >= totalPages - 1}
+                    className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next <ChevronRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
             </div>
           );
         })()}
