@@ -1692,18 +1692,26 @@ function AgentWalletStatements({ agentId }: { agentId: string }) {
 /* ------------------------------------------------------------------ */
 /* Tenant statements — rent obligations & repayments from ledger     */
 /* ------------------------------------------------------------------ */
-function TenantStatements({ tenantId }: { tenantId: string }) {
+function TenantStatements({
+  tenantId, dateRange, onDateRangeChange,
+}: {
+  tenantId: string;
+  dateRange: StatementDateRange;
+  onDateRangeChange: (v: StatementDateRange) => void;
+}) {
+  const { gte, lte } = buildDateRange(dateRange);
   const { data: entries = [], isLoading } = useQuery({
-    queryKey: ['drilldown-tenant-statements', tenantId],
+    queryKey: ['drilldown-tenant-statements', tenantId, dateRange.preset, gte, lte],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from('general_ledger')
         .select('id, transaction_date, amount, direction, category, description')
         .eq('user_id', tenantId)
         .in('category', ['rent_obligation', 'tenant_repayment', 'rent_repayment'])
-        .neq('classification', 'admin_correction')
-        .order('transaction_date', { ascending: false })
-        .limit(25);
+        .neq('classification', 'admin_correction');
+      if (gte) q = q.gte('transaction_date', gte);
+      if (lte) q = q.lte('transaction_date', lte);
+      const { data, error } = await q.order('transaction_date', { ascending: false }).limit(500);
       if (error) throw error;
       return data ?? [];
     },
