@@ -17635,6 +17635,15 @@ export type Database = {
         }
         Returns: Json
       }
+      ops_update_user_identity: {
+        Args: {
+          p_full_name: string
+          p_phone: string
+          p_reason: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       ops_update_user_location:
         | {
             Args: {
