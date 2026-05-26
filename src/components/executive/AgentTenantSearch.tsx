@@ -277,7 +277,19 @@ export function AgentTenantSearch() {
         )}
 
         {tenants?.map((t) => (
-          <Card key={t.rent_request_id} className="border">
+          <Card
+            key={t.rent_request_id}
+            className="border hover:shadow-md transition-shadow cursor-pointer active:bg-muted/40"
+            onClick={() =>
+              setDrilldown({
+                tenantId: t.tenant_id,
+                agentId: selectedAgent!.id,
+                landlordId: t.landlord_id,
+                tab: 'tenant',
+              })
+            }
+            title="Tap to view full profile, balances & landlord"
+          >
             <CardContent className="p-3 space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -289,10 +301,18 @@ export function AgentTenantSearch() {
                 </Badge>
               </div>
 
-              <a href={`tel:${t.tenant_phone}`} className="flex items-center gap-1.5 text-xs text-primary font-mono">
-                <Phone className="h-3 w-3" />
-                {t.tenant_phone}
-              </a>
+              <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                <a href={`tel:${t.tenant_phone}`} className="flex items-center gap-1.5 text-primary font-mono" onClick={(e) => e.stopPropagation()}>
+                  <Phone className="h-3 w-3" />
+                  {t.tenant_phone}
+                </a>
+                {t.landlord_name && (
+                  <span className="flex items-center gap-1">
+                    <Home className="h-3 w-3" />
+                    {t.landlord_name}
+                  </span>
+                )}
+              </div>
 
               <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
                 <div>
@@ -323,13 +343,26 @@ export function AgentTenantSearch() {
                     UGX {t.wallet_balance.toLocaleString()}
                   </span>
                 </div>
-                {t.outstanding > 0 && t.wallet_balance <= 0 && (
-                  <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
-                )}
+                <div className="flex items-center gap-1">
+                  {t.outstanding > 0 && t.wallet_balance <= 0 && (
+                    <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                  )}
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                </div>
               </div>
             </CardContent>
           </Card>
         ))}
+
+        <UserDrilldownDrawer
+          key={drilldown ? `${drilldown.agentId ?? ''}-${drilldown.tenantId ?? ''}-${drilldown.landlordId ?? ''}-${drilldown.tab ?? 'tenant'}` : 'closed'}
+          open={!!drilldown}
+          onOpenChange={(o) => !o && setDrilldown(null)}
+          tenantId={drilldown?.tenantId ?? null}
+          agentId={drilldown?.agentId ?? null}
+          landlordId={drilldown?.landlordId ?? null}
+          defaultTab={drilldown?.tab ?? 'tenant'}
+        />
       </div>
     );
   }
