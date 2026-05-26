@@ -380,7 +380,7 @@ function DistrictAreaPicker({
         {filtered.map((area) => {
           const count = countFor(area);
           const hasUsers = count > 0;
-          return (
+          const card = (
             <button key={area} onClick={() => onPickArea(area)} className="group text-left">
               <Card
                 className={`p-2.5 h-full transition active:scale-[0.98] ${
@@ -419,6 +419,15 @@ function DistrictAreaPicker({
                 )}
               </Card>
             </button>
+          );
+          if (!hasUsers) return card;
+          return (
+            <Tooltip key={area}>
+              <TooltipTrigger asChild>{card}</TooltipTrigger>
+              <TooltipContent side="top" className="text-xs">
+                {count.toLocaleString()} tenant{count === 1 ? '' : 's'}
+              </TooltipContent>
+            </Tooltip>
           );
         })}
       </div>
