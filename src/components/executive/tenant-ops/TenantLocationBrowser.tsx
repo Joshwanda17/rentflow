@@ -1161,6 +1161,14 @@ function TenantCard({ t, expanded, onToggle }: { t: TenantLeaf; expanded: boolea
             {t.landlord_name && <span className="flex items-center gap-1"><Home className="h-3 w-3" />{t.landlord_name}</span>}
             {t.agent_name && <span className="flex items-center gap-1"><User className="h-3 w-3" />{t.agent_name}</span>}
             {t.rent_amount && t.rent_amount > 0 && <span className="font-medium text-foreground">{formatUGX(t.rent_amount)}/mo</span>}
+            {t.landlord_funded_at && (
+              <span className="text-purple-700 dark:text-purple-300 font-medium">
+                Funded {new Date(t.landlord_funded_at).toLocaleDateString()}
+                {t.landlord_funded_amount && t.landlord_funded_amount > 0
+                  ? ` · ${formatUGX(t.landlord_funded_amount)}`
+                  : ''}
+              </span>
+            )}
           </div>
         </div>
       </div>
