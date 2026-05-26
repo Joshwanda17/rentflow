@@ -480,6 +480,18 @@ export function TenantOpsFilterBar({
             <Download className="h-3 w-3" /> Export CSV
           </Button>
         )}
+        {onExportPDF && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 px-2 text-[11px] gap-1"
+            onClick={onExportPDF}
+            disabled={exportDisabled}
+            title="Export filtered tenants to PDF"
+          >
+            <Download className="h-3 w-3" /> Export PDF
+          </Button>
+        )}
       </div>
     </Card>
   );
