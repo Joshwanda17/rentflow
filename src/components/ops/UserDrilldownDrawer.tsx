@@ -127,7 +127,7 @@ function useProfile(id: string) {
       const { data, error } = await supabase
         .from('profiles')
         .select(
-          'id, full_name, phone, continent, country, region, district, city, town, sub_county, parish, village, landmark, residence_lat, residence_lng, address_complete',
+          'id, full_name, phone, continent, country, region, district, city, town, sub_county, parish, village, landmark, residence_lat, residence_lng, address_complete, has_smartphone',
         )
         .eq('id', id)
         .maybeSingle();
@@ -189,6 +189,9 @@ function LocationEditor({
     village: profile?.village ?? '',
     landmark: profile?.landmark ?? '',
   });
+  const [hasSmartphone, setHasSmartphone] = useState<boolean>(
+    profile?.has_smartphone ?? true,
+  );
   const [gps, setGps] = useState<{ lat: number | null; lng: number | null; acc: number | null }>(
     { lat: profile?.residence_lat ?? null, lng: profile?.residence_lng ?? null, acc: null },
   );
@@ -222,16 +225,17 @@ function LocationEditor({
         p_longitude: gps.lng,
         p_accuracy: gps.acc,
         p_reason: reason.trim(),
+        p_has_smartphone: hasSmartphone,
       });
       if (error) throw error;
       return data;
     },
     onSuccess: () => {
-      toast.success('Location updated');
+      toast.success('Profile updated');
       qc.invalidateQueries({ queryKey: ['drilldown-profile', userId] });
       setReason('');
     },
-    onError: (e: any) => toast.error(e.message ?? 'Failed to update location'),
+    onError: (e: any) => toast.error(e.message ?? 'Failed to update profile'),
   });
 
   return (
@@ -275,6 +279,15 @@ function LocationEditor({
             <span className="ml-1">Capture</span>
           </Button>
         )}
+      </div>
+      <div className="flex items-center justify-between gap-2 rounded-md border border-border px-2 py-1.5">
+        <div className="flex items-center gap-2 text-xs">
+          {hasSmartphone ? <Smartphone className="h-3.5 w-3.5 text-emerald-600" /> : <SmartphoneNfc className="h-3.5 w-3.5 text-amber-600" />}
+          <span className="font-medium">
+            {hasSmartphone ? 'Has a smartphone' : 'No smartphone (USSD / agent-led)'}
+          </span>
+        </div>
+        <Switch checked={hasSmartphone} onCheckedChange={setHasSmartphone} disabled={!canEdit} />
       </div>
       {canEdit && (
         <>
