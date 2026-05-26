@@ -968,6 +968,23 @@ html.android-compositor-safe [role="dialog"] [class*="sticky"] {
   top: auto !important;
 }
 
+/* The main scroll shells get framer-motion / pull-to-refresh transforms
+   left on them which promote a full-viewport-tall GPU layer. On low-end
+   Mali/Adreno GPUs that texture overruns the max size and the driver
+   returns a corrupted buffer (rainbow tearing band). Force them to paint
+   into the parent layer. */
+html.android-compositor-safe .agent-dashboard-shell,
+html.android-compositor-safe .agent-dashboard-main,
+html.android-compositor-safe [data-pull-to-refresh],
+html.android-compositor-safe [data-pull-to-refresh] > * {
+  transform: none !important;
+  -webkit-transform: none !important;
+  will-change: auto !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  filter: none !important;
+}
+
 /* Data-saver: hide decorative elements */
 @media (prefers-reduced-data: reduce) {
   [data-decorative], .decorative, [save-data-hidden] {
