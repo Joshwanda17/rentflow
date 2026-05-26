@@ -42,6 +42,8 @@ const REGIONS = [
   'Entebbe', 'Nansana', 'Kira', 'Bweyogerere',
 ];
 
+import { normalizeDistrict, districtWarning, regionLabel } from '@/lib/ugandaDistricts';
+
 export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmptyHouseDialogProps) {
   const geo = useGeolocation(true);
   const geoLoading = geo.loading;
