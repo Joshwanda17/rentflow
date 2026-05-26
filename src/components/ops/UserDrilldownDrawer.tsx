@@ -514,6 +514,9 @@ function TenantPane({ tenantId, isOps }: { tenantId: string; isOps: boolean }) {
         )}
       </Card>
 
+      {/* Tenant repayment / obligation ledger history */}
+      <TenantStatements tenantId={tenantId} />
+
       {activeRr?.landlord_id && (
         <Card className="p-3 space-y-1.5">
           <div className="flex items-center gap-2 text-sm font-medium">
