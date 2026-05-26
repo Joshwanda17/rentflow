@@ -844,7 +844,7 @@ function AfricaCountryPicker({
                         <Card
                           className={`p-2.5 h-full transition active:scale-[0.98] ${
                             hasUsers
-                              ? 'bg-purple-50 border-purple-400 hover:border-purple-600 hover:shadow-sm dark:bg-purple-950/30 dark:border-purple-700'
+                              ? 'bg-purple-600 border-purple-700 hover:bg-purple-700 hover:border-purple-800 shadow-sm shadow-purple-500/30 ring-1 ring-purple-400/50 dark:bg-purple-600 dark:border-purple-500'
                               : 'hover:border-primary hover:shadow-sm'
                           }`}
                         >
@@ -852,12 +852,12 @@ function AfricaCountryPicker({
                             <div className="flex items-center gap-1.5 min-w-0">
                               <MapPin
                                 className={`h-3.5 w-3.5 shrink-0 ${
-                                  hasUsers ? 'text-purple-600 dark:text-purple-400' : 'text-muted-foreground'
+                                  hasUsers ? 'text-white' : 'text-muted-foreground'
                                 }`}
                               />
                               <span
                                 className={`text-xs font-semibold truncate ${
-                                  hasUsers ? 'text-purple-900 dark:text-purple-100' : ''
+                                  hasUsers ? 'text-white' : ''
                                 }`}
                               >
                                 {c}
@@ -866,13 +866,13 @@ function AfricaCountryPicker({
                             <ChevronRight
                               className={`h-3.5 w-3.5 shrink-0 ${
                                 hasUsers
-                                  ? 'text-purple-600 dark:text-purple-400'
+                                  ? 'text-white'
                                   : 'text-muted-foreground group-hover:text-primary'
                               }`}
                             />
                           </div>
                           {hasUsers && (
-                            <p className="mt-1 text-[10px] font-semibold text-purple-700 dark:text-purple-300">
+                            <p className="mt-1 text-[10px] font-semibold text-purple-100">
                               {count.toLocaleString()} tenant{count === 1 ? '' : 's'}
                             </p>
                           )}
