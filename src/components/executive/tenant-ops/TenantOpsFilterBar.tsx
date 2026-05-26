@@ -480,60 +480,121 @@ export function TenantOpsFilterBar({
           </Badge>
         )}
 
-        <Popover>
+        <Popover open={presetsOpen} onOpenChange={setPresetsOpen}>
           <PopoverTrigger asChild>
             <Button size="sm" variant="outline" className="h-7 px-2 text-[11px] gap-1">
               <Bookmark className="h-3 w-3" /> Presets {presets.length > 0 && `(${presets.length})`}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-[260px] p-2 space-y-2" align="end">
-            {active && (
-              <div className="flex items-center gap-1">
-                <Input
-                  value={presetName}
-                  onChange={(e) => setPresetName(e.target.value)}
-                  placeholder="Name this view…"
-                  className="h-7 text-xs"
-                />
-                <Button
-                  size="sm"
-                  className="h-7 text-[11px]"
-                  disabled={!presetName.trim()}
-                  onClick={() => {
-                    setPresets(savePreset(presetName, filters));
-                    setPresetName('');
-                  }}
-                >
-                  Save
-                </Button>
-              </div>
-            )}
-            {presets.length === 0 ? (
-              <p className="text-[11px] text-muted-foreground py-2 text-center">
-                {active ? 'Save the current view for one-tap recall.' : 'Apply filters to save a preset.'}
-              </p>
-            ) : (
-              presets.map((p) => (
-                <div key={p.id} className="flex items-center gap-1">
+          <PopoverContent className="w-[320px] p-2 space-y-2" align="end">
+            {active ? (
+              <div className="space-y-1.5 border-b pb-2">
+                <div className="flex items-center gap-1">
+                  <Input
+                    value={presetName}
+                    onChange={(e) => setPresetName(e.target.value)}
+                    placeholder="Name this view…"
+                    className="h-7 text-xs"
+                    maxLength={60}
+                  />
                   <Button
                     size="sm"
-                    variant="ghost"
-                    className="h-7 flex-1 justify-start text-xs"
-                    onClick={() => onChange(p.filters)}
+                    className="h-7 text-[11px]"
+                    disabled={!presetName.trim() || saving}
+                    onClick={handleSavePreset}
                   >
-                    {p.name}
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-7 w-7"
-                    onClick={() => setPresets(deletePreset(p.id))}
-                    aria-label="Delete preset"
-                  >
-                    <Trash2 className="h-3 w-3 text-muted-foreground" />
+                    {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Save'}
                   </Button>
                 </div>
-              ))
+                <div className="flex items-center gap-1">
+                  <Button
+                    size="sm"
+                    variant={presetVis === 'private' ? 'default' : 'outline'}
+                    className="h-6 px-2 text-[10px] gap-1 flex-1"
+                    onClick={() => setPresetVis('private')}
+                  >
+                    <Lock className="h-3 w-3" /> Private
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={presetVis === 'shared' ? 'default' : 'outline'}
+                    className="h-6 px-2 text-[10px] gap-1 flex-1"
+                    onClick={() => setPresetVis('shared')}
+                  >
+                    <Globe className="h-3 w-3" /> Shared link
+                  </Button>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  {presetVis === 'shared'
+                    ? 'A copyable share link will be created. Anyone with the link can load this view.'
+                    : 'Only you will see this preset.'}
+                </p>
+              </div>
+            ) : (
+              <p className="text-[11px] text-muted-foreground py-1 text-center">
+                Apply filters above to save a new preset.
+              </p>
+            )}
+            {presetsLoading ? (
+              <div className="flex items-center justify-center py-3 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+              </div>
+            ) : presets.length === 0 ? (
+              <p className="text-[11px] text-muted-foreground py-2 text-center">
+                No saved presets yet.
+              </p>
+            ) : (
+              <div className="space-y-0.5 max-h-72 overflow-y-auto">
+                {presets.map((p) => (
+                  <div key={p.id} className="flex items-center gap-1 group">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 flex-1 justify-start text-xs gap-1.5 min-w-0"
+                      onClick={() => { onChange(p.filters); setPresetsOpen(false); }}
+                      title="Load this preset"
+                    >
+                      {p.visibility === 'shared'
+                        ? <Globe className="h-3 w-3 text-primary shrink-0" />
+                        : <Lock className="h-3 w-3 text-muted-foreground shrink-0" />}
+                      <span className="truncate">{p.name}</span>
+                      {!p.is_mine && (
+                        <Badge variant="secondary" className="text-[9px] h-4 px-1 shrink-0">
+                          shared
+                        </Badge>
+                      )}
+                    </Button>
+                    {p.share_slug && (
+                      <Button
+                        size="icon" variant="ghost" className="h-7 w-7"
+                        onClick={() => handleCopyLink(p)}
+                        aria-label="Copy share link" title="Copy share link"
+                      >
+                        <LinkIcon className="h-3 w-3 text-muted-foreground" />
+                      </Button>
+                    )}
+                    {p.is_mine && (
+                      <>
+                        <Button
+                          size="icon" variant="ghost" className="h-7 w-7"
+                          onClick={() => handleShareToggle(p)}
+                          aria-label="Toggle sharing"
+                          title={p.visibility === 'shared' ? 'Make private' : 'Share with a link'}
+                        >
+                          <Share2 className={cn('h-3 w-3', p.visibility === 'shared' ? 'text-primary' : 'text-muted-foreground')} />
+                        </Button>
+                        <Button
+                          size="icon" variant="ghost" className="h-7 w-7"
+                          onClick={() => handleDelete(p.id)}
+                          aria-label="Delete preset"
+                        >
+                          <Trash2 className="h-3 w-3 text-muted-foreground" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
             )}
           </PopoverContent>
         </Popover>
