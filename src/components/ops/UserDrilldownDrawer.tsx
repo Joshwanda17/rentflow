@@ -1953,6 +1953,82 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
         </div>
         <p className="text-xs text-muted-foreground italic">Coming soon — confirm data model to enable.</p>
       </Card>
+
+      {/* Full-screen lightbox */}
+      {lightbox.open && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/95 flex flex-col"
+          onClick={(e) => { if (e.target === e.currentTarget) closeLightbox(); }}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-sm text-white font-medium truncate">{lightbox.title}</p>
+              <p className="text-[11px] text-white/60">
+                {lightbox.index + 1} / {lightbox.images.length}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={closeLightbox}
+              className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+              aria-label="Close"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          {/* Image stage */}
+          <div className="flex-1 flex items-center justify-center px-4 relative">
+            {lightbox.images.length > 1 && (
+              <button
+                type="button"
+                onClick={prevImage}
+                className="absolute left-2 sm:left-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors z-10"
+                aria-label="Previous"
+              >
+                <ChevronLeft className="h-6 w-6" />
+              </button>
+            )}
+            <img
+              src={lightbox.images[lightbox.index]}
+              alt={`${lightbox.title} ${lightbox.index + 1}`}
+              className="max-h-full max-w-full object-contain rounded"
+              onClick={(e) => e.stopPropagation()}
+            />
+            {lightbox.images.length > 1 && (
+              <button
+                type="button"
+                onClick={nextImage}
+                className="absolute right-2 sm:right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors z-10"
+                aria-label="Next"
+              >
+                <ChevronRight className="h-6 w-6" />
+              </button>
+            )}
+          </div>
+
+          {/* Thumbnail strip */}
+          {lightbox.images.length > 1 && (
+            <div className="flex gap-1 overflow-x-auto px-4 py-3 justify-center">
+              {lightbox.images.map((src, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setLightbox((s) => ({ ...s, index: i }))}
+                  className={`shrink-0 rounded border-2 overflow-hidden ${i === lightbox.index ? 'border-primary' : 'border-transparent'}`}
+                >
+                  <img
+                    src={src}
+                    alt={`thumb ${i + 1}`}
+                    className="h-12 w-16 object-cover"
+                  />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
