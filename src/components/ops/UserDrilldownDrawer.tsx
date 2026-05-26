@@ -17,7 +17,7 @@ import {
   Wallet, ShieldAlert, Building2, ReceiptText, Smartphone, SmartphoneNfc,
   Search, Pencil, X, TrendingUp, Users, Sparkles, Download, FileText,
   ChevronRight, ArrowLeft, MessageSquare, StickyNote, CheckCircle2, XCircle,
-  CalendarIcon, Info,
+  CalendarIcon, Info, AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
@@ -1909,7 +1909,7 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
           outstandingByTenant.set(r.user_id, cur - amt);
         }
       }
-      return rows
+      const mappedRows = rows
         .map((r) => {
           const outstanding = Math.max(0, outstandingByTenant.get(r.tenant_id) || 0);
           return {
@@ -1929,12 +1929,17 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
           };
         })
         .sort((a, b) => b.outstanding - a.outstanding);
+      return {
+        rows: mappedRows,
+        rentRequestCount: (rrsRes.data ?? []).length,
+        managedProfileCount: (managedRes.data ?? []).length,
+      };
     },
   });
 
   const filtered = useMemo(() => {
     if (!data) return [];
-    let out = data;
+    let out = data.rows;
     if (filter !== 'all') {
       const allowed = STATUS_GROUPS[filter];
       out = out.filter((row) => allowed.includes(row.status));
@@ -2016,7 +2021,7 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
     w.document.close();
   };
 
-  const [sourceModalRow, setSourceModalRow] = useState<typeof data extends (infer T)[] ? T : never | null>(null);
+  const [sourceModalRow, setSourceModalRow] = useState<any>(null);
 
   return (
     <Card className="p-3 space-y-2">
@@ -2072,23 +2077,38 @@ function AgentTenantsList({ agentId, onSelectTenant }: { agentId: string; onSele
       </div>
 
       {/* Source breakdown */}
-      {data && data.length > 0 && (
+      {data?.rows && data.rows.length > 0 && (
         <div className="flex items-center gap-2 rounded-md bg-muted/40 px-2.5 py-1.5 text-[11px]">
           <span className="text-muted-foreground shrink-0">Sources:</span>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1" title="Tenants with an assigned rent request">
               <span className="inline-block w-2 h-2 rounded-full bg-sky-500" />
-              <span className="font-medium">{data.filter((r) => !String(r.id).startsWith('managed-')).length}</span>
+              <span className="font-medium">{data.rows.filter((r) => !String(r.id).startsWith('managed-')).length}</span>
               <span className="text-muted-foreground hidden sm:inline">rent request</span>
             </div>
             <div className="flex items-center gap-1" title="Tenants linked via profile ownership only">
               <span className="inline-block w-2 h-2 rounded-full bg-amber-500" />
-              <span className="font-medium">{data.filter((r) => String(r.id).startsWith('managed-')).length}</span>
+              <span className="font-medium">{data.rows.filter((r) => String(r.id).startsWith('managed-')).length}</span>
               <span className="text-muted-foreground hidden sm:inline">profile ownership</span>
             </div>
           </div>
-          <span className="ml-auto text-muted-foreground">{data.length} total</span>
+          <span className="ml-auto text-muted-foreground">{data.rows.length} total</span>
         </div>
+      )}
+
+      {/* Sparse list warning */}
+      {data && data.rows.length <= 2 && (data.rentRequestCount > 0 || data.managedProfileCount > 0) && (
+        <Alert className="py-2 px-3 text-[11px] border-amber-200 bg-amber-50 text-amber-900">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-0.5" />
+            <AlertDescription className="leading-relaxed">
+              <span className="font-semibold block mb-0.5">Sparse tenant list</span>
+              This agent has <strong>{data.rentRequestCount}</strong> rent request
+              {data.rentRequestCount !== 1 ? 's' : ''} and <strong>{data.managedProfileCount}</strong> managed profile
+              {data.managedProfileCount !== 1 ? 's' : ''}. Tenants are merged from both <code className="font-mono text-[10px] bg-amber-100/60 px-1 rounded">rent_requests</code> and <code className="font-mono text-[10px] bg-amber-100/60 px-1 rounded">profiles.managing_agent_id</code>, but some may not appear if profile/landlord lookups fail or if the same tenant exists in both sources.
+            </AlertDescription>
+          </div>
+        </Alert>
       )}
 
       {isLoading ? (
