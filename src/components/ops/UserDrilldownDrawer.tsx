@@ -1219,7 +1219,7 @@ function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord }: { agent
       }
       const { data } = await supabase
         .from('house_listings')
-        .select('id, title, monthly_rent, status, village, district, landlord_id, tenant_id, agent_id, created_at')
+        .select('id, title, monthly_rent, status, village, district, landlord_id, tenant_id, agent_id, created_at, image_urls')
         .in('agent_id', Array.from(agentIds))
         .order('created_at', { ascending: false })
         .limit(200);
@@ -1635,7 +1635,27 @@ function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord }: { agent
           ) : (
             <ul className="space-y-2 text-xs">
               {filteredListings.map((l: any) => (
-                <li key={l.id} className="border border-border/40 rounded-md p-2 space-y-1">
+              <li key={l.id} className="border border-border/40 rounded-md p-2 space-y-1">
+                  {Array.isArray(l.image_urls) && l.image_urls.length > 0 && (
+                    <div className="flex gap-1 overflow-x-auto pb-1 -mx-1 px-1">
+                      {l.image_urls.slice(0, 6).map((src: string, i: number) => (
+                        <a
+                          key={i}
+                          href={src}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="shrink-0"
+                        >
+                          <img
+                            src={src}
+                            alt={`${l.title} photo ${i + 1}`}
+                            loading="lazy"
+                            className="h-16 w-20 object-cover rounded border border-border/40"
+                          />
+                        </a>
+                      ))}
+                    </div>
+                  )}
                   <div className="flex justify-between gap-2">
                     <span className="truncate font-medium">{l.title}</span>
                     <span className="font-semibold whitespace-nowrap">{fmtUGX(l.monthly_rent)}</span>
