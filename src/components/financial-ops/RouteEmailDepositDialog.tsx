@@ -1129,15 +1129,17 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
               </div>
             </div>
           )}
+        </div>
 
-          {!awaitingConfirm && (
+        {!awaitingConfirm && (
+          <div className="border-t bg-background px-4 py-3 shrink-0">
             <Button
               onClick={() => {
                 if (mode === 'credit') setAwaitingConfirm(true);
                 else send.mutate();
               }}
               disabled={send.isPending || !user || !amount || Number(amount) <= 0 || reason.trim().length < 10 || (transferFromUser && !sourceUser)}
-              className="w-full h-11 gap-2"
+              className="w-full h-12 gap-2 text-base"
               variant={mode === 'debit' ? 'destructive' : 'default'}
             >
               {send.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
@@ -1145,8 +1147,8 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
                 ? `Debit ${amount ? formatUGX(Number(amount)) : 'wallet'}`
                 : `Review ${amount ? formatUGX(Number(amount)) : 'transfer'}`}
             </Button>
-          )}
-        </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
