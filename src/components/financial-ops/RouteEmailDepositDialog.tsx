@@ -404,6 +404,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
       setTransferFromUser(false);
       setTransferFromBucket('withdrawable');
       setAwaitingConfirm(false);
+      setPendingAutoSubmit(null);
       const tid = row.transaction_id ? ` TID ${row.transaction_id}` : '';
       const from = row.from_name || row.from_email || 'email';
       // Outgoing emails (MTN/Airtel/bank send confirmations) carry the
