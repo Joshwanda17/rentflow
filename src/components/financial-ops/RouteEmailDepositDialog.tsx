@@ -1255,6 +1255,12 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
         category_label: isFloat ? 'Operational Float (from email)' : 'Personal Deposit (from email)',
         recipient_type: isFloat ? 'operational_wallet' : 'user',
         sub_category: row.transaction_id ?? null,
+        // Forwarded so the edge function's server-side idempotency guard can
+        // reject a duplicate credit for the same email / TID even if the
+        // client-side verify call was bypassed or stale.
+        gmail_transaction_id: row.id ?? null,
+        gmail_message_id: row.gmail_message_id ?? null,
+        email_tid: row.transaction_id ?? null,
       };
       // ── Authoritative backend pre-flight ──────────────────────────
       // Re-checks credited status from the DB (not React Query cache)
