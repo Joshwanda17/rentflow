@@ -159,6 +159,19 @@ interface PayoutMatch {
   email: OutEmail;
   recipientPhone: string;
   payment_method: string;
+  /**
+   * Set when the email is settling more than one pending withdrawal.
+   * `share` is the per-withdrawal amount, `emailRemaining` is the email's
+   * unsettled capacity at scan time, `subsetSize` is the number of pending
+   * withdrawals in this split, and `groupKey` lets the audit trail tie
+   * sibling rows together.
+   */
+  split?: {
+    share: number;
+    emailRemaining: number;
+    subsetSize: number;
+    groupKey: string;
+  };
 }
 
 function inferPaymentMethod(w: PendingWithdrawal, e: OutEmail): string {
