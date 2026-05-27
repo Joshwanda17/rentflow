@@ -274,6 +274,10 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
   // before/after balances, and require a second click ("Confirm & route") to
   // actually invoke the mutation.
   const [awaitingConfirm, setAwaitingConfirm] = useState(false);
+  // One-tap "Confirm & retry with {bucket}" — when set, the next render
+  // where debitRoute matches and the pre-flight gate is clear will auto-fire
+  // the mutation. Cleared after firing, on close, or on any further edit.
+  const [pendingAutoSubmit, setPendingAutoSubmit] = useState<DebitRoute | null>(null);
 
   // Per-transfer audit logger — writes one row to
   // `wallet_debit_bucket_attempts` for every meaningful step of the debit
