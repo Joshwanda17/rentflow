@@ -2789,6 +2789,12 @@ export function EmailTransactionsPanel() {
         row={routingRow as EmailRowForRouting | null}
         suggestedUser={routingSuggestedUser}
         mode={routingMode}
+        onPrev={canPrevNav ? () => navigateToRow(visibleRows[navIndex - 1], routingMode) : undefined}
+        onNext={canNextNav ? () => navigateToRow(visibleRows[navIndex + 1], routingMode) : undefined}
+        canPrev={canPrevNav}
+        canNext={canNextNav}
+        currentIndex={navIndex >= 0 ? navIndex + 1 : 0}
+        totalCount={visibleRows.length}
       />
 
       <FixChannelDialog
