@@ -1471,6 +1471,59 @@ export function EmailTransactionsPanel() {
     return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
   })();
 
+  // Navigable rows: the same list the operator sees on the Recent emails page.
+  // This drives the Prev / Next button bar inside the Route dialog so Financial
+  // Ops can walk through emails in order without closing the dialog each time.
+  const visibleRows = useMemo(() => {
+    return filteredRows.filter((r) => {
+      if (directionFilter === 'in' && r.direction !== 'in') return false;
+      if (directionFilter === 'out' && r.direction !== 'out' && r.direction !== 'charge') return false;
+      if (matchFilter === 'all') return true;
+      const list = userMatches[r.id] ?? [];
+      if (matchFilter === 'reference') return list.some((u) => u.matched_on.startsWith('reference '));
+      if (matchFilter === 'from') return list.some((u) => u.matched_on.startsWith('from '));
+      return list.some((u) => u.matched_on.startsWith('reference ') || u.matched_on.startsWith('from '));
+    });
+  }, [filteredRows, directionFilter, matchFilter, userMatches]);
+
+  const navIndex = routingRow ? visibleRows.findIndex((r) => r.id === routingRow.id) : -1;
+  const canPrevNav = navIndex > 0;
+  const canNextNav = navIndex >= 0 && navIndex < visibleRows.length - 1;
+
+  /** Compute the best suggested user for a given row and routing mode. */
+  const computeSuggestedFor = (r: GmailTx, mode: 'credit' | 'debit') => {
+    const matches = userMatches[r.id] ?? [];
+    const scoreFrom = mode === 'credit'
+      ? (u: MatchedUser) => (
+          u.matched_on.startsWith('reference ') ? 100
+          : u.matched_on.startsWith('from ') ? 90
+          : u.matched_on.startsWith('to ') ? 90
+          : u.matched_on.startsWith('name-') ? 75
+          : 60
+        )
+      : (u: MatchedUser) => (
+          u.matched_on.startsWith('reference ') ? 100
+          : u.matched_on.startsWith('to ') ? 90
+          : u.matched_on.startsWith('from ') ? 90
+          : u.matched_on.startsWith('name-') ? 75
+          : 60
+        );
+    const top = matches
+      .map((u) => ({ u, s: scoreFrom(u) }))
+      .sort((a, b) => b.s - a.s)[0]?.u;
+    const prefix = mode === 'credit' ? 'from' : 'to';
+    const matchedPhone = top?.matched_on.startsWith(`${prefix} `) || top?.matched_on.startsWith('phone ')
+      ? top.matched_on.replace(/^(from|to|phone)\s+/, '')
+      : null;
+    return top ? { id: top.id, full_name: top.full_name, phone: top.phone ?? '', matched_phone: matchedPhone } : null;
+  };
+
+  const navigateToRow = (nextRow: GmailTx, mode: 'credit' | 'debit') => {
+    setRoutingSuggestedUser(computeSuggestedFor(nextRow, mode));
+    setRoutingMode(mode);
+    setRoutingRow(nextRow);
+  };
+
   return (
     <div className="space-y-5">
       <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3">
