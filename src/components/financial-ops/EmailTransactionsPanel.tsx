@@ -2059,7 +2059,7 @@ export function EmailTransactionsPanel() {
             )}
           </div>
           <p className="text-[11px] text-muted-foreground">
-            Tip: combine words (e.g. <code className="px-1 rounded bg-muted">john 150000</code>) — every word must match. Phone numbers work in any format.
+            Searches the <strong>full email history</strong> — the date range above is ignored while you type. Combine words (e.g. <code className="px-1 rounded bg-muted">john 150000</code>); phone numbers work in any format.
           </p>
         </div>
         <div className="p-4 border-b flex items-center justify-between gap-3 flex-wrap">
