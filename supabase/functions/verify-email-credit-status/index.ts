@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
     .from("user_roles")
     .select("role")
     .eq("user_id", userData.user.id)
-    .in("role", ["cfo", "manager", "super_admin", "cto", "financial_ops", "fin_ops"]);
+    .in("role", ["cfo", "manager", "super_admin", "cto", "operations"]);
   if (!roles?.length) return json({ error: "Insufficient permissions" }, 403);
 
   let body: {
