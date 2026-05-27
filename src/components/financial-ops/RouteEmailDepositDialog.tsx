@@ -365,9 +365,9 @@ function TransferSummaryCard({
           </div>
         )}
 
-        {/* Short warning with switch hint */}
+        {/* Short warning with one-tap switch action */}
         {short && (
-          <div className={`rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-2 space-y-1 ${lowData ? 'text-sm' : 'text-[11px]'}`}>
+          <div className={`rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-2 space-y-1.5 ${lowData ? 'text-sm' : 'text-[11px]'}`}>
             <p className="font-semibold text-destructive">
               {canSwitch
                 ? `${fromLabel} short by ${formatUGX(amount - (fromBalance ?? 0))}`
@@ -375,8 +375,18 @@ function TransferSummaryCard({
             </p>
             {canSwitch && otherAvailable !== undefined && (
               <p className="text-muted-foreground">
-                {fromBucket === 'float' ? 'Withdrawable' : 'Float'} has {formatUGX(otherAvailable)} — switch available below.
+                {switchToLabel} has {formatUGX(otherAvailable)} available.
               </p>
+            )}
+            {canSwitch && onSwitchBucket && (
+              <button
+                type="button"
+                onClick={onSwitchBucket}
+                className={`w-full rounded-md border border-primary/50 bg-primary/15 font-semibold text-primary hover:bg-primary/25 flex items-center justify-center gap-1.5 ${lowData ? 'px-3 py-2.5 text-sm' : 'px-2.5 py-2 text-[11px]'}`}
+              >
+                <ArrowRight className={`shrink-0 ${lowData ? 'h-4 w-4' : 'h-3.5 w-3.5'}`} />
+                {isTransfer ? `Switch to ${switchToLabel}` : `Confirm & retry with ${switchToLabel}`}
+              </button>
             )}
             {!canSwitch && (
               <p className="text-muted-foreground">Lower the amount or pick a different user.</p>
