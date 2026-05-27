@@ -51,6 +51,20 @@ function BucketDelta({ label, before, after, sign }: { label: string; before: nu
   );
 }
 
+function StatusPill({ children, tone }: { children: React.ReactNode; tone: 'success' | 'warning' | 'danger' | 'neutral' }) {
+  const map = {
+    success: 'bg-emerald-100 text-emerald-900 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800',
+    warning: 'bg-amber-100 text-amber-900 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800',
+    danger: 'bg-destructive/15 text-destructive border-destructive/30 dark:bg-destructive/20',
+    neutral: 'bg-muted text-muted-foreground border-border',
+  };
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${map[tone]}`}>
+      {children}
+    </span>
+  );
+}
+
 /**
  * Inline preview: last 5 wallet-scope ledger entries for a user filtered to
  * a specific bucket. Helps Financial Ops sanity-check what's currently in
