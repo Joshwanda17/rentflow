@@ -741,6 +741,96 @@ export function EmailTransactionsPanel() {
     return () => { cancelled = true; supabase.removeChannel(sub); };
   }, [rows]);
 
+  // Background load of "already-credited" deposit links for visible incoming
+  // rows. Uses the same two-step resolution the RouteEmailDepositDialog
+  // uses: (1) gmail_transactions.linked_deposit_request_id fast path,
+  // (2) deposit_requests.auto_match_audit->>gmail_message_id fallback.
+  // Terminal statuses (rejected/cancelled/failed/reversed) are treated as
+  // "not credited" so reversed auto-credits can be re-routed without the
+  // double-credit warning.
+  useEffect(() => {
+    if (!rows.length) { setCreditedDeposits({}); return; }
+    const incoming = rows.filter((r) => r.direction === 'in');
+    if (!incoming.length) { setCreditedDeposits({}); return; }
+    let cancelled = false;
+    const rowIds = incoming.map((r) => r.id);
+    const msgIds = incoming.map((r) => r.gmail_message_id).filter(Boolean) as string[];
+    (async () => {
+      try {
+        // 1) Fast path via gmail_transactions.linked_deposit_request_id
+        const { data: gmailLinks } = await (supabase.from('gmail_transactions') as any)
+          .select('id, linked_deposit_request_id')
+          .in('id', rowIds);
+        const linkByRow = new Map<string, string>();
+        const depIds = new Set<string>();
+        for (const g of (gmailLinks ?? []) as Array<{ id: string; linked_deposit_request_id: string | null }>) {
+          if (g.linked_deposit_request_id) {
+            linkByRow.set(g.id, g.linked_deposit_request_id);
+            depIds.add(g.linked_deposit_request_id);
+          }
+        }
+        // 2) Fallback via deposit_requests.auto_match_audit->>gmail_message_id
+        const linkByMsg = new Map<string, string>();
+        if (msgIds.length) {
+          const { data: audits } = await (supabase.from('deposit_requests') as any)
+            .select('id, status, auto_match_audit')
+            .in('auto_match_audit->>gmail_message_id', msgIds);
+          for (const a of (audits ?? []) as Array<{ id: string; status: string; auto_match_audit: any }>) {
+            const mid = a?.auto_match_audit?.gmail_message_id as string | undefined;
+            if (!mid) continue;
+            if (['rejected', 'cancelled', 'failed', 'reversed'].includes(a.status)) continue;
+            if (!linkByMsg.has(mid)) {
+              linkByMsg.set(mid, a.id);
+              depIds.add(a.id);
+            }
+          }
+        }
+        if (!depIds.size) { if (!cancelled) setCreditedDeposits({}); return; }
+        const { data: deps } = await (supabase.from('deposit_requests') as any)
+          .select('id, user_id, amount, status, auto_approved, deposit_purpose, created_at, updated_at')
+          .in('id', Array.from(depIds));
+        const depById = new Map<string, any>();
+        const userIds = new Set<string>();
+        for (const d of (deps ?? []) as Array<any>) {
+          depById.set(d.id, d);
+          if (d.user_id) userIds.add(d.user_id);
+        }
+        let profById = new Map<string, any>();
+        if (userIds.size) {
+          const { data: profs } = await (supabase.from('profiles') as any)
+            .select('id, full_name, phone')
+            .in('id', Array.from(userIds));
+          profById = new Map(((profs ?? []) as Array<any>).map((p) => [p.id, p]));
+        }
+        const next: Record<string, CreditedDeposit> = {};
+        for (const r of incoming) {
+          let depId = linkByRow.get(r.id);
+          if (!depId && r.gmail_message_id) depId = linkByMsg.get(r.gmail_message_id);
+          if (!depId) continue;
+          const d = depById.get(depId);
+          if (!d) continue;
+          if (['rejected', 'cancelled', 'failed', 'reversed'].includes(d.status)) continue;
+          const p = profById.get(d.user_id);
+          next[r.id] = {
+            deposit_id: d.id,
+            user_id: d.user_id,
+            user_name: (p?.full_name as string) ?? 'Unknown user',
+            user_phone: (p?.phone as string) ?? '',
+            amount: Number(d.amount) || 0,
+            status: d.status,
+            auto_approved: d.auto_approved ?? null,
+            deposit_purpose: d.deposit_purpose ?? null,
+            credited_at: (d.updated_at as string) ?? (d.created_at as string) ?? null,
+          };
+        }
+        if (!cancelled) setCreditedDeposits(next);
+      } catch {
+        if (!cancelled) setCreditedDeposits({});
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [rows]);
+
   // Background fetch of strict ledger-derived withdrawable balances for
   // every possible-user candidate AND every routed target currently shown.
   // Uses the operator-safe `get_user_wallet_view` RPC so the figure matches
