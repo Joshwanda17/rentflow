@@ -15,6 +15,43 @@ import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
 import { formatUGX } from '@/lib/rentCalculations';
 
 /**
+ * Fetches current wallet bucket balances (cache view) for a user so the
+ * confirmation step can render before → after deltas.
+ */
+function useWalletBuckets(userId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['route-email-wallet-buckets', userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from('wallets') as any)
+        .select('withdrawable_balance, float_balance')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (error) throw error;
+      return {
+        withdrawable: Number(data?.withdrawable_balance ?? 0),
+        float: Number(data?.float_balance ?? 0),
+      };
+    },
+    staleTime: 5_000,
+  });
+}
+
+function BucketDelta({ label, before, after, sign }: { label: string; before: number; after: number; sign: '+' | '−' }) {
+  const tone = sign === '+' ? 'text-emerald-600' : 'text-destructive';
+  return (
+    <div className="flex items-center justify-between text-[11px]">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-mono">
+        {formatUGX(before)}
+        <span className="mx-1 text-muted-foreground">→</span>
+        <span className={`font-semibold ${tone}`}>{formatUGX(after)}</span>
+      </span>
+    </div>
+  );
+}
+
+/**
  * Inline preview: last 5 wallet-scope ledger entries for a user filtered to
  * a specific bucket. Helps Financial Ops sanity-check what's currently in
  * the wallet before initiating a transfer. Respects the user-facing ledger
@@ -142,6 +179,16 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
   // a recoverable obligation (auto_recover=true).
   const [forcePending, setForcePending] = useState<null | { amount: number; name: string }>(null);
   const forceReversalRef = useRef(false);
+  // Two-step confirmation gate. When the operator clicks the action button
+  // the first time we flip this on, surface the source/destination preview +
+  // before/after balances, and require a second click ("Confirm & route") to
+  // actually invoke the mutation.
+  const [awaitingConfirm, setAwaitingConfirm] = useState(false);
+
+  const recipientBucket: 'withdrawable' | 'float' = route === 'operational_float' ? 'float' : 'withdrawable';
+  const sourceBuckets = useWalletBuckets(transferFromUser ? sourceUser?.id : null);
+  const destBuckets = useWalletBuckets(user?.id);
+  const amtNum = Number(amount) || 0;
 
   useEffect(() => {
     if (open && row) {
@@ -154,6 +201,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
       setSourceUser(null);
       setTransferFromUser(false);
       setTransferFromBucket('withdrawable');
+      setAwaitingConfirm(false);
       const tid = row.transaction_id ? ` TID ${row.transaction_id}` : '';
       const from = row.from_name || row.from_email || 'email';
       // Outgoing emails (MTN/Airtel/bank send confirmations) carry the
@@ -921,17 +969,79 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
             <Textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
           </div>
 
-          <Button
-            onClick={() => send.mutate()}
-            disabled={send.isPending || !user || !amount || Number(amount) <= 0 || reason.trim().length < 10}
-            className="w-full h-11 gap-2"
-            variant={mode === 'debit' ? 'destructive' : 'default'}
-          >
-            {send.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
-            {mode === 'debit'
-              ? `Debit ${amount ? formatUGX(Number(amount)) : 'wallet'}`
-              : `Route ${amount ? formatUGX(Number(amount)) : 'deposit'}`}
-          </Button>
+          {awaitingConfirm && mode === 'credit' && user && (
+            <div className="rounded-lg border-2 border-primary/40 bg-primary/5 p-3 space-y-3">
+              <div className="flex items-center gap-1.5 text-sm font-semibold">
+                <AlertTriangle className="h-4 w-4 text-primary" /> Confirm transfer
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {transferFromUser && sourceUser && (
+                  <MiniLedger
+                    userId={sourceUser.id}
+                    bucket={transferFromBucket}
+                    title={`From · ${sourceUser.full_name} (last 5)`}
+                  />
+                )}
+                <MiniLedger
+                  userId={user.id}
+                  bucket={recipientBucket}
+                  title={`To · ${user.full_name} (last 5)`}
+                />
+              </div>
+              <div className="rounded-md border bg-background p-2 space-y-1">
+                {transferFromUser && sourceUser && sourceBuckets.data && (
+                  <BucketDelta
+                    label={`${sourceUser.full_name} · ${transferFromBucket === 'withdrawable' ? 'Personal Deposits' : 'Float'}`}
+                    before={transferFromBucket === 'withdrawable' ? sourceBuckets.data.withdrawable : sourceBuckets.data.float}
+                    after={(transferFromBucket === 'withdrawable' ? sourceBuckets.data.withdrawable : sourceBuckets.data.float) - amtNum}
+                    sign="−"
+                  />
+                )}
+                {destBuckets.data && (
+                  <BucketDelta
+                    label={`${user.full_name} · ${recipientBucket === 'withdrawable' ? 'Personal Deposits' : 'Float'}`}
+                    before={recipientBucket === 'withdrawable' ? destBuckets.data.withdrawable : destBuckets.data.float}
+                    after={(recipientBucket === 'withdrawable' ? destBuckets.data.withdrawable : destBuckets.data.float) + amtNum}
+                    sign="+"
+                  />
+                )}
+                {(sourceBuckets.isLoading || destBuckets.isLoading) && (
+                  <p className="text-[11px] text-muted-foreground">Loading current balances…</p>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" className="flex-1 h-10" onClick={() => setAwaitingConfirm(false)} disabled={send.isPending}>
+                  Back to edit
+                </Button>
+                <Button
+                  type="button"
+                  className="flex-1 h-10 gap-2"
+                  onClick={() => send.mutate()}
+                  disabled={send.isPending}
+                >
+                  {send.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+                  Confirm & route {amount ? formatUGX(amtNum) : ''}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {!awaitingConfirm && (
+            <Button
+              onClick={() => {
+                if (mode === 'credit') setAwaitingConfirm(true);
+                else send.mutate();
+              }}
+              disabled={send.isPending || !user || !amount || Number(amount) <= 0 || reason.trim().length < 10 || (transferFromUser && !sourceUser)}
+              className="w-full h-11 gap-2"
+              variant={mode === 'debit' ? 'destructive' : 'default'}
+            >
+              {send.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+              {mode === 'debit'
+                ? `Debit ${amount ? formatUGX(Number(amount)) : 'wallet'}`
+                : `Review ${amount ? formatUGX(Number(amount)) : 'transfer'}`}
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>
