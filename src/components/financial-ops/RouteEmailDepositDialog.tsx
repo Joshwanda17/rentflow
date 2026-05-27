@@ -902,14 +902,35 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
         className="max-w-md sm:max-w-lg p-0 gap-0 max-h-[100dvh] sm:max-h-[90vh] h-[100dvh] sm:h-auto flex flex-col"
       >
         <DialogHeader className="px-4 pt-4 pb-3 border-b shrink-0">
-          <DialogTitle className="text-base sm:text-lg">
-            {mode === 'debit' ? 'Charge outgoing payment to user wallet' : 'Redirect deposit to user'}
-          </DialogTitle>
-          <DialogDescription className="text-xs sm:text-sm">
-            {mode === 'debit'
-              ? 'Debits this outbound transaction from a user\'s wallet (never from Welile operational float). Auto-redirects to the proxy agent\'s wallet when the picked user is a partner with a managed-proxy assignment.'
-              : 'Credit this inbound transaction to a specific user as Personal Deposit (withdrawable) or Operational Float.'}
-          </DialogDescription>
+          <div className="flex items-start justify-between gap-2">
+            <DialogTitle className="text-base sm:text-lg truncate">
+              {lowData
+                ? (mode === 'debit' ? 'Debit wallet' : 'Route deposit')
+                : (mode === 'debit' ? 'Charge outgoing payment to user wallet' : 'Redirect deposit to user')}
+            </DialogTitle>
+            <button
+              type="button"
+              onClick={() => setLowData((v) => !v)}
+              className={`shrink-0 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide transition-colors ${
+                lowData
+                  ? 'border-amber-400 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200'
+                  : 'border-border bg-muted text-muted-foreground hover:bg-muted/70'
+              }`}
+              aria-pressed={lowData}
+              aria-label={lowData ? 'Low-data mode is on. Tap to turn off.' : 'Turn on low-data mode for weak connections'}
+              title={lowData ? 'Low-data mode ON — hiding history & helper text' : 'Low-data mode OFF'}
+            >
+              {lowData ? <WifiOff className="h-3.5 w-3.5" /> : <Wifi className="h-3.5 w-3.5" />}
+              {lowData ? 'Low-data' : 'Low-data'}
+            </button>
+          </div>
+          {!lowData && (
+            <DialogDescription className="text-xs sm:text-sm">
+              {mode === 'debit'
+                ? 'Debits this outbound transaction from a user\'s wallet (never from Welile operational float). Auto-redirects to the proxy agent\'s wallet when the picked user is a partner with a managed-proxy assignment.'
+                : 'Credit this inbound transaction to a specific user as Personal Deposit (withdrawable) or Operational Float.'}
+            </DialogDescription>
+          )}
         </DialogHeader>
 
         {/* Prev / Next navigation bar — sticky, thumb-friendly for phones */}
