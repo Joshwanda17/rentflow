@@ -560,7 +560,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
         console.warn('[RouteEmailDeposit] history insert failed', e);
       }
 
-      return { ...(data as any), smsSent, smsError, reversed: mustReverse, forcedReversal: forceReversalRef.current };
+      return { ...(data as any), smsSent, smsError, reversed: mustReverse, forcedReversal: forceReversalRef.current, transferredFrom: transferFromUser ? sourceUser?.full_name ?? null : null };
     },
     onSuccess: (res: any) => {
       if (mode === 'debit') {
@@ -577,11 +577,12 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
       const reversedPart = res?.forcedReversal
         ? ' Original auto-credit force-reversed; recoverable obligation recorded.'
         : res?.reversed ? ' Original auto-credit reversed.' : '';
+      const transferPart = res?.transferredFrom ? ` Debited from ${res.transferredFrom}.` : '';
       toast({
         title: 'Deposit routed',
         description: res?.smsSent
-          ? `${formatUGX(Number(amount))} credited to ${user?.full_name} as ${routeLabel}. SMS sent.${reversedPart}`
-          : `${formatUGX(Number(amount))} credited to ${user?.full_name} as ${routeLabel}. SMS could not be sent${res?.smsError ? ` (${res.smsError})` : ''}.${reversedPart}`,
+          ? `${formatUGX(Number(amount))} credited to ${user?.full_name} as ${routeLabel}. SMS sent.${reversedPart}${transferPart}`
+          : `${formatUGX(Number(amount))} credited to ${user?.full_name} as ${routeLabel}. SMS could not be sent${res?.smsError ? ` (${res.smsError})` : ''}.${reversedPart}${transferPart}`,
       });
       onOpenChange(false);
     },
