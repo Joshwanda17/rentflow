@@ -199,6 +199,40 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
   const destBuckets = useWalletBuckets(user?.id);
   const amtNum = Number(amount) || 0;
 
+  // Smart-pick the source bucket so Financial Ops doesn't have to guess.
+  // When the operator selects a source user (or changes the amount), choose
+  // whichever bucket actually has enough funds to cover the transfer. This
+  // is the single biggest reason a wallet→wallet move trips
+  // NEGATIVE_WALLET_BLOCKED — the wrong bucket was selected even though the
+  // money is sitting in the other one.
+  const autoBucketPicked = useRef(false);
+  useEffect(() => {
+    if (!transferFromUser || !sourceUser?.id) {
+      autoBucketPicked.current = false;
+      return;
+    }
+    const b = sourceBuckets.data;
+    if (!b) return;
+    const need = amtNum;
+    const wOk = b.withdrawable >= need && need > 0;
+    const fOk = b.float >= need && need > 0;
+    // Only auto-switch the first time the operator picks a source user, OR
+    // when the currently selected bucket clearly can't cover the amount but
+    // the other one can. Never overwrite a manual choice silently otherwise.
+    if (!autoBucketPicked.current) {
+      if (!wOk && fOk) setTransferFromBucket('float');
+      else if (wOk && !fOk) setTransferFromBucket('withdrawable');
+      else if (b.withdrawable === 0 && b.float > 0) setTransferFromBucket('float');
+      autoBucketPicked.current = true;
+      return;
+    }
+    if (transferFromBucket === 'withdrawable' && !wOk && fOk) {
+      setTransferFromBucket('float');
+    } else if (transferFromBucket === 'float' && !fOk && wOk) {
+      setTransferFromBucket('withdrawable');
+    }
+  }, [transferFromUser, sourceUser?.id, sourceBuckets.data, amtNum, transferFromBucket]);
+
   useEffect(() => {
     if (open && row) {
       setUser(suggestedUser ?? null);
