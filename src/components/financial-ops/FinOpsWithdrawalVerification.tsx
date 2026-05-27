@@ -146,13 +146,17 @@ export function FinOpsWithdrawalVerification() {
 
       setPendingRequests(pendingWithProfiles);
       setRejectedRequests(rejectedWithProfiles);
+      void fetchWalletBalances([
+        ...pendingWithProfiles.map((r: any) => r.user_id),
+        ...rejectedWithProfiles.map((r: any) => r.user_id),
+      ]);
     } catch (e) {
       console.error('FinOps withdrawal fetch error:', e);
       toast.error('Failed to load withdrawal requests');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetchWalletBalances]);
 
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
 
