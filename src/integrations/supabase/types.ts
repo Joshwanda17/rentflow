@@ -5756,6 +5756,39 @@ export type Database = {
         }
         Relationships: []
       }
+      email_credit_manual_marks: {
+        Row: {
+          created_at: string
+          email_tid: string | null
+          gmail_message_id: string | null
+          gmail_transaction_id: string
+          id: string
+          mark: string
+          marked_by: string
+          reason: string | null
+        }
+        Insert: {
+          created_at?: string
+          email_tid?: string | null
+          gmail_message_id?: string | null
+          gmail_transaction_id: string
+          id?: string
+          mark: string
+          marked_by: string
+          reason?: string | null
+        }
+        Update: {
+          created_at?: string
+          email_tid?: string | null
+          gmail_message_id?: string | null
+          gmail_transaction_id?: string
+          id?: string
+          mark?: string
+          marked_by?: string
+          reason?: string | null
+        }
+        Relationships: []
+      }
       email_match_audit_log: {
         Row: {
           action: string
