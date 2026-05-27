@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Loader2, Wallet, Banknote, ArrowRight, AlertTriangle, UserCog } from 'lucide-react';
+import { Loader2, Wallet, Banknote, ArrowRight, AlertTriangle, UserCog, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -157,6 +157,13 @@ interface Props {
    *            with an active managed-proxy assignment.
    */
   mode?: RouteDialogMode;
+  /** Prev / Next navigation so Financial Ops can walk emails without closing the dialog. */
+  onPrev?: () => void;
+  onNext?: () => void;
+  canPrev?: boolean;
+  canNext?: boolean;
+  currentIndex?: number;
+  totalCount?: number;
 }
 
 /**
@@ -165,7 +172,7 @@ interface Props {
  * Operational Float. Routes through the `cfo-direct-credit` edge function so
  * the existing Wallet Routing v2 + ledger rules apply.
  */
-export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser, mode = 'credit' }: Props) {
+export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser, mode = 'credit', onPrev, onNext, canPrev, canNext, currentIndex, totalCount }: Props) {
   const { toast } = useToast();
   const [user, setUser] = useState<PrefilledUser | null>(null);
   const [amount, setAmount] = useState('');
@@ -810,6 +817,37 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
               : 'Credit this inbound transaction to a specific user as Personal Deposit (withdrawable) or Operational Float.'}
           </DialogDescription>
         </DialogHeader>
+
+        {/* Prev / Next navigation bar — sticky, thumb-friendly for phones */}
+        {(canPrev || canNext) && (
+          <div className="shrink-0 border-b bg-muted/30 px-3 py-2.5 flex items-center justify-between gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-10 px-3 gap-1 text-xs flex-1"
+              disabled={!canPrev}
+              onClick={onPrev}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Prev email
+            </Button>
+            <span className="text-[11px] text-muted-foreground tabular-nums px-1">
+              {currentIndex ?? 0} / {totalCount ?? 0}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-10 px-3 gap-1 text-xs flex-1"
+              disabled={!canNext}
+              onClick={onNext}
+            >
+              Next email
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
         {row && (
