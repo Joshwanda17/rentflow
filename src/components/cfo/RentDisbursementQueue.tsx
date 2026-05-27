@@ -431,25 +431,6 @@ export function RentDisbursementQueue() {
                 )
               </label>
               <div className="flex items-center gap-2">
-                <Select value={agentFilter} onValueChange={setAgentFilter}>
-                  <SelectTrigger className="h-8 text-xs w-[240px]">
-                    <Users className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
-                    <SelectValue placeholder="Filter by agent" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-[320px]">
-                    <SelectItem value="all">All agents ({grouped.length})</SelectItem>
-                    {grouped.map(g => {
-                      const gTotal = g.rows.reduce((s, r) => s + r.rent_amount, 0);
-                      return (
-                        <SelectItem key={g.agent_id} value={g.agent_id}>
-                          <span className="truncate">
-                            {g.agent_name} · {g.rows.length} · {fmt(gTotal)}
-                          </span>
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
                 {selected.size > 0 && (
                   <Badge className="bg-primary/10 text-primary border-primary/30">
                     {selected.size} selected · {fmt(totalRent)}
