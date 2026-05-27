@@ -1256,6 +1256,34 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
         recipient_type: isFloat ? 'operational_wallet' : 'user',
         sub_category: row.transaction_id ?? null,
       };
+      // ── Authoritative backend pre-flight ──────────────────────────
+      // Re-checks credited status from the DB (not React Query cache)
+      // so a stale frontend cannot cause a double-credit. Refuses to
+      // proceed if `verify-email-credit-status` returns safe_to_credit=false
+      // for any blocking reason other than the "different user, reversal
+      // already handled above" case.
+      try {
+        const { data: verify } = await supabase.functions.invoke('verify-email-credit-status', {
+          body: {
+            gmail_transaction_id: row.id,
+            gmail_message_id: row.gmail_message_id ?? null,
+            target_user_id: user.id,
+            proposed_amount: amt,
+            proposed_reference: row.transaction_id ?? null,
+          },
+        });
+        const v = verify as any;
+        if (v && v.safe_to_credit === false) {
+          const blocking = ['DUPLICATE_DEPOSIT', 'DUPLICATE_LEDGER_LEG', 'AMOUNT_MISMATCH', 'REFERENCE_MISSING', 'EMAIL_NOT_FOUND'];
+          if (blocking.includes(v.reason)) {
+            throw new Error(`Backend blocked credit (${v.reason}): ${v.message}`);
+          }
+        }
+      } catch (verr: any) {
+        // Only re-throw our deliberate blocks; network errors must not
+        // silently bypass the gate, so surface them too.
+        throw new Error(verr?.message || 'Pre-credit verification failed');
+      }
       const { data, error } = await supabase.functions.invoke('cfo-direct-credit', { body });
       if (error) {
         const msg = (error as any)?.message || 'Routing failed';
