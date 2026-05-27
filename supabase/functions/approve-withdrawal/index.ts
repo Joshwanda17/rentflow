@@ -269,7 +269,7 @@ Deno.serve(async (req) => {
       typeof wr.reason === "string" &&
       wr.reason.includes("Proxy payout delivery for");
 
-    const proxyPartnerId =
+    let proxyPartnerId =
       (wr as any).proxy_partner_id ||
       (wr.linked_party && wr.linked_party !== wr.user_id ? wr.linked_party : null) ||
       ((wr as any).beneficiary_id && (wr as any).beneficiary_id !== (wr as any).agent_id
@@ -311,16 +311,53 @@ Deno.serve(async (req) => {
       isProxyAgent = (proxyCount ?? 0) > 0;
     }
 
-    const isProxyPayout =
+    let isProxyPayout =
       Boolean(proxyPartnerId && (reasonLooksProxy || managedProxyAgentId || proxyAgentCandidates.length > 0)) ||
       (reasonLooksProxy && ((wr.linked_party && wr.linked_party !== wr.user_id) || isProxyAgent));
 
     const amount = Number(wr.amount);
-    const beneficiaryUserId =
+    let beneficiaryUserId =
       isProxyPayout && proxyPartnerId ? proxyPartnerId : wr.user_id;
-    const fundingUserId = isProxyPayout && proxyPartnerId
+    let fundingUserId = isProxyPayout && proxyPartnerId
       ? proxyPartnerId
       : wr.user_id;
+
+    // ── Partner → Proxy Agent auto-routing ────────────────────────────────
+    // Policy: whenever the requester (`wr.user_id`) is a partner with an
+    // ACTIVE + APPROVED `proxy_agent_assignment`, debit the assigned proxy
+    // agent's wallet instead of the partner's — even when the request was
+    // not originally tagged as a proxy payout. This guarantees that the
+    // physical cash (which sits on the proxy agent's wallet per the
+    // Managed-Proxy Payout Routing rule) is the one debited, even if the
+    // partner's own wallet shows zero. Skipped when the request already
+    // carries proxy metadata (handled by the standard pipeline above) or
+    // when the partner has no active proxy assignment at all.
+    let autoRoutedToProxy = false;
+    let autoRouteAssignedAgentId: string | null = null;
+    if (!isProxyPayout) {
+      const { data: partnerAssignment } = await admin
+        .from("proxy_agent_assignments")
+        .select("agent_id, is_managed_account, created_at")
+        .eq("beneficiary_id", wr.user_id)
+        .eq("is_active", true)
+        .eq("approval_status", "approved")
+        .order("is_managed_account", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (partnerAssignment?.agent_id && partnerAssignment.agent_id !== wr.user_id) {
+        autoRoutedToProxy = true;
+        autoRouteAssignedAgentId = partnerAssignment.agent_id as string;
+        proxyPartnerId = wr.user_id;
+        beneficiaryUserId = wr.user_id;
+        fundingUserId = partnerAssignment.agent_id as string;
+        isProxyPayout = true;
+        console.log(
+          `[approve-withdrawal] auto-routed partner ${wr.user_id} withdrawal to ` +
+          `assigned proxy agent ${fundingUserId} (managed=${partnerAssignment.is_managed_account})`
+        );
+      }
+    }
 
     console.log(
       `[approve-withdrawal] withdrawal ${withdrawal_id}: isProxyPayout=${isProxyPayout}, ` +
@@ -660,6 +697,55 @@ Deno.serve(async (req) => {
     const baseDesc = `${payment_method} ref: ${refUpper}`;
     const nowIso = new Date().toISOString();
 
+    // When this withdrawal was auto-routed to a proxy agent, try to find a
+    // matching outgoing Gmail payout email (by TID or amount+phone within
+    // the last 7 days) and stamp the match into ledger metadata for audit.
+    let autoRouteEmail: { gmail_message_id: string | null; gmail_transaction_id: string | null; email_tid: string | null } | null = null;
+    if (autoRoutedToProxy) {
+      try {
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        let match: any = null;
+        if (refUpper && refUpper.length >= 3) {
+          const { data } = await (admin.from("gmail_transactions") as any)
+            .select("id, gmail_message_id, transaction_id")
+            .eq("transaction_id", refUpper)
+            .in("direction", ["out", "charge"])
+            .order("internal_date", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          match = data;
+        }
+        if (!match) {
+          const { data } = await (admin.from("gmail_transactions") as any)
+            .select("id, gmail_message_id, transaction_id")
+            .in("direction", ["out", "charge"])
+            .eq("amount", amount)
+            .gte("internal_date", sevenDaysAgo)
+            .order("internal_date", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          match = data;
+        }
+        if (match) {
+          autoRouteEmail = {
+            gmail_message_id: match.gmail_message_id ?? null,
+            gmail_transaction_id: match.id ?? null,
+            email_tid: match.transaction_id ?? null,
+          };
+        }
+      } catch (e) {
+        console.warn("[approve-withdrawal] gmail email lookup failed:", (e as Error).message);
+      }
+    }
+    const autoRouteMeta = autoRoutedToProxy
+      ? {
+          auto_routed_via_proxy: true,
+          partner_id: wr.user_id,
+          proxy_agent_id: autoRouteAssignedAgentId,
+          ...(autoRouteEmail || {}),
+        }
+      : undefined;
+
     const proxyFloatPortion = 0;
     const proxyWithdrawablePortion = isProxyPayout ? amount - proxyFloatPortion : 0;
     const withdrawablePortion = isProxyPayout ? proxyWithdrawablePortion : amount;
@@ -686,6 +772,7 @@ Deno.serve(async (req) => {
         routing_source: isProxyPayout
           ? "managed_proxy_withdrawal_agent_withdrawable_debit"
           : "standard_withdrawal_withdrawable_debit",
+        ...(autoRouteMeta ? { metadata: autoRouteMeta } : {}),
       });
     }
     if (floatPortion > 0) {
@@ -948,6 +1035,23 @@ Deno.serve(async (req) => {
         pending_hold_released: totalPendingHold,
       },
     });
+
+    if (autoRoutedToProxy) {
+      await admin.from("audit_logs").insert({
+        user_id: user.id,
+        action_type: "withdrawal_auto_routed_to_proxy",
+        record_id: withdrawal_id,
+        table_name: "withdrawal_requests",
+        metadata: {
+          reason: `Auto-routed partner withdrawal to active proxy agent (TID: ${autoRouteEmail?.email_tid ?? "none"})`,
+          partner_id: wr.user_id,
+          proxy_agent_id: autoRouteAssignedAgentId,
+          amount,
+          fin_ops_reference: reference.trim().toUpperCase(),
+          gmail_match: autoRouteEmail,
+        },
+      });
+    }
 
     // Cashout agent 1% commission (only when caller is a non-staff cashout agent)
     let cashoutCommission = 0;
