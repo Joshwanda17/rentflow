@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -78,6 +78,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
   // a recoverable obligation (auto_recover=true).
   const [forcePending, setForcePending] = useState<null | { amount: number; name: string }>(null);
   const [forceReversal, setForceReversal] = useState(false);
+  const forceReversalRef = useRef(false);
 
   useEffect(() => {
     if (open && row) {
@@ -87,6 +88,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
       setDebitRoute('withdrawable');
       setForcePending(null);
       setForceReversal(false);
+      forceReversalRef.current = false;
       const tid = row.transaction_id ? ` TID ${row.transaction_id}` : '';
       const from = row.from_name || row.from_email || 'email';
       // Outgoing emails (MTN/Airtel/bank send confirmations) carry the
