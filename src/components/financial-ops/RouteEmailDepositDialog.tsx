@@ -978,10 +978,32 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
               : 'Email charge → Withdrawable',
           recipient_type: isFloat ? 'operational_wallet' : 'user',
           sub_category: row.transaction_id ?? null,
+          allow_overdraw: forceReversalRef.current,
         };
         const { data: debitData, error: debitErr } = await supabase.functions.invoke('cfo-direct-credit', { body: debitBody });
-        if (debitErr) throw new Error((debitErr as any)?.message || 'Debit failed');
-        if ((debitData as any)?.error) throw new Error((debitData as any).error);
+        const debitErrMsg = (debitErr as any)?.message || (debitData as any)?.error;
+        if (debitErrMsg) {
+          // Same fallback the transfer leg uses: prefer a one-tap bucket
+          // switch when the OTHER bucket of the same (non-proxy) wallet
+          // can cover the amount; otherwise prompt for forced reversal
+          // (recoverable obligation).
+          if (!forceReversalRef.current && String(debitErrMsg).includes('NEGATIVE_WALLET_BLOCKED')) {
+            if (!useProxyAgent) {
+              const b = destBuckets.data;
+              if (b) {
+                const otherRoute: DebitRoute = isFloat ? 'withdrawable' : 'landlord_float';
+                const otherAvail = isFloat ? b.withdrawable : b.float;
+                if (otherAvail >= amt) {
+                  setDebitRoute(otherRoute);
+                  throw new Error(`${debitTargetName} has ${formatUGX(otherAvail)} in ${otherRoute === 'landlord_float' ? 'Landlord-Payout Float' : 'Withdrawable'} — switched. Tap "Confirm & route" again to retry.`);
+                }
+              }
+            }
+            setForcePending({ amount: amt, name: debitTargetName });
+            throw new Error('FORCE_REVERSAL_CONFIRMATION_REQUIRED');
+          }
+          throw new Error(debitErrMsg);
+        }
         const referenceId = (debitData as any)?.reference_id ?? null;
 
         // Best-effort routing history insert + SMS to the wallet owner.
