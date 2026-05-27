@@ -2445,10 +2445,13 @@ export function EmailTransactionsPanel() {
                     ? 'bg-destructive/15 hover:bg-destructive/20 border-l-8 border-l-destructive ring-2 ring-destructive/40 ring-inset shadow-sm focus-within:ring-2 focus-within:ring-destructive/60'
                     : isCredited
                     // Already-credited incoming deposits get a distinct
-                    // emerald treatment so reviewers can scan the list and
-                    // see at a glance which emails have already landed in a
-                    // wallet — preventing double-credits.
-                    ? 'bg-emerald-500/10 hover:bg-emerald-500/15 border-l-4 border-l-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/40'
+                    // treatment so reviewers can scan the list and see at a
+                    // glance which emails have already landed in a wallet.
+                    // Partial credits use amber (needs attention); fully
+                    // credited use emerald (safe to skip).
+                    ? isFullyCredited
+                      ? 'bg-emerald-500/10 hover:bg-emerald-500/15 border-l-4 border-l-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/40'
+                      : 'bg-amber-500/10 hover:bg-amber-500/15 border-l-4 border-l-amber-500 focus-within:ring-2 focus-within:ring-amber-500/40'
                     : isRouted
                     // Routed rows get a distinct violet treatment so reviewers
                     // can scan the list and immediately see which emails have
