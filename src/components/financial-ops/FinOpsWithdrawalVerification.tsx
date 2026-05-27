@@ -104,20 +104,33 @@ export function FinOpsWithdrawalVerification() {
 
   const fetchProfiles = async (data: any[]) => {
     if (!data.length) return [];
+    const proxyIdFor = (r: any): string | null => {
+      const aid = r.agent_id || r.initiated_by;
+      if (aid && aid !== r.user_id) return aid;
+      return null;
+    };
     const userIds = [...new Set([
       ...data.map(r => r.user_id),
       ...data.map(r => r.claimed_by).filter(Boolean),
+      ...data.map(proxyIdFor).filter(Boolean),
     ])];
     const { data: profiles } = await supabase
       .from('profiles')
       .select('id, full_name, phone, avatar_url')
       .in('id', userIds);
     const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
-    return data.map(r => ({
-      ...r,
-      user: profileMap.get(r.user_id) || { full_name: 'Unknown', phone: '', avatar_url: null },
-      cashout_agent: r.claimed_by ? (profileMap.get(r.claimed_by) || null) : null,
-    }));
+    return data.map(r => {
+      const proxyId = proxyIdFor(r);
+      const proxyProfile = proxyId ? profileMap.get(proxyId) : null;
+      return {
+        ...r,
+        user: profileMap.get(r.user_id) || { full_name: 'Unknown', phone: '', avatar_url: null },
+        cashout_agent: r.claimed_by ? (profileMap.get(r.claimed_by) || null) : null,
+        proxy_agent: proxyProfile
+          ? { id: proxyId, full_name: proxyProfile.full_name, phone: proxyProfile.phone, avatar_url: proxyProfile.avatar_url }
+          : null,
+      };
+    });
   };
 
   const fetchRequests = useCallback(async () => {
@@ -153,7 +166,9 @@ export function FinOpsWithdrawalVerification() {
       setRejectedRequests(rejectedWithProfiles);
       void fetchWalletBalances([
         ...pendingWithProfiles.map((r: any) => r.user_id),
+        ...pendingWithProfiles.map((r: any) => r.proxy_agent?.id).filter(Boolean),
         ...rejectedWithProfiles.map((r: any) => r.user_id),
+        ...rejectedWithProfiles.map((r: any) => r.proxy_agent?.id).filter(Boolean),
       ]);
     } catch (e) {
       console.error('FinOps withdrawal fetch error:', e);
