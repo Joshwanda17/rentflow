@@ -302,17 +302,47 @@ export function RentDisbursementQueue() {
               </Badge>
             )}
           </CardTitle>
-          <Select value={dateFilter} onValueChange={(v) => { setDateFilter(v as any); setSelected(new Set()); }}>
-            <SelectTrigger className="h-7 text-xs w-[150px]">
-              <CalendarDays className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
-              <SelectValue placeholder="Date range" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All time</SelectItem>
-              <SelectItem value="7d">Last 7 days</SelectItem>
-              <SelectItem value="30d">Last 30 days</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Select value={agentFilter} onValueChange={setAgentFilter}>
+              <SelectTrigger className="h-7 text-xs w-[220px]">
+                <Users className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+                <SelectValue placeholder="Filter by agent" />
+              </SelectTrigger>
+              <SelectContent className="max-h-[320px]">
+                <SelectItem value="all">All agents ({grouped.length})</SelectItem>
+                {grouped.map(g => {
+                  const gTotal = g.rows.reduce((s, r) => s + r.rent_amount, 0);
+                  return (
+                    <SelectItem key={g.agent_id} value={g.agent_id}>
+                      <span className="truncate">
+                        {g.agent_name} · {g.rows.length} · {fmt(gTotal)}
+                      </span>
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+            <Select value={dateFilter} onValueChange={(v) => { setDateFilter(v as any); setSelected(new Set()); }}>
+              <SelectTrigger className="h-7 text-xs w-[150px]">
+                <CalendarDays className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+                <SelectValue placeholder="Date range" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All time</SelectItem>
+                <SelectItem value="7d">Last 7 days</SelectItem>
+                <SelectItem value="30d">Last 30 days</SelectItem>
+              </SelectContent>
+            </Select>
+            {agentFilter !== 'all' && (
+              <button
+                type="button"
+                className="text-[11px] text-primary hover:underline"
+                onClick={() => setAgentFilter('all')}
+              >
+                Clear agent
+              </button>
+            )}
+          </div>
         </div>
         {filteredItems.length > 0 && (
           <p className="text-xs text-muted-foreground mt-1">
