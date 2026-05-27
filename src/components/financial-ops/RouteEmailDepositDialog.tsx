@@ -1130,6 +1130,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
             </div>
           )}
         </div>
+        </div>
 
         {!awaitingConfirm && (
           <div className="border-t bg-background px-4 py-3 shrink-0">
