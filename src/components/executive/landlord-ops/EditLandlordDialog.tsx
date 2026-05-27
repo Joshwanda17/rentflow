@@ -145,7 +145,7 @@ export function EditLandlordDialog({ landlord, open, onClose, onSaved }: Props) 
 
   return (
     <>
-      <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <Dialog open={open && !showConfirm} onOpenChange={(o) => { if (!o && !showConfirm) onClose(); }}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-base">Edit Landlord Profile</DialogTitle>
