@@ -541,7 +541,7 @@ export function EmailTransactionsPanel() {
     deposit_purpose: string | null;
     credited_at: string | null;
   }
-  const [creditedDeposits, setCreditedDeposits] = useState<Record<string, CreditedDeposit>>({});
+  const [creditedDeposits, setCreditedDeposits] = useState<Record<string, CreditedDeposit[]>>({});
 
   /**
    * Auto-payout matcher: for outgoing money-out emails (MoMo payouts / bank
@@ -761,16 +761,18 @@ export function EmailTransactionsPanel() {
         const { data: gmailLinks } = await (supabase.from('gmail_transactions') as any)
           .select('id, linked_deposit_request_id')
           .in('id', rowIds);
-        const linkByRow = new Map<string, string>();
+        const linkByRow = new Map<string, string[]>();
         const depIds = new Set<string>();
         for (const g of (gmailLinks ?? []) as Array<{ id: string; linked_deposit_request_id: string | null }>) {
           if (g.linked_deposit_request_id) {
-            linkByRow.set(g.id, g.linked_deposit_request_id);
+            const arr = linkByRow.get(g.id) ?? [];
+            arr.push(g.linked_deposit_request_id);
+            linkByRow.set(g.id, arr);
             depIds.add(g.linked_deposit_request_id);
           }
         }
         // 2) Fallback via deposit_requests.auto_match_audit->>gmail_message_id
-        const linkByMsg = new Map<string, string>();
+        const linkByMsg = new Map<string, string[]>();
         if (msgIds.length) {
           const { data: audits } = await (supabase.from('deposit_requests') as any)
             .select('id, status, auto_match_audit')
@@ -779,8 +781,10 @@ export function EmailTransactionsPanel() {
             const mid = a?.auto_match_audit?.gmail_message_id as string | undefined;
             if (!mid) continue;
             if (['rejected', 'cancelled', 'failed', 'reversed'].includes(a.status)) continue;
-            if (!linkByMsg.has(mid)) {
-              linkByMsg.set(mid, a.id);
+            const arr = linkByMsg.get(mid) ?? [];
+            if (!arr.includes(a.id)) {
+              arr.push(a.id);
+              linkByMsg.set(mid, arr);
               depIds.add(a.id);
             }
           }
@@ -802,26 +806,31 @@ export function EmailTransactionsPanel() {
             .in('id', Array.from(userIds));
           profById = new Map(((profs ?? []) as Array<any>).map((p) => [p.id, p]));
         }
-        const next: Record<string, CreditedDeposit> = {};
+        const next: Record<string, CreditedDeposit[]> = {};
         for (const r of incoming) {
-          let depId = linkByRow.get(r.id);
-          if (!depId && r.gmail_message_id) depId = linkByMsg.get(r.gmail_message_id);
-          if (!depId) continue;
-          const d = depById.get(depId);
-          if (!d) continue;
-          if (['rejected', 'cancelled', 'failed', 'reversed'].includes(d.status)) continue;
-          const p = profById.get(d.user_id);
-          next[r.id] = {
-            deposit_id: d.id,
-            user_id: d.user_id,
-            user_name: (p?.full_name as string) ?? 'Unknown user',
-            user_phone: (p?.phone as string) ?? '',
-            amount: Number(d.amount) || 0,
-            status: d.status,
-            auto_approved: d.auto_approved ?? null,
-            deposit_purpose: d.deposit_purpose ?? null,
-            credited_at: (d.updated_at as string) ?? (d.created_at as string) ?? null,
-          };
+          const ids = new Set<string>();
+          (linkByRow.get(r.id) ?? []).forEach((id) => ids.add(id));
+          if (r.gmail_message_id) (linkByMsg.get(r.gmail_message_id) ?? []).forEach((id) => ids.add(id));
+          if (!ids.size) continue;
+          const list: CreditedDeposit[] = [];
+          for (const depId of ids) {
+            const d = depById.get(depId);
+            if (!d) continue;
+            if (['rejected', 'cancelled', 'failed', 'reversed'].includes(d.status)) continue;
+            const p = profById.get(d.user_id);
+            list.push({
+              deposit_id: d.id,
+              user_id: d.user_id,
+              user_name: (p?.full_name as string) ?? 'Unknown user',
+              user_phone: (p?.phone as string) ?? '',
+              amount: Number(d.amount) || 0,
+              status: d.status,
+              auto_approved: d.auto_approved ?? null,
+              deposit_purpose: d.deposit_purpose ?? null,
+              credited_at: (d.updated_at as string) ?? (d.created_at as string) ?? null,
+            });
+          }
+          if (list.length) next[r.id] = list;
         }
         if (!cancelled) setCreditedDeposits(next);
       } catch {
@@ -2362,8 +2371,12 @@ export function EmailTransactionsPanel() {
                 // deposit_request by the poller). Distinct emerald treatment
                 // tells reviewers this email's money already landed in the
                 // shown user's wallet — DO NOT credit again.
-                const credited = creditedDeposits[r.id];
-                const isCredited = !!credited;
+                const credited = creditedDeposits[r.id] ?? [];
+                const isCredited = credited.length > 0;
+                const totalCredited = credited.reduce((s, c) => s + c.amount, 0);
+                const emailAmount = Number(r.amount ?? 0);
+                const creditShortfall = emailAmount > 0 ? Math.max(0, emailAmount - totalCredited) : 0;
+                const isFullyCredited = emailAmount > 0 && totalCredited >= emailAmount;
                 // ── Insufficient-funds warning for outgoing payouts ───────
                 // When an outgoing email (sent / charge) is matched to a
                 // user wallet whose current balance cannot cover the payout
@@ -2432,10 +2445,13 @@ export function EmailTransactionsPanel() {
                     ? 'bg-destructive/15 hover:bg-destructive/20 border-l-8 border-l-destructive ring-2 ring-destructive/40 ring-inset shadow-sm focus-within:ring-2 focus-within:ring-destructive/60'
                     : isCredited
                     // Already-credited incoming deposits get a distinct
-                    // emerald treatment so reviewers can scan the list and
-                    // see at a glance which emails have already landed in a
-                    // wallet — preventing double-credits.
-                    ? 'bg-emerald-500/10 hover:bg-emerald-500/15 border-l-4 border-l-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/40'
+                    // treatment so reviewers can scan the list and see at a
+                    // glance which emails have already landed in a wallet.
+                    // Partial credits use amber (needs attention); fully
+                    // credited use emerald (safe to skip).
+                    ? isFullyCredited
+                      ? 'bg-emerald-500/10 hover:bg-emerald-500/15 border-l-4 border-l-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/40'
+                      : 'bg-amber-500/10 hover:bg-amber-500/15 border-l-4 border-l-amber-500 focus-within:ring-2 focus-within:ring-amber-500/40'
                     : isRouted
                     // Routed rows get a distinct violet treatment so reviewers
                     // can scan the list and immediately see which emails have
@@ -2583,31 +2599,44 @@ export function EmailTransactionsPanel() {
                       {isCredited && (
                         <Badge
                           variant="outline"
-                          className="text-[10px] gap-1 bg-emerald-500/15 text-emerald-700 border-emerald-500/40"
+                          className={`text-[10px] gap-1 ${isFullyCredited ? 'bg-emerald-500/15 text-emerald-700 border-emerald-500/40' : 'bg-amber-500/15 text-amber-700 border-amber-500/40'}`}
                           title={[
-                            `Already credited — DO NOT credit again`,
-                            `Recipient: ${credited.user_name}${credited.user_phone ? ' (' + credited.user_phone + ')' : ''}`,
-                            `Amount: ${fmtUgx(credited.amount)}`,
-                            `Deposit: ${credited.deposit_id}`,
-                            `Status: ${credited.status}${credited.auto_approved ? ' · auto-approved' : ''}`,
-                            credited.deposit_purpose ? `Purpose: ${credited.deposit_purpose}` : null,
-                            credited.credited_at ? `When: ${new Date(credited.credited_at).toLocaleString()}` : null,
+                            `${isFullyCredited ? 'Fully credited' : 'Partially credited'} — DO NOT credit again`,
+                            `Email amount: ${fmtUgx(emailAmount)}`,
+                            `Total credited: ${fmtUgx(totalCredited)}`,
+                            creditShortfall > 0 ? `Shortfall: ${fmtUgx(creditShortfall)}` : null,
+                            ...credited.map((c, i) => [
+                              `— Deposit ${i + 1}: ${c.deposit_id}`,
+                              `  Recipient: ${c.user_name}${c.user_phone ? ' (' + c.user_phone + ')' : ''}`,
+                              `  Amount: ${fmtUgx(c.amount)}`,
+                              `  Status: ${c.status}${c.auto_approved ? ' · auto-approved' : ''}`,
+                              c.deposit_purpose ? `  Purpose: ${c.deposit_purpose}` : null,
+                              c.credited_at ? `  When: ${new Date(c.credited_at).toLocaleString()}` : null,
+                            ].filter(Boolean).join('\n')),
                           ].filter(Boolean).join('\n')}
                         >
                           <CheckCircle2 className="h-3 w-3" />
-                          credited · {fmtUgx(credited.amount)}
+                          {isFullyCredited ? 'credited' : 'partial'} · {fmtUgx(totalCredited)}{creditShortfall > 0 ? ` / ${fmtUgx(emailAmount)}` : ''}
+                          {credited.length > 1 && <span className="font-mono tabular-nums opacity-80">×{credited.length}</span>}
                         </Badge>
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground truncate mt-0.5">{r.subject || '(no subject)'}</p>
                     {isCredited && (
-                      <p className="text-[11px] mt-1 inline-flex items-center gap-1.5 rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-emerald-700">
-                        <Wallet className="h-3 w-3" />
-                        Credited to <strong className="font-semibold">{credited.user_name}</strong>
-                        {credited.user_phone ? <span className="font-mono opacity-80">{credited.user_phone}</span> : null}
-                        <span className="opacity-70">·</span>
-                        <span>{credited.status}{credited.auto_approved ? ' (auto)' : ''}</span>
-                      </p>
+                      <div className="mt-1.5 space-y-1">
+                        {credited.map((c, i) => (
+                          <p key={c.deposit_id} className={`text-[11px] inline-flex items-center gap-1.5 rounded border px-2 py-0.5 ${isFullyCredited ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700' : 'border-amber-500/30 bg-amber-500/10 text-amber-700'}`}>
+                            <Wallet className="h-3 w-3" />
+                            <span className="font-mono opacity-70">#{i + 1}</span>
+                            <strong className="font-semibold">{c.user_name}</strong>
+                            {c.user_phone ? <span className="font-mono opacity-80">{c.user_phone}</span> : null}
+                            <span className="opacity-70">·</span>
+                            <span className="font-mono font-medium">{fmtUgx(c.amount)}</span>
+                            <span className="opacity-70">·</span>
+                            <span>{c.status}{c.auto_approved ? ' (auto)' : ''}</span>
+                          </p>
+                        ))}
+                      </div>
                     )}
                     {(r.counterparty || r.fee || r.balance !== null) && (
                       <p className="text-[11px] text-muted-foreground/80 mt-0.5 flex flex-wrap gap-x-3">
