@@ -39,7 +39,7 @@ type Tool =
   | 'ops' | 'queue' | 'search' | 'recon' | 'ledgers' | 'audit'
   | 'withdrawals' | 'opportunities' | 'requisitions'
   | 'mismatch_metrics' | 'recon_review' | 'withdrawal_history' | 'wallet_breakdown'
-  | 'email_tx' | 'funded_tenants' | 'auto_credit_review';
+  | 'email_tx' | 'funded_tenants' | 'auto_credit_review' | 'proxy_diagnostics';
 
 
 /**
@@ -67,6 +67,7 @@ const moreActions: MoreAction[] = [
   { kind: 'tool', id: 'opportunities', label: 'Capital Opportunities', desc: 'Investment summaries', icon: TrendingUp },
   { kind: 'tool', id: 'requisitions', label: 'Fund Requisitions', desc: 'Agent fund requests', icon: FileText },
   { kind: 'tool', id: 'mismatch_metrics', label: 'Mismatch Metrics', desc: 'Operator provider-mismatch attempts', icon: AlertTriangle },
+  { kind: 'tool', id: 'proxy_diagnostics', label: 'Proxy Withdrawal Diagnostics', desc: 'Why each pending proxy withdrawal isn\u2019t auto-settling', icon: AlertCircle },
 ];
 
 export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymentRef?: boolean } = {}) {
