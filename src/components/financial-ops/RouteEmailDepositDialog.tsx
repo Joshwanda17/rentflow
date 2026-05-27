@@ -863,6 +863,18 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
                 </div>
               </label>
             </RadioGroup>
+            {transferFromUser && sourceUser && user && (
+              <div className="mt-2 rounded-md border border-primary/30 bg-primary/5 p-2 text-[11px] flex items-center gap-1.5">
+                <ArrowRight className="h-3 w-3 text-primary shrink-0" />
+                <span>
+                  <span className="font-medium">{sourceUser.full_name}</span>
+                  <span className="text-muted-foreground"> ({transferFromBucket === 'float' ? 'Float' : 'Withdrawable'})</span>
+                  {' → '}
+                  <span className="font-medium">{user.full_name}</span>
+                  <span className="text-muted-foreground"> ({route === 'operational_float' ? 'Float' : 'Withdrawable'})</span>
+                </span>
+              </div>
+            )}
           </div>
           )}
 
