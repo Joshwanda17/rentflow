@@ -2310,7 +2310,7 @@ export function EmailTransactionsPanel() {
                     // Loudest treatment in the list: thick destructive accent,
                     // tinted surface, persistent ring, and a slow pulse so
                     // the row catches the eye even when scrolling fast.
-                    ? 'bg-destructive/15 hover:bg-destructive/20 border-l-8 border-l-destructive ring-2 ring-destructive/40 ring-inset shadow-sm animate-pulse-slow focus-within:ring-2 focus-within:ring-destructive/60'
+                    ? 'bg-destructive/15 hover:bg-destructive/20 border-l-8 border-l-destructive ring-2 ring-destructive/40 ring-inset shadow-sm focus-within:ring-2 focus-within:ring-destructive/60'
                     : isRouted
                     // Routed rows get a distinct violet treatment so reviewers
                     // can scan the list and immediately see which emails have
