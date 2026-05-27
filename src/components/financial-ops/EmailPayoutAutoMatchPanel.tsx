@@ -120,6 +120,15 @@ async function logMatchAttempt(args: {
         email_from_name: m.email.from_name,
         email_subject: m.email.subject,
         email_channel: m.email.channel,
+        ...(m.split
+          ? {
+              split: true,
+              split_share: m.split.share,
+              split_subset_size: m.split.subsetSize,
+              split_group_key: m.split.groupKey,
+              email_remaining_at_match: m.split.emailRemaining,
+            }
+          : { split: false }),
         ...(extra ?? {}),
       },
     });
