@@ -59,12 +59,20 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { target_user_id, amount: rawAmount, reason, operation, wallet_category, platform_category, financial_impact, category_label, sub_category, recipient_type, allow_overdraw: rawAllowOverdraw } = await req.json();
+    const { target_user_id, amount: rawAmount, reason, operation, wallet_category, platform_category, financial_impact, category_label, sub_category, recipient_type, allow_overdraw: rawAllowOverdraw, gmail_transaction_id: rawGmailTxId, gmail_message_id: rawGmailMsgId, email_tid: rawEmailTid } = await req.json();
     const amount = typeof rawAmount === "number"
       ? rawAmount
       : Number(String(rawAmount ?? "").replace(/[, _]/g, ""));
     const op = operation === "debit" ? "debit" : "credit";
     const callerRoles = (roles || []).map((r: any) => r.role);
+
+    // Normalise email-origin identifiers (any may be null)
+    const gmailTxId: string | null = typeof rawGmailTxId === "string" && rawGmailTxId ? rawGmailTxId : null;
+    const gmailMsgId: string | null = typeof rawGmailMsgId === "string" && rawGmailMsgId ? rawGmailMsgId : null;
+    const emailTid: string | null = typeof rawEmailTid === "string" && rawEmailTid
+      ? rawEmailTid
+      : (typeof sub_category === "string" && sub_category ? sub_category : null);
+    const isEmailOriginCredit = op === "credit" && (gmailMsgId || emailTid);
 
     // ── Forced reversal mode ────────────────────────────────────────────
     // Email-deposit rerouting and other recovery workflows may need to
@@ -267,6 +275,51 @@ Deno.serve(async (req) => {
     // Generate trackable PAY- reference (same format COO uses) for every CFO direct credit/debit
     const refId = `PAY-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 
+    // ── Server-side idempotency guard for email-origin credits ────────────
+    // For any credit that carries a gmail_message_id or email_tid we INSERT
+    // a row into email_credit_idempotency *before* posting to the ledger.
+    // The table has unique indexes on (gmail_message_id, target_user_id) and
+    // (email_tid, target_user_id) so a duplicate attempt — even one that
+    // bypassed the client pre-flight — fails fast with HTTP 409 and never
+    // creates a second ledger entry. This is the authoritative duplicate
+    // gate; the client `verify-email-credit-status` call is advisory.
+    if (isEmailOriginCredit) {
+      const { error: idemErr } = await adminClient
+        .from("email_credit_idempotency")
+        .insert({
+          gmail_transaction_id: gmailTxId,
+          gmail_message_id: gmailMsgId,
+          email_tid: emailTid,
+          target_user_id,
+          amount,
+          operation: op,
+          reference_id: refId,
+          created_by: userId,
+        });
+      if (idemErr) {
+        const msg = String(idemErr.message || "");
+        const isDup = (idemErr as any).code === "23505" || /duplicate key|unique/i.test(msg);
+        if (isDup) {
+          console.warn(
+            "[cfo-direct-credit] DUPLICATE_EMAIL_CREDIT blocked",
+            { gmailMsgId, emailTid, target_user_id, amount },
+          );
+          return new Response(JSON.stringify({
+            error: "DUPLICATE_EMAIL_CREDIT: this email / transaction reference has already been credited to this user.",
+            reason: "DUPLICATE_EMAIL_CREDIT",
+            gmail_message_id: gmailMsgId,
+            email_tid: emailTid,
+            target_user_id,
+          }), {
+            status: 409,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        console.error("[cfo-direct-credit] idempotency insert error:", msg);
+        throw new Error(`Idempotency guard error: ${msg}`);
+      }
+    }
+
     if (op === "credit") {
       console.log("[cfo-direct-credit] Creating CREDIT ledger entries for", walletUserId, "amount:", amount, "partner:", target_user_id, "managedProxy:", !!managedProxy);
       const { error: rpcErr } = await adminClient.rpc('create_ledger_transaction', {
@@ -306,6 +359,13 @@ Deno.serve(async (req) => {
       });
       if (rpcErr) {
         console.error("[cfo-direct-credit] Credit ledger error:", rpcErr.message);
+        // Roll back the idempotency reservation so the caller can legitimately retry.
+        if (isEmailOriginCredit) {
+          await adminClient
+            .from("email_credit_idempotency")
+            .delete()
+            .eq("reference_id", refId);
+        }
         throw new Error(`Ledger error: ${rpcErr.message}`);
       }
     } else {

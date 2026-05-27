@@ -5717,6 +5717,45 @@ export type Database = {
         }
         Relationships: []
       }
+      email_credit_idempotency: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          email_tid: string | null
+          gmail_message_id: string | null
+          gmail_transaction_id: string | null
+          id: string
+          operation: string
+          reference_id: string | null
+          target_user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          email_tid?: string | null
+          gmail_message_id?: string | null
+          gmail_transaction_id?: string | null
+          id?: string
+          operation?: string
+          reference_id?: string | null
+          target_user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          email_tid?: string | null
+          gmail_message_id?: string | null
+          gmail_transaction_id?: string | null
+          id?: string
+          operation?: string
+          reference_id?: string | null
+          target_user_id?: string
+        }
+        Relationships: []
+      }
       email_match_audit_log: {
         Row: {
           action: string
