@@ -768,12 +768,12 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
 
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
         {row && (
-          <div className="rounded-lg border bg-muted/30 p-3 text-xs space-y-0.5">
-            <p><span className="text-muted-foreground">From:</span> {row.from_name || row.from_email || '—'}</p>
+          <div className="rounded-lg border bg-muted/30 p-3 text-sm space-y-1">
+            <p><span className="text-muted-foreground">From:</span> <span className="font-medium">{row.from_name || row.from_email || '—'}</span></p>
             {row.transaction_id && (
-              <p className="font-mono"><span className="text-muted-foreground font-sans">TID:</span> {row.transaction_id}</p>
+              <p className="font-mono text-sm break-all"><span className="text-muted-foreground font-sans">TID:</span> {row.transaction_id}</p>
             )}
-            <p><span className="text-muted-foreground">Subject:</span> {row.subject || '—'}</p>
+            <p className="line-clamp-2"><span className="text-muted-foreground">Subject:</span> {row.subject || '—'}</p>
           </div>
         )}
 
