@@ -246,6 +246,27 @@ export function EmailPayoutAutoMatchPanel() {
       });
     }
 
+    // Exclude emails we've already successfully processed in a previous
+    // scan cycle (auto-approved OR manually retried OK). This is the
+    // cross-session/refresh dedupe — `autoApprovedRef` only covers the
+    // current page load. Failed attempts deliberately stay open so a
+    // transient `approve-withdrawal` failure can retry on the next scan.
+    const candidateEmailIds = emails.map((e) => e.id);
+    const processedEmailIds = new Set<string>();
+    if (candidateEmailIds.length > 0) {
+      const { data: processedRows } = await supabase
+        .from('email_payout_match_attempts')
+        .select('email_id,email_transaction_id')
+        .in('email_id', candidateEmailIds)
+        .in('outcome', ['matched_auto_approved', 'matched_manual_retry_ok']);
+      (processedRows ?? []).forEach((r: any) => {
+        if (r.email_id) processedEmailIds.add(String(r.email_id));
+        // Defensive: also burn the TID so an email that lost its row id
+        // (e.g. re-ingested) but kept its TID can't be re-matched.
+        if (r.email_transaction_id) burnedTids.add(String(r.email_transaction_id).trim().toUpperCase());
+      });
+    }
+
     const out: PayoutMatch[] = [];
     const usedEmailIds = new Set<string>();
     const tol = toleranceRef.current;
@@ -256,6 +277,7 @@ export function EmailPayoutAutoMatchPanel() {
       const hit = emails.find(
         (e) =>
           !usedEmailIds.has(e.id) &&
+          !processedEmailIds.has(e.id) &&
           !burnedTids.has((e.transaction_id || '').trim().toUpperCase()) &&
           Math.abs(Math.round(Number(e.amount)) - wAmt) <= tol.amountUgx &&
           phonesMatch(target, e.toPhones, tol.phoneTailDigits),
