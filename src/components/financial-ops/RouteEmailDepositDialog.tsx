@@ -14,6 +14,61 @@ import { useToast } from '@/hooks/use-toast';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
 import { formatUGX } from '@/lib/rentCalculations';
 
+/**
+ * Inline preview: last 5 wallet-scope ledger entries for a user filtered to
+ * a specific bucket. Helps Financial Ops sanity-check what's currently in
+ * the wallet before initiating a transfer. Respects the user-facing ledger
+ * filter (no admin_correction / system_balance_correction).
+ */
+function MiniLedger({ userId, bucket, title }: { userId: string | null | undefined; bucket: 'withdrawable' | 'float'; title: string }) {
+  const q = useQuery({
+    queryKey: ['route-email-mini-ledger', userId, bucket],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from('general_ledger') as any)
+        .select('id, amount, direction, category, description, transaction_date, wallet_bucket')
+        .eq('user_id', userId)
+        .eq('ledger_scope', 'wallet')
+        .eq('wallet_bucket', bucket)
+        .neq('classification', 'admin_correction')
+        .neq('category', 'system_balance_correction')
+        .order('transaction_date', { ascending: false })
+        .limit(5);
+      if (error) throw error;
+      return (data ?? []) as Array<{ id: string; amount: number; direction: 'cash_in' | 'cash_out'; category: string; description: string | null; transaction_date: string }>;
+    },
+    staleTime: 10_000,
+  });
+  return (
+    <div className="rounded-lg border bg-muted/20 p-2 text-[11px] space-y-1">
+      <div className="flex items-center justify-between">
+        <span className="font-medium">{title}</span>
+        <span className="text-muted-foreground capitalize">{bucket}</span>
+      </div>
+      {!userId ? (
+        <p className="text-muted-foreground">No user selected.</p>
+      ) : q.isLoading ? (
+        <p className="text-muted-foreground">Loading…</p>
+      ) : !q.data?.length ? (
+        <p className="text-muted-foreground">No recent {bucket} activity.</p>
+      ) : (
+        <ul className="space-y-0.5">
+          {q.data.map((tx) => (
+            <li key={tx.id} className="flex items-center justify-between gap-2">
+              <span className="truncate text-muted-foreground">
+                {new Date(tx.transaction_date).toLocaleDateString()} · {tx.description || tx.category}
+              </span>
+              <span className={tx.direction === 'cash_in' ? 'text-emerald-600 font-medium shrink-0' : 'text-destructive font-medium shrink-0'}>
+                {tx.direction === 'cash_in' ? '+' : '−'}{formatUGX(Number(tx.amount) || 0)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 type Route = 'personal_deposit' | 'operational_float';
 type DebitRoute = 'withdrawable' | 'landlord_float' | 'proxy_agent_wallet';
 export type RouteDialogMode = 'credit' | 'debit';
@@ -739,6 +794,25 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
             selectedUser={user}
             onSelect={setUser}
           />
+
+          {mode === 'credit' && (user || (transferFromUser && sourceUser)) && (
+            <div className={transferFromUser && sourceUser ? 'grid grid-cols-1 sm:grid-cols-2 gap-2' : ''}>
+              {transferFromUser && sourceUser && (
+                <MiniLedger
+                  userId={sourceUser.id}
+                  bucket={transferFromBucket}
+                  title={`From · ${sourceUser.full_name} (last 5)`}
+                />
+              )}
+              {user && (
+                <MiniLedger
+                  userId={user.id}
+                  bucket={route === 'operational_float' ? 'float' : 'withdrawable'}
+                  title={`To · ${user.full_name} (last 5)`}
+                />
+              )}
+            </div>
+          )}
 
           {user && proxy.data && (
             <div className="flex items-center gap-2 -mt-1 text-xs text-muted-foreground">
