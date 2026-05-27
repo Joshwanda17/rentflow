@@ -157,6 +157,13 @@ interface Props {
    *            with an active managed-proxy assignment.
    */
   mode?: RouteDialogMode;
+  /** Prev / Next navigation so Financial Ops can walk emails without closing the dialog. */
+  onPrev?: () => void;
+  onNext?: () => void;
+  canPrev?: boolean;
+  canNext?: boolean;
+  currentIndex?: number;
+  totalCount?: number;
 }
 
 /**
