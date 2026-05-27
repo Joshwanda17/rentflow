@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
   ArrowDownToLine, CheckCircle, XCircle, Loader2, RefreshCw,
-  Smartphone, Clock, Hand,
+  Smartphone, Clock, Hand, Wallet, Briefcase, AlertTriangle,
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
@@ -64,6 +64,32 @@ export function FinOpsWithdrawalVerification() {
   
   const [activeTab, setActiveTab] = useState<ActiveTab>('pending');
 
+  // Live wallet balances for the requester of each withdrawal.
+  // Keyed by user_id → { withdrawable (personal), float (operational) }.
+  const [walletBalances, setWalletBalances] = useState<
+    Record<string, { withdrawable: number; float: number; loading?: boolean }>
+  >({});
+
+  const fetchWalletBalances = useCallback(async (userIds: string[]) => {
+    const uniq = Array.from(new Set(userIds.filter(Boolean)));
+    if (uniq.length === 0) return;
+    const results = await Promise.all(
+      uniq.map(async (uid) => {
+        const { data } = await supabase.rpc('get_user_wallet_view', { p_user_id: uid });
+        const r = (data ?? {}) as Record<string, unknown>;
+        return [uid, {
+          withdrawable: Number((r.withdrawable as number | string | undefined) ?? 0),
+          float: Number((r.float_balance as number | string | undefined) ?? 0),
+        }] as const;
+      })
+    );
+    setWalletBalances((prev) => {
+      const next = { ...prev };
+      for (const [uid, bal] of results) next[uid] = bal;
+      return next;
+    });
+  }, []);
+
   // Force re-render every 60s so the age chip stays fresh.
   const [, setTick] = useState(0);
   useEffect(() => {
@@ -120,13 +146,17 @@ export function FinOpsWithdrawalVerification() {
 
       setPendingRequests(pendingWithProfiles);
       setRejectedRequests(rejectedWithProfiles);
+      void fetchWalletBalances([
+        ...pendingWithProfiles.map((r: any) => r.user_id),
+        ...rejectedWithProfiles.map((r: any) => r.user_id),
+      ]);
     } catch (e) {
       console.error('FinOps withdrawal fetch error:', e);
       toast.error('Failed to load withdrawal requests');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetchWalletBalances]);
 
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
 
@@ -363,6 +393,53 @@ export function FinOpsWithdrawalVerification() {
   };
 
   const renderPendingCard = (req: WithdrawalRequest) => {
+    void req;
+    return _renderPendingCard(req);
+  };
+
+  const renderBalanceStrip = (req: WithdrawalRequest) => {
+    const bal = walletBalances[req.user_id];
+    const personal = bal?.withdrawable ?? 0;
+    const float = bal?.float ?? 0;
+    const totalAvailable = personal + float;
+    const insufficient = bal !== undefined && totalAvailable < Number(req.amount || 0);
+    return (
+      <div
+        className={`grid grid-cols-2 gap-1.5 px-2 py-1.5 rounded-lg border ${
+          insufficient
+            ? 'bg-destructive/10 border-destructive/40'
+            : 'bg-muted/40 border-border/50'
+        }`}
+      >
+        <div className="flex items-center gap-1.5 min-w-0">
+          <Wallet className="h-3 w-3 text-primary shrink-0" />
+          <div className="min-w-0">
+            <p className="text-[9px] uppercase tracking-wider text-muted-foreground leading-none">Personal</p>
+            <p className="text-xs font-bold text-foreground truncate">
+              {bal ? formatCurrency(personal) : '—'}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <Briefcase className="h-3 w-3 text-amber-600 shrink-0" />
+          <div className="min-w-0">
+            <p className="text-[9px] uppercase tracking-wider text-muted-foreground leading-none">Op. Float</p>
+            <p className="text-xs font-bold text-foreground truncate">
+              {bal ? formatCurrency(float) : '—'}
+            </p>
+          </div>
+        </div>
+        {insufficient && (
+          <div className="col-span-2 flex items-center gap-1 text-[10px] font-semibold text-destructive">
+            <AlertTriangle className="h-3 w-3" />
+            <span>Insufficient balance — debit will be blocked (short {formatCurrency(Number(req.amount) - totalAvailable)})</span>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const _renderPendingCard = (req: WithdrawalRequest) => {
     const bankLabel = getPayoutLabel(req);
     const ageBadge = getAgeBadge(req.created_at);
     const cluster = (() => {
@@ -421,6 +498,8 @@ export function FinOpsWithdrawalVerification() {
             </div>
           </div>
         </div>
+
+        {renderBalanceStrip(req)}
 
         {req.assigned_cashout_agent_id && (
           <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-orange-500/10 border border-orange-500/40 text-orange-700 dark:text-orange-300">
@@ -524,6 +603,8 @@ export function FinOpsWithdrawalVerification() {
             <Badge variant="destructive" size="sm">Rejected</Badge>
           </div>
         </div>
+
+        {renderBalanceStrip(req)}
 
         {(req.mobile_money_name || req.bank_account_name) && (
           <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-primary/5 border border-primary/10">
