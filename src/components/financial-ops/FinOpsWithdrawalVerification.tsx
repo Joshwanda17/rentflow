@@ -557,6 +557,8 @@ export function FinOpsWithdrawalVerification() {
           </div>
         </div>
 
+        {renderBalanceStrip(req)}
+
         {(req.mobile_money_name || req.bank_account_name) && (
           <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-primary/5 border border-primary/10">
             <span className="text-xs font-bold text-foreground">
