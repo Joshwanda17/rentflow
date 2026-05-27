@@ -184,6 +184,22 @@ export function useAgentCapacityMap(agentIds: string[]) {
           queryClient.invalidateQueries({ queryKey: ['agent-rent-capacity-fleet'] });
         },
       )
+      // Daily Eligibility Law: paid_today / paid_yesterday / effective_pct
+      // are derived from `agent_collections` server-side. If we don't listen
+      // for inserts here, an agent who just collected (e.g. 25%) still sees
+      // the stale "blocked" snapshot — and the rent-request screen blocks
+      // them — until the 15s stale window + a refocus. Listening here makes
+      // the unblock effectively instant.
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'agent_collections' },
+        (payload: any) => {
+          const agentId = payload?.new?.agent_id;
+          if (!agentId || !agentIds.includes(agentId)) return;
+          queryClient.invalidateQueries({ queryKey: ['agent-capacity-map'] });
+          queryClient.invalidateQueries({ queryKey: ['agent-rent-capacity-fleet'] });
+        },
+      )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [sortedKey, queryClient]); // eslint-disable-line react-hooks/exhaustive-deps
