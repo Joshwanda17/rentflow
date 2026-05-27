@@ -818,6 +818,37 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
           </DialogDescription>
         </DialogHeader>
 
+        {/* Prev / Next navigation bar — sticky, thumb-friendly for phones */}
+        {(canPrev || canNext) && (
+          <div className="shrink-0 border-b bg-muted/30 px-3 py-2.5 flex items-center justify-between gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-10 px-3 gap-1 text-xs flex-1"
+              disabled={!canPrev}
+              onClick={onPrev}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Prev email
+            </Button>
+            <span className="text-[11px] text-muted-foreground tabular-nums px-1">
+              {currentIndex ?? 0} / {totalCount ?? 0}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-10 px-3 gap-1 text-xs flex-1"
+              disabled={!canNext}
+              onClick={onNext}
+            >
+              Next email
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
         {row && (
           <div className="rounded-lg border bg-muted/30 p-3 text-sm space-y-1">
