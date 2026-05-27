@@ -480,7 +480,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
         console.warn('[RouteEmailDeposit] history insert failed', e);
       }
 
-      return { ...(data as any), smsSent, smsError, reversed: mustReverse };
+      return { ...(data as any), smsSent, smsError, reversed: mustReverse, forcedReversal: forceReversalRef.current };
     },
     onSuccess: (res: any) => {
       if (mode === 'debit') {
