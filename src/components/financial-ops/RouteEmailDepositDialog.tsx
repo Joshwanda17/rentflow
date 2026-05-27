@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Loader2, Wallet, Banknote, ArrowRight, AlertTriangle, UserCog, ChevronLeft, ChevronRight, ArrowDownLeft, ArrowUpRight, Receipt, WifiOff, Wifi, History } from 'lucide-react';
+import { Loader2, Wallet, Banknote, ArrowRight, AlertTriangle, UserCog, ChevronLeft, ChevronRight, ArrowDownLeft, ArrowUpRight, Receipt, WifiOff, Wifi, History, Copy, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -287,6 +287,24 @@ function TransferSummaryCard({
       ? (debitRoute === 'landlord_float' ? 'Withdrawable' : 'Float')
       : '';
 
+  const [copied, setCopied] = useState(false);
+  const handleCopy = async () => {
+    const ref = transactionReference ?? gmailTransactionId ?? '—';
+    const lines = [
+      `From: ${isTransfer ? fromUser?.full_name : isDebit ? toUser?.full_name : 'Inbound email'} (${fromLabel})`,
+      `To: ${isDebit ? 'Outgoing payment' : toUser?.full_name} (${toLabel})`,
+      `Amount: ${formatUGX(amount)}`,
+      `Reference: ${ref}`,
+    ];
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // ignore
+    }
+  };
+
   return (
     <div className={`rounded-xl border-2 overflow-hidden ${lowData ? 'border-foreground/15' : 'border-primary/20'}`}>
       {/* Header */}
@@ -294,7 +312,18 @@ function TransferSummaryCard({
         <span className={`font-semibold ${lowData ? 'text-sm' : 'text-xs uppercase tracking-wide text-muted-foreground'}`}>
           Transfer summary
         </span>
-        <StatusPill tone={tone}>{statusText}</StatusPill>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleCopy}
+            className={`inline-flex items-center gap-1 rounded-md border bg-background/80 px-2 py-1 font-medium hover:bg-background ${lowData ? 'text-sm' : 'text-[11px]'}`}
+            title="Copy transfer summary"
+          >
+            {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+            {copied ? 'Copied' : 'Copy'}
+          </button>
+          <StatusPill tone={tone}>{statusText}</StatusPill>
+        </div>
       </div>
 
       {/* Body */}
