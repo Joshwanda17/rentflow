@@ -316,6 +316,47 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
     },
   });
 
+  // ── Detect prior auto-debit for this outgoing email (debit mode) ──
+  // If the platform already posted a wallet-scope cash_out leg whose
+  // `sub_category` matches this email's transaction_id, the wallet has
+  // ALREADY been reduced automatically — operator should not debit again
+  // unless they confirm. Surfaces wallet owner, bucket, amount and date
+  // so the operator can decide whether a manual action is still needed.
+  const existingDebit = useQuery({
+    queryKey: ['route-email-existing-debit', row?.transaction_id, row?.id],
+    enabled: open && mode === 'debit' && !!row?.transaction_id,
+    queryFn: async () => {
+      if (!row?.transaction_id) return null;
+      const { data, error } = await (supabase.from('general_ledger') as any)
+        .select('id, user_id, amount, wallet_bucket, transaction_date, category, description, ledger_scope, classification')
+        .eq('ledger_scope', 'wallet')
+        .eq('direction', 'cash_out')
+        .eq('sub_category', row.transaction_id)
+        .neq('classification', 'admin_correction')
+        .neq('category', 'system_balance_correction')
+        .order('transaction_date', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data?.user_id) return null;
+      const { data: prof } = await (supabase.from('profiles') as any)
+        .select('id, full_name, phone')
+        .eq('id', data.user_id)
+        .maybeSingle();
+      return {
+        ledger_id: data.id as string,
+        debited_user_id: data.user_id as string,
+        debited_user_name: (prof?.full_name as string) ?? 'Unknown user',
+        debited_user_phone: (prof?.phone as string) ?? '',
+        amount: Number(data.amount) || 0,
+        wallet_bucket: (data.wallet_bucket as 'withdrawable' | 'float' | null) ?? null,
+        transaction_date: data.transaction_date as string,
+        category: data.category as string,
+      };
+    },
+  });
+
   const send = useMutation({
     mutationFn: async () => {
       if (!row) throw new Error('No email row');
@@ -779,6 +820,24 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
           </div>
         )}
 
+        {mode === 'debit' && existingDebit.data && (
+          <div className="rounded-lg border-2 border-amber-400 bg-amber-50 p-3 text-xs flex gap-2 dark:bg-amber-950/30 dark:border-amber-700">
+            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="font-semibold text-amber-900 dark:text-amber-200 uppercase tracking-wide">
+                Wallet already auto-debited
+              </p>
+              <p className="text-amber-800 dark:text-amber-300">
+                {formatUGX(existingDebit.data.amount)} was already deducted from{' '}
+                <span className="font-semibold">{existingDebit.data.debited_user_name}</span>
+                {' '}({existingDebit.data.wallet_bucket === 'float' ? 'Operational Float' : 'Personal Deposits'})
+                {' '}on {new Date(existingDebit.data.transaction_date).toLocaleDateString()} for this same TID.
+                {' '}<span className="font-semibold">No further manual debit is needed</span> unless you intend to charge an additional party.
+              </p>
+            </div>
+          </div>
+        )}
+
         {mode === 'debit' && proxy.data && !proxy.data.isManaged && (
           <div className="rounded-lg border bg-muted/30 p-3 text-xs flex gap-2">
             <UserCog className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
@@ -873,6 +932,32 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
                   title={`To · ${user.full_name} (last 5)`}
                 />
               )}
+            </div>
+          )}
+
+          {mode === 'debit' && user && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-[11px]">
+                <span className="text-muted-foreground">Wallet type:</span>
+                {debitRoute === 'landlord_float' ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 font-semibold text-primary">
+                    <Wallet className="h-3 w-3" /> Operational Float
+                  </span>
+                ) : debitRoute === 'proxy_agent_wallet' ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 font-semibold text-violet-800 dark:bg-violet-950/40 dark:text-violet-300">
+                    <UserCog className="h-3 w-3" /> Proxy Agent · Personal
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 font-semibold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+                    <Banknote className="h-3 w-3" /> Personal Deposits
+                  </span>
+                )}
+              </div>
+              <MiniLedger
+                userId={debitRoute === 'proxy_agent_wallet' && proxy.data ? proxy.data.agentId : user.id}
+                bucket={debitRoute === 'landlord_float' ? 'float' : 'withdrawable'}
+                title={`Debiting · ${debitRoute === 'proxy_agent_wallet' && proxy.data ? proxy.data.agentName : user.full_name} (last 5)`}
+              />
             </div>
           )}
 
