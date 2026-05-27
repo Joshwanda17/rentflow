@@ -1016,7 +1016,6 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
                 <Button
                   type="button"
                   className="flex-1 h-10 gap-2"
-                  variant={mode === 'debit' ? 'destructive' : 'default'}
                   onClick={() => send.mutate()}
                   disabled={send.isPending}
                 >
