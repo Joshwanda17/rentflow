@@ -541,7 +541,7 @@ export function EmailTransactionsPanel() {
     deposit_purpose: string | null;
     credited_at: string | null;
   }
-  const [creditedDeposits, setCreditedDeposits] = useState<Record<string, CreditedDeposit>>({});
+  const [creditedDeposits, setCreditedDeposits] = useState<Record<string, CreditedDeposit[]>>({});
 
   /**
    * Auto-payout matcher: for outgoing money-out emails (MoMo payouts / bank
