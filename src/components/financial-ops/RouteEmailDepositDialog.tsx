@@ -1103,7 +1103,29 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
           )}
 
           <div>
-            <Label className="text-xs">Amount (UGX)</Label>
+            <div className="flex items-center justify-between gap-2">
+              <Label className="text-xs">Amount (UGX)</Label>
+              {(() => {
+                const isFloat =
+                  mode === 'credit'
+                    ? route === 'operational_float'
+                    : debitRoute === 'landlord_float';
+                const verb = mode === 'credit' ? 'Crediting' : 'Debiting';
+                return (
+                  <span
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${
+                      isFloat
+                        ? 'border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200'
+                        : 'border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200'
+                    }`}
+                    aria-label={`${verb} ${isFloat ? 'Operational Float' : 'Personal Deposit'} wallet`}
+                  >
+                    {isFloat ? <Wallet className="h-3.5 w-3.5" /> : <Banknote className="h-3.5 w-3.5" />}
+                    {verb} · {isFloat ? 'Operational Float' : 'Personal Deposit'}
+                  </span>
+                );
+              })()}
+            </div>
             <Input
               type="number"
               value={amount}
