@@ -592,8 +592,15 @@ export function EmailTransactionsPanel() {
       let q: any = (supabase.from('gmail_transactions') as any)
         .select('id,gmail_message_id,from_email,from_name,subject,snippet,amount,transaction_id,parsed,internal_date,direction,channel,counterparty,fee,balance')
         .order('internal_date', { ascending: false, nullsFirst: false });
-      if (fromTsLoad) q = q.gte('internal_date', new Date(fromTsLoad).toISOString());
-      if (toTsLoad) q = q.lte('internal_date', new Date(toTsLoad).toISOString());
+      // When the operator has typed a search query, IGNORE the date range
+      // entirely so the search reaches the full email history. This makes the
+      // search box behave like a global "find any email" tool, independent of
+      // whatever date filter happens to be set above.
+      const searchActiveLoad = tokens.length > 0;
+      if (!searchActiveLoad) {
+        if (fromTsLoad) q = q.gte('internal_date', new Date(fromTsLoad).toISOString());
+        if (toTsLoad) q = q.lte('internal_date', new Date(toTsLoad).toISOString());
+      }
       if (esc) {
         q = q.or(
           [
