@@ -2358,6 +2358,12 @@ export function EmailTransactionsPanel() {
                 const history = routingHistory[r.id] ?? [];
                 const isRouted = history.length > 0;
                 const isReversed = history.some((h) => /revers/i.test(h.reason || ''));
+                // Already-credited incoming deposit (linked to a non-terminal
+                // deposit_request by the poller). Distinct emerald treatment
+                // tells reviewers this email's money already landed in the
+                // shown user's wallet — DO NOT credit again.
+                const credited = creditedDeposits[r.id];
+                const isCredited = !!credited;
                 // ── Insufficient-funds warning for outgoing payouts ───────
                 // When an outgoing email (sent / charge) is matched to a
                 // user wallet whose current balance cannot cover the payout
@@ -2424,6 +2430,12 @@ export function EmailTransactionsPanel() {
                     // tinted surface, persistent ring, and a slow pulse so
                     // the row catches the eye even when scrolling fast.
                     ? 'bg-destructive/15 hover:bg-destructive/20 border-l-8 border-l-destructive ring-2 ring-destructive/40 ring-inset shadow-sm focus-within:ring-2 focus-within:ring-destructive/60'
+                    : isCredited
+                    // Already-credited incoming deposits get a distinct
+                    // emerald treatment so reviewers can scan the list and
+                    // see at a glance which emails have already landed in a
+                    // wallet — preventing double-credits.
+                    ? 'bg-emerald-500/10 hover:bg-emerald-500/15 border-l-4 border-l-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/40'
                     : isRouted
                     // Routed rows get a distinct violet treatment so reviewers
                     // can scan the list and immediately see which emails have
@@ -2568,8 +2580,35 @@ export function EmailTransactionsPanel() {
                           )}
                         </Badge>
                       )}
+                      {isCredited && (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] gap-1 bg-emerald-500/15 text-emerald-700 border-emerald-500/40"
+                          title={[
+                            `Already credited — DO NOT credit again`,
+                            `Recipient: ${credited.user_name}${credited.user_phone ? ' (' + credited.user_phone + ')' : ''}`,
+                            `Amount: ${fmtUgx(credited.amount)}`,
+                            `Deposit: ${credited.deposit_id}`,
+                            `Status: ${credited.status}${credited.auto_approved ? ' · auto-approved' : ''}`,
+                            credited.deposit_purpose ? `Purpose: ${credited.deposit_purpose}` : null,
+                            credited.credited_at ? `When: ${new Date(credited.credited_at).toLocaleString()}` : null,
+                          ].filter(Boolean).join('\n')}
+                        >
+                          <CheckCircle2 className="h-3 w-3" />
+                          credited · {fmtUgx(credited.amount)}
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground truncate mt-0.5">{r.subject || '(no subject)'}</p>
+                    {isCredited && (
+                      <p className="text-[11px] mt-1 inline-flex items-center gap-1.5 rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-emerald-700">
+                        <Wallet className="h-3 w-3" />
+                        Credited to <strong className="font-semibold">{credited.user_name}</strong>
+                        {credited.user_phone ? <span className="font-mono opacity-80">{credited.user_phone}</span> : null}
+                        <span className="opacity-70">·</span>
+                        <span>{credited.status}{credited.auto_approved ? ' (auto)' : ''}</span>
+                      </p>
+                    )}
                     {(r.counterparty || r.fee || r.balance !== null) && (
                       <p className="text-[11px] text-muted-foreground/80 mt-0.5 flex flex-wrap gap-x-3">
                         {r.counterparty && <span>↔ <strong className="text-foreground/80">{r.counterparty}</strong></span>}
