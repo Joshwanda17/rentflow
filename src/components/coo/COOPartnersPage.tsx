@@ -2880,7 +2880,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       <AlertDialog open={!!compoundPreview} onOpenChange={(open) => { if (!open) setCompoundPreview(null); }}>
         <AlertDialogPortal>
           <AlertDialogOverlay className="z-[70]" />
-          <AlertDialogContent className="z-[80]">
+          <AlertDialogPrimitive.Content
+            className="fixed left-[50%] top-[50%] z-[80] grid w-full max-w-md translate-x-[-50%] translate-y-[-50%] gap-4 border border-border bg-background p-5 shadow-lg duration-150 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-98 data-[state=open]:zoom-in-98 sm:rounded-xl"
+          >
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-primary" />
@@ -2932,7 +2934,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
               Confirm Compound
             </AlertDialogAction>
           </AlertDialogFooter>
-          </AlertDialogContent>
+          </AlertDialogPrimitive.Content>
         </AlertDialogPortal>
       </AlertDialog>
 
