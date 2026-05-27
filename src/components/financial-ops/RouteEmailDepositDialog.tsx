@@ -846,7 +846,12 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
           )}
 
           <UserSearchPicker
-            label={mode === 'debit' ? 'Charge wallet of user' : 'Route to user'}
+            label={mode === 'debit'
+              ? 'Charge wallet of user'
+              : existing.data
+                ? `Route to user — ${formatUGX(existing.data.original_amount)} auto-credited`
+                : 'Route to user'
+            }
             placeholder="Search by name or phone…"
             selectedUser={user}
             onSelect={setUser}
