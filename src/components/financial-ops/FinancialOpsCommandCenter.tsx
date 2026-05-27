@@ -29,7 +29,7 @@ import { AgentRequisitionForm } from './AgentRequisitionForm';
 import { 
   ShieldCheck, Banknote, ArrowLeft, ChevronDown,
   ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, FileText,
-  WifiOff, MoreHorizontal, AlertTriangle, ScanLine, Receipt, Mail, Home as HomeIcon
+  WifiOff, MoreHorizontal, AlertTriangle, AlertCircle, ScanLine, Receipt, Mail, Home as HomeIcon
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 
@@ -181,6 +181,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         {activeTool === 'mismatch_metrics' && <MismatchMetricsPanel />}
         {activeTool === 'withdrawal_history' && <WithdrawalHistoryStatement />}
         {activeTool === 'funded_tenants' && <FundedTenantsList />}
+        {activeTool === 'proxy_diagnostics' && <ProxyWithdrawalDiagnosticsPanel />}
       </div>
     );
   }
