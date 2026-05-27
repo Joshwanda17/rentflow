@@ -21,6 +21,7 @@ import { WalletBreakdownReadOnly } from './WalletBreakdownReadOnly';
 import { EmailTransactionsPanel } from './EmailTransactionsPanel';
 import { FundedTenantsList } from './FundedTenantsList';
 import { AutoCreditReviewPanel } from './AutoCreditReviewPanel';
+import { ProxyWithdrawalDiagnosticsPanel } from './ProxyWithdrawalDiagnosticsPanel';
 
 
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
@@ -39,6 +40,7 @@ type Tool =
   | 'withdrawals' | 'opportunities' | 'requisitions'
   | 'mismatch_metrics' | 'recon_review' | 'withdrawal_history' | 'wallet_breakdown'
   | 'email_tx' | 'funded_tenants' | 'auto_credit_review';
+
 
 /**
  * Items hidden behind the "More" button. Per CFO mandate the dashboard
