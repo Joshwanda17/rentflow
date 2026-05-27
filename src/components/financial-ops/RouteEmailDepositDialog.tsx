@@ -1862,6 +1862,8 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
             lowData={lowData}
             sourceBuckets={sourceBuckets.data}
             destBuckets={destBuckets.data}
+            transactionReference={row?.transaction_id ?? null}
+            gmailTransactionId={row?.id ?? null}
             onSwitchBucket={(() => {
               if (mode === 'debit' && bucketShort?.otherRoute) {
                 return () => {
