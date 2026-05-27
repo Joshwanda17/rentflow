@@ -988,8 +988,13 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
               type="number"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="h-10"
+              className="h-12 text-lg font-semibold"
+              inputMode="numeric"
+              autoComplete="off"
             />
+            {amount && Number(amount) > 0 && (
+              <p className="mt-1 text-xs text-muted-foreground">{formatUGX(Number(amount))}</p>
+            )}
           </div>
 
           {mode === 'credit' && (
