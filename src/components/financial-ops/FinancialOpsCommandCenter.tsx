@@ -6,6 +6,7 @@ import { ReconciliationDashboard } from './ReconciliationDashboard';
 import { AuditFeed } from './AuditFeed';
 import { ScaleDashboard } from './ScaleDashboard';
 import { FinOpsWithdrawalVerification } from './FinOpsWithdrawalVerification';
+import { EmailPayoutAutoMatchPanel } from './EmailPayoutAutoMatchPanel';
 import { LandlordPayoutsQueue } from './LandlordPayoutsQueue';
 import { LedgerHub } from '@/components/ledgers/LedgerHub';
 import { PendingWalletOperationsWidget } from '@/components/manager/PendingWalletOperationsWidget';
@@ -152,6 +153,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
               </p>
             </div>
             <LandlordPayoutsQueue />
+            <EmailPayoutAutoMatchPanel />
             <FinOpsWithdrawalVerification />
             <PendingWalletOperationsWidget requirePaymentRef={requirePaymentRef} />
             {/* Portfolio top-ups parked at status='awaiting_verification' —
