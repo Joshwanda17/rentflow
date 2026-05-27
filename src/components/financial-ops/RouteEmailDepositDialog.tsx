@@ -922,21 +922,58 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
                       onValueChange={(v) => setTransferFromBucket(v as 'withdrawable' | 'float')}
                       className="mt-1 grid grid-cols-2 gap-2"
                     >
-                      <label className="flex items-start gap-2 rounded-lg border p-2 cursor-pointer hover:bg-muted/40">
+                      <label className={`flex items-start gap-2 rounded-lg border p-2 cursor-pointer hover:bg-muted/40 ${transferFromBucket === 'withdrawable' ? 'border-primary bg-primary/5' : ''}`}>
                         <RadioGroupItem value="withdrawable" id="src-bucket-w" className="mt-0.5" />
                         <div className="text-[11px]">
                           <div className="flex items-center gap-1 font-medium"><Banknote className="h-3 w-3 text-primary" /> Withdrawable</div>
                           <p className="text-muted-foreground">Personal balance</p>
+                          {sourceBuckets.data && (
+                            <p className={`mt-0.5 font-mono ${amtNum > 0 && sourceBuckets.data.withdrawable < amtNum ? 'text-destructive' : 'text-foreground'}`}>
+                              {formatUGX(sourceBuckets.data.withdrawable)}
+                              {amtNum > 0 && sourceBuckets.data.withdrawable < amtNum && (
+                                <span className="ml-1 text-destructive">· short</span>
+                              )}
+                            </p>
+                          )}
                         </div>
                       </label>
-                      <label className="flex items-start gap-2 rounded-lg border p-2 cursor-pointer hover:bg-muted/40">
+                      <label className={`flex items-start gap-2 rounded-lg border p-2 cursor-pointer hover:bg-muted/40 ${transferFromBucket === 'float' ? 'border-primary bg-primary/5' : ''}`}>
                         <RadioGroupItem value="float" id="src-bucket-f" className="mt-0.5" />
                         <div className="text-[11px]">
                           <div className="flex items-center gap-1 font-medium"><Wallet className="h-3 w-3 text-primary" /> Float</div>
                           <p className="text-muted-foreground">Landlord-payout float</p>
+                          {sourceBuckets.data && (
+                            <p className={`mt-0.5 font-mono ${amtNum > 0 && sourceBuckets.data.float < amtNum ? 'text-destructive' : 'text-foreground'}`}>
+                              {formatUGX(sourceBuckets.data.float)}
+                              {amtNum > 0 && sourceBuckets.data.float < amtNum && (
+                                <span className="ml-1 text-destructive">· short</span>
+                              )}
+                            </p>
+                          )}
                         </div>
                       </label>
                     </RadioGroup>
+                    {/* One-tap "Switch to <other bucket>" hint when the selected bucket can't cover the amount but the other one can */}
+                    {sourceBuckets.data && amtNum > 0 && (() => {
+                      const cur = transferFromBucket === 'withdrawable' ? sourceBuckets.data.withdrawable : sourceBuckets.data.float;
+                      const other = transferFromBucket === 'withdrawable' ? sourceBuckets.data.float : sourceBuckets.data.withdrawable;
+                      const otherLabel = transferFromBucket === 'withdrawable' ? 'Float' : 'Withdrawable';
+                      if (cur >= amtNum) return null;
+                      if (other < amtNum) return (
+                        <p className="mt-1 text-[11px] text-destructive">
+                          Neither bucket has {formatUGX(amtNum)}. Lower the amount or use Force-reverse if this is a recovery.
+                        </p>
+                      );
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => setTransferFromBucket(transferFromBucket === 'withdrawable' ? 'float' : 'withdrawable')}
+                          className="mt-1 w-full rounded-md border border-primary/40 bg-primary/10 px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/20"
+                        >
+                          Switch to {otherLabel} — has {formatUGX(other)} available
+                        </button>
+                      );
+                    })()}
                   </div>
                 </div>
               )}
