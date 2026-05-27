@@ -1,80 +1,61 @@
-# Auto-route partner withdrawals through the linked proxy agent
-
 ## Goal
 
-When a partner (supporter) withdrawal is approved from **any** of the three approval pages, automatically debit the partner's linked active proxy agent's wallet instead of the partner's wallet — even when the original `withdrawal_requests` row was not flagged as a proxy payout. Use the matched payout-email TID (when one exists) as the funding reference for audit traceability.
+When a Gmail ingestion picks up an Equity Bank bulk payout email naming "SKYBUBBLES TRADING AND INVESTMENT LIMITED" as the receiver/sender, automatically settle pending bank-payout withdrawals from partners that are managed by a proxy agent — debiting each proxy agent's wallet — until the email amount is depleted. Operators see the per-email breakdown inline in the Email Transactions panel.
 
-## Why server-side only
+## Detection rule
 
-`approve-withdrawal` is the single edge function invoked by **CFOWithdrawalApprovals**, **COOPartnerWithdrawalApprovals** and **FinOpsWithdrawalVerification**. Making the change in one place covers all three pages without touching the UI, and keeps wallet mutations behind the existing CFO-governed pipeline (no new direct-debit channels — respects the WALLET SOLE WRITER rule and CFO Direct Debit policy).
+A `gmail_transactions` row qualifies as a *bulk bank payout* when ANY of `subject`, `snippet`, `raw_body`, `from_name`, or `counterparty` (case-insensitive) contains the literal string `SKYBUBBLES TRADING AND INVESTMENT LIMITED`. No other constraints — amount, direction, sender are not required.
 
-## Server-side change (`supabase/functions/approve-withdrawal/index.ts`)
+## Database changes (`supabase/migrations/...`)
 
-Right after the existing `managedProxyAgentId` resolution (~line 301), add a **partner→proxy fallback resolver** that runs whenever the requester is a partner/supporter and the request is NOT already tagged as a proxy payout:
+1. New table `bulk_bank_payout_allocations`:
+   - `id uuid pk`, `gmail_transaction_id uuid` (FK → gmail_transactions), `withdrawal_request_id uuid UNIQUE` (FK → withdrawal_requests), `partner_id uuid`, `proxy_agent_id uuid`, `allocated_amount numeric not null`, `status text default 'settled'`, `error_message text`, `created_at timestamptz default now()`.
+   - GRANTs + RLS: staff roles (manager/super_admin/cfo/coo/financial_ops) SELECT.
+2. Add columns to `gmail_transactions`:
+   - `is_bulk_bank_payout boolean default false`
+   - `bulk_payout_allocated_total numeric default 0`
+   - `bulk_payout_settled_at timestamptz`
+3. Trigger `trg_detect_bulk_bank_payout` BEFORE INSERT on `gmail_transactions`: sets `is_bulk_bank_payout = true` when text match hits.
+4. Trigger `trg_auto_settle_bulk_bank_payout` AFTER INSERT on `gmail_transactions` (when `is_bulk_bank_payout`): fires a `pg_net` POST to the new edge function `auto-settle-bulk-bank-payout` with `{ gmail_transaction_id }`. Fire-and-forget — never blocks ingestion.
 
-1. Detect "is partner withdrawal":
-   - `wr.user_id` has the `partner` or `supporter` role (check `user_roles`), AND
-   - no `proxy_partner_id` / `agent_id` is present on the request.
-2. Look up the **active, approved** proxy assignment for that partner:
-   ```sql
-   select agent_id from proxy_agent_assignments
-   where beneficiary_id = wr.user_id
-     and is_active = true
-     and approval_status = 'approved'
-   order by is_managed_account desc, created_at desc
-   limit 1
-   ```
-3. If an assignment exists:
-   - Promote the request to a proxy payout: set `proxyPartnerId = wr.user_id`, `fundingUserId = assignment.agent_id`, `isProxyPayout = true`, and reuse the existing proxy-payout debit pipeline (no new code paths).
-   - The existing `partnerLinkedFloatAvailable` and ledger-checked gating already protect against over-debit.
-4. If no active assignment exists, fall through to the current standard path (debit partner wallet) — no behavior change for partners without a proxy.
+## Edge function `auto-settle-bulk-bank-payout`
 
-### Email TID enrichment (the "matching emails details" piece)
+Service role. For the given `gmail_transaction_id`:
+1. Lock the gmail tx row (`select ... for update`); abort if already `bulk_payout_settled_at IS NOT NULL`.
+2. Compute `remaining = amount − bulk_payout_allocated_total`. Abort if `<= 0` or amount is null.
+3. Fetch candidate withdrawal requests, FIFO `order by created_at asc`:
+   - `status IN ('pending','manager_approved','cfo_approved')`
+   - `payout_method ILIKE 'bank%'`
+   - `proxy_partner_id IS NULL` AND `agent_id IS NULL` (un-routed) OR already proxy-tagged but unsettled
+   - NOT already linked in `bulk_bank_payout_allocations`
+4. For each candidate, resolve active managed proxy via existing `proxy_agent_assignments` (mirrors `approve-withdrawal` auto-route logic — `is_active`, `approval_status='approved'`, prefer `is_managed_account=true`). Skip if none.
+5. Check proxy agent strict withdrawable via `get_user_available_balance(proxy_agent_id)` ≥ wr.amount. Skip if not.
+6. Skip if `wr.amount > remaining` (partial-skip; do not split a withdrawal across emails).
+7. Invoke existing `approve-withdrawal` edge function in-process with `{ requestId, action:'approve', stage:'cfo_approved' }` plus metadata `{ bulk_email_id, settled_via:'skybubbles_bulk' }`. The existing auto-route logic will debit the proxy agent.
+8. On success: insert `bulk_bank_payout_allocations` row, decrement `remaining`, increment `bulk_payout_allocated_total` on the email row, stamp `fin_ops_reference` on the wr with the gmail TID, write `audit_logs` (`action_type='withdrawal_bulk_settled_skybubbles'`).
+9. After loop ends or remaining hits 0, set `bulk_payout_settled_at = now()` if remaining is 0; otherwise leave open so future runs can reuse.
+10. Emit `system_events`: `withdrawal.bulk_skybubbles.settled` per allocation, `gmail.bulk_skybubbles.detected` once.
 
-Before posting the ledger entries, run a one-shot lookup against `gmail_transactions`:
-- Match by `transaction_id` = withdrawal TID (if present on the request), OR
-- Match by `from_name`/`counterparty` phone + `amount` within ±1 UGX on outgoing rows from the last 7 days.
+Idempotency: `withdrawal_request_id` UNIQUE prevents double-settle; row-lock on gmail tx prevents concurrent invocations from over-allocating.
 
-Stamp the match (when found) onto the ledger leg's `metadata` as:
-```json
-{
-  "auto_routed_via_proxy": true,
-  "partner_id": "<wr.user_id>",
-  "proxy_agent_id": "<agent>",
-  "gmail_message_id": "...",
-  "gmail_transaction_id": "...",
-  "email_tid": "..."
-}
-```
-And on `withdrawal_requests.fin_ops_reference` if it's blank, write the email TID. This preserves the audit trail that ties the wallet debit back to the actual telecom email — what the user called "matching email details."
+## UI: `EmailTransactionsPanel.tsx`
 
-### Audit log
-
-Append one `audit_logs` row per auto-routed approval:
-- `action_type = 'withdrawal_auto_routed_to_proxy'`
-- `table_name = 'withdrawal_requests'`
-- `record_id = withdrawal_id`
-- `reason` = `'Auto-routed partner withdrawal to active proxy agent (TID: <email-tid-or-none>)'` (≥10 chars, satisfies audit governance rule).
-
-## Surfaces unchanged
-
-No UI changes are required for the three approval pages. They continue to call `approve-withdrawal` exactly as today; the routing decision is invisible to the operator until they see the resulting ledger and wallet state.
-
-## Out of scope
-
-- Changing how funds are originally credited to partners vs proxies (already governed by Managed-Proxy Payout Routing).
-- Modifying `cfo-direct-credit` or `wallet-deduction` (retired) paths.
-- Adding an operator override toggle — answers indicate "fully automatic."
-
-## Risks & mitigations
-
-- **Over-debiting an agent** with insufficient cache: the existing `partnerLinkedFloatAvailable` + ledger-checked spendable gate already blocks the approval with a clear UGX shortfall error.
-- **Partner with multiple proxies**: prefer `is_managed_account = true`, then most recently created — single deterministic pick.
-- **Pre-tagged proxy payouts**: the new resolver runs only when `proxy_partner_id` / `agent_id` are absent, so no double-resolution.
-- **Email match miss**: routing still proceeds; only the `metadata.email_tid` / `fin_ops_reference` enrichment is skipped.
+- Add a left-side expand chevron on rows where `is_bulk_bank_payout = true`.
+- Expanded panel shows: total amount, allocated, remaining; then a small table of allocations (partner name/email/phone, proxy agent name, withdrawal id short, allocated UGX, status, created_at). Empty-state when no allocations yet.
+- Read from `bulk_bank_payout_allocations` joined with `withdrawal_requests` and `profiles` (partner + proxy agent display name).
+- Read-only — no operator actions. Realtime subscribe to `bulk_bank_payout_allocations` insert events so the breakdown populates as the cron/trigger fires.
 
 ## Files touched
 
-- `supabase/functions/approve-withdrawal/index.ts` — only file edited.
+- new migration `supabase/migrations/<ts>_skybubbles_bulk_payout.sql`
+- new edge function `supabase/functions/auto-settle-bulk-bank-payout/index.ts`
+- edit `src/components/financial-ops/EmailTransactionsPanel.tsx`
+- regen `src/integrations/supabase/types.ts` (auto)
 
-Reply **approve** to proceed.
+## Risks & guards
+
+- Over-debiting a proxy agent: gated by `get_user_available_balance` strict-rule check before allocation.
+- Re-firing on the same email: gmail `id` UNIQUE + `withdrawal_request_id` UNIQUE on allocations + row-lock.
+- Partner with no managed proxy: skipped silently (operator sees the email's remaining balance, can fall back to manual approval).
+- Existing `approve-withdrawal` pipeline already handles ledger postings, proxy_payout_settlements, audit logs, notifications — we do NOT duplicate that logic.
+- All wallet movements stay routed through `apply_wallet_movement` via the existing approve flow — no direct bucket writes.
