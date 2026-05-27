@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import * as AlertDialogPrimitive from '@radix-ui/react-alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { toast } from '@/components/ui/sonner';
