@@ -366,6 +366,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
   // Compound from portfolio view
   const [compoundingPortfolioId, setCompoundingPortfolioId] = useState<string | null>(null);
+  const [detailHiddenForCompound, setDetailHiddenForCompound] = useState(false);
   const [compoundPreview, setCompoundPreview] = useState<{
     portfolio: PortfolioRow;
     roiAmount: number;
@@ -390,6 +391,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       roiPercentage: portfolio.roi_percentage,
       nextRoiDate,
     });
+    setDetailHiddenForCompound(true);
   };
 
   const handlePortfolioCompound = async (portfolio: PortfolioRow) => {
