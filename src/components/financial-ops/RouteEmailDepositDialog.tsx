@@ -275,6 +275,60 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
   // actually invoke the mutation.
   const [awaitingConfirm, setAwaitingConfirm] = useState(false);
 
+  // Per-transfer audit logger — writes one row to
+  // `wallet_debit_bucket_attempts` for every meaningful step of the debit
+  // flow (blocked-by-insufficient-funds, bucket switched, succeeded,
+  // failed-other). Dedupes identical "blocked" entries within a single
+  // dialog session so the table is not spammed on every re-render.
+  const loggedBlockKeys = useRef<Set<string>>(new Set());
+  async function logBucketAttempt(args: {
+    targetUserId: string;
+    targetUserName?: string | null;
+    attemptedBucket: 'withdrawable' | 'float' | 'proxy_withdrawable';
+    amount: number;
+    availableAtAttempt: number;
+    outcome: 'insufficient_funds_blocked' | 'switched' | 'succeeded' | 'failed_other';
+    switchedToBucket?: 'withdrawable' | 'float' | 'proxy_withdrawable' | null;
+    failureReason?: string | null;
+    gmailTransactionId?: string | null;
+    transactionReference?: string | null;
+  }) {
+    try {
+      if (args.outcome === 'insufficient_funds_blocked') {
+        const key = `${args.targetUserId}|${args.attemptedBucket}|${args.amount}`;
+        if (loggedBlockKeys.current.has(key)) return;
+        loggedBlockKeys.current.add(key);
+      }
+      const { data: me } = await supabase.auth.getUser();
+      const createdBy = me?.user?.id ?? null;
+      if (!createdBy) return;
+      let createdByName: string | null = null;
+      try {
+        const { data: prof } = await (supabase.from('profiles') as any)
+          .select('full_name')
+          .eq('id', createdBy)
+          .maybeSingle();
+        createdByName = prof?.full_name ?? null;
+      } catch { /* ignore */ }
+      await (supabase.from('wallet_debit_bucket_attempts') as any).insert({
+        target_user_id: args.targetUserId,
+        target_user_name: args.targetUserName ?? null,
+        attempted_bucket: args.attemptedBucket,
+        amount: args.amount,
+        available_at_attempt: args.availableAtAttempt,
+        outcome: args.outcome,
+        switched_to_bucket: args.switchedToBucket ?? null,
+        failure_reason: args.failureReason ?? null,
+        gmail_transaction_id: args.gmailTransactionId ?? null,
+        transaction_reference: args.transactionReference ?? null,
+        created_by: createdBy,
+        created_by_name: createdByName,
+      });
+    } catch (e) {
+      console.warn('[RouteEmailDeposit] bucket-attempt log failed', e);
+    }
+  }
+
   // Low-data / weak-connection mode: hides helper text & wallet-history
   // queries, enlarges tap targets, and reduces wrapping. Persisted per
   // operator so it survives page reloads on bad networks.
