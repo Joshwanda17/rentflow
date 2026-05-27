@@ -922,6 +922,22 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
     },
     onSuccess: (res: any) => {
       if (mode === 'debit') {
+        if (user) {
+          const attempted = debitRoute === 'landlord_float' ? 'float' : debitRoute === 'proxy_agent_wallet' ? 'proxy_withdrawable' : 'withdrawable';
+          const avail = destBuckets.data
+            ? (attempted === 'float' ? destBuckets.data.float : destBuckets.data.withdrawable)
+            : 0;
+          logBucketAttempt({
+            targetUserId: res?.debitTargetUserId ?? user.id,
+            targetUserName: res?.debitTargetName ?? user.full_name,
+            attemptedBucket: attempted as any,
+            amount: amtNum,
+            availableAtAttempt: avail,
+            outcome: 'succeeded',
+            gmailTransactionId: row?.id ?? null,
+            transactionReference: row?.transaction_id ?? null,
+          });
+        }
         const routeLabel = debitRoute === 'landlord_float' ? 'Landlord-Payout Float' : 'Withdrawable';
         const proxyNote = res?.proxyRedirected ? ` (redirected to proxy agent ${res.debitTargetName})` : '';
         toast({
@@ -946,6 +962,24 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
     },
     onError: (e: any) => {
       if (e.message === 'FORCE_REVERSAL_CONFIRMATION_REQUIRED') return;
+      if (mode === 'debit' && user) {
+        const attempted = debitRoute === 'landlord_float' ? 'float' : debitRoute === 'proxy_agent_wallet' ? 'proxy_withdrawable' : 'withdrawable';
+        const avail = destBuckets.data
+          ? (attempted === 'float' ? destBuckets.data.float : destBuckets.data.withdrawable)
+          : 0;
+        const isInsufficient = /NEGATIVE_WALLET_BLOCKED|strict available balance|insufficient/i.test(String(e?.message ?? ''));
+        logBucketAttempt({
+          targetUserId: user.id,
+          targetUserName: user.full_name,
+          attemptedBucket: attempted as any,
+          amount: amtNum,
+          availableAtAttempt: avail,
+          outcome: isInsufficient ? 'insufficient_funds_blocked' : 'failed_other',
+          failureReason: String(e?.message ?? '').slice(0, 500),
+          gmailTransactionId: row?.id ?? null,
+          transactionReference: row?.transaction_id ?? null,
+        });
+      }
       toast({ title: mode === 'debit' ? 'Could not debit wallet' : 'Could not route deposit', description: e.message, variant: 'destructive' });
     },
   });
