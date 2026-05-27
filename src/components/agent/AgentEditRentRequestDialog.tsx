@@ -325,7 +325,7 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
       toast.error(title, {
         description: (description ?? raw ?? 'Unknown error') + debugTag,
       });
-      console.error('[agent_resubmit_rent_request] failed', { code, raw, details, hint, payload: patch });
+      console.error('[agent_resubmit_rent_request] failed', { code, raw, details, hint });
     } finally {
       setSubmitting(false);
     }
