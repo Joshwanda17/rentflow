@@ -5762,6 +5762,66 @@ export type Database = {
         }
         Relationships: []
       }
+      email_payout_match_attempts: {
+        Row: {
+          amount_delta: number | null
+          attempted_at: string
+          email_amount: number | null
+          email_id: string | null
+          email_transaction_id: string | null
+          error_message: string | null
+          id: string
+          metadata: Json
+          operator_id: string | null
+          outcome: string
+          payment_method: string | null
+          recipient_phone_email: string | null
+          recipient_phone_target: string | null
+          tolerance_amount_ugx: number | null
+          tolerance_phone_tail: number | null
+          withdrawal_amount: number | null
+          withdrawal_id: string | null
+        }
+        Insert: {
+          amount_delta?: number | null
+          attempted_at?: string
+          email_amount?: number | null
+          email_id?: string | null
+          email_transaction_id?: string | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json
+          operator_id?: string | null
+          outcome: string
+          payment_method?: string | null
+          recipient_phone_email?: string | null
+          recipient_phone_target?: string | null
+          tolerance_amount_ugx?: number | null
+          tolerance_phone_tail?: number | null
+          withdrawal_amount?: number | null
+          withdrawal_id?: string | null
+        }
+        Update: {
+          amount_delta?: number | null
+          attempted_at?: string
+          email_amount?: number | null
+          email_id?: string | null
+          email_transaction_id?: string | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json
+          operator_id?: string | null
+          outcome?: string
+          payment_method?: string | null
+          recipient_phone_email?: string | null
+          recipient_phone_target?: string | null
+          tolerance_amount_ugx?: number | null
+          tolerance_phone_tail?: number | null
+          withdrawal_amount?: number | null
+          withdrawal_id?: string | null
+        }
+        Relationships: []
+      }
       email_routing_history: {
         Row: {
           amount: number
