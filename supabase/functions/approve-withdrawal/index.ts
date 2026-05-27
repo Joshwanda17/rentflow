@@ -78,16 +78,28 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Authenticate caller
-    const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: { user }, error: authErr } = await userClient.auth.getUser();
-    if (authErr || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    // Authenticate caller. Two paths:
+    //  - normal: user JWT, role check below
+    //  - system: service-role JWT + body.system_caller=true (used by
+    //    auto-settle-bulk-bank-payout). We impersonate the first super_admin
+    //    so downstream audit/RPC calls see a real staff user id.
+    let user: any = null;
+    let isSystemCall = false;
+    const tokenOnly = (authHeader || "").replace(/^Bearer\s+/i, "");
+    if (tokenOnly && tokenOnly === serviceKey) {
+      isSystemCall = true;
+    } else {
+      const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+        global: { headers: { Authorization: authHeader } },
       });
+      const { data: { user: u }, error: authErr } = await userClient.auth.getUser();
+      if (authErr || !u) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      user = u;
     }
 
     // Check caller role (staff OR active cashout agent)
@@ -96,13 +108,31 @@ Deno.serve(async (req) => {
     // Treasury guard: block withdrawals when paused
     const guardBlock = await checkTreasuryGuard(admin, "debit", req.headers.get("Authorization"));
     if (guardBlock) return guardBlock;
-    const { data: roles } = await admin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id);
-
     const allowedRoles = ["super_admin", "manager", "cfo", "coo", "operations", "cto"];
-    const hasStaffRole = (roles || []).some((r: any) => allowedRoles.includes(r.role));
+    let hasStaffRole = false;
+    if (isSystemCall) {
+      // Pick first super_admin as the audit actor
+      const { data: sysUser } = await admin
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "super_admin")
+        .limit(1)
+        .maybeSingle();
+      if (!sysUser?.user_id) {
+        return new Response(JSON.stringify({ error: "No super_admin available for system call" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      user = { id: sysUser.user_id };
+      hasStaffRole = true;
+    } else {
+      const { data: roles } = await admin
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id);
+      hasStaffRole = (roles || []).some((r: any) => allowedRoles.includes(r.role));
+    }
 
     // Also check if caller is an active cashout agent
     let isCashoutAgent = false;

@@ -3700,6 +3700,60 @@ export type Database = {
         }
         Relationships: []
       }
+      bulk_bank_payout_allocations: {
+        Row: {
+          allocated_amount: number
+          created_at: string
+          error_message: string | null
+          gmail_transaction_id: string
+          id: string
+          metadata: Json
+          partner_id: string
+          proxy_agent_id: string
+          status: string
+          withdrawal_request_id: string
+        }
+        Insert: {
+          allocated_amount: number
+          created_at?: string
+          error_message?: string | null
+          gmail_transaction_id: string
+          id?: string
+          metadata?: Json
+          partner_id: string
+          proxy_agent_id: string
+          status?: string
+          withdrawal_request_id: string
+        }
+        Update: {
+          allocated_amount?: number
+          created_at?: string
+          error_message?: string | null
+          gmail_transaction_id?: string
+          id?: string
+          metadata?: Json
+          partner_id?: string
+          proxy_agent_id?: string
+          status?: string
+          withdrawal_request_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bulk_bank_payout_allocations_gmail_transaction_id_fkey"
+            columns: ["gmail_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "gmail_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bulk_bank_payout_allocations_withdrawal_request_id_fkey"
+            columns: ["withdrawal_request_id"]
+            isOneToOne: true
+            referencedRelation: "withdrawal_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_advance_daily_accruals: {
         Row: {
           accrual_date: string
@@ -6991,6 +7045,8 @@ export type Database = {
           auto_match_method: string | null
           auto_matched_at: string | null
           balance: number | null
+          bulk_payout_allocated_total: number
+          bulk_payout_settled_at: string | null
           channel: string | null
           counterparty: string | null
           created_at: string
@@ -7003,6 +7059,7 @@ export type Database = {
           gmail_thread_id: string | null
           id: string
           internal_date: string | null
+          is_bulk_bank_payout: boolean
           linked_deposit_request_id: string | null
           parsed: boolean
           raw_body: string | null
@@ -7017,6 +7074,8 @@ export type Database = {
           auto_match_method?: string | null
           auto_matched_at?: string | null
           balance?: number | null
+          bulk_payout_allocated_total?: number
+          bulk_payout_settled_at?: string | null
           channel?: string | null
           counterparty?: string | null
           created_at?: string
@@ -7029,6 +7088,7 @@ export type Database = {
           gmail_thread_id?: string | null
           id?: string
           internal_date?: string | null
+          is_bulk_bank_payout?: boolean
           linked_deposit_request_id?: string | null
           parsed?: boolean
           raw_body?: string | null
@@ -7043,6 +7103,8 @@ export type Database = {
           auto_match_method?: string | null
           auto_matched_at?: string | null
           balance?: number | null
+          bulk_payout_allocated_total?: number
+          bulk_payout_settled_at?: string | null
           channel?: string | null
           counterparty?: string | null
           created_at?: string
@@ -7055,6 +7117,7 @@ export type Database = {
           gmail_thread_id?: string | null
           id?: string
           internal_date?: string | null
+          is_bulk_bank_payout?: boolean
           linked_deposit_request_id?: string | null
           parsed?: boolean
           raw_body?: string | null
