@@ -2876,7 +2876,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
       {/* Compound Preview Dialog */}
       <AlertDialog open={!!compoundPreview} onOpenChange={(open) => { if (!open) setCompoundPreview(null); }}>
-        <AlertDialogContent>
+        <AlertDialogContent className="z-[80]">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-primary" />
