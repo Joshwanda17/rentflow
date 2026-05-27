@@ -968,10 +968,12 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
         {row && (
           <div className="rounded-lg border bg-muted/30 p-3 text-sm space-y-1">
             <p><span className="text-muted-foreground">From:</span> <span className="font-medium">{row.from_name || row.from_email || '—'}</span></p>
-            {row.transaction_id && (
+            {!lowData && row.transaction_id && (
               <p className="font-mono text-sm break-all"><span className="text-muted-foreground font-sans">TID:</span> {row.transaction_id}</p>
             )}
-            <p className="line-clamp-2"><span className="text-muted-foreground">Subject:</span> {row.subject || '—'}</p>
+            {!lowData && (
+              <p className="line-clamp-2"><span className="text-muted-foreground">Subject:</span> {row.subject || '—'}</p>
+            )}
           </div>
         )}
 
@@ -980,9 +982,11 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
             <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
             <div className="space-y-0.5">
               <p className="font-medium text-amber-900 dark:text-amber-200">Will reverse prior auto-credit</p>
-              <p className="text-amber-800 dark:text-amber-300">
-                {formatUGX(existing.data.original_amount)} was auto-credited to <span className="font-semibold">{existing.data.original_user_name}</span>. Routing now will debit them and credit the chosen user. Both users will be SMS-notified.
-              </p>
+              {!lowData && (
+                <p className="text-amber-800 dark:text-amber-300">
+                  {formatUGX(existing.data.original_amount)} was auto-credited to <span className="font-semibold">{existing.data.original_user_name}</span>. Routing now will debit them and credit the chosen user. Both users will be SMS-notified.
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -1016,9 +1020,11 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
             <UserCog className="h-4 w-4 text-violet-600 shrink-0 mt-0.5" />
             <div className="space-y-0.5">
               <p className="font-medium text-violet-900 dark:text-violet-200">Managed-proxy partner detected</p>
-              <p className="text-violet-800 dark:text-violet-300">
-                <span className="font-semibold">{user?.full_name}</span> is managed by proxy agent <span className="font-semibold">{proxy.data.agentName}</span>. The debit will hit the <span className="font-semibold">proxy agent's wallet</span> — the partner's wallet will not be touched.
-              </p>
+              {!lowData && (
+                <p className="text-violet-800 dark:text-violet-300">
+                  <span className="font-semibold">{user?.full_name}</span> is managed by proxy agent <span className="font-semibold">{proxy.data.agentName}</span>. The debit will hit the <span className="font-semibold">proxy agent's wallet</span> — the partner's wallet will not be touched.
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -1030,6 +1036,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
               <p className="font-semibold text-amber-900 dark:text-amber-200 uppercase tracking-wide">
                 Wallet already auto-debited
               </p>
+              {!lowData && (
               <p className="text-amber-800 dark:text-amber-300">
                 {formatUGX(existingDebit.data.amount)} was already deducted from{' '}
                 <span className="font-semibold">{existingDebit.data.debited_user_name}</span>
@@ -1037,11 +1044,12 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
                 {' '}on {new Date(existingDebit.data.transaction_date).toLocaleDateString()} for this same TID.
                 {' '}<span className="font-semibold">No further manual debit is needed</span> unless you intend to charge an additional party.
               </p>
+              )}
             </div>
           </div>
         )}
 
-        {mode === 'debit' && proxy.data && !proxy.data.isManaged && (
+        {!lowData && mode === 'debit' && proxy.data && !proxy.data.isManaged && (
           <div className="rounded-lg border bg-muted/30 p-3 text-xs flex gap-2">
             <UserCog className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
             <div className="space-y-0.5">
