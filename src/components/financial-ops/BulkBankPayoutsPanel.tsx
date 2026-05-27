@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface BulkEmail {
   id: string;
@@ -33,6 +34,7 @@ export function BulkBankPayoutsPanel() {
   const [allocs, setAllocs] = useState<Record<string, Allocation[]>>({});
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
+  const [reversing, setReversing] = useState<Record<string, boolean>>({});
 
   const load = async () => {
     const { data: rows } = await (supabase.from('gmail_transactions') as any)
@@ -79,6 +81,31 @@ export function BulkBankPayoutsPanel() {
 
   if (loading) return <div className="p-4 text-sm text-muted-foreground">Loading bulk bank payouts…</div>;
   if (!emails.length) return null;
+
+  const handleReverse = async (withdrawalId: string) => {
+    const reason = window.prompt('Reason for reversal (min 10 chars):', '')?.trim();
+    if (!reason || reason.length < 10) {
+      toast.error('Reason must be at least 10 characters');
+      return;
+    }
+    setReversing((p) => ({ ...p, [withdrawalId]: true }));
+    try {
+      const { data, error } = await supabase.functions.invoke('reverse-auto-routed-withdrawal', {
+        body: { withdrawal_id: withdrawalId, reason },
+      });
+      if (error) throw error;
+      if ((data as any)?.already_reversed) {
+        toast.info('Already reversed');
+      } else {
+        toast.success('Reversal posted — proxy wallet refunded');
+      }
+      await load();
+    } catch (e: any) {
+      toast.error(`Reversal failed: ${e?.message || 'unknown error'}`);
+    } finally {
+      setReversing((p) => ({ ...p, [withdrawalId]: false }));
+    }
+  };
 
   return (
     <div className="rounded-lg border border-border bg-card p-4 mb-4">
@@ -135,6 +162,7 @@ export function BulkBankPayoutsPanel() {
                             <th className="py-1 pr-3">Status</th>
                             <th className="py-1 pr-3">Withdrawal</th>
                             <th className="py-1 pr-3">When</th>
+                            <th className="py-1 pr-3">Action</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -145,7 +173,11 @@ export function BulkBankPayoutsPanel() {
                               <td className="py-1 pr-3 text-right font-medium">{ugx(a.allocated_amount)}</td>
                               <td className="py-1 pr-3">
                                 <span className={
-                                  a.status === 'settled' ? 'text-emerald-600' : 'text-destructive'
+                                  a.status === 'settled'
+                                    ? 'text-emerald-600'
+                                    : a.status === 'reversed'
+                                      ? 'text-amber-600'
+                                      : 'text-destructive'
                                 }>
                                   {a.status}
                                   {a.error_message ? ` — ${a.error_message}` : ''}
@@ -153,6 +185,20 @@ export function BulkBankPayoutsPanel() {
                               </td>
                               <td className="py-1 pr-3 font-mono">{a.withdrawal_request_id.slice(0, 8)}</td>
                               <td className="py-1 pr-3">{new Date(a.created_at).toLocaleString()}</td>
+                              <td className="py-1 pr-3">
+                                {a.status === 'settled' ? (
+                                  <button
+                                    type="button"
+                                    disabled={!!reversing[a.withdrawal_request_id]}
+                                    onClick={() => handleReverse(a.withdrawal_request_id)}
+                                    className="text-xs px-2 py-0.5 rounded border border-border hover:bg-muted disabled:opacity-50"
+                                  >
+                                    {reversing[a.withdrawal_request_id] ? 'Reversing…' : 'Reverse'}
+                                  </button>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">—</span>
+                                )}
+                              </td>
                             </tr>
                           ))}
                         </tbody>
