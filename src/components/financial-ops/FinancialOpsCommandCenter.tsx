@@ -21,6 +21,7 @@ import { WalletBreakdownReadOnly } from './WalletBreakdownReadOnly';
 import { EmailTransactionsPanel } from './EmailTransactionsPanel';
 import { FundedTenantsList } from './FundedTenantsList';
 import { AutoCreditReviewPanel } from './AutoCreditReviewPanel';
+import { ProxyWithdrawalDiagnosticsPanel } from './ProxyWithdrawalDiagnosticsPanel';
 
 
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
@@ -28,7 +29,7 @@ import { AgentRequisitionForm } from './AgentRequisitionForm';
 import { 
   ShieldCheck, Banknote, ArrowLeft, ChevronDown,
   ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, FileText,
-  WifiOff, MoreHorizontal, AlertTriangle, ScanLine, Receipt, Mail, Home as HomeIcon
+  WifiOff, MoreHorizontal, AlertTriangle, AlertCircle, ScanLine, Receipt, Mail, Home as HomeIcon
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 
@@ -38,7 +39,8 @@ type Tool =
   | 'ops' | 'queue' | 'search' | 'recon' | 'ledgers' | 'audit'
   | 'withdrawals' | 'opportunities' | 'requisitions'
   | 'mismatch_metrics' | 'recon_review' | 'withdrawal_history' | 'wallet_breakdown'
-  | 'email_tx' | 'funded_tenants' | 'auto_credit_review';
+  | 'email_tx' | 'funded_tenants' | 'auto_credit_review' | 'proxy_diagnostics';
+
 
 /**
  * Items hidden behind the "More" button. Per CFO mandate the dashboard
@@ -65,6 +67,7 @@ const moreActions: MoreAction[] = [
   { kind: 'tool', id: 'opportunities', label: 'Capital Opportunities', desc: 'Investment summaries', icon: TrendingUp },
   { kind: 'tool', id: 'requisitions', label: 'Fund Requisitions', desc: 'Agent fund requests', icon: FileText },
   { kind: 'tool', id: 'mismatch_metrics', label: 'Mismatch Metrics', desc: 'Operator provider-mismatch attempts', icon: AlertTriangle },
+  { kind: 'tool', id: 'proxy_diagnostics', label: 'Proxy Withdrawal Diagnostics', desc: 'Why each pending proxy withdrawal isn\u2019t auto-settling', icon: AlertCircle },
 ];
 
 export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymentRef?: boolean } = {}) {
@@ -178,6 +181,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         {activeTool === 'mismatch_metrics' && <MismatchMetricsPanel />}
         {activeTool === 'withdrawal_history' && <WithdrawalHistoryStatement />}
         {activeTool === 'funded_tenants' && <FundedTenantsList />}
+        {activeTool === 'proxy_diagnostics' && <ProxyWithdrawalDiagnosticsPanel />}
       </div>
     );
   }
