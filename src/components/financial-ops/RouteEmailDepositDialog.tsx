@@ -71,6 +71,13 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
   const [route, setRoute] = useState<Route>('personal_deposit');
   const [debitRoute, setDebitRoute] = useState<DebitRoute>('withdrawable');
   const [reason, setReason] = useState('');
+  // Forced-reversal confirmation state. When the reversal step trips
+  // NEGATIVE_WALLET_BLOCKED (original user already spent the auto-credit),
+  // we surface a confirm panel; clicking "Force reverse & route" retries
+  // the same mutation with allow_overdraw: true so the reversal posts as
+  // a recoverable obligation (auto_recover=true).
+  const [forcePending, setForcePending] = useState<null | { amount: number; name: string }>(null);
+  const [forceReversal, setForceReversal] = useState(false);
 
   useEffect(() => {
     if (open && row) {
@@ -78,6 +85,8 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
       setAmount(row.amount ? String(Math.round(row.amount)) : '');
       setRoute('personal_deposit');
       setDebitRoute('withdrawable');
+      setForcePending(null);
+      setForceReversal(false);
       const tid = row.transaction_id ? ` TID ${row.transaction_id}` : '';
       const from = row.from_name || row.from_email || 'email';
       // Outgoing emails (MTN/Airtel/bank send confirmations) carry the
