@@ -1658,6 +1658,21 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
           </div>
           )}
 
+          {/* Mobile-first transfer summary — visible as soon as user + amount are set */}
+          <TransferSummaryCard
+            mode={mode}
+            amount={amtNum}
+            fromUser={transferFromUser ? sourceUser : null}
+            fromBucket={transferFromBucket}
+            toUser={user}
+            toBucket={recipientBucket}
+            proxyInfo={proxy.data ? { agentName: proxy.data.agentName } : null}
+            debitRoute={debitRoute}
+            lowData={lowData}
+            sourceBuckets={sourceBuckets.data}
+            destBuckets={destBuckets.data}
+          />
+
           <div>
             <Label className="text-xs">Reason (min 10 chars)</Label>
             <Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} className="text-sm" />
