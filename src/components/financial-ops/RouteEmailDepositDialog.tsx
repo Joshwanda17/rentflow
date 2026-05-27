@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Loader2, Wallet, Banknote, ArrowRight, AlertTriangle, UserCog, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, Wallet, Banknote, ArrowRight, AlertTriangle, UserCog, ChevronLeft, ChevronRight, ArrowDownLeft, ArrowUpRight, Receipt } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -110,6 +110,80 @@ function MiniLedger({ userId, bucket, title }: { userId: string | null | undefin
             </li>
           ))}
         </ul>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Full-width, high-contrast preview of the last 5 wallet transactions.
+ * Designed for debit mode so low-vision operators can quickly scan
+ * dates, amounts, and direction before confirming a deduction.
+ */
+function DebitHistoryPreview({ userId, bucket, userName }: { userId: string | null | undefined; bucket: 'withdrawable' | 'float'; userName: string }) {
+  const q = useQuery({
+    queryKey: ['route-email-debit-history-preview', userId, bucket],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from('general_ledger') as any)
+        .select('id, amount, direction, category, description, transaction_date, created_at, wallet_bucket, ledger_scope, classification')
+        .eq('user_id', userId)
+        .eq('ledger_scope', 'wallet')
+        .eq('wallet_bucket', bucket)
+        .neq('classification', 'admin_correction')
+        .neq('category', 'system_balance_correction')
+        .gt('amount', 0)
+        .order('transaction_date', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(5);
+      if (error) throw error;
+      return (data ?? []) as Array<{ id: string; amount: number; direction: 'cash_in' | 'cash_out'; category: string; description: string | null; transaction_date: string; created_at: string }>;
+    },
+    staleTime: 10_000,
+  });
+
+  if (!userId) return null;
+
+  return (
+    <div className="rounded-xl border-2 border-foreground/10 bg-foreground text-background overflow-hidden">
+      <div className="px-3 py-2.5 border-b border-background/10 bg-background/10 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Receipt className="h-4 w-4 shrink-0" />
+          <span className="text-sm font-semibold">Recent wallet activity · {userName}</span>
+        </div>
+        <span className="text-[10px] uppercase tracking-wider bg-background/20 px-2 py-0.5 rounded-full font-medium">
+          {bucket === 'float' ? 'Operational Float' : 'Personal Deposits'}
+        </span>
+      </div>
+      {q.isLoading ? (
+        <div className="px-3 py-4 text-center text-sm text-background/70">Loading transactions…</div>
+      ) : !q.data?.length ? (
+        <div className="px-3 py-4 text-center text-sm text-background/70">No recent transactions.</div>
+      ) : (
+        <div className="divide-y divide-background/10">
+          {q.data.map((tx) => {
+            const isCashIn = tx.direction === 'cash_in';
+            const date = new Date(tx.transaction_date);
+            const dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+            const timeStr = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+            return (
+              <div key={tx.id} className="px-3 py-2.5 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${isCashIn ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'}`}>
+                    {isCashIn ? <ArrowDownLeft className="h-3.5 w-3.5" /> : <ArrowUpRight className="h-3.5 w-3.5" />}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{tx.description || tx.category}</p>
+                    <p className="text-xs text-background/60">{dateStr} · {timeStr}</p>
+                  </div>
+                </div>
+                <span className={`text-sm font-bold font-mono shrink-0 ${isCashIn ? 'text-emerald-300' : 'text-rose-300'}`}>
+                  {isCashIn ? '+' : '−'}{formatUGX(Number(tx.amount) || 0)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );
@@ -1078,10 +1152,10 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
                   </span>
                 )}
               </div>
-              <MiniLedger
+              <DebitHistoryPreview
                 userId={debitRoute === 'proxy_agent_wallet' && proxy.data ? proxy.data.agentId : user.id}
                 bucket={debitRoute === 'landlord_float' ? 'float' : 'withdrawable'}
-                title={`Debiting · ${debitRoute === 'proxy_agent_wallet' && proxy.data ? proxy.data.agentName : user.full_name} (last 5)`}
+                userName={debitRoute === 'proxy_agent_wallet' && proxy.data ? proxy.data.agentName : user.full_name}
               />
             </div>
           )}
