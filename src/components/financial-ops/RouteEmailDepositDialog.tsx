@@ -1075,7 +1075,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
 
           <div>
             <Label className="text-xs">Reason (min 10 chars)</Label>
-            <Textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
+            <Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} className="text-sm" />
           </div>
 
           {awaitingConfirm && mode === 'credit' && user && (
