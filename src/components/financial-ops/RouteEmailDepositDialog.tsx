@@ -544,6 +544,25 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
             </div>
           </div>
         )}
+        {forcePending && (
+          <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-xs space-y-3">
+            <div className="flex gap-2">
+              <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="font-semibold text-destructive">Original user has UGX 0 available</p>
+                <p className="text-muted-foreground">
+                  Force reverse {formatUGX(forcePending.amount)} from {forcePending.name}; the system will record a recoverable obligation and clear it from future incoming credits.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" size="sm" className="flex-1" onClick={() => setForcePending(null)} disabled={send.isPending}>Cancel</Button>
+              <Button type="button" variant="destructive" size="sm" className="flex-1" onClick={() => { forceReversalRef.current = true; setForceReversal(true); setForcePending(null); send.mutate(); }} disabled={send.isPending}>
+                {send.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Force reverse & route'}
+              </Button>
+            </div>
+          </div>
+        )}
         {mode === 'credit' && existing.data && user && existing.data.original_user_id === user.id && (
           <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
             This deposit was already auto-credited to {existing.data.original_user_name}. Routing will add another credit — confirm this is intentional.
