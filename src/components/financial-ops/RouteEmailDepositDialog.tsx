@@ -62,17 +62,26 @@ function MiniLedger({ userId, bucket, title }: { userId: string | null | undefin
     queryKey: ['route-email-mini-ledger', userId, bucket],
     enabled: !!userId,
     queryFn: async () => {
+      // Strictly user-facing wallet rows only:
+      //   • ledger_scope = 'wallet'           (no platform/bridge legs)
+      //   • wallet_bucket = <exact bucket>    (NOT NULL via eq)
+      //   • classification ≠ 'admin_correction'
+      //   • category ≠ 'system_balance_correction'
+      // See mem://constraints/user-facing-ledger-filter — these two
+      // exclusions are mandatory on every end-user ledger surface.
       const { data, error } = await (supabase.from('general_ledger') as any)
-        .select('id, amount, direction, category, description, transaction_date, wallet_bucket')
+        .select('id, amount, direction, category, description, transaction_date, created_at, wallet_bucket, ledger_scope, classification')
         .eq('user_id', userId)
         .eq('ledger_scope', 'wallet')
         .eq('wallet_bucket', bucket)
         .neq('classification', 'admin_correction')
         .neq('category', 'system_balance_correction')
+        .gt('amount', 0)
         .order('transaction_date', { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(5);
       if (error) throw error;
-      return (data ?? []) as Array<{ id: string; amount: number; direction: 'cash_in' | 'cash_out'; category: string; description: string | null; transaction_date: string }>;
+      return (data ?? []) as Array<{ id: string; amount: number; direction: 'cash_in' | 'cash_out'; category: string; description: string | null; transaction_date: string; created_at: string }>;
     },
     staleTime: 10_000,
   });
