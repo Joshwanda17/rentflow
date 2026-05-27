@@ -221,6 +221,8 @@ function TransferSummaryCard({
   sourceBuckets,
   destBuckets,
   onSwitchBucket,
+  transactionReference,
+  gmailTransactionId,
 }: {
   mode: RouteDialogMode;
   amount: number;
@@ -234,6 +236,8 @@ function TransferSummaryCard({
   sourceBuckets: { withdrawable: number; float: number } | undefined;
   destBuckets: { withdrawable: number; float: number } | undefined;
   onSwitchBucket?: () => void;
+  transactionReference?: string | null;
+  gmailTransactionId?: string | null;
 }) {
   if (!toUser || amount <= 0) return null;
 
@@ -393,7 +397,145 @@ function TransferSummaryCard({
             )}
           </div>
         )}
+
+        {/* Audit log peek — open the latest bucket-attempt row for this transfer reference */}
+        {(transactionReference || gmailTransactionId) && (
+          <TransferAuditLogLink
+            transactionReference={transactionReference ?? null}
+            gmailTransactionId={gmailTransactionId ?? null}
+            lowData={lowData}
+          />
+        )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Inline link rendered on the TransferSummaryCard that fetches and shows
+ * the latest `wallet_debit_bucket_attempts` row for the current transfer's
+ * reference (TID) or Gmail transaction ID. Lets Financial Ops see prior
+ * attempts (insufficient/switched/succeeded) without leaving the dialog.
+ */
+function TransferAuditLogLink({
+  transactionReference,
+  gmailTransactionId,
+  lowData,
+}: {
+  transactionReference: string | null;
+  gmailTransactionId: string | null;
+  lowData: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const q = useQuery({
+    queryKey: ['transfer-audit-latest', transactionReference, gmailTransactionId],
+    enabled: open && !!(transactionReference || gmailTransactionId),
+    queryFn: async () => {
+      const filters: string[] = [];
+      if (transactionReference) filters.push(`transaction_reference.eq.${transactionReference}`);
+      if (gmailTransactionId) filters.push(`gmail_transaction_id.eq.${gmailTransactionId}`);
+      const { data, error } = await (supabase.from('wallet_debit_bucket_attempts') as any)
+        .select('id, target_user_name, attempted_bucket, amount, available_at_attempt, outcome, switched_to_bucket, failure_reason, transaction_reference, gmail_transaction_id, created_by_name, created_at')
+        .or(filters.join(','))
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (error) throw error;
+      return (data?.[0] ?? null) as null | {
+        id: string;
+        target_user_name: string | null;
+        attempted_bucket: string;
+        amount: number;
+        available_at_attempt: number;
+        outcome: 'insufficient_funds_blocked' | 'switched' | 'succeeded' | 'failed_other';
+        switched_to_bucket: string | null;
+        failure_reason: string | null;
+        transaction_reference: string | null;
+        gmail_transaction_id: string | null;
+        created_by_name: string | null;
+        created_at: string;
+      };
+    },
+    staleTime: 5_000,
+  });
+
+  const outcomeMap: Record<string, { cls: string; label: string }> = {
+    succeeded: { cls: 'bg-emerald-100 text-emerald-900 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300', label: 'Succeeded' },
+    switched: { cls: 'bg-amber-100 text-amber-900 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300', label: 'Switched' },
+    insufficient_funds_blocked: { cls: 'bg-destructive/15 text-destructive border-destructive/30', label: 'Blocked' },
+    failed_other: { cls: 'bg-muted text-muted-foreground border-border', label: 'Failed' },
+  };
+
+  return (
+    <div className="pt-1">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={`inline-flex items-center gap-1.5 font-semibold text-primary hover:underline ${lowData ? 'text-sm' : 'text-[11px]'}`}
+      >
+        <History className={`${lowData ? 'h-4 w-4' : 'h-3.5 w-3.5'}`} />
+        {open ? 'Hide transfer audit log' : 'View transfer audit log'}
+      </button>
+
+      {open && (
+        <div className={`mt-2 rounded-md border bg-background px-2.5 py-2 ${lowData ? 'text-sm' : 'text-[11px]'}`}>
+          {q.isLoading ? (
+            <p className="text-muted-foreground inline-flex items-center gap-1.5">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading latest attempt…
+            </p>
+          ) : q.error ? (
+            <p className="text-destructive">Failed to load: {(q.error as any)?.message ?? 'unknown error'}</p>
+          ) : !q.data ? (
+            <p className="text-muted-foreground">
+              No prior attempts recorded for{' '}
+              <span className="font-mono">{transactionReference ?? gmailTransactionId}</span>.
+            </p>
+          ) : (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${outcomeMap[q.data.outcome]?.cls ?? ''}`}>
+                  {outcomeMap[q.data.outcome]?.label ?? q.data.outcome}
+                </span>
+                <span className="text-muted-foreground tabular-nums text-[10px]">
+                  {new Date(q.data.created_at).toLocaleString()}
+                </span>
+              </div>
+              <p className="font-semibold truncate">{q.data.target_user_name ?? '—'}</p>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <p className="text-muted-foreground text-[10px]">Attempted</p>
+                  <p className="font-medium capitalize">{q.data.attempted_bucket.replace('_', ' ')}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-[10px]">Available</p>
+                  <p className={`font-mono ${Number(q.data.available_at_attempt) < Number(q.data.amount) ? 'text-destructive' : ''}`}>
+                    {formatUGX(Number(q.data.available_at_attempt) || 0)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-[10px]">Amount</p>
+                  <p className="font-mono font-semibold">{formatUGX(Number(q.data.amount) || 0)}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-[10px]">Switched to</p>
+                  <p className="font-medium capitalize">{q.data.switched_to_bucket?.replace('_', ' ') ?? '—'}</p>
+                </div>
+              </div>
+              {q.data.failure_reason && (
+                <p className="text-muted-foreground bg-muted/50 rounded px-2 py-1 text-[10px]">
+                  {q.data.failure_reason}
+                </p>
+              )}
+              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                <span>By {q.data.created_by_name ?? '—'}</span>
+                {q.data.transaction_reference && (
+                  <span className="font-mono">TID {q.data.transaction_reference}</span>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
