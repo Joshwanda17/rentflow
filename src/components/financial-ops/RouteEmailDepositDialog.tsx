@@ -1566,16 +1566,23 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
                                 availableAtAttempt: bucketShort!.have,
                                 outcome: 'switched',
                                 switchedToBucket: toBucket as any,
-                                failureReason: `Operator switched after pre-flight: ${fromBucket}=${bucketShort!.have} → ${toBucket}=${bucketShort!.otherHave}`,
+                                failureReason: `One-tap confirm-and-retry: ${fromBucket}=${bucketShort!.have} → ${toBucket}=${bucketShort!.otherHave}`,
                                 gmailTransactionId: row?.id ?? null,
                                 transactionReference: row?.transaction_id ?? null,
                               });
                             }
+                            // One-tap: switch bucket AND queue the submit.
+                            // An effect below fires send.mutate() on the next
+                            // render where debitRoute matches and pre-flight
+                            // is clear, so the operator completes the action
+                            // in a single click.
+                            setPendingAutoSubmit(bucketShort!.otherRoute!);
                             setDebitRoute(bucketShort!.otherRoute!);
                           }}
-                          className="w-full rounded border border-primary/40 bg-primary/10 px-2 py-1.5 text-[12px] font-medium text-primary hover:bg-primary/20"
+                          className="w-full rounded-md border border-primary/50 bg-primary/15 px-3 py-2.5 text-[13px] font-semibold text-primary hover:bg-primary/25 flex items-center justify-center gap-1.5"
                         >
-                          Switch to {bucketShort.otherLabel} — has {formatUGX(bucketShort.otherHave)}
+                          <ArrowRight className="h-4 w-4" />
+                          Confirm &amp; retry with {bucketShort.otherLabel} ({formatUGX(bucketShort.otherHave)})
                         </button>
                       ) : (
                         <p className="text-muted-foreground">Other bucket also short. Lower the amount or pick a different user.</p>
