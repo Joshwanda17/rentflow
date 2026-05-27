@@ -117,7 +117,7 @@ export function ProxyWithdrawalDiagnosticsPanel() {
         <div className="flex flex-wrap gap-2">
           {Object.entries(summary).map(([code, n]) => (
             <Badge key={code} variant="outline" className={REASON_TONE[code] || ''}>
-              {code.replaceAll('_', ' ')}: {n}
+              {code.replace(/_/g, ' ')}: {n}
             </Badge>
           ))}
         </div>
@@ -154,7 +154,7 @@ export function ProxyWithdrawalDiagnosticsPanel() {
                 <td className="p-2.5"><Badge variant="secondary" className="text-xs">{r.status}</Badge></td>
                 <td className="p-2.5">
                   <Badge variant="outline" className={`${REASON_TONE[r.reason_code] || ''} mb-1`}>
-                    {r.reason_code.replaceAll('_', ' ')}
+                    {r.reason_code.replace(/_/g, ' ')}
                   </Badge>
                   <div className="text-xs text-muted-foreground">{r.reason}</div>
                 </td>
