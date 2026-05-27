@@ -1720,6 +1720,34 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
             lowData={lowData}
             sourceBuckets={sourceBuckets.data}
             destBuckets={destBuckets.data}
+            onSwitchBucket={(() => {
+              if (mode === 'debit' && bucketShort?.otherRoute) {
+                return () => {
+                  if (user) {
+                    const fromBucketName = debitRoute === 'landlord_float' ? 'float' : 'withdrawable';
+                    const toBucketName = bucketShort.otherRoute === 'landlord_float' ? 'float' : 'withdrawable';
+                    logBucketAttempt({
+                      targetUserId: user.id,
+                      targetUserName: user.full_name,
+                      attemptedBucket: fromBucketName as any,
+                      amount: amtNum,
+                      availableAtAttempt: bucketShort.have,
+                      outcome: 'switched',
+                      switchedToBucket: toBucketName as any,
+                      failureReason: `TransferSummaryCard one-tap: ${fromBucketName}=${bucketShort.have} → ${toBucketName}=${bucketShort.otherHave}`,
+                      gmailTransactionId: row?.id ?? null,
+                      transactionReference: row?.transaction_id ?? null,
+                    });
+                  }
+                  setPendingAutoSubmit(bucketShort.otherRoute!);
+                  setDebitRoute(bucketShort.otherRoute!);
+                };
+              }
+              if (mode === 'credit' && transferFromUser && sourceBucketShort && sourceBucketShort.otherHave >= amtNum) {
+                return () => setTransferFromBucket(sourceBucketShort.otherBucket);
+              }
+              return undefined;
+            })()}
           />
 
           <div>
