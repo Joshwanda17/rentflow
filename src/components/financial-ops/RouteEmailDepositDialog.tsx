@@ -1212,6 +1212,37 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
     send.mutate();
   }, [pendingAutoSubmit, debitRoute, destBuckets.data, amtNum, user, reason, send]);
 
+  // ── Pre-flight balance gates ─────────────────────────────────────
+  // Debit mode: check the destination user's selected bucket.
+  const bucketShort = (() => {
+    if (mode !== 'debit' || !user || !destBuckets.data || amtNum <= 0 || debitRoute === 'proxy_agent_wallet') return null;
+    const w = destBuckets.data.withdrawable;
+    const f = destBuckets.data.float;
+    if (debitRoute === 'withdrawable' && w < amtNum) {
+      return { have: w, otherLabel: (f >= amtNum ? 'Float' : null) as 'Float' | null, otherHave: f, otherRoute: (f >= amtNum ? 'landlord_float' : null) as DebitRoute | null };
+    }
+    if (debitRoute === 'landlord_float' && f < amtNum) {
+      return { have: f, otherLabel: (w >= amtNum ? 'Withdrawable' : null) as 'Withdrawable' | null, otherHave: w, otherRoute: (w >= amtNum ? 'withdrawable' : null) as DebitRoute | null };
+    }
+    return null;
+  })();
+
+  // Credit mode wallet-to-wallet transfer: check the source user's selected bucket.
+  const sourceBucketShort = (() => {
+    if (mode !== 'credit' || !transferFromUser || !sourceUser || !sourceBuckets.data || amtNum <= 0) return null;
+    const cur = transferFromBucket === 'withdrawable' ? sourceBuckets.data.withdrawable : sourceBuckets.data.float;
+    const other = transferFromBucket === 'withdrawable' ? sourceBuckets.data.float : sourceBuckets.data.withdrawable;
+    if (cur < amtNum) {
+      return {
+        have: cur,
+        otherLabel: (transferFromBucket === 'withdrawable' ? 'Float' : 'Withdrawable') as 'Float' | 'Withdrawable',
+        otherHave: other,
+        otherBucket: (transferFromBucket === 'withdrawable' ? 'float' : 'withdrawable') as 'withdrawable' | 'float',
+      };
+    }
+    return null;
+  })();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -1718,6 +1749,25 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
                   <p className="text-[11px] text-muted-foreground">Loading current balances…</p>
                 )}
               </div>
+              {sourceBucketShort && (
+                <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-[12px] space-y-1.5">
+                  <p className="text-destructive font-semibold">
+                    {sourceUser?.full_name} · {transferFromBucket === 'withdrawable' ? 'Withdrawable' : 'Float'} has only {formatUGX(sourceBucketShort.have)}
+                  </p>
+                  {sourceBucketShort.otherHave >= amtNum ? (
+                    <button
+                      type="button"
+                      onClick={() => setTransferFromBucket(sourceBucketShort.otherBucket)}
+                      className="w-full rounded-md border border-primary/50 bg-primary/15 px-3 py-2.5 text-[13px] font-semibold text-primary hover:bg-primary/25 flex items-center justify-center gap-1.5"
+                    >
+                      <ArrowRight className="h-4 w-4" />
+                      Switch to {sourceBucketShort.otherLabel} — has {formatUGX(sourceBucketShort.otherHave)}
+                    </button>
+                  ) : (
+                    <p className="text-muted-foreground">Other bucket also short. Lower the amount or pick a different source user.</p>
+                  )}
+                </div>
+              )}
               <div className="flex gap-2">
                 <Button type="button" variant="outline" className="flex-1 h-10" onClick={() => setAwaitingConfirm(false)} disabled={send.isPending}>
                   Back to edit
@@ -1726,7 +1776,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
                   type="button"
                   className="flex-1 h-10 gap-2"
                   onClick={() => send.mutate()}
-                  disabled={send.isPending}
+                  disabled={send.isPending || !!sourceBucketShort}
                 >
                   {send.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
                   Confirm & route {amount ? formatUGX(amtNum) : ''}
@@ -1751,20 +1801,8 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
               if (transferFromUser && !sourceUser) missing.push('pick source user');
               if (!amount || Number(amount) <= 0) missing.push('enter amount');
               if (reason.trim().length < 10) missing.push(`reason (${reason.trim().length}/10)`);
-              // Pre-flight balance gate — stops NEGATIVE_WALLET_BLOCKED at
-              // the UI layer when the picked bucket is short, and tells the
-              // operator which bucket *does* have the money.
-              let bucketShort: { have: number; otherLabel: 'Withdrawable' | 'Float' | null; otherHave: number; otherRoute: DebitRoute | null } | null = null;
-              if (mode === 'debit' && user && destBuckets.data && amtNum > 0 && debitRoute !== 'proxy_agent_wallet') {
-                const w = destBuckets.data.withdrawable;
-                const f = destBuckets.data.float;
-                if (debitRoute === 'withdrawable' && w < amtNum) {
-                  bucketShort = { have: w, otherLabel: f >= amtNum ? 'Float' : null, otherHave: f, otherRoute: f >= amtNum ? 'landlord_float' : null };
-                } else if (debitRoute === 'landlord_float' && f < amtNum) {
-                  bucketShort = { have: f, otherLabel: w >= amtNum ? 'Withdrawable' : null, otherHave: w, otherRoute: w >= amtNum ? 'withdrawable' : null };
-                }
-              }
               if (bucketShort) missing.push(`insufficient ${debitRoute === 'landlord_float' ? 'Float' : 'Withdrawable'}`);
+              if (sourceBucketShort) missing.push(`source ${transferFromBucket === 'withdrawable' ? 'Withdrawable' : 'Float'} short`);
               const ready = missing.length === 0 && !send.isPending;
               return (
                 <div className="space-y-2">
@@ -1824,6 +1862,25 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
                         </button>
                       ) : (
                         <p className="text-muted-foreground">Other bucket also short. Lower the amount or pick a different user.</p>
+                      )}
+                    </div>
+                  )}
+                  {sourceBucketShort && (
+                    <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-[12px] space-y-1.5">
+                      <p className="text-destructive font-semibold">
+                        {sourceUser?.full_name} · {transferFromBucket === 'withdrawable' ? 'Withdrawable' : 'Float'} has only {formatUGX(sourceBucketShort.have)}
+                      </p>
+                      {sourceBucketShort.otherHave >= amtNum ? (
+                        <button
+                          type="button"
+                          onClick={() => setTransferFromBucket(sourceBucketShort.otherBucket)}
+                          className="w-full rounded-md border border-primary/50 bg-primary/15 px-3 py-2.5 text-[13px] font-semibold text-primary hover:bg-primary/25 flex items-center justify-center gap-1.5"
+                        >
+                          <ArrowRight className="h-4 w-4" />
+                          Switch to {sourceBucketShort.otherLabel} — has {formatUGX(sourceBucketShort.otherHave)}
+                        </button>
+                      ) : (
+                        <p className="text-muted-foreground">Other bucket also short. Lower the amount or pick a different source user.</p>
                       )}
                     </div>
                   )}
