@@ -22,6 +22,7 @@ import { invokeEdgeFunction } from '@/lib/invokeEdgeFunction';
 import { normalizeMomoTid } from '@/lib/momoTid';
 import { downloadCsv } from '@/lib/csvExport';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip as RTooltip, CartesianGrid, Legend } from 'recharts';
+import { DebitBucketAuditSearch } from './DebitBucketAuditSearch';
 
 interface GmailTx {
   id: string;
@@ -1535,6 +1536,11 @@ export function EmailTransactionsPanel() {
             Live feed from the connected Gmail inbox. Polls every minute and parses MoMo, Airtel & bank confirmation emails.
           </p>
         </div>
+      </div>
+
+      <DebitBucketAuditSearch />
+
+      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-end gap-3">
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
           <Button onClick={pollNow} disabled={polling} className="gap-2 flex-1 sm:flex-none min-w-[120px]">
             {polling ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
