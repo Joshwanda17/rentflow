@@ -253,67 +253,108 @@ export function EmailPayoutAutoMatchPanel() {
       }))
       .filter((e) => e.transaction_id && e.amount && e.toPhones.length > 0);
 
-    // Exclude TIDs already burned on a settled withdrawal (prevents
-    // re-using the same physical payment on a second request).
+    // Compute already-settled UGX per TID. We treat ANY withdrawal that
+    // already references this TID as having consumed that portion of the
+    // email's capacity — so a partial email can keep clearing siblings on
+    // subsequent scans without re-using the same UGX twice.
     const candidateTids = Array.from(new Set(emails.map((e) => e.transaction_id!.trim().toUpperCase())));
-    const burnedTids = new Set<string>();
+    const settledByTid = new Map<string, number>();
     if (candidateTids.length > 0) {
       const { data: usedRows } = await supabase
         .from('withdrawal_requests')
-        .select('fin_ops_reference')
-        .in('status', ['completed', 'processing', 'paid', 'disbursed'])
+        .select('amount,fin_ops_reference,status')
         .in('fin_ops_reference', candidateTids);
       (usedRows ?? []).forEach((r: any) => {
-        if (r.fin_ops_reference) burnedTids.add(String(r.fin_ops_reference).trim().toUpperCase());
+        if (!r.fin_ops_reference) return;
+        // Anything not explicitly rejected/cancelled counts as having
+        // claimed its share of the TID.
+        if (['rejected', 'cancelled', 'failed', 'expired'].includes(String(r.status))) return;
+        const k = String(r.fin_ops_reference).trim().toUpperCase();
+        settledByTid.set(k, (settledByTid.get(k) ?? 0) + Math.round(Number(r.amount) || 0));
       });
     }
 
-    // Exclude emails we've already successfully processed in a previous
-    // scan cycle (auto-approved OR manually retried OK). This is the
-    // cross-session/refresh dedupe — `autoApprovedRef` only covers the
-    // current page load. Failed attempts deliberately stay open so a
-    // transient `approve-withdrawal` failure can retry on the next scan.
-    const candidateEmailIds = emails.map((e) => e.id);
-    const processedEmailIds = new Set<string>();
-    if (candidateEmailIds.length > 0) {
-      const { data: processedRows } = await supabase
-        .from('email_payout_match_attempts')
-        .select('email_id,email_transaction_id')
-        .in('email_id', candidateEmailIds)
-        .in('outcome', ['matched_auto_approved', 'matched_manual_retry_ok']);
-      (processedRows ?? []).forEach((r: any) => {
-        if (r.email_id) processedEmailIds.add(String(r.email_id));
-        // Defensive: also burn the TID so an email that lost its row id
-        // (e.g. re-ingested) but kept its TID can't be re-matched.
-        if (r.email_transaction_id) burnedTids.add(String(r.email_transaction_id).trim().toUpperCase());
-      });
-    }
-
-    const out: PayoutMatch[] = [];
-    const usedEmailIds = new Set<string>();
     const tol = toleranceRef.current;
-    for (const w of withdrawals) {
-      const target = normalizeUgPhone(w.mobile_money_number || '');
-      if (!target) continue;
-      const wAmt = Math.round(Number(w.amount));
-      const hit = emails.find(
-        (e) =>
-          !usedEmailIds.has(e.id) &&
-          !processedEmailIds.has(e.id) &&
-          !burnedTids.has((e.transaction_id || '').trim().toUpperCase()) &&
-          Math.abs(Math.round(Number(e.amount)) - wAmt) <= tol.amountUgx &&
-          phonesMatch(target, e.toPhones, tol.phoneTailDigits),
+    const out: PayoutMatch[] = [];
+    const usedWithdrawalIds = new Set<string>();
+
+    // Walk emails newest-first; for each, find the best subset of pending
+    // withdrawals whose summed amount fills the email's remaining capacity.
+    for (const e of emails) {
+      const tidKey = (e.transaction_id || '').trim().toUpperCase();
+      const emailAmt = Math.round(Number(e.amount));
+      const remaining = emailAmt - (settledByTid.get(tidKey) ?? 0);
+      if (remaining <= tol.amountUgx) continue; // fully (or over-) settled
+
+      // Candidate pending withdrawals: same recipient phone, not yet picked.
+      const candidates = withdrawals.filter((w) => {
+        if (usedWithdrawalIds.has(w.id)) return false;
+        const target = normalizeUgPhone(w.mobile_money_number || '');
+        if (!target) return false;
+        return phonesMatch(target, e.toPhones, tol.phoneTailDigits);
+      });
+      if (candidates.length === 0) continue;
+
+      // 1) Prefer an exact single-withdrawal match — preserves prior behavior
+      //    and avoids speculative splits when one is enough.
+      const single = candidates.find(
+        (w) => Math.abs(Math.round(Number(w.amount)) - remaining) <= tol.amountUgx,
       );
-      if (hit) {
-        usedEmailIds.add(hit.id);
+      let chosen: PendingWithdrawal[] | null = single ? [single] : null;
+
+      // 2) Else search for the smallest subset whose sum equals `remaining`
+      //    within tolerance. Bound to 8 candidates (2^8 = 256 combos) to
+      //    keep this O(n) overall and safe on the UI thread.
+      if (!chosen && candidates.length >= 2) {
+        const pool = candidates.slice(0, 8);
+        const amounts = pool.map((w) => Math.round(Number(w.amount)));
+        let best: number[] | null = null;
+        const total = 1 << pool.length;
+        for (let mask = 1; mask < total; mask++) {
+          let sum = 0;
+          const picks: number[] = [];
+          for (let i = 0; i < pool.length; i++) {
+            if (mask & (1 << i)) { sum += amounts[i]; picks.push(i); }
+          }
+          if (picks.length < 2) continue; // single-pick already tried
+          if (Math.abs(sum - remaining) <= tol.amountUgx) {
+            if (!best || picks.length < best.length) best = picks;
+            if (best && best.length === 2) break; // can't do better than a pair
+          }
+        }
+        if (best) chosen = best.map((i) => pool[i]);
+      }
+
+      if (!chosen || chosen.length === 0) continue;
+
+      const isSplit = chosen.length > 1;
+      const groupKey = `${e.id}:${tidKey}`;
+      for (const w of chosen) {
+        usedWithdrawalIds.add(w.id);
+        const target = normalizeUgPhone(w.mobile_money_number || '')!;
         out.push({
           withdrawal: w,
-          email: hit,
+          email: e,
           recipientPhone: target,
-          payment_method: inferPaymentMethod(w, hit),
+          payment_method: inferPaymentMethod(w, e),
+          ...(isSplit
+            ? {
+                split: {
+                  share: Math.round(Number(w.amount)),
+                  emailRemaining: remaining,
+                  subsetSize: chosen.length,
+                  groupKey,
+                },
+              }
+            : {}),
         });
       }
+      // Reserve this email's remaining capacity so it isn't re-used in this
+      // scan cycle. Persistence across scans is handled by `settledByTid`
+      // once the chosen withdrawals are approved and stamp this TID.
+      settledByTid.set(tidKey, (settledByTid.get(tidKey) ?? 0) + chosen.reduce((s, w) => s + Math.round(Number(w.amount)), 0));
     }
+
     return out;
   }, []);
 
