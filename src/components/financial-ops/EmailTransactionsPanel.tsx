@@ -1529,10 +1529,10 @@ export function EmailTransactionsPanel() {
         <div className="flex-1 min-w-full sm:min-w-[200px]">
           <h3 className="font-semibold text-sm">Date range</h3>
           <p className="text-[11px] text-muted-foreground mt-0.5">
-            {rangeActive
-              ? `Showing ${filteredRows.length} of ${rows.length} emails — totals recomputed for ${fromDate || '…'} → ${toDate || '…'} (${tz})${searchActive ? ` · search "${searchQuery}"` : ''}`
-              : searchActive
-              ? `Showing ${filteredRows.length} of ${rows.length} emails — search "${searchQuery}" · timezone ${tz}`
+            {searchActive
+              ? `Showing ${filteredRows.length} of ${rows.length} emails — search "${searchQuery}" (date range ignored while searching) · timezone ${tz}`
+              : rangeActive
+              ? `Showing ${filteredRows.length} of ${rows.length} emails — totals recomputed for ${fromDate || '…'} → ${toDate || '…'} (${tz})`
               : `No range selected — showing all ${rows.length} emails · timezone ${tz}`}
           </p>
         </div>
