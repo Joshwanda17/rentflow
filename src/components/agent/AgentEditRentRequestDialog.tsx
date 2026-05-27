@@ -321,7 +321,10 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
         description = raw;
       }
 
-      toast.error(title, description ? { description } : undefined);
+      const debugTag = code || details || hint ? ` [${[code, details, hint].filter(Boolean).join(' · ')}]` : '';
+      toast.error(title, {
+        description: (description ?? raw ?? 'Unknown error') + debugTag,
+      });
       console.error('[agent_resubmit_rent_request] failed', { code, raw, details, hint });
     } finally {
       setSubmitting(false);
