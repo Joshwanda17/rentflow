@@ -418,45 +418,125 @@ export function FinOpsWithdrawalVerification() {
   };
 
   const renderBalanceStrip = (req: WithdrawalRequest) => {
-    const bal = walletBalances[req.user_id];
-    const personal = bal?.withdrawable ?? 0;
-    const float = bal?.float ?? 0;
-    const totalAvailable = personal + float;
-    const insufficient = bal !== undefined && totalAvailable < Number(req.amount || 0);
-    return (
-      <div
-        className={`grid grid-cols-2 gap-1.5 px-2 py-1.5 rounded-lg border ${
-          insufficient
-            ? 'bg-destructive/10 border-destructive/40'
-            : 'bg-muted/40 border-border/50'
-        }`}
-      >
-        <div className="flex items-center gap-1.5 min-w-0">
-          <Wallet className="h-3 w-3 text-primary shrink-0" />
-          <div className="min-w-0">
-            <p className="text-[9px] uppercase tracking-wider text-muted-foreground leading-none">Personal</p>
-            <p className="text-xs font-bold text-foreground truncate">
-              {bal ? formatCurrency(personal) : '—'}
+  const renderBalanceStrip = (req: WithdrawalRequest) => {
+    const amount = Number(req.amount || 0);
+    const proxy = req.proxy_agent || null;
+
+    const renderOneWallet = (
+      opts: {
+        ownerLabel: string;
+        ownerName: string;
+        userId: string;
+        showImpact: boolean;
+        roleTag?: string;
+      },
+    ) => {
+      const bal = walletBalances[opts.userId];
+      const personal = bal?.withdrawable ?? 0;
+      const float = bal?.float ?? 0;
+      const totalAvailable = personal + float;
+      const insufficient = opts.showImpact && bal !== undefined && totalAvailable < amount;
+      const afterPersonal = Math.max(0, personal - amount);
+      // Show "impact" assuming personal bucket is debited first, then float.
+      const personalUsed = Math.min(personal, amount);
+      const floatUsed = Math.min(float, Math.max(0, amount - personal));
+      const afterFloat = float - floatUsed;
+      return (
+        <div
+          className={`px-2 py-1.5 rounded-lg border space-y-1 ${
+            insufficient
+              ? 'bg-destructive/10 border-destructive/40'
+              : 'bg-muted/40 border-border/50'
+          }`}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              {opts.ownerLabel}: <span className="text-foreground normal-case font-semibold">{opts.ownerName}</span>
             </p>
+            {opts.roleTag && (
+              <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold uppercase tracking-wider">
+                {opts.roleTag}
+              </span>
+            )}
           </div>
+          <div className="grid grid-cols-2 gap-1.5">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Wallet className="h-3 w-3 text-primary shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[9px] uppercase tracking-wider text-muted-foreground leading-none">Personal</p>
+                <p className="text-xs font-bold text-foreground truncate">
+                  {bal ? formatCurrency(personal) : '—'}
+                </p>
+                {opts.showImpact && bal && (
+                  <p className="text-[9px] text-muted-foreground truncate">
+                    → {formatCurrency(afterPersonal)}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Briefcase className="h-3 w-3 text-amber-600 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[9px] uppercase tracking-wider text-muted-foreground leading-none">Op. Float</p>
+                <p className="text-xs font-bold text-foreground truncate">
+                  {bal ? formatCurrency(float) : '—'}
+                </p>
+                {opts.showImpact && bal && (
+                  <p className="text-[9px] text-muted-foreground truncate">
+                    → {formatCurrency(afterFloat)}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+          {opts.showImpact && bal && (
+            <div className="flex items-center justify-between text-[10px] pt-0.5 border-t border-border/40">
+              <span className="text-muted-foreground">
+                Debit {formatCurrency(amount)} → {personalUsed > 0 && `${formatCurrency(personalUsed)} personal`}{personalUsed > 0 && floatUsed > 0 ? ' + ' : ''}{floatUsed > 0 && `${formatCurrency(floatUsed)} float`}
+              </span>
+            </div>
+          )}
+          {insufficient && (
+            <div className="flex items-center gap-1 text-[10px] font-semibold text-destructive">
+              <AlertTriangle className="h-3 w-3" />
+              <span>Insufficient — short {formatCurrency(amount - totalAvailable)}. Debit will be blocked.</span>
+            </div>
+          )}
         </div>
-        <div className="flex items-center gap-1.5 min-w-0">
-          <Briefcase className="h-3 w-3 text-amber-600 shrink-0" />
-          <div className="min-w-0">
-            <p className="text-[9px] uppercase tracking-wider text-muted-foreground leading-none">Op. Float</p>
-            <p className="text-xs font-bold text-foreground truncate">
-              {bal ? formatCurrency(float) : '—'}
-            </p>
-          </div>
+      );
+    };
+
+    // Proxy withdrawal: agent (proxy) is the debit source (v2 partner
+    // withdrawals still hold partner.withdrawable, but operationally the
+    // proxy agent's wallet is what FinOps must watch for funding). Show
+    // BOTH wallets so the operator sees the full picture and the impact.
+    if (proxy) {
+      return (
+        <div className="space-y-1.5">
+          {renderOneWallet({
+            ownerLabel: 'Requested by',
+            ownerName: req.user?.full_name || 'Partner',
+            userId: req.user_id,
+            showImpact: true,
+            roleTag: 'Partner',
+          })}
+          {renderOneWallet({
+            ownerLabel: 'Proxy agent',
+            ownerName: proxy.full_name || 'Agent',
+            userId: proxy.id,
+            showImpact: true,
+            roleTag: 'Proxy',
+          })}
         </div>
-        {insufficient && (
-          <div className="col-span-2 flex items-center gap-1 text-[10px] font-semibold text-destructive">
-            <AlertTriangle className="h-3 w-3" />
-            <span>Insufficient balance — debit will be blocked (short {formatCurrency(Number(req.amount) - totalAvailable)})</span>
-          </div>
-        )}
-      </div>
-    );
+      );
+    }
+
+    return renderOneWallet({
+      ownerLabel: 'Wallet',
+      ownerName: req.user?.full_name || 'User',
+      userId: req.user_id,
+      showImpact: true,
+    });
   };
 
   const _renderPendingCard = (req: WithdrawalRequest) => {
