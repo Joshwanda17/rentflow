@@ -220,6 +220,7 @@ function TransferSummaryCard({
   lowData,
   sourceBuckets,
   destBuckets,
+  onSwitchBucket,
 }: {
   mode: RouteDialogMode;
   amount: number;
@@ -232,6 +233,7 @@ function TransferSummaryCard({
   lowData: boolean;
   sourceBuckets: { withdrawable: number; float: number } | undefined;
   destBuckets: { withdrawable: number; float: number } | undefined;
+  onSwitchBucket?: () => void;
 }) {
   if (!toUser || amount <= 0) return null;
 
