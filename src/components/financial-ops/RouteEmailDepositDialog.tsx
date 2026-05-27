@@ -820,6 +820,24 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
           </div>
         )}
 
+        {mode === 'debit' && existingDebit.data && (
+          <div className="rounded-lg border-2 border-amber-400 bg-amber-50 p-3 text-xs flex gap-2 dark:bg-amber-950/30 dark:border-amber-700">
+            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="font-semibold text-amber-900 dark:text-amber-200 uppercase tracking-wide">
+                Wallet already auto-debited
+              </p>
+              <p className="text-amber-800 dark:text-amber-300">
+                {formatUGX(existingDebit.data.amount)} was already deducted from{' '}
+                <span className="font-semibold">{existingDebit.data.debited_user_name}</span>
+                {' '}({existingDebit.data.wallet_bucket === 'float' ? 'Operational Float' : 'Personal Deposits'})
+                {' '}on {new Date(existingDebit.data.transaction_date).toLocaleDateString()} for this same TID.
+                {' '}<span className="font-semibold">No further manual debit is needed</span> unless you intend to charge an additional party.
+              </p>
+            </div>
+          </div>
+        )}
+
         {mode === 'debit' && proxy.data && !proxy.data.isManaged && (
           <div className="rounded-lg border bg-muted/30 p-3 text-xs flex gap-2">
             <UserCog className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
