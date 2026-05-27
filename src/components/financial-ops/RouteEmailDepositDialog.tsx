@@ -1152,10 +1152,10 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
                   </span>
                 )}
               </div>
-              <MiniLedger
+              <DebitHistoryPreview
                 userId={debitRoute === 'proxy_agent_wallet' && proxy.data ? proxy.data.agentId : user.id}
                 bucket={debitRoute === 'landlord_float' ? 'float' : 'withdrawable'}
-                title={`Debiting · ${debitRoute === 'proxy_agent_wallet' && proxy.data ? proxy.data.agentName : user.full_name} (last 5)`}
+                userName={debitRoute === 'proxy_agent_wallet' && proxy.data ? proxy.data.agentName : user.full_name}
               />
             </div>
           )}
