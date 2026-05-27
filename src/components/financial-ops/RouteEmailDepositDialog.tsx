@@ -541,6 +541,17 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
         const tdErrMsg = (tdErr as any)?.message || (tdData as any)?.error;
         if (tdErrMsg) {
           if (!forceReversalRef.current && String(tdErrMsg).includes('NEGATIVE_WALLET_BLOCKED')) {
+            // Prefer a one-tap bucket switch over forcing an overdraw when the
+            // funds actually exist in the OTHER bucket of the same source user.
+            const b = sourceBuckets.data;
+            if (b) {
+              const otherBucket: 'withdrawable' | 'float' = fromFloat ? 'withdrawable' : 'float';
+              const otherAvail = otherBucket === 'withdrawable' ? b.withdrawable : b.float;
+              if (otherAvail >= amt) {
+                setTransferFromBucket(otherBucket);
+                throw new Error(`${sourceUser.full_name} has ${formatUGX(otherAvail)} in ${otherBucket === 'withdrawable' ? 'Withdrawable' : 'Float'} — switched. Tap "Confirm & route" again to retry.`);
+              }
+            }
             setForcePending({ amount: amt, name: sourceUser.full_name });
             throw new Error('FORCE_REVERSAL_CONFIRMATION_REQUIRED');
           }
