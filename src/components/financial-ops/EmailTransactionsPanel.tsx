@@ -592,8 +592,15 @@ export function EmailTransactionsPanel() {
       let q: any = (supabase.from('gmail_transactions') as any)
         .select('id,gmail_message_id,from_email,from_name,subject,snippet,amount,transaction_id,parsed,internal_date,direction,channel,counterparty,fee,balance')
         .order('internal_date', { ascending: false, nullsFirst: false });
-      if (fromTsLoad) q = q.gte('internal_date', new Date(fromTsLoad).toISOString());
-      if (toTsLoad) q = q.lte('internal_date', new Date(toTsLoad).toISOString());
+      // When the operator has typed a search query, IGNORE the date range
+      // entirely so the search reaches the full email history. This makes the
+      // search box behave like a global "find any email" tool, independent of
+      // whatever date filter happens to be set above.
+      const searchActiveLoad = tokens.length > 0;
+      if (!searchActiveLoad) {
+        if (fromTsLoad) q = q.gte('internal_date', new Date(fromTsLoad).toISOString());
+        if (toTsLoad) q = q.lte('internal_date', new Date(toTsLoad).toISOString());
+      }
       if (esc) {
         q = q.or(
           [
@@ -1320,7 +1327,10 @@ export function EmailTransactionsPanel() {
     if (toTs && t > toTs) return false;
     return true;
   };
-  const dateRows = rows.filter(inRange);
+  // When a search query is active we DELIBERATELY bypass the date range so
+  // ops can find any email regardless of the date filter currently set.
+  const searchActiveForRange = searchQuery.trim().length > 0;
+  const dateRows = searchActiveForRange ? rows : rows.filter(inRange);
   // Apply the free-text search on top of the date range. Empty query → pass.
   const searchTokens = searchQuery
     .toLowerCase()
@@ -1519,10 +1529,10 @@ export function EmailTransactionsPanel() {
         <div className="flex-1 min-w-full sm:min-w-[200px]">
           <h3 className="font-semibold text-sm">Date range</h3>
           <p className="text-[11px] text-muted-foreground mt-0.5">
-            {rangeActive
-              ? `Showing ${filteredRows.length} of ${rows.length} emails — totals recomputed for ${fromDate || '…'} → ${toDate || '…'} (${tz})${searchActive ? ` · search "${searchQuery}"` : ''}`
-              : searchActive
-              ? `Showing ${filteredRows.length} of ${rows.length} emails — search "${searchQuery}" · timezone ${tz}`
+            {searchActive
+              ? `Showing ${filteredRows.length} of ${rows.length} emails — search "${searchQuery}" (date range ignored while searching) · timezone ${tz}`
+              : rangeActive
+              ? `Showing ${filteredRows.length} of ${rows.length} emails — totals recomputed for ${fromDate || '…'} → ${toDate || '…'} (${tz})`
               : `No range selected — showing all ${rows.length} emails · timezone ${tz}`}
           </p>
         </div>
@@ -2049,7 +2059,7 @@ export function EmailTransactionsPanel() {
             )}
           </div>
           <p className="text-[11px] text-muted-foreground">
-            Tip: combine words (e.g. <code className="px-1 rounded bg-muted">john 150000</code>) — every word must match. Phone numbers work in any format.
+            Searches the <strong>full email history</strong> — the date range above is ignored while you type. Combine words (e.g. <code className="px-1 rounded bg-muted">john 150000</code>); phone numbers work in any format.
           </p>
         </div>
         <div className="p-4 border-b flex items-center justify-between gap-3 flex-wrap">
