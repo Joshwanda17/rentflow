@@ -452,6 +452,8 @@ export function FinOpsWithdrawalVerification() {
           </div>
         </div>
 
+        {renderBalanceStrip(req)}
+
         {req.assigned_cashout_agent_id && (
           <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-orange-500/10 border border-orange-500/40 text-orange-700 dark:text-orange-300">
             <Hand className="h-3.5 w-3.5 shrink-0" />
