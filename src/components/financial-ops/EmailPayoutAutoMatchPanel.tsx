@@ -2,8 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
-  Loader2, ShieldCheck, RefreshCw, Sparkles, Send, CheckCircle2, AlertCircle,
+  Popover, PopoverContent, PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Loader2, ShieldCheck, RefreshCw, Sparkles, Send, CheckCircle2, AlertCircle, Settings2,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFinOpsAutoRefresh } from '@/hooks/useFinOpsAutoRefresh';
@@ -25,6 +30,53 @@ import { normalizeUgPhone, extractToPhones } from './emailExtraction';
  */
 
 const fmtUgx = (n: number) => `UGX ${Math.round(n).toLocaleString()}`;
+
+// ---- Configurable matching tolerances --------------------------------------
+// Persisted in localStorage so FinOps can tune them without a redeploy when
+// upstream email parsers produce small differences (e.g. fee included in the
+// printed amount, recipient phone printed without the country code, etc.).
+const TOLERANCE_KEY = 'finops.payout-automatch.tolerance.v1';
+
+interface MatchTolerance {
+  /** Absolute UGX tolerance applied to |email.amount - withdrawal.amount|. */
+  amountUgx: number;
+  /** Compare only the trailing N digits of normalised phones (9 = local part). */
+  phoneTailDigits: number;
+}
+
+const DEFAULT_TOLERANCE: MatchTolerance = { amountUgx: 0, phoneTailDigits: 9 };
+
+function loadTolerance(): MatchTolerance {
+  try {
+    const raw = localStorage.getItem(TOLERANCE_KEY);
+    if (!raw) return DEFAULT_TOLERANCE;
+    const parsed = JSON.parse(raw);
+    const amountUgx = Math.max(0, Math.min(50_000, Number(parsed?.amountUgx ?? 0)));
+    const phoneTailDigits = Math.max(6, Math.min(12, Number(parsed?.phoneTailDigits ?? 9)));
+    return {
+      amountUgx: Number.isFinite(amountUgx) ? amountUgx : 0,
+      phoneTailDigits: Number.isFinite(phoneTailDigits) ? phoneTailDigits : 9,
+    };
+  } catch {
+    return DEFAULT_TOLERANCE;
+  }
+}
+
+function saveTolerance(t: MatchTolerance) {
+  try { localStorage.setItem(TOLERANCE_KEY, JSON.stringify(t)); } catch { /* ignore */ }
+}
+
+/** Strip to digits and keep the last N — survives "+256", "0", "256" prefixes. */
+function tail(phone: string, n: number): string {
+  const d = phone.replace(/\D/g, '');
+  return d.length <= n ? d : d.slice(-n);
+}
+
+function phonesMatch(target: string, candidates: string[], tailDigits: number): boolean {
+  const t = tail(target, tailDigits);
+  if (!t) return false;
+  return candidates.some((c) => tail(c, tailDigits) === t);
+}
 
 interface PendingWithdrawal {
   id: string;
@@ -82,6 +134,9 @@ export function EmailPayoutAutoMatchPanel() {
   const [error, setError] = useState<string | null>(null);
   const autoApprovedRef = useRef<Set<string>>(new Set()); // withdrawal ids already attempted
   const runningRef = useRef(false);
+  const [tolerance, setTolerance] = useState<MatchTolerance>(() => loadTolerance());
+  const toleranceRef = useRef<MatchTolerance>(tolerance);
+  useEffect(() => { toleranceRef.current = tolerance; saveTolerance(tolerance); }, [tolerance]);
 
   /** Pull (a) pending withdrawals and (b) recent outgoing emails, then pair. */
   const scan = useCallback(async (): Promise<PayoutMatch[]> => {
@@ -140,6 +195,7 @@ export function EmailPayoutAutoMatchPanel() {
 
     const out: PayoutMatch[] = [];
     const usedEmailIds = new Set<string>();
+    const tol = toleranceRef.current;
     for (const w of withdrawals) {
       const target = normalizeUgPhone(w.mobile_money_number || '');
       if (!target) continue;
@@ -148,8 +204,8 @@ export function EmailPayoutAutoMatchPanel() {
         (e) =>
           !usedEmailIds.has(e.id) &&
           !burnedTids.has((e.transaction_id || '').trim().toUpperCase()) &&
-          Math.round(Number(e.amount)) === wAmt &&
-          e.toPhones.includes(target),
+          Math.abs(Math.round(Number(e.amount)) - wAmt) <= tol.amountUgx &&
+          phonesMatch(target, e.toPhones, tol.phoneTailDigits),
       );
       if (hit) {
         usedEmailIds.add(hit.id);
@@ -273,13 +329,73 @@ export function EmailPayoutAutoMatchPanel() {
   const headerRight = useMemo(
     () => (
       <div className="flex items-center gap-2">
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-2" title="Matching tolerances">
+              <Settings2 className="h-4 w-4" />
+              <span className="hidden sm:inline">Tolerance</span>
+              <Badge variant="secondary" className="text-[10px]">
+                ±{tolerance.amountUgx.toLocaleString()} · {tolerance.phoneTailDigits}d
+              </Badge>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-72 space-y-3">
+            <div className="space-y-1">
+              <Label htmlFor="amt-tol" className="text-xs">Amount tolerance (UGX)</Label>
+              <Input
+                id="amt-tol"
+                type="number"
+                min={0}
+                max={50000}
+                step={100}
+                value={tolerance.amountUgx}
+                onChange={(e) => setTolerance((t) => ({
+                  ...t,
+                  amountUgx: Math.max(0, Math.min(50_000, Number(e.target.value) || 0)),
+                }))}
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Allow this many UGX of difference between the email amount and the withdrawal amount.
+                Useful when telco fees are bundled into the printed total. Default 0.
+              </p>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="phone-tail" className="text-xs">Phone match — last N digits</Label>
+              <Input
+                id="phone-tail"
+                type="number"
+                min={6}
+                max={12}
+                step={1}
+                value={tolerance.phoneTailDigits}
+                onChange={(e) => setTolerance((t) => ({
+                  ...t,
+                  phoneTailDigits: Math.max(6, Math.min(12, Number(e.target.value) || 9)),
+                }))}
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Compare only the trailing N digits, so "+256 772…", "0772…" and "772…" all match.
+                Default 9 (the Uganda local part).
+              </p>
+            </div>
+            <div className="flex justify-end">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setTolerance(DEFAULT_TOLERANCE)}
+              >
+                Reset to defaults
+              </Button>
+            </div>
+          </PopoverContent>
+        </Popover>
         <Button variant="outline" onClick={() => runScan(false)} disabled={running} className="gap-2">
           {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           Rescan
         </Button>
       </div>
     ),
-    [runScan, running],
+    [runScan, running, tolerance],
   );
 
   return (
