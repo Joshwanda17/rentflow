@@ -772,6 +772,7 @@ Deno.serve(async (req) => {
         routing_source: isProxyPayout
           ? "managed_proxy_withdrawal_agent_withdrawable_debit"
           : "standard_withdrawal_withdrawable_debit",
+        ...(autoRouteMeta ? { metadata: autoRouteMeta } : {}),
       });
     }
     if (floatPortion > 0) {
