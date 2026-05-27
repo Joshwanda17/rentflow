@@ -316,6 +316,47 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
     },
   });
 
+  // ── Detect prior auto-debit for this outgoing email (debit mode) ──
+  // If the platform already posted a wallet-scope cash_out leg whose
+  // `sub_category` matches this email's transaction_id, the wallet has
+  // ALREADY been reduced automatically — operator should not debit again
+  // unless they confirm. Surfaces wallet owner, bucket, amount and date
+  // so the operator can decide whether a manual action is still needed.
+  const existingDebit = useQuery({
+    queryKey: ['route-email-existing-debit', row?.transaction_id, row?.id],
+    enabled: open && mode === 'debit' && !!row?.transaction_id,
+    queryFn: async () => {
+      if (!row?.transaction_id) return null;
+      const { data, error } = await (supabase.from('general_ledger') as any)
+        .select('id, user_id, amount, wallet_bucket, transaction_date, category, description, ledger_scope, classification')
+        .eq('ledger_scope', 'wallet')
+        .eq('direction', 'cash_out')
+        .eq('sub_category', row.transaction_id)
+        .neq('classification', 'admin_correction')
+        .neq('category', 'system_balance_correction')
+        .order('transaction_date', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data?.user_id) return null;
+      const { data: prof } = await (supabase.from('profiles') as any)
+        .select('id, full_name, phone')
+        .eq('id', data.user_id)
+        .maybeSingle();
+      return {
+        ledger_id: data.id as string,
+        debited_user_id: data.user_id as string,
+        debited_user_name: (prof?.full_name as string) ?? 'Unknown user',
+        debited_user_phone: (prof?.phone as string) ?? '',
+        amount: Number(data.amount) || 0,
+        wallet_bucket: (data.wallet_bucket as 'withdrawable' | 'float' | null) ?? null,
+        transaction_date: data.transaction_date as string,
+        category: data.category as string,
+      };
+    },
+  });
+
   const send = useMutation({
     mutationFn: async () => {
       if (!row) throw new Error('No email row');
