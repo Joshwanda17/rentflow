@@ -2371,8 +2371,12 @@ export function EmailTransactionsPanel() {
                 // deposit_request by the poller). Distinct emerald treatment
                 // tells reviewers this email's money already landed in the
                 // shown user's wallet — DO NOT credit again.
-                const credited = creditedDeposits[r.id];
-                const isCredited = !!credited;
+                const credited = creditedDeposits[r.id] ?? [];
+                const isCredited = credited.length > 0;
+                const totalCredited = credited.reduce((s, c) => s + c.amount, 0);
+                const emailAmount = Number(r.amount ?? 0);
+                const creditShortfall = emailAmount > 0 ? Math.max(0, emailAmount - totalCredited) : 0;
+                const isFullyCredited = emailAmount > 0 && totalCredited >= emailAmount;
                 // ── Insufficient-funds warning for outgoing payouts ───────
                 // When an outgoing email (sent / charge) is matched to a
                 // user wallet whose current balance cannot cover the payout
