@@ -525,6 +525,15 @@ export function DirectCreditTool() {
         if (msg.includes('Insufficient ledger balance')) throw new Error(msg);
         if (msg.includes('INVALID_ROUTING')) throw new Error(msg.replace(/^.*INVALID_ROUTING:\s*/, 'Routing rejected: '));
         if (msg.includes('RECIPIENT_TYPE_REQUIRED')) throw new Error('Choose a Recipient type — User (Withdrawable) or Operational Wallet (Float).');
+        if (msg.includes('NEGATIVE_WALLET_BLOCKED')) {
+          const m = msg.match(/strict available balance is (\d+)/);
+          const avail = m ? Number(m[1]).toLocaleString() : '0';
+          throw new Error(
+            `Debit refused: this user's strict withdrawable balance is UGX ${avail}. ` +
+            `Wallets cannot be pushed negative. Credit the user first, lower the amount, ` +
+            `or use the agent/business advance flow if this is meant as debt.`,
+          );
+        }
         if (msg.includes('Ledger error')) throw new Error(msg);
         throw new Error(msg);
       }
