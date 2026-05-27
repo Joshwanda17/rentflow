@@ -77,7 +77,6 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
   // the same mutation with allow_overdraw: true so the reversal posts as
   // a recoverable obligation (auto_recover=true).
   const [forcePending, setForcePending] = useState<null | { amount: number; name: string }>(null);
-  const [forceReversal, setForceReversal] = useState(false);
   const forceReversalRef = useRef(false);
 
   useEffect(() => {
@@ -87,7 +86,6 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
       setRoute('personal_deposit');
       setDebitRoute('withdrawable');
       setForcePending(null);
-      setForceReversal(false);
       forceReversalRef.current = false;
       const tid = row.transaction_id ? ` TID ${row.transaction_id}` : '';
       const from = row.from_name || row.from_email || 'email';
@@ -557,7 +555,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
             </div>
             <div className="flex gap-2">
               <Button type="button" variant="outline" size="sm" className="flex-1" onClick={() => setForcePending(null)} disabled={send.isPending}>Cancel</Button>
-              <Button type="button" variant="destructive" size="sm" className="flex-1" onClick={() => { forceReversalRef.current = true; setForceReversal(true); setForcePending(null); send.mutate(); }} disabled={send.isPending}>
+              <Button type="button" variant="destructive" size="sm" className="flex-1" onClick={() => { forceReversalRef.current = true; setForcePending(null); send.mutate(); }} disabled={send.isPending}>
                 {send.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Force reverse & route'}
               </Button>
             </div>
