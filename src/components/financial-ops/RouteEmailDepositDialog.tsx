@@ -795,6 +795,25 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
             onSelect={setUser}
           />
 
+          {mode === 'credit' && (user || (transferFromUser && sourceUser)) && (
+            <div className={transferFromUser && sourceUser ? 'grid grid-cols-1 sm:grid-cols-2 gap-2' : ''}>
+              {transferFromUser && sourceUser && (
+                <MiniLedger
+                  userId={sourceUser.id}
+                  bucket={transferFromBucket}
+                  title={`From · ${sourceUser.full_name} (last 5)`}
+                />
+              )}
+              {user && (
+                <MiniLedger
+                  userId={user.id}
+                  bucket={route === 'operational_float' ? 'float' : 'withdrawable'}
+                  title={`To · ${user.full_name} (last 5)`}
+                />
+              )}
+            </div>
+          )}
+
           {user && proxy.data && (
             <div className="flex items-center gap-2 -mt-1 text-xs text-muted-foreground">
               <UserCog className="h-3.5 w-3.5 text-violet-600" />
