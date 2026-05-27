@@ -172,7 +172,7 @@ interface Props {
  * Operational Float. Routes through the `cfo-direct-credit` edge function so
  * the existing Wallet Routing v2 + ledger rules apply.
  */
-export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser, mode = 'credit' }: Props) {
+export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser, mode = 'credit', onPrev, onNext, canPrev, canNext, currentIndex, totalCount }: Props) {
   const { toast } = useToast();
   const [user, setUser] = useState<PrefilledUser | null>(null);
   const [amount, setAmount] = useState('');
