@@ -90,7 +90,7 @@ import { AgentMyRentRequestsSheet } from '@/components/agent/AgentMyRentRequests
 import { AgentTenantsSheet } from '@/components/agent/AgentTenantsSheet';
 import { AgentManagedUsersSheet } from '@/components/agent/AgentManagedUsersSheet';
 import { FieldCollectDialog } from '@/components/agent/FieldCollectDialog';
-import { FieldCollectFab } from '@/components/agent/FieldCollectFab';
+
 import { FieldCollectReconciliationSheet } from '@/components/agent/FieldCollectReconciliationSheet';
 import { getDuplicateEntries } from '@/lib/fieldCollectStore';
 import { FileWarning } from 'lucide-react';
@@ -1016,7 +1016,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <AgentMyRentRequestsSheet open={myRentRequestsOpen} onOpenChange={setMyRentRequestsOpen} />
       <AgentTenantsSheet open={tenantsSheetOpen} onOpenChange={setTenantsSheetOpen} />
       <FieldCollectDialog open={fieldCollectOpen} onOpenChange={setFieldCollectOpen} />
-      <FieldCollectFab onClick={() => setFieldCollectOpen(true)} />
+      
       <FieldCollectReconciliationSheet open={reconcileOpen} onOpenChange={setReconcileOpen} />
       <AgentManagedUsersSheet open={managedUsersOpen} onOpenChange={setManagedUsersOpen} agentId={user.id} />
       <AgentTopUpTenantDialog open={topUpTenantOpen} onOpenChange={setTopUpTenantOpen} onSuccess={refreshOfflineData} />
