@@ -989,6 +989,38 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
     },
   });
 
+  // One-tap "Confirm & retry with {bucket}" effect.
+  // When the operator taps the auto-switch button we set both
+  // `debitRoute` and `pendingAutoSubmit` to the covering route. On the
+  // next render where the route has updated and the destination bucket
+  // (now re-evaluated against fresh `destBuckets.data`) actually covers
+  // the amount, we fire `send.mutate()` exactly once and clear the flag.
+  // Any operator edit (amount/user/route change away from the queued
+  // route) cancels the pending submit so we never silently send the
+  // wrong thing.
+  useEffect(() => {
+    if (!pendingAutoSubmit) return;
+    if (debitRoute !== pendingAutoSubmit) {
+      setPendingAutoSubmit(null);
+      return;
+    }
+    if (send.isPending) return;
+    if (!user || amtNum <= 0 || reason.trim().length < 10) return;
+    if (!destBuckets.data) return;
+    const covers =
+      pendingAutoSubmit === 'landlord_float'
+        ? destBuckets.data.float >= amtNum
+        : pendingAutoSubmit === 'withdrawable'
+          ? destBuckets.data.withdrawable >= amtNum
+          : false;
+    if (!covers) {
+      setPendingAutoSubmit(null);
+      return;
+    }
+    setPendingAutoSubmit(null);
+    send.mutate();
+  }, [pendingAutoSubmit, debitRoute, destBuckets.data, amtNum, user, reason, send]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
