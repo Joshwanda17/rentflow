@@ -2096,7 +2096,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       </div>
 
       {/* ─── Partner Detail Dialog ─── */}
-      <Dialog open={!!detailPartner || detailLoading} onOpenChange={open => { if (!open) { setDetailPartner(null); setEditingPortfolioId(null); setEditingNextPayoutId(null); } }}>
+      <Dialog open={(!!detailPartner || detailLoading) && !detailHiddenForCompound} onOpenChange={open => { if (!open && !compoundPreview) { setDetailPartner(null); setEditingPortfolioId(null); setEditingNextPayoutId(null); } }}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto p-0">
           {detailLoading ? (
             <div className="flex items-center justify-center py-20">
@@ -2879,7 +2879,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       )}
 
       {/* Compound Preview Dialog */}
-      <AlertDialog open={!!compoundPreview} onOpenChange={(open) => { if (!open) setCompoundPreview(null); }}>
+      <AlertDialog open={!!compoundPreview} onOpenChange={(open) => { if (!open) { setCompoundPreview(null); setDetailHiddenForCompound(false); } }}>
         <AlertDialogPortal>
           <AlertDialogOverlay className="z-[70]" />
           <AlertDialogPrimitive.Content
@@ -2929,6 +2929,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                 if (compoundPreview) {
                   handlePortfolioCompound(compoundPreview.portfolio);
                   setCompoundPreview(null);
+                  setDetailHiddenForCompound(false);
                 }
               }}
             >
