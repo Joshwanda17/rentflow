@@ -39,6 +39,7 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogPortal, AlertDialogOverlay,
 } from '@/components/ui/alert-dialog';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
@@ -2876,7 +2877,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
       {/* Compound Preview Dialog */}
       <AlertDialog open={!!compoundPreview} onOpenChange={(open) => { if (!open) setCompoundPreview(null); }}>
-        <AlertDialogContent className="z-[80]">
+        <AlertDialogPortal>
+          <AlertDialogOverlay className="z-[70]" />
+          <AlertDialogContent className="z-[80]">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-primary" />
@@ -2928,7 +2931,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
               Confirm Compound
             </AlertDialogAction>
           </AlertDialogFooter>
-        </AlertDialogContent>
+          </AlertDialogContent>
+        </AlertDialogPortal>
       </AlertDialog>
 
       <UpdateContributionDatesDialog open={updateDatesOpen} onOpenChange={setUpdateDatesOpen} onSuccess={() => {
