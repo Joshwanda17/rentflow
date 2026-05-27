@@ -1525,6 +1525,22 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
               const ready = missing.length === 0 && !send.isPending;
               return (
                 <div className="space-y-2">
+                  {bucketShort && user && (() => {
+                    const attempted = debitRoute === 'landlord_float' ? 'float' : 'withdrawable';
+                    // Fire-and-forget; deduped inside logBucketAttempt by user+bucket+amount.
+                    logBucketAttempt({
+                      targetUserId: user.id,
+                      targetUserName: user.full_name,
+                      attemptedBucket: attempted as any,
+                      amount: amtNum,
+                      availableAtAttempt: bucketShort!.have,
+                      outcome: 'insufficient_funds_blocked',
+                      failureReason: `Pre-flight: ${attempted} has ${bucketShort!.have} < ${amtNum}`,
+                      gmailTransactionId: row?.id ?? null,
+                      transactionReference: row?.transaction_id ?? null,
+                    });
+                    return null;
+                  })()}
                   {bucketShort && (
                     <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-[12px] space-y-1.5">
                       <p className="text-destructive font-semibold">
@@ -1533,7 +1549,25 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
                       {bucketShort.otherRoute ? (
                         <button
                           type="button"
-                          onClick={() => setDebitRoute(bucketShort!.otherRoute!)}
+                          onClick={() => {
+                            if (user) {
+                              const fromBucket = debitRoute === 'landlord_float' ? 'float' : 'withdrawable';
+                              const toBucket = bucketShort!.otherRoute === 'landlord_float' ? 'float' : 'withdrawable';
+                              logBucketAttempt({
+                                targetUserId: user.id,
+                                targetUserName: user.full_name,
+                                attemptedBucket: fromBucket as any,
+                                amount: amtNum,
+                                availableAtAttempt: bucketShort!.have,
+                                outcome: 'switched',
+                                switchedToBucket: toBucket as any,
+                                failureReason: `Operator switched after pre-flight: ${fromBucket}=${bucketShort!.have} → ${toBucket}=${bucketShort!.otherHave}`,
+                                gmailTransactionId: row?.id ?? null,
+                                transactionReference: row?.transaction_id ?? null,
+                              });
+                            }
+                            setDebitRoute(bucketShort!.otherRoute!);
+                          }}
                           className="w-full rounded border border-primary/40 bg-primary/10 px-2 py-1.5 text-[12px] font-medium text-primary hover:bg-primary/20"
                         >
                           Switch to {bucketShort.otherLabel} — has {formatUGX(bucketShort.otherHave)}
