@@ -43,14 +43,14 @@ function MiniLedger({ userId, bucket, title }: { userId: string | null | undefin
     <div className="rounded-lg border bg-muted/20 p-2 text-[11px] space-y-1">
       <div className="flex items-center justify-between">
         <span className="font-medium">{title}</span>
-        <span className="text-muted-foreground capitalize">{bucket}</span>
+        <span className="text-muted-foreground">{bucket === 'withdrawable' ? 'Personal Deposits' : 'Float'}</span>
       </div>
       {!userId ? (
         <p className="text-muted-foreground">No user selected.</p>
       ) : q.isLoading ? (
         <p className="text-muted-foreground">Loading…</p>
       ) : !q.data?.length ? (
-        <p className="text-muted-foreground">No recent {bucket} activity.</p>
+        <p className="text-muted-foreground">No recent {bucket === 'withdrawable' ? 'personal deposits' : 'float'} activity.</p>
       ) : (
         <ul className="space-y-0.5">
           {q.data.map((tx) => (
