@@ -71,6 +71,12 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
   const [route, setRoute] = useState<Route>('personal_deposit');
   const [debitRoute, setDebitRoute] = useState<DebitRoute>('withdrawable');
   const [reason, setReason] = useState('');
+  // Optional "wallet-to-wallet transfer" source user. When set in credit
+  // mode, we first debit this user's withdrawable balance, then credit
+  // the picked recipient. Used by Financial Ops on the Recent Emails page
+  // to move money from one user's wallet to another's.
+  const [sourceUser, setSourceUser] = useState<PrefilledUser | null>(null);
+  const [transferFromUser, setTransferFromUser] = useState(false);
   // Forced-reversal confirmation state. When the reversal step trips
   // NEGATIVE_WALLET_BLOCKED (original user already spent the auto-credit),
   // we surface a confirm panel; clicking "Force reverse & route" retries
@@ -87,6 +93,8 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
       setDebitRoute('withdrawable');
       setForcePending(null);
       forceReversalRef.current = false;
+      setSourceUser(null);
+      setTransferFromUser(false);
       const tid = row.transaction_id ? ` TID ${row.transaction_id}` : '';
       const from = row.from_name || row.from_email || 'email';
       // Outgoing emails (MTN/Airtel/bank send confirmations) carry the
