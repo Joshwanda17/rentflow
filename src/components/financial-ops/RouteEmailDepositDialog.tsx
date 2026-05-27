@@ -752,16 +752,21 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>{mode === 'debit' ? 'Charge outgoing payment to user wallet' : 'Redirect deposit to user'}</DialogTitle>
-          <DialogDescription>
+      <DialogContent
+        className="max-w-md sm:max-w-lg p-0 gap-0 max-h-[100dvh] sm:max-h-[90vh] h-[100dvh] sm:h-auto flex flex-col"
+      >
+        <DialogHeader className="px-4 pt-4 pb-3 border-b shrink-0">
+          <DialogTitle className="text-base sm:text-lg">
+            {mode === 'debit' ? 'Charge outgoing payment to user wallet' : 'Redirect deposit to user'}
+          </DialogTitle>
+          <DialogDescription className="text-xs sm:text-sm">
             {mode === 'debit'
               ? 'Debits this outbound transaction from a user\'s wallet (never from Welile operational float). Auto-redirects to the proxy agent\'s wallet when the picked user is a partner with a managed-proxy assignment.'
               : 'Credit this inbound transaction to a specific user as Personal Deposit (withdrawable) or Operational Float.'}
           </DialogDescription>
         </DialogHeader>
 
+        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
         {row && (
           <div className="rounded-lg border bg-muted/30 p-3 text-xs space-y-0.5">
             <p><span className="text-muted-foreground">From:</span> {row.from_name || row.from_email || '—'}</p>
