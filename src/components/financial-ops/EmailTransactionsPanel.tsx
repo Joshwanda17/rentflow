@@ -2245,6 +2245,41 @@ export function EmailTransactionsPanel() {
                 const history = routingHistory[r.id] ?? [];
                 const isRouted = history.length > 0;
                 const isReversed = history.some((h) => /revers/i.test(h.reason || ''));
+                // ── Insufficient-funds warning for outgoing payouts ───────
+                // When an outgoing email (sent / charge) is matched to a
+                // user wallet whose current balance cannot cover the payout
+                // amount, this row is about to fail on debit. Make it
+                // visually unignorable so reviewers don't blindly auto-debit
+                // or approve a doomed withdrawal.
+                const isOutgoing = r.direction === 'out' || r.direction === 'charge';
+                const outAmount = Number(r.amount ?? 0);
+                const rankedMatches = isOutgoing && outAmount > 0
+                  ? [...matches]
+                      .map((u) => {
+                        const mo = u.matched_on;
+                        const score = mo.startsWith('reference ')
+                          ? 100
+                          : mo.startsWith('from ') || mo.startsWith('to ')
+                            ? 90
+                            : mo.startsWith('name-')
+                              ? 75
+                              : 60;
+                        return { u, score };
+                      })
+                      .sort((a, b) => b.score - a.score)
+                  : [];
+                const topMatch = rankedMatches[0]?.u;
+                const topBal = topMatch ? userBalances[topMatch.id] : undefined;
+                const isInsufficientPayout =
+                  isOutgoing &&
+                  !isRouted &&
+                  outAmount > 0 &&
+                  !!topMatch &&
+                  typeof topBal === 'number' &&
+                  topBal < outAmount;
+                const shortfall = isInsufficientPayout
+                  ? Math.max(0, outAmount - (topBal as number))
+                  : 0;
                 // Build a screen-reader description of the row's match status so
                 // assistive tech announces *why* this row is highlighted, not
                 // just that it's styled differently.
@@ -2271,7 +2306,12 @@ export function EmailTransactionsPanel() {
                 aria-label={matchAriaLabel}
                 data-match-status={isConfident ? 'confident' : isFlagged ? 'flagged' : 'none'}
                 className={`p-4 transition-colors ${
-                  isRouted
+                  isInsufficientPayout
+                    // Loudest treatment in the list: thick destructive accent,
+                    // tinted surface, persistent ring, and a slow pulse so
+                    // the row catches the eye even when scrolling fast.
+                    ? 'bg-destructive/15 hover:bg-destructive/20 border-l-8 border-l-destructive ring-2 ring-destructive/40 ring-inset shadow-sm animate-pulse-slow focus-within:ring-2 focus-within:ring-destructive/60'
+                    : isRouted
                     // Routed rows get a distinct violet treatment so reviewers
                     // can scan the list and immediately see which emails have
                     // already been re-routed (and how many times).
@@ -2289,6 +2329,29 @@ export function EmailTransactionsPanel() {
                 {/* Visually hidden status line — keeps the announcement consistent
                     for SR users even if the visual chips reflow on narrow screens. */}
                 <span className="sr-only">{matchAriaLabel}.</span>
+                {isInsufficientPayout && (
+                  // Unignorable banner above the row body. Explains the
+                  // exact reason in plain language so reviewers can act
+                  // (top up, change recipient, or skip) instead of pushing
+                  // a debit that will bounce back with NEGATIVE_WALLET_BLOCKED.
+                  <div
+                    role="alert"
+                    className="mb-3 flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-destructive"
+                  >
+                    <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                    <div className="text-xs leading-snug">
+                      <p className="font-semibold uppercase tracking-wide text-[11px]">
+                        Insufficient funds — debit will be blocked
+                      </p>
+                      <p className="mt-0.5 text-destructive/90">
+                        Payout of <strong>{fmtUgx(outAmount)}</strong> to{' '}
+                        <strong>{topMatch?.full_name ?? 'matched user'}</strong>, but their wallet balance is only{' '}
+                        <strong>{fmtUgx(topBal as number)}</strong>{' '}
+                        (short by <strong>{fmtUgx(shortfall)}</strong>). Top up the wallet, pick a different recipient, or skip — do not auto-debit.
+                      </p>
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
