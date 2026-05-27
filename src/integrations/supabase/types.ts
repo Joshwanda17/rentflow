@@ -16870,6 +16870,27 @@ export type Database = {
           user_id: string
         }[]
       }
+      diagnose_pending_proxy_withdrawals: {
+        Args: never
+        Returns: {
+          agent_id: string
+          already_allocated: boolean
+          amount: number
+          bulk_emails_open: number
+          created_at: string
+          partner_id: string
+          partner_name: string
+          payout_method: string
+          proxy_agent_id: string
+          proxy_agent_name: string
+          proxy_available: number
+          reason: string
+          reason_code: string
+          status: string
+          total_remaining_in_emails: number
+          withdrawal_id: string
+        }[]
+      }
       drain_withdrawable_buckets: {
         Args: { p_amount: number; p_user_id: string }
         Returns: {
