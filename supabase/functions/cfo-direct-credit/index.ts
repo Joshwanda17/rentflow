@@ -359,6 +359,13 @@ Deno.serve(async (req) => {
       });
       if (rpcErr) {
         console.error("[cfo-direct-credit] Credit ledger error:", rpcErr.message);
+        // Roll back the idempotency reservation so the caller can legitimately retry.
+        if (isEmailOriginCredit) {
+          await adminClient
+            .from("email_credit_idempotency")
+            .delete()
+            .eq("reference_id", refId);
+        }
         throw new Error(`Ledger error: ${rpcErr.message}`);
       }
     } else {
