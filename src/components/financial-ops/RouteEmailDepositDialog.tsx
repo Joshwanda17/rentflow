@@ -51,6 +51,20 @@ function BucketDelta({ label, before, after, sign }: { label: string; before: nu
   );
 }
 
+function StatusPill({ children, tone }: { children: React.ReactNode; tone: 'success' | 'warning' | 'danger' | 'neutral' }) {
+  const map = {
+    success: 'bg-emerald-100 text-emerald-900 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800',
+    warning: 'bg-amber-100 text-amber-900 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800',
+    danger: 'bg-destructive/15 text-destructive border-destructive/30 dark:bg-destructive/20',
+    neutral: 'bg-muted text-muted-foreground border-border',
+  };
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${map[tone]}`}>
+      {children}
+    </span>
+  );
+}
+
 /**
  * Inline preview: last 5 wallet-scope ledger entries for a user filtered to
  * a specific bucket. Helps Financial Ops sanity-check what's currently in
@@ -185,6 +199,183 @@ function DebitHistoryPreview({ userId, bucket, userName }: { userId: string | nu
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Mobile-first transfer summary card.
+ * Shows from-bucket, available UGX, destination, and a clear status
+ * so Financial Ops can route money quickly on phones.
+ */
+function TransferSummaryCard({
+  mode,
+  amount,
+  fromUser,
+  fromBucket,
+  toUser,
+  toBucket,
+  proxyInfo,
+  debitRoute,
+  lowData,
+  sourceBuckets,
+  destBuckets,
+}: {
+  mode: RouteDialogMode;
+  amount: number;
+  fromUser: PrefilledUser | null;
+  fromBucket: 'withdrawable' | 'float';
+  toUser: PrefilledUser | null;
+  toBucket: 'withdrawable' | 'float';
+  proxyInfo: { agentName: string } | null;
+  debitRoute: DebitRoute;
+  lowData: boolean;
+  sourceBuckets: { withdrawable: number; float: number } | undefined;
+  destBuckets: { withdrawable: number; float: number } | undefined;
+}) {
+  if (!toUser || amount <= 0) return null;
+
+  const isTransfer = mode === 'credit' && !!fromUser;
+  const isDebit = mode === 'debit';
+
+  // Resolve effective buckets and balances
+  const fromLabel = isTransfer
+    ? fromBucket === 'float' ? 'Float' : 'Withdrawable'
+    : isDebit
+      ? debitRoute === 'landlord_float' ? 'Landlord-Payout Float' : debitRoute === 'proxy_agent_wallet' ? 'Proxy Agent' : 'Withdrawable'
+      : toBucket === 'float' ? 'Operational Float' : 'Personal Deposit';
+
+  const fromBalance = isTransfer
+    ? (fromBucket === 'float' ? sourceBuckets?.float : sourceBuckets?.withdrawable) ?? 0
+    : isDebit
+      ? (debitRoute === 'landlord_float' ? destBuckets?.float : destBuckets?.withdrawable) ?? 0
+      : undefined;
+
+  const toLabel = isTransfer
+    ? toBucket === 'float' ? 'Float' : 'Withdrawable'
+    : isDebit
+      ? 'Outgoing payment'
+      : toBucket === 'float' ? 'Operational Float' : 'Personal Deposit';
+
+  const short = isTransfer
+    ? (fromBalance !== undefined && fromBalance < amount)
+    : isDebit
+      ? (fromBalance !== undefined && fromBalance < amount)
+      : false;
+
+  const otherAvailable = isTransfer && sourceBuckets
+    ? (fromBucket === 'float' ? sourceBuckets.withdrawable : sourceBuckets.float)
+    : isDebit && destBuckets
+      ? (debitRoute === 'landlord_float' ? destBuckets.withdrawable : destBuckets.float)
+      : undefined;
+
+  const canSwitch = short && otherAvailable !== undefined && otherAvailable >= amount;
+  const tone: 'success' | 'warning' | 'danger' = short ? (canSwitch ? 'warning' : 'danger') : 'success';
+  const statusText = short
+    ? (canSwitch ? 'Short — switch available' : 'Blocked — insufficient funds')
+    : 'Ready to route';
+
+  return (
+    <div className={`rounded-xl border-2 overflow-hidden ${lowData ? 'border-foreground/15' : 'border-primary/20'}`}>
+      {/* Header */}
+      <div className={`px-3 py-2.5 flex items-center justify-between ${lowData ? 'bg-foreground/5' : 'bg-primary/5'}`}>
+        <span className={`font-semibold ${lowData ? 'text-sm' : 'text-xs uppercase tracking-wide text-muted-foreground'}`}>
+          Transfer summary
+        </span>
+        <StatusPill tone={tone}>{statusText}</StatusPill>
+      </div>
+
+      {/* Body */}
+      <div className={`px-3 ${lowData ? 'py-4 space-y-4' : 'py-3 space-y-3'}`}>
+        {/* FROM */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className={`text-muted-foreground ${lowData ? 'text-xs' : 'text-[11px]'}`}>From</p>
+            <p className={`font-semibold truncate ${lowData ? 'text-base' : 'text-sm'}`}>
+              {isTransfer ? fromUser!.full_name : isDebit ? toUser.full_name : 'Inbound email'}
+            </p>
+            <p className={`inline-flex items-center gap-1 ${lowData ? 'text-sm' : 'text-[11px]'}`}>
+              {fromLabel === 'Float' || fromLabel === 'Landlord-Payout Float' || fromLabel === 'Operational Float' ? (
+                <Wallet className={`shrink-0 ${lowData ? 'h-4 w-4' : 'h-3 w-3'} text-primary`} />
+              ) : fromLabel === 'Proxy Agent' ? (
+                <UserCog className={`shrink-0 ${lowData ? 'h-4 w-4' : 'h-3 w-3'} text-violet-600`} />
+              ) : (
+                <Banknote className={`shrink-0 ${lowData ? 'h-4 w-4' : 'h-3 w-3'} text-emerald-600`} />
+              )}
+              <span className="text-muted-foreground">{fromLabel}</span>
+            </p>
+          </div>
+          {fromBalance !== undefined && (
+            <div className="text-right shrink-0">
+              <p className={`text-muted-foreground ${lowData ? 'text-xs' : 'text-[11px]'}`}>Available</p>
+              <p className={`font-mono font-semibold ${short ? 'text-destructive' : 'text-foreground'} ${lowData ? 'text-lg' : 'text-sm'}`}>
+                {formatUGX(fromBalance)}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Arrow */}
+        <div className="flex items-center gap-3">
+          <div className="h-px flex-1 bg-border" />
+          <div className={`shrink-0 rounded-full border bg-background flex items-center justify-center ${lowData ? 'w-10 h-10' : 'w-8 h-8'}`}>
+            <ArrowDownLeft className={`${lowData ? 'h-5 w-5' : 'h-4 w-4'} text-muted-foreground`} />
+          </div>
+          <div className="h-px flex-1 bg-border" />
+        </div>
+
+        {/* TO */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className={`text-muted-foreground ${lowData ? 'text-xs' : 'text-[11px]'}`}>To</p>
+            <p className={`font-semibold truncate ${lowData ? 'text-base' : 'text-sm'}`}>
+              {isDebit ? 'Outgoing payment' : toUser.full_name}
+            </p>
+            <p className={`inline-flex items-center gap-1 ${lowData ? 'text-sm' : 'text-[11px]'}`}>
+              {toLabel === 'Operational Float' || toLabel === 'Float' ? (
+                <Wallet className={`shrink-0 ${lowData ? 'h-4 w-4' : 'h-3 w-3'} text-primary`} />
+              ) : toLabel === 'Outgoing payment' ? (
+                <ArrowUpRight className={`shrink-0 ${lowData ? 'h-4 w-4' : 'h-3 w-3'} text-rose-500`} />
+              ) : (
+                <Banknote className={`shrink-0 ${lowData ? 'h-4 w-4' : 'h-3 w-3'} text-emerald-600`} />
+              )}
+              <span className="text-muted-foreground">{toLabel}</span>
+            </p>
+          </div>
+          <div className="text-right shrink-0">
+            <p className={`text-muted-foreground ${lowData ? 'text-xs' : 'text-[11px]'}`}>Amount</p>
+            <p className={`font-mono font-bold ${lowData ? 'text-xl' : 'text-lg'} text-foreground`}>
+              {formatUGX(amount)}
+            </p>
+          </div>
+        </div>
+
+        {/* Proxy note */}
+        {proxyInfo && isDebit && (
+          <div className={`rounded-md border border-violet-200 bg-violet-50 px-2.5 py-1.5 text-violet-900 dark:bg-violet-950/30 dark:border-violet-800 dark:text-violet-200 ${lowData ? 'text-sm' : 'text-[11px]'}`}>
+            Proxy agent: <span className="font-semibold">{proxyInfo.agentName}</span>
+          </div>
+        )}
+
+        {/* Short warning with switch hint */}
+        {short && (
+          <div className={`rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-2 space-y-1 ${lowData ? 'text-sm' : 'text-[11px]'}`}>
+            <p className="font-semibold text-destructive">
+              {canSwitch
+                ? `${fromLabel} short by ${formatUGX(amount - (fromBalance ?? 0))}`
+                : `${fromLabel} has only ${formatUGX(fromBalance ?? 0)}`}
+            </p>
+            {canSwitch && otherAvailable !== undefined && (
+              <p className="text-muted-foreground">
+                {fromBucket === 'float' ? 'Withdrawable' : 'Float'} has {formatUGX(otherAvailable)} — switch available below.
+              </p>
+            )}
+            {!canSwitch && (
+              <p className="text-muted-foreground">Lower the amount or pick a different user.</p>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -1466,6 +1657,21 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
             </RadioGroup>
           </div>
           )}
+
+          {/* Mobile-first transfer summary — visible as soon as user + amount are set */}
+          <TransferSummaryCard
+            mode={mode}
+            amount={amtNum}
+            fromUser={transferFromUser ? sourceUser : null}
+            fromBucket={transferFromBucket}
+            toUser={user}
+            toBucket={recipientBucket}
+            proxyInfo={proxy.data ? { agentName: proxy.data.agentName } : null}
+            debitRoute={debitRoute}
+            lowData={lowData}
+            sourceBuckets={sourceBuckets.data}
+            destBuckets={destBuckets.data}
+          />
 
           <div>
             <Label className="text-xs">Reason (min 10 chars)</Label>
