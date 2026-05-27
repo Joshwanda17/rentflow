@@ -277,6 +277,12 @@ function TransferSummaryCard({
     ? (canSwitch ? 'Short — switch available' : 'Blocked — insufficient funds')
     : 'Ready to route';
 
+  const switchToLabel = isTransfer
+    ? (fromBucket === 'float' ? 'Withdrawable' : 'Float')
+    : isDebit
+      ? (debitRoute === 'landlord_float' ? 'Withdrawable' : 'Float')
+      : '';
+
   return (
     <div className={`rounded-xl border-2 overflow-hidden ${lowData ? 'border-foreground/15' : 'border-primary/20'}`}>
       {/* Header */}
