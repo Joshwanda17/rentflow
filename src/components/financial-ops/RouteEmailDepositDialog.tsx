@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Loader2, Wallet, Banknote, ArrowRight, AlertTriangle, UserCog, ChevronLeft, ChevronRight, ArrowDownLeft, ArrowUpRight, Receipt } from 'lucide-react';
+import { Loader2, Wallet, Banknote, ArrowRight, AlertTriangle, UserCog, ChevronLeft, ChevronRight, ArrowDownLeft, ArrowUpRight, Receipt, WifiOff, Wifi } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
 import { formatUGX } from '@/lib/rentCalculations';
