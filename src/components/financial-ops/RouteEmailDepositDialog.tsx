@@ -275,6 +275,26 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
   // actually invoke the mutation.
   const [awaitingConfirm, setAwaitingConfirm] = useState(false);
 
+  // Low-data / weak-connection mode: hides helper text & wallet-history
+  // queries, enlarges tap targets, and reduces wrapping. Persisted per
+  // operator so it survives page reloads on bad networks.
+  const [lowData, setLowData] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    try { return window.localStorage.getItem('welile.routeEmail.lowData') === '1'; } catch { return false; }
+  });
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('welile.routeEmail.lowData', lowData ? '1' : '0');
+      }
+    } catch { /* ignore */ }
+  }, [lowData]);
+  // Reusable class fragments — applied throughout the dialog body so a
+  // single toggle reshapes the whole surface without per-element state.
+  const radioCardCls = lowData ? 'p-4 min-h-[64px]' : 'p-3';
+  const helperTextCls = lowData ? 'hidden' : 'text-[11px] text-muted-foreground';
+  const helperTextSmCls = lowData ? 'hidden' : 'text-[11px]';
+
   const recipientBucket: 'withdrawable' | 'float' = route === 'operational_float' ? 'float' : 'withdrawable';
   const sourceBuckets = useWalletBuckets(transferFromUser ? sourceUser?.id : null);
   const destBuckets = useWalletBuckets(user?.id);
