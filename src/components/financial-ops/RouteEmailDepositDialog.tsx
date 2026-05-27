@@ -1369,12 +1369,43 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
     },
     onError: (e: any) => {
       if (e.message === 'FORCE_REVERSAL_CONFIRMATION_REQUIRED') return;
+      // Translate raw backend errors into plain-English reasons an
+      // ordinary operator can act on. Falls back to the original message
+      // for anything we don't recognise.
+      const raw = String(e?.message ?? '');
+      const targetName = (mode === 'debit' ? user?.full_name : (transferFromUser ? sourceUser?.full_name : user?.full_name)) || 'this wallet';
+      const amountLabel = amtNum > 0 ? formatUGX(amtNum) : 'the requested amount';
+      let friendly = raw;
+      const negMatch = raw.match(/NEGATIVE_WALLET_BLOCKED.*?strict available balance is (\d+)/i);
+      if (negMatch) {
+        const avail = Number(negMatch[1] ?? 0);
+        friendly = `${targetName} doesn't have enough money in the selected wallet bucket. Their available balance is ${formatUGX(avail)}, but you tried to take out ${amountLabel}. Either pick a different bucket that has the funds, lower the amount, or use "Force reverse & route" to record what's missing as a recoverable obligation that will be paid back from their next incoming credit.`;
+      } else if (/INVALID_ROUTING/i.test(raw)) {
+        friendly = `Wrong wallet bucket for this kind of money. ${raw.replace(/^INVALID_ROUTING:\s*/i, '')}`;
+      } else if (/RECIPIENT_TYPE_REQUIRED/i.test(raw)) {
+        friendly = 'You must choose whether this goes to the user (Withdrawable) or the Operational Wallet (Float).';
+      } else if (/Unauthorized/i.test(raw)) {
+        friendly = 'Your session is no longer signed in. Please refresh the page and sign in again.';
+      } else if (/Insufficient permissions/i.test(raw)) {
+        friendly = 'Your current role is not allowed to move money. Switch to CFO, Manager, or Super Admin and try again.';
+      } else if (/Reason must be at least 10/i.test(raw)) {
+        friendly = 'The reason needs to be at least 10 characters so it makes sense in the audit log.';
+      } else if (/Invalid amount/i.test(raw)) {
+        friendly = 'The amount is not valid. Enter a positive number up to UGX 500,000,000.';
+      } else if (/Target user not found/i.test(raw)) {
+        friendly = 'We could not find the recipient profile. They may have been removed.';
+      } else if (/treasury|maintenance/i.test(raw)) {
+        friendly = 'Money movement is temporarily paused for maintenance. Try again in a few minutes.';
+      } else if (/SMS/i.test(raw)) {
+        friendly = `${raw} (The money movement may have still succeeded — please check the wallet before retrying.)`;
+      }
+
       if (mode === 'debit' && user) {
         const attempted = debitRoute === 'landlord_float' ? 'float' : debitRoute === 'proxy_agent_wallet' ? 'proxy_withdrawable' : 'withdrawable';
         const avail = destBuckets.data
           ? (attempted === 'float' ? destBuckets.data.float : destBuckets.data.withdrawable)
           : 0;
-        const isInsufficient = /NEGATIVE_WALLET_BLOCKED|strict available balance|insufficient/i.test(String(e?.message ?? ''));
+        const isInsufficient = /NEGATIVE_WALLET_BLOCKED|strict available balance|insufficient/i.test(raw);
         logBucketAttempt({
           targetUserId: user.id,
           targetUserName: user.full_name,
@@ -1382,12 +1413,12 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
           amount: amtNum,
           availableAtAttempt: avail,
           outcome: isInsufficient ? 'insufficient_funds_blocked' : 'failed_other',
-          failureReason: String(e?.message ?? '').slice(0, 500),
+          failureReason: raw.slice(0, 500),
           gmailTransactionId: row?.id ?? null,
           transactionReference: row?.transaction_id ?? null,
         });
       }
-      toast({ title: mode === 'debit' ? 'Could not debit wallet' : 'Could not route deposit', description: e.message, variant: 'destructive' });
+      toast({ title: mode === 'debit' ? 'Could not debit wallet' : 'Could not route deposit', description: friendly, variant: 'destructive' });
     },
   });
 
