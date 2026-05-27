@@ -15,6 +15,43 @@ import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
 import { formatUGX } from '@/lib/rentCalculations';
 
 /**
+ * Fetches current wallet bucket balances (cache view) for a user so the
+ * confirmation step can render before → after deltas.
+ */
+function useWalletBuckets(userId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['route-email-wallet-buckets', userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from('wallets') as any)
+        .select('withdrawable_balance, float_balance')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (error) throw error;
+      return {
+        withdrawable: Number(data?.withdrawable_balance ?? 0),
+        float: Number(data?.float_balance ?? 0),
+      };
+    },
+    staleTime: 5_000,
+  });
+}
+
+function BucketDelta({ label, before, after, sign }: { label: string; before: number; after: number; sign: '+' | '−' }) {
+  const tone = sign === '+' ? 'text-emerald-600' : 'text-destructive';
+  return (
+    <div className="flex items-center justify-between text-[11px]">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-mono">
+        {formatUGX(before)}
+        <span className="mx-1 text-muted-foreground">→</span>
+        <span className={`font-semibold ${tone}`}>{formatUGX(after)}</span>
+      </span>
+    </div>
+  );
+}
+
+/**
  * Inline preview: last 5 wallet-scope ledger entries for a user filtered to
  * a specific bucket. Helps Financial Ops sanity-check what's currently in
  * the wallet before initiating a transfer. Respects the user-facing ledger
