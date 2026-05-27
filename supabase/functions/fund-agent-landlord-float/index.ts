@@ -242,29 +242,55 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Email notification to agent
+    // Branded transactional email to the agent — uses the
+    // `agent-landlord-float-funded` React Email template.
     if (agentProfile?.email) {
-      const landlordName = landlord?.name || 'the landlord'
-      const landlordPhone = landlord?.phone || 'N/A'
-      const rentFormatted = `UGX ${request.rent_amount.toLocaleString()}`
-      const dailyRepayment = request.daily_repayment ? `UGX ${request.daily_repayment.toLocaleString()}` : 'N/A'
-      const durationDays = request.duration_days || 'N/A'
-
-      const emailSubject = `💰 Float Funded – Pay ${landlordName} & Submit Receipt`
-      const emailBody = `Hi ${agentName},\n\n${rentFormatted} has been added to your Landlord Float to pay ${landlordName}.\n\n📋 ACTION REQUIRED:\n1. Pay ${landlordName} via Mobile Money\n2. Collect a signed receipt\n3. Submit TID + receipt photos in the app\n\n📞 Landlord Contact: ${landlordPhone}\n\n📊 TENANT REPAYMENT SCHEDULE:\n💵 Daily Repayment: ${dailyRepayment}/day\n📅 Duration: ${durationDays} days\n\n💰 Your Bonus: UGX ${RENT_FUNDED_BONUS.toLocaleString()} (already credited)\n\nRemember: You will also earn 10% commission on every repayment this tenant makes!\n\n— Welile Team`
-
       try {
-        await serviceClient.rpc("enqueue_email" as any, {
-          p_queue_name: "transactional_emails",
-          p_message: JSON.stringify({
-            to: agentProfile.email,
-            subject: emailSubject,
-            text: emailBody,
-            template_name: "agent_float_funded",
+        // Try to fetch tenant name (optional, non-fatal)
+        let tenantName: string | undefined
+        if (request.tenant_id) {
+          const { data: tenantProfile } = await serviceClient
+            .from('profiles')
+            .select('full_name')
+            .eq('id', request.tenant_id)
+            .maybeSingle()
+          tenantName = tenantProfile?.full_name || undefined
+        }
+
+        const todayLabel = new Date().toLocaleDateString('en-GB', {
+          day: '2-digit', month: 'long', year: 'numeric',
+        })
+
+        await fetch(`${supabaseUrl}/functions/v1/send-transactional-email`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${serviceKey}`,
+          },
+          body: JSON.stringify({
+            templateName: 'agent-landlord-float-funded',
+            recipientEmail: agentProfile.email,
+            idempotencyKey: `agent-landlord-float-funded-${rent_request_id}`,
+            templateData: {
+              agent_name: agentName,
+              landlord_name: landlord?.name || 'the landlord',
+              landlord_phone: landlord?.phone || landlord?.mobile_money_number || '',
+              tenant_name: tenantName || '',
+              amount: request.rent_amount,
+              currency: 'UGX',
+              date: todayLabel,
+              rent_request_ref: rent_request_id.slice(0, 8).toUpperCase(),
+              daily_repayment: request.daily_repayment || '',
+              duration_days: request.duration_days || '',
+              bonus_amount: bonusPaid ? RENT_FUNDED_BONUS : '',
+              withdraw_url: 'https://welilereceipts.com/dashboard/agent',
+              company_name: 'Welile',
+              logo_url: 'https://welilereceipts.com/welile-logo.png',
+            },
           }),
         })
       } catch (emailErr) {
-        console.warn('[fund-float] Agent email enqueue failed:', emailErr)
+        console.warn('[fund-float] Agent branded email send failed:', emailErr)
       }
     }
 
