@@ -521,6 +521,29 @@ export function EmailTransactionsPanel() {
   const [reverseBusy, setReverseBusy] = useState<Record<string, boolean>>({});
 
   /**
+   * Already-credited deposits for the currently visible *incoming* emails.
+   * The poller (`gmail-poll-transactions`) auto-credits matched recipients
+   * and stamps either `gmail_transactions.linked_deposit_request_id` (fast
+   * path) or `deposit_requests.auto_match_audit->>gmail_message_id`
+   * (fallback). When an email is already linked to a non-terminal
+   * deposit_request we MUST NOT credit it again — surfacing this in the
+   * list prevents double-credits and tells Financial Ops exactly which
+   * user already received the money.
+   */
+  interface CreditedDeposit {
+    deposit_id: string;
+    user_id: string;
+    user_name: string;
+    user_phone: string;
+    amount: number;
+    status: string;
+    auto_approved: boolean | null;
+    deposit_purpose: string | null;
+    credited_at: string | null;
+  }
+  const [creditedDeposits, setCreditedDeposits] = useState<Record<string, CreditedDeposit>>({});
+
+  /**
    * Auto-payout matcher: for outgoing money-out emails (MoMo payouts / bank
    * disbursements), look up the pending `withdrawal_requests` row that the
    * email is *settling*. Match is by normalized TID (strongest) or by
@@ -716,6 +739,96 @@ export function EmailTransactionsPanel() {
       })
       .subscribe();
     return () => { cancelled = true; supabase.removeChannel(sub); };
+  }, [rows]);
+
+  // Background load of "already-credited" deposit links for visible incoming
+  // rows. Uses the same two-step resolution the RouteEmailDepositDialog
+  // uses: (1) gmail_transactions.linked_deposit_request_id fast path,
+  // (2) deposit_requests.auto_match_audit->>gmail_message_id fallback.
+  // Terminal statuses (rejected/cancelled/failed/reversed) are treated as
+  // "not credited" so reversed auto-credits can be re-routed without the
+  // double-credit warning.
+  useEffect(() => {
+    if (!rows.length) { setCreditedDeposits({}); return; }
+    const incoming = rows.filter((r) => r.direction === 'in');
+    if (!incoming.length) { setCreditedDeposits({}); return; }
+    let cancelled = false;
+    const rowIds = incoming.map((r) => r.id);
+    const msgIds = incoming.map((r) => r.gmail_message_id).filter(Boolean) as string[];
+    (async () => {
+      try {
+        // 1) Fast path via gmail_transactions.linked_deposit_request_id
+        const { data: gmailLinks } = await (supabase.from('gmail_transactions') as any)
+          .select('id, linked_deposit_request_id')
+          .in('id', rowIds);
+        const linkByRow = new Map<string, string>();
+        const depIds = new Set<string>();
+        for (const g of (gmailLinks ?? []) as Array<{ id: string; linked_deposit_request_id: string | null }>) {
+          if (g.linked_deposit_request_id) {
+            linkByRow.set(g.id, g.linked_deposit_request_id);
+            depIds.add(g.linked_deposit_request_id);
+          }
+        }
+        // 2) Fallback via deposit_requests.auto_match_audit->>gmail_message_id
+        const linkByMsg = new Map<string, string>();
+        if (msgIds.length) {
+          const { data: audits } = await (supabase.from('deposit_requests') as any)
+            .select('id, status, auto_match_audit')
+            .in('auto_match_audit->>gmail_message_id', msgIds);
+          for (const a of (audits ?? []) as Array<{ id: string; status: string; auto_match_audit: any }>) {
+            const mid = a?.auto_match_audit?.gmail_message_id as string | undefined;
+            if (!mid) continue;
+            if (['rejected', 'cancelled', 'failed', 'reversed'].includes(a.status)) continue;
+            if (!linkByMsg.has(mid)) {
+              linkByMsg.set(mid, a.id);
+              depIds.add(a.id);
+            }
+          }
+        }
+        if (!depIds.size) { if (!cancelled) setCreditedDeposits({}); return; }
+        const { data: deps } = await (supabase.from('deposit_requests') as any)
+          .select('id, user_id, amount, status, auto_approved, deposit_purpose, created_at, updated_at')
+          .in('id', Array.from(depIds));
+        const depById = new Map<string, any>();
+        const userIds = new Set<string>();
+        for (const d of (deps ?? []) as Array<any>) {
+          depById.set(d.id, d);
+          if (d.user_id) userIds.add(d.user_id);
+        }
+        let profById = new Map<string, any>();
+        if (userIds.size) {
+          const { data: profs } = await (supabase.from('profiles') as any)
+            .select('id, full_name, phone')
+            .in('id', Array.from(userIds));
+          profById = new Map(((profs ?? []) as Array<any>).map((p) => [p.id, p]));
+        }
+        const next: Record<string, CreditedDeposit> = {};
+        for (const r of incoming) {
+          let depId = linkByRow.get(r.id);
+          if (!depId && r.gmail_message_id) depId = linkByMsg.get(r.gmail_message_id);
+          if (!depId) continue;
+          const d = depById.get(depId);
+          if (!d) continue;
+          if (['rejected', 'cancelled', 'failed', 'reversed'].includes(d.status)) continue;
+          const p = profById.get(d.user_id);
+          next[r.id] = {
+            deposit_id: d.id,
+            user_id: d.user_id,
+            user_name: (p?.full_name as string) ?? 'Unknown user',
+            user_phone: (p?.phone as string) ?? '',
+            amount: Number(d.amount) || 0,
+            status: d.status,
+            auto_approved: d.auto_approved ?? null,
+            deposit_purpose: d.deposit_purpose ?? null,
+            credited_at: (d.updated_at as string) ?? (d.created_at as string) ?? null,
+          };
+        }
+        if (!cancelled) setCreditedDeposits(next);
+      } catch {
+        if (!cancelled) setCreditedDeposits({});
+      }
+    })();
+    return () => { cancelled = true; };
   }, [rows]);
 
   // Background fetch of strict ledger-derived withdrawable balances for
@@ -2245,6 +2358,12 @@ export function EmailTransactionsPanel() {
                 const history = routingHistory[r.id] ?? [];
                 const isRouted = history.length > 0;
                 const isReversed = history.some((h) => /revers/i.test(h.reason || ''));
+                // Already-credited incoming deposit (linked to a non-terminal
+                // deposit_request by the poller). Distinct emerald treatment
+                // tells reviewers this email's money already landed in the
+                // shown user's wallet — DO NOT credit again.
+                const credited = creditedDeposits[r.id];
+                const isCredited = !!credited;
                 // ── Insufficient-funds warning for outgoing payouts ───────
                 // When an outgoing email (sent / charge) is matched to a
                 // user wallet whose current balance cannot cover the payout
@@ -2311,6 +2430,12 @@ export function EmailTransactionsPanel() {
                     // tinted surface, persistent ring, and a slow pulse so
                     // the row catches the eye even when scrolling fast.
                     ? 'bg-destructive/15 hover:bg-destructive/20 border-l-8 border-l-destructive ring-2 ring-destructive/40 ring-inset shadow-sm focus-within:ring-2 focus-within:ring-destructive/60'
+                    : isCredited
+                    // Already-credited incoming deposits get a distinct
+                    // emerald treatment so reviewers can scan the list and
+                    // see at a glance which emails have already landed in a
+                    // wallet — preventing double-credits.
+                    ? 'bg-emerald-500/10 hover:bg-emerald-500/15 border-l-4 border-l-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/40'
                     : isRouted
                     // Routed rows get a distinct violet treatment so reviewers
                     // can scan the list and immediately see which emails have
@@ -2455,8 +2580,35 @@ export function EmailTransactionsPanel() {
                           )}
                         </Badge>
                       )}
+                      {isCredited && (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] gap-1 bg-emerald-500/15 text-emerald-700 border-emerald-500/40"
+                          title={[
+                            `Already credited — DO NOT credit again`,
+                            `Recipient: ${credited.user_name}${credited.user_phone ? ' (' + credited.user_phone + ')' : ''}`,
+                            `Amount: ${fmtUgx(credited.amount)}`,
+                            `Deposit: ${credited.deposit_id}`,
+                            `Status: ${credited.status}${credited.auto_approved ? ' · auto-approved' : ''}`,
+                            credited.deposit_purpose ? `Purpose: ${credited.deposit_purpose}` : null,
+                            credited.credited_at ? `When: ${new Date(credited.credited_at).toLocaleString()}` : null,
+                          ].filter(Boolean).join('\n')}
+                        >
+                          <CheckCircle2 className="h-3 w-3" />
+                          credited · {fmtUgx(credited.amount)}
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground truncate mt-0.5">{r.subject || '(no subject)'}</p>
+                    {isCredited && (
+                      <p className="text-[11px] mt-1 inline-flex items-center gap-1.5 rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-emerald-700">
+                        <Wallet className="h-3 w-3" />
+                        Credited to <strong className="font-semibold">{credited.user_name}</strong>
+                        {credited.user_phone ? <span className="font-mono opacity-80">{credited.user_phone}</span> : null}
+                        <span className="opacity-70">·</span>
+                        <span>{credited.status}{credited.auto_approved ? ' (auto)' : ''}</span>
+                      </p>
+                    )}
                     {(r.counterparty || r.fee || r.balance !== null) && (
                       <p className="text-[11px] text-muted-foreground/80 mt-0.5 flex flex-wrap gap-x-3">
                         {r.counterparty && <span>↔ <strong className="text-foreground/80">{r.counterparty}</strong></span>}
