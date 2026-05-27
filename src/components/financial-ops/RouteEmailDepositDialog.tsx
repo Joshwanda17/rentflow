@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Loader2, Wallet, Banknote, ArrowRight, AlertTriangle, UserCog, ChevronLeft, ChevronRight, ArrowDownLeft, ArrowUpRight, Receipt } from 'lucide-react';
+import { Loader2, Wallet, Banknote, ArrowRight, AlertTriangle, UserCog, ChevronLeft, ChevronRight, ArrowDownLeft, ArrowUpRight, Receipt, WifiOff, Wifi } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -274,6 +274,26 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
   // before/after balances, and require a second click ("Confirm & route") to
   // actually invoke the mutation.
   const [awaitingConfirm, setAwaitingConfirm] = useState(false);
+
+  // Low-data / weak-connection mode: hides helper text & wallet-history
+  // queries, enlarges tap targets, and reduces wrapping. Persisted per
+  // operator so it survives page reloads on bad networks.
+  const [lowData, setLowData] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    try { return window.localStorage.getItem('welile.routeEmail.lowData') === '1'; } catch { return false; }
+  });
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('welile.routeEmail.lowData', lowData ? '1' : '0');
+      }
+    } catch { /* ignore */ }
+  }, [lowData]);
+  // Reusable class fragments — applied throughout the dialog body so a
+  // single toggle reshapes the whole surface without per-element state.
+  const radioCardCls = lowData ? 'p-4 min-h-[64px]' : 'p-3';
+  const helperTextCls = lowData ? 'hidden' : 'text-[11px] text-muted-foreground';
+  const helperTextSmCls = lowData ? 'hidden' : 'text-[11px]';
 
   const recipientBucket: 'withdrawable' | 'float' = route === 'operational_float' ? 'float' : 'withdrawable';
   const sourceBuckets = useWalletBuckets(transferFromUser ? sourceUser?.id : null);
@@ -882,14 +902,35 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
         className="max-w-md sm:max-w-lg p-0 gap-0 max-h-[100dvh] sm:max-h-[90vh] h-[100dvh] sm:h-auto flex flex-col"
       >
         <DialogHeader className="px-4 pt-4 pb-3 border-b shrink-0">
-          <DialogTitle className="text-base sm:text-lg">
-            {mode === 'debit' ? 'Charge outgoing payment to user wallet' : 'Redirect deposit to user'}
-          </DialogTitle>
-          <DialogDescription className="text-xs sm:text-sm">
-            {mode === 'debit'
-              ? 'Debits this outbound transaction from a user\'s wallet (never from Welile operational float). Auto-redirects to the proxy agent\'s wallet when the picked user is a partner with a managed-proxy assignment.'
-              : 'Credit this inbound transaction to a specific user as Personal Deposit (withdrawable) or Operational Float.'}
-          </DialogDescription>
+          <div className="flex items-start justify-between gap-2">
+            <DialogTitle className="text-base sm:text-lg truncate">
+              {lowData
+                ? (mode === 'debit' ? 'Debit wallet' : 'Route deposit')
+                : (mode === 'debit' ? 'Charge outgoing payment to user wallet' : 'Redirect deposit to user')}
+            </DialogTitle>
+            <button
+              type="button"
+              onClick={() => setLowData((v) => !v)}
+              className={`shrink-0 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide transition-colors ${
+                lowData
+                  ? 'border-amber-400 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200'
+                  : 'border-border bg-muted text-muted-foreground hover:bg-muted/70'
+              }`}
+              aria-pressed={lowData}
+              aria-label={lowData ? 'Low-data mode is on. Tap to turn off.' : 'Turn on low-data mode for weak connections'}
+              title={lowData ? 'Low-data mode ON — hiding history & helper text' : 'Low-data mode OFF'}
+            >
+              {lowData ? <WifiOff className="h-3.5 w-3.5" /> : <Wifi className="h-3.5 w-3.5" />}
+              {lowData ? 'Low-data' : 'Low-data'}
+            </button>
+          </div>
+          {!lowData && (
+            <DialogDescription className="text-xs sm:text-sm">
+              {mode === 'debit'
+                ? 'Debits this outbound transaction from a user\'s wallet (never from Welile operational float). Auto-redirects to the proxy agent\'s wallet when the picked user is a partner with a managed-proxy assignment.'
+                : 'Credit this inbound transaction to a specific user as Personal Deposit (withdrawable) or Operational Float.'}
+            </DialogDescription>
+          )}
         </DialogHeader>
 
         {/* Prev / Next navigation bar — sticky, thumb-friendly for phones */}
@@ -927,10 +968,12 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
         {row && (
           <div className="rounded-lg border bg-muted/30 p-3 text-sm space-y-1">
             <p><span className="text-muted-foreground">From:</span> <span className="font-medium">{row.from_name || row.from_email || '—'}</span></p>
-            {row.transaction_id && (
+            {!lowData && row.transaction_id && (
               <p className="font-mono text-sm break-all"><span className="text-muted-foreground font-sans">TID:</span> {row.transaction_id}</p>
             )}
-            <p className="line-clamp-2"><span className="text-muted-foreground">Subject:</span> {row.subject || '—'}</p>
+            {!lowData && (
+              <p className="line-clamp-2"><span className="text-muted-foreground">Subject:</span> {row.subject || '—'}</p>
+            )}
           </div>
         )}
 
@@ -939,9 +982,11 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
             <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
             <div className="space-y-0.5">
               <p className="font-medium text-amber-900 dark:text-amber-200">Will reverse prior auto-credit</p>
-              <p className="text-amber-800 dark:text-amber-300">
-                {formatUGX(existing.data.original_amount)} was auto-credited to <span className="font-semibold">{existing.data.original_user_name}</span>. Routing now will debit them and credit the chosen user. Both users will be SMS-notified.
-              </p>
+              {!lowData && (
+                <p className="text-amber-800 dark:text-amber-300">
+                  {formatUGX(existing.data.original_amount)} was auto-credited to <span className="font-semibold">{existing.data.original_user_name}</span>. Routing now will debit them and credit the chosen user. Both users will be SMS-notified.
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -975,9 +1020,11 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
             <UserCog className="h-4 w-4 text-violet-600 shrink-0 mt-0.5" />
             <div className="space-y-0.5">
               <p className="font-medium text-violet-900 dark:text-violet-200">Managed-proxy partner detected</p>
-              <p className="text-violet-800 dark:text-violet-300">
-                <span className="font-semibold">{user?.full_name}</span> is managed by proxy agent <span className="font-semibold">{proxy.data.agentName}</span>. The debit will hit the <span className="font-semibold">proxy agent's wallet</span> — the partner's wallet will not be touched.
-              </p>
+              {!lowData && (
+                <p className="text-violet-800 dark:text-violet-300">
+                  <span className="font-semibold">{user?.full_name}</span> is managed by proxy agent <span className="font-semibold">{proxy.data.agentName}</span>. The debit will hit the <span className="font-semibold">proxy agent's wallet</span> — the partner's wallet will not be touched.
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -989,6 +1036,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
               <p className="font-semibold text-amber-900 dark:text-amber-200 uppercase tracking-wide">
                 Wallet already auto-debited
               </p>
+              {!lowData && (
               <p className="text-amber-800 dark:text-amber-300">
                 {formatUGX(existingDebit.data.amount)} was already deducted from{' '}
                 <span className="font-semibold">{existingDebit.data.debited_user_name}</span>
@@ -996,11 +1044,12 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
                 {' '}on {new Date(existingDebit.data.transaction_date).toLocaleDateString()} for this same TID.
                 {' '}<span className="font-semibold">No further manual debit is needed</span> unless you intend to charge an additional party.
               </p>
+              )}
             </div>
           </div>
         )}
 
-        {mode === 'debit' && proxy.data && !proxy.data.isManaged && (
+        {!lowData && mode === 'debit' && proxy.data && !proxy.data.isManaged && (
           <div className="rounded-lg border bg-muted/30 p-3 text-xs flex gap-2">
             <UserCog className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
             <div className="space-y-0.5">
@@ -1027,7 +1076,9 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
                 />
                 <div className="text-xs">
                   <p className="font-medium">Transfer from another user's wallet</p>
-                  <p className="text-muted-foreground">Debits the chosen source user's withdrawable balance and credits the recipient below for the same amount.</p>
+                  {!lowData && (
+                    <p className="text-muted-foreground">Debits the chosen source user's withdrawable balance and credits the recipient below for the same amount.</p>
+                  )}
                 </div>
               </label>
               {transferFromUser && (
@@ -1115,7 +1166,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
             onSelect={setUser}
           />
 
-          {mode === 'credit' && (user || (transferFromUser && sourceUser)) && (
+          {!lowData && mode === 'credit' && (user || (transferFromUser && sourceUser)) && (
             <div className={transferFromUser && sourceUser ? 'grid grid-cols-1 sm:grid-cols-2 gap-2' : ''}>
               {transferFromUser && sourceUser && (
                 <MiniLedger
@@ -1152,11 +1203,13 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
                   </span>
                 )}
               </div>
-              <DebitHistoryPreview
-                userId={debitRoute === 'proxy_agent_wallet' && proxy.data ? proxy.data.agentId : user.id}
-                bucket={debitRoute === 'landlord_float' ? 'float' : 'withdrawable'}
-                userName={debitRoute === 'proxy_agent_wallet' && proxy.data ? proxy.data.agentName : user.full_name}
-              />
+              {!lowData && (
+                <DebitHistoryPreview
+                  userId={debitRoute === 'proxy_agent_wallet' && proxy.data ? proxy.data.agentId : user.id}
+                  bucket={debitRoute === 'landlord_float' ? 'float' : 'withdrawable'}
+                  userName={debitRoute === 'proxy_agent_wallet' && proxy.data ? proxy.data.agentName : user.full_name}
+                />
+              )}
             </div>
           )}
 
@@ -1217,22 +1270,22 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
           <div>
             <Label className="text-xs">Route as</Label>
             <RadioGroup value={route} onValueChange={(v) => setRoute(v as Route)} className="mt-1 space-y-2">
-              <label className="flex items-start gap-2 rounded-lg border p-3 cursor-pointer hover:bg-muted/40">
+              <label className={`flex items-start gap-2 rounded-lg border cursor-pointer hover:bg-muted/40 ${radioCardCls}`}>
                 <RadioGroupItem value="personal_deposit" id="route-personal" className="mt-0.5" />
                 <div className="flex-1">
                   <div className="flex items-center gap-1.5 text-sm font-medium">
                     <Banknote className="h-3.5 w-3.5 text-primary" /> Personal Deposit
                   </div>
-                  <p className="text-[11px] text-muted-foreground">Lands in the user's withdrawable balance.</p>
+                  {!lowData && <p className="text-[11px] text-muted-foreground">Lands in the user's withdrawable balance.</p>}
                 </div>
               </label>
-              <label className="flex items-start gap-2 rounded-lg border p-3 cursor-pointer hover:bg-muted/40">
+              <label className={`flex items-start gap-2 rounded-lg border cursor-pointer hover:bg-muted/40 ${radioCardCls}`}>
                 <RadioGroupItem value="operational_float" id="route-float" className="mt-0.5" />
                 <div className="flex-1">
                   <div className="flex items-center gap-1.5 text-sm font-medium">
                     <Wallet className="h-3.5 w-3.5 text-primary" /> Operational Float
                   </div>
-                  <p className="text-[11px] text-muted-foreground">Lands in float balance (cannot be withdrawn; for rent collection).</p>
+                  {!lowData && <p className="text-[11px] text-muted-foreground">Lands in float balance (cannot be withdrawn; for rent collection).</p>}
                 </div>
               </label>
             </RadioGroup>
@@ -1255,33 +1308,33 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
           <div>
             <Label className="text-xs">Deduct from</Label>
             <RadioGroup value={debitRoute} onValueChange={(v) => setDebitRoute(v as DebitRoute)} className="mt-1 space-y-2">
-              <label className="flex items-start gap-2 rounded-lg border p-3 cursor-pointer hover:bg-muted/40">
+              <label className={`flex items-start gap-2 rounded-lg border cursor-pointer hover:bg-muted/40 ${radioCardCls}`}>
                 <RadioGroupItem value="withdrawable" id="debit-withdrawable" className="mt-0.5" />
                 <div className="flex-1">
                   <div className="flex items-center gap-1.5 text-sm font-medium">
                     <Banknote className="h-3.5 w-3.5 text-primary" /> Withdrawable balance
                   </div>
-                  <p className="text-[11px] text-muted-foreground">Reduces the user's withdrawable wallet. Use when the payment was for personal money the user owns.</p>
+                  {!lowData && <p className="text-[11px] text-muted-foreground">Reduces the user's withdrawable wallet. Use when the payment was for personal money the user owns.</p>}
                 </div>
               </label>
-              <label className="flex items-start gap-2 rounded-lg border p-3 cursor-pointer hover:bg-muted/40">
+              <label className={`flex items-start gap-2 rounded-lg border cursor-pointer hover:bg-muted/40 ${radioCardCls}`}>
                 <RadioGroupItem value="landlord_float" id="debit-landlord-float" className="mt-0.5" />
                 <div className="flex-1">
                   <div className="flex items-center gap-1.5 text-sm font-medium">
                     <Wallet className="h-3.5 w-3.5 text-primary" /> Landlord-Payout Float
                   </div>
-                  <p className="text-[11px] text-muted-foreground">Reduces the agent's float balance. Use when a landlord was paid out of the agent's collected rent float.</p>
+                  {!lowData && <p className="text-[11px] text-muted-foreground">Reduces the agent's float balance. Use when a landlord was paid out of the agent's collected rent float.</p>}
                 </div>
               </label>
               {proxy.data && (
-                <label className="flex items-start gap-2 rounded-lg border p-3 cursor-pointer hover:bg-muted/40">
+                <label className={`flex items-start gap-2 rounded-lg border cursor-pointer hover:bg-muted/40 ${radioCardCls}`}>
                   <RadioGroupItem value="proxy_agent_wallet" id="debit-proxy-agent" className="mt-0.5" />
                   <div className="flex-1">
                     <div className="flex items-center gap-1.5 text-sm font-medium">
                       <UserCog className="h-3.5 w-3.5 text-primary" /> Proxy agent wallet
                       <span className="ml-1 text-[10px] text-muted-foreground font-normal">({proxy.data.agentName})</span>
                     </div>
-                    <p className="text-[11px] text-muted-foreground">Reduces the proxy agent's withdrawable balance instead of the partner's. Use when the payout was funded out of the proxy agent's wallet on behalf of this partner.</p>
+                    {!lowData && <p className="text-[11px] text-muted-foreground">Reduces the proxy agent's withdrawable balance instead of the partner's. Use when the payout was funded out of the proxy agent's wallet on behalf of this partner.</p>}
                   </div>
                 </label>
               )}
