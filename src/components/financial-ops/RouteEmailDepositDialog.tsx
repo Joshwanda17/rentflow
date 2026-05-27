@@ -1281,20 +1281,57 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
 
         {!awaitingConfirm && (
           <div className="border-t bg-background px-4 py-3 shrink-0">
-            <Button
-              onClick={() => {
-                if (mode === 'credit') setAwaitingConfirm(true);
-                else send.mutate();
-              }}
-              disabled={send.isPending || !user || !amount || Number(amount) <= 0 || reason.trim().length < 10 || (transferFromUser && !sourceUser)}
-              className="w-full h-12 gap-2 text-base"
-              variant={mode === 'debit' ? 'destructive' : 'default'}
-            >
-              {send.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
-              {mode === 'debit'
-                ? `Debit ${amount ? formatUGX(Number(amount)) : 'wallet'}`
-                : `Review ${amount ? formatUGX(Number(amount)) : 'transfer'}`}
-            </Button>
+            {(() => {
+              const isFloat =
+                mode === 'credit'
+                  ? route === 'operational_float'
+                  : debitRoute === 'landlord_float';
+              const walletLabel = isFloat ? 'Operational Float' : 'Personal Deposit';
+              const verb = mode === 'credit' ? 'Credit' : 'Debit';
+              const missing: string[] = [];
+              if (!user) missing.push('pick recipient');
+              if (transferFromUser && !sourceUser) missing.push('pick source user');
+              if (!amount || Number(amount) <= 0) missing.push('enter amount');
+              if (reason.trim().length < 10) missing.push(`reason (${reason.trim().length}/10)`);
+              const ready = missing.length === 0 && !send.isPending;
+              return (
+                <div className="space-y-2">
+                  <Button
+                    type="button"
+                    onClick={() => send.mutate()}
+                    disabled={!ready}
+                    className="w-full h-14 gap-2 text-base font-semibold"
+                    variant={mode === 'debit' ? 'destructive' : 'default'}
+                    aria-label={
+                      ready
+                        ? `One-tap confirm: ${verb} ${formatUGX(amtNum)} ${mode === 'credit' ? 'to' : 'from'} ${user?.full_name} (${walletLabel})`
+                        : `Cannot confirm: ${missing.join(', ')}`
+                    }
+                  >
+                    {send.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight className="h-5 w-5" />}
+                    {ready ? (
+                      <span className="flex flex-col items-center leading-tight">
+                        <span>Confirm · {verb} {formatUGX(amtNum)}</span>
+                        <span className="text-[11px] font-medium opacity-90">
+                          {mode === 'credit' ? '→ ' : '← '}{user?.full_name} · {walletLabel}
+                        </span>
+                      </span>
+                    ) : (
+                      <span>Complete: {missing.join(', ')}</span>
+                    )}
+                  </Button>
+                  {mode === 'credit' && ready && (
+                    <button
+                      type="button"
+                      onClick={() => setAwaitingConfirm(true)}
+                      className="w-full text-center text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                    >
+                      Preview balances before confirming
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         )}
       </DialogContent>
