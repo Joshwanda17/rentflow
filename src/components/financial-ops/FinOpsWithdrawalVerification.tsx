@@ -393,6 +393,53 @@ export function FinOpsWithdrawalVerification() {
   };
 
   const renderPendingCard = (req: WithdrawalRequest) => {
+    void req;
+    return _renderPendingCard(req);
+  };
+
+  const renderBalanceStrip = (req: WithdrawalRequest) => {
+    const bal = walletBalances[req.user_id];
+    const personal = bal?.withdrawable ?? 0;
+    const float = bal?.float ?? 0;
+    const totalAvailable = personal + float;
+    const insufficient = bal !== undefined && totalAvailable < Number(req.amount || 0);
+    return (
+      <div
+        className={`grid grid-cols-2 gap-1.5 px-2 py-1.5 rounded-lg border ${
+          insufficient
+            ? 'bg-destructive/10 border-destructive/40'
+            : 'bg-muted/40 border-border/50'
+        }`}
+      >
+        <div className="flex items-center gap-1.5 min-w-0">
+          <Wallet className="h-3 w-3 text-primary shrink-0" />
+          <div className="min-w-0">
+            <p className="text-[9px] uppercase tracking-wider text-muted-foreground leading-none">Personal</p>
+            <p className="text-xs font-bold text-foreground truncate">
+              {bal ? formatCurrency(personal) : '—'}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <Briefcase className="h-3 w-3 text-amber-600 shrink-0" />
+          <div className="min-w-0">
+            <p className="text-[9px] uppercase tracking-wider text-muted-foreground leading-none">Op. Float</p>
+            <p className="text-xs font-bold text-foreground truncate">
+              {bal ? formatCurrency(float) : '—'}
+            </p>
+          </div>
+        </div>
+        {insufficient && (
+          <div className="col-span-2 flex items-center gap-1 text-[10px] font-semibold text-destructive">
+            <AlertTriangle className="h-3 w-3" />
+            <span>Insufficient balance — debit will be blocked (short {formatCurrency(Number(req.amount) - totalAvailable)})</span>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const _renderPendingCard = (req: WithdrawalRequest) => {
     const bankLabel = getPayoutLabel(req);
     const ageBadge = getAgeBadge(req.created_at);
     const cluster = (() => {
