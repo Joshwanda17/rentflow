@@ -494,7 +494,9 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
         return;
       }
       const routeLabel = route === 'operational_float' ? 'Operational Float' : 'Personal Deposit';
-      const reversedPart = res?.reversed ? ' Original auto-credit reversed.' : '';
+      const reversedPart = res?.forcedReversal
+        ? ' Original auto-credit force-reversed; recoverable obligation recorded.'
+        : res?.reversed ? ' Original auto-credit reversed.' : '';
       toast({
         title: 'Deposit routed',
         description: res?.smsSent
@@ -504,6 +506,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
       onOpenChange(false);
     },
     onError: (e: any) => {
+      if (e.message === 'FORCE_REVERSAL_CONFIRMATION_REQUIRED') return;
       toast({ title: mode === 'debit' ? 'Could not debit wallet' : 'Could not route deposit', description: e.message, variant: 'destructive' });
     },
   });
