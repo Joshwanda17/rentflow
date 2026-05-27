@@ -697,6 +697,55 @@ Deno.serve(async (req) => {
     const baseDesc = `${payment_method} ref: ${refUpper}`;
     const nowIso = new Date().toISOString();
 
+    // When this withdrawal was auto-routed to a proxy agent, try to find a
+    // matching outgoing Gmail payout email (by TID or amount+phone within
+    // the last 7 days) and stamp the match into ledger metadata for audit.
+    let autoRouteEmail: { gmail_message_id: string | null; gmail_transaction_id: string | null; email_tid: string | null } | null = null;
+    if (autoRoutedToProxy) {
+      try {
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        let match: any = null;
+        if (refUpper && refUpper.length >= 3) {
+          const { data } = await (admin.from("gmail_transactions") as any)
+            .select("id, gmail_message_id, transaction_id")
+            .eq("transaction_id", refUpper)
+            .in("direction", ["out", "charge"])
+            .order("internal_date", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          match = data;
+        }
+        if (!match) {
+          const { data } = await (admin.from("gmail_transactions") as any)
+            .select("id, gmail_message_id, transaction_id")
+            .in("direction", ["out", "charge"])
+            .eq("amount", amount)
+            .gte("internal_date", sevenDaysAgo)
+            .order("internal_date", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          match = data;
+        }
+        if (match) {
+          autoRouteEmail = {
+            gmail_message_id: match.gmail_message_id ?? null,
+            gmail_transaction_id: match.id ?? null,
+            email_tid: match.transaction_id ?? null,
+          };
+        }
+      } catch (e) {
+        console.warn("[approve-withdrawal] gmail email lookup failed:", (e as Error).message);
+      }
+    }
+    const autoRouteMeta = autoRoutedToProxy
+      ? {
+          auto_routed_via_proxy: true,
+          partner_id: wr.user_id,
+          proxy_agent_id: autoRouteAssignedAgentId,
+          ...(autoRouteEmail || {}),
+        }
+      : undefined;
+
     const proxyFloatPortion = 0;
     const proxyWithdrawablePortion = isProxyPayout ? amount - proxyFloatPortion : 0;
     const withdrawablePortion = isProxyPayout ? proxyWithdrawablePortion : amount;
