@@ -935,6 +935,32 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
             </div>
           )}
 
+          {mode === 'debit' && user && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-[11px]">
+                <span className="text-muted-foreground">Wallet type:</span>
+                {debitRoute === 'landlord_float' ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 font-semibold text-primary">
+                    <Wallet className="h-3 w-3" /> Operational Float
+                  </span>
+                ) : debitRoute === 'proxy_agent_wallet' ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 font-semibold text-violet-800 dark:bg-violet-950/40 dark:text-violet-300">
+                    <UserCog className="h-3 w-3" /> Proxy Agent · Personal
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 font-semibold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+                    <Banknote className="h-3 w-3" /> Personal Deposits
+                  </span>
+                )}
+              </div>
+              <MiniLedger
+                userId={debitRoute === 'proxy_agent_wallet' && proxy.data ? proxy.data.agentId : user.id}
+                bucket={debitRoute === 'landlord_float' ? 'float' : 'withdrawable'}
+                title={`Debiting · ${debitRoute === 'proxy_agent_wallet' && proxy.data ? proxy.data.agentName : user.full_name} (last 5)`}
+              />
+            </div>
+          )}
+
           {user && proxy.data && (
             <div className="flex items-center gap-2 -mt-1 text-xs text-muted-foreground">
               <UserCog className="h-3.5 w-3.5 text-violet-600" />
