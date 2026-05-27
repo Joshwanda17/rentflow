@@ -179,6 +179,16 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
   // a recoverable obligation (auto_recover=true).
   const [forcePending, setForcePending] = useState<null | { amount: number; name: string }>(null);
   const forceReversalRef = useRef(false);
+  // Two-step confirmation gate. When the operator clicks the action button
+  // the first time we flip this on, surface the source/destination preview +
+  // before/after balances, and require a second click ("Confirm & route") to
+  // actually invoke the mutation.
+  const [awaitingConfirm, setAwaitingConfirm] = useState(false);
+
+  const recipientBucket: 'withdrawable' | 'float' = route === 'operational_float' ? 'float' : 'withdrawable';
+  const sourceBuckets = useWalletBuckets(transferFromUser ? sourceUser?.id : null);
+  const destBuckets = useWalletBuckets(user?.id);
+  const amtNum = Number(amount) || 0;
 
   useEffect(() => {
     if (open && row) {
@@ -191,6 +201,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
       setSourceUser(null);
       setTransferFromUser(false);
       setTransferFromBucket('withdrawable');
+      setAwaitingConfirm(false);
       const tid = row.transaction_id ? ` TID ${row.transaction_id}` : '';
       const from = row.from_name || row.from_email || 'email';
       // Outgoing emails (MTN/Airtel/bank send confirmations) carry the
