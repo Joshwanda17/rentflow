@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
 
     const { data: tx, error: txErr } = await admin
       .from("gmail_transactions")
-      .select("id, amount, transaction_id, gmail_message_id, is_bulk_bank_payout, bulk_payout_allocated_total, bulk_payout_settled_at")
+      .select("id, amount, transaction_id, gmail_message_id, is_bulk_bank_payout, bulk_payout_allocated_total, bulk_payout_settled_at, raw_body, snippet, subject")
       .eq("id", gmailTxId)
       .maybeSingle();
     if (txErr || !tx) {
@@ -41,7 +41,27 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const totalAmount = Number(tx.amount || 0);
+    // Parse amount from body as fallback — SKYBUBBLES Equity emails don't populate the amount column
+    let totalAmount = Number(tx.amount || 0);
+    if (!totalAmount) {
+      const haystack = `${tx.subject || ""} ${tx.snippet || ""} ${tx.raw_body || ""}`;
+      // Match "54785000.00 UGX" or "54,785,000.00 UGX" or "UGX 54,785,000"
+      const patterns = [
+        /([\d,]+(?:\.\d+)?)\s*UGX\s*was\s*sent/i,
+        /([\d,]+(?:\.\d+)?)\s*UGX/i,
+        /UGX\s*([\d,]+(?:\.\d+)?)/i,
+      ];
+      for (const re of patterns) {
+        const m = haystack.match(re);
+        if (m) {
+          const parsed = Number(m[1].replace(/,/g, ""));
+          if (parsed > 0) { totalAmount = parsed; break; }
+        }
+      }
+      if (totalAmount > 0) {
+        await admin.from("gmail_transactions").update({ amount: totalAmount }).eq("id", gmailTxId);
+      }
+    }
     let remaining = totalAmount - Number(tx.bulk_payout_allocated_total || 0);
     if (!totalAmount || remaining <= 0) {
       return new Response(JSON.stringify({ skipped: "no_remaining_amount" }), {
