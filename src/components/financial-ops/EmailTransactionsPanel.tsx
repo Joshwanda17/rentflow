@@ -2596,31 +2596,44 @@ export function EmailTransactionsPanel() {
                       {isCredited && (
                         <Badge
                           variant="outline"
-                          className="text-[10px] gap-1 bg-emerald-500/15 text-emerald-700 border-emerald-500/40"
+                          className={`text-[10px] gap-1 ${isFullyCredited ? 'bg-emerald-500/15 text-emerald-700 border-emerald-500/40' : 'bg-amber-500/15 text-amber-700 border-amber-500/40'}`}
                           title={[
-                            `Already credited — DO NOT credit again`,
-                            `Recipient: ${credited.user_name}${credited.user_phone ? ' (' + credited.user_phone + ')' : ''}`,
-                            `Amount: ${fmtUgx(credited.amount)}`,
-                            `Deposit: ${credited.deposit_id}`,
-                            `Status: ${credited.status}${credited.auto_approved ? ' · auto-approved' : ''}`,
-                            credited.deposit_purpose ? `Purpose: ${credited.deposit_purpose}` : null,
-                            credited.credited_at ? `When: ${new Date(credited.credited_at).toLocaleString()}` : null,
+                            `${isFullyCredited ? 'Fully credited' : 'Partially credited'} — DO NOT credit again`,
+                            `Email amount: ${fmtUgx(emailAmount)}`,
+                            `Total credited: ${fmtUgx(totalCredited)}`,
+                            creditShortfall > 0 ? `Shortfall: ${fmtUgx(creditShortfall)}` : null,
+                            ...credited.map((c, i) => [
+                              `— Deposit ${i + 1}: ${c.deposit_id}`,
+                              `  Recipient: ${c.user_name}${c.user_phone ? ' (' + c.user_phone + ')' : ''}`,
+                              `  Amount: ${fmtUgx(c.amount)}`,
+                              `  Status: ${c.status}${c.auto_approved ? ' · auto-approved' : ''}`,
+                              c.deposit_purpose ? `  Purpose: ${c.deposit_purpose}` : null,
+                              c.credited_at ? `  When: ${new Date(c.credited_at).toLocaleString()}` : null,
+                            ].filter(Boolean).join('\n')),
                           ].filter(Boolean).join('\n')}
                         >
                           <CheckCircle2 className="h-3 w-3" />
-                          credited · {fmtUgx(credited.amount)}
+                          {isFullyCredited ? 'credited' : 'partial'} · {fmtUgx(totalCredited)}{creditShortfall > 0 ? ` / ${fmtUgx(emailAmount)}` : ''}
+                          {credited.length > 1 && <span className="font-mono tabular-nums opacity-80">×{credited.length}</span>}
                         </Badge>
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground truncate mt-0.5">{r.subject || '(no subject)'}</p>
                     {isCredited && (
-                      <p className="text-[11px] mt-1 inline-flex items-center gap-1.5 rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-emerald-700">
-                        <Wallet className="h-3 w-3" />
-                        Credited to <strong className="font-semibold">{credited.user_name}</strong>
-                        {credited.user_phone ? <span className="font-mono opacity-80">{credited.user_phone}</span> : null}
-                        <span className="opacity-70">·</span>
-                        <span>{credited.status}{credited.auto_approved ? ' (auto)' : ''}</span>
-                      </p>
+                      <div className="mt-1.5 space-y-1">
+                        {credited.map((c, i) => (
+                          <p key={c.deposit_id} className={`text-[11px] inline-flex items-center gap-1.5 rounded border px-2 py-0.5 ${isFullyCredited ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700' : 'border-amber-500/30 bg-amber-500/10 text-amber-700'}`}>
+                            <Wallet className="h-3 w-3" />
+                            <span className="font-mono opacity-70">#{i + 1}</span>
+                            <strong className="font-semibold">{c.user_name}</strong>
+                            {c.user_phone ? <span className="font-mono opacity-80">{c.user_phone}</span> : null}
+                            <span className="opacity-70">·</span>
+                            <span className="font-mono font-medium">{fmtUgx(c.amount)}</span>
+                            <span className="opacity-70">·</span>
+                            <span>{c.status}{c.auto_approved ? ' (auto)' : ''}</span>
+                          </p>
+                        ))}
+                      </div>
                     )}
                     {(r.counterparty || r.fee || r.balance !== null) && (
                       <p className="text-[11px] text-muted-foreground/80 mt-0.5 flex flex-wrap gap-x-3">
