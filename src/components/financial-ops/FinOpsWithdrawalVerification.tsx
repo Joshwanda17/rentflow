@@ -418,7 +418,6 @@ export function FinOpsWithdrawalVerification() {
   };
 
   const renderBalanceStrip = (req: WithdrawalRequest) => {
-  const renderBalanceStrip = (req: WithdrawalRequest) => {
     const amount = Number(req.amount || 0);
     const proxy = req.proxy_agent || null;
 
