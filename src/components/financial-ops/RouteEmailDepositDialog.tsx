@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -77,7 +77,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
   // the same mutation with allow_overdraw: true so the reversal posts as
   // a recoverable obligation (auto_recover=true).
   const [forcePending, setForcePending] = useState<null | { amount: number; name: string }>(null);
-  const [forceReversal, setForceReversal] = useState(false);
+  const forceReversalRef = useRef(false);
 
   useEffect(() => {
     if (open && row) {
@@ -86,7 +86,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
       setRoute('personal_deposit');
       setDebitRoute('withdrawable');
       setForcePending(null);
-      setForceReversal(false);
+      forceReversalRef.current = false;
       const tid = row.transaction_id ? ` TID ${row.transaction_id}` : '';
       const from = row.from_name || row.from_email || 'email';
       // Outgoing emails (MTN/Airtel/bank send confirmations) carry the
@@ -332,16 +332,14 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
           category_label: wasFloat ? 'Reverse auto-credit (Float)' : 'Reverse auto-credit (Wallet)',
           recipient_type: wasFloat ? 'operational_wallet' : 'user',
           sub_category: row.transaction_id ?? null,
+          allow_overdraw: forceReversalRef.current,
         };
         const { data: revData, error: revErr } = await supabase.functions.invoke('cfo-direct-credit', { body: debitBody });
         const revErrMsg = (revErr as any)?.message || (revData as any)?.error;
         if (revErrMsg) {
-          if (String(revErrMsg).includes('NEGATIVE_WALLET_BLOCKED')) {
-            throw new Error(
-              `Cannot reverse the original auto-credit — ${prior.original_user_name || 'the original user'}'s withdrawable balance is already 0 (the funds have been spent or withdrawn). ` +
-              `Recover from them directly via CFO Direct Debit once their wallet has balance, then re-route this email. ` +
-              `Routing the new credit was not performed.`
-            );
+          if (!forceReversalRef.current && String(revErrMsg).includes('NEGATIVE_WALLET_BLOCKED')) {
+            setForcePending({ amount: debitBody.amount, name: prior.original_user_name || 'the original user' });
+            throw new Error('FORCE_REVERSAL_CONFIRMATION_REQUIRED');
           }
           throw new Error(`Reversal failed: ${revErrMsg}`);
         }
@@ -480,7 +478,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
         console.warn('[RouteEmailDeposit] history insert failed', e);
       }
 
-      return { ...(data as any), smsSent, smsError, reversed: mustReverse };
+      return { ...(data as any), smsSent, smsError, reversed: mustReverse, forcedReversal: forceReversalRef.current };
     },
     onSuccess: (res: any) => {
       if (mode === 'debit') {
@@ -494,7 +492,9 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
         return;
       }
       const routeLabel = route === 'operational_float' ? 'Operational Float' : 'Personal Deposit';
-      const reversedPart = res?.reversed ? ' Original auto-credit reversed.' : '';
+      const reversedPart = res?.forcedReversal
+        ? ' Original auto-credit force-reversed; recoverable obligation recorded.'
+        : res?.reversed ? ' Original auto-credit reversed.' : '';
       toast({
         title: 'Deposit routed',
         description: res?.smsSent
@@ -504,6 +504,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
       onOpenChange(false);
     },
     onError: (e: any) => {
+      if (e.message === 'FORCE_REVERSAL_CONFIRMATION_REQUIRED') return;
       toast({ title: mode === 'debit' ? 'Could not debit wallet' : 'Could not route deposit', description: e.message, variant: 'destructive' });
     },
   });
@@ -538,6 +539,25 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
               <p className="text-amber-800 dark:text-amber-300">
                 {formatUGX(existing.data.original_amount)} was auto-credited to <span className="font-semibold">{existing.data.original_user_name}</span>. Routing now will debit them and credit the chosen user. Both users will be SMS-notified.
               </p>
+            </div>
+          </div>
+        )}
+        {forcePending && (
+          <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-xs space-y-3">
+            <div className="flex gap-2">
+              <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="font-semibold text-destructive">Original user has UGX 0 available</p>
+                <p className="text-muted-foreground">
+                  Force reverse {formatUGX(forcePending.amount)} from {forcePending.name}; the system will record a recoverable obligation and clear it from future incoming credits.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" size="sm" className="flex-1" onClick={() => setForcePending(null)} disabled={send.isPending}>Cancel</Button>
+              <Button type="button" variant="destructive" size="sm" className="flex-1" onClick={() => { forceReversalRef.current = true; setForcePending(null); send.mutate(); }} disabled={send.isPending}>
+                {send.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Force reverse & route'}
+              </Button>
             </div>
           </div>
         )}
