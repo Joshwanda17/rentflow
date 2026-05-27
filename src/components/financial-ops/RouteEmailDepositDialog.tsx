@@ -274,6 +274,10 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
   // before/after balances, and require a second click ("Confirm & route") to
   // actually invoke the mutation.
   const [awaitingConfirm, setAwaitingConfirm] = useState(false);
+  // One-tap "Confirm & retry with {bucket}" — when set, the next render
+  // where debitRoute matches and the pre-flight gate is clear will auto-fire
+  // the mutation. Cleared after firing, on close, or on any further edit.
+  const [pendingAutoSubmit, setPendingAutoSubmit] = useState<DebitRoute | null>(null);
 
   // Per-transfer audit logger — writes one row to
   // `wallet_debit_bucket_attempts` for every meaningful step of the debit
@@ -400,6 +404,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
       setTransferFromUser(false);
       setTransferFromBucket('withdrawable');
       setAwaitingConfirm(false);
+      setPendingAutoSubmit(null);
       const tid = row.transaction_id ? ` TID ${row.transaction_id}` : '';
       const from = row.from_name || row.from_email || 'email';
       // Outgoing emails (MTN/Airtel/bank send confirmations) carry the
@@ -984,6 +989,38 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
     },
   });
 
+  // One-tap "Confirm & retry with {bucket}" effect.
+  // When the operator taps the auto-switch button we set both
+  // `debitRoute` and `pendingAutoSubmit` to the covering route. On the
+  // next render where the route has updated and the destination bucket
+  // (now re-evaluated against fresh `destBuckets.data`) actually covers
+  // the amount, we fire `send.mutate()` exactly once and clear the flag.
+  // Any operator edit (amount/user/route change away from the queued
+  // route) cancels the pending submit so we never silently send the
+  // wrong thing.
+  useEffect(() => {
+    if (!pendingAutoSubmit) return;
+    if (debitRoute !== pendingAutoSubmit) {
+      setPendingAutoSubmit(null);
+      return;
+    }
+    if (send.isPending) return;
+    if (!user || amtNum <= 0 || reason.trim().length < 10) return;
+    if (!destBuckets.data) return;
+    const covers =
+      pendingAutoSubmit === 'landlord_float'
+        ? destBuckets.data.float >= amtNum
+        : pendingAutoSubmit === 'withdrawable'
+          ? destBuckets.data.withdrawable >= amtNum
+          : false;
+    if (!covers) {
+      setPendingAutoSubmit(null);
+      return;
+    }
+    setPendingAutoSubmit(null);
+    send.mutate();
+  }, [pendingAutoSubmit, debitRoute, destBuckets.data, amtNum, user, reason, send]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -1561,16 +1598,23 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
                                 availableAtAttempt: bucketShort!.have,
                                 outcome: 'switched',
                                 switchedToBucket: toBucket as any,
-                                failureReason: `Operator switched after pre-flight: ${fromBucket}=${bucketShort!.have} → ${toBucket}=${bucketShort!.otherHave}`,
+                                failureReason: `One-tap confirm-and-retry: ${fromBucket}=${bucketShort!.have} → ${toBucket}=${bucketShort!.otherHave}`,
                                 gmailTransactionId: row?.id ?? null,
                                 transactionReference: row?.transaction_id ?? null,
                               });
                             }
+                            // One-tap: switch bucket AND queue the submit.
+                            // An effect below fires send.mutate() on the next
+                            // render where debitRoute matches and pre-flight
+                            // is clear, so the operator completes the action
+                            // in a single click.
+                            setPendingAutoSubmit(bucketShort!.otherRoute!);
                             setDebitRoute(bucketShort!.otherRoute!);
                           }}
-                          className="w-full rounded border border-primary/40 bg-primary/10 px-2 py-1.5 text-[12px] font-medium text-primary hover:bg-primary/20"
+                          className="w-full rounded-md border border-primary/50 bg-primary/15 px-3 py-2.5 text-[13px] font-semibold text-primary hover:bg-primary/25 flex items-center justify-center gap-1.5"
                         >
-                          Switch to {bucketShort.otherLabel} — has {formatUGX(bucketShort.otherHave)}
+                          <ArrowRight className="h-4 w-4" />
+                          Confirm &amp; retry with {bucketShort.otherLabel} ({formatUGX(bucketShort.otherHave)})
                         </button>
                       ) : (
                         <p className="text-muted-foreground">Other bucket also short. Lower the amount or pick a different user.</p>
