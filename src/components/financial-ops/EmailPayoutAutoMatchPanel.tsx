@@ -9,11 +9,13 @@ import {
 } from '@/components/ui/popover';
 import {
   Loader2, ShieldCheck, RefreshCw, Sparkles, Send, CheckCircle2, AlertCircle, Settings2,
+  History,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFinOpsAutoRefresh } from '@/hooks/useFinOpsAutoRefresh';
 import { format } from 'date-fns';
 import { normalizeUgPhone, extractToPhones } from './emailExtraction';
+import { EmailPayoutMatchAuditPanel } from './EmailPayoutMatchAuditPanel';
 
 /**
  * Auto-detects PAYOUT confirmations in the connected inbox (money-out
@@ -78,6 +80,55 @@ function phonesMatch(target: string, candidates: string[], tailDigits: number): 
   return candidates.some((c) => tail(c, tailDigits) === t);
 }
 
+// ---- Audit trail logging ---------------------------------------------------
+type AuditOutcome =
+  | 'matched_auto_approved'
+  | 'matched_approve_failed'
+  | 'matched_manual_retry_ok'
+  | 'matched_manual_retry_failed'
+  | 'tid_burned_skip';
+
+async function logMatchAttempt(args: {
+  outcome: AuditOutcome;
+  match: PayoutMatch;
+  tolerance: MatchTolerance;
+  error?: string;
+  extra?: Record<string, unknown>;
+}) {
+  try {
+    const { match: m, tolerance, outcome, error, extra } = args;
+    const emailAmt = m.email.amount == null ? null : Math.round(Number(m.email.amount));
+    const wAmt = Math.round(Number(m.withdrawal.amount));
+    const { data: u } = await supabase.auth.getUser();
+    await supabase.from('email_payout_match_attempts').insert({
+      operator_id: u?.user?.id ?? null,
+      withdrawal_id: m.withdrawal.id,
+      email_id: m.email.id,
+      email_transaction_id: (m.email.transaction_id || '').trim().toUpperCase() || null,
+      withdrawal_amount: wAmt,
+      email_amount: emailAmt,
+      amount_delta: emailAmt == null ? null : emailAmt - wAmt,
+      recipient_phone_target: m.withdrawal.mobile_money_number ?? m.recipientPhone,
+      recipient_phone_email: m.recipientPhone,
+      payment_method: m.payment_method,
+      outcome,
+      error_message: error ?? null,
+      tolerance_amount_ugx: tolerance.amountUgx,
+      tolerance_phone_tail: tolerance.phoneTailDigits,
+      metadata: {
+        email_from: m.email.from_email,
+        email_from_name: m.email.from_name,
+        email_subject: m.email.subject,
+        email_channel: m.email.channel,
+        ...(extra ?? {}),
+      },
+    });
+  } catch (e) {
+    // Audit logging must never break the matcher.
+    console.warn('[email-payout-match] audit log failed', e);
+  }
+}
+
 interface PendingWithdrawal {
   id: string;
   user_id: string;
@@ -137,6 +188,8 @@ export function EmailPayoutAutoMatchPanel() {
   const [tolerance, setTolerance] = useState<MatchTolerance>(() => loadTolerance());
   const toleranceRef = useRef<MatchTolerance>(tolerance);
   useEffect(() => { toleranceRef.current = tolerance; saveTolerance(tolerance); }, [tolerance]);
+  const [auditOpen, setAuditOpen] = useState(false);
+  const [auditRefreshTick, setAuditRefreshTick] = useState(0);
 
   /** Pull (a) pending withdrawals and (b) recent outgoing emails, then pair. */
   const scan = useCallback(async (): Promise<PayoutMatch[]> => {
@@ -262,10 +315,27 @@ export function EmailPayoutAutoMatchPanel() {
             autoApprovedRef.current.add(m.withdrawal.id);
             // eslint-disable-next-line no-await-in-loop
             const res = await approveOne(m);
-            if (res.ok) approved += 1;
-            else failures.push(m);
+            if (res.ok) {
+              approved += 1;
+              // eslint-disable-next-line no-await-in-loop
+              await logMatchAttempt({
+                outcome: 'matched_auto_approved',
+                match: m,
+                tolerance: toleranceRef.current,
+              });
+            } else {
+              failures.push(m);
+              // eslint-disable-next-line no-await-in-loop
+              await logMatchAttempt({
+                outcome: 'matched_approve_failed',
+                match: m,
+                tolerance: toleranceRef.current,
+                error: res.error,
+              });
+            }
           }
           setAutoApproving(false);
+          setAuditRefreshTick((t) => t + 1);
         }
 
         setAutoApprovedCount((prev) => prev + approved);
@@ -319,9 +389,21 @@ export function EmailPayoutAutoMatchPanel() {
         setMatches((prev) => prev.filter((x) => x.withdrawal.id !== m.withdrawal.id));
         setAutoApprovedCount((c) => c + 1);
         toast({ title: 'Withdrawal approved', description: fmtUgx(m.withdrawal.amount) });
+        await logMatchAttempt({
+          outcome: 'matched_manual_retry_ok',
+          match: m,
+          tolerance: toleranceRef.current,
+        });
       } else {
         toast({ title: 'Approve failed', description: res.error ?? 'Unknown error', variant: 'destructive' });
+        await logMatchAttempt({
+          outcome: 'matched_manual_retry_failed',
+          match: m,
+          tolerance: toleranceRef.current,
+          error: res.error,
+        });
       }
+      setAuditRefreshTick((t) => t + 1);
     },
     [approveOne, toast],
   );
@@ -329,6 +411,16 @@ export function EmailPayoutAutoMatchPanel() {
   const headerRight = useMemo(
     () => (
       <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-2"
+          onClick={() => setAuditOpen((v) => !v)}
+          title="Audit trail"
+        >
+          <History className="h-4 w-4" />
+          <span className="hidden sm:inline">{auditOpen ? 'Hide audit' : 'Audit'}</span>
+        </Button>
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline" size="sm" className="gap-2" title="Matching tolerances">
@@ -395,7 +487,7 @@ export function EmailPayoutAutoMatchPanel() {
         </Button>
       </div>
     ),
-    [runScan, running, tolerance],
+    [runScan, running, tolerance, auditOpen],
   );
 
   return (
@@ -475,6 +567,12 @@ export function EmailPayoutAutoMatchPanel() {
               </Button>
             </div>
           ))}
+        </div>
+      )}
+
+      {auditOpen && (
+        <div className="border-t bg-muted/20">
+          <EmailPayoutMatchAuditPanel refreshKey={auditRefreshTick} />
         </div>
       )}
     </div>
