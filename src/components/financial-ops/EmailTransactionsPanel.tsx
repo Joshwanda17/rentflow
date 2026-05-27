@@ -521,6 +521,29 @@ export function EmailTransactionsPanel() {
   const [reverseBusy, setReverseBusy] = useState<Record<string, boolean>>({});
 
   /**
+   * Already-credited deposits for the currently visible *incoming* emails.
+   * The poller (`gmail-poll-transactions`) auto-credits matched recipients
+   * and stamps either `gmail_transactions.linked_deposit_request_id` (fast
+   * path) or `deposit_requests.auto_match_audit->>gmail_message_id`
+   * (fallback). When an email is already linked to a non-terminal
+   * deposit_request we MUST NOT credit it again — surfacing this in the
+   * list prevents double-credits and tells Financial Ops exactly which
+   * user already received the money.
+   */
+  interface CreditedDeposit {
+    deposit_id: string;
+    user_id: string;
+    user_name: string;
+    user_phone: string;
+    amount: number;
+    status: string;
+    auto_approved: boolean | null;
+    deposit_purpose: string | null;
+    credited_at: string | null;
+  }
+  const [creditedDeposits, setCreditedDeposits] = useState<Record<string, CreditedDeposit>>({});
+
+  /**
    * Auto-payout matcher: for outgoing money-out emails (MoMo payouts / bank
    * disbursements), look up the pending `withdrawal_requests` row that the
    * email is *settling*. Match is by normalized TID (strongest) or by
