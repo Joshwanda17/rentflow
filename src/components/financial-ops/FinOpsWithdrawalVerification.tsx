@@ -64,6 +64,32 @@ export function FinOpsWithdrawalVerification() {
   
   const [activeTab, setActiveTab] = useState<ActiveTab>('pending');
 
+  // Live wallet balances for the requester of each withdrawal.
+  // Keyed by user_id → { withdrawable (personal), float (operational) }.
+  const [walletBalances, setWalletBalances] = useState<
+    Record<string, { withdrawable: number; float: number; loading?: boolean }>
+  >({});
+
+  const fetchWalletBalances = useCallback(async (userIds: string[]) => {
+    const uniq = Array.from(new Set(userIds.filter(Boolean)));
+    if (uniq.length === 0) return;
+    const results = await Promise.all(
+      uniq.map(async (uid) => {
+        const { data } = await supabase.rpc('get_user_wallet_view', { p_user_id: uid });
+        const r = (data ?? {}) as Record<string, unknown>;
+        return [uid, {
+          withdrawable: Number((r.withdrawable as number | string | undefined) ?? 0),
+          float: Number((r.float_balance as number | string | undefined) ?? 0),
+        }] as const;
+      })
+    );
+    setWalletBalances((prev) => {
+      const next = { ...prev };
+      for (const [uid, bal] of results) next[uid] = bal;
+      return next;
+    });
+  }, []);
+
   // Force re-render every 60s so the age chip stays fresh.
   const [, setTick] = useState(0);
   useEffect(() => {
