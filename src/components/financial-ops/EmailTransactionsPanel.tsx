@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { archivePdfBlob } from '@/lib/pdfVault';
 import { ArchivedPdfsDrawer } from '@/components/financial-ops/ArchivedPdfsDrawer';
 import { Badge } from '@/components/ui/badge';
@@ -544,6 +545,25 @@ export function EmailTransactionsPanel() {
   const [creditedDeposits, setCreditedDeposits] = useState<Record<string, CreditedDeposit[]>>({});
 
   /**
+   * Manual "mark credited / uncredited" audit log loaded from
+   * `email_credit_manual_marks`. Bulk actions append immutable rows there;
+   * the LATEST mark per gmail_transaction_id is the operative state and
+   * overrides the auto-detected `creditedDeposits` mapping so reviewers can
+   * force a row to be treated as credited (e.g. settled out-of-band) or
+   * uncredited (e.g. reversed manually) without losing history.
+   */
+  interface ManualMark {
+    mark: 'credited' | 'uncredited';
+    marked_by: string;
+    marked_by_name: string | null;
+    reason: string | null;
+    created_at: string;
+  }
+  const [manualMarks, setManualMarks] = useState<Record<string, ManualMark>>({});
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+
+  /**
    * Auto-payout matcher: for outgoing money-out emails (MoMo payouts / bank
    * disbursements), look up the pending `withdrawal_requests` row that the
    * email is *settling*. Match is by normalized TID (strongest) or by
@@ -839,6 +859,120 @@ export function EmailTransactionsPanel() {
     })();
     return () => { cancelled = true; };
   }, [rows]);
+
+  // Load the LATEST manual credit-mark per visible gmail transaction so the
+  // list can honor operator overrides immediately. Re-runs whenever the row
+  // set changes (e.g. after bulk actions or new polls).
+  useEffect(() => {
+    if (!rows.length) { setManualMarks({}); return; }
+    let cancelled = false;
+    const rowIds = rows.map((r) => r.id);
+    (async () => {
+      try {
+        // Pull ALL marks for visible ids (newest first), then keep the first
+        // (latest) per gmail_transaction_id. Cheap enough at typical page sizes.
+        const { data: marks } = await (supabase.from('email_credit_manual_marks') as any)
+          .select('gmail_transaction_id, mark, reason, marked_by, created_at')
+          .in('gmail_transaction_id', rowIds)
+          .order('created_at', { ascending: false });
+        const arr = (marks ?? []) as Array<{ gmail_transaction_id: string; mark: 'credited'|'uncredited'; reason: string | null; marked_by: string; created_at: string }>;
+        const operatorIds = Array.from(new Set(arr.map((m) => m.marked_by)));
+        let nameById = new Map<string, string>();
+        if (operatorIds.length) {
+          const { data: profs } = await (supabase.from('profiles') as any)
+            .select('id, full_name')
+            .in('id', operatorIds);
+          nameById = new Map(((profs ?? []) as Array<{ id: string; full_name: string | null }>).map((p) => [p.id, p.full_name ?? '']));
+        }
+        const next: Record<string, ManualMark> = {};
+        for (const m of arr) {
+          if (next[m.gmail_transaction_id]) continue; // keep newest only
+          next[m.gmail_transaction_id] = {
+            mark: m.mark,
+            marked_by: m.marked_by,
+            marked_by_name: nameById.get(m.marked_by) ?? null,
+            reason: m.reason,
+            created_at: m.created_at,
+          };
+        }
+        if (!cancelled) setManualMarks(next);
+      } catch {
+        if (!cancelled) setManualMarks({});
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [rows]);
+
+  /**
+   * Bulk mark every currently-selected email as credited or uncredited.
+   * Inserts one append-only row per selection into
+   * `email_credit_manual_marks` (operator = auth.uid, server-stamped
+   * timestamp). RLS restricts inserts to Financial Ops roles. After the
+   * batch lands we refresh the marks map and clear the selection.
+   */
+  const applyBulkMark = async (mark: 'credited' | 'uncredited') => {
+    const ids = Array.from(selectedIds);
+    if (!ids.length) return;
+    const reason = window.prompt(
+      `Reason for marking ${ids.length} email(s) as ${mark} (logged in audit trail, optional):`,
+      ''
+    );
+    // null = cancelled, '' = proceed without reason
+    if (reason === null) return;
+    setBulkBusy(true);
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      const uid = auth?.user?.id;
+      if (!uid) throw new Error('Not signed in');
+      const byId = new Map(rows.map((r) => [r.id, r]));
+      const payload = ids.map((id) => {
+        const r = byId.get(id);
+        return {
+          gmail_transaction_id: id,
+          gmail_message_id: r?.gmail_message_id ?? null,
+          email_tid: r?.transaction_id ?? null,
+          mark,
+          reason: reason.trim() || null,
+          marked_by: uid,
+        };
+      });
+      const { error } = await (supabase.from('email_credit_manual_marks') as any).insert(payload);
+      if (error) throw new Error(error.message);
+      toast({
+        title: `Marked ${ids.length} email(s) as ${mark}`,
+        description: 'Audit trail updated. The list will refresh.',
+      });
+      // Refresh marks for these rows
+      const { data: fresh } = await (supabase.from('email_credit_manual_marks') as any)
+        .select('gmail_transaction_id, mark, reason, marked_by, created_at')
+        .in('gmail_transaction_id', ids)
+        .order('created_at', { ascending: false });
+      const arr = (fresh ?? []) as Array<any>;
+      setManualMarks((prev) => {
+        const next = { ...prev };
+        for (const m of arr) {
+          if (next[m.gmail_transaction_id] && next[m.gmail_transaction_id].created_at >= m.created_at) continue;
+          next[m.gmail_transaction_id] = {
+            mark: m.mark,
+            marked_by: m.marked_by,
+            marked_by_name: prev[m.gmail_transaction_id]?.marked_by_name ?? null,
+            reason: m.reason,
+            created_at: m.created_at,
+          };
+        }
+        return next;
+      });
+      setSelectedIds(new Set());
+    } catch (e: any) {
+      toast({
+        title: 'Bulk mark failed',
+        description: e?.message || String(e),
+        variant: 'destructive',
+      });
+    } finally {
+      setBulkBusy(false);
+    }
+  };
 
   // Background fetch of strict ledger-derived withdrawable balances for
   // every possible-user candidate AND every routed target currently shown.
@@ -2341,6 +2475,24 @@ export function EmailTransactionsPanel() {
           </div>
         ) : (
           <div className="divide-y max-h-[600px] overflow-y-auto">
+            {selectedIds.size > 0 && (
+              <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 border-b bg-background/95 backdrop-blur px-3 py-2 shadow-sm">
+                <div className="text-xs font-medium">
+                  <span className="text-primary">{selectedIds.size}</span> selected
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="outline" disabled={bulkBusy} onClick={() => applyBulkMark('credited')}>
+                    <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Mark credited
+                  </Button>
+                  <Button size="sm" variant="outline" disabled={bulkBusy} onClick={() => applyBulkMark('uncredited')}>
+                    <Undo2 className="h-3.5 w-3.5 mr-1" /> Mark uncredited
+                  </Button>
+                  <Button size="sm" variant="ghost" disabled={bulkBusy} onClick={() => setSelectedIds(new Set())}>
+                    Clear
+                  </Button>
+                </div>
+              </div>
+            )}
             {(() => {
               const visible = filteredRows.filter((r) => {
                 if (directionFilter === 'in' && r.direction !== 'in') return false;
@@ -2372,11 +2524,16 @@ export function EmailTransactionsPanel() {
                 // tells reviewers this email's money already landed in the
                 // shown user's wallet — DO NOT credit again.
                 const credited = creditedDeposits[r.id] ?? [];
-                const isCredited = credited.length > 0;
+                const manualMark = manualMarks[r.id];
+                const isCredited = manualMark
+                  ? manualMark.mark === 'credited'
+                  : credited.length > 0;
                 const totalCredited = credited.reduce((s, c) => s + c.amount, 0);
                 const emailAmount = Number(r.amount ?? 0);
                 const creditShortfall = emailAmount > 0 ? Math.max(0, emailAmount - totalCredited) : 0;
-                const isFullyCredited = emailAmount > 0 && totalCredited >= emailAmount;
+                const isFullyCredited = manualMark?.mark === 'credited'
+                  ? true
+                  : (emailAmount > 0 && totalCredited >= emailAmount);
                 // ── Insufficient-funds warning for outgoing payouts ───────
                 // When an outgoing email (sent / charge) is matched to a
                 // user wallet whose current balance cannot cover the payout
@@ -2494,6 +2651,29 @@ export function EmailTransactionsPanel() {
                   </div>
                 )}
                 <div className="flex items-start justify-between gap-4">
+                  <div className="pt-0.5 shrink-0">
+                    <Checkbox
+                      checked={selectedIds.has(r.id)}
+                      onCheckedChange={(v) => {
+                        setSelectedIds((prev) => {
+                          const next = new Set(prev);
+                          if (v) next.add(r.id); else next.delete(r.id);
+                          return next;
+                        });
+                      }}
+                      aria-label="Select email for bulk action"
+                    />
+                    {manualMark && (
+                      <div
+                        className={`mt-1 text-[9px] uppercase tracking-wide font-semibold ${
+                          manualMark.mark === 'credited' ? 'text-emerald-600' : 'text-amber-600'
+                        }`}
+                        title={`${manualMark.mark} by ${manualMark.marked_by_name || manualMark.marked_by} at ${new Date(manualMark.created_at).toLocaleString()}${manualMark.reason ? ' — ' + manualMark.reason : ''}`}
+                      >
+                        {manualMark.mark === 'credited' ? '✓ marked' : '↺ unmarked'}
+                      </div>
+                    )}
+                  </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-sm truncate">{r.from_name || r.from_email || 'Unknown'}</span>
