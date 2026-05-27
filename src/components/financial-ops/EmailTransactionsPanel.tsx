@@ -761,16 +761,18 @@ export function EmailTransactionsPanel() {
         const { data: gmailLinks } = await (supabase.from('gmail_transactions') as any)
           .select('id, linked_deposit_request_id')
           .in('id', rowIds);
-        const linkByRow = new Map<string, string>();
+        const linkByRow = new Map<string, string[]>();
         const depIds = new Set<string>();
         for (const g of (gmailLinks ?? []) as Array<{ id: string; linked_deposit_request_id: string | null }>) {
           if (g.linked_deposit_request_id) {
-            linkByRow.set(g.id, g.linked_deposit_request_id);
+            const arr = linkByRow.get(g.id) ?? [];
+            arr.push(g.linked_deposit_request_id);
+            linkByRow.set(g.id, arr);
             depIds.add(g.linked_deposit_request_id);
           }
         }
         // 2) Fallback via deposit_requests.auto_match_audit->>gmail_message_id
-        const linkByMsg = new Map<string, string>();
+        const linkByMsg = new Map<string, string[]>();
         if (msgIds.length) {
           const { data: audits } = await (supabase.from('deposit_requests') as any)
             .select('id, status, auto_match_audit')
@@ -779,8 +781,10 @@ export function EmailTransactionsPanel() {
             const mid = a?.auto_match_audit?.gmail_message_id as string | undefined;
             if (!mid) continue;
             if (['rejected', 'cancelled', 'failed', 'reversed'].includes(a.status)) continue;
-            if (!linkByMsg.has(mid)) {
-              linkByMsg.set(mid, a.id);
+            const arr = linkByMsg.get(mid) ?? [];
+            if (!arr.includes(a.id)) {
+              arr.push(a.id);
+              linkByMsg.set(mid, arr);
               depIds.add(a.id);
             }
           }
@@ -802,26 +806,31 @@ export function EmailTransactionsPanel() {
             .in('id', Array.from(userIds));
           profById = new Map(((profs ?? []) as Array<any>).map((p) => [p.id, p]));
         }
-        const next: Record<string, CreditedDeposit> = {};
+        const next: Record<string, CreditedDeposit[]> = {};
         for (const r of incoming) {
-          let depId = linkByRow.get(r.id);
-          if (!depId && r.gmail_message_id) depId = linkByMsg.get(r.gmail_message_id);
-          if (!depId) continue;
-          const d = depById.get(depId);
-          if (!d) continue;
-          if (['rejected', 'cancelled', 'failed', 'reversed'].includes(d.status)) continue;
-          const p = profById.get(d.user_id);
-          next[r.id] = {
-            deposit_id: d.id,
-            user_id: d.user_id,
-            user_name: (p?.full_name as string) ?? 'Unknown user',
-            user_phone: (p?.phone as string) ?? '',
-            amount: Number(d.amount) || 0,
-            status: d.status,
-            auto_approved: d.auto_approved ?? null,
-            deposit_purpose: d.deposit_purpose ?? null,
-            credited_at: (d.updated_at as string) ?? (d.created_at as string) ?? null,
-          };
+          const ids = new Set<string>();
+          (linkByRow.get(r.id) ?? []).forEach((id) => ids.add(id));
+          if (r.gmail_message_id) (linkByMsg.get(r.gmail_message_id) ?? []).forEach((id) => ids.add(id));
+          if (!ids.size) continue;
+          const list: CreditedDeposit[] = [];
+          for (const depId of ids) {
+            const d = depById.get(depId);
+            if (!d) continue;
+            if (['rejected', 'cancelled', 'failed', 'reversed'].includes(d.status)) continue;
+            const p = profById.get(d.user_id);
+            list.push({
+              deposit_id: d.id,
+              user_id: d.user_id,
+              user_name: (p?.full_name as string) ?? 'Unknown user',
+              user_phone: (p?.phone as string) ?? '',
+              amount: Number(d.amount) || 0,
+              status: d.status,
+              auto_approved: d.auto_approved ?? null,
+              deposit_purpose: d.deposit_purpose ?? null,
+              credited_at: (d.updated_at as string) ?? (d.created_at as string) ?? null,
+            });
+          }
+          if (list.length) next[r.id] = list;
         }
         if (!cancelled) setCreditedDeposits(next);
       } catch {
