@@ -366,6 +366,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
   // Compound from portfolio view
   const [compoundingPortfolioId, setCompoundingPortfolioId] = useState<string | null>(null);
+  const [detailHiddenForCompound, setDetailHiddenForCompound] = useState(false);
   const [compoundPreview, setCompoundPreview] = useState<{
     portfolio: PortfolioRow;
     roiAmount: number;
@@ -390,6 +391,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       roiPercentage: portfolio.roi_percentage,
       nextRoiDate,
     });
+    setDetailHiddenForCompound(true);
   };
 
   const handlePortfolioCompound = async (portfolio: PortfolioRow) => {
@@ -2094,7 +2096,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       </div>
 
       {/* ─── Partner Detail Dialog ─── */}
-      <Dialog open={!!detailPartner || detailLoading} onOpenChange={open => { if (!open) { setDetailPartner(null); setEditingPortfolioId(null); setEditingNextPayoutId(null); } }}>
+      <Dialog open={(!!detailPartner || detailLoading) && !detailHiddenForCompound} onOpenChange={open => { if (!open && !compoundPreview) { setDetailPartner(null); setEditingPortfolioId(null); setEditingNextPayoutId(null); } }}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto p-0">
           {detailLoading ? (
             <div className="flex items-center justify-center py-20">
@@ -2877,11 +2879,11 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       )}
 
       {/* Compound Preview Dialog */}
-      <AlertDialog open={!!compoundPreview} onOpenChange={(open) => { if (!open) setCompoundPreview(null); }}>
+      <AlertDialog open={!!compoundPreview} onOpenChange={(open) => { if (!open) { setCompoundPreview(null); setDetailHiddenForCompound(false); } }}>
         <AlertDialogPortal>
-          <AlertDialogOverlay className="z-[70]" />
+          <AlertDialogOverlay className="z-[190]" />
           <AlertDialogPrimitive.Content
-            className="fixed left-[50%] top-[50%] z-[80] grid w-full max-w-md translate-x-[-50%] translate-y-[-50%] gap-4 border border-border bg-background p-5 shadow-lg duration-150 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-98 data-[state=open]:zoom-in-98 sm:rounded-xl"
+            className="fixed left-[50%] top-[50%] z-[200] grid w-full max-w-md translate-x-[-50%] translate-y-[-50%] gap-4 border border-border bg-background p-5 shadow-lg duration-150 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-98 data-[state=open]:zoom-in-98 sm:rounded-xl"
           >
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
@@ -2927,6 +2929,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                 if (compoundPreview) {
                   handlePortfolioCompound(compoundPreview.portfolio);
                   setCompoundPreview(null);
+                  setDetailHiddenForCompound(false);
                 }
               }}
             >
