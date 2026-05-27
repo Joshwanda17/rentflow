@@ -39,8 +39,13 @@ interface WithdrawalRequest {
   assigned_cashout_agent_id: string | null;
   claimed_at: string | null;
   claimed_by: string | null;
+  agent_id?: string | null;
+  initiated_by?: string | null;
+  proxy_partner_id?: string | null;
+  linked_party?: string | null;
   cashout_agent?: { full_name: string | null; phone: string | null } | null;
   user?: { full_name: string; phone: string; avatar_url: string | null };
+  proxy_agent?: { id: string; full_name: string | null; phone: string | null; avatar_url: string | null } | null;
 }
 
 import { formatDynamic } from '@/lib/currencyFormat';
