@@ -77,6 +77,9 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
   // to move money from one user's wallet to another's.
   const [sourceUser, setSourceUser] = useState<PrefilledUser | null>(null);
   const [transferFromUser, setTransferFromUser] = useState(false);
+  // Which bucket of the source user to debit when transferring.
+  // 'withdrawable' = personal balance, 'float' = operational/landlord-payout float.
+  const [transferFromBucket, setTransferFromBucket] = useState<'withdrawable' | 'float'>('withdrawable');
   // Forced-reversal confirmation state. When the reversal step trips
   // NEGATIVE_WALLET_BLOCKED (original user already spent the auto-credit),
   // we surface a confirm panel; clicking "Force reverse & route" retries
@@ -95,6 +98,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
       forceReversalRef.current = false;
       setSourceUser(null);
       setTransferFromUser(false);
+      setTransferFromBucket('withdrawable');
       const tid = row.transaction_id ? ` TID ${row.transaction_id}` : '';
       const from = row.from_name || row.from_email || 'email';
       // Outgoing emails (MTN/Airtel/bank send confirmations) carry the
@@ -332,16 +336,17 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
       if (transferFromUser) {
         if (!sourceUser) throw new Error('Pick the source user to debit');
         if (sourceUser.id === user.id) throw new Error('Source and recipient must be different users');
+        const fromFloat = transferFromBucket === 'float';
         const transferDebitBody = {
           target_user_id: sourceUser.id,
           amount: amt,
-          reason: `Transfer to ${user.full_name}: ${reason.trim()}`,
+          reason: `Transfer ${fromFloat ? '(from float) ' : ''}to ${user.full_name}: ${reason.trim()}`,
           operation: 'debit' as const,
-          wallet_category: 'wallet_transfer',
-          platform_category: 'wallet_transfer',
+          wallet_category: fromFloat ? 'agent_float_deposit' : 'wallet_transfer',
+          platform_category: fromFloat ? 'agent_float_deposit' : 'wallet_transfer',
           financial_impact: 'neutral' as const,
-          category_label: `Wallet transfer → ${user.full_name}`,
-          recipient_type: 'user',
+          category_label: `${fromFloat ? 'Float' : 'Wallet'} transfer → ${user.full_name}`,
+          recipient_type: fromFloat ? 'operational_wallet' : 'user',
           sub_category: row.transaction_id ?? null,
           allow_overdraw: forceReversalRef.current,
         };
@@ -362,7 +367,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
                 phone: sourceUser.phone,
                 target_user_name: sourceUser.full_name,
                 amount: amt,
-                route: 'withdrawable_debit',
+                route: fromFloat ? 'landlord_float_debit' : 'withdrawable_debit',
                 reference_id: (tdData as any)?.reference_id ?? null,
                 from_label: row.from_name || row.from_email || null,
                 transaction_id: row.transaction_id,
@@ -383,11 +388,11 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
               from_name: row.from_name,
               subject: row.subject,
               amount: amt,
-              route: 'withdrawable_debit',
+              route: fromFloat ? 'landlord_float_debit' : 'withdrawable_debit',
               target_user_id: sourceUser.id,
               target_user_name: sourceUser.full_name,
               target_user_phone: sourceUser.phone,
-              reason: `TRANSFER OUT → ${user.full_name}. ${reason.trim()}`,
+              reason: `TRANSFER OUT (${fromFloat ? 'float' : 'withdrawable'}) → ${user.full_name}. ${reason.trim()}`,
               ledger_reference_id: (tdData as any)?.reference_id ?? null,
               routed_by: me.user.id,
               routed_by_name: null,
@@ -693,12 +698,37 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
                 </div>
               </label>
               {transferFromUser && (
-                <UserSearchPicker
-                  label="Debit wallet of (source user)"
-                  placeholder="Search source user by name or phone…"
-                  selectedUser={sourceUser}
-                  onSelect={setSourceUser}
-                />
+                <div className="space-y-2">
+                  <UserSearchPicker
+                    label="Debit wallet of (source user)"
+                    placeholder="Search source user by name or phone…"
+                    selectedUser={sourceUser}
+                    onSelect={setSourceUser}
+                  />
+                  <div>
+                    <Label className="text-xs">Debit from bucket</Label>
+                    <RadioGroup
+                      value={transferFromBucket}
+                      onValueChange={(v) => setTransferFromBucket(v as 'withdrawable' | 'float')}
+                      className="mt-1 grid grid-cols-2 gap-2"
+                    >
+                      <label className="flex items-start gap-2 rounded-lg border p-2 cursor-pointer hover:bg-muted/40">
+                        <RadioGroupItem value="withdrawable" id="src-bucket-w" className="mt-0.5" />
+                        <div className="text-[11px]">
+                          <div className="flex items-center gap-1 font-medium"><Banknote className="h-3 w-3 text-primary" /> Withdrawable</div>
+                          <p className="text-muted-foreground">Personal balance</p>
+                        </div>
+                      </label>
+                      <label className="flex items-start gap-2 rounded-lg border p-2 cursor-pointer hover:bg-muted/40">
+                        <RadioGroupItem value="float" id="src-bucket-f" className="mt-0.5" />
+                        <div className="text-[11px]">
+                          <div className="flex items-center gap-1 font-medium"><Wallet className="h-3 w-3 text-primary" /> Float</div>
+                          <p className="text-muted-foreground">Landlord-payout float</p>
+                        </div>
+                      </label>
+                    </RadioGroup>
+                  </div>
+                </div>
               )}
             </div>
           )}
