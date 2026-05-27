@@ -675,6 +675,34 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
         )}
 
         <div className="space-y-3">
+          {mode === 'credit' && (
+            <div className="rounded-lg border bg-muted/20 p-3 space-y-2">
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={transferFromUser}
+                  onChange={(e) => {
+                    setTransferFromUser(e.target.checked);
+                    if (!e.target.checked) setSourceUser(null);
+                  }}
+                />
+                <div className="text-xs">
+                  <p className="font-medium">Transfer from another user's wallet</p>
+                  <p className="text-muted-foreground">Debits the chosen source user's withdrawable balance and credits the recipient below for the same amount.</p>
+                </div>
+              </label>
+              {transferFromUser && (
+                <UserSearchPicker
+                  label="Debit wallet of (source user)"
+                  placeholder="Search source user by name or phone…"
+                  selectedUser={sourceUser}
+                  onSelect={setSourceUser}
+                />
+              )}
+            </div>
+          )}
+
           <UserSearchPicker
             label={mode === 'debit' ? 'Charge wallet of user' : 'Route to user'}
             placeholder="Search by name or phone…"
