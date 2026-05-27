@@ -325,8 +325,17 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
           sub_category: row.transaction_id ?? null,
         };
         const { data: revData, error: revErr } = await supabase.functions.invoke('cfo-direct-credit', { body: debitBody });
-        if (revErr) throw new Error(`Reversal failed: ${(revErr as any)?.message || 'unknown'}`);
-        if ((revData as any)?.error) throw new Error(`Reversal failed: ${(revData as any).error}`);
+        const revErrMsg = (revErr as any)?.message || (revData as any)?.error;
+        if (revErrMsg) {
+          if (String(revErrMsg).includes('NEGATIVE_WALLET_BLOCKED')) {
+            throw new Error(
+              `Cannot reverse the original auto-credit — ${prior.original_user_name || 'the original user'}'s withdrawable balance is already 0 (the funds have been spent or withdrawn). ` +
+              `Recover from them directly via CFO Direct Debit once their wallet has balance, then re-route this email. ` +
+              `Routing the new credit was not performed.`
+            );
+          }
+          throw new Error(`Reversal failed: ${revErrMsg}`);
+        }
         const reversalRef = (revData as any)?.reference_id ?? null;
 
         // Mark the original deposit as reversed (best-effort; ignore if column rejects value).
