@@ -1036,6 +1036,23 @@ Deno.serve(async (req) => {
       },
     });
 
+    if (autoRoutedToProxy) {
+      await admin.from("audit_logs").insert({
+        user_id: user.id,
+        action_type: "withdrawal_auto_routed_to_proxy",
+        record_id: withdrawal_id,
+        table_name: "withdrawal_requests",
+        metadata: {
+          reason: `Auto-routed partner withdrawal to active proxy agent (TID: ${autoRouteEmail?.email_tid ?? "none"})`,
+          partner_id: wr.user_id,
+          proxy_agent_id: autoRouteAssignedAgentId,
+          amount,
+          fin_ops_reference: reference.trim().toUpperCase(),
+          gmail_match: autoRouteEmail,
+        },
+      });
+    }
+
     // Cashout agent 1% commission (only when caller is a non-staff cashout agent)
     let cashoutCommission = 0;
     if (isCashoutAgent && !hasStaffRole) {
