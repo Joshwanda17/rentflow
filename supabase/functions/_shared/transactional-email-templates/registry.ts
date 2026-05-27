@@ -14,6 +14,7 @@ import { template as databaseBackupLinkTemplate } from './database-backup-link.t
 import { template as angelPoolSharePurchaseTemplate } from './angel-pool-share-purchase.tsx'
 import { template as proxyManagedPayoutNoticeTemplate } from './proxy-managed-payout-notice.tsx'
 import { template as operationalFloatCreditTemplate } from './operational-float-credit.tsx'
+import { template as agentLandlordFloatFundedTemplate } from './agent-landlord-float-funded.tsx'
 import type { TemplateEntry } from './types.ts'
 
 export const TEMPLATES: Record<string, TemplateEntry> = {
@@ -33,4 +34,5 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'angel-pool-share-purchase': angelPoolSharePurchaseTemplate,
   'proxy-managed-payout-notice': proxyManagedPayoutNoticeTemplate,
   'operational-float-credit': operationalFloatCreditTemplate,
+  'agent-landlord-float-funded': agentLandlordFloatFundedTemplate,
 }
