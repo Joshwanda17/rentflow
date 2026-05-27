@@ -269,7 +269,7 @@ Deno.serve(async (req) => {
       typeof wr.reason === "string" &&
       wr.reason.includes("Proxy payout delivery for");
 
-    const proxyPartnerId =
+    let proxyPartnerId =
       (wr as any).proxy_partner_id ||
       (wr.linked_party && wr.linked_party !== wr.user_id ? wr.linked_party : null) ||
       ((wr as any).beneficiary_id && (wr as any).beneficiary_id !== (wr as any).agent_id
@@ -311,16 +311,53 @@ Deno.serve(async (req) => {
       isProxyAgent = (proxyCount ?? 0) > 0;
     }
 
-    const isProxyPayout =
+    let isProxyPayout =
       Boolean(proxyPartnerId && (reasonLooksProxy || managedProxyAgentId || proxyAgentCandidates.length > 0)) ||
       (reasonLooksProxy && ((wr.linked_party && wr.linked_party !== wr.user_id) || isProxyAgent));
 
     const amount = Number(wr.amount);
-    const beneficiaryUserId =
+    let beneficiaryUserId =
       isProxyPayout && proxyPartnerId ? proxyPartnerId : wr.user_id;
-    const fundingUserId = isProxyPayout && proxyPartnerId
+    let fundingUserId = isProxyPayout && proxyPartnerId
       ? proxyPartnerId
       : wr.user_id;
+
+    // ── Partner → Proxy Agent auto-routing ────────────────────────────────
+    // Policy: whenever the requester (`wr.user_id`) is a partner with an
+    // ACTIVE + APPROVED `proxy_agent_assignment`, debit the assigned proxy
+    // agent's wallet instead of the partner's — even when the request was
+    // not originally tagged as a proxy payout. This guarantees that the
+    // physical cash (which sits on the proxy agent's wallet per the
+    // Managed-Proxy Payout Routing rule) is the one debited, even if the
+    // partner's own wallet shows zero. Skipped when the request already
+    // carries proxy metadata (handled by the standard pipeline above) or
+    // when the partner has no active proxy assignment at all.
+    let autoRoutedToProxy = false;
+    let autoRouteAssignedAgentId: string | null = null;
+    if (!isProxyPayout) {
+      const { data: partnerAssignment } = await admin
+        .from("proxy_agent_assignments")
+        .select("agent_id, is_managed_account, created_at")
+        .eq("beneficiary_id", wr.user_id)
+        .eq("is_active", true)
+        .eq("approval_status", "approved")
+        .order("is_managed_account", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (partnerAssignment?.agent_id && partnerAssignment.agent_id !== wr.user_id) {
+        autoRoutedToProxy = true;
+        autoRouteAssignedAgentId = partnerAssignment.agent_id as string;
+        proxyPartnerId = wr.user_id;
+        beneficiaryUserId = wr.user_id;
+        fundingUserId = partnerAssignment.agent_id as string;
+        isProxyPayout = true;
+        console.log(
+          `[approve-withdrawal] auto-routed partner ${wr.user_id} withdrawal to ` +
+          `assigned proxy agent ${fundingUserId} (managed=${partnerAssignment.is_managed_account})`
+        );
+      }
+    }
 
     console.log(
       `[approve-withdrawal] withdrawal ${withdrawal_id}: isProxyPayout=${isProxyPayout}, ` +
