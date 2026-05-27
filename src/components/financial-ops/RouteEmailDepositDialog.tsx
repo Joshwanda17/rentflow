@@ -1420,9 +1420,41 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
               if (transferFromUser && !sourceUser) missing.push('pick source user');
               if (!amount || Number(amount) <= 0) missing.push('enter amount');
               if (reason.trim().length < 10) missing.push(`reason (${reason.trim().length}/10)`);
+              // Pre-flight balance gate — stops NEGATIVE_WALLET_BLOCKED at
+              // the UI layer when the picked bucket is short, and tells the
+              // operator which bucket *does* have the money.
+              let bucketShort: { have: number; otherLabel: 'Withdrawable' | 'Float' | null; otherHave: number; otherRoute: DebitRoute | null } | null = null;
+              if (mode === 'debit' && user && destBuckets.data && amtNum > 0 && debitRoute !== 'proxy_agent_wallet') {
+                const w = destBuckets.data.withdrawable;
+                const f = destBuckets.data.float;
+                if (debitRoute === 'withdrawable' && w < amtNum) {
+                  bucketShort = { have: w, otherLabel: f >= amtNum ? 'Float' : null, otherHave: f, otherRoute: f >= amtNum ? 'landlord_float' : null };
+                } else if (debitRoute === 'landlord_float' && f < amtNum) {
+                  bucketShort = { have: f, otherLabel: w >= amtNum ? 'Withdrawable' : null, otherHave: w, otherRoute: w >= amtNum ? 'withdrawable' : null };
+                }
+              }
+              if (bucketShort) missing.push(`insufficient ${debitRoute === 'landlord_float' ? 'Float' : 'Withdrawable'}`);
               const ready = missing.length === 0 && !send.isPending;
               return (
                 <div className="space-y-2">
+                  {bucketShort && (
+                    <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-[12px] space-y-1.5">
+                      <p className="text-destructive font-semibold">
+                        {user?.full_name} · {debitRoute === 'landlord_float' ? 'Float' : 'Withdrawable'} has only {formatUGX(bucketShort.have)}
+                      </p>
+                      {bucketShort.otherRoute ? (
+                        <button
+                          type="button"
+                          onClick={() => setDebitRoute(bucketShort!.otherRoute!)}
+                          className="w-full rounded border border-primary/40 bg-primary/10 px-2 py-1.5 text-[12px] font-medium text-primary hover:bg-primary/20"
+                        >
+                          Switch to {bucketShort.otherLabel} — has {formatUGX(bucketShort.otherHave)}
+                        </button>
+                      ) : (
+                        <p className="text-muted-foreground">Other bucket also short. Lower the amount or pick a different user.</p>
+                      )}
+                    </div>
+                  )}
                   <Button
                     type="button"
                     onClick={() => send.mutate()}
