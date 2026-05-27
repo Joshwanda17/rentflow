@@ -59,12 +59,20 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { target_user_id, amount: rawAmount, reason, operation, wallet_category, platform_category, financial_impact, category_label, sub_category, recipient_type, allow_overdraw: rawAllowOverdraw } = await req.json();
+    const { target_user_id, amount: rawAmount, reason, operation, wallet_category, platform_category, financial_impact, category_label, sub_category, recipient_type, allow_overdraw: rawAllowOverdraw, gmail_transaction_id: rawGmailTxId, gmail_message_id: rawGmailMsgId, email_tid: rawEmailTid } = await req.json();
     const amount = typeof rawAmount === "number"
       ? rawAmount
       : Number(String(rawAmount ?? "").replace(/[, _]/g, ""));
     const op = operation === "debit" ? "debit" : "credit";
     const callerRoles = (roles || []).map((r: any) => r.role);
+
+    // Normalise email-origin identifiers (any may be null)
+    const gmailTxId: string | null = typeof rawGmailTxId === "string" && rawGmailTxId ? rawGmailTxId : null;
+    const gmailMsgId: string | null = typeof rawGmailMsgId === "string" && rawGmailMsgId ? rawGmailMsgId : null;
+    const emailTid: string | null = typeof rawEmailTid === "string" && rawEmailTid
+      ? rawEmailTid
+      : (typeof sub_category === "string" && sub_category ? sub_category : null);
+    const isEmailOriginCredit = op === "credit" && (gmailMsgId || emailTid);
 
     // ── Forced reversal mode ────────────────────────────────────────────
     // Email-deposit rerouting and other recovery workflows may need to
