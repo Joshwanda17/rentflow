@@ -752,23 +752,28 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>{mode === 'debit' ? 'Charge outgoing payment to user wallet' : 'Redirect deposit to user'}</DialogTitle>
-          <DialogDescription>
+      <DialogContent
+        className="max-w-md sm:max-w-lg p-0 gap-0 max-h-[100dvh] sm:max-h-[90vh] h-[100dvh] sm:h-auto flex flex-col"
+      >
+        <DialogHeader className="px-4 pt-4 pb-3 border-b shrink-0">
+          <DialogTitle className="text-base sm:text-lg">
+            {mode === 'debit' ? 'Charge outgoing payment to user wallet' : 'Redirect deposit to user'}
+          </DialogTitle>
+          <DialogDescription className="text-xs sm:text-sm">
             {mode === 'debit'
               ? 'Debits this outbound transaction from a user\'s wallet (never from Welile operational float). Auto-redirects to the proxy agent\'s wallet when the picked user is a partner with a managed-proxy assignment.'
               : 'Credit this inbound transaction to a specific user as Personal Deposit (withdrawable) or Operational Float.'}
           </DialogDescription>
         </DialogHeader>
 
+        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
         {row && (
-          <div className="rounded-lg border bg-muted/30 p-3 text-xs space-y-0.5">
-            <p><span className="text-muted-foreground">From:</span> {row.from_name || row.from_email || '—'}</p>
+          <div className="rounded-lg border bg-muted/30 p-3 text-sm space-y-1">
+            <p><span className="text-muted-foreground">From:</span> <span className="font-medium">{row.from_name || row.from_email || '—'}</span></p>
             {row.transaction_id && (
-              <p className="font-mono"><span className="text-muted-foreground font-sans">TID:</span> {row.transaction_id}</p>
+              <p className="font-mono text-sm break-all"><span className="text-muted-foreground font-sans">TID:</span> {row.transaction_id}</p>
             )}
-            <p><span className="text-muted-foreground">Subject:</span> {row.subject || '—'}</p>
+            <p className="line-clamp-2"><span className="text-muted-foreground">Subject:</span> {row.subject || '—'}</p>
           </div>
         )}
 
@@ -983,8 +988,13 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
               type="number"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="h-10"
+              className="h-12 text-lg font-semibold"
+              inputMode="numeric"
+              autoComplete="off"
             />
+            {amount && Number(amount) > 0 && (
+              <p className="mt-1 text-xs text-muted-foreground">{formatUGX(Number(amount))}</p>
+            )}
           </div>
 
           {mode === 'credit' && (
@@ -1065,7 +1075,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
 
           <div>
             <Label className="text-xs">Reason (min 10 chars)</Label>
-            <Textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
+            <Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} className="text-sm" />
           </div>
 
           {awaitingConfirm && mode === 'credit' && user && (
@@ -1124,15 +1134,18 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
               </div>
             </div>
           )}
+        </div>
+        </div>
 
-          {!awaitingConfirm && (
+        {!awaitingConfirm && (
+          <div className="border-t bg-background px-4 py-3 shrink-0">
             <Button
               onClick={() => {
                 if (mode === 'credit') setAwaitingConfirm(true);
                 else send.mutate();
               }}
               disabled={send.isPending || !user || !amount || Number(amount) <= 0 || reason.trim().length < 10 || (transferFromUser && !sourceUser)}
-              className="w-full h-11 gap-2"
+              className="w-full h-12 gap-2 text-base"
               variant={mode === 'debit' ? 'destructive' : 'default'}
             >
               {send.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
@@ -1140,8 +1153,8 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
                 ? `Debit ${amount ? formatUGX(Number(amount)) : 'wallet'}`
                 : `Review ${amount ? formatUGX(Number(amount)) : 'transfer'}`}
             </Button>
-          )}
-        </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
