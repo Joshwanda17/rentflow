@@ -59,12 +59,24 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { target_user_id, amount: rawAmount, reason, operation, wallet_category, platform_category, financial_impact, category_label, sub_category, recipient_type } = await req.json();
+    const { target_user_id, amount: rawAmount, reason, operation, wallet_category, platform_category, financial_impact, category_label, sub_category, recipient_type, allow_overdraw: rawAllowOverdraw } = await req.json();
     const amount = typeof rawAmount === "number"
       ? rawAmount
       : Number(String(rawAmount ?? "").replace(/[, _]/g, ""));
     const op = operation === "debit" ? "debit" : "credit";
     const callerRoles = (roles || []).map((r: any) => r.role);
+
+    // ── Forced reversal mode ────────────────────────────────────────────
+    // Email-deposit rerouting and other recovery workflows may need to
+    // debit a wallet whose strict balance is 0 (the user already withdrew
+    // the mis-credit). Operators with CFO/manager/super_admin authority
+    // can pass `allow_overdraw: true` on a debit; we then stamp the
+    // wallet leg with classification='admin_correction' so the
+    // enforce_no_negative_wallet_ledger trigger lets it through, and we
+    // flag the matching cfo_debit_obligations row with auto_recover=true
+    // so the existing recovery cron settles it from future incoming
+    // credits. Credits ignore the flag.
+    const allowOverdraw = op === "debit" && rawAllowOverdraw === true;
 
     // ── HARD CATEGORY → BUCKET LOCKS (Wallet Routing v2.1) ───────────────
     // These categories are the ONLY signal that decides the wallet bucket.
@@ -311,9 +323,15 @@ Deno.serve(async (req) => {
           routing_source: routingSource,
           source_table: 'cfo_direct_credit',
           reference_id: refId,
-          description: `CFO Debit [${category_label || walletCat}]: ${reason}`,
+          description: `${allowOverdraw ? 'CFO Forced Reversal' : 'CFO Debit'} [${category_label || walletCat}]: ${reason}`,
           currency: 'UGX',
           transaction_date: nowIso,
+          // Forced reversal bypasses the strict-balance trigger and is
+          // hidden from the user-facing ledger view (admin_correction is
+          // explicitly excluded by every end-user wallet filter), while
+          // still being captured in CFO/ops dashboards and in the
+          // cfo_debit_obligations recoverable below.
+          ...(allowOverdraw ? { classification: 'admin_correction' } : {}),
         },
         {
           user_id: userId,
@@ -350,7 +368,9 @@ Deno.serve(async (req) => {
           amount,
           reason,
           created_by: user.id,
-          auto_recover: false,
+          // Forced reversals are explicitly recoverable from future
+          // incoming credits via the existing obligation-recovery cron.
+          auto_recover: allowOverdraw ? true : false,
           ledger_reference_id: refId,
           ledger_group_id: groupId,
           metadata: {
@@ -361,6 +381,7 @@ Deno.serve(async (req) => {
             financial_impact: impact,
             category_label: category_label || walletCat,
             sub_category: sub_category || null,
+            forced_reversal: allowOverdraw,
           },
         });
       if (oblErr) {

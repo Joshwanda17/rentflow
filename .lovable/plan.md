@@ -1,71 +1,50 @@
 ## Goal
-Add a powerful but easy-to-use filter bar to the **Tenant Ops → Classic → Tenants whose Landlords were Funded** view (`TenantLocationBrowser.tsx`), covering the filter set I recommended.
 
-## Reality check (what data exists today)
-The two RPCs backing this view (`get_tenant_location_breakdown`, `get_tenants_at_leaf`) currently return only:
-- location (country/region/district/ward), agent, landlord, rent_amount, photos.
+On the Recent Emails page, when Financial Ops reroutes an auto-credited deposit from one user to another, the system should be **able to take the money back** from the original recipient — even if they have already spent or withdrawn it. Today it stops with `NEGATIVE_WALLET_BLOCKED` because the wallet guard refuses to go negative.
 
-They do **NOT** return: landlord-funded date, outstanding balance, funding source, verification status, tenant status, AI-ID flags. Those filters need backend changes.
+The money still has to be recovered (Welile is out the cash and needs to credit the correct user). The cleanest accounting solution is: when the original wallet has no balance, the reversal becomes a **recoverable advance** — i.e. that user now owes Welile, and the next incoming deposit/commission automatically pays it back (this is exactly what `advance_balance` is built for).
 
-I'll split the work into two phases so you see value fast.
+## What changes
 
----
+### 1. Edge function `cfo-direct-credit` — new `force_reversal` mode
 
-## Phase 1 — Client-side only (ships immediately, no backend)
+Accept an optional flag `allow_overdraw: true` (only honoured when `operation === 'debit'` AND the caller has Financial Ops / CFO / Manager role).
 
-Add a sticky filter toolbar at the top of `TenantLocationBrowser` that applies to **every level** (country / region / district / ward / agent / landlord / tenant list):
+When set:
+- Compute the user's strict available balance.
+- If `amount ≤ available` → behave exactly like today (clean debit, no debt).
+- If `amount > available` →
+  - Debit `available` from `withdrawable_balance` (could be 0).
+  - Post the **shortfall** as an `agent_advance` row on the user, category `mis_routed_recovery`, with the email transaction ID as reference. This is a liability tracked exactly like other agent advances and is automatically clawed back from future incoming credits via the existing Debt Repayment Automation.
+  - Skip the `NEGATIVE_WALLET_BLOCKED` guard for the shortfall portion only.
+- Emit a `wallet.forced_recovery.created` system event with full context (operator, original user, new user, amount, email TID).
+- Append a row to `wallet_overdraw_events` for CFO visibility.
 
-1. **Rent amount band** chips: `Any · <500K · 500K–1M · 1M–3M · 3M–10M · 10M+ UGX` (computed from `rent_amount`).
-2. **Has photos** chip (already partly there at leaf — promote it to top bar).
-3. **Linked / Pending / Vacated** chips (already exist at leaf — promote).
-4. **Sort menu** on the tenant leaf: `Rent ↓ · Rent ↑ · Name A→Z · Recently added` (recently added = client-side by `rent_request_id` order).
-5. **Saved presets**: store up to 5 filter combos in `localStorage` as one-tap chips ("Save current view").
-6. **Bulk action bar** when any filter is active: count + "Export filtered to CSV" + "Export filtered to PDF" (reusing existing PDF helpers).
+If `allow_overdraw` is **not** set, behaviour is unchanged (still blocks).
 
-## Phase 2 — Time window + money/status filters (needs backend migration)
+### 2. `RouteEmailDepositDialog` — auto-promote to force mode
 
-Extend the two RPCs:
+When the reversal step gets `NEGATIVE_WALLET_BLOCKED`, the dialog will:
+- Stop the flow and show an inline amber confirmation panel:
+  > "Sharima Nankambo has already spent this money (withdrawable = UGX 0). Reverse anyway and record UGX X,XXX as a recoverable advance against her wallet? Future incoming credits will automatically pay this back."
+- Two buttons: **Cancel** / **Force reverse & route**.
+- On confirm, retry the same reversal call with `allow_overdraw: true`, then continue with the credit to the new user.
 
-```text
-get_tenant_location_breakdown(..., p_funded_since timestamptz, p_funded_until timestamptz)
-get_tenants_at_leaf(..., p_funded_since timestamptz, p_funded_until timestamptz)
-```
+A small badge ("forced reversal — advance recorded") is added to the routing-history row and the success toast so it's clear this wasn't a clean reversal.
 
-Both filter on the **landlord-payout posting date** from `general_ledger` (the moment the landlord was funded). Counts at every level recompute under the window.
+### 3. Visibility
 
-New tenant leaf fields returned: `landlord_funded_at`, `outstanding_balance_ugx`, `funding_source` ('supporter' | 'angel' | 'partner' | 'cfo_direct'), `verified` (AI-ID present), `tenant_status`.
+- Original user gets an SMS: "An auto-credit of UGX X has been reversed. Your wallet shows UGX X as a recoverable balance owed to Welile; it will be cleared automatically from your next incoming credit."
+- CFO Reconcile tab already shows `wallet_overdraw_events` — the new row will appear there for oversight.
 
-Frontend additions on top of Phase 1 toolbar:
+## Out of scope
 
-7. **Time chips** (your main ask): `Last 24h · Last 7 days · Last 30 days · Last 90 days · All time · Custom range` (shadcn date-range popover).
-8. **Outstanding** chips: `Paid up · Partial · Overdue · Defaulted`.
-9. **Verification** chips: `AI-ID verified · Pending · Missing National ID`.
-10. **Funding source** dropdown: Supporter / Angel / Partner / CFO Direct.
-11. **Funded-amount band** (landlord payout amount, not rent): `<1M · 1–5M · 5–20M · 20M+`.
-12. Time chips also re-color the region/country/district tiles (e.g. "Eastern Africa · 42 tenants funded in last 7 days").
+- No change to clean (balance-sufficient) reversals — they keep working exactly as today.
+- No change to non-reversal CFO debits — `allow_overdraw` only applies to email-deposit rerouting in this UI.
 
----
+## Technical notes (for the agent)
 
-## Files touched
-
-**Phase 1** (frontend only):
-- `src/components/executive/tenant-ops/TenantLocationBrowser.tsx` — new `<TenantOpsFilterBar>` component above breadcrumbs; thread filter state down to `TenantTileGrid`, `AfricaCountryPicker`, `UgandaRegionDistrictPicker`, `DistrictAreaPicker`, `TenantLeafList`.
-- `src/lib/csvExport.ts` — reuse existing helper for filtered CSV export.
-- `src/lib/tenantOpsFilters.ts` *(new)* — shared `applyClientFilters()` + `localStorage` preset helpers + types.
-
-**Phase 2** (backend + frontend):
-- New migration: `ALTER FUNCTION get_tenant_location_breakdown` + `ALTER FUNCTION get_tenants_at_leaf` to add the optional params and new return columns. Joins `landlord_payouts` / `general_ledger` (`category = 'landlord_payout'`) for funded-at and amount, `welile_trust_score_cache` for verification, `wallets`/billing tables for outstanding.
-- `src/hooks/useTenantLocationBreakdown.ts` — pass new params, extend `TenantLeaf` type.
-- `src/components/executive/tenant-ops/TenantLocationBrowser.tsx` — wire the new chips.
-
----
-
-## Decision needed from you
-
-Tell me which to do:
-
-- **A. Ship Phase 1 now** (15-min change, no DB risk), then I'll do Phase 2 right after.
-- **B. Skip Phase 1, jump straight to Phase 2** (bigger, needs a DB migration — I'll confirm exact column names by querying `general_ledger` / `landlord_payouts` first).
-- **C. Do both back-to-back in this same turn.**
-
-I recommend **C** so you get everything in one shot. Confirm and I'll execute.
+- Files touched: `supabase/functions/cfo-direct-credit/index.ts` (add `allow_overdraw` branch + advance insert + event emission); `src/components/financial-ops/RouteEmailDepositDialog.tsx` (catch `NEGATIVE_WALLET_BLOCKED`, render confirm panel, retry with flag).
+- New advance category constant: `mis_routed_recovery`.
+- Existing `agent_advances` recovery cron already drains advances from incoming wallet credits — no new automation needed.
+- Role gate inside the edge function checks `is_ops_role(caller)` so only Financial Ops / CFO / Manager can use the flag.
