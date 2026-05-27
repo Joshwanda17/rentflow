@@ -628,6 +628,11 @@ export function EmailPayoutAutoMatchPanel() {
                   <Send className="h-3.5 w-3.5 text-emerald-600" />
                   {fmtUgx(m.withdrawal.amount)}
                   <Badge variant="outline" className="text-[10px]">{m.payment_method}</Badge>
+                  {m.split && (
+                    <Badge className="text-[10px] bg-amber-100 text-amber-800 hover:bg-amber-100">
+                      Split {m.split.subsetSize}× · share {fmtUgx(m.split.share)} of {fmtUgx(m.split.emailRemaining)}
+                    </Badge>
+                  )}
                 </div>
                 <div className="text-xs text-muted-foreground mt-0.5 truncate">
                   To {m.recipientPhone} · TID <span className="font-mono">{m.email.transaction_id}</span>
