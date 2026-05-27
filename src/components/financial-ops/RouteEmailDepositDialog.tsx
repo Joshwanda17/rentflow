@@ -1941,6 +1941,12 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
               </div>
               {sourceBucketShort && (
                 <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-[12px] space-y-1.5">
+                  {sourceBucketShort.otherHave < amtNum && (
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+                      <span className="font-semibold text-destructive">Blocked — insufficient funds</span>
+                    </div>
+                  )}
                   <p className="text-destructive font-semibold">
                     {sourceUser?.full_name} · {transferFromBucket === 'withdrawable' ? 'Withdrawable' : 'Float'} has only {formatUGX(sourceBucketShort.have)}
                   </p>
@@ -2014,6 +2020,12 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
                   })()}
                   {bucketShort && (
                     <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-[12px] space-y-1.5">
+                      {!bucketShort.otherRoute && (
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+                          <span className="font-semibold text-destructive">Blocked — insufficient funds</span>
+                        </div>
+                      )}
                       <p className="text-destructive font-semibold">
                         {user?.full_name} · {debitRoute === 'landlord_float' ? 'Float' : 'Withdrawable'} has only {formatUGX(bucketShort.have)}
                       </p>
@@ -2057,6 +2069,12 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
                   )}
                   {sourceBucketShort && (
                     <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-[12px] space-y-1.5">
+                      {sourceBucketShort.otherHave < amtNum && (
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+                          <span className="font-semibold text-destructive">Blocked — insufficient funds</span>
+                        </div>
+                      )}
                       <p className="text-destructive font-semibold">
                         {sourceUser?.full_name} · {transferFromBucket === 'withdrawable' ? 'Withdrawable' : 'Float'} has only {formatUGX(sourceBucketShort.have)}
                       </p>
