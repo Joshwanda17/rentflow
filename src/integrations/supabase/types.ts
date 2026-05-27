@@ -14940,6 +14940,57 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_debit_bucket_attempts: {
+        Row: {
+          amount: number
+          attempted_bucket: string
+          available_at_attempt: number
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          failure_reason: string | null
+          gmail_transaction_id: string | null
+          id: string
+          outcome: string
+          switched_to_bucket: string | null
+          target_user_id: string
+          target_user_name: string | null
+          transaction_reference: string | null
+        }
+        Insert: {
+          amount: number
+          attempted_bucket: string
+          available_at_attempt?: number
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          failure_reason?: string | null
+          gmail_transaction_id?: string | null
+          id?: string
+          outcome: string
+          switched_to_bucket?: string | null
+          target_user_id: string
+          target_user_name?: string | null
+          transaction_reference?: string | null
+        }
+        Update: {
+          amount?: number
+          attempted_bucket?: string
+          available_at_attempt?: number
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          failure_reason?: string | null
+          gmail_transaction_id?: string | null
+          id?: string
+          outcome?: string
+          switched_to_bucket?: string | null
+          target_user_id?: string
+          target_user_name?: string | null
+          transaction_reference?: string | null
+        }
+        Relationships: []
+      }
       wallet_deductions: {
         Row: {
           amount: number
