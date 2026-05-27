@@ -324,6 +324,80 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
 
       const isFloat = route === 'operational_float';
 
+      // ── 0a) Wallet-to-wallet transfer leg ─────────────────────────
+      // When the operator picked a source user, debit that user's
+      // withdrawable balance for the same amount before crediting the
+      // chosen recipient. This makes the Recent Emails dialog a true
+      // user→user transfer tool.
+      if (transferFromUser) {
+        if (!sourceUser) throw new Error('Pick the source user to debit');
+        if (sourceUser.id === user.id) throw new Error('Source and recipient must be different users');
+        const transferDebitBody = {
+          target_user_id: sourceUser.id,
+          amount: amt,
+          reason: `Transfer to ${user.full_name}: ${reason.trim()}`,
+          operation: 'debit' as const,
+          wallet_category: 'wallet_transfer',
+          platform_category: 'wallet_transfer',
+          financial_impact: 'neutral' as const,
+          category_label: `Wallet transfer → ${user.full_name}`,
+          recipient_type: 'user',
+          sub_category: row.transaction_id ?? null,
+          allow_overdraw: forceReversalRef.current,
+        };
+        const { data: tdData, error: tdErr } = await supabase.functions.invoke('cfo-direct-credit', { body: transferDebitBody });
+        const tdErrMsg = (tdErr as any)?.message || (tdData as any)?.error;
+        if (tdErrMsg) {
+          if (!forceReversalRef.current && String(tdErrMsg).includes('NEGATIVE_WALLET_BLOCKED')) {
+            setForcePending({ amount: amt, name: sourceUser.full_name });
+            throw new Error('FORCE_REVERSAL_CONFIRMATION_REQUIRED');
+          }
+          throw new Error(`Source debit failed: ${tdErrMsg}`);
+        }
+        // Best-effort SMS + history for the debited source user.
+        try {
+          if (sourceUser.phone) {
+            await supabase.functions.invoke('notify-email-routing', {
+              body: {
+                phone: sourceUser.phone,
+                target_user_name: sourceUser.full_name,
+                amount: amt,
+                route: 'withdrawable_debit',
+                reference_id: (tdData as any)?.reference_id ?? null,
+                from_label: row.from_name || row.from_email || null,
+                transaction_id: row.transaction_id,
+                debit: true,
+                on_behalf_of_partner: user.full_name,
+              },
+            });
+          }
+        } catch (e) { console.warn('[RouteEmailDeposit] transfer source SMS failed', e); }
+        try {
+          const { data: me } = await supabase.auth.getUser();
+          if (me?.user?.id) {
+            await (supabase.from('email_routing_history') as any).insert({
+              gmail_transaction_id: row.id,
+              gmail_message_id: row.gmail_message_id ?? null,
+              transaction_id: row.transaction_id,
+              from_email: row.from_email,
+              from_name: row.from_name,
+              subject: row.subject,
+              amount: amt,
+              route: 'withdrawable_debit',
+              target_user_id: sourceUser.id,
+              target_user_name: sourceUser.full_name,
+              target_user_phone: sourceUser.phone,
+              reason: `TRANSFER OUT → ${user.full_name}. ${reason.trim()}`,
+              ledger_reference_id: (tdData as any)?.reference_id ?? null,
+              routed_by: me.user.id,
+              routed_by_name: null,
+              sms_sent: false,
+              sms_error: null,
+            });
+          }
+        } catch (e) { console.warn('[RouteEmailDeposit] transfer history insert failed', e); }
+      }
+
       // ── 0) Reversal leg (only when prior auto-credit exists) ────────
       const prior = existing.data;
       const mustReverse = !!prior && prior.original_user_id !== user.id;
