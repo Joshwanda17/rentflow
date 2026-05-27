@@ -1327,7 +1327,10 @@ export function EmailTransactionsPanel() {
     if (toTs && t > toTs) return false;
     return true;
   };
-  const dateRows = rows.filter(inRange);
+  // When a search query is active we DELIBERATELY bypass the date range so
+  // ops can find any email regardless of the date filter currently set.
+  const searchActiveForRange = searchQuery.trim().length > 0;
+  const dateRows = searchActiveForRange ? rows : rows.filter(inRange);
   // Apply the free-text search on top of the date range. Empty query → pass.
   const searchTokens = searchQuery
     .toLowerCase()
