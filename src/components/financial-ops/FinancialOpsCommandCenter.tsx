@@ -19,6 +19,7 @@ import { WithdrawalHistoryStatement } from './WithdrawalHistoryStatement';
 import { PortfolioTopUpVerification } from './PortfolioTopUpVerification';
 import { WalletBreakdownReadOnly } from './WalletBreakdownReadOnly';
 import { EmailTransactionsPanel } from './EmailTransactionsPanel';
+import { BulkBankPayoutPanel } from './BulkBankPayoutPanel';
 import { FundedTenantsList } from './FundedTenantsList';
 import { AutoCreditReviewPanel } from './AutoCreditReviewPanel';
 import { ProxyWithdrawalDiagnosticsPanel } from './ProxyWithdrawalDiagnosticsPanel';
