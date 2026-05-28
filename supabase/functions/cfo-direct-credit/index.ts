@@ -418,7 +418,9 @@ Deno.serve(async (req) => {
           // explicitly excluded by every end-user wallet filter), while
           // still being captured in CFO/ops dashboards and in the
           // cfo_debit_obligations recoverable below.
-          ...(allowOverdraw ? { classification: 'admin_correction' } : {}),
+          ...(allowOverdraw
+            ? { classification: 'admin_correction', solvency_bypass_reason: solvencyBypassReason }
+            : {}),
         },
         {
           user_id: userId,
