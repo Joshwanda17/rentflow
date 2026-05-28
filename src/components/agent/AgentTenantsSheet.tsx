@@ -561,7 +561,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   };
 
   const fetchTenantRequests = useCallback(async (tenantId: string) => {
-    if (tenantRequests[tenantId]) return;
+    if (tenantRequests[tenantId]) return tenantRequests[tenantId];
     setLoadingRequests(tenantId);
     try {
       const { data, error } = await supabase
@@ -582,8 +582,10 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         };
       });
       setTenantRequests(prev => ({ ...prev, [tenantId]: normalized }));
+      return normalized;
     } catch (err) {
       console.error('Failed to fetch tenant requests:', err);
+      return undefined;
     } finally {
       setLoadingRequests(null);
     }
@@ -954,6 +956,39 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
       console.error('Renew failed:', err);
       toast({ title: 'Renew failed', description: err?.message || 'Try again', variant: 'destructive' });
     } finally {
+      setRenewingReqId(null);
+    }
+  };
+
+  // Top-level "Resubmit" entry point for tenants whose entire history is settled.
+  // Looks up (and lazy-loads) the most recent completed rent plan for this
+  // tenant, then delegates to handleRenew so the same audited flow is used.
+  const handleResubmitTenant = async (tenant: Tenant) => {
+    setRenewingReqId(tenant.id); // disable the button while we resolve
+    try {
+      let reqs = tenantRequests[tenant.id];
+      if (!reqs || reqs.length === 0) {
+        reqs = (await fetchTenantRequests(tenant.id)) || [];
+      }
+      const completed = (reqs || [])
+        .filter((r) => r.status === 'completed')
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+      if (!completed) {
+        toast({
+          title: 'No cleared plan to resubmit',
+          description: 'Open the tenant and pick a previous plan, or start a new request.',
+          variant: 'destructive',
+        });
+        setRenewingReqId(null);
+        return;
+      }
+      // handleRenew sets/clears renewingReqId itself based on the request id,
+      // so reset our tenant-level guard before delegating.
+      setRenewingReqId(null);
+      await handleRenew(tenant, completed);
+    } catch (err: any) {
+      console.error('Resubmit failed:', err);
+      toast({ title: 'Resubmit failed', description: err?.message || 'Try again', variant: 'destructive' });
       setRenewingReqId(null);
     }
   };
@@ -1737,6 +1772,10 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               const totals = tenantTotals[tenant.id] || { total: 0, paid: 0 };
               const progressPct = totals.total > 0 ? Math.min(100, Math.round((totals.paid / totals.total) * 100)) : 0;
               const hasDebt = balance > 0;
+              const tStatuses = tenantStatuses[tenant.id] ?? new Set<string>();
+              const tIsActive = tStatuses.has('disbursed') || tStatuses.has('repaying');
+              const tIsPending = !tIsActive && (tStatuses.has('pending') || tStatuses.has('approved') || tStatuses.has('funded'));
+              const tIsSettled = !tIsActive && !tIsPending && tStatuses.has('completed') && balance === 0;
               const meta = tenantMeta[tenant.id];
               const ctx = tenantContext[tenant.id];
               const propertyAddress = ctx?.propertyAddress || '';
@@ -1912,6 +1951,22 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                         Profile
                       </Button>
                     </div>
+
+                    {tIsSettled && (
+                      <Button
+                        size="sm"
+                        onClick={(e) => { e.stopPropagation(); handleResubmitTenant(tenant); }}
+                        disabled={renewingReqId === tenant.id || loadingRequests === tenant.id}
+                        className="mt-2 w-full h-10 gap-1.5 rounded-lg text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90"
+                      >
+                        {renewingReqId === tenant.id || loadingRequests === tenant.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-3.5 w-3.5" />
+                        )}
+                        Resubmit rent plan
+                      </Button>
+                    )}
                   </div>
 
                   {/* ───── Expanded Details ───── */}
