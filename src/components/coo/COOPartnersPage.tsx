@@ -1316,6 +1316,13 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
+      // Resolve editor name for audit trail (shown in PDF appendix)
+      const { data: editorProfile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .maybeSingle();
+
       // Audit log the edit
       await supabase.from('audit_logs').insert({
         user_id: user.id,
@@ -1326,6 +1333,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           portfolio_code: editPortfolio.portfolio_code,
           partner_id: detailPartner.profile.id,
           partner_name: detailPartner.profile.full_name,
+          editor_name: editorProfile?.full_name || null,
+          edited_at: new Date().toISOString(),
           changes: {
             investment_amount: { from: editPortfolio.investment_amount, to: amount },
             roi_percentage: { from: editPortfolio.roi_percentage, to: roi },
