@@ -1109,6 +1109,9 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
           recipient_type: fromFloat ? 'operational_wallet' : 'user',
           sub_category: row.transaction_id ?? null,
           allow_overdraw: forceReversalRef.current,
+          solvency_bypass_reason: forceReversalRef.current
+            ? (solvencyBypassReasonRef.current || undefined)
+            : undefined,
         };
         const { data: tdData, error: tdErr } = await supabase.functions.invoke('cfo-direct-credit', { body: transferDebitBody });
         const tdErrMsg = (tdErr as any)?.message || (tdData as any)?.error;
