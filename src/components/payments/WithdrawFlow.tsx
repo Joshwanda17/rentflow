@@ -106,6 +106,14 @@ export default function WithdrawFlow({
   // at REQUEST time for cash withdrawals. Shown prominently above the
   // amount on the receipt screen and emailed to the Financial Ops inbox.
   const [cashPickupCode, setCashPickupCode] = useState<string | null>(null);
+  // User must re-type the WPO code (delivered via email) on the
+  // confirmation screen before the cash withdrawal request is
+  // considered complete. This proves the user actually has the code
+  // before they walk to an agent — so a lost/un-checked email surfaces
+  // immediately instead of at the pickup counter.
+  const [cashCodeInput, setCashCodeInput] = useState('');
+  const [cashCodeAcknowledged, setCashCodeAcknowledged] = useState(false);
+  const [cashCodeError, setCashCodeError] = useState<string | null>(null);
   // Server-confirmed submission timestamp. Set the moment the
   // withdrawal_requests insert returns successfully so the success
   // receipt can display the exact processed date/time.
@@ -282,6 +290,10 @@ export default function WithdrawFlow({
     setSelectedSavedId(null);
     setSaveAsNew(true);
     setSavedNickname('');
+    setCashPickupCode(null);
+    setCashCodeInput('');
+    setCashCodeAcknowledged(false);
+    setCashCodeError(null);
   };
 
   /**
@@ -1290,7 +1302,64 @@ export default function WithdrawFlow({
         // self-cancel button while still pending.
         return (
           <div className="space-y-4">
-            {payoutMode === 'cash' && cashPickupCode && (
+            {payoutMode === 'cash' && cashPickupCode && !cashCodeAcknowledged && (
+              <div className="rounded-xl border-2 border-amber-500/50 bg-amber-50 dark:bg-amber-500/10 p-4 space-y-3">
+                <div className="text-center">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-700">
+                    One last step — confirm your cash pickup code
+                  </p>
+                  <p className="mt-1 text-xs text-amber-800 dark:text-amber-200">
+                    We emailed your WPO-XXXXX code. Open the email, then type the
+                    code below to complete this withdrawal request of {formatCurrency(amount, currency)}.
+                  </p>
+                </div>
+                <Label htmlFor="cash-pickup-code" className="text-xs">
+                  Enter pickup code
+                </Label>
+                <Input
+                  id="cash-pickup-code"
+                  value={cashCodeInput}
+                  onChange={(e) => {
+                    setCashCodeInput(e.target.value.toUpperCase());
+                    if (cashCodeError) setCashCodeError(null);
+                  }}
+                  placeholder="WPO-XXXXX"
+                  autoComplete="one-time-code"
+                  inputMode="text"
+                  className="font-mono tracking-[0.2em] text-center text-lg"
+                  maxLength={20}
+                />
+                {cashCodeError && (
+                  <p className="text-xs text-destructive text-center" role="alert">
+                    {cashCodeError}
+                  </p>
+                )}
+                <Button
+                  className="w-full"
+                  onClick={() => {
+                    const entered = cashCodeInput.trim().toUpperCase();
+                    const expected = (cashPickupCode ?? '').trim().toUpperCase();
+                    if (!entered) {
+                      setCashCodeError('Type the WPO code from your email to continue.');
+                      return;
+                    }
+                    if (entered !== expected) {
+                      setCashCodeError("That code doesn't match. Check your email and try again.");
+                      return;
+                    }
+                    setCashCodeAcknowledged(true);
+                    setCashCodeError(null);
+                    toast.success('Pickup code confirmed. Request is now reserved against your wallet.');
+                  }}
+                >
+                  Confirm code & complete request
+                </Button>
+                <p className="text-[10px] text-center text-amber-700">
+                  Sent to your email — also visible to Financial Ops under Money Out.
+                </p>
+              </div>
+            )}
+            {payoutMode === 'cash' && cashPickupCode && cashCodeAcknowledged && (
               <div className="rounded-xl border-2 border-amber-500/40 bg-amber-500/10 p-4 text-center">
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-700">
                   Cash Pickup Code — present this to the agent
@@ -1308,7 +1377,9 @@ export default function WithdrawFlow({
                 withdrawal_requests insert returns. Contains the
                 reference ID, processed date/time and verified amount.
                 Disbursement status continues to update live below. */}
-            <ReceiptCard
+            {(payoutMode !== 'cash' || cashCodeAcknowledged) && (
+              <>
+              <ReceiptCard
               status="pending"
               amount={amount}
               currency={currency}
@@ -1361,6 +1432,8 @@ export default function WithdrawFlow({
                 toast.info('Previous request cancelled. Confirm the details to resubmit.');
               }}
             />
+              </>
+            )}
           </div>
         );
 
