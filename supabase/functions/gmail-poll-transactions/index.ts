@@ -319,6 +319,65 @@ Deno.serve(async (req) => {
       } catch { /* no body */ }
     }
 
+    // ── Backfill mode: re-run the MoMo withdrawal auto-approver over
+    // recently-ingested outbound emails. Useful when the auto-approve
+    // logic was deployed AFTER an email was already saved (dedup would
+    // otherwise skip it forever). Safe to call repeatedly — each match
+    // is gated server-side by `approve-withdrawal` (insufficient funds
+    // / already-settled requests are rejected).
+    let backfill = url.searchParams.get('backfill') === '1';
+    let backfillHours = Number(url.searchParams.get('hours') ?? '48');
+    if (!backfill) {
+      try {
+        const body = await req.clone().json();
+        if (body?.backfill === true || body?.backfill === 1) backfill = true;
+        if (body?.hours) backfillHours = Number(body.hours);
+      } catch { /* no body */ }
+    }
+    if (backfill) {
+      const sinceIso = new Date(
+        Date.now() - Math.max(1, Math.min(168, backfillHours)) * 3600 * 1000,
+      ).toISOString();
+      const { data: rows, error: rowsErr } = await supabase
+        .from('gmail_transactions')
+        .select('id, gmail_message_id, transaction_id, amount, direction, channel, counterparty, internal_date, parsed')
+        .eq('direction', 'out')
+        .in('channel', ['mtn_momo', 'airtel_money'])
+        .gte('internal_date', sinceIso)
+        .order('internal_date', { ascending: false })
+        .limit(200);
+      if (rowsErr) {
+        return new Response(JSON.stringify({ ok: false, error: rowsErr.message }), {
+          status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      let attempted = 0;
+      const report: any[] = [];
+      for (const r of rows ?? []) {
+        const parsedRow = (r as any).parsed ?? {};
+        const parsed = {
+          amount: r.amount ?? parsedRow.amount ?? null,
+          direction: r.direction ?? parsedRow.direction ?? null,
+          channel: r.channel ?? parsedRow.channel ?? null,
+          counterparty: r.counterparty ?? parsedRow.counterparty ?? null,
+          transaction_id: r.transaction_id ?? parsedRow.transaction_id ?? null,
+        } as ReturnType<typeof parseTransaction>;
+        attempted += 1;
+        try {
+          await tryAutoApproveMomoWithdrawal(supabase, {
+            parsed,
+            gmailMessageId: r.gmail_message_id,
+          });
+          report.push({ id: r.id, gmail: r.gmail_message_id, amount: parsed.amount, channel: parsed.channel, cp: parsed.counterparty });
+        } catch (e) {
+          report.push({ id: r.id, error: e instanceof Error ? e.message : String(e) });
+        }
+      }
+      return new Response(JSON.stringify({
+        ok: true, mode: 'backfill', since: sinceIso, scanned: rows?.length ?? 0, attempted, report,
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     const { data: state } = await supabase
       .from('gmail_poll_state').select('*').eq('id', 1).maybeSingle();
     const lastMs: number = Number(state?.last_internal_date_ms ?? 0);
