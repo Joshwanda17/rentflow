@@ -471,6 +471,7 @@ Deno.serve(async (req) => {
             category_label: category_label || walletCat,
             sub_category: sub_category || null,
             forced_reversal: allowOverdraw,
+            solvency_bypass_reason: solvencyBypassReason,
           },
         });
       if (oblErr) {
@@ -503,6 +504,7 @@ Deno.serve(async (req) => {
         reference_id: refId,
         recipient_type,
         routing_version: 'v2',
+        solvency_bypass_reason: solvencyBypassReason,
       },
     });
 
