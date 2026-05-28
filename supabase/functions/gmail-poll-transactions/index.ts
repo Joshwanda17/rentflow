@@ -486,6 +486,18 @@ Deno.serve(async (req) => {
         } catch (e) {
           console.warn('[gmail-poll] auto-credit failed (non-fatal):', e);
         }
+
+        // OUTBOUND MoMo (MTN / Airtel): match by recipient phone to a
+        // pending withdrawal_request and auto-approve it.
+        try {
+          await tryAutoApproveMomoWithdrawal(supabase, {
+            parsed,
+            internalMs,
+            gmailMessageId: m.id,
+          });
+        } catch (e) {
+          console.warn('[gmail-poll] momo auto-approve failed (non-fatal):', e);
+        }
       }
     }
 
