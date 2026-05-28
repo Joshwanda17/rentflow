@@ -14,7 +14,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const PAYOUT_PAUSED = true;
+const PAYOUT_PAUSED = false;
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
