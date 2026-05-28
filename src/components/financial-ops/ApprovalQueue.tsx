@@ -86,6 +86,24 @@ export function ApprovalQueue() {
         .in('id', userIds);
       const pm = new Map(profiles?.map(p => [p.id, p]) || []);
 
+      // Enrich cash withdrawals with their WPO pickup code. The code lives
+      // in `payout_codes` (issued at submission). `withdrawal_requests.payout_code`
+      // is only stamped later by legacy code paths, so we cannot rely on it.
+      const cashIds = data.filter(d => (d.payout_method || '') === 'cash').map(d => d.id);
+      const codeByWithdrawal = new Map<string, string>();
+      if (cashIds.length) {
+        const { data: codes } = await supabase
+          .from('payout_codes')
+          .select('withdrawal_request_id, code, status, created_at')
+          .in('withdrawal_request_id', cashIds)
+          .order('created_at', { ascending: false });
+        for (const c of codes || []) {
+          if (!codeByWithdrawal.has(c.withdrawal_request_id)) {
+            codeByWithdrawal.set(c.withdrawal_request_id, c.code);
+          }
+        }
+      }
+
       return data.map(w => {
         const profile = pm.get(w.user_id);
         const ageH = differenceInHours(new Date(), new Date(w.created_at));
@@ -119,7 +137,10 @@ export function ApprovalQueue() {
             bankAccountName: w.bank_account_name || undefined,
             agentLocation: w.agent_location || undefined,
             status: w.status,
-            payoutCode: (w as any).payout_code || undefined,
+            payoutCode:
+              (w as any).payout_code ||
+              codeByWithdrawal.get(w.id) ||
+              undefined,
           },
         };
       });
