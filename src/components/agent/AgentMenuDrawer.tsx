@@ -80,6 +80,7 @@ interface AgentMenuDrawerProps {
   onViewPromissoryNotes?: () => void;
   onRequestAdvance?: () => void;
   onViewCreditAccess?: () => void;
+  onViewSavedDrafts?: () => void;
   isFinancialAgent?: boolean;
 }
 
@@ -135,6 +136,7 @@ export function AgentMenuDrawer({
   onViewPromissoryNotes,
   onRequestAdvance,
   onViewCreditAccess,
+  onViewSavedDrafts,
   isFinancialAgent = false,
 }: AgentMenuDrawerProps) {
   const navigate = useNavigate();
@@ -195,6 +197,7 @@ export function AgentMenuDrawer({
         { icon: Users, label: 'My Tenants', description: 'Repayment schedules', onClick: onViewTenants, accent: 'primary' },
         { icon: ClipboardList, label: 'Registrations', description: 'Invite status & links', path: '/agent-registrations', accent: 'blue-600' },
         { icon: ScrollText, label: 'Rent Requests', description: 'Verify posted requests', onClick: onViewMyRentRequests, accent: 'indigo-500' },
+        { icon: FileText, label: 'Saved Rent Drafts', description: 'Drafts waiting to unlock', onClick: onViewSavedDrafts, accent: 'amber-500', badge: '💾' },
         { icon: Calendar, label: 'Schedules', description: 'PDF & WhatsApp', onClick: onViewMyRentRequests, accent: 'primary', badge: 'PDF' },
         { icon: History, label: 'Proxy History', description: 'Partner investments', onClick: onViewProxyHistory, accent: 'emerald-500' },
         { icon: HandCoins, label: 'My Funders', description: 'No-smartphone partners', onClick: onManageFunders, accent: 'primary', badge: '📱' },

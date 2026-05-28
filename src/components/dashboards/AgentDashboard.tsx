@@ -46,6 +46,7 @@ import { UnifiedRegistrationDialog } from '@/components/agent/UnifiedRegistratio
 import { RegisterSubAgentDialog } from '@/components/agent/RegisterSubAgentDialog';
 import { SubAgentsPanel } from '@/components/agent/SubAgentsPanel';
 import AgentRentRequestDialog from '@/components/agent/AgentRentRequestDialog';
+import SavedRentDraftsPanel from '@/components/agent/SavedRentDraftsPanel';
 import BusinessAdvanceRequestDialog from '@/components/agent/BusinessAdvanceRequestDialog';
 import { CommissionCelebrationModal } from '@/components/agent/CommissionCelebrationModal';
 import { useBusinessAdvanceCommissionListener } from '@/hooks/useBusinessAdvanceCommissionListener';
