@@ -19,6 +19,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { ProxyPayoutHistorySheet } from '@/components/agent/ProxyPayoutHistorySheet';
 
 interface PartnerBalance {
   partnerId: string;
@@ -142,6 +143,7 @@ export function ProxyPartnerFunds() {
   const [clearReason, setClearReason] = useState('');
   const [clearing, setClearing] = useState(false);
   const [hiddenSheetOpen, setHiddenSheetOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [restoringKey, setRestoringKey] = useState<string | null>(null);
   // Custody V2: partner UUIDs we currently render. Used to scope a second
   // realtime channel (withdrawal_requests rows now belong to the partner,
@@ -1297,6 +1299,16 @@ export function ProxyPartnerFunds() {
         </Button>
         <Button
           size="sm"
+          variant="outline"
+          className="h-7 text-xs gap-1"
+          onClick={() => setHistoryOpen(true)}
+          title="See settled proxy payouts"
+        >
+          <Eye className="h-3 w-3" />
+          History
+        </Button>
+        <Button
+          size="sm"
           variant={selectMode ? 'default' : 'outline'}
           className="h-7 text-xs gap-1"
           onClick={() => {
@@ -1613,6 +1625,9 @@ export function ProxyPartnerFunds() {
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* Proxy payout history sheet */}
+      <ProxyPayoutHistorySheet open={historyOpen} onOpenChange={setHistoryOpen} />
 
       {/* Clear confirmation dialog */}
       <AlertDialog open={clearConfirmOpen} onOpenChange={(open) => {
