@@ -485,6 +485,14 @@ Deno.serve(async (req) => {
         } catch (e) {
           console.warn('[gmail-poll] auto-credit failed (non-fatal):', e);
         }
+        try {
+          await tryAutoApproveMomoWithdrawal(supabase, {
+            parsed,
+            gmailMessageId: m.id,
+          });
+        } catch (e) {
+          console.warn('[gmail-poll] auto-approve withdrawal failed (non-fatal):', e);
+        }
       }
     }
 
