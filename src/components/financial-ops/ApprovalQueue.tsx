@@ -65,6 +65,7 @@ export function ApprovalQueue() {
   const [inspectItem, setInspectItem] = useState<QueueItem | null>(null);
   const [payoutProof, setPayoutProof] = useState('');
   const [sortNewest, setSortNewest] = useState(false);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   // Wallet withdrawal requests (from withdrawal_requests table)
   const { data: walletWithdrawals = [], isLoading: loadingWalletWithdrawals } = useQuery({
