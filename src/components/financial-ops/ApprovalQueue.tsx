@@ -212,6 +212,33 @@ export function ApprovalQueue() {
     return list;
   }, [activeQueue, search, sortNewest, walletWithdrawals, walletOps]);
 
+  // Group cash withdrawals by pickup code for visual clustering
+  const groupedByCode = useMemo(() => {
+    const groups = new Map<string, QueueItem[]>();
+    const nonGrouped: QueueItem[] = [];
+    for (const item of items) {
+      const code = item.payoutDetails?.payoutCode;
+      if (item.payoutDetails?.method === 'cash' && code) {
+        if (!groups.has(code)) groups.set(code, []);
+        groups.get(code)!.push(item);
+      } else {
+        nonGrouped.push(item);
+      }
+    }
+    return { groups, nonGrouped };
+  }, [items]);
+
+  const handleCopyCode = async (code: string) => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopiedCode(code);
+      toast.success(`Copied ${code}`);
+      setTimeout(() => setCopiedCode((prev) => (prev === code ? null : prev)), 2000);
+    } catch {
+      toast.error('Failed to copy code');
+    }
+  };
+
   const toggleSelect = (id: string) => {
     setSelected(prev => {
       const next = new Set(prev);
