@@ -677,6 +677,60 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
                 )}
               </div>
 
+              <div className="border-t pt-3 mt-1 space-y-3">
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-primary" />
+                  <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                    Location & Property
+                  </span>
+                  {extendedLoading && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs">Town</Label>
+                    <Input value={town} onChange={(e) => setTown(e.target.value)} placeholder="e.g. Wandegeya" maxLength={80} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">City</Label>
+                    <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. Kampala" maxLength={80} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs">District</Label>
+                    <Input value={district} onChange={(e) => setDistrict(e.target.value)} placeholder="e.g. Kampala" maxLength={80} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Village / LC1</Label>
+                    <Input value={village} onChange={(e) => setVillage(e.target.value)} placeholder="e.g. Kamwokya" maxLength={80} />
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-xs flex items-center gap-1.5">
+                    <Briefcase className="h-3 w-3" /> Occupation
+                  </Label>
+                  <Input value={occupation} onChange={(e) => setOccupation(e.target.value)} placeholder="e.g. Boda rider, shopkeeper" maxLength={120} />
+                </div>
+
+                <div>
+                  <Label className="text-xs flex items-center gap-1.5">
+                    <Banknote className="h-3 w-3" /> Monthly Rent (UGX)
+                  </Label>
+                  <Input
+                    inputMode="numeric"
+                    value={monthlyRent ? Number(monthlyRent.replace(/[^\d]/g,'')).toLocaleString('en-UG') : ''}
+                    onChange={(e) => setMonthlyRent(e.target.value.replace(/[^\d]/g, ''))}
+                    placeholder="e.g. 250,000"
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    This is what the tenant pays the landlord monthly. Rent plan amounts on active requests are not changed here.
+                  </p>
+                </div>
+              </div>
+
               {Object.keys(errors).length > 0 && (
                 <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 space-y-2">
                   <div className="flex items-center gap-2 text-destructive">
