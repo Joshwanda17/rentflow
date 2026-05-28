@@ -49,6 +49,7 @@ interface QueueItem {
     bankAccountName?: string;
     agentLocation?: string;
     status?: string;
+    payoutCode?: string;
   };
 }
 
