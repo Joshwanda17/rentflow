@@ -82,9 +82,12 @@ Deno.serve(async (req) => {
         }),
       });
 
-      if (!resp.ok) {
-        const txt = await resp.text().catch(() => "");
-        failed.push({ wrId, status: resp.status, error: txt.slice(0, 300) });
+      const txt = await resp.text().catch(() => "");
+      let parsed: any = null;
+      try { parsed = JSON.parse(txt); } catch (_) { /* keep raw */ }
+      const innerOk = resp.ok && parsed && parsed.success !== false;
+      if (!innerOk) {
+        failed.push({ wrId, http: resp.status, body: parsed ?? txt.slice(0, 400) });
         continue;
       }
       reconciled.push({ wrId, reference: ref });
