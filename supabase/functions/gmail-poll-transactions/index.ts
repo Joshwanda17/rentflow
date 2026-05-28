@@ -133,6 +133,16 @@ function parseTransaction(text: string): {
     if (mob) out.counterparty = mob[1];
   }
 
+  // MTN outbound "sent" emails: "You have sent UGX X to NAME (256780123456)"
+  // or "...to 0780123456". When direction is 'out' on MTN MoMo and we don't
+  // already have a counterparty phone, lift the recipient phone so the
+  // withdrawal auto-approver can match it.
+  if (!out.counterparty && out.direction === 'out' &&
+      (/\bmomo\b|mtn\s*mobile\s*money|mtn\s*momo|\bmtn\b/i.test(t))) {
+    const mtnTo = t.match(/\bto\b[^()]{0,80}?\(?\s*((?:\+?256|0)\d{8,9})\s*\)?/i);
+    if (mtnTo) out.counterparty = mtnTo[1];
+  }
+
   // Sum every fee/charge/tax/excise/commission/VAT/stamp-duty component
   // mentioned in the body so totals reflect the FULL cost the provider
   // (MTN / Airtel / Equity Bank / etc.) deducted, not just the first label.
@@ -475,6 +485,18 @@ Deno.serve(async (req) => {
           });
         } catch (e) {
           console.warn('[gmail-poll] auto-credit failed (non-fatal):', e);
+        }
+
+        // OUTBOUND MoMo (MTN / Airtel): match by recipient phone to a
+        // pending withdrawal_request and auto-approve it.
+        try {
+          await tryAutoApproveMomoWithdrawal(supabase, {
+            parsed,
+            internalMs,
+            gmailMessageId: m.id,
+          });
+        } catch (e) {
+          console.warn('[gmail-poll] momo auto-approve failed (non-fatal):', e);
         }
       }
     }
@@ -1079,5 +1101,193 @@ async function sweepLinkedPendingDeposits(
     } catch (e) {
       console.warn('[gmail-poll] sweep approve-deposit invoke failed:', e);
     }
+  }
+}
+
+// ── OUTBOUND MoMo auto-approval ──────────────────────────────────────
+// When the Gmail row is a parsed OUTGOING MTN/Airtel email AND its
+// recipient phone (counterparty) matches the mobile_money_number on a
+// pending withdrawal_request with the same amount, auto-approve that
+// withdrawal: this debits the user's wallet via approve-withdrawal and
+// triggers a "withdrawal-success" email to the user.
+async function tryAutoApproveMomoWithdrawal(
+  supabase: ReturnType<typeof createClient>,
+  args: {
+    parsed: ReturnType<typeof parseTransaction>;
+    internalMs: number;
+    gmailMessageId: string;
+  },
+): Promise<void> {
+  const { parsed, internalMs, gmailMessageId } = args;
+
+  // Eligibility gates
+  if (parsed.direction !== 'out') return;
+  if (parsed.channel !== 'mtn_momo' && parsed.channel !== 'airtel_money') return;
+  if (!parsed.amount || parsed.amount <= 0) return;
+  const cp = (parsed.counterparty ?? '').toString();
+  const phoneMatch = cp.match(/(?:\+?256|0)?\d{9,12}/);
+  if (!phoneMatch) return;
+  const digits = phoneMatch[0].replace(/[^0-9]/g, '');
+  if (digits.length < 9) return;
+  const last9 = digits.slice(-9);
+
+  // 7-day freshness window — mirrors the auto-credit gate
+  if (internalMs && internalMs < Date.now() - 7 * 24 * 3600 * 1000) return;
+
+  const provider = parsed.channel === 'mtn_momo' ? 'mtn' : 'airtel';
+
+  // Candidate pending withdrawals on this provider, same amount.
+  const { data: candidates, error: candErr } = await supabase
+    .from('withdrawal_requests')
+    .select(
+      'id, user_id, amount, status, mobile_money_number, mobile_money_provider, payout_method, created_at',
+    )
+    .in('status', ['pending', 'requested', 'manager_approved', 'cfo_approved'])
+    .ilike('payout_method', 'mobile%')
+    .eq('amount', parsed.amount)
+    .order('created_at', { ascending: true })
+    .limit(50);
+  if (candErr) {
+    console.warn('[gmail-poll] momo auto-approve query error:', candErr);
+    return;
+  }
+  if (!candidates?.length) return;
+
+  // Filter by phone last-9 and provider (when known on the WR row).
+  const match = candidates.find((wr: any) => {
+    const wrDigits = String(wr.mobile_money_number ?? '').replace(/\D/g, '');
+    if (wrDigits.length < 9) return false;
+    if (wrDigits.slice(-9) !== last9) return false;
+    const wrProv = String(wr.mobile_money_provider ?? '').toLowerCase();
+    if (wrProv && wrProv !== provider) return false;
+    return true;
+  });
+  if (!match) {
+    console.log(
+      `[gmail-poll] momo auto-approve: no pending WR matched last9=${last9} amt=${parsed.amount} provider=${provider}`,
+    );
+    return;
+  }
+
+  // Skip rows already linked to this gmail message via fin_ops_reference
+  // (idempotency). approve-withdrawal also enforces per-WR state locking.
+  const ref = (parsed.transaction_id || gmailMessageId).toString();
+  const { data: alreadyRef } = await supabase
+    .from('withdrawal_requests')
+    .select('id')
+    .eq('id', match.id)
+    .eq('fin_ops_reference', ref)
+    .maybeSingle();
+  if (alreadyRef?.id) {
+    console.log(`[gmail-poll] momo auto-approve: WR ${match.id} already references ${ref}`);
+    return;
+  }
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+  // Invoke approve-withdrawal as a system caller.
+  const resp = await fetch(`${supabaseUrl}/functions/v1/approve-withdrawal`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${serviceKey}`,
+      apikey: serviceKey,
+    },
+    body: JSON.stringify({
+      system_caller: true,
+      withdrawal_id: match.id,
+      reference: ref,
+      payment_method: provider === 'mtn' ? 'mtn_momo' : 'airtel_money',
+    }),
+  });
+  if (!resp.ok) {
+    const txt = await resp.text().catch(() => '');
+    console.warn(
+      `[gmail-poll] momo auto-approve failed wr=${match.id} status=${resp.status} body=${txt.slice(0, 300)}`,
+    );
+    return;
+  }
+  console.log(
+    `[gmail-poll] momo auto-approved wr=${match.id} user=${match.user_id} amt=${parsed.amount} provider=${provider} ref=${ref}`,
+  );
+
+  // Audit + system event
+  try {
+    await supabase.from('audit_logs').insert({
+      action_type: 'withdrawal_momo_auto_approved',
+      table_name: 'withdrawal_requests',
+      record_id: match.id,
+      reason: `Auto-approved via Gmail ${provider.toUpperCase()} email match (phone last9=${last9}, amt=${parsed.amount}).`,
+      metadata: {
+        gmail_message_id: gmailMessageId,
+        provider,
+        recipient_last9: last9,
+        amount: parsed.amount,
+        transaction_id: parsed.transaction_id ?? null,
+      },
+    });
+  } catch (_) { /* non-fatal */ }
+
+  try {
+    await supabase.from('system_events').insert({
+      event_type: 'withdrawal.momo.auto_approved',
+      payload: {
+        withdrawal_request_id: match.id,
+        user_id: match.user_id,
+        provider,
+        amount: parsed.amount,
+        recipient_last9: last9,
+        transaction_id: parsed.transaction_id ?? null,
+        gmail_message_id: gmailMessageId,
+      },
+    });
+  } catch (_) { /* non-fatal */ }
+
+  // Email the user their withdrawal-success receipt.
+  try {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('email, full_name')
+      .eq('id', match.user_id)
+      .maybeSingle();
+    if (!profile?.email) return;
+    const { data: walletRow } = await supabase
+      .from('wallets')
+      .select('withdrawable_balance, balance')
+      .eq('user_id', match.user_id)
+      .maybeSingle();
+    const newBalance =
+      Number((walletRow as any)?.withdrawable_balance ?? (walletRow as any)?.balance ?? 0);
+    const providerLabel = provider === 'mtn' ? 'MTN MoMo' : 'Airtel Money';
+    const fnUrl = `${supabaseUrl}/functions/v1/send-transactional-email`;
+    await fetch(fnUrl, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${serviceKey}`,
+        apikey: serviceKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        templateName: 'withdrawal-success',
+        recipientEmail: profile.email,
+        idempotencyKey: `withdrawal-success-${match.id}`,
+        templateData: {
+          user_name: (profile.full_name ?? '').split(' ')[0] || 'there',
+          amount: Number(match.amount),
+          currency: 'UGX',
+          provider: providerLabel,
+          mobile_money_number: String(match.mobile_money_number ?? ''),
+          transaction_id: parsed.transaction_id ?? ref,
+          date: new Date(internalMs || Date.now()).toLocaleString('en-GB', {
+            day: '2-digit', month: 'short', year: 'numeric',
+            hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Kampala',
+          }),
+          new_balance: newBalance,
+        },
+      }),
+    });
+  } catch (e) {
+    console.warn('[gmail-poll] withdrawal-success email failed (non-fatal):', e);
   }
 }
