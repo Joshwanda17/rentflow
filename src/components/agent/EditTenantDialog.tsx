@@ -789,6 +789,101 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
                     This is what the tenant pays the landlord monthly. Rent plan amounts on active requests are not changed here.
                   </p>
                 </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs">Region</Label>
+                    <Input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="e.g. Central" maxLength={80} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Sub-county</Label>
+                    <Input value={subCounty} onChange={(e) => setSubCounty(e.target.value)} placeholder="e.g. Kira" maxLength={80} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs">Parish</Label>
+                    <Input value={parish} onChange={(e) => setParish(e.target.value)} placeholder="e.g. Kireka" maxLength={80} />
+                  </div>
+                  <div>
+                    <Label className="text-xs flex items-center gap-1.5"><Globe className="h-3 w-3" /> Country</Label>
+                    <Input value={country} onChange={(e) => setCountry(e.target.value)} placeholder="e.g. Uganda" maxLength={80} />
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-xs">Landmark</Label>
+                  <Input value={landmark} onChange={(e) => setLandmark(e.target.value)} placeholder="e.g. near SDA Church" maxLength={160} />
+                </div>
+
+                <div className="space-y-2 p-3 rounded-lg bg-muted/30 border border-border/50">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">GPS Pin (optional)</Label>
+                    <Button type="button" size="sm" variant="outline" onClick={captureGps} disabled={pinningGps} className="rounded-lg gap-1.5 text-xs h-8">
+                      {pinningGps ? <Loader2 className="h-3 w-3 animate-spin" /> : <Crosshair className="h-3 w-3" />}
+                      {residenceLat ? 'Re-capture' : 'Capture GPS'}
+                    </Button>
+                  </div>
+                  {residenceLat != null && residenceLng != null ? (
+                    <p className="text-xs text-muted-foreground font-mono">
+                      {residenceLat.toFixed(5)}, {residenceLng.toFixed(5)}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">No pin saved</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="border-t pt-3 mt-1 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Wallet className="h-4 w-4 text-primary" />
+                  <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                    Mobile Money & Device
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs">MoMo Number</Label>
+                    <Input value={mmNumber} onChange={(e) => setMmNumber(e.target.value)} placeholder="e.g. 0772123456" maxLength={20} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">MoMo Provider</Label>
+                    <Input value={mmProvider} onChange={(e) => setMmProvider(e.target.value)} placeholder="MTN / Airtel" maxLength={40} />
+                  </div>
+                </div>
+
+                <label className="flex items-center gap-2 text-xs cursor-pointer p-2 rounded-md hover:bg-muted/50">
+                  <input
+                    type="checkbox"
+                    checked={hasSmartphone}
+                    onChange={(e) => setHasSmartphone(e.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  <Smartphone className="h-3.5 w-3.5 text-primary" />
+                  <span>Tenant has a smartphone</span>
+                </label>
+
+                <div>
+                  <Label className="text-xs flex items-center gap-1.5">
+                    <ImageIcon className="h-3 w-3" /> Avatar URL <span className="text-muted-foreground">(optional)</span>
+                  </Label>
+                  <Input value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} placeholder="https://..." maxLength={500} />
+                </div>
+
+                <div>
+                  <Label className="text-xs flex items-center gap-1.5">
+                    <StickyNote className="h-3 w-3" /> Ops Note <span className="text-muted-foreground">(internal)</span>
+                  </Label>
+                  <Textarea
+                    value={opsNote}
+                    onChange={(e) => setOpsNote(e.target.value)}
+                    placeholder="Notes for Tenant Ops about this tenant (visible internally)"
+                    rows={3}
+                    maxLength={1000}
+                  />
+                </div>
               </div>
 
               {Object.keys(errors).length > 0 && (
