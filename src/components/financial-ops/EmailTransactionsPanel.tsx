@@ -7,7 +7,7 @@ import { ArchivedPdfsDrawer } from '@/components/financial-ops/ArchivedPdfsDrawe
 import { Badge } from '@/components/ui/badge';
 import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert, Copy, Check, Wifi, WifiOff, ShieldCheck, History, LinkIcon, ChevronDown, ChevronUp, FileDown, FileText, AlertTriangle, Search, X, Pencil, Trash2, Star, Users, ArrowRight, Zap, Undo2, Wallet } from 'lucide-react';
 import { RouteEmailDepositDialog, type EmailRowForRouting, type PrefilledUser } from '@/components/financial-ops/RouteEmailDepositDialog';
-import BucketTransferDialog from '@/components/financial-ops/BucketTransferDialog';
+import { BucketTransferLauncher } from '@/components/financial-ops/BucketTransferDialog';
 import { Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
