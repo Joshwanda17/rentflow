@@ -4403,7 +4403,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                               size="sm"
                               variant="secondary"
                               className="flex-1 text-xs gap-1.5"
-                              disabled={!!isProcessing || !!managedInfo[p.portfolioId]?.isManaged || (reasons[p.portfolioId]?.length || 0) < 10}
+                              disabled={!!isProcessing || (reasons[p.portfolioId]?.length || 0) < 10}
                               onClick={() => handleSplitClick(p)}
                             >
                               {isProcessing === 'split' ? <Loader2 className="h-3 w-3 animate-spin" /> : <Scissors className="h-3 w-3" />}
