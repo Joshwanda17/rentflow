@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Textarea } from '@/components/ui/textarea';
 import { formatUGX } from '@/lib/rentCalculations';
 import { differenceInHours } from 'date-fns';
-import { Search, CheckCircle2, XCircle, Clock, Banknote, Wallet, Loader2, ArrowUpDown } from 'lucide-react';
+import { Search, CheckCircle2, XCircle, Clock, Banknote, Wallet, Loader2, ArrowUpDown, Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { extractFromErrorObject, extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
 import { RequestDetailSheet } from './RequestDetailSheet';
