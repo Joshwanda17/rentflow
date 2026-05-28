@@ -3784,6 +3784,72 @@ export type Database = {
         }
         Relationships: []
       }
+      bulk_payout_stuck_alerts: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          allocation_id: string
+          amount: number
+          bank_reference: string | null
+          created_at: string
+          detected_at: string
+          id: string
+          missing_ledger_entries: Json
+          partner_id: string | null
+          proxy_agent_id: string | null
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          status: string
+          updated_at: string
+          withdrawal_request_id: string
+          wr_status: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          allocation_id: string
+          amount: number
+          bank_reference?: string | null
+          created_at?: string
+          detected_at?: string
+          id?: string
+          missing_ledger_entries: Json
+          partner_id?: string | null
+          proxy_agent_id?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          status?: string
+          updated_at?: string
+          withdrawal_request_id: string
+          wr_status: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          allocation_id?: string
+          amount?: number
+          bank_reference?: string | null
+          created_at?: string
+          detected_at?: string
+          id?: string
+          missing_ledger_entries?: Json
+          partner_id?: string | null
+          proxy_agent_id?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          status?: string
+          updated_at?: string
+          withdrawal_request_id?: string
+          wr_status?: string
+        }
+        Relationships: []
+      }
       business_advance_daily_accruals: {
         Row: {
           accrual_date: string
@@ -16939,6 +17005,13 @@ export type Database = {
         Returns: string
       }
       derive_welile_ai_id: { Args: { p_user_id: string }; Returns: string }
+      detect_bulk_payout_stuck_alerts: {
+        Args: never
+        Returns: {
+          inserted_count: number
+          total_open: number
+        }[]
+      }
       detect_credit_limit_reconciliation_drift: {
         Args: never
         Returns: {
