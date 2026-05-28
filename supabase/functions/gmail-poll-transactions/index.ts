@@ -1174,14 +1174,49 @@ async function tryAutoApproveMomoWithdrawal(
   if (parsed.direction !== 'out') return;
   if (parsed.channel !== 'mtn_momo' && parsed.channel !== 'airtel_money') return;
 
-  const cp = (parsed.counterparty ?? '').toString();
-  const phoneMatch = cp.match(/(?:\+?256|0)?\d{9,12}/);
-  if (!phoneMatch) return;
-  const digits = phoneMatch[0].replace(/[^0-9]/g, '');
-  if (digits.length < 9) return;
-  const last9 = digits.slice(-9);
-
   const provider = parsed.channel === 'mtn_momo' ? 'mtn' : 'airtel';
+
+  // Normalize any UG phone shape ("+256 7XX XXX XXX", "256-7XXXXXXXX",
+  // "07XX XXX XXX", "7XXXXXXXX", with parentheses or dashes) to a single
+  // canonical 12-digit form (256XXXXXXXXX) plus its last-9 tail.
+  const normalizeUgPhone = (raw: string | null | undefined): { full: string; last9: string } | null => {
+    if (!raw) return null;
+    const d = String(raw).replace(/\D+/g, '');
+    if (!d) return null;
+    let full = d;
+    if (full.startsWith('00256')) full = full.slice(2);          // 00256… → 256…
+    if (full.startsWith('2560')) full = '256' + full.slice(4);   // 2560XXX… → 256XXX…
+    if (full.length === 9 && full.startsWith('7')) full = '256' + full;
+    else if (full.length === 10 && full.startsWith('07')) full = '256' + full.slice(1);
+    else if (full.length === 12 && full.startsWith('256')) { /* ok */ }
+    else if (full.length > 12 && full.endsWith(full.slice(-9)) && full.slice(-9).startsWith('7')) {
+      full = '256' + full.slice(-9);
+    } else if (full.length < 9) {
+      return null;
+    } else {
+      full = '256' + full.slice(-9);
+    }
+    const last9 = full.slice(-9);
+    if (last9.length !== 9 || !last9.startsWith('7')) return null;
+    return { full, last9 };
+  };
+
+  // Search the counterparty AND the raw subject/snippet so we still catch
+  // recipients that the parser put elsewhere (or that arrived with odd
+  // spacing/punctuation around the digits).
+  const hay = [
+    parsed.counterparty,
+    (parsed as any).snippet,
+    (parsed as any).subject,
+  ].filter(Boolean).join(' ');
+  const phoneCandidates = new Set<string>();
+  for (const m of hay.matchAll(/(?:\+?256|00256|0)?[\s\-().]*7\d[\s\-().]*\d{3}[\s\-().]*\d{3,4}/g)) {
+    const norm = normalizeUgPhone(m[0]);
+    if (norm) phoneCandidates.add(norm.full);
+  }
+  if (phoneCandidates.size === 0) return;
+  const candFull = Array.from(phoneCandidates);
+  const candLast9 = candFull.map((p) => p.slice(-9));
 
   // Find pending withdrawal requests (mobile-money path) for this provider.
   const { data: candidates, error } = await supabase
@@ -1193,19 +1228,27 @@ async function tryAutoApproveMomoWithdrawal(
     .limit(50);
   if (error || !candidates?.length) return;
 
-  const match = candidates.find((wr: any) => {
+  // Two-pass match: prefer an exact 12-digit hit, then fall back to last-9.
+  const matchByFull = candidates.find((wr: any) => {
     const prov = String(wr.mobile_money_provider ?? '').toLowerCase();
     if (prov && !prov.includes(provider)) return false;
-    const wrDigits = String(wr.mobile_money_number ?? '').replace(/\D/g, '');
-    if (wrDigits.length < 9) return false;
-    return wrDigits.slice(-9) === last9;
+    const wrNorm = normalizeUgPhone(wr.mobile_money_number);
+    return !!wrNorm && candFull.includes(wrNorm.full);
   });
+  const matchByLast9 = matchByFull ?? candidates.find((wr: any) => {
+    const prov = String(wr.mobile_money_provider ?? '').toLowerCase();
+    if (prov && !prov.includes(provider)) return false;
+    const wrNorm = normalizeUgPhone(wr.mobile_money_number);
+    return !!wrNorm && candLast9.includes(wrNorm.last9);
+  });
+  const match = matchByLast9;
   if (!match) {
-    console.log(`[gmail-poll] no withdrawal match for provider=${provider} last9=${last9} amount=${parsed.amount}`);
+    console.log(`[gmail-poll] no withdrawal match provider=${provider} phones=[${candFull.join(',')}] amount=${parsed.amount}`);
     return;
   }
-
-  console.log(`[gmail-poll] auto-approving withdrawal wr=${match.id} (provider=${provider} last9=${last9} amount=${parsed.amount})`);
+  const matchedNorm = normalizeUgPhone(match.mobile_money_number)!;
+  const matchKind = matchByFull ? 'full' : 'last9';
+  console.log(`[gmail-poll] auto-approving wr=${match.id} provider=${provider} phone=${matchedNorm.full} (${matchKind}) amount=${parsed.amount}`);
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
