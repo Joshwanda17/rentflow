@@ -13,6 +13,7 @@ import { Loader2, Wallet, Banknote, ArrowRight, AlertTriangle, UserCog, ChevronL
 import { useToast } from '@/hooks/use-toast';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
 import { formatUGX } from '@/lib/rentCalculations';
+import { SOLVENCY_BYPASS_REASONS, type SolvencyBypassReasonCode } from '@/lib/solvencyBypassReasons';
 
 /**
  * Fetches current wallet bucket balances (cache view) for a user so the
