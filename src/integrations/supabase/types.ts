@@ -18035,6 +18035,14 @@ export type Database = {
         }
         Returns: Json
       }
+      ops_update_rent_request_amount: {
+        Args: {
+          p_reason: string
+          p_rent_amount: number
+          p_rent_request_id: string
+        }
+        Returns: Json
+      }
       ops_update_user_identity:
         | {
             Args: {

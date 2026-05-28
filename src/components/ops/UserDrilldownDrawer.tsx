@@ -1024,6 +1024,132 @@ function StatementDateFilter({
   );
 }
 
+function RentBalanceEditor({
+  activeRr,
+  balance,
+  canEdit,
+  onSaved,
+}: {
+  activeRr: any;
+  balance: number;
+  canEdit: boolean;
+  onSaved: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [rentAmount, setRentAmount] = useState<string>(String(activeRr.rent_amount ?? ''));
+  const [reason, setReason] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const cancel = () => {
+    setEditing(false);
+    setRentAmount(String(activeRr.rent_amount ?? ''));
+    setReason('');
+  };
+
+  const save = async () => {
+    const amt = Number(rentAmount);
+    if (!Number.isFinite(amt) || amt <= 0) {
+      toast.error('Enter a valid rent amount');
+      return;
+    }
+    if (reason.trim().length < 10) {
+      toast.error('Reason must be at least 10 characters');
+      return;
+    }
+    setSaving(true);
+    try {
+      const { error } = await supabase.rpc('ops_update_rent_request_amount', {
+        p_rent_request_id: activeRr.id,
+        p_rent_amount: amt,
+        p_reason: reason.trim(),
+      } as any);
+      if (error) throw error;
+      toast.success('Rent amount updated');
+      setEditing(false);
+      setReason('');
+      onSaved();
+    } catch (e: any) {
+      toast.error(e.message ?? 'Update failed');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!editing) {
+    return (
+      <>
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <div>
+            <span className="text-muted-foreground">Rent amount</span>
+            <p className="font-semibold">{fmtUGX(activeRr.rent_amount)}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Daily repayment</span>
+            <p className="font-semibold">{fmtUGX(activeRr.daily_repayment)}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Repaid</span>
+            <p className="font-semibold">{fmtUGX(activeRr.amount_repaid)}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Outstanding</span>
+            <p className="font-semibold text-amber-700">{fmtUGX(balance)}</p>
+          </div>
+        </div>
+        <div className="flex items-center justify-between">
+          <Badge variant="outline" className="text-[10px]">{activeRr.status}</Badge>
+          {canEdit && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs gap-1"
+              onClick={() => setEditing(true)}
+            >
+              <Pencil className="h-3 w-3" /> Edit rent
+            </Button>
+          )}
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="space-y-1">
+        <Label className="text-xs">Rent amount (UGX)</Label>
+        <Input
+          type="number"
+          min={1}
+          value={rentAmount}
+          onChange={(e) => setRentAmount(e.target.value)}
+          className="h-8 text-sm"
+        />
+        <p className="text-[10px] text-muted-foreground">
+          Daily &amp; total repayment recalculate automatically from the rent formula.
+        </p>
+      </div>
+      <div className="space-y-1">
+        <Label className="text-xs">Reason (min 10 chars)</Label>
+        <Textarea
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          rows={2}
+          className="text-sm"
+          placeholder="Why is the rent amount being changed?"
+        />
+      </div>
+      <div className="flex items-center gap-2">
+        <Button size="sm" onClick={save} disabled={saving} className="h-7 px-3 text-xs">
+          {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Save'}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={cancel} disabled={saving} className="h-7 px-3 text-xs">
+          Cancel
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function TenantPane({
   tenantId, isOps, onBackToAgent, onSelectLandlord,
 }: { tenantId: string; isOps: boolean; onBackToAgent?: () => void; onSelectLandlord?: (id: string) => void }) {
@@ -1136,15 +1262,12 @@ function TenantPane({
         {!activeRr ? (
           <p className="text-xs text-muted-foreground">No rent requests on file.</p>
         ) : (
-          <>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div><span className="text-muted-foreground">Rent amount</span><p className="font-semibold">{fmtUGX(activeRr.rent_amount)}</p></div>
-              <div><span className="text-muted-foreground">Daily repayment</span><p className="font-semibold">{fmtUGX(activeRr.daily_repayment)}</p></div>
-              <div><span className="text-muted-foreground">Repaid</span><p className="font-semibold">{fmtUGX(activeRr.amount_repaid)}</p></div>
-              <div><span className="text-muted-foreground">Outstanding</span><p className="font-semibold text-amber-700">{fmtUGX(balance)}</p></div>
-            </div>
-            <Badge variant="outline" className="text-[10px]">{activeRr.status}</Badge>
-          </>
+          <RentBalanceEditor
+            activeRr={activeRr}
+            balance={balance}
+            canEdit={isOps}
+            onSaved={() => qc.invalidateQueries({ queryKey: ['drilldown-tenant-rr', tenantId] })}
+          />
         )}
       </Card>
 
