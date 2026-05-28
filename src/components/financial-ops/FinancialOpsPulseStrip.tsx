@@ -115,7 +115,7 @@ export function FinancialOpsPulseStrip({ onSelect }: { onSelect?: (key: PulseMet
                 </div>
                 <span className="text-[8px] sm:text-[11px] text-muted-foreground font-medium truncate leading-tight">{item.label}</span>
               </div>
-              <p className={`text-base sm:text-2xl font-black tabular-nums ${isLoading ? 'animate-pulse' : ''}`}>
+              <p className={`text-base sm:text-2xl font-black tabular-nums truncate ${isLoading ? 'animate-pulse' : ''}`}>
                 {isLoading ? '—' : item.value.toLocaleString()}
               </p>
               {item.amount !== undefined && item.amount > 0 && (
