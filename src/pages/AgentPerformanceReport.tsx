@@ -678,24 +678,21 @@ export default function AgentPerformanceReport() {
             </div>
 
             <div className="mt-5">
-              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide mb-2">Weekly Collection Trend</h4>
+              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide mb-2">Money you collected each day (last 7 days)</h4>
               <div className="rounded-xl border border-slate-200 bg-white p-3">
                 <ResponsiveContainer width="100%" height={260}>
-                  <LineChart data={computed?.weeklyTrend || []} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                  <BarChart data={computed?.weeklyTrend || []} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                     <XAxis dataKey="day" stroke="#94a3b8" fontSize={11} />
                     <YAxis stroke="#94a3b8" fontSize={11} tickFormatter={(v) => `${Math.round(v / 1000)}K`} />
                     <Tooltip formatter={(v: number) => fmtUGX(v)} contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }} />
-                    <Legend wrapperStyle={{ fontSize: 12 }} />
-                    <Line type="monotone" dataKey="Expected" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 4, fill: '#3b82f6' }} activeDot={{ r: 6 }} />
-                    <Line type="monotone" dataKey="Collected" stroke="#10b981" strokeWidth={2.5} dot={{ r: 4, fill: '#10b981' }} activeDot={{ r: 6 }} />
-                  </LineChart>
+                    <Bar dataKey="Collected" fill="#10b981" radius={[6, 6, 0, 0]} />
+                  </BarChart>
                 </ResponsiveContainer>
                 {computed && (
                   <div className="flex flex-wrap items-center gap-x-5 gap-y-1 pt-2 px-2 text-xs border-t border-slate-100 mt-2">
-                    <span className="text-slate-500">Total Expected: <span className="font-bold text-blue-600">{fmtUGX(computed.weeklyExpected)}</span></span>
-                    <span className="text-slate-500">Total Collected: <span className="font-bold text-emerald-600">{fmtUGX(computed.weeklyCollected)}</span></span>
-                    <span className="text-slate-500">Efficiency: <span className="font-bold text-amber-600">{computed.weeklyEfficiency.toFixed(1)}%</span></span>
+                    <span className="text-slate-500">Total this week: <span className="font-bold text-emerald-600">{fmtUGX(computed.weeklyCollected)}</span></span>
+                    <span className="text-slate-500">% of money owed: <span className="font-bold text-amber-600">{computed.weeklyEfficiency.toFixed(1)}%</span></span>
                   </div>
                 )}
               </div>
