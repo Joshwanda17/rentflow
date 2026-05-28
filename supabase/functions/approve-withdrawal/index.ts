@@ -1069,6 +1069,26 @@ Deno.serve(async (req) => {
       // Ledger entry already exists — log but don't fail the user
     }
 
+    // Burn the WPO pickup code so it cannot be replayed for another
+    // payout. We do this AFTER the withdrawal flips to 'completed' so a
+    // late ledger failure doesn't strand the code in 'paid' while the
+    // request itself rolled back.
+    if (isCashPayout && payoutCodeNormalized) {
+      try {
+        await admin
+          .from("payout_codes")
+          .update({
+            status: "paid",
+            paid_by: user.id,
+            paid_at: new Date().toISOString(),
+          })
+          .eq("withdrawal_request_id", withdrawal_id)
+          .neq("status", "paid");
+      } catch (e) {
+        console.warn("[approve-withdrawal] payout_codes burn failed", e);
+      }
+    }
+
     // ── Proxy payout settlements ────────────────────────────────────────
     // For proxy partner withdrawals, FIFO-close the partner's CFO-approved
     // unsettled ROI approvals up to the withdrawn amount. This permanently
