@@ -10127,6 +10127,69 @@ export type Database = {
           },
         ]
       }
+      payout_code_audit_log: {
+        Row: {
+          amount: number | null
+          approver_email: string | null
+          approver_id: string | null
+          approver_role: string | null
+          code_entered: string | null
+          code_on_file: string | null
+          created_at: string
+          error_code: string | null
+          error_message: string | null
+          id: string
+          ip_address: string | null
+          metadata: Json
+          outcome: string
+          payout_code_id: string | null
+          request_owner_id: string | null
+          status_result: string | null
+          user_agent: string | null
+          withdrawal_request_id: string | null
+        }
+        Insert: {
+          amount?: number | null
+          approver_email?: string | null
+          approver_id?: string | null
+          approver_role?: string | null
+          code_entered?: string | null
+          code_on_file?: string | null
+          created_at?: string
+          error_code?: string | null
+          error_message?: string | null
+          id?: string
+          ip_address?: string | null
+          metadata?: Json
+          outcome: string
+          payout_code_id?: string | null
+          request_owner_id?: string | null
+          status_result?: string | null
+          user_agent?: string | null
+          withdrawal_request_id?: string | null
+        }
+        Update: {
+          amount?: number | null
+          approver_email?: string | null
+          approver_id?: string | null
+          approver_role?: string | null
+          code_entered?: string | null
+          code_on_file?: string | null
+          created_at?: string
+          error_code?: string | null
+          error_message?: string | null
+          id?: string
+          ip_address?: string | null
+          metadata?: Json
+          outcome?: string
+          payout_code_id?: string | null
+          request_owner_id?: string | null
+          status_result?: string | null
+          user_agent?: string | null
+          withdrawal_request_id?: string | null
+        }
+        Relationships: []
+      }
       payout_codes: {
         Row: {
           amount: number

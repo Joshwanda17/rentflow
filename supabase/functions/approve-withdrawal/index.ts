@@ -216,8 +216,80 @@ Deno.serve(async (req) => {
     const wrPayoutMethod = String((wr as any).payout_method || "").toLowerCase();
     const isCashPayout =
       wrPayoutMethod === "cash" || wrPayoutMethod === "cash_pickup";
+    // Hoisted so the post-completion success-burn block can also write
+    // an "approved" audit log entry referencing the resolved code row.
+    let resolvedPayoutCodeId: string | null = null;
+    let resolvedCodeOnFile: string | null = null;
+    let logCodeAttempt:
+      | ((params: {
+          outcome: string;
+          errorCode?: string | null;
+          errorMessage?: string | null;
+          statusResult?: string | null;
+          codeOnFile?: string | null;
+          payoutCodeId?: string | null;
+        }) => Promise<void>)
+      | null = null;
     if (isCashPayout && !isSystemCall) {
+      // Audit logger for every WPO code verification attempt. Fire-and-forget
+      // so audit DB hiccups never block a real payout decision.
+      const ipAddress =
+        req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+        req.headers.get("cf-connecting-ip") ||
+        req.headers.get("x-real-ip") ||
+        null;
+      const userAgent = req.headers.get("user-agent") || null;
+      const approverRole = hasStaffRole
+        ? "staff"
+        : isCashoutAgent
+        ? "cashout_agent"
+        : "unknown";
+      const approverEmail =
+        (user && (user.email as string)) ||
+        null;
+      logCodeAttempt = async (params: {
+        outcome: string;
+        errorCode?: string | null;
+        errorMessage?: string | null;
+        statusResult?: string | null;
+        codeOnFile?: string | null;
+        payoutCodeId?: string | null;
+      }) => {
+        try {
+          await admin.from("payout_code_audit_log").insert({
+            withdrawal_request_id: withdrawal_id,
+            payout_code_id: params.payoutCodeId ?? null,
+            code_entered: payoutCodeNormalized,
+            code_on_file: params.codeOnFile ?? null,
+            outcome: params.outcome,
+            status_result: params.statusResult ?? null,
+            approver_id: user?.id ?? null,
+            approver_email: approverEmail,
+            approver_role: approverRole,
+            request_owner_id: (wr as any)?.user_id ?? null,
+            amount: (wr as any)?.amount ?? null,
+            error_code: params.errorCode ?? null,
+            error_message: params.errorMessage ?? null,
+            ip_address: ipAddress,
+            user_agent: userAgent,
+            metadata: {
+              payout_method: wrPayoutMethod,
+              reference: reference ?? null,
+              payment_method: payment_method ?? null,
+            },
+          });
+        } catch (e) {
+          console.warn("[approve-withdrawal] audit log insert failed", e);
+        }
+      };
+
       if (!payoutCodeNormalized) {
+        await logCodeAttempt({
+          outcome: "rejected",
+          errorCode: "CASH_CODE_REQUIRED",
+          errorMessage: "No WPO code provided",
+          statusResult: "rejected",
+        });
         return new Response(
           JSON.stringify({
             error: "CASH_CODE_REQUIRED",
@@ -241,6 +313,12 @@ Deno.serve(async (req) => {
         .maybeSingle();
       if (codeErr) {
         console.error("[approve-withdrawal] payout_codes lookup failed", codeErr);
+        await logCodeAttempt({
+          outcome: "lookup_failed",
+          errorCode: "CASH_CODE_LOOKUP_FAILED",
+          errorMessage: codeErr.message || "Lookup failed",
+          statusResult: "error",
+        });
         return new Response(
           JSON.stringify({
             error: "CASH_CODE_LOOKUP_FAILED",
@@ -251,6 +329,12 @@ Deno.serve(async (req) => {
         );
       }
       if (!codeRow) {
+        await logCodeAttempt({
+          outcome: "rejected",
+          errorCode: "CASH_CODE_NOT_FOUND",
+          errorMessage: "No WPO code exists for this withdrawal",
+          statusResult: "rejected",
+        });
         return new Response(
           JSON.stringify({
             error: "CASH_CODE_NOT_FOUND",
@@ -263,6 +347,14 @@ Deno.serve(async (req) => {
       }
       const onFileCode = String(codeRow.code || "").trim().toUpperCase();
       if (onFileCode !== payoutCodeNormalized) {
+        await logCodeAttempt({
+          outcome: "mismatch",
+          errorCode: "CASH_CODE_MISMATCH",
+          errorMessage: "Entered code does not match issued code",
+          statusResult: "rejected",
+          codeOnFile: onFileCode,
+          payoutCodeId: codeRow.id,
+        });
         return new Response(
           JSON.stringify({
             error: "CASH_CODE_MISMATCH",
@@ -274,6 +366,14 @@ Deno.serve(async (req) => {
         );
       }
       if (codeRow.status === "paid") {
+        await logCodeAttempt({
+          outcome: "already_used",
+          errorCode: "CASH_CODE_ALREADY_USED",
+          errorMessage: "WPO code already paid out",
+          statusResult: "rejected",
+          codeOnFile: onFileCode,
+          payoutCodeId: codeRow.id,
+        });
         return new Response(
           JSON.stringify({
             error: "CASH_CODE_ALREADY_USED",
@@ -285,6 +385,14 @@ Deno.serve(async (req) => {
         );
       }
       if (codeRow.status === "expired") {
+        await logCodeAttempt({
+          outcome: "expired",
+          errorCode: "CASH_CODE_EXPIRED",
+          errorMessage: "WPO code already marked expired",
+          statusResult: "rejected",
+          codeOnFile: onFileCode,
+          payoutCodeId: codeRow.id,
+        });
         return new Response(
           JSON.stringify({
             error: "CASH_CODE_EXPIRED",
@@ -304,6 +412,14 @@ Deno.serve(async (req) => {
           .from("payout_codes")
           .update({ status: "expired" })
           .eq("id", codeRow.id);
+        await logCodeAttempt({
+          outcome: "expired",
+          errorCode: "CASH_CODE_EXPIRED",
+          errorMessage: "WPO code TTL elapsed",
+          statusResult: "rejected",
+          codeOnFile: onFileCode,
+          payoutCodeId: codeRow.id,
+        });
         return new Response(
           JSON.stringify({
             error: "CASH_CODE_EXPIRED",
@@ -314,6 +430,16 @@ Deno.serve(async (req) => {
           { status: 410, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
+      // Code passed all gates — record the verified attempt up-front. The
+      // final 'approved' outcome is logged after the payout completes.
+      await logCodeAttempt({
+        outcome: "verified",
+        statusResult: "verified",
+        codeOnFile: onFileCode,
+        payoutCodeId: codeRow.id,
+      });
+      resolvedPayoutCodeId = codeRow.id;
+      resolvedCodeOnFile = onFileCode;
     }
 
     // Only allow approval of pending/requested/manager_approved/rejected (re-approval)
@@ -1086,6 +1212,14 @@ Deno.serve(async (req) => {
           .neq("status", "paid");
       } catch (e) {
         console.warn("[approve-withdrawal] payout_codes burn failed", e);
+      }
+      if (logCodeAttempt) {
+        await logCodeAttempt({
+          outcome: "approved",
+          statusResult: "approved",
+          codeOnFile: resolvedCodeOnFile,
+          payoutCodeId: resolvedPayoutCodeId,
+        });
       }
     }
 
