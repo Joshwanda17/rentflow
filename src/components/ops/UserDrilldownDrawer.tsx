@@ -1136,15 +1136,12 @@ function TenantPane({
         {!activeRr ? (
           <p className="text-xs text-muted-foreground">No rent requests on file.</p>
         ) : (
-          <>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div><span className="text-muted-foreground">Rent amount</span><p className="font-semibold">{fmtUGX(activeRr.rent_amount)}</p></div>
-              <div><span className="text-muted-foreground">Daily repayment</span><p className="font-semibold">{fmtUGX(activeRr.daily_repayment)}</p></div>
-              <div><span className="text-muted-foreground">Repaid</span><p className="font-semibold">{fmtUGX(activeRr.amount_repaid)}</p></div>
-              <div><span className="text-muted-foreground">Outstanding</span><p className="font-semibold text-amber-700">{fmtUGX(balance)}</p></div>
-            </div>
-            <Badge variant="outline" className="text-[10px]">{activeRr.status}</Badge>
-          </>
+          <RentBalanceEditor
+            activeRr={activeRr}
+            balance={balance}
+            canEdit={isOps}
+            onSaved={() => qc.invalidateQueries({ queryKey: ['drilldown-tenant-rr', tenantId] })}
+          />
         )}
       </Card>
 
