@@ -1333,3 +1333,202 @@ async function tryAutoApproveMomoWithdrawal(
     console.warn('[gmail-poll] approve-withdrawal invoke threw:', e);
   }
 }
+
+// ── Helper: auto-approve a BATCH of pending bank_transfer withdrawal requests
+// when an outbound Equity Bank email to "SKYBUBBLES TRADING AND INVESTMENT
+// LIMITED" arrives. The operator settles many bank-payout requests with a
+// single lump-sum Equity transfer, so we look for a set of pending
+// bank_transfer WRs whose amounts add up exactly to the email's total and
+// approve them all using that one email as the bank reference.
+//
+// This is the bank-rail counterpart of `tryAutoApproveMomoWithdrawal`. Proxy
+// agent withdrawals (where `user_id` = partner, `agent_id` = proxy) are
+// included automatically because we never filter by initiator — the WR row
+// is matched on payout_method + amount + status only.
+async function tryAutoApproveBankBatch(
+  supabase: ReturnType<typeof createClient>,
+  args: {
+    parsed: ReturnType<typeof parseTransaction>;
+    gmailMessageId: string;
+  },
+): Promise<void> {
+  const { parsed, gmailMessageId } = args;
+  if (!parsed.amount || parsed.amount <= 0) return;
+  if (parsed.direction !== 'out') return;
+  if (parsed.channel !== 'bank') return;
+
+  const hay = `${(parsed as any).subject ?? ''} ${(parsed as any).snippet ?? ''} ${parsed.counterparty ?? ''}`;
+  if (!/skybubbles/i.test(hay)) return;
+
+  const totalAmount = Number(parsed.amount);
+  const reference = (parsed.transaction_id || '').trim().toUpperCase()
+    || `BANK-${gmailMessageId.slice(0, 12)}`.toUpperCase();
+
+  // Idempotency: if we already processed this Gmail message, bail out.
+  try {
+    const { data: prior } = await supabase
+      .from('audit_logs')
+      .select('id')
+      .eq('action_type', 'withdrawal_bank_batch_auto_approved')
+      .contains('new_data', { gmail_message_id: gmailMessageId })
+      .limit(1);
+    if (prior && prior.length > 0) {
+      console.log(`[gmail-poll] bank batch already processed for gmail=${gmailMessageId}`);
+      return;
+    }
+  } catch { /* non-fatal */ }
+
+  // Pull pending bank-payout withdrawal requests across the full approval
+  // pipeline. Same statuses the MoMo path accepts, since proxy agent bank
+  // payouts can sit in 'manager_approved' / 'cfo_approved' / 'coo_approved'
+  // waiting on FinOps to push the cash.
+  const { data: pending, error } = await supabase
+    .from('withdrawal_requests')
+    .select('id, user_id, amount, status, payout_method, created_at, agent_id')
+    .in('payout_method', ['bank_transfer', 'bank'])
+    .in('status', ['pending', 'requested', 'manager_approved', 'cfo_approved', 'coo_approved'])
+    .order('created_at', { ascending: true })
+    .limit(200);
+  if (error || !pending?.length) {
+    console.log(`[gmail-poll] no pending bank WRs for SKYBUBBLES batch amount=${totalAmount}`);
+    return;
+  }
+
+  // Try the most likely batch shapes in order:
+  //  1. ALL currently-pending bank WRs sum to the email amount
+  //  2. All bank WRs created today (UTC) sum to the email amount
+  //  3. All bank WRs created yesterday (UTC) sum (covers late-evening batches)
+  const sumOf = (rows: any[]) => rows.reduce((acc, r) => acc + Number(r.amount || 0), 0);
+
+  const startOfDay = (offsetDays: number) => {
+    const d = new Date();
+    d.setUTCHours(0, 0, 0, 0);
+    d.setUTCDate(d.getUTCDate() + offsetDays);
+    return d.getTime();
+  };
+  const todayMs = startOfDay(0);
+  const tomorrowMs = startOfDay(1);
+  const yesterdayMs = startOfDay(-1);
+
+  const candidates: Array<{ label: string; rows: any[] }> = [
+    { label: 'all_pending', rows: pending },
+    {
+      label: 'today',
+      rows: pending.filter((r: any) => {
+        const t = new Date(r.created_at).getTime();
+        return t >= todayMs && t < tomorrowMs;
+      }),
+    },
+    {
+      label: 'yesterday',
+      rows: pending.filter((r: any) => {
+        const t = new Date(r.created_at).getTime();
+        return t >= yesterdayMs && t < todayMs;
+      }),
+    },
+  ];
+
+  let chosen: { label: string; rows: any[] } | null = null;
+  for (const c of candidates) {
+    if (c.rows.length === 0) continue;
+    if (sumOf(c.rows) === totalAmount) {
+      chosen = c;
+      break;
+    }
+  }
+
+  if (!chosen) {
+    console.log(
+      `[gmail-poll] SKYBUBBLES batch ${totalAmount} did NOT match any pending bank WR set ` +
+        `(all_pending=${sumOf(pending)}/${pending.length} rows). Skipping auto-approve.`,
+    );
+    return;
+  }
+
+  console.log(
+    `[gmail-poll] SKYBUBBLES batch matched scope=${chosen.label} ` +
+      `count=${chosen.rows.length} total=${totalAmount} ref=${reference}`,
+  );
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const approved: string[] = [];
+  const failed: Array<{ id: string; reason: string }> = [];
+
+  // Each WR gets a unique reference (batchRef + index) so the duplicate-
+  // reference safeguard in approve-withdrawal does not reject siblings of
+  // the same physical bank transfer.
+  for (let i = 0; i < chosen.rows.length; i++) {
+    const wr = chosen.rows[i];
+    const perRowRef = `${reference}-${i + 1}`;
+    try {
+      const res = await fetch(`${supabaseUrl}/functions/v1/approve-withdrawal`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${serviceKey}`,
+          apikey: serviceKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          withdrawal_id: wr.id,
+          reference: perRowRef,
+          payment_method: 'bank_transfer',
+          system_caller: true,
+          force_requester_debit: true,
+        }),
+      });
+      const text = await res.text();
+      if (!res.ok) {
+        console.warn(
+          `[gmail-poll] bank batch approve failed wr=${wr.id} status=${res.status} body=${text.slice(0, 200)}`,
+        );
+        failed.push({ id: wr.id, reason: `${res.status}:${text.slice(0, 120)}` });
+        continue;
+      }
+      approved.push(wr.id);
+    } catch (e) {
+      console.warn(`[gmail-poll] bank batch approve threw wr=${wr.id}`, e);
+      failed.push({ id: wr.id, reason: String((e as Error).message ?? e).slice(0, 120) });
+    }
+  }
+
+  // Single audit + system event row for the whole batch (also serves as the
+  // idempotency marker for the next poll cycle).
+  try {
+    await supabase.from('audit_logs').insert({
+      action_type: 'withdrawal_bank_batch_auto_approved',
+      table_name: 'withdrawal_requests',
+      record_id: chosen.rows[0].id,
+      reason: `Auto-approved SKYBUBBLES bank batch — scope=${chosen.label} approved=${approved.length}/${chosen.rows.length} total=${totalAmount} ref=${reference}`.slice(0, 500),
+      new_data: {
+        gmail_message_id: gmailMessageId,
+        bank_reference: reference,
+        scope: chosen.label,
+        total_amount: totalAmount,
+        approved_ids: approved,
+        failed: failed,
+        approved_count: approved.length,
+        attempted_count: chosen.rows.length,
+      },
+    });
+  } catch (e) {
+    console.warn('[gmail-poll] bank batch audit_logs insert failed (non-fatal):', e);
+  }
+  try {
+    await supabase.from('system_events').insert({
+      event_type: 'withdrawal.bank_batch.auto_approved',
+      related_entity_type: 'withdrawal_request',
+      related_entity_id: chosen.rows[0].id,
+      metadata: {
+        gmail_message_id: gmailMessageId,
+        bank_reference: reference,
+        scope: chosen.label,
+        total_amount: totalAmount,
+        approved_ids: approved,
+        failed: failed,
+      },
+    });
+  } catch (e) {
+    console.warn('[gmail-poll] bank batch system_events insert failed (non-fatal):', e);
+  }
+}
