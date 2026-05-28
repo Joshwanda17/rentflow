@@ -385,6 +385,25 @@ Deno.serve(async (req) => {
       console.error("[submit-offline-collection] finalise update failed (non-fatal)", finaliseErr);
     }
 
+    // Fire-and-forget: email the agent their receipt + capacity report.
+    // Never blocks the response.
+    try {
+      admin.functions
+        .invoke("send-agent-payment-receipt-email", {
+          body: {
+            agent_id: agentId,
+            tenant_id: body.tenant_id,
+            rent_request_id: body.rent_request_id,
+            amount,
+            commission: result.commission?.credited_commission ?? 0,
+            allocation_id: result.collection_id || result.tracking_id || null,
+          },
+        })
+        .catch((e) => console.warn("[submit-offline-collection] receipt email failed", e));
+    } catch (e) {
+      console.warn("[submit-offline-collection] receipt email dispatch failed", e);
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
