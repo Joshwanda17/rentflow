@@ -1377,7 +1377,9 @@ export default function WithdrawFlow({
                 withdrawal_requests insert returns. Contains the
                 reference ID, processed date/time and verified amount.
                 Disbursement status continues to update live below. */}
-            <ReceiptCard
+            {(payoutMode !== 'cash' || cashCodeAcknowledged) && (
+              <>
+              <ReceiptCard
               status="pending"
               amount={amount}
               currency={currency}
@@ -1430,6 +1432,8 @@ export default function WithdrawFlow({
                 toast.info('Previous request cancelled. Confirm the details to resubmit.');
               }}
             />
+              </>
+            )}
           </div>
         );
 
