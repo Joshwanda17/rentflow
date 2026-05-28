@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Save, User, Phone, Mail, IdCard, Pencil, UserX, UserCheck, CheckCircle2, ArrowRight, X, ShieldAlert, RefreshCw, MessageSquare, AlertCircle, MapPin, Home, Briefcase, Banknote } from 'lucide-react';
+import { Loader2, Save, User, Phone, Mail, IdCard, Pencil, UserX, UserCheck, CheckCircle2, ArrowRight, X, ShieldAlert, RefreshCw, MessageSquare, AlertCircle, MapPin, Home, Briefcase, Banknote, Smartphone, Wallet, StickyNote, Globe, Crosshair, Image as ImageIcon } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useIdempotentSubmit } from '@/hooks/useIdempotentSubmit';
@@ -84,6 +85,19 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
   const [town, setTown] = useState('');
   const [occupation, setOccupation] = useState('');
   const [monthlyRent, setMonthlyRent] = useState<string>('');
+  const [region, setRegion] = useState('');
+  const [subCounty, setSubCounty] = useState('');
+  const [parish, setParish] = useState('');
+  const [landmark, setLandmark] = useState('');
+  const [country, setCountry] = useState('');
+  const [mmNumber, setMmNumber] = useState('');
+  const [mmProvider, setMmProvider] = useState('');
+  const [hasSmartphone, setHasSmartphone] = useState<boolean>(true);
+  const [opsNote, setOpsNote] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const [residenceLat, setResidenceLat] = useState<number | null>(null);
+  const [residenceLng, setResidenceLng] = useState<number | null>(null);
+  const [pinningGps, setPinningGps] = useState(false);
   const [extendedLoading, setExtendedLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [statusBusy, setStatusBusy] = useState(false);
@@ -111,7 +125,7 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
       (async () => {
         const { data } = await supabase
           .from('profiles')
-          .select('city, district, village, town, occupation, monthly_rent')
+          .select('city, district, village, town, occupation, monthly_rent, region, sub_county, parish, landmark, country, mobile_money_number, mobile_money_provider, has_smartphone, ops_note, avatar_url, residence_lat, residence_lng')
           .eq('id', tenant.id)
           .maybeSingle();
         setCity(data?.city || '');
@@ -120,6 +134,18 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
         setTown(data?.town || '');
         setOccupation(data?.occupation || '');
         setMonthlyRent(data?.monthly_rent != null ? String(data.monthly_rent) : '');
+        setRegion(data?.region || '');
+        setSubCounty(data?.sub_county || '');
+        setParish(data?.parish || '');
+        setLandmark(data?.landmark || '');
+        setCountry(data?.country || '');
+        setMmNumber(data?.mobile_money_number || '');
+        setMmProvider(data?.mobile_money_provider || '');
+        setHasSmartphone(data?.has_smartphone ?? true);
+        setOpsNote(data?.ops_note || '');
+        setAvatarUrl(data?.avatar_url || '');
+        setResidenceLat(data?.residence_lat ?? null);
+        setResidenceLng(data?.residence_lng ?? null);
         setExtendedLoading(false);
       })();
     }
@@ -250,6 +276,18 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
         town: town.trim() || null,
         occupation: occupation.trim() || null,
         monthly_rent: cleanRent ? Number(cleanRent) : null,
+        region: region.trim() || null,
+        sub_county: subCounty.trim() || null,
+        parish: parish.trim() || null,
+        landmark: landmark.trim() || null,
+        country: country.trim() || null,
+        mobile_money_number: mmNumber.trim() || null,
+        mobile_money_provider: mmProvider.trim() || null,
+        has_smartphone: hasSmartphone,
+        ops_note: opsNote.trim() || null,
+        avatar_url: avatarUrl.trim() || null,
+        residence_lat: residenceLat,
+        residence_lng: residenceLng,
       };
 
       try {
@@ -403,10 +441,32 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
   };
 
   const handleCloseConfirmation = () => {
+    // no-op
     setSavedSummary(null);
     setStatusSummary(null);
     setPermissionBlock(null);
     onOpenChange(false);
+  };
+
+  const captureGps = () => {
+    if (!('geolocation' in navigator)) {
+      toast.error('GPS not available on this device');
+      return;
+    }
+    setPinningGps(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setResidenceLat(Number(pos.coords.latitude.toFixed(6)));
+        setResidenceLng(Number(pos.coords.longitude.toFixed(6)));
+        setPinningGps(false);
+        toast.success('GPS captured');
+      },
+      (err) => {
+        setPinningGps(false);
+        toast.error(err.message || 'Failed to capture GPS');
+      },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
   };
 
   const showingConfirmation = savedSummary !== null || statusSummary !== null;
@@ -728,6 +788,101 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
                   <p className="text-[11px] text-muted-foreground mt-1">
                     This is what the tenant pays the landlord monthly. Rent plan amounts on active requests are not changed here.
                   </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs">Region</Label>
+                    <Input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="e.g. Central" maxLength={80} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Sub-county</Label>
+                    <Input value={subCounty} onChange={(e) => setSubCounty(e.target.value)} placeholder="e.g. Kira" maxLength={80} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs">Parish</Label>
+                    <Input value={parish} onChange={(e) => setParish(e.target.value)} placeholder="e.g. Kireka" maxLength={80} />
+                  </div>
+                  <div>
+                    <Label className="text-xs flex items-center gap-1.5"><Globe className="h-3 w-3" /> Country</Label>
+                    <Input value={country} onChange={(e) => setCountry(e.target.value)} placeholder="e.g. Uganda" maxLength={80} />
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-xs">Landmark</Label>
+                  <Input value={landmark} onChange={(e) => setLandmark(e.target.value)} placeholder="e.g. near SDA Church" maxLength={160} />
+                </div>
+
+                <div className="space-y-2 p-3 rounded-lg bg-muted/30 border border-border/50">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">GPS Pin (optional)</Label>
+                    <Button type="button" size="sm" variant="outline" onClick={captureGps} disabled={pinningGps} className="rounded-lg gap-1.5 text-xs h-8">
+                      {pinningGps ? <Loader2 className="h-3 w-3 animate-spin" /> : <Crosshair className="h-3 w-3" />}
+                      {residenceLat ? 'Re-capture' : 'Capture GPS'}
+                    </Button>
+                  </div>
+                  {residenceLat != null && residenceLng != null ? (
+                    <p className="text-xs text-muted-foreground font-mono">
+                      {residenceLat.toFixed(5)}, {residenceLng.toFixed(5)}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">No pin saved</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="border-t pt-3 mt-1 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Wallet className="h-4 w-4 text-primary" />
+                  <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                    Mobile Money & Device
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs">MoMo Number</Label>
+                    <Input value={mmNumber} onChange={(e) => setMmNumber(e.target.value)} placeholder="e.g. 0772123456" maxLength={20} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">MoMo Provider</Label>
+                    <Input value={mmProvider} onChange={(e) => setMmProvider(e.target.value)} placeholder="MTN / Airtel" maxLength={40} />
+                  </div>
+                </div>
+
+                <label className="flex items-center gap-2 text-xs cursor-pointer p-2 rounded-md hover:bg-muted/50">
+                  <input
+                    type="checkbox"
+                    checked={hasSmartphone}
+                    onChange={(e) => setHasSmartphone(e.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  <Smartphone className="h-3.5 w-3.5 text-primary" />
+                  <span>Tenant has a smartphone</span>
+                </label>
+
+                <div>
+                  <Label className="text-xs flex items-center gap-1.5">
+                    <ImageIcon className="h-3 w-3" /> Avatar URL <span className="text-muted-foreground">(optional)</span>
+                  </Label>
+                  <Input value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} placeholder="https://..." maxLength={500} />
+                </div>
+
+                <div>
+                  <Label className="text-xs flex items-center gap-1.5">
+                    <StickyNote className="h-3 w-3" /> Ops Note <span className="text-muted-foreground">(internal)</span>
+                  </Label>
+                  <Textarea
+                    value={opsNote}
+                    onChange={(e) => setOpsNote(e.target.value)}
+                    placeholder="Notes for Tenant Ops about this tenant (visible internally)"
+                    rows={3}
+                    maxLength={1000}
+                  />
                 </div>
               </div>
 
