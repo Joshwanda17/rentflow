@@ -234,18 +234,18 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-3">
           What do you want to do?
         </h2>
-        <div className="grid grid-cols-1 gap-3">
+        <div className="grid grid-cols-1 gap-3 min-w-0">
           {/* 1. Verify ALL Deposits (user TIDs + field/agent cash → float) */}
           <button
             onClick={() => setView('deposits')}
-            className="flex items-center gap-4 p-5 sm:p-6 rounded-2xl border-2 border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-all text-left min-h-[88px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="w-full max-w-full flex items-center gap-3 sm:gap-4 p-4 sm:p-6 rounded-2xl border-2 border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-all text-left min-h-[88px] overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
-            <div className="h-14 w-14 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
-              <ShieldCheck className="h-7 w-7 text-primary" />
+            <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+              <ShieldCheck className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-bold text-base sm:text-lg">Verify Deposits</p>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+              <p className="font-bold text-base sm:text-lg break-words">Verify Deposits</p>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 break-words">
                 User top-ups & agent field cash — one place
               </p>
             </div>
@@ -254,14 +254,14 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
           {/* 2. Approve or Reject Withdrawals */}
           <button
             onClick={() => openTool('withdrawals')}
-            className="flex items-center gap-4 p-5 sm:p-6 rounded-2xl border-2 border-orange-500/30 bg-orange-500/5 hover:bg-orange-500/10 hover:border-orange-500/50 transition-all text-left min-h-[88px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="w-full max-w-full flex items-center gap-3 sm:gap-4 p-4 sm:p-6 rounded-2xl border-2 border-orange-500/30 bg-orange-500/5 hover:bg-orange-500/10 hover:border-orange-500/50 transition-all text-left min-h-[88px] overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
-            <div className="h-14 w-14 rounded-xl bg-orange-500/15 flex items-center justify-center shrink-0">
-              <Banknote className="h-7 w-7 text-orange-600" />
+            <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-xl bg-orange-500/15 flex items-center justify-center shrink-0">
+              <Banknote className="h-6 w-6 sm:h-7 sm:w-7 text-orange-600" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-bold text-base sm:text-lg">Approve or Reject Withdrawals</p>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+              <p className="font-bold text-base sm:text-lg break-words">Approve or Reject Withdrawals</p>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 break-words">
                 Cash-out requests waiting for a decision
               </p>
             </div>
@@ -270,14 +270,14 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
           {/* 3. More — everything else */}
           <button
             onClick={() => setMoreSheet(true)}
-            className="flex items-center gap-4 p-5 sm:p-6 rounded-2xl border border-border bg-card hover:bg-accent/40 transition-all text-left min-h-[88px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="w-full max-w-full flex items-center gap-3 sm:gap-4 p-4 sm:p-6 rounded-2xl border border-border bg-card hover:bg-accent/40 transition-all text-left min-h-[88px] overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
-            <div className="h-14 w-14 rounded-xl bg-muted flex items-center justify-center shrink-0">
-              <MoreHorizontal className="h-7 w-7 text-muted-foreground" />
+            <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-xl bg-muted flex items-center justify-center shrink-0">
+              <MoreHorizontal className="h-6 w-6 sm:h-7 sm:w-7 text-muted-foreground" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-bold text-base sm:text-lg">More</p>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+              <p className="font-bold text-base sm:text-lg break-words">More</p>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 break-words">
                 Offline collections, ledger, deductions & support tools
               </p>
             </div>
@@ -288,22 +288,22 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
 
       {/* "More" Sheet — every secondary tool lives here */}
       <Sheet open={moreSheet} onOpenChange={setMoreSheet}>
-        <SheetContent side="bottom" className="rounded-t-2xl max-h-[70vh]">
+        <SheetContent side="bottom" className="rounded-t-2xl max-h-[80vh] overflow-hidden w-full max-w-full">
           <SheetHeader>
             <SheetTitle>More tools</SheetTitle>
             <SheetDescription>Everything beyond verifying deposits and approving withdrawals</SheetDescription>
           </SheetHeader>
-          <div className="grid gap-1.5 mt-4 overflow-y-auto pb-4">
+          <div className="grid gap-1.5 mt-4 overflow-y-auto overflow-x-hidden pb-4 min-w-0">
             {moreActions.map(a => (
               <button
                 key={`${a.kind}-${a.id}`}
                 onClick={() => openMoreAction(a)}
-                className="flex items-center gap-3 p-4 rounded-xl hover:bg-accent/40 transition-colors text-left"
+                className="w-full max-w-full flex items-center gap-3 p-3 sm:p-4 rounded-xl hover:bg-accent/40 transition-colors text-left overflow-hidden"
               >
                 <a.icon className="h-5 w-5 text-muted-foreground shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <span className="font-medium text-sm block">{a.label}</span>
-                  <span className="text-[11px] text-muted-foreground">{a.desc}</span>
+                  <span className="font-medium text-sm block break-words">{a.label}</span>
+                  <span className="text-[11px] text-muted-foreground block break-words">{a.desc}</span>
                 </div>
               </button>
             ))}
