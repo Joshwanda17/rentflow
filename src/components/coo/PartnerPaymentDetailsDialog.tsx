@@ -37,6 +37,7 @@ export default function PartnerPaymentDetailsDialog({ open, onOpenChange, partne
   const [mode, setMode] = useState<'mobile_money' | 'bank_transfer' | 'cash'>('mobile_money');
   const [momoProvider, setMomoProvider] = useState<'MTN' | 'Airtel'>('MTN');
   const [momoNumber, setMomoNumber] = useState('');
+  const [momoName, setMomoName] = useState('');
   const [bankName, setBankName] = useState('');
   const [bankAccName, setBankAccName] = useState('');
   const [bankAccNumber, setBankAccNumber] = useState('');
@@ -46,6 +47,7 @@ export default function PartnerPaymentDetailsDialog({ open, onOpenChange, partne
     setMode((portfolio.payment_method as any) || 'mobile_money');
     setMomoProvider((portfolio.mobile_network as any) || 'MTN');
     setMomoNumber(portfolio.mobile_money_number || '');
+    setMomoName(portfolio.bank_account_name || '');
     setBankName(portfolio.bank_name || '');
     setBankAccName(portfolio.bank_account_name || '');
     setBankAccNumber(portfolio.account_number || '');
@@ -54,6 +56,9 @@ export default function PartnerPaymentDetailsDialog({ open, onOpenChange, partne
   const handleSave = async () => {
     if (mode === 'mobile_money' && !momoNumber.trim()) {
       toast.error('Enter MoMo number'); return;
+    }
+    if (mode === 'mobile_money' && !momoName.trim()) {
+      toast.error('Enter registered recipient name'); return;
     }
     if (mode === 'bank_transfer' && (!bankName.trim() || !bankAccName.trim() || !bankAccNumber.trim())) {
       toast.error('Enter bank name, account name and account number'); return;
@@ -65,7 +70,12 @@ export default function PartnerPaymentDetailsDialog({ open, onOpenChange, partne
         mobile_network: mode === 'mobile_money' ? momoProvider : null,
         mobile_money_number: mode === 'mobile_money' ? momoNumber.trim() : null,
         bank_name: mode === 'bank_transfer' ? bankName.trim() : null,
-        bank_account_name: mode === 'bank_transfer' ? bankAccName.trim() : null,
+        bank_account_name:
+          mode === 'mobile_money'
+            ? momoName.trim()
+            : mode === 'bank_transfer'
+              ? bankAccName.trim()
+              : null,
         account_number: mode === 'bank_transfer' ? bankAccNumber.trim() : null,
       };
       const { data: saved, error } = await supabase
@@ -130,6 +140,13 @@ export default function PartnerPaymentDetailsDialog({ open, onOpenChange, partne
               <div>
                 <Label className="text-xs">MoMo Number</Label>
                 <Input value={momoNumber} onChange={e => setMomoNumber(e.target.value)} placeholder="07XXXXXXXX" inputMode="tel" />
+              </div>
+              <div>
+                <Label className="text-xs">Registered Recipient Name</Label>
+                <Input value={momoName} onChange={e => setMomoName(e.target.value)} placeholder="Name on the MoMo line" />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Saved as the payout recipient only. Portfolio name stays unchanged.
+                </p>
               </div>
             </>
           )}
