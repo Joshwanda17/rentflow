@@ -289,21 +289,41 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
     'Principal', 'ROI %', 'Returns Due', 'Mode', 'Payout Date', 'Status', 'Payment Details',
   ]];
   const body = sortedRows.map((r, idx) => {
-    const returnsDue = Math.round((r.investmentAmount || 0) * (r.roiPercentage || 0) / 100);
+    // Prefer FRESH database values over the row payload supplied by the
+    // caller — the caller's `rows` can be stale if the operator edited a
+    // portfolio between opening the dialog and exporting the PDF.
+    const det = r.portfolioId ? detailsMap.get(r.portfolioId) : null;
+    const principal = det?.investment_amount ?? r.investmentAmount ?? 0;
+    const roiPct = det?.roi_percentage ?? r.roiPercentage ?? 0;
+    const roiMode = det?.roi_mode ?? r.roiMode;
+    const portfolioName = det?.account_name || r.portfolioName || '—';
+    const payoutDate = det?.next_roi_date || r.nextPayoutDate;
+    const returnsDue = Math.round(principal * roiPct / 100);
     const pm = r.investorId ? payoutMap.get(r.investorId) : undefined;
-    const paymentCell = pm
-      ? `${pm.line1}\n${pm.line2}`
-      : 'Not set\nAdd payout method';
+    // Prefer per-portfolio payout details on the portfolio record itself —
+    // an edit on the portfolio's account/MoMo fields must show up here.
+    let paymentCell: string;
+    if (det?.payment_method === 'bank_transfer') {
+      paymentCell = `BANK: ${det.bank_name || '—'}\n${det.bank_account_name || '—'}\nA/C ${det.account_number || '—'}`;
+    } else if (det?.payment_method === 'mobile_money') {
+      paymentCell = `${(det.mobile_network || 'MoMo').toUpperCase()} MOBILE MONEY\n${det.mobile_money_number || '—'}`;
+    } else if (det?.payment_method === 'cash') {
+      paymentCell = 'CASH PICKUP\n—';
+    } else if (pm) {
+      paymentCell = `${pm.line1}\n${pm.line2}`;
+    } else {
+      paymentCell = 'Not set\nAdd payout method';
+    }
     return [
       String(idx + 1),
       r.name || '—',
-      r.portfolioName || '—',
+      portfolioName,
       [r.phone || '', r.email || ''].filter(Boolean).join('\n') || '—',
-      formatUGX(r.investmentAmount || 0),
-      `${r.roiPercentage}%`,
+      formatUGX(principal),
+      `${roiPct}%`,
       formatUGX(returnsDue),
-      r.roiMode === 'monthly_compounding' ? 'Compound' : 'Payout',
-      fmtDate(r.nextPayoutDate),
+      roiMode === 'monthly_compounding' ? 'Compound' : 'Payout',
+      fmtDate(payoutDate),
       dueLabel(r.daysUntil),
       paymentCell,
     ];
