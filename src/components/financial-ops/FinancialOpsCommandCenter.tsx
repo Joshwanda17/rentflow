@@ -158,6 +158,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
             </div>
             <LandlordPayoutsQueue />
             <EmailPayoutAutoMatchPanel />
+            <BulkBankPayoutPanel />
             <FinOpsWithdrawalVerification />
             <PendingWalletOperationsWidget requirePaymentRef={requirePaymentRef} />
             {/* Portfolio top-ups parked at status='awaiting_verification' —
