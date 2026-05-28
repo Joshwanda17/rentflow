@@ -156,6 +156,17 @@ Deno.serve(async (req) => {
     // Parse body
     const body = await req.json();
     const { withdrawal_id, reference, payment_method } = body;
+    // Cash withdrawals are gated by a one-time WPO-XXXXX pickup code that
+    // was issued to the requester at submission time. Financial Ops MUST
+    // pass the exact, unexpired code back here (typed from what the user
+    // presented). Mismatches return structured 4xx errors below.
+    const payoutCodeRaw =
+      typeof (body as any)?.payout_code === "string"
+        ? (body as any).payout_code
+        : null;
+    const payoutCodeNormalized = payoutCodeRaw
+      ? payoutCodeRaw.trim().toUpperCase()
+      : null;
     // System auto-approval (gmail-poll MoMo match) forces the debit onto the
     // REQUESTER's own wallet — consuming the "reserved against pending
     // requests" hold — instead of auto-routing to a proxy agent. The cash
@@ -195,6 +206,114 @@ Deno.serve(async (req) => {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // ── WPO pickup-code gate (cash payouts only) ────────────────────────
+    // Validated BEFORE the atomic claim/processing flip so a wrong code
+    // never locks the request into "processing". System auto-approvals
+    // (gmail-poll MoMo match, etc.) bypass this gate because cash flows
+    // are never auto-routed.
+    const wrPayoutMethod = String((wr as any).payout_method || "").toLowerCase();
+    const isCashPayout =
+      wrPayoutMethod === "cash" || wrPayoutMethod === "cash_pickup";
+    if (isCashPayout && !isSystemCall) {
+      if (!payoutCodeNormalized) {
+        return new Response(
+          JSON.stringify({
+            error: "CASH_CODE_REQUIRED",
+            code: "cash_code_required",
+            message:
+              "Cash withdrawals require the WPO-XXXXX pickup code. Ask the user for the code they received by email and enter it before approving.",
+          }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      // Fetch the canonical code row for this specific withdrawal. We
+      // never trust the code alone — it MUST be tied to this exact
+      // withdrawal_request_id, otherwise a code from another request
+      // could be replayed here.
+      const { data: codeRow, error: codeErr } = await admin
+        .from("payout_codes")
+        .select("id, code, status, expires_at, withdrawal_request_id")
+        .eq("withdrawal_request_id", withdrawal_id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (codeErr) {
+        console.error("[approve-withdrawal] payout_codes lookup failed", codeErr);
+        return new Response(
+          JSON.stringify({
+            error: "CASH_CODE_LOOKUP_FAILED",
+            code: "cash_code_lookup_failed",
+            message: "Could not verify the WPO pickup code right now. Retry in a moment.",
+          }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      if (!codeRow) {
+        return new Response(
+          JSON.stringify({
+            error: "CASH_CODE_NOT_FOUND",
+            code: "cash_code_not_found",
+            message:
+              "No WPO pickup code exists for this cash request. Reject and ask the user to resubmit so a fresh code is issued.",
+          }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      const onFileCode = String(codeRow.code || "").trim().toUpperCase();
+      if (onFileCode !== payoutCodeNormalized) {
+        return new Response(
+          JSON.stringify({
+            error: "CASH_CODE_MISMATCH",
+            code: "cash_code_mismatch",
+            message:
+              "The WPO code you entered does not match the code issued for this request. Double-check the user's email/SMS and try again.",
+          }),
+          { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      if (codeRow.status === "paid") {
+        return new Response(
+          JSON.stringify({
+            error: "CASH_CODE_ALREADY_USED",
+            code: "cash_code_already_used",
+            message:
+              "This WPO code has already been paid out. The same code cannot settle a second payout.",
+          }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      if (codeRow.status === "expired") {
+        return new Response(
+          JSON.stringify({
+            error: "CASH_CODE_EXPIRED",
+            code: "cash_code_expired",
+            message:
+              "This WPO code has expired. Reject the request and ask the user to resubmit so a fresh code is issued.",
+          }),
+          { status: 410, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      const expiresAtMs = codeRow.expires_at
+        ? new Date(codeRow.expires_at).getTime()
+        : 0;
+      if (!expiresAtMs || expiresAtMs <= Date.now()) {
+        // Best-effort flip to 'expired' so future approvals fail fast.
+        await admin
+          .from("payout_codes")
+          .update({ status: "expired" })
+          .eq("id", codeRow.id);
+        return new Response(
+          JSON.stringify({
+            error: "CASH_CODE_EXPIRED",
+            code: "cash_code_expired",
+            message:
+              "This WPO code has expired. Reject the request and ask the user to resubmit so a fresh code is issued.",
+          }),
+          { status: 410, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
     }
 
     // Only allow approval of pending/requested/manager_approved/rejected (re-approval)
