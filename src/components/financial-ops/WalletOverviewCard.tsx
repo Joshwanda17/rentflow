@@ -132,14 +132,14 @@ export function WalletOverviewCard({ onOpenDeductions, onViewActiveWallets, onOp
         interactive
           ? 'cursor-pointer transition-all hover:border-primary/60 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background'
           : ''
-      }`}
+      } overflow-hidden`}
     >
-      <div className="flex items-start justify-between gap-3 mb-3">
+      <div className="flex items-start justify-between gap-2 mb-3 min-w-0">
         <div className="flex items-center gap-3 min-w-0">
           <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
             <Wallet className="h-5 w-5 text-primary" />
           </div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground truncate">
             Total Money in All Wallets
           </p>
         </div>
@@ -183,10 +183,10 @@ export function WalletOverviewCard({ onOpenDeductions, onViewActiveWallets, onOp
           </label>
         </div>
       </div>
-      <p className={`text-3xl sm:text-4xl font-black tabular-nums tracking-tight ${isLoading ? 'animate-pulse text-muted-foreground' : 'text-foreground'}`}>
+      <p className={`text-2xl sm:text-3xl md:text-4xl font-black tabular-nums tracking-tight break-all ${isLoading ? 'animate-pulse text-muted-foreground' : 'text-foreground'}`}>
         {isLoading ? '———' : formatUGX(data?.totalBalance ?? 0)}
       </p>
-      <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-xs text-muted-foreground">
         <span className="flex items-center gap-1">
           <Users className="h-3.5 w-3.5" />
           {isLoading ? '—' : data?.walletCount?.toLocaleString()} wallets
@@ -226,12 +226,12 @@ export function WalletOverviewCard({ onOpenDeductions, onViewActiveWallets, onOp
         onClick={(e) => e.stopPropagation()}
         className="mt-3 pt-3 border-t border-primary/15 space-y-1.5"
       >
-        <div className="flex items-center justify-between gap-2 text-[11px]">
-          <span className="flex items-center gap-1.5 text-muted-foreground">
+        <div className="flex items-center justify-between gap-2 text-[11px] min-w-0">
+          <span className="flex items-center gap-1.5 text-muted-foreground min-w-0">
             <Scale className="h-3 w-3" />
-            <span className="uppercase tracking-wider font-semibold">Ledger total</span>
+            <span className="uppercase tracking-wider font-semibold truncate">Ledger total</span>
           </span>
-          <span className="font-mono tabular-nums font-semibold text-foreground">
+          <span className="font-mono tabular-nums font-semibold text-foreground break-all text-right">
             {strictLoading ? '———' : formatUGX(strict?.strictTotal ?? 0)}
           </span>
         </div>
