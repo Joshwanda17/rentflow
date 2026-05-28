@@ -6,10 +6,10 @@ import {
   ArrowLeft, Users, CheckCircle2, PieChart as PieIcon, AlertTriangle, TrendingUp,
   Wallet, Banknote, ShieldAlert, Phone, MapPin, Calendar, UserCog, Printer, Download,
   XCircle, Clock, ArrowUpRight, Activity, Target, FileText,
-  AlertCircle, Gauge,
+  AlertCircle, Gauge, MapPinned, HandCoins, ListChecks,
 } from 'lucide-react';
 import {
-  ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, Legend,
+  ResponsiveContainer, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip,
   PieChart, Pie, Cell,
 } from 'recharts';
 import { Button } from '@/components/ui/button';
