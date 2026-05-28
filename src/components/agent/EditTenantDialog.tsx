@@ -238,11 +238,18 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
     }
 
     await doSave(async () => {
-      const payload = {
+      const cleanRent = monthlyRent.replace(/[^\d]/g, '');
+      const payload: Record<string, any> = {
         full_name: parsed.data.full_name,
         phone: parsed.data.phone,
         email: parsed.data.email || null,
         national_id: parsed.data.national_id || null,
+        city: city.trim() || null,
+        district: district.trim() || null,
+        village: village.trim() || null,
+        town: town.trim() || null,
+        occupation: occupation.trim() || null,
+        monthly_rent: cleanRent ? Number(cleanRent) : null,
       };
 
       try {
