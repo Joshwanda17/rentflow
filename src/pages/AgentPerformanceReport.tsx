@@ -402,61 +402,85 @@ export default function AgentPerformanceReport() {
     const missedRate = tenantsExpectedToday > 0 ? 100 - (tenantsPaidToday / tenantsExpectedToday) * 100 : 0;
 
     const kpiScorecard = [
-      { kpi: 'Daily Collection Efficiency', weight: 35, score: Math.round(dailyEff) },
-      { kpi: 'Weekly Performance', weight: 25, score: Math.round(weeklyEfficiency) },
-      { kpi: 'Debt Recovery', weight: 20, score: Math.round(recoveryScore) },
-      { kpi: 'Tenant Retention', weight: 10, score: Math.round(retention) },
-      { kpi: 'Missed Payment Rate', weight: 10, score: Math.round(Math.max(0, 100 - missedRate)) },
+      { kpi: 'Today: money collected vs expected', weight: 35, score: Math.round(dailyEff) },
+      { kpi: 'This week: collection rate', weight: 25, score: Math.round(weeklyEfficiency) },
+      { kpi: 'Tenants paying on time', weight: 20, score: Math.round(recoveryScore) },
+      { kpi: 'Tenants still with you', weight: 10, score: Math.round(retention) },
+      { kpi: 'Tenants who paid today', weight: 10, score: Math.round(Math.max(0, 100 - missedRate)) },
     ];
     const totalScore = Math.round(kpiScorecard.reduce((s, r) => s + (r.score * r.weight) / 100, 0));
     const riskStatus = totalScore >= 70 ? 'HEALTHY' : totalScore >= 50 ? 'WARNING' : 'CRITICAL';
     const riskTone = totalScore >= 70 ? 'green' : totalScore >= 50 ? 'amber' : 'red';
 
     const summaryKpis = [
-      { label: 'Active Tenants', value: String(uniqueActiveTenants.size), icon: Users, tone: 'blue' },
-      { label: 'Paying Tenants Today', value: String(tenantsPaidToday), icon: CheckCircle2, tone: 'green' },
-      { label: 'Portfolio Occupancy', value: uniqueAllTenants.size ? `${((uniqueActiveTenants.size / uniqueAllTenants.size) * 100).toFixed(1)}%` : '—', icon: PieIcon, tone: 'blue' },
-      { label: 'Total Outstanding Debt', value: fmtUGX(totalOutstanding), icon: FileText, tone: 'red' },
-      { label: 'Weekly Collection Rate', value: `${weeklyEfficiency.toFixed(0)}%`, icon: TrendingUp, tone: 'amber' },
-      { label: 'Wallet Balance', value: fmtUGX(Number(wallet?.withdrawable_balance || 0)), icon: Wallet, tone: 'blue' },
-      { label: 'Float Balance', value: fmtUGX(Number(wallet?.float_balance || 0)), icon: Banknote, tone: 'green' },
-      { label: 'Risk Status', value: riskStatus, icon: ShieldAlert, tone: riskTone },
+      { label: 'My active tenants', value: String(uniqueActiveTenants.size), icon: Users, tone: 'blue' },
+      { label: 'Paid me today', value: String(tenantsPaidToday), icon: CheckCircle2, tone: 'green' },
+      { label: 'Visits today', value: String(visitsToday), icon: MapPinned, tone: 'blue' },
+      { label: 'My commission today', value: fmtUGX(earningsToday), icon: HandCoins, tone: 'green' },
+      { label: 'Money tenants still owe', value: fmtUGX(totalOutstanding), icon: FileText, tone: 'red' },
+      { label: 'My wallet (can withdraw)', value: fmtUGX(Number(wallet?.withdrawable_balance || 0)), icon: Wallet, tone: 'blue' },
+      { label: 'My float (company money)', value: fmtUGX(Number(wallet?.float_balance || 0)), icon: Banknote, tone: 'green' },
+      { label: 'My status', value: riskStatus, icon: ShieldAlert, tone: riskTone },
     ] as const;
 
     const dailyKpis = [
-      { label: 'Expected Today', value: fmtUGX(expectedToday), tone: 'blue' },
-      { label: 'Collected Today', value: fmtUGX(collectedToday), tone: 'green' },
-      { label: 'Daily Gap', value: fmtUGX(Math.max(0, expectedToday - collectedToday)), tone: 'red' },
-      { label: 'Collection Efficiency', value: `${dailyEff.toFixed(0)}%`, tone: 'amber' },
-      { label: 'Tenants Expected Today', value: String(tenantsExpectedToday), tone: 'blue' },
-      { label: 'Tenants Who Paid', value: String(tenantsPaidToday), tone: 'green' },
-      { label: 'Missed Payments', value: String(missedToday), tone: 'red' },
-      { label: 'Partial Payments', value: String(partialToday), tone: 'amber' },
+      { label: 'Money owed today', value: fmtUGX(expectedToday), tone: 'blue' },
+      { label: 'Money you collected today', value: fmtUGX(collectedToday), tone: 'green' },
+      { label: 'Still to collect today', value: fmtUGX(Math.max(0, expectedToday - collectedToday)), tone: 'red' },
+      { label: 'Today % collected', value: `${dailyEff.toFixed(0)}%`, tone: 'amber' },
+      { label: 'Tenants due today', value: String(tenantsExpectedToday), tone: 'blue' },
+      { label: 'Tenants who paid you', value: String(tenantsPaidToday), tone: 'green' },
+      { label: 'Tenants who missed', value: String(missedToday), tone: 'red' },
+      { label: 'Tenants who paid partly', value: String(partialToday), tone: 'amber' },
     ];
 
     const weeklyKpis = [
-      { label: 'Weekly Expected', value: fmtUGX(weeklyExpected), tone: 'blue' },
-      { label: 'Weekly Collected', value: fmtUGX(weeklyCollected), tone: 'green' },
-      { label: 'Weekly Outstanding', value: fmtUGX(weeklyOutstanding), tone: 'red' },
-      { label: 'Weekly Efficiency', value: `${weeklyEfficiency.toFixed(1)}%`, tone: 'amber' },
-      { label: 'Avg Daily Collected', value: fmtUGX(weeklyCollected / 7), tone: 'green' },
-      { label: 'Active Plans', value: String(activeRR.length), tone: 'blue' },
+      { label: 'Money owed this week', value: fmtUGX(weeklyExpected), tone: 'blue' },
+      { label: 'Money you collected this week', value: fmtUGX(weeklyCollected), tone: 'green' },
+      { label: 'Still owing this week', value: fmtUGX(weeklyOutstanding), tone: 'red' },
+      { label: 'This week % collected', value: `${weeklyEfficiency.toFixed(1)}%`, tone: 'amber' },
+      { label: 'Avg per day collected', value: fmtUGX(weeklyCollected / 7), tone: 'green' },
+      { label: 'Visits this week', value: String(visitsWeek), tone: 'blue' },
     ];
 
     const debtSummary = [
-      { label: 'Total Outstanding Debt', value: fmtUGX(totalOutstanding), icon: FileText, tone: 'red' },
-      { label: 'Current Month Arrears', value: fmtUGX(buckets['0–30 Days']), icon: Calendar, tone: 'amber' },
-      { label: 'Old Arrears (> 30 Days)', value: fmtUGX(buckets['31–60 Days'] + buckets['61–90 Days'] + buckets['90+ Days']), icon: Clock, tone: 'red' },
-      { label: 'Highest Debtor', value: fmtUGX(highestDebt), icon: AlertTriangle, tone: 'red' },
-      { label: 'Recovery Rate (Week)', value: `${weeklyEfficiency.toFixed(0)}%`, icon: Activity, tone: 'amber' },
+      { label: 'Total tenants still owe', value: fmtUGX(totalOutstanding), icon: FileText, tone: 'red' },
+      { label: 'Owed in the last 30 days', value: fmtUGX(buckets['0–30 Days']), icon: Calendar, tone: 'amber' },
+      { label: 'Owed older than 30 days', value: fmtUGX(buckets['31–60 Days'] + buckets['61–90 Days'] + buckets['90+ Days']), icon: Clock, tone: 'red' },
+      { label: 'Biggest single debt', value: fmtUGX(highestDebt), icon: AlertTriangle, tone: 'red' },
+      { label: 'This week % collected', value: `${weeklyEfficiency.toFixed(0)}%`, icon: Activity, tone: 'amber' },
     ];
 
     const debtKpiStrip = [
-      { label: 'Tenants in Arrears', value: String(tenantsInArrears), sub: `(${portfolioPctArrears.toFixed(1)}%)`, icon: Users, tone: 'red' },
-      { label: 'Avg. Debt per Tenant', value: fmtUGX(avgDebtPerTenant), icon: Banknote, tone: 'amber' },
-      { label: '% of Portfolio in Arrears', value: `${portfolioPctArrears.toFixed(1)}%`, icon: Target, tone: 'red' },
-      { label: 'Active Plans', value: String(activeRR.length), icon: ArrowUpRight, tone: 'blue' },
+      { label: 'Tenants who still owe', value: String(tenantsInArrears), sub: `(${portfolioPctArrears.toFixed(1)}%)`, icon: Users, tone: 'red' },
+      { label: 'Average debt per tenant', value: fmtUGX(avgDebtPerTenant), icon: Banknote, tone: 'amber' },
+      { label: '% of your tenants behind', value: `${portfolioPctArrears.toFixed(1)}%`, icon: Target, tone: 'red' },
+      { label: 'Active rent plans', value: String(activeRR.length), icon: ArrowUpRight, tone: 'blue' },
     ];
+
+    // Action checklist — concrete, ordered things the agent should do next
+    const actionChecklist: { title: string; detail: string; tone: string }[] = [];
+    if (missedToday > 0) {
+      actionChecklist.push({ title: `Call ${missedToday} tenant${missedToday === 1 ? '' : 's'} who missed today`, detail: 'See the "Today" table below — tap the phone number.', tone: 'red' });
+    }
+    if (buckets['90+ Days'] > 0) {
+      actionChecklist.push({ title: `Recover old debt (90+ days)`, detail: `${fmtUGX(buckets['90+ Days'])} sitting in 90+ days. Visit these tenants this week.`, tone: 'red' });
+    }
+    if (visitsToday === 0 && tenantsInArrears > 0) {
+      actionChecklist.push({ title: 'Do at least 1 field visit today', detail: 'No visits recorded yet. Visits build your trust score and recover debt faster.', tone: 'amber' });
+    }
+    if (Number(wallet?.float_balance || 0) < 50_000) {
+      actionChecklist.push({ title: 'Top up your float', detail: 'Your float is low — you may not be able to receive deposits from tenants.', tone: 'amber' });
+    }
+    if (actionChecklist.length === 0) {
+      actionChecklist.push({ title: 'You are on track today — keep collecting!', detail: `${tenantsPaidToday} paid, ${fmtUGX(collectedToday)} collected.`, tone: 'green' });
+    }
+
+    // Field activity feed (last 30d): merge visits + collections, newest first, cap 8
+    const activityFeed = [
+      ...visits.map(v => ({ when: v.created_at, kind: 'Visit', label: tenantNameMap.get(v.tenant_id) || 'Tenant', meta: v.location_name || '' })),
+      ...agentCollections.map(c => ({ when: c.created_at, kind: 'Collection', label: tenantNameMap.get(c.tenant_id) || c.momo_payer_name || 'Tenant', meta: `${fmtUGX(Number(c.amount || 0))} · ${c.payment_method || ''}` })),
+    ].sort((a, b) => new Date(b.when).getTime() - new Date(a.when).getTime()).slice(0, 8);
 
     const periodLabel = `${format(weekStart, 'MMM d')} – ${format(now, 'MMM d, yyyy')}`;
     const generatedLabel = format(now, 'MMM d, yyyy HH:mm');
@@ -480,6 +504,14 @@ export default function AgentPerformanceReport() {
       totalScore,
       recoveryScore: Math.round(recoveryScore),
       totalDebt: totalOutstanding,
+      actionChecklist,
+      activityFeed,
+      visitsToday,
+      visitsWeek,
+      earningsToday,
+      earnings30d,
+      collectionsToday,
+      collections30d,
       periodLabel,
       generatedLabel,
     };
