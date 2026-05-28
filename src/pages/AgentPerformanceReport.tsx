@@ -887,6 +887,52 @@ export default function AgentPerformanceReport() {
           </div>
         </SectionCard>
 
+        {/* ===== SECTION 6: YOUR FIELD ACTIVITY (real actions, last 30 days) ===== */}
+        {computed && (
+          <SectionCard
+            index={6}
+            title="Your field activity (last 30 days)"
+            right={<span className="text-xs text-slate-500 hidden sm:inline">Visits, deposits & commissions you actually recorded</span>}
+          >
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+              <MiniMetric label="Visits today" value={String(computed.visitsToday)} tone="blue" />
+              <MiniMetric label="Visits this week" value={String(computed.visitsWeek)} tone="blue" />
+              <MiniMetric label="Deposits taken (30d)" value={String(computed.collections30d)} tone="green" />
+              <MiniMetric label="My commission (30d)" value={fmtUGX(computed.earnings30d)} tone="amber" />
+            </div>
+            <div className="rounded-xl border border-slate-200 overflow-hidden">
+              <Table>
+                <TableHeader className="bg-slate-50">
+                  <TableRow>
+                    <TableHead className="text-xs">When</TableHead>
+                    <TableHead className="text-xs">What</TableHead>
+                    <TableHead className="text-xs">Tenant / Detail</TableHead>
+                    <TableHead className="text-xs">Location / Amount</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {computed.activityFeed.length === 0 && (
+                    <TableRow><TableCell colSpan={4} className="text-center text-sm text-slate-500 py-6">No visits or deposits recorded in the last 30 days. Start a field visit to build your trust score.</TableCell></TableRow>
+                  )}
+                  {computed.activityFeed.map((a, i) => (
+                    <TableRow key={i} className="hover:bg-slate-50/60">
+                      <TableCell className="text-xs text-slate-600 whitespace-nowrap">{format(new Date(a.when), 'MMM d, HH:mm')}</TableCell>
+                      <TableCell>
+                        <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border',
+                          a.kind === 'Visit' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200')}>
+                          {a.kind}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-sm font-medium">{a.label}</TableCell>
+                      <TableCell className="text-xs text-slate-600">{a.meta || '—'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </SectionCard>
+        )}
+
         {computed && (
           <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 flex items-start gap-3">
             <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
