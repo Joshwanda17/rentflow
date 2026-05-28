@@ -336,7 +336,14 @@ export function ApprovalQueue() {
           }
 
           // Handle cash payout codes for cash withdrawals
-          const cashItems = items.filter(i => approvalResults.includes(i.id) && i.payoutDetails?.method === 'cash');
+          // Skip any that already have a code (now generated at REQUEST time
+          // by submit_withdrawal_request). Only legacy rows without a code
+          // need a fresh one at approval time.
+          const cashItems = items.filter(
+            i => approvalResults.includes(i.id)
+              && i.payoutDetails?.method === 'cash'
+              && !i.payoutDetails?.payoutCode,
+          );
           if (cashItems.length > 0) {
             for (const ci of cashItems) {
               const code = 'WPO-' + Math.random().toString(36).substring(2, 7).toUpperCase();
