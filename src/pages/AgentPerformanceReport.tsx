@@ -571,6 +571,29 @@ export default function AgentPerformanceReport() {
           </div>
         )}
 
+        {/* ===== ACTION CHECKLIST (what to do now) ===== */}
+        {computed && (
+          <section className="rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white p-4 sm:p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="inline-flex items-center justify-center h-7 w-7 rounded-md bg-blue-600 text-white">
+                <ListChecks className="h-4 w-4" />
+              </span>
+              <h2 className="text-sm sm:text-base font-bold text-slate-900 uppercase tracking-wide">What to do now</h2>
+            </div>
+            <ul className="space-y-2">
+              {computed.actionChecklist.map((a, i) => (
+                <li key={i} className={cn('flex items-start gap-3 p-3 rounded-xl border', toneBg[a.tone], 'border-slate-200')}>
+                  <span className={cn('h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 bg-white border', toneText[a.tone])}>{i + 1}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className={cn('text-sm font-bold', toneText[a.tone])}>{a.title}</p>
+                    <p className="text-xs text-slate-600 mt-0.5">{a.detail}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         {/* ===== SECTION 1: AGENT SUMMARY ===== */}
         <SectionCard index={1} title="Agent Summary">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
