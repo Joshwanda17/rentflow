@@ -52,6 +52,13 @@ interface AgentRentRequestDialogProps {
   prefillTenantName?: string;
   prefillTenantPhone?: string;
   prefillRentAmount?: string;
+  /** Full snapshot saved from a previous draft. When provided, the dialog
+   *  repopulates form fields on open so the agent can push it through once
+   *  their per-tenant tier limit allows it. */
+  prefillDraft?: Record<string, any> | null;
+  /** Optional id of a saved draft this submission should resolve. On success
+   *  the draft is marked `submitted` and linked to the new rent_request. */
+  draftId?: string | null;
 }
 
 type IncomeType = 'daily' | 'weekly-monthly' | 'outstanding';
