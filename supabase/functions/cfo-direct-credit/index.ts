@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { target_user_id, amount: rawAmount, reason, operation, wallet_category, platform_category, financial_impact, category_label, sub_category, recipient_type, allow_overdraw: rawAllowOverdraw, gmail_transaction_id: rawGmailTxId, gmail_message_id: rawGmailMsgId, email_tid: rawEmailTid } = await req.json();
+    const { target_user_id, amount: rawAmount, reason, operation, wallet_category, platform_category, financial_impact, category_label, sub_category, recipient_type, allow_overdraw: rawAllowOverdraw, solvency_bypass_reason: rawSolvencyReason, gmail_transaction_id: rawGmailTxId, gmail_message_id: rawGmailMsgId, email_tid: rawEmailTid } = await req.json();
     const amount = typeof rawAmount === "number"
       ? rawAmount
       : Number(String(rawAmount ?? "").replace(/[, _]/g, ""));
@@ -85,6 +85,33 @@ Deno.serve(async (req) => {
     // so the existing recovery cron settles it from future incoming
     // credits. Credits ignore the flag.
     const allowOverdraw = op === "debit" && rawAllowOverdraw === true;
+
+    // ── Structured solvency-bypass reason ─────────────────────────────────
+    // The DB trigger enforce_no_negative_wallet_ledger requires this code on
+    // any cash_out wallet leg classified as admin_correction. Forced reversals
+    // (allow_overdraw=true) are the only path here that stamps that
+    // classification, so they MUST carry a code. We validate against the
+    // canonical enum so a typo can't silently bypass the guard.
+    const SOLVENCY_BYPASS_REASONS = new Set([
+      'legacy_offline_paid', 'write_off', 'admin_correction_seed',
+      'legacy_real_backfill', 'dispute_resolution', 'regulatory_adjustment',
+      'duplicate_reversal', 'other_with_note',
+    ]);
+    const solvencyBypassReason: string | null =
+      typeof rawSolvencyReason === 'string' && SOLVENCY_BYPASS_REASONS.has(rawSolvencyReason)
+        ? rawSolvencyReason
+        : null;
+    if (allowOverdraw && !solvencyBypassReason) {
+      return new Response(JSON.stringify({
+        error: 'SOLVENCY_BYPASS_REASON_REQUIRED: forced reversals must include a solvency_bypass_reason code (one of: ' +
+          [...SOLVENCY_BYPASS_REASONS].join(', ') + ').',
+      }), { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    if (allowOverdraw && solvencyBypassReason === 'other_with_note' && (reason ?? '').length < 30) {
+      return new Response(JSON.stringify({
+        error: 'SOLVENCY_BYPASS_NOTE_REQUIRED: reason code other_with_note requires a description of at least 30 characters.',
+      }), { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
 
     // ── HARD CATEGORY → BUCKET LOCKS (Wallet Routing v2.1) ───────────────
     // These categories are the ONLY signal that decides the wallet bucket.
@@ -391,7 +418,9 @@ Deno.serve(async (req) => {
           // explicitly excluded by every end-user wallet filter), while
           // still being captured in CFO/ops dashboards and in the
           // cfo_debit_obligations recoverable below.
-          ...(allowOverdraw ? { classification: 'admin_correction' } : {}),
+          ...(allowOverdraw
+            ? { classification: 'admin_correction', solvency_bypass_reason: solvencyBypassReason }
+            : {}),
         },
         {
           user_id: userId,
@@ -442,6 +471,7 @@ Deno.serve(async (req) => {
             category_label: category_label || walletCat,
             sub_category: sub_category || null,
             forced_reversal: allowOverdraw,
+            solvency_bypass_reason: solvencyBypassReason,
           },
         });
       if (oblErr) {
@@ -474,6 +504,7 @@ Deno.serve(async (req) => {
         reference_id: refId,
         recipient_type,
         routing_version: 'v2',
+        solvency_bypass_reason: solvencyBypassReason,
       },
     });
 

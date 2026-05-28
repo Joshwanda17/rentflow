@@ -1,61 +1,103 @@
-## Goal
+# Structured Solvency Bypass Reason Codes
 
-When a Gmail ingestion picks up an Equity Bank bulk payout email naming "SKYBUBBLES TRADING AND INVESTMENT LIMITED" as the receiver/sender, automatically settle pending bank-payout withdrawals from partners that are managed by a proxy agent — debiting each proxy agent's wallet — until the email amount is depleted. Operators see the per-email breakdown inline in the Email Transactions panel.
+The solvency guard `enforce_no_negative_wallet_ledger` today silently lets several "escape hatch" categories through (`admin_correction`, `system_balance_correction`, `platform_loss_writeoff`, float-category list, wallet_deduction adjustments). Operators can therefore push a wallet bucket negative with no machine-readable justification — only free-text in `description`/`audit_logs`. This plan formalizes the bypass and forces every escape to carry one of a short list of audit-grade reason codes.
 
-## Detection rule
+---
 
-A `gmail_transactions` row qualifies as a *bulk bank payout* when ANY of `subject`, `snippet`, `raw_body`, `from_name`, or `counterparty` (case-insensitive) contains the literal string `SKYBUBBLES TRADING AND INVESTMENT LIMITED`. No other constraints — amount, direction, sender are not required.
+## Scope
 
-## Database changes (`supabase/migrations/...`)
+In:
+- New enum + column on `general_ledger` for the reason code.
+- Updated DB trigger that **requires** the code whenever a bypass path is hit and **rejects** the code on normal (non-bypass) legs.
+- Edge functions that produce bypass legs accept + forward the code.
+- CFO/FinOps UI surfaces a required dropdown the moment a bypass is detected.
+- Audit log captures the code separately so reports can group by reason.
 
-1. New table `bulk_bank_payout_allocations`:
-   - `id uuid pk`, `gmail_transaction_id uuid` (FK → gmail_transactions), `withdrawal_request_id uuid UNIQUE` (FK → withdrawal_requests), `partner_id uuid`, `proxy_agent_id uuid`, `allocated_amount numeric not null`, `status text default 'settled'`, `error_message text`, `created_at timestamptz default now()`.
-   - GRANTs + RLS: staff roles (manager/super_admin/cfo/coo/financial_ops) SELECT.
-2. Add columns to `gmail_transactions`:
-   - `is_bulk_bank_payout boolean default false`
-   - `bulk_payout_allocated_total numeric default 0`
-   - `bulk_payout_settled_at timestamptz`
-3. Trigger `trg_detect_bulk_bank_payout` BEFORE INSERT on `gmail_transactions`: sets `is_bulk_bank_payout = true` when text match hits.
-4. Trigger `trg_auto_settle_bulk_bank_payout` AFTER INSERT on `gmail_transactions` (when `is_bulk_bank_payout`): fires a `pg_net` POST to the new edge function `auto-settle-bulk-bank-payout` with `{ gmail_transaction_id }`. Fire-and-forget — never blocks ingestion.
+Out (separate work):
+- Retroactive backfill of historical legacy bypass rows.
+- Reason-code analytics dashboard (just leave the data clean for it).
 
-## Edge function `auto-settle-bulk-bank-payout`
+---
 
-Service role. For the given `gmail_transaction_id`:
-1. Lock the gmail tx row (`select ... for update`); abort if already `bulk_payout_settled_at IS NOT NULL`.
-2. Compute `remaining = amount − bulk_payout_allocated_total`. Abort if `<= 0` or amount is null.
-3. Fetch candidate withdrawal requests, FIFO `order by created_at asc`:
-   - `status IN ('pending','manager_approved','cfo_approved')`
-   - `payout_method ILIKE 'bank%'`
-   - `proxy_partner_id IS NULL` AND `agent_id IS NULL` (un-routed) OR already proxy-tagged but unsettled
-   - NOT already linked in `bulk_bank_payout_allocations`
-4. For each candidate, resolve active managed proxy via existing `proxy_agent_assignments` (mirrors `approve-withdrawal` auto-route logic — `is_active`, `approval_status='approved'`, prefer `is_managed_account=true`). Skip if none.
-5. Check proxy agent strict withdrawable via `get_user_available_balance(proxy_agent_id)` ≥ wr.amount. Skip if not.
-6. Skip if `wr.amount > remaining` (partial-skip; do not split a withdrawal across emails).
-7. Invoke existing `approve-withdrawal` edge function in-process with `{ requestId, action:'approve', stage:'cfo_approved' }` plus metadata `{ bulk_email_id, settled_via:'skybubbles_bulk' }`. The existing auto-route logic will debit the proxy agent.
-8. On success: insert `bulk_bank_payout_allocations` row, decrement `remaining`, increment `bulk_payout_allocated_total` on the email row, stamp `fin_ops_reference` on the wr with the gmail TID, write `audit_logs` (`action_type='withdrawal_bulk_settled_skybubbles'`).
-9. After loop ends or remaining hits 0, set `bulk_payout_settled_at = now()` if remaining is 0; otherwise leave open so future runs can reuse.
-10. Emit `system_events`: `withdrawal.bulk_skybubbles.settled` per allocation, `gmail.bulk_skybubbles.detected` once.
+## Reason codes (initial set)
 
-Idempotency: `withdrawal_request_id` UNIQUE prevents double-settle; row-lock on gmail tx prevents concurrent invocations from over-allocating.
+| Code                          | When to use                                                             |
+|-------------------------------|-------------------------------------------------------------------------|
+| `legacy_offline_paid`         | Funds already moved off-platform; ledger catches up.                    |
+| `write_off`                   | Uncollectible balance written off the platform.                         |
+| `admin_correction_seed`       | One-time wallet seed/migration entry.                                   |
+| `legacy_real_backfill`        | Backfill of a pre-platform real event.                                  |
+| `dispute_resolution`          | Settlement of a customer/agent dispute.                                 |
+| `regulatory_adjustment`       | Forced by BOU/CMA or external counterparty.                             |
+| `duplicate_reversal`          | Rolling back a duplicate posting.                                       |
+| `other_with_note`             | Catch-all — requires the operator's `reason` text to be ≥ 30 chars.     |
 
-## UI: `EmailTransactionsPanel.tsx`
+---
 
-- Add a left-side expand chevron on rows where `is_bulk_bank_payout = true`.
-- Expanded panel shows: total amount, allocated, remaining; then a small table of allocations (partner name/email/phone, proxy agent name, withdrawal id short, allocated UGX, status, created_at). Empty-state when no allocations yet.
-- Read from `bulk_bank_payout_allocations` joined with `withdrawal_requests` and `profiles` (partner + proxy agent display name).
-- Read-only — no operator actions. Realtime subscribe to `bulk_bank_payout_allocations` insert events so the breakdown populates as the cron/trigger fires.
+## Steps
 
-## Files touched
+### 1. Database migration
 
-- new migration `supabase/migrations/<ts>_skybubbles_bulk_payout.sql`
-- new edge function `supabase/functions/auto-settle-bulk-bank-payout/index.ts`
-- edit `src/components/financial-ops/EmailTransactionsPanel.tsx`
-- regen `src/integrations/supabase/types.ts` (auto)
+```sql
+CREATE TYPE public.solvency_bypass_reason AS ENUM (
+  'legacy_offline_paid','write_off','admin_correction_seed',
+  'legacy_real_backfill','dispute_resolution','regulatory_adjustment',
+  'duplicate_reversal','other_with_note'
+);
 
-## Risks & guards
+ALTER TABLE public.general_ledger
+  ADD COLUMN solvency_bypass_reason public.solvency_bypass_reason;
 
-- Over-debiting a proxy agent: gated by `get_user_available_balance` strict-rule check before allocation.
-- Re-firing on the same email: gmail `id` UNIQUE + `withdrawal_request_id` UNIQUE on allocations + row-lock.
-- Partner with no managed proxy: skipped silently (operator sees the email's remaining balance, can fall back to manual approval).
-- Existing `approve-withdrawal` pipeline already handles ledger postings, proxy_payout_settlements, audit logs, notifications — we do NOT duplicate that logic.
-- All wallet movements stay routed through `apply_wallet_movement` via the existing approve flow — no direct bucket writes.
+CREATE INDEX idx_gl_solvency_bypass_reason
+  ON public.general_ledger (solvency_bypass_reason)
+  WHERE solvency_bypass_reason IS NOT NULL;
+```
+
+Rewrite `enforce_no_negative_wallet_ledger` so that on every bypass branch it:
+1. Raises `SOLVENCY_BYPASS_REASON_REQUIRED` if `NEW.solvency_bypass_reason IS NULL`.
+2. For `other_with_note`, also requires `length(coalesce(NEW.description,'')) >= 30`.
+
+On the **non-bypass** path (normal cash_out that passes the strict-balance check) it raises `SOLVENCY_BYPASS_REASON_NOT_ALLOWED` if the code is set — preventing operators from attaching a "legacy_offline_paid" tag to a regular debit just to look clean.
+
+### 2. RPC + edge functions
+
+- `create_ledger_transaction`: pass `solvency_bypass_reason` through from each entry untouched.
+- `cfo-direct-credit`:
+  - Accept optional `solvency_bypass_reason` in body.
+  - For `operation:'debit'` OR when caller selects `classification:'admin_correction'` / wallet leg category in the bypass set, validate via Zod that the code is present and one of the enum values. Forward on both legs.
+- `ops-bucket-transfer`: same — only relevant if direction would push a bucket negative, otherwise ignore.
+- Other edge functions that intentionally post `admin_correction` / `system_balance_correction` / `platform_loss_writeoff` (search list below) get the same field plumbed through.
+
+### 3. UI surfaces
+
+- `CfoDirectCreditPanel` (and Debit twin): when the user picks an `admin_correction` classification, picks a bypass category, OR the live strict-balance check shows the debit would underflow, render a required `<Select>` with the eight reason codes plus a help tooltip. Submit button stays disabled until selected. `other_with_note` also enforces 30-char minimum on the existing reason textarea.
+- `RouteEmailDepositDialog` debit flow: same dropdown when the destination user lacks funds and the operator chooses to proceed via an admin path.
+- Audit logs: write the code into `audit_logs.metadata.solvency_bypass_reason` so the existing CFO audit explorer can filter on it.
+
+### 4. Tests
+
+- New SQL test: trigger raises `SOLVENCY_BYPASS_REASON_REQUIRED` for admin-correction cash_out without a code; succeeds with code; rejects bogus codes (enum guard).
+- Integration test for `cfo-direct-credit` rejecting bypass debits with no code, and stamping the code onto both legs when supplied.
+
+---
+
+## Files to touch (technical)
+
+- New migration `supabase/migrations/2026xxxx_solvency_bypass_reason.sql`
+- `supabase/functions/cfo-direct-credit/index.ts`
+- `supabase/functions/ops-bucket-transfer/index.ts`
+- `supabase/functions/approve-deposit/index.ts` and other producers of `admin_correction` / `system_balance_correction` / `platform_loss_writeoff` (rg list during implementation)
+- `src/components/cfo/CfoDirectCreditPanel.tsx` (+ debit panel)
+- `src/components/financial-ops/RouteEmailDepositDialog.tsx`
+- `src/lib/ledgerConstants.ts` — add `SOLVENCY_BYPASS_REASONS` const for client/edge reuse
+- New mem note `mem://constraints/solvency-bypass-reason` documenting the rule
+
+---
+
+## Risk & rollout
+
+- Hot path: every cash_out wallet leg flows through the trigger; change is small but must be deployed in lockstep with edge functions that already post bypass categories — otherwise live writes start failing. Mitigation: ship edge-function plumbing first with `solvency_bypass_reason` optional, then flip the trigger to required in a follow-up migration the same day, after backfilling any in-flight rows.
+- No data loss: historical rows remain `NULL`; trigger only fires on INSERT.
+- UI is purely additive — never blocks normal credits or in-bound deposits.
+
+Please confirm the reason-code list (add/remove/rename any) and approve so I can ship the migration + edge function + UI changes.

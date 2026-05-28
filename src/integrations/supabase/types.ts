@@ -6851,6 +6851,9 @@ export type Database = {
           reference_id: string | null
           routing_source: string | null
           running_balance: number | null
+          solvency_bypass_reason:
+            | Database["public"]["Enums"]["solvency_bypass_reason"]
+            | null
           source_id: string | null
           source_table: string
           transaction_date: string
@@ -6876,6 +6879,9 @@ export type Database = {
           reference_id?: string | null
           routing_source?: string | null
           running_balance?: number | null
+          solvency_bypass_reason?:
+            | Database["public"]["Enums"]["solvency_bypass_reason"]
+            | null
           source_id?: string | null
           source_table: string
           transaction_date?: string
@@ -6901,6 +6907,9 @@ export type Database = {
           reference_id?: string | null
           routing_source?: string | null
           running_balance?: number | null
+          solvency_bypass_reason?:
+            | Database["public"]["Enums"]["solvency_bypass_reason"]
+            | null
           source_id?: string | null
           source_table?: string
           transaction_date?: string
@@ -18860,6 +18869,15 @@ export type Database = {
         | "general"
       flag_severity: "low" | "medium" | "high" | "critical"
       leave_type: "annual" | "sick" | "personal" | "maternity" | "paternity"
+      solvency_bypass_reason:
+        | "legacy_offline_paid"
+        | "write_off"
+        | "admin_correction_seed"
+        | "legacy_real_backfill"
+        | "dispute_resolution"
+        | "regulatory_adjustment"
+        | "duplicate_reversal"
+        | "other_with_note"
       system_event_type:
         | "payment_missed"
         | "payment_made"
@@ -19114,6 +19132,16 @@ export const Constants = {
       ],
       flag_severity: ["low", "medium", "high", "critical"],
       leave_type: ["annual", "sick", "personal", "maternity", "paternity"],
+      solvency_bypass_reason: [
+        "legacy_offline_paid",
+        "write_off",
+        "admin_correction_seed",
+        "legacy_real_backfill",
+        "dispute_resolution",
+        "regulatory_adjustment",
+        "duplicate_reversal",
+        "other_with_note",
+      ],
       system_event_type: [
         "payment_missed",
         "payment_made",

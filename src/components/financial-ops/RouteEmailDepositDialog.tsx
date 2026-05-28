@@ -13,6 +13,7 @@ import { Loader2, Wallet, Banknote, ArrowRight, AlertTriangle, UserCog, ChevronL
 import { useToast } from '@/hooks/use-toast';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
 import { formatUGX } from '@/lib/rentCalculations';
+import { SOLVENCY_BYPASS_REASONS, type SolvencyBypassReasonCode } from '@/lib/solvencyBypassReasons';
 
 /**
  * Fetches current wallet bucket balances (cache view) for a user so the
@@ -649,6 +650,11 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
   // a recoverable obligation (auto_recover=true).
   const [forcePending, setForcePending] = useState<null | { amount: number; name: string }>(null);
   const forceReversalRef = useRef(false);
+  // Structured reason code stamped on every forced-reversal leg so the
+  // solvency-guard bypass is audit-grade. Required by both the DB trigger
+  // and the cfo-direct-credit edge function whenever allow_overdraw=true.
+  const [solvencyBypassReason, setSolvencyBypassReason] = useState<SolvencyBypassReasonCode | ''>('');
+  const solvencyBypassReasonRef = useRef<SolvencyBypassReasonCode | ''>('');
   // Two-step confirmation gate. When the operator clicks the action button
   // the first time we flip this on, surface the source/destination preview +
   // before/after balances, and require a second click ("Confirm & route") to
@@ -780,6 +786,8 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
       setDebitRoute('withdrawable');
       setForcePending(null);
       forceReversalRef.current = false;
+      solvencyBypassReasonRef.current = '';
+      setSolvencyBypassReason('');
       setSourceUser(null);
       setTransferFromUser(false);
       setTransferFromBucket('withdrawable');
@@ -979,6 +987,9 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
           recipient_type: isFloat ? 'operational_wallet' : 'user',
           sub_category: row.transaction_id ?? null,
           allow_overdraw: forceReversalRef.current,
+          solvency_bypass_reason: forceReversalRef.current
+            ? (solvencyBypassReasonRef.current || undefined)
+            : undefined,
         };
         const { data: debitData, error: debitErr } = await supabase.functions.invoke('cfo-direct-credit', { body: debitBody });
         const debitErrMsg = (debitErr as any)?.message || (debitData as any)?.error;
@@ -1098,6 +1109,9 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
           recipient_type: fromFloat ? 'operational_wallet' : 'user',
           sub_category: row.transaction_id ?? null,
           allow_overdraw: forceReversalRef.current,
+          solvency_bypass_reason: forceReversalRef.current
+            ? (solvencyBypassReasonRef.current || undefined)
+            : undefined,
         };
         const { data: tdData, error: tdErr } = await supabase.functions.invoke('cfo-direct-credit', { body: transferDebitBody });
         const tdErrMsg = (tdErr as any)?.message || (tdData as any)?.error;
