@@ -783,6 +783,7 @@ export default function AgentPerformanceReport() {
                   <TableHeader className="bg-slate-50">
                     <TableRow>
                       <TableHead className="text-xs">Tenant</TableHead>
+                      <TableHead className="text-xs">Phone</TableHead>
                       <TableHead className="text-xs text-right">Debt</TableHead>
                       <TableHead className="text-xs text-right">Days Late</TableHead>
                       <TableHead className="text-xs">Last Payment</TableHead>
@@ -792,6 +793,13 @@ export default function AgentPerformanceReport() {
                     {(computed?.topDefaulters || []).map((t, i) => (
                       <TableRow key={i} className="hover:bg-red-50/30">
                         <TableCell className="text-sm font-medium">{t.tenant}</TableCell>
+                        <TableCell className="text-xs">
+                          {t.phone ? (
+                            <a href={`tel:${t.phone}`} className="inline-flex items-center gap-1 text-blue-600 hover:underline">
+                              <Phone className="h-3 w-3" />{t.phone}
+                            </a>
+                          ) : <span className="text-slate-400">—</span>}
+                        </TableCell>
                         <TableCell className="text-right text-sm tabular-nums font-semibold">{Math.round(t.debt).toLocaleString()}</TableCell>
                         <TableCell className="text-right text-sm tabular-nums">
                           <span className={cn('font-bold', t.daysLate >= 40 ? 'text-red-600' : t.daysLate >= 30 ? 'text-orange-600' : 'text-amber-600')}>{t.daysLate}</span>
@@ -800,7 +808,7 @@ export default function AgentPerformanceReport() {
                       </TableRow>
                     ))}
                     {computed && computed.topDefaulters.length === 0 && (
-                      <TableRow><TableCell colSpan={4} className="text-center text-sm text-slate-500 py-6">No defaulters.</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={5} className="text-center text-sm text-slate-500 py-6">No defaulters.</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
