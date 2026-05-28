@@ -786,6 +786,8 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
       setDebitRoute('withdrawable');
       setForcePending(null);
       forceReversalRef.current = false;
+      solvencyBypassReasonRef.current = '';
+      setSolvencyBypassReason('');
       setSourceUser(null);
       setTransferFromUser(false);
       setTransferFromBucket('withdrawable');
