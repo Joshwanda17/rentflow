@@ -12251,6 +12251,51 @@ export type Database = {
         }
         Relationships: []
       }
+      rent_request_drafts: {
+        Row: {
+          agent_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          payload: Json
+          rent_amount: number
+          required_per_tenant_max: number
+          status: string
+          submitted_rent_request_id: string | null
+          tenant_name: string
+          tenant_phone: string
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payload?: Json
+          rent_amount: number
+          required_per_tenant_max?: number
+          status?: string
+          submitted_rent_request_id?: string | null
+          tenant_name: string
+          tenant_phone: string
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payload?: Json
+          rent_amount?: number
+          required_per_tenant_max?: number
+          status?: string
+          submitted_rent_request_id?: string | null
+          tenant_name?: string
+          tenant_phone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       rent_requests: {
         Row: {
           access_fee: number
@@ -16339,6 +16384,7 @@ export type Database = {
         }
         Returns: Json
       }
+      agent_per_tenant_max: { Args: { _agent_id: string }; Returns: number }
       agent_resubmit_rent_request: {
         Args: { p_agent_note: string; p_patch: Json; p_request_id: string }
         Returns: string
