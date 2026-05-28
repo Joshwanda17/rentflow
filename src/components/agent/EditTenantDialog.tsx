@@ -433,7 +433,7 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         {showingPermissionBlock && permissionBlock ? (
           <>
             <DialogHeader>
