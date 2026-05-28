@@ -89,7 +89,7 @@ export function PortfolioTopUpVerification() {
 
       return Object.values(grouped);
     },
-    refetchInterval: 30000,
+    refetchInterval: 60_000,
   });
 
   async function handleAction(portfolioId: string, action: 'approve' | 'reject') {

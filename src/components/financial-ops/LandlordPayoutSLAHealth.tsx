@@ -39,7 +39,7 @@ export function LandlordPayoutSLAHealth() {
         totalDisbursed,
       };
     },
-    refetchInterval: 30_000,
+    refetchInterval: 60_000,
   });
 
   return (
