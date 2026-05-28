@@ -650,6 +650,11 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
   // a recoverable obligation (auto_recover=true).
   const [forcePending, setForcePending] = useState<null | { amount: number; name: string }>(null);
   const forceReversalRef = useRef(false);
+  // Structured reason code stamped on every forced-reversal leg so the
+  // solvency-guard bypass is audit-grade. Required by both the DB trigger
+  // and the cfo-direct-credit edge function whenever allow_overdraw=true.
+  const [solvencyBypassReason, setSolvencyBypassReason] = useState<SolvencyBypassReasonCode | ''>('');
+  const solvencyBypassReasonRef = useRef<SolvencyBypassReasonCode | ''>('');
   // Two-step confirmation gate. When the operator clicks the action button
   // the first time we flip this on, surface the source/destination preview +
   // before/after balances, and require a second click ("Confirm & route") to
