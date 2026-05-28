@@ -561,7 +561,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   };
 
   const fetchTenantRequests = useCallback(async (tenantId: string) => {
-    if (tenantRequests[tenantId]) return;
+    if (tenantRequests[tenantId]) return tenantRequests[tenantId];
     setLoadingRequests(tenantId);
     try {
       const { data, error } = await supabase
@@ -582,8 +582,10 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         };
       });
       setTenantRequests(prev => ({ ...prev, [tenantId]: normalized }));
+      return normalized;
     } catch (err) {
       console.error('Failed to fetch tenant requests:', err);
+      return undefined;
     } finally {
       setLoadingRequests(null);
     }
