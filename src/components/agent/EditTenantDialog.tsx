@@ -469,13 +469,6 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
     );
   };
 
-  const _legacyClose = () => {
-    setSavedSummary(null);
-    setStatusSummary(null);
-    setPermissionBlock(null);
-    onOpenChange(false);
-  };
-
   const showingConfirmation = savedSummary !== null || statusSummary !== null;
   const showingPermissionBlock = permissionBlock !== null;
 
