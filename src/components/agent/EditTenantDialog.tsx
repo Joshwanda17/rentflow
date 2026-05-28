@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Save, User, Phone, Mail, IdCard, Pencil, UserX, UserCheck, CheckCircle2, ArrowRight, X, ShieldAlert, RefreshCw, MessageSquare, AlertCircle, MapPin, Home, Briefcase, Banknote } from 'lucide-react';
+import { Loader2, Save, User, Phone, Mail, IdCard, Pencil, UserX, UserCheck, CheckCircle2, ArrowRight, X, ShieldAlert, RefreshCw, MessageSquare, AlertCircle, MapPin, Home, Briefcase, Banknote, Smartphone, Wallet, StickyNote, Globe, Crosshair, Image as ImageIcon } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useIdempotentSubmit } from '@/hooks/useIdempotentSubmit';
@@ -84,6 +85,19 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
   const [town, setTown] = useState('');
   const [occupation, setOccupation] = useState('');
   const [monthlyRent, setMonthlyRent] = useState<string>('');
+  const [region, setRegion] = useState('');
+  const [subCounty, setSubCounty] = useState('');
+  const [parish, setParish] = useState('');
+  const [landmark, setLandmark] = useState('');
+  const [country, setCountry] = useState('');
+  const [mmNumber, setMmNumber] = useState('');
+  const [mmProvider, setMmProvider] = useState('');
+  const [hasSmartphone, setHasSmartphone] = useState<boolean>(true);
+  const [opsNote, setOpsNote] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const [residenceLat, setResidenceLat] = useState<number | null>(null);
+  const [residenceLng, setResidenceLng] = useState<number | null>(null);
+  const [pinningGps, setPinningGps] = useState(false);
   const [extendedLoading, setExtendedLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [statusBusy, setStatusBusy] = useState(false);
@@ -111,7 +125,7 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
       (async () => {
         const { data } = await supabase
           .from('profiles')
-          .select('city, district, village, town, occupation, monthly_rent')
+          .select('city, district, village, town, occupation, monthly_rent, region, sub_county, parish, landmark, country, mobile_money_number, mobile_money_provider, has_smartphone, ops_note, avatar_url, residence_lat, residence_lng')
           .eq('id', tenant.id)
           .maybeSingle();
         setCity(data?.city || '');
@@ -120,6 +134,18 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
         setTown(data?.town || '');
         setOccupation(data?.occupation || '');
         setMonthlyRent(data?.monthly_rent != null ? String(data.monthly_rent) : '');
+        setRegion(data?.region || '');
+        setSubCounty(data?.sub_county || '');
+        setParish(data?.parish || '');
+        setLandmark(data?.landmark || '');
+        setCountry(data?.country || '');
+        setMmNumber(data?.mobile_money_number || '');
+        setMmProvider(data?.mobile_money_provider || '');
+        setHasSmartphone(data?.has_smartphone ?? true);
+        setOpsNote(data?.ops_note || '');
+        setAvatarUrl(data?.avatar_url || '');
+        setResidenceLat(data?.residence_lat ?? null);
+        setResidenceLng(data?.residence_lng ?? null);
         setExtendedLoading(false);
       })();
     }
@@ -250,6 +276,18 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
         town: town.trim() || null,
         occupation: occupation.trim() || null,
         monthly_rent: cleanRent ? Number(cleanRent) : null,
+        region: region.trim() || null,
+        sub_county: subCounty.trim() || null,
+        parish: parish.trim() || null,
+        landmark: landmark.trim() || null,
+        country: country.trim() || null,
+        mobile_money_number: mmNumber.trim() || null,
+        mobile_money_provider: mmProvider.trim() || null,
+        has_smartphone: hasSmartphone,
+        ops_note: opsNote.trim() || null,
+        avatar_url: avatarUrl.trim() || null,
+        residence_lat: residenceLat,
+        residence_lng: residenceLng,
       };
 
       try {
