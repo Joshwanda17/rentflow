@@ -6,10 +6,10 @@ import {
   ArrowLeft, Users, CheckCircle2, PieChart as PieIcon, AlertTriangle, TrendingUp,
   Wallet, Banknote, ShieldAlert, Phone, MapPin, Calendar, UserCog, Printer, Download,
   XCircle, Clock, ArrowUpRight, Activity, Target, FileText,
-  AlertCircle, Gauge,
+  AlertCircle, Gauge, MapPinned, HandCoins, ListChecks,
 } from 'lucide-react';
 import {
-  ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, Legend,
+  ResponsiveContainer, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip,
   PieChart, Pie, Cell,
 } from 'recharts';
 import { Button } from '@/components/ui/button';
@@ -147,6 +147,7 @@ async function fetchAgentReport(agentId: string) {
   const todayStart = startOfDay(now);
   const todayEnd = endOfDay(now);
   const weekStart = startOfDay(subDays(now, 6));
+  const historyStart = startOfDay(subDays(now, 120)); // 120d window: covers aging + last-payment lookup
 
   // Agent profile + wallet
   const [profileRes, walletRes] = await Promise.all([
@@ -175,13 +176,17 @@ async function fetchAgentReport(agentId: string) {
   // Tenant profiles
   const tenantIds = [...new Set(rrAll.map(r => r.tenant_id))];
   const tenantNameMap = new Map<string, string>();
+  const tenantPhoneMap = new Map<string, string>();
   for (let i = 0; i < tenantIds.length; i += 500) {
     const slice = tenantIds.slice(i, i + 500);
-    const { data } = await supabase.from('profiles').select('id, full_name').in('id', slice);
-    (data || []).forEach(p => tenantNameMap.set(p.id, p.full_name || 'Tenant'));
+    const { data } = await supabase.from('profiles').select('id, full_name, phone').in('id', slice);
+    (data || []).forEach(p => {
+      tenantNameMap.set(p.id, p.full_name || 'Tenant');
+      if (p.phone) tenantPhoneMap.set(p.id, p.phone);
+    });
   }
 
-  // Repayments for these rent_requests, last 7 days only (for trend + today)
+  // Repayments for these rent_requests, last 120 days (for aging + true last-payment + week trend)
   const rrIds = rrAll.map(r => r.id);
   const repayments: any[] = [];
   if (rrIds.length) {
@@ -191,17 +196,48 @@ async function fetchAgentReport(agentId: string) {
         .from('repayments')
         .select('rent_request_id, tenant_id, amount, created_at')
         .in('rent_request_id', slice)
-        .gte('created_at', weekStart.toISOString());
+        .gte('created_at', historyStart.toISOString());
       if (data) repayments.push(...data);
     }
   }
+
+  // Field activity: agent_visits (last 30 days)
+  const visitsSince = subDays(now, 30).toISOString();
+  const { data: visitsData } = await supabase
+    .from('agent_visits')
+    .select('id, tenant_id, created_at, location_name')
+    .eq('agent_id', agentId)
+    .gte('created_at', visitsSince)
+    .order('created_at', { ascending: false })
+    .limit(500);
+
+  // Agent earnings (commissions/bonuses) last 30 days
+  const { data: earningsData } = await supabase
+    .from('agent_earnings')
+    .select('amount, earning_type, created_at')
+    .eq('agent_id', agentId)
+    .gte('created_at', visitsSince)
+    .limit(2000);
+
+  // Agent rent collections (recorded field collections) last 30 days
+  const { data: agentCollectionsData } = await supabase
+    .from('agent_collections')
+    .select('amount, created_at, payment_method, tenant_id, momo_payer_name')
+    .eq('agent_id', agentId)
+    .gte('created_at', visitsSince)
+    .order('created_at', { ascending: false })
+    .limit(500);
 
   return {
     profile: profileRes.data,
     wallet: walletRes.data,
     rentRequests: rrAll,
     tenantNameMap,
+    tenantPhoneMap,
     repayments,
+    visits: visitsData || [],
+    earnings: earningsData || [],
+    agentCollections: agentCollectionsData || [],
     now,
     todayStart,
     todayEnd,
@@ -225,12 +261,17 @@ export default function AgentPerformanceReport() {
 
   const computed = useMemo(() => {
     if (!data) return null;
-    const { profile, wallet, rentRequests, tenantNameMap, repayments, now, todayStart, todayEnd, weekStart } = data;
+    const { profile, wallet, rentRequests, tenantNameMap, tenantPhoneMap, repayments, visits, earnings, agentCollections, now, todayStart, todayEnd, weekStart } = data;
 
-    const ACTIVE_STATUSES = new Set(['active', 'disbursed', 'funded', 'approved', 'repaying']);
-    const activeRR = rentRequests.filter(
-      r => r.tenancy_status === 'active' && (ACTIVE_STATUSES.has(r.status) || (r.amount_repaid || 0) < (r.total_repayment || 0))
-    );
+    // Active = anyone still owing on a non-completed plan. Many active plans have NULL tenancy_status,
+    // so we no longer require tenancy_status='active' — that filter was hiding most real tenants.
+    const COMPLETED = new Set(['completed', 'closed', 'rejected', 'cancelled', 'declined']);
+    const activeRR = rentRequests.filter(r => {
+      if (COMPLETED.has(String(r.status || '').toLowerCase())) return false;
+      const owed = Number(r.total_repayment || 0);
+      const paid = Number(r.amount_repaid || 0);
+      return owed === 0 || paid < owed; // owed=0 (not yet billed) is still an active relationship
+    });
 
     const uniqueActiveTenants = new Set(activeRR.map(r => r.tenant_id));
     const uniqueAllTenants = new Set(rentRequests.map(r => r.tenant_id));
@@ -257,6 +298,7 @@ export default function AgentPerformanceReport() {
       const status = paid >= expected && expected > 0 ? 'Paid' : paid > 0 ? 'Partial' : 'Missed';
       return {
         tenant: tenantNameMap.get(r.tenant_id) || 'Tenant',
+        phone: tenantPhoneMap.get(r.tenant_id) || '',
         unit: (r.house_category || '—').slice(0, 6),
         expected,
         paid,
@@ -276,7 +318,8 @@ export default function AgentPerformanceReport() {
     const weeklyOutstanding = Math.max(0, weeklyExpected - weeklyCollected);
     const weeklyEfficiency = weeklyExpected > 0 ? (weeklyCollected / weeklyExpected) * 100 : 0;
 
-    const weeklyTrend: { day: string; Expected: number; Collected: number }[] = [];
+    // Per-day collected trend (honest: we don't reconstruct historical "expected" so we don't show a fake line)
+    const weeklyTrend: { day: string; Collected: number }[] = [];
     for (let i = 6; i >= 0; i--) {
       const d = subDays(now, i);
       const ds = startOfDay(d).getTime();
@@ -287,14 +330,23 @@ export default function AgentPerformanceReport() {
           return t >= ds && t <= de;
         })
         .reduce((s, p) => s + Number(p.amount || 0), 0);
-      const expected = activeRR.reduce((s, r) => s + Number(r.daily_repayment || 0), 0);
-      weeklyTrend.push({ day: format(d, 'MMM d'), Expected: expected, Collected: collected });
+      weeklyTrend.push({ day: format(d, 'MMM d'), Collected: collected });
     }
 
-    // Outstanding per active rr
+    // True last-payment per rent_request (within the 120d history window)
+    const lastPaymentByRR = new Map<string, string>();
+    repayments.forEach(p => {
+      const prev = lastPaymentByRR.get(p.rent_request_id);
+      if (!prev || new Date(p.created_at) > new Date(prev)) lastPaymentByRR.set(p.rent_request_id, p.created_at);
+    });
+
+    // Outstanding per active rr — aging is days since LAST payment, not since disbursement.
+    // If no payment in 120d, fall back to disbursed_at/created_at.
     const rrWithOutstanding = activeRR.map(r => {
       const outstanding = Math.max(0, Number(r.total_repayment || 0) - Number(r.amount_repaid || 0));
-      const ageDays = differenceInDays(now, new Date(r.disbursed_at || r.created_at));
+      const last = lastPaymentByRR.get(r.id);
+      const anchor = last ? new Date(last) : new Date(r.disbursed_at || r.created_at);
+      const ageDays = Math.max(0, differenceInDays(now, anchor));
       return { rr: r, outstanding, ageDays };
     });
     const totalOutstanding = rrWithOutstanding.reduce((s, x) => s + x.outstanding, 0);
@@ -303,7 +355,7 @@ export default function AgentPerformanceReport() {
     const avgDebtPerTenant = tenantsInArrears > 0 ? totalOutstanding / tenantsInArrears : 0;
     const highestDebt = rrWithOutstanding.reduce((m, x) => Math.max(m, x.outstanding), 0);
 
-    // Aging buckets
+    // Aging buckets (days since last payment)
     const buckets = { '0–30 Days': 0, '31–60 Days': 0, '61–90 Days': 0, '90+ Days': 0 } as Record<string, number>;
     rrWithOutstanding.forEach(x => {
       if (x.outstanding <= 0) return;
@@ -319,22 +371,28 @@ export default function AgentPerformanceReport() {
       { name: '90+ Days', value: buckets['90+ Days'], color: '#ef4444' },
     ];
 
-    // Top defaulters
-    const lastPaymentByRR = new Map<string, string>();
-    repayments.forEach(p => {
-      const prev = lastPaymentByRR.get(p.rent_request_id);
-      if (!prev || new Date(p.created_at) > new Date(prev)) lastPaymentByRR.set(p.rent_request_id, p.created_at);
-    });
+    // Top defaulters (with phone, last-payment, days-late)
     const topDefaulters = [...rrWithOutstanding]
       .filter(x => x.outstanding > 0)
       .sort((a, b) => b.outstanding - a.outstanding)
       .slice(0, 5)
       .map(x => ({
         tenant: tenantNameMap.get(x.rr.tenant_id) || 'Tenant',
+        phone: tenantPhoneMap.get(x.rr.tenant_id) || '',
         debt: x.outstanding,
         daysLate: x.ageDays,
         last: lastPaymentByRR.get(x.rr.id) ? format(new Date(lastPaymentByRR.get(x.rr.id) as string), 'MMM d, yyyy') : '—',
       }));
+
+    // Field activity aggregates
+    const visitsToday = visits.filter(v => new Date(v.created_at).getTime() >= todayStart.getTime()).length;
+    const visitsWeek = visits.filter(v => new Date(v.created_at).getTime() >= weekStart.getTime()).length;
+    const earningsToday = earnings
+      .filter(e => new Date(e.created_at).getTime() >= todayStart.getTime())
+      .reduce((s, e) => s + Number(e.amount || 0), 0);
+    const earnings30d = earnings.reduce((s, e) => s + Number(e.amount || 0), 0);
+    const collectionsToday = agentCollections.filter(c => new Date(c.created_at).getTime() >= todayStart.getTime()).length;
+    const collections30d = agentCollections.length;
 
     // Scoring
     const dailyEff = expectedToday > 0 ? Math.min(100, (collectedToday / expectedToday) * 100) : 0;
@@ -345,61 +403,85 @@ export default function AgentPerformanceReport() {
     const missedRate = tenantsExpectedToday > 0 ? 100 - (tenantsPaidToday / tenantsExpectedToday) * 100 : 0;
 
     const kpiScorecard = [
-      { kpi: 'Daily Collection Efficiency', weight: 35, score: Math.round(dailyEff) },
-      { kpi: 'Weekly Performance', weight: 25, score: Math.round(weeklyEfficiency) },
-      { kpi: 'Debt Recovery', weight: 20, score: Math.round(recoveryScore) },
-      { kpi: 'Tenant Retention', weight: 10, score: Math.round(retention) },
-      { kpi: 'Missed Payment Rate', weight: 10, score: Math.round(Math.max(0, 100 - missedRate)) },
+      { kpi: 'Today: money collected vs expected', weight: 35, score: Math.round(dailyEff) },
+      { kpi: 'This week: collection rate', weight: 25, score: Math.round(weeklyEfficiency) },
+      { kpi: 'Tenants paying on time', weight: 20, score: Math.round(recoveryScore) },
+      { kpi: 'Tenants still with you', weight: 10, score: Math.round(retention) },
+      { kpi: 'Tenants who paid today', weight: 10, score: Math.round(Math.max(0, 100 - missedRate)) },
     ];
     const totalScore = Math.round(kpiScorecard.reduce((s, r) => s + (r.score * r.weight) / 100, 0));
     const riskStatus = totalScore >= 70 ? 'HEALTHY' : totalScore >= 50 ? 'WARNING' : 'CRITICAL';
     const riskTone = totalScore >= 70 ? 'green' : totalScore >= 50 ? 'amber' : 'red';
 
     const summaryKpis = [
-      { label: 'Active Tenants', value: String(uniqueActiveTenants.size), icon: Users, tone: 'blue' },
-      { label: 'Paying Tenants Today', value: String(tenantsPaidToday), icon: CheckCircle2, tone: 'green' },
-      { label: 'Portfolio Occupancy', value: uniqueAllTenants.size ? `${((uniqueActiveTenants.size / uniqueAllTenants.size) * 100).toFixed(1)}%` : '—', icon: PieIcon, tone: 'blue' },
-      { label: 'Total Outstanding Debt', value: fmtUGX(totalOutstanding), icon: FileText, tone: 'red' },
-      { label: 'Weekly Collection Rate', value: `${weeklyEfficiency.toFixed(0)}%`, icon: TrendingUp, tone: 'amber' },
-      { label: 'Wallet Balance', value: fmtUGX(Number(wallet?.withdrawable_balance || 0)), icon: Wallet, tone: 'blue' },
-      { label: 'Float Balance', value: fmtUGX(Number(wallet?.float_balance || 0)), icon: Banknote, tone: 'green' },
-      { label: 'Risk Status', value: riskStatus, icon: ShieldAlert, tone: riskTone },
+      { label: 'My active tenants', value: String(uniqueActiveTenants.size), icon: Users, tone: 'blue' },
+      { label: 'Paid me today', value: String(tenantsPaidToday), icon: CheckCircle2, tone: 'green' },
+      { label: 'Visits today', value: String(visitsToday), icon: MapPinned, tone: 'blue' },
+      { label: 'My commission today', value: fmtUGX(earningsToday), icon: HandCoins, tone: 'green' },
+      { label: 'Money tenants still owe', value: fmtUGX(totalOutstanding), icon: FileText, tone: 'red' },
+      { label: 'My wallet (can withdraw)', value: fmtUGX(Number(wallet?.withdrawable_balance || 0)), icon: Wallet, tone: 'blue' },
+      { label: 'My float (company money)', value: fmtUGX(Number(wallet?.float_balance || 0)), icon: Banknote, tone: 'green' },
+      { label: 'My status', value: riskStatus, icon: ShieldAlert, tone: riskTone },
     ] as const;
 
     const dailyKpis = [
-      { label: 'Expected Today', value: fmtUGX(expectedToday), tone: 'blue' },
-      { label: 'Collected Today', value: fmtUGX(collectedToday), tone: 'green' },
-      { label: 'Daily Gap', value: fmtUGX(Math.max(0, expectedToday - collectedToday)), tone: 'red' },
-      { label: 'Collection Efficiency', value: `${dailyEff.toFixed(0)}%`, tone: 'amber' },
-      { label: 'Tenants Expected Today', value: String(tenantsExpectedToday), tone: 'blue' },
-      { label: 'Tenants Who Paid', value: String(tenantsPaidToday), tone: 'green' },
-      { label: 'Missed Payments', value: String(missedToday), tone: 'red' },
-      { label: 'Partial Payments', value: String(partialToday), tone: 'amber' },
+      { label: 'Money owed today', value: fmtUGX(expectedToday), tone: 'blue' },
+      { label: 'Money you collected today', value: fmtUGX(collectedToday), tone: 'green' },
+      { label: 'Still to collect today', value: fmtUGX(Math.max(0, expectedToday - collectedToday)), tone: 'red' },
+      { label: 'Today % collected', value: `${dailyEff.toFixed(0)}%`, tone: 'amber' },
+      { label: 'Tenants due today', value: String(tenantsExpectedToday), tone: 'blue' },
+      { label: 'Tenants who paid you', value: String(tenantsPaidToday), tone: 'green' },
+      { label: 'Tenants who missed', value: String(missedToday), tone: 'red' },
+      { label: 'Tenants who paid partly', value: String(partialToday), tone: 'amber' },
     ];
 
     const weeklyKpis = [
-      { label: 'Weekly Expected', value: fmtUGX(weeklyExpected), tone: 'blue' },
-      { label: 'Weekly Collected', value: fmtUGX(weeklyCollected), tone: 'green' },
-      { label: 'Weekly Outstanding', value: fmtUGX(weeklyOutstanding), tone: 'red' },
-      { label: 'Weekly Efficiency', value: `${weeklyEfficiency.toFixed(1)}%`, tone: 'amber' },
-      { label: 'Avg Daily Collected', value: fmtUGX(weeklyCollected / 7), tone: 'green' },
-      { label: 'Active Plans', value: String(activeRR.length), tone: 'blue' },
+      { label: 'Money owed this week', value: fmtUGX(weeklyExpected), tone: 'blue' },
+      { label: 'Money you collected this week', value: fmtUGX(weeklyCollected), tone: 'green' },
+      { label: 'Still owing this week', value: fmtUGX(weeklyOutstanding), tone: 'red' },
+      { label: 'This week % collected', value: `${weeklyEfficiency.toFixed(1)}%`, tone: 'amber' },
+      { label: 'Avg per day collected', value: fmtUGX(weeklyCollected / 7), tone: 'green' },
+      { label: 'Visits this week', value: String(visitsWeek), tone: 'blue' },
     ];
 
     const debtSummary = [
-      { label: 'Total Outstanding Debt', value: fmtUGX(totalOutstanding), icon: FileText, tone: 'red' },
-      { label: 'Current Month Arrears', value: fmtUGX(buckets['0–30 Days']), icon: Calendar, tone: 'amber' },
-      { label: 'Old Arrears (> 30 Days)', value: fmtUGX(buckets['31–60 Days'] + buckets['61–90 Days'] + buckets['90+ Days']), icon: Clock, tone: 'red' },
-      { label: 'Highest Debtor', value: fmtUGX(highestDebt), icon: AlertTriangle, tone: 'red' },
-      { label: 'Recovery Rate (Week)', value: `${weeklyEfficiency.toFixed(0)}%`, icon: Activity, tone: 'amber' },
+      { label: 'Total tenants still owe', value: fmtUGX(totalOutstanding), icon: FileText, tone: 'red' },
+      { label: 'Owed in the last 30 days', value: fmtUGX(buckets['0–30 Days']), icon: Calendar, tone: 'amber' },
+      { label: 'Owed older than 30 days', value: fmtUGX(buckets['31–60 Days'] + buckets['61–90 Days'] + buckets['90+ Days']), icon: Clock, tone: 'red' },
+      { label: 'Biggest single debt', value: fmtUGX(highestDebt), icon: AlertTriangle, tone: 'red' },
+      { label: 'This week % collected', value: `${weeklyEfficiency.toFixed(0)}%`, icon: Activity, tone: 'amber' },
     ];
 
     const debtKpiStrip = [
-      { label: 'Tenants in Arrears', value: String(tenantsInArrears), sub: `(${portfolioPctArrears.toFixed(1)}%)`, icon: Users, tone: 'red' },
-      { label: 'Avg. Debt per Tenant', value: fmtUGX(avgDebtPerTenant), icon: Banknote, tone: 'amber' },
-      { label: '% of Portfolio in Arrears', value: `${portfolioPctArrears.toFixed(1)}%`, icon: Target, tone: 'red' },
-      { label: 'Active Plans', value: String(activeRR.length), icon: ArrowUpRight, tone: 'blue' },
+      { label: 'Tenants who still owe', value: String(tenantsInArrears), sub: `(${portfolioPctArrears.toFixed(1)}%)`, icon: Users, tone: 'red' },
+      { label: 'Average debt per tenant', value: fmtUGX(avgDebtPerTenant), icon: Banknote, tone: 'amber' },
+      { label: '% of your tenants behind', value: `${portfolioPctArrears.toFixed(1)}%`, icon: Target, tone: 'red' },
+      { label: 'Active rent plans', value: String(activeRR.length), icon: ArrowUpRight, tone: 'blue' },
     ];
+
+    // Action checklist — concrete, ordered things the agent should do next
+    const actionChecklist: { title: string; detail: string; tone: string }[] = [];
+    if (missedToday > 0) {
+      actionChecklist.push({ title: `Call ${missedToday} tenant${missedToday === 1 ? '' : 's'} who missed today`, detail: 'See the "Today" table below — tap the phone number.', tone: 'red' });
+    }
+    if (buckets['90+ Days'] > 0) {
+      actionChecklist.push({ title: `Recover old debt (90+ days)`, detail: `${fmtUGX(buckets['90+ Days'])} sitting in 90+ days. Visit these tenants this week.`, tone: 'red' });
+    }
+    if (visitsToday === 0 && tenantsInArrears > 0) {
+      actionChecklist.push({ title: 'Do at least 1 field visit today', detail: 'No visits recorded yet. Visits build your trust score and recover debt faster.', tone: 'amber' });
+    }
+    if (Number(wallet?.float_balance || 0) < 50_000) {
+      actionChecklist.push({ title: 'Top up your float', detail: 'Your float is low — you may not be able to receive deposits from tenants.', tone: 'amber' });
+    }
+    if (actionChecklist.length === 0) {
+      actionChecklist.push({ title: 'You are on track today — keep collecting!', detail: `${tenantsPaidToday} paid, ${fmtUGX(collectedToday)} collected.`, tone: 'green' });
+    }
+
+    // Field activity feed (last 30d): merge visits + collections, newest first, cap 8
+    const activityFeed = [
+      ...visits.map(v => ({ when: v.created_at, kind: 'Visit', label: tenantNameMap.get(v.tenant_id) || 'Tenant', meta: v.location_name || '' })),
+      ...agentCollections.map(c => ({ when: c.created_at, kind: 'Collection', label: tenantNameMap.get(c.tenant_id) || c.momo_payer_name || 'Tenant', meta: `${fmtUGX(Number(c.amount || 0))} · ${c.payment_method || ''}` })),
+    ].sort((a, b) => new Date(b.when).getTime() - new Date(a.when).getTime()).slice(0, 8);
 
     const periodLabel = `${format(weekStart, 'MMM d')} – ${format(now, 'MMM d, yyyy')}`;
     const generatedLabel = format(now, 'MMM d, yyyy HH:mm');
@@ -423,6 +505,14 @@ export default function AgentPerformanceReport() {
       totalScore,
       recoveryScore: Math.round(recoveryScore),
       totalDebt: totalOutstanding,
+      actionChecklist,
+      activityFeed,
+      visitsToday,
+      visitsWeek,
+      earningsToday,
+      earnings30d,
+      collectionsToday,
+      collections30d,
       periodLabel,
       generatedLabel,
     };
@@ -480,6 +570,29 @@ export default function AgentPerformanceReport() {
               <p className="text-xs text-red-800 mt-0.5">{(error as Error).message}</p>
             </div>
           </div>
+        )}
+
+        {/* ===== ACTION CHECKLIST (what to do now) ===== */}
+        {computed && (
+          <section className="rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white p-4 sm:p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="inline-flex items-center justify-center h-7 w-7 rounded-md bg-blue-600 text-white">
+                <ListChecks className="h-4 w-4" />
+              </span>
+              <h2 className="text-sm sm:text-base font-bold text-slate-900 uppercase tracking-wide">What to do now</h2>
+            </div>
+            <ul className="space-y-2">
+              {computed.actionChecklist.map((a, i) => (
+                <li key={i} className={cn('flex items-start gap-3 p-3 rounded-xl border', toneBg[a.tone], 'border-slate-200')}>
+                  <span className={cn('h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 bg-white border', toneText[a.tone])}>{i + 1}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className={cn('text-sm font-bold', toneText[a.tone])}>{a.title}</p>
+                    <p className="text-xs text-slate-600 mt-0.5">{a.detail}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
 
         {/* ===== SECTION 1: AGENT SUMMARY ===== */}
@@ -545,6 +658,7 @@ export default function AgentPerformanceReport() {
                   <TableHeader className="bg-slate-50 sticky top-0 z-10">
                     <TableRow>
                       <TableHead className="text-xs">Tenant</TableHead>
+                      <TableHead className="text-xs">Phone</TableHead>
                       <TableHead className="text-xs">Type</TableHead>
                       <TableHead className="text-xs text-right">Expected</TableHead>
                       <TableHead className="text-xs text-right">Paid</TableHead>
@@ -556,6 +670,13 @@ export default function AgentPerformanceReport() {
                     {(computed?.dailyTenants || []).map((t, i) => (
                       <TableRow key={i} className={cn('hover:bg-blue-50/40', i % 2 === 1 && 'bg-slate-50/60')}>
                         <TableCell className="font-medium text-sm">{t.tenant}</TableCell>
+                        <TableCell className="text-xs">
+                          {t.phone ? (
+                            <a href={`tel:${t.phone}`} className="inline-flex items-center gap-1 text-blue-600 hover:underline">
+                              <Phone className="h-3 w-3" />{t.phone}
+                            </a>
+                          ) : <span className="text-slate-400">—</span>}
+                        </TableCell>
                         <TableCell className="text-sm text-slate-600">{t.unit}</TableCell>
                         <TableCell className="text-right text-sm tabular-nums">{Math.round(t.expected).toLocaleString()}</TableCell>
                         <TableCell className="text-right text-sm tabular-nums">{Math.round(t.paid).toLocaleString()}</TableCell>
@@ -565,7 +686,7 @@ export default function AgentPerformanceReport() {
                     ))}
                     {computed && (
                       <TableRow className="bg-blue-50/50 font-bold">
-                        <TableCell colSpan={2} className="text-blue-700 text-sm">TOTAL</TableCell>
+                        <TableCell colSpan={3} className="text-blue-700 text-sm">TOTAL</TableCell>
                         <TableCell className="text-right text-sm tabular-nums text-blue-700">{Math.round(computed.totals.totalExpectedToday).toLocaleString()}</TableCell>
                         <TableCell className="text-right text-sm tabular-nums text-blue-700">{Math.round(computed.totals.totalPaidToday).toLocaleString()}</TableCell>
                         <TableCell className="text-right text-sm tabular-nums text-blue-700">{Math.round(computed.totals.totalBalanceToday).toLocaleString()}</TableCell>
@@ -573,7 +694,7 @@ export default function AgentPerformanceReport() {
                       </TableRow>
                     )}
                     {computed && computed.dailyTenants.length === 0 && (
-                      <TableRow><TableCell colSpan={6} className="text-center text-sm text-slate-500 py-6">No active tenants for this agent.</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={7} className="text-center text-sm text-slate-500 py-6">No active tenants for this agent.</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
@@ -589,24 +710,21 @@ export default function AgentPerformanceReport() {
             </div>
 
             <div className="mt-5">
-              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide mb-2">Weekly Collection Trend</h4>
+              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide mb-2">Money you collected each day (last 7 days)</h4>
               <div className="rounded-xl border border-slate-200 bg-white p-3">
                 <ResponsiveContainer width="100%" height={260}>
-                  <LineChart data={computed?.weeklyTrend || []} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                  <BarChart data={computed?.weeklyTrend || []} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                     <XAxis dataKey="day" stroke="#94a3b8" fontSize={11} />
                     <YAxis stroke="#94a3b8" fontSize={11} tickFormatter={(v) => `${Math.round(v / 1000)}K`} />
                     <Tooltip formatter={(v: number) => fmtUGX(v)} contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }} />
-                    <Legend wrapperStyle={{ fontSize: 12 }} />
-                    <Line type="monotone" dataKey="Expected" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 4, fill: '#3b82f6' }} activeDot={{ r: 6 }} />
-                    <Line type="monotone" dataKey="Collected" stroke="#10b981" strokeWidth={2.5} dot={{ r: 4, fill: '#10b981' }} activeDot={{ r: 6 }} />
-                  </LineChart>
+                    <Bar dataKey="Collected" fill="#10b981" radius={[6, 6, 0, 0]} />
+                  </BarChart>
                 </ResponsiveContainer>
                 {computed && (
                   <div className="flex flex-wrap items-center gap-x-5 gap-y-1 pt-2 px-2 text-xs border-t border-slate-100 mt-2">
-                    <span className="text-slate-500">Total Expected: <span className="font-bold text-blue-600">{fmtUGX(computed.weeklyExpected)}</span></span>
-                    <span className="text-slate-500">Total Collected: <span className="font-bold text-emerald-600">{fmtUGX(computed.weeklyCollected)}</span></span>
-                    <span className="text-slate-500">Efficiency: <span className="font-bold text-amber-600">{computed.weeklyEfficiency.toFixed(1)}%</span></span>
+                    <span className="text-slate-500">Total this week: <span className="font-bold text-emerald-600">{fmtUGX(computed.weeklyCollected)}</span></span>
+                    <span className="text-slate-500">% of money owed: <span className="font-bold text-amber-600">{computed.weeklyEfficiency.toFixed(1)}%</span></span>
                   </div>
                 )}
               </div>
@@ -665,6 +783,7 @@ export default function AgentPerformanceReport() {
                   <TableHeader className="bg-slate-50">
                     <TableRow>
                       <TableHead className="text-xs">Tenant</TableHead>
+                      <TableHead className="text-xs">Phone</TableHead>
                       <TableHead className="text-xs text-right">Debt</TableHead>
                       <TableHead className="text-xs text-right">Days Late</TableHead>
                       <TableHead className="text-xs">Last Payment</TableHead>
@@ -674,6 +793,13 @@ export default function AgentPerformanceReport() {
                     {(computed?.topDefaulters || []).map((t, i) => (
                       <TableRow key={i} className="hover:bg-red-50/30">
                         <TableCell className="text-sm font-medium">{t.tenant}</TableCell>
+                        <TableCell className="text-xs">
+                          {t.phone ? (
+                            <a href={`tel:${t.phone}`} className="inline-flex items-center gap-1 text-blue-600 hover:underline">
+                              <Phone className="h-3 w-3" />{t.phone}
+                            </a>
+                          ) : <span className="text-slate-400">—</span>}
+                        </TableCell>
                         <TableCell className="text-right text-sm tabular-nums font-semibold">{Math.round(t.debt).toLocaleString()}</TableCell>
                         <TableCell className="text-right text-sm tabular-nums">
                           <span className={cn('font-bold', t.daysLate >= 40 ? 'text-red-600' : t.daysLate >= 30 ? 'text-orange-600' : 'text-amber-600')}>{t.daysLate}</span>
@@ -682,7 +808,7 @@ export default function AgentPerformanceReport() {
                       </TableRow>
                     ))}
                     {computed && computed.topDefaulters.length === 0 && (
-                      <TableRow><TableCell colSpan={4} className="text-center text-sm text-slate-500 py-6">No defaulters.</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={5} className="text-center text-sm text-slate-500 py-6">No defaulters.</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
@@ -760,6 +886,52 @@ export default function AgentPerformanceReport() {
             </div>
           </div>
         </SectionCard>
+
+        {/* ===== SECTION 6: YOUR FIELD ACTIVITY (real actions, last 30 days) ===== */}
+        {computed && (
+          <SectionCard
+            index={6}
+            title="Your field activity (last 30 days)"
+            right={<span className="text-xs text-slate-500 hidden sm:inline">Visits, deposits & commissions you actually recorded</span>}
+          >
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+              <MiniMetric label="Visits today" value={String(computed.visitsToday)} tone="blue" />
+              <MiniMetric label="Visits this week" value={String(computed.visitsWeek)} tone="blue" />
+              <MiniMetric label="Deposits taken (30d)" value={String(computed.collections30d)} tone="green" />
+              <MiniMetric label="My commission (30d)" value={fmtUGX(computed.earnings30d)} tone="amber" />
+            </div>
+            <div className="rounded-xl border border-slate-200 overflow-hidden">
+              <Table>
+                <TableHeader className="bg-slate-50">
+                  <TableRow>
+                    <TableHead className="text-xs">When</TableHead>
+                    <TableHead className="text-xs">What</TableHead>
+                    <TableHead className="text-xs">Tenant / Detail</TableHead>
+                    <TableHead className="text-xs">Location / Amount</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {computed.activityFeed.length === 0 && (
+                    <TableRow><TableCell colSpan={4} className="text-center text-sm text-slate-500 py-6">No visits or deposits recorded in the last 30 days. Start a field visit to build your trust score.</TableCell></TableRow>
+                  )}
+                  {computed.activityFeed.map((a, i) => (
+                    <TableRow key={i} className="hover:bg-slate-50/60">
+                      <TableCell className="text-xs text-slate-600 whitespace-nowrap">{format(new Date(a.when), 'MMM d, HH:mm')}</TableCell>
+                      <TableCell>
+                        <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border',
+                          a.kind === 'Visit' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200')}>
+                          {a.kind}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-sm font-medium">{a.label}</TableCell>
+                      <TableCell className="text-xs text-slate-600">{a.meta || '—'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </SectionCard>
+        )}
 
         {computed && (
           <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 flex items-start gap-3">
