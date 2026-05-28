@@ -117,6 +117,7 @@ export function ApprovalQueue() {
             bankAccountName: w.bank_account_name || undefined,
             agentLocation: w.agent_location || undefined,
             status: w.status,
+            payoutCode: (w as any).payout_code || undefined,
           },
         };
       });
