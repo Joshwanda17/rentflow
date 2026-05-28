@@ -271,11 +271,13 @@ function formatCurrencyInput(raw: string): string {
   return Number(digits).toLocaleString('en-UG');
 }
 
-export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, prefillTenantName, prefillTenantPhone, prefillRentAmount }: AgentRentRequestDialogProps) {
+export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, prefillTenantName, prefillTenantPhone, prefillRentAmount, prefillDraft, draftId }: AgentRentRequestDialogProps) {
   const { user } = useAuth();
   const capIds = useMemo(() => (user?.id ? [user.id] : []), [user?.id]);
   const { data: capMap } = useAgentCapacityMap(capIds);
   const myCap = user?.id ? capMap?.get(user.id) : undefined;
+  const perTenantMax = myCap?.per_tenant_max ?? 500_000;
+  const [savingDraft, setSavingDraft] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [activationLink, setActivationLink] = useState<string | null>(null);
@@ -340,6 +342,71 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       if (prefillRentAmount) setRentAmount(prefillRentAmount);
     }
   }, [open, prefillTenantName, prefillTenantPhone, prefillRentAmount]);
+
+  // Hydrate from a previously-saved draft snapshot (full form state).
+  useEffect(() => {
+    if (!open || !prefillDraft) return;
+    const p = prefillDraft;
+    if (p.incomeType) setIncomeType(p.incomeType);
+    if (p.tenantName) setTenantName(p.tenantName);
+    if (p.tenantPhone) setTenantPhone(p.tenantPhone);
+    if (p.tenantNationalId) setTenantNationalId(p.tenantNationalId);
+    if (p.preferredLanguage) setPreferredLanguage(p.preferredLanguage);
+    if (p.rentAmount) setRentAmount(p.rentAmount);
+    if (p.outstandingBalance) setOutstandingBalance(p.outstandingBalance);
+    if (p.duration) setDuration(p.duration);
+    if (p.repaymentPeriod) setRepaymentPeriod(p.repaymentPeriod);
+    if (p.landlordName) setLandlordName(p.landlordName);
+    if (p.landlordPhone) setLandlordPhone(p.landlordPhone);
+    if (p.propertyAddress) setPropertyAddress(p.propertyAddress);
+    if (p.lc1Name) setLc1Name(p.lc1Name);
+    if (p.lc1Phone) setLc1Phone(p.lc1Phone);
+    if (p.lc1Village) setLc1Village(p.lc1Village);
+    if (p.propertyCity) setPropertyCity(p.propertyCity);
+    if (p.propertyDistrict) setPropertyDistrict(p.propertyDistrict);
+    if (p.houseCategory) setHouseCategory(p.houseCategory);
+    if (p.landlordPayoutDay) setLandlordPayoutDay(p.landlordPayoutDay);
+    if (p.outstandingHouseCategory) setOutstandingHouseCategory(p.outstandingHouseCategory);
+    if (p.outstandingRentAmount) setOutstandingRentAmount(p.outstandingRentAmount);
+    if (p.outstandingDaysRemaining) setOutstandingDaysRemaining(p.outstandingDaysRemaining);
+    if (p.incomeType && p.incomeType !== 'type') setStep('details');
+  }, [open, prefillDraft]);
+
+  const buildDraftPayload = () => ({
+    incomeType, tenantName, tenantPhone, tenantNationalId, preferredLanguage,
+    rentAmount, outstandingBalance, duration, repaymentPeriod,
+    landlordName, landlordPhone, propertyAddress,
+    lc1Name, lc1Phone, lc1Village, propertyCity, propertyDistrict,
+    houseCategory, landlordPayoutDay, outstandingHouseCategory,
+    outstandingRentAmount, outstandingDaysRemaining,
+  });
+
+  const handleSaveForLater = async () => {
+    if (!user) { toast.error('You must be signed in'); return; }
+    if (!tenantName.trim() || !tenantPhone.trim() || !amount) {
+      toast.error('Tenant name, phone and rent amount are required to save a draft');
+      return;
+    }
+    setSavingDraft(true);
+    try {
+      const { error } = await supabase.from('rent_request_drafts' as any).insert({
+        agent_id: user.id,
+        tenant_name: tenantName.trim(),
+        tenant_phone: tenantPhone.replace(/\s/g, ''),
+        rent_amount: amount,
+        required_per_tenant_max: amount,
+        payload: buildDraftPayload(),
+        status: 'pending',
+      });
+      if (error) throw error;
+      toast.success('Saved! We\'ll mark it ready when your tier unlocks this size.');
+      onOpenChange(false);
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to save draft');
+    } finally {
+      setSavingDraft(false);
+    }
+  };
 
   const captureGPS = useCallback(() => {
     if (!navigator.geolocation) {
