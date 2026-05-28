@@ -147,6 +147,7 @@ async function fetchAgentReport(agentId: string) {
   const todayStart = startOfDay(now);
   const todayEnd = endOfDay(now);
   const weekStart = startOfDay(subDays(now, 6));
+  const historyStart = startOfDay(subDays(now, 120)); // 120d window: covers aging + last-payment lookup
 
   // Agent profile + wallet
   const [profileRes, walletRes] = await Promise.all([
@@ -175,13 +176,17 @@ async function fetchAgentReport(agentId: string) {
   // Tenant profiles
   const tenantIds = [...new Set(rrAll.map(r => r.tenant_id))];
   const tenantNameMap = new Map<string, string>();
+  const tenantPhoneMap = new Map<string, string>();
   for (let i = 0; i < tenantIds.length; i += 500) {
     const slice = tenantIds.slice(i, i + 500);
-    const { data } = await supabase.from('profiles').select('id, full_name').in('id', slice);
-    (data || []).forEach(p => tenantNameMap.set(p.id, p.full_name || 'Tenant'));
+    const { data } = await supabase.from('profiles').select('id, full_name, phone').in('id', slice);
+    (data || []).forEach(p => {
+      tenantNameMap.set(p.id, p.full_name || 'Tenant');
+      if (p.phone) tenantPhoneMap.set(p.id, p.phone);
+    });
   }
 
-  // Repayments for these rent_requests, last 7 days only (for trend + today)
+  // Repayments for these rent_requests, last 120 days (for aging + true last-payment + week trend)
   const rrIds = rrAll.map(r => r.id);
   const repayments: any[] = [];
   if (rrIds.length) {
@@ -191,17 +196,48 @@ async function fetchAgentReport(agentId: string) {
         .from('repayments')
         .select('rent_request_id, tenant_id, amount, created_at')
         .in('rent_request_id', slice)
-        .gte('created_at', weekStart.toISOString());
+        .gte('created_at', historyStart.toISOString());
       if (data) repayments.push(...data);
     }
   }
+
+  // Field activity: agent_visits (last 30 days)
+  const visitsSince = subDays(now, 30).toISOString();
+  const { data: visitsData } = await supabase
+    .from('agent_visits')
+    .select('id, tenant_id, created_at, location_name')
+    .eq('agent_id', agentId)
+    .gte('created_at', visitsSince)
+    .order('created_at', { ascending: false })
+    .limit(500);
+
+  // Agent earnings (commissions/bonuses) last 30 days
+  const { data: earningsData } = await supabase
+    .from('agent_earnings')
+    .select('amount, earning_type, created_at')
+    .eq('agent_id', agentId)
+    .gte('created_at', visitsSince)
+    .limit(2000);
+
+  // Agent rent collections (recorded field collections) last 30 days
+  const { data: agentCollectionsData } = await supabase
+    .from('agent_collections')
+    .select('amount, created_at, payment_method, tenant_id, momo_payer_name')
+    .eq('agent_id', agentId)
+    .gte('created_at', visitsSince)
+    .order('created_at', { ascending: false })
+    .limit(500);
 
   return {
     profile: profileRes.data,
     wallet: walletRes.data,
     rentRequests: rrAll,
     tenantNameMap,
+    tenantPhoneMap,
     repayments,
+    visits: visitsData || [],
+    earnings: earningsData || [],
+    agentCollections: agentCollectionsData || [],
     now,
     todayStart,
     todayEnd,
