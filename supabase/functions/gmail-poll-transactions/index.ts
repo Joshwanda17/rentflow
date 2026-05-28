@@ -552,6 +552,14 @@ Deno.serve(async (req) => {
         } catch (e) {
           console.warn('[gmail-poll] auto-approve withdrawal failed (non-fatal):', e);
         }
+        try {
+          await tryAutoApproveBankBatch(supabase, {
+            parsed,
+            gmailMessageId: m.id,
+          });
+        } catch (e) {
+          console.warn('[gmail-poll] auto-approve bank batch failed (non-fatal):', e);
+        }
       }
     }
 
