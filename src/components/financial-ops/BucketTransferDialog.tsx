@@ -208,3 +208,26 @@ export default function BucketTransferDialog({ open, onOpenChange }: BucketTrans
     </Dialog>
   );
 }
+/**
+ * Button launcher for the Recent Emails toolbar. Keeps state local so the
+ * panel only needs to drop the component into its action row.
+ */
+export function BucketTransferLauncher() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="gap-2"
+        onClick={() => setOpen(true)}
+        title="Move funds between a user's Personal and Float buckets"
+      >
+        <ArrowLeftRight className="h-4 w-4" />
+        Move Between Buckets
+      </Button>
+      <BucketTransferDialog open={open} onOpenChange={setOpen} />
+    </>
+  );
+}
