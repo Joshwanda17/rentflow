@@ -72,7 +72,7 @@ export function FinOpsWithdrawalVerification() {
   // Live wallet balances for the requester of each withdrawal.
   // Keyed by user_id → { withdrawable (personal), float (operational) }.
   const [walletBalances, setWalletBalances] = useState<
-    Record<string, { withdrawable: number; float: number; loading?: boolean }>
+    Record<string, { withdrawable: number; float: number; pendingHolds: number; loading?: boolean }>
   >({});
 
   const fetchWalletBalances = useCallback(async (userIds: string[]) => {
@@ -85,6 +85,7 @@ export function FinOpsWithdrawalVerification() {
         return [uid, {
           withdrawable: Number((r.withdrawable as number | string | undefined) ?? 0),
           float: Number((r.float_balance as number | string | undefined) ?? 0),
+          pendingHolds: Number((r.pending_holds as number | string | undefined) ?? 0),
         }] as const;
       })
     );
@@ -433,6 +434,7 @@ export function FinOpsWithdrawalVerification() {
       const bal = walletBalances[opts.userId];
       const personal = bal?.withdrawable ?? 0;
       const float = bal?.float ?? 0;
+      const pendingHolds = bal?.pendingHolds ?? 0;
       const totalAvailable = personal + float;
       const insufficient = opts.showImpact && bal !== undefined && totalAvailable < amount;
       const afterPersonal = Math.max(0, personal - amount);
@@ -488,6 +490,17 @@ export function FinOpsWithdrawalVerification() {
               </div>
             </div>
           </div>
+          {bal && pendingHolds > 0 && (
+            <div className="flex items-center justify-between gap-2 px-1 py-1 rounded bg-amber-500/10 border border-amber-500/30">
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider">
+                <Clock className="h-3 w-3" />
+                Reserved against pending requests
+              </span>
+              <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400 tabular-nums">
+                {formatCurrency(pendingHolds)}
+              </span>
+            </div>
+          )}
           {opts.showImpact && bal && (
             <div className="flex items-center justify-between text-[10px] pt-0.5 border-t border-border/40">
               <span className="text-muted-foreground">
