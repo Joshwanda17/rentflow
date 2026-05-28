@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Save, User, Phone, Mail, IdCard, Pencil, UserX, UserCheck, CheckCircle2, ArrowRight, X, ShieldAlert, RefreshCw, MessageSquare, AlertCircle } from 'lucide-react';
+import { Loader2, Save, User, Phone, Mail, IdCard, Pencil, UserX, UserCheck, CheckCircle2, ArrowRight, X, ShieldAlert, RefreshCw, MessageSquare, AlertCircle, MapPin, Home, Briefcase, Banknote } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useIdempotentSubmit } from '@/hooks/useIdempotentSubmit';
@@ -22,7 +22,7 @@ interface EditTenantDialogProps {
     tenant_status?: string | null;
     evicted_at?: string | null;
   };
-  onSaved?: (updated: { full_name: string; phone: string; email: string | null; national_id: string | null; tenant_status?: string | null }) => void;
+  onSaved?: (updated: Record<string, any>) => void;
 }
 
 const normalizePhone = (v: string) => v.replace(/[\s-]/g, '');
@@ -77,6 +77,14 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
   const [phone, setPhone] = useState(tenant.phone);
   const [email, setEmail] = useState(tenant.email || '');
   const [nationalId, setNationalId] = useState(tenant.national_id || '');
+  // Extended editable fields (location + occupation + monthly rent)
+  const [city, setCity] = useState('');
+  const [district, setDistrict] = useState('');
+  const [village, setVillage] = useState('');
+  const [town, setTown] = useState('');
+  const [occupation, setOccupation] = useState('');
+  const [monthlyRent, setMonthlyRent] = useState<string>('');
+  const [extendedLoading, setExtendedLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [statusBusy, setStatusBusy] = useState(false);
   const { submit: doSave, isSubmitting: saveSubmitting, reset: resetSave } = useIdempotentSubmit({ cooldownMs: 2000 });
@@ -97,6 +105,23 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
       setStatusSummary(null);
       setPermissionBlock(null);
       resetSave();
+      // Lazy-load extended profile fields so we never overwrite values we
+      // didn't fetch when the agent saves.
+      setExtendedLoading(true);
+      (async () => {
+        const { data } = await supabase
+          .from('profiles')
+          .select('city, district, village, town, occupation, monthly_rent')
+          .eq('id', tenant.id)
+          .maybeSingle();
+        setCity(data?.city || '');
+        setDistrict(data?.district || '');
+        setVillage(data?.village || '');
+        setTown(data?.town || '');
+        setOccupation(data?.occupation || '');
+        setMonthlyRent(data?.monthly_rent != null ? String(data.monthly_rent) : '');
+        setExtendedLoading(false);
+      })();
     }
   }, [open, tenant, resetSave]);
 
@@ -213,11 +238,18 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
     }
 
     await doSave(async () => {
-      const payload = {
+      const cleanRent = monthlyRent.replace(/[^\d]/g, '');
+      const payload: Record<string, any> = {
         full_name: parsed.data.full_name,
         phone: parsed.data.phone,
         email: parsed.data.email || null,
         national_id: parsed.data.national_id || null,
+        city: city.trim() || null,
+        district: district.trim() || null,
+        village: village.trim() || null,
+        town: town.trim() || null,
+        occupation: occupation.trim() || null,
+        monthly_rent: cleanRent ? Number(cleanRent) : null,
       };
 
       try {
@@ -401,7 +433,7 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         {showingPermissionBlock && permissionBlock ? (
           <>
             <DialogHeader>
@@ -553,7 +585,7 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
                 Edit Tenant Details
               </DialogTitle>
               <DialogDescription>
-                Update contact information for this tenant. Other fields (verification, balances) cannot be changed here.
+                Update contact, location and property details for this tenant. Verification status and rent-plan balances are not changed here.
               </DialogDescription>
             </DialogHeader>
 
@@ -643,6 +675,60 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
                 ) : (
                   <p className="text-[11px] text-muted-foreground mt-1">10–14 letters and numbers</p>
                 )}
+              </div>
+
+              <div className="border-t pt-3 mt-1 space-y-3">
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-primary" />
+                  <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                    Location & Property
+                  </span>
+                  {extendedLoading && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs">Town</Label>
+                    <Input value={town} onChange={(e) => setTown(e.target.value)} placeholder="e.g. Wandegeya" maxLength={80} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">City</Label>
+                    <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. Kampala" maxLength={80} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs">District</Label>
+                    <Input value={district} onChange={(e) => setDistrict(e.target.value)} placeholder="e.g. Kampala" maxLength={80} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Village / LC1</Label>
+                    <Input value={village} onChange={(e) => setVillage(e.target.value)} placeholder="e.g. Kamwokya" maxLength={80} />
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-xs flex items-center gap-1.5">
+                    <Briefcase className="h-3 w-3" /> Occupation
+                  </Label>
+                  <Input value={occupation} onChange={(e) => setOccupation(e.target.value)} placeholder="e.g. Boda rider, shopkeeper" maxLength={120} />
+                </div>
+
+                <div>
+                  <Label className="text-xs flex items-center gap-1.5">
+                    <Banknote className="h-3 w-3" /> Monthly Rent (UGX)
+                  </Label>
+                  <Input
+                    inputMode="numeric"
+                    value={monthlyRent ? Number(monthlyRent.replace(/[^\d]/g,'')).toLocaleString('en-UG') : ''}
+                    onChange={(e) => setMonthlyRent(e.target.value.replace(/[^\d]/g, ''))}
+                    placeholder="e.g. 250,000"
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    This is what the tenant pays the landlord monthly. Rent plan amounts on active requests are not changed here.
+                  </p>
+                </div>
               </div>
 
               {Object.keys(errors).length > 0 && (
