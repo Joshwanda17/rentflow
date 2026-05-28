@@ -1772,6 +1772,10 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               const totals = tenantTotals[tenant.id] || { total: 0, paid: 0 };
               const progressPct = totals.total > 0 ? Math.min(100, Math.round((totals.paid / totals.total) * 100)) : 0;
               const hasDebt = balance > 0;
+              const tStatuses = tenantStatuses[tenant.id] ?? new Set<string>();
+              const tIsActive = tStatuses.has('disbursed') || tStatuses.has('repaying');
+              const tIsPending = !tIsActive && (tStatuses.has('pending') || tStatuses.has('approved') || tStatuses.has('funded'));
+              const tIsSettled = !tIsActive && !tIsPending && tStatuses.has('completed') && balance === 0;
               const meta = tenantMeta[tenant.id];
               const ctx = tenantContext[tenant.id];
               const propertyAddress = ctx?.propertyAddress || '';
@@ -1947,6 +1951,22 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                         Profile
                       </Button>
                     </div>
+
+                    {tIsSettled && (
+                      <Button
+                        size="sm"
+                        onClick={(e) => { e.stopPropagation(); handleResubmitTenant(tenant); }}
+                        disabled={renewingReqId === tenant.id || loadingRequests === tenant.id}
+                        className="mt-2 w-full h-10 gap-1.5 rounded-lg text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90"
+                      >
+                        {renewingReqId === tenant.id || loadingRequests === tenant.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-3.5 w-3.5" />
+                        )}
+                        Resubmit rent plan
+                      </Button>
+                    )}
                   </div>
 
                   {/* ───── Expanded Details ───── */}
