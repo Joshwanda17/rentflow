@@ -658,6 +658,7 @@ export default function AgentPerformanceReport() {
                   <TableHeader className="bg-slate-50 sticky top-0 z-10">
                     <TableRow>
                       <TableHead className="text-xs">Tenant</TableHead>
+                      <TableHead className="text-xs">Phone</TableHead>
                       <TableHead className="text-xs">Type</TableHead>
                       <TableHead className="text-xs text-right">Expected</TableHead>
                       <TableHead className="text-xs text-right">Paid</TableHead>
@@ -669,6 +670,13 @@ export default function AgentPerformanceReport() {
                     {(computed?.dailyTenants || []).map((t, i) => (
                       <TableRow key={i} className={cn('hover:bg-blue-50/40', i % 2 === 1 && 'bg-slate-50/60')}>
                         <TableCell className="font-medium text-sm">{t.tenant}</TableCell>
+                        <TableCell className="text-xs">
+                          {t.phone ? (
+                            <a href={`tel:${t.phone}`} className="inline-flex items-center gap-1 text-blue-600 hover:underline">
+                              <Phone className="h-3 w-3" />{t.phone}
+                            </a>
+                          ) : <span className="text-slate-400">—</span>}
+                        </TableCell>
                         <TableCell className="text-sm text-slate-600">{t.unit}</TableCell>
                         <TableCell className="text-right text-sm tabular-nums">{Math.round(t.expected).toLocaleString()}</TableCell>
                         <TableCell className="text-right text-sm tabular-nums">{Math.round(t.paid).toLocaleString()}</TableCell>
@@ -678,7 +686,7 @@ export default function AgentPerformanceReport() {
                     ))}
                     {computed && (
                       <TableRow className="bg-blue-50/50 font-bold">
-                        <TableCell colSpan={2} className="text-blue-700 text-sm">TOTAL</TableCell>
+                        <TableCell colSpan={3} className="text-blue-700 text-sm">TOTAL</TableCell>
                         <TableCell className="text-right text-sm tabular-nums text-blue-700">{Math.round(computed.totals.totalExpectedToday).toLocaleString()}</TableCell>
                         <TableCell className="text-right text-sm tabular-nums text-blue-700">{Math.round(computed.totals.totalPaidToday).toLocaleString()}</TableCell>
                         <TableCell className="text-right text-sm tabular-nums text-blue-700">{Math.round(computed.totals.totalBalanceToday).toLocaleString()}</TableCell>
@@ -686,7 +694,7 @@ export default function AgentPerformanceReport() {
                       </TableRow>
                     )}
                     {computed && computed.dailyTenants.length === 0 && (
-                      <TableRow><TableCell colSpan={6} className="text-center text-sm text-slate-500 py-6">No active tenants for this agent.</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={7} className="text-center text-sm text-slate-500 py-6">No active tenants for this agent.</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
