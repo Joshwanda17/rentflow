@@ -1626,6 +1626,9 @@ export function ProxyPartnerFunds() {
         </SheetContent>
       </Sheet>
 
+      {/* Proxy payout history sheet */}
+      <ProxyPayoutHistorySheet open={historyOpen} onOpenChange={setHistoryOpen} />
+
       {/* Clear confirmation dialog */}
       <AlertDialog open={clearConfirmOpen} onOpenChange={(open) => {
         setClearConfirmOpen(open);
