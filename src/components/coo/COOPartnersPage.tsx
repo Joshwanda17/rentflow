@@ -3975,12 +3975,6 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
 
   // Handle Split click — transition to split-config step
   const handleSplitClick = async (p: NearingPayoutPortfolio) => {
-    if (managedInfo[p.portfolioId]?.isManaged) {
-      toast.error('Managed proxy ROI cannot be split', {
-        description: 'Use Pay so the full ROI goes to the proxy agent wallet.',
-      });
-      return;
-    }
     const roiAmount = Math.round(p.investmentAmount * p.roiPercentage / 100);
 
     // Check managed status
@@ -3997,12 +3991,6 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         if (proxyData) {
           const agentName = (proxyData.agent as any)?.full_name || 'Agent';
           setManagedInfo(prev => ({ ...prev, [p.portfolioId]: { isManaged: !!proxyData.is_managed_account, agentName, agentId: proxyData.agent_id, hasProxy: true } }));
-          if (proxyData.is_managed_account) {
-            toast.error('Managed proxy ROI cannot be split', {
-              description: 'Use Pay so the full ROI goes to the proxy agent wallet.',
-            });
-            return;
-          }
         } else {
           setManagedInfo(prev => ({ ...prev, [p.portfolioId]: null }));
         }
@@ -4032,13 +4020,8 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       if (!user) throw new Error('Not authenticated');
 
       const managed = managedInfo[p.portfolioId];
-      if (managed?.isManaged) {
-        toast.error('Managed proxy ROI cannot be split', {
-          description: 'Send the full ROI to the proxy agent wallet, then FinOps debits that agent wallet on withdrawal.',
-        });
-        return;
-      }
-      // Non-managed proxy split keeps the cash portion on the partner wallet.
+      // Split allowed for all partners (incl. managed proxy). For managed proxy,
+      // the cash leg routes to the proxy agent wallet; reinvest portion stays in the portfolio.
       const hasProxy = !!managed;
       const modeLabel = payMode === 'wallet' ? 'Partner Wallet' : payMode === 'agent_wallet' ? 'Partner Wallet (via Proxy)' : 'Cash';
       const txnGroupId = crypto.randomUUID();
@@ -4420,7 +4403,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                               size="sm"
                               variant="secondary"
                               className="flex-1 text-xs gap-1.5"
-                              disabled={!!isProcessing || !!managedInfo[p.portfolioId]?.isManaged || (reasons[p.portfolioId]?.length || 0) < 10}
+                              disabled={!!isProcessing || (reasons[p.portfolioId]?.length || 0) < 10}
                               onClick={() => handleSplitClick(p)}
                             >
                               {isProcessing === 'split' ? <Loader2 className="h-3 w-3 animate-spin" /> : <Scissors className="h-3 w-3" />}
