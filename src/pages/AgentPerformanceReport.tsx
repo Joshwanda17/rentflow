@@ -261,12 +261,17 @@ export default function AgentPerformanceReport() {
 
   const computed = useMemo(() => {
     if (!data) return null;
-    const { profile, wallet, rentRequests, tenantNameMap, repayments, now, todayStart, todayEnd, weekStart } = data;
+    const { profile, wallet, rentRequests, tenantNameMap, tenantPhoneMap, repayments, visits, earnings, agentCollections, now, todayStart, todayEnd, weekStart } = data;
 
-    const ACTIVE_STATUSES = new Set(['active', 'disbursed', 'funded', 'approved', 'repaying']);
-    const activeRR = rentRequests.filter(
-      r => r.tenancy_status === 'active' && (ACTIVE_STATUSES.has(r.status) || (r.amount_repaid || 0) < (r.total_repayment || 0))
-    );
+    // Active = anyone still owing on a non-completed plan. Many active plans have NULL tenancy_status,
+    // so we no longer require tenancy_status='active' — that filter was hiding most real tenants.
+    const COMPLETED = new Set(['completed', 'closed', 'rejected', 'cancelled', 'declined']);
+    const activeRR = rentRequests.filter(r => {
+      if (COMPLETED.has(String(r.status || '').toLowerCase())) return false;
+      const owed = Number(r.total_repayment || 0);
+      const paid = Number(r.amount_repaid || 0);
+      return owed === 0 || paid < owed; // owed=0 (not yet billed) is still an active relationship
+    });
 
     const uniqueActiveTenants = new Set(activeRR.map(r => r.tenant_id));
     const uniqueAllTenants = new Set(rentRequests.map(r => r.tenant_id));
@@ -312,7 +317,8 @@ export default function AgentPerformanceReport() {
     const weeklyOutstanding = Math.max(0, weeklyExpected - weeklyCollected);
     const weeklyEfficiency = weeklyExpected > 0 ? (weeklyCollected / weeklyExpected) * 100 : 0;
 
-    const weeklyTrend: { day: string; Expected: number; Collected: number }[] = [];
+    // Per-day collected trend (honest: we don't reconstruct historical "expected" so we don't show a fake line)
+    const weeklyTrend: { day: string; Collected: number }[] = [];
     for (let i = 6; i >= 0; i--) {
       const d = subDays(now, i);
       const ds = startOfDay(d).getTime();
@@ -323,14 +329,23 @@ export default function AgentPerformanceReport() {
           return t >= ds && t <= de;
         })
         .reduce((s, p) => s + Number(p.amount || 0), 0);
-      const expected = activeRR.reduce((s, r) => s + Number(r.daily_repayment || 0), 0);
-      weeklyTrend.push({ day: format(d, 'MMM d'), Expected: expected, Collected: collected });
+      weeklyTrend.push({ day: format(d, 'MMM d'), Collected: collected });
     }
 
-    // Outstanding per active rr
+    // True last-payment per rent_request (within the 120d history window)
+    const lastPaymentByRR = new Map<string, string>();
+    repayments.forEach(p => {
+      const prev = lastPaymentByRR.get(p.rent_request_id);
+      if (!prev || new Date(p.created_at) > new Date(prev)) lastPaymentByRR.set(p.rent_request_id, p.created_at);
+    });
+
+    // Outstanding per active rr — aging is days since LAST payment, not since disbursement.
+    // If no payment in 120d, fall back to disbursed_at/created_at.
     const rrWithOutstanding = activeRR.map(r => {
       const outstanding = Math.max(0, Number(r.total_repayment || 0) - Number(r.amount_repaid || 0));
-      const ageDays = differenceInDays(now, new Date(r.disbursed_at || r.created_at));
+      const last = lastPaymentByRR.get(r.id);
+      const anchor = last ? new Date(last) : new Date(r.disbursed_at || r.created_at);
+      const ageDays = Math.max(0, differenceInDays(now, anchor));
       return { rr: r, outstanding, ageDays };
     });
     const totalOutstanding = rrWithOutstanding.reduce((s, x) => s + x.outstanding, 0);
@@ -339,7 +354,7 @@ export default function AgentPerformanceReport() {
     const avgDebtPerTenant = tenantsInArrears > 0 ? totalOutstanding / tenantsInArrears : 0;
     const highestDebt = rrWithOutstanding.reduce((m, x) => Math.max(m, x.outstanding), 0);
 
-    // Aging buckets
+    // Aging buckets (days since last payment)
     const buckets = { '0–30 Days': 0, '31–60 Days': 0, '61–90 Days': 0, '90+ Days': 0 } as Record<string, number>;
     rrWithOutstanding.forEach(x => {
       if (x.outstanding <= 0) return;
@@ -355,22 +370,28 @@ export default function AgentPerformanceReport() {
       { name: '90+ Days', value: buckets['90+ Days'], color: '#ef4444' },
     ];
 
-    // Top defaulters
-    const lastPaymentByRR = new Map<string, string>();
-    repayments.forEach(p => {
-      const prev = lastPaymentByRR.get(p.rent_request_id);
-      if (!prev || new Date(p.created_at) > new Date(prev)) lastPaymentByRR.set(p.rent_request_id, p.created_at);
-    });
+    // Top defaulters (with phone, last-payment, days-late)
     const topDefaulters = [...rrWithOutstanding]
       .filter(x => x.outstanding > 0)
       .sort((a, b) => b.outstanding - a.outstanding)
       .slice(0, 5)
       .map(x => ({
         tenant: tenantNameMap.get(x.rr.tenant_id) || 'Tenant',
+        phone: tenantPhoneMap.get(x.rr.tenant_id) || '',
         debt: x.outstanding,
         daysLate: x.ageDays,
         last: lastPaymentByRR.get(x.rr.id) ? format(new Date(lastPaymentByRR.get(x.rr.id) as string), 'MMM d, yyyy') : '—',
       }));
+
+    // Field activity aggregates
+    const visitsToday = visits.filter(v => new Date(v.created_at).getTime() >= todayStart.getTime()).length;
+    const visitsWeek = visits.filter(v => new Date(v.created_at).getTime() >= weekStart.getTime()).length;
+    const earningsToday = earnings
+      .filter(e => new Date(e.created_at).getTime() >= todayStart.getTime())
+      .reduce((s, e) => s + Number(e.amount || 0), 0);
+    const earnings30d = earnings.reduce((s, e) => s + Number(e.amount || 0), 0);
+    const collectionsToday = agentCollections.filter(c => new Date(c.created_at).getTime() >= todayStart.getTime()).length;
+    const collections30d = agentCollections.length;
 
     // Scoring
     const dailyEff = expectedToday > 0 ? Math.min(100, (collectedToday / expectedToday) * 100) : 0;
