@@ -43,6 +43,7 @@ import {
 import { toast } from 'sonner';
 import { formatUGX, calculateRentRepayment } from '@/lib/rentCalculations';
 import { hapticSuccess } from '@/lib/haptics';
+import { normalizeDistrict, districtWarning } from '@/lib/ugandaDistricts';
 
 interface AgentRentRequestDialogProps {
   open: boolean;
@@ -51,6 +52,13 @@ interface AgentRentRequestDialogProps {
   prefillTenantName?: string;
   prefillTenantPhone?: string;
   prefillRentAmount?: string;
+  /** Full snapshot saved from a previous draft. When provided, the dialog
+   *  repopulates form fields on open so the agent can push it through once
+   *  their per-tenant tier limit allows it. */
+  prefillDraft?: Record<string, any> | null;
+  /** Optional id of a saved draft this submission should resolve. On success
+   *  the draft is marked `submitted` and linked to the new rent_request. */
+  draftId?: string | null;
 }
 
 type IncomeType = 'daily' | 'weekly-monthly' | 'outstanding';
@@ -263,11 +271,13 @@ function formatCurrencyInput(raw: string): string {
   return Number(digits).toLocaleString('en-UG');
 }
 
-export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, prefillTenantName, prefillTenantPhone, prefillRentAmount }: AgentRentRequestDialogProps) {
+export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, prefillTenantName, prefillTenantPhone, prefillRentAmount, prefillDraft, draftId }: AgentRentRequestDialogProps) {
   const { user } = useAuth();
   const capIds = useMemo(() => (user?.id ? [user.id] : []), [user?.id]);
   const { data: capMap } = useAgentCapacityMap(capIds);
   const myCap = user?.id ? capMap?.get(user.id) : undefined;
+  const perTenantMax = myCap?.per_tenant_max ?? 500_000;
+  const [savingDraft, setSavingDraft] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [activationLink, setActivationLink] = useState<string | null>(null);
@@ -332,6 +342,71 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       if (prefillRentAmount) setRentAmount(prefillRentAmount);
     }
   }, [open, prefillTenantName, prefillTenantPhone, prefillRentAmount]);
+
+  // Hydrate from a previously-saved draft snapshot (full form state).
+  useEffect(() => {
+    if (!open || !prefillDraft) return;
+    const p = prefillDraft;
+    if (p.incomeType) setIncomeType(p.incomeType);
+    if (p.tenantName) setTenantName(p.tenantName);
+    if (p.tenantPhone) setTenantPhone(p.tenantPhone);
+    if (p.tenantNationalId) setTenantNationalId(p.tenantNationalId);
+    if (p.preferredLanguage) setPreferredLanguage(p.preferredLanguage);
+    if (p.rentAmount) setRentAmount(p.rentAmount);
+    if (p.outstandingBalance) setOutstandingBalance(p.outstandingBalance);
+    if (p.duration) setDuration(p.duration);
+    if (p.repaymentPeriod) setRepaymentPeriod(p.repaymentPeriod);
+    if (p.landlordName) setLandlordName(p.landlordName);
+    if (p.landlordPhone) setLandlordPhone(p.landlordPhone);
+    if (p.propertyAddress) setPropertyAddress(p.propertyAddress);
+    if (p.lc1Name) setLc1Name(p.lc1Name);
+    if (p.lc1Phone) setLc1Phone(p.lc1Phone);
+    if (p.lc1Village) setLc1Village(p.lc1Village);
+    if (p.propertyCity) setPropertyCity(p.propertyCity);
+    if (p.propertyDistrict) setPropertyDistrict(p.propertyDistrict);
+    if (p.houseCategory) setHouseCategory(p.houseCategory);
+    if (p.landlordPayoutDay) setLandlordPayoutDay(p.landlordPayoutDay);
+    if (p.outstandingHouseCategory) setOutstandingHouseCategory(p.outstandingHouseCategory);
+    if (p.outstandingRentAmount) setOutstandingRentAmount(p.outstandingRentAmount);
+    if (p.outstandingDaysRemaining) setOutstandingDaysRemaining(p.outstandingDaysRemaining);
+    if (p.incomeType && p.incomeType !== 'type') setStep('details');
+  }, [open, prefillDraft]);
+
+  const buildDraftPayload = () => ({
+    incomeType, tenantName, tenantPhone, tenantNationalId, preferredLanguage,
+    rentAmount, outstandingBalance, duration, repaymentPeriod,
+    landlordName, landlordPhone, propertyAddress,
+    lc1Name, lc1Phone, lc1Village, propertyCity, propertyDistrict,
+    houseCategory, landlordPayoutDay, outstandingHouseCategory,
+    outstandingRentAmount, outstandingDaysRemaining,
+  });
+
+  const handleSaveForLater = async () => {
+    if (!user) { toast.error('You must be signed in'); return; }
+    if (!tenantName.trim() || !tenantPhone.trim() || !amount) {
+      toast.error('Tenant name, phone and rent amount are required to save a draft');
+      return;
+    }
+    setSavingDraft(true);
+    try {
+      const { error } = await supabase.from('rent_request_drafts' as any).insert({
+        agent_id: user.id,
+        tenant_name: tenantName.trim(),
+        tenant_phone: tenantPhone.replace(/\s/g, ''),
+        rent_amount: amount,
+        required_per_tenant_max: amount,
+        payload: buildDraftPayload(),
+        status: 'pending',
+      });
+      if (error) throw error;
+      toast.success('Saved! We\'ll mark it ready when your tier unlocks this size.');
+      onOpenChange(false);
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to save draft');
+    } finally {
+      setSavingDraft(false);
+    }
+  };
 
   const captureGPS = useCallback(() => {
     if (!navigator.geolocation) {
@@ -833,7 +908,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       if (!isOutstanding) {
         const profileLocation: Record<string, string> = {};
         if (propertyCity.trim()) profileLocation.city = propertyCity.trim();
-        if (propertyDistrict.trim()) profileLocation.district = propertyDistrict.trim();
+        if (propertyDistrict.trim()) {
+          profileLocation.district = normalizeDistrict(propertyDistrict);
+        }
         if (lc1Village.trim()) profileLocation.village = lc1Village.trim();
         if (Object.keys(profileLocation).length > 0) {
           profileLocation.country = 'Uganda';
@@ -902,6 +979,18 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         .single();
 
       if (requestError) throw requestError;
+
+      // If this submission resolved a saved draft, mark it submitted.
+      if (draftId && rentReq?.id) {
+        try {
+          await supabase
+            .from('rent_request_drafts' as any)
+            .update({ status: 'submitted', submitted_rent_request_id: rentReq.id })
+            .eq('id', draftId);
+        } catch (e) {
+          console.warn('Failed to mark draft submitted', e);
+        }
+      }
 
       // Upload house photos if any
       if (housePhotos.length > 0 && rentReq?.id) {
@@ -1884,9 +1973,20 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <Input
                       value={propertyDistrict}
                       onChange={(e) => setPropertyDistrict(e.target.value)}
+                      onBlur={(e) => {
+                        const normalized = normalizeDistrict(e.target.value);
+                        if (normalized && normalized !== e.target.value.trim()) {
+                          setPropertyDistrict(normalized);
+                        }
+                      }}
                       placeholder="e.g. Wakiso"
                       className="h-10"
                     />
+                    {districtWarning(propertyDistrict) && (
+                      <p className="text-[10px] text-warning leading-tight">
+                        {districtWarning(propertyDistrict)}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1947,20 +2047,36 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 >
                   Back
                 </Button>
-                <Button 
-                  onClick={handleSubmit} 
-                  className="flex-1"
-                  disabled={loading || !amount || amount < 50000}
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Submitting...
-                    </>
-                  ) : (
-                    'Submit Request'
-                  )}
-                </Button>
+                {amount > perTenantMax ? (
+                  <Button
+                    type="button"
+                    onClick={handleSaveForLater}
+                    className="flex-1"
+                    disabled={savingDraft || !amount}
+                    variant="secondary"
+                  >
+                    {savingDraft ? (
+                      <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving…</>
+                    ) : (
+                      `Save for later (over ${formatUGX(perTenantMax)} cap)`
+                    )}
+                  </Button>
+                ) : (
+                  <Button 
+                    onClick={handleSubmit} 
+                    className="flex-1"
+                    disabled={loading || !amount || amount < 50000}
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Submitting...
+                      </>
+                    ) : (
+                      'Submit Request'
+                    )}
+                  </Button>
+                )}
               </div>
               </>
               )}

@@ -87,9 +87,9 @@ export default function AdminDashboardPage() {
   const visibleOperations = operationsDashboards.filter(d => hasPermission(d.permissionKey));
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-screen flex flex-col bg-background overflow-hidden">
       {/* Sticky top bar so the back action is always reachable */}
-      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-border">
+      <div className="shrink-0 z-40 bg-background/95 backdrop-blur border-b border-border">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-2.5 flex items-center justify-between gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -144,7 +144,7 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
+      <div className="flex-1 overflow-y-auto max-w-5xl mx-auto px-4 py-8 space-y-8 w-full">
         <div>
           <h1 className="text-2xl font-black text-foreground">Dashboard Access Panel</h1>
           <p className="text-sm text-muted-foreground mt-1">Open any executive or operations dashboard you have access to</p>

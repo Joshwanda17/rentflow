@@ -13,6 +13,7 @@ import { useGeolocation } from '@/hooks/useGeolocation';
 import { formatUGX } from '@/lib/rentCalculations';
 import { motion } from 'framer-motion';
 import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
+import { regionLabel } from '@/lib/ugandaDistricts';
 
 interface AvailableHousesSheetProps {
   open: boolean;
@@ -358,7 +359,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
               </SelectTrigger>
               <SelectContent>
                 {REGIONS.map(r => (
-                  <SelectItem key={r} value={r}>{r}</SelectItem>
+                  <SelectItem key={r} value={r}>{regionLabel(r)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

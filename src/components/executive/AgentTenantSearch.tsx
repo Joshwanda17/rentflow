@@ -5,10 +5,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Search, Loader2, Users, User, Phone, ChevronRight, ArrowLeft, Wallet, AlertTriangle, Share2 } from 'lucide-react';
+import { Search, Loader2, Users, User, Phone, ChevronRight, ArrowLeft, Wallet, AlertTriangle, Share2, Home } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { generateAgentTenantPdf } from '@/lib/generateAgentTenantPdf';
+import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
 
 interface AgentResult {
   id: string;
@@ -29,6 +30,9 @@ interface TenantEntry {
   total_repayment: number;
   outstanding: number;
   wallet_balance: number;
+  landlord_id: string | null;
+  landlord_name: string | null;
+  landlord_phone: string | null;
 }
 
 export function AgentTenantSearch() {
@@ -38,6 +42,12 @@ export function AgentTenantSearch() {
   const [searched, setSearched] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<AgentResult | null>(null);
   const [sharing, setSharing] = useState(false);
+  const [drilldown, setDrilldown] = useState<{
+    tenantId: string | null;
+    agentId: string | null;
+    landlordId: string | null;
+    tab?: 'tenant' | 'agent' | 'landlord';
+  } | null>(null);
 
   const handleSharePdf = async () => {
     if (!selectedAgent || !tenants || tenants.length === 0) return;
@@ -149,7 +159,7 @@ export function AgentTenantSearch() {
     queryFn: async () => {
       const { data: rrs } = await supabase
         .from('rent_requests')
-        .select('id, tenant_id, status, rent_amount, daily_repayment, amount_repaid, total_repayment, agent_id')
+        .select('id, tenant_id, landlord_id, status, rent_amount, daily_repayment, amount_repaid, total_repayment, agent_id')
         .eq('agent_id', selectedAgent!.id)
         .in('status', ['funded', 'disbursed', 'repaying', 'approved', 'tenant_ops_approved', 'agent_verified', 'landlord_ops_approved', 'coo_approved'])
         .order('created_at', { ascending: false })
@@ -158,14 +168,37 @@ export function AgentTenantSearch() {
       if (!rrs || rrs.length === 0) return [];
 
       const tenantIds = [...new Set(rrs.map(r => r.tenant_id))];
+      const landlordIds = Array.from(new Set(rrs.map(r => r.landlord_id).filter(Boolean)));
 
-      const [profilesRes, walletsRes] = await Promise.all([
+      const [profilesRes, walletsRes, landlordsRes, ledgerRes] = await Promise.all([
         supabase.from('profiles').select('id, full_name, phone').in('id', tenantIds.slice(0, 100)),
         supabase.from('wallets').select('user_id, balance').in('user_id', tenantIds.slice(0, 100)),
+        landlordIds.length
+          ? supabase.from('landlords').select('id, name, phone').in('id', landlordIds as any)
+          : Promise.resolve({ data: [] as any[] }),
+        supabase.from('general_ledger')
+          .select('user_id, category, direction, amount')
+          .in('user_id', tenantIds.slice(0, 100))
+          .in('category', ['rent_obligation', 'tenant_repayment', 'rent_repayment']),
       ]);
 
       const profileMap = new Map((profilesRes.data || []).map(p => [p.id, p]));
       const walletMap = new Map((walletsRes.data || []).map(w => [w.user_id, Number(w.balance)]));
+      const landlordMap = new Map((landlordsRes.data || []).map((l: any) => [l.id, l]));
+
+      // Ledger-based outstanding — same formula as Tenant Ops & rent statements
+      const outstandingByTenant = new Map<string, number>();
+      for (const tid of tenantIds) outstandingByTenant.set(tid, 0);
+      for (const r of (ledgerRes.data || []) as any[]) {
+        if (!r.user_id) continue;
+        const amt = Number(r.amount || 0);
+        const cur = outstandingByTenant.get(r.user_id) || 0;
+        if (r.category === 'rent_obligation' && r.direction === 'cash_out') {
+          outstandingByTenant.set(r.user_id, cur + amt);
+        } else if (r.direction === 'cash_in') {
+          outstandingByTenant.set(r.user_id, cur - amt);
+        }
+      }
 
       // Deduplicate by tenant - show the most recent active request
       const seen = new Set<string>();
@@ -174,6 +207,7 @@ export function AgentTenantSearch() {
         if (seen.has(r.tenant_id)) continue;
         seen.add(r.tenant_id);
         const p = profileMap.get(r.tenant_id);
+        const l = r.landlord_id ? landlordMap.get(r.landlord_id) : null;
         results.push({
           tenant_id: r.tenant_id,
           tenant_name: p?.full_name || '—',
@@ -184,11 +218,14 @@ export function AgentTenantSearch() {
           daily_repayment: Number(r.daily_repayment || 0),
           amount_repaid: Number(r.amount_repaid || 0),
           total_repayment: Number(r.total_repayment || 0),
-          outstanding: Number(r.total_repayment || 0) - Number(r.amount_repaid || 0),
+          outstanding: Math.max(0, outstandingByTenant.get(r.tenant_id) || 0),
           wallet_balance: walletMap.get(r.tenant_id) || 0,
+          landlord_id: r.landlord_id ?? null,
+          landlord_name: l?.name ?? null,
+          landlord_phone: l?.phone ?? null,
         });
       }
-      return results;
+      return results.sort((a, b) => b.outstanding - a.outstanding);
     },
   });
 
@@ -240,7 +277,19 @@ export function AgentTenantSearch() {
         )}
 
         {tenants?.map((t) => (
-          <Card key={t.rent_request_id} className="border">
+          <Card
+            key={t.rent_request_id}
+            className="border hover:shadow-md transition-shadow cursor-pointer active:bg-muted/40"
+            onClick={() =>
+              setDrilldown({
+                tenantId: t.tenant_id,
+                agentId: selectedAgent!.id,
+                landlordId: t.landlord_id,
+                tab: 'tenant',
+              })
+            }
+            title="Tap to view full profile, balances & landlord"
+          >
             <CardContent className="p-3 space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -252,10 +301,18 @@ export function AgentTenantSearch() {
                 </Badge>
               </div>
 
-              <a href={`tel:${t.tenant_phone}`} className="flex items-center gap-1.5 text-xs text-primary font-mono">
-                <Phone className="h-3 w-3" />
-                {t.tenant_phone}
-              </a>
+              <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                <a href={`tel:${t.tenant_phone}`} className="flex items-center gap-1.5 text-primary font-mono" onClick={(e) => e.stopPropagation()}>
+                  <Phone className="h-3 w-3" />
+                  {t.tenant_phone}
+                </a>
+                {t.landlord_name && (
+                  <span className="flex items-center gap-1">
+                    <Home className="h-3 w-3" />
+                    {t.landlord_name}
+                  </span>
+                )}
+              </div>
 
               <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
                 <div>
@@ -286,13 +343,26 @@ export function AgentTenantSearch() {
                     UGX {t.wallet_balance.toLocaleString()}
                   </span>
                 </div>
-                {t.outstanding > 0 && t.wallet_balance <= 0 && (
-                  <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
-                )}
+                <div className="flex items-center gap-1">
+                  {t.outstanding > 0 && t.wallet_balance <= 0 && (
+                    <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                  )}
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                </div>
               </div>
             </CardContent>
           </Card>
         ))}
+
+        <UserDrilldownDrawer
+          key={drilldown ? `${drilldown.agentId ?? ''}-${drilldown.tenantId ?? ''}-${drilldown.landlordId ?? ''}-${drilldown.tab ?? 'tenant'}` : 'closed'}
+          open={!!drilldown}
+          onOpenChange={(o) => !o && setDrilldown(null)}
+          tenantId={drilldown?.tenantId ?? null}
+          agentId={drilldown?.agentId ?? null}
+          landlordId={drilldown?.landlordId ?? null}
+          defaultTab={drilldown?.tab ?? 'tenant'}
+        />
       </div>
     );
   }

@@ -8,6 +8,7 @@ import { UnifiedWalletHeroCard } from '@/components/wallet/UnifiedWalletHeroCard
 import { AgentRiskExposureCard } from '@/components/agent/AgentRiskExposureCard';
 import { AgentCompanyDebtCard } from '@/components/agent/AgentCompanyDebtCard';
 import { EarnedSinceLastWithdrawalCard } from '@/components/agent/EarnedSinceLastWithdrawalCard';
+import { AgentWalletDetailsCard } from '@/components/agent/AgentWalletDetailsCard';
 
 import { Button } from '@/components/ui/button';
 import { 
@@ -45,6 +46,7 @@ import { UnifiedRegistrationDialog } from '@/components/agent/UnifiedRegistratio
 import { RegisterSubAgentDialog } from '@/components/agent/RegisterSubAgentDialog';
 import { SubAgentsPanel } from '@/components/agent/SubAgentsPanel';
 import AgentRentRequestDialog from '@/components/agent/AgentRentRequestDialog';
+import SavedRentDraftsPanel from '@/components/agent/SavedRentDraftsPanel';
 import BusinessAdvanceRequestDialog from '@/components/agent/BusinessAdvanceRequestDialog';
 import { CommissionCelebrationModal } from '@/components/agent/CommissionCelebrationModal';
 import { useBusinessAdvanceCommissionListener } from '@/hooks/useBusinessAdvanceCommissionListener';
@@ -89,7 +91,7 @@ import { AgentMyRentRequestsSheet } from '@/components/agent/AgentMyRentRequests
 import { AgentTenantsSheet } from '@/components/agent/AgentTenantsSheet';
 import { AgentManagedUsersSheet } from '@/components/agent/AgentManagedUsersSheet';
 import { FieldCollectDialog } from '@/components/agent/FieldCollectDialog';
-import { FieldCollectFab } from '@/components/agent/FieldCollectFab';
+
 import { FieldCollectReconciliationSheet } from '@/components/agent/FieldCollectReconciliationSheet';
 import { getDuplicateEntries } from '@/lib/fieldCollectStore';
 import { FileWarning } from 'lucide-react';
@@ -686,6 +688,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {/* === MONEY TAB === Wallet, advances, payouts, recovery */}
         {activeTab === 'money' && (
           <div className={cn("space-y-5", tabAnimClass)}>
+            <AgentWalletDetailsCard
+              agentId={user.id}
+              onOpenWallet={() => { hapticTap(); setShowWallet(true); }}
+            />
             <AgentCompanyDebtCard onViewBreakdown={() => { hapticTap(); setTenantsSheetOpen(true); }} />
             <AgentRiskExposureCard />
             <EarnedSinceLastWithdrawalCard />
@@ -1011,7 +1017,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <AgentMyRentRequestsSheet open={myRentRequestsOpen} onOpenChange={setMyRentRequestsOpen} />
       <AgentTenantsSheet open={tenantsSheetOpen} onOpenChange={setTenantsSheetOpen} />
       <FieldCollectDialog open={fieldCollectOpen} onOpenChange={setFieldCollectOpen} />
-      <FieldCollectFab onClick={() => setFieldCollectOpen(true)} />
+      
       <FieldCollectReconciliationSheet open={reconcileOpen} onOpenChange={setReconcileOpen} />
       <AgentManagedUsersSheet open={managedUsersOpen} onOpenChange={setManagedUsersOpen} agentId={user.id} />
       <AgentTopUpTenantDialog open={topUpTenantOpen} onOpenChange={setTopUpTenantOpen} onSuccess={refreshOfflineData} />

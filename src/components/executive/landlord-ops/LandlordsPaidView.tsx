@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
   Loader2, Banknote, Search, CheckCircle2, Clock, ChevronRight,
-  Phone, Users, CalendarClock,
+  Phone, Users, CalendarClock, MessageCircle, ShieldCheck, ShieldX, Receipt,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
 } from '@/components/ui/drawer';
+import { toast } from 'sonner';
 
 type Period = 'all' | '30d' | '7d' | 'today';
 type ConfFilter = 'all' | 'confirmed' | 'pending';
@@ -31,7 +32,16 @@ interface DisbursementRow {
   transaction_reference: string | null;
   agent_confirmed: boolean | null;
   landlord_id: string | null;
-  landlord: { id: string; name: string; phone: string | null; mobile_money_number: string | null } | null;
+  landlord: {
+    id: string;
+    name: string;
+    phone: string | null;
+    mobile_money_number: string | null;
+    receipt_verification_status?: 'true_landlord' | 'false_landlord' | null;
+    receipt_verification_at?: string | null;
+    receipt_requested_at?: string | null;
+    receipt_request_channel?: 'whatsapp' | 'call' | null;
+  } | null;
   delivery: any | null;
   source: 'disbursement' | 'rent_request';
   status: string;
@@ -48,6 +58,10 @@ interface LandlordGroup {
   pendingCount: number;
   lastPaidAt: string;
   records: DisbursementRow[];
+  receipt_verification_status: 'true_landlord' | 'false_landlord' | null;
+  receipt_verification_at: string | null;
+  receipt_requested_at: string | null;
+  receipt_request_channel: 'whatsapp' | 'call' | null;
 }
 
 function periodCutoff(p: Period): Date | null {
@@ -104,13 +118,13 @@ export function LandlordsPaidView() {
         ...((disb || []).map(d => d.landlord_id).filter(Boolean) as string[]),
         ...(allRR.map(r => r.landlord_id).filter(Boolean) as string[]),
       ]));
-      const landlordMap = new Map<string, { id: string; name: string; phone: string | null; mobile_money_number: string | null }>();
+      const landlordMap = new Map<string, DisbursementRow['landlord']>();
       for (let i = 0; i < landlordIds.length; i += 200) {
         const { data: ll } = await supabase
           .from('landlords')
-          .select('id, name, phone, mobile_money_number')
+          .select('id, name, phone, mobile_money_number, receipt_verification_status, receipt_verification_at, receipt_requested_at, receipt_request_channel')
           .in('id', landlordIds.slice(i, i + 200));
-        for (const l of ll || []) landlordMap.set(l.id, l);
+        for (const l of ll || []) landlordMap.set(l.id, l as any);
       }
 
       // 4. Delivery confirmations for disbursement rows
@@ -199,6 +213,10 @@ export function LandlordsPaidView() {
           pendingCount: 0,
           lastPaidAt: r.disbursed_at,
           records: [],
+          receipt_verification_status: r.landlord?.receipt_verification_status ?? null,
+          receipt_verification_at: r.landlord?.receipt_verification_at ?? null,
+          receipt_requested_at: r.landlord?.receipt_requested_at ?? null,
+          receipt_request_channel: r.landlord?.receipt_request_channel ?? null,
         };
         map.set(key, g);
       }
@@ -373,6 +391,16 @@ export function LandlordsPaidView() {
                   <div className="text-right shrink-0">
                     <p className="font-bold font-mono text-sm">{formatUGX(g.total)}</p>
                     <div className="flex items-center justify-end gap-1 mt-0.5">
+                      {g.receipt_verification_status === 'true_landlord' && (
+                        <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 text-[10px] px-1.5 py-0 h-4">
+                          <ShieldCheck className="h-2.5 w-2.5 mr-0.5" />True
+                        </Badge>
+                      )}
+                      {g.receipt_verification_status === 'false_landlord' && (
+                        <Badge className="bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30 text-[10px] px-1.5 py-0 h-4">
+                          <ShieldX className="h-2.5 w-2.5 mr-0.5" />False
+                        </Badge>
+                      )}
                       {g.confirmedCount > 0 && (
                         <Badge className="bg-success/10 text-success border-success/30 text-[10px] px-1.5 py-0 h-4">
                           <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />{g.confirmedCount}
@@ -424,8 +452,83 @@ function LandlordTenantsDrawer({
   landlord: LandlordGroup | null;
   onClose: () => void;
 }) {
+  const qc = useQueryClient();
   const open = !!landlord;
   const landlordId = landlord?.landlord_id;
+  const [busy, setBusy] = useState<null | 'whatsapp' | 'call' | 'true' | 'false'>(null);
+
+  const formatWa = (phone: string) => {
+    let p = phone.replace(/\s+/g, '').replace(/[^0-9+]/g, '');
+    if (p.startsWith('0')) p = '256' + p.slice(1);
+    else if (p.startsWith('+')) p = p.slice(1);
+    return p;
+  };
+
+  const logRequest = async (channel: 'whatsapp' | 'call') => {
+    if (!landlordId) return;
+    setBusy(channel);
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      await supabase
+        .from('landlords')
+        .update({
+          receipt_requested_at: new Date().toISOString(),
+          receipt_requested_by: u.user?.id ?? null,
+          receipt_request_channel: channel,
+        } as any)
+        .eq('id', landlordId);
+      qc.invalidateQueries({ queryKey: ['landlord-ops-paid-landlords-v2'] });
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Could not log receipt request');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleWhatsApp = async () => {
+    if (!landlord?.phone) {
+      toast.error('No phone number on file for this landlord');
+      return;
+    }
+    const wa = formatWa(landlord.phone);
+    const msg = encodeURIComponent(
+      `Hello ${landlord.name}, this is Welile. We sent you a rent payment of ${formatUGX(landlord.total)}. Please reply with a photo of the receipt you issued so we can confirm it. Thank you.`
+    );
+    window.open(`https://wa.me/${wa}?text=${msg}`, '_blank');
+    await logRequest('whatsapp');
+  };
+
+  const handleCall = async () => {
+    if (!landlord?.phone) {
+      toast.error('No phone number on file for this landlord');
+      return;
+    }
+    window.open(`tel:${landlord.phone}`, '_self');
+    await logRequest('call');
+  };
+
+  const markStatus = async (status: 'true_landlord' | 'false_landlord') => {
+    if (!landlordId) return;
+    setBusy(status === 'true_landlord' ? 'true' : 'false');
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      const { error } = await supabase
+        .from('landlords')
+        .update({
+          receipt_verification_status: status,
+          receipt_verification_at: new Date().toISOString(),
+          receipt_verification_by: u.user?.id ?? null,
+        } as any)
+        .eq('id', landlordId);
+      if (error) throw error;
+      toast.success(status === 'true_landlord' ? 'Marked as True Landlord' : 'Marked as False Landlord');
+      qc.invalidateQueries({ queryKey: ['landlord-ops-paid-landlords-v2'] });
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Could not update landlord');
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const { data: tenants, isLoading } = useQuery({
     queryKey: ['landlord-tenants-drawer', landlordId],
@@ -532,6 +635,94 @@ function LandlordTenantsDrawer({
             </div>
           )}
         </DrawerHeader>
+
+        {/* Receipt verification actions */}
+        <div className="border-b bg-muted/30 px-4 py-3 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+              <Receipt className="h-3.5 w-3.5" /> Ask for receipt
+            </p>
+            {landlord?.receipt_verification_status === 'true_landlord' && (
+              <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 text-[10px]">
+                <ShieldCheck className="h-3 w-3 mr-1" />True Landlord
+              </Badge>
+            )}
+            {landlord?.receipt_verification_status === 'false_landlord' && (
+              <Badge className="bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30 text-[10px]">
+                <ShieldX className="h-3 w-3 mr-1" />False Landlord
+              </Badge>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleWhatsApp}
+              disabled={!landlord?.phone || busy !== null}
+              className="h-9 text-xs gap-1.5 border-emerald-500/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10"
+            >
+              <MessageCircle className="h-4 w-4" /> WhatsApp
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleCall}
+              disabled={!landlord?.phone || busy !== null}
+              className="h-9 text-xs gap-1.5 border-sky-500/30 text-sky-700 dark:text-sky-400 hover:bg-sky-500/10"
+            >
+              <Phone className="h-4 w-4" /> Call
+            </Button>
+          </div>
+
+          {landlord?.receipt_requested_at && (
+            <p className="text-[10px] text-muted-foreground">
+              Last requested via {landlord.receipt_request_channel ?? 'contact'}{' '}
+              {formatDistanceToNow(new Date(landlord.receipt_requested_at), { addSuffix: true })}
+            </p>
+          )}
+
+          <div className="pt-1">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+              Mark landlord
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                size="sm"
+                onClick={() => markStatus('true_landlord')}
+                disabled={busy !== null}
+                className={cn(
+                  'h-9 text-xs gap-1.5',
+                  landlord?.receipt_verification_status === 'true_landlord'
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                    : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
+                )}
+              >
+                {busy === 'true' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                True Landlord
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => markStatus('false_landlord')}
+                disabled={busy !== null}
+                className={cn(
+                  'h-9 text-xs gap-1.5',
+                  landlord?.receipt_verification_status === 'false_landlord'
+                    ? 'bg-red-600 hover:bg-red-700 text-white'
+                    : 'bg-red-500/10 hover:bg-red-500/20 text-red-700 dark:text-red-400 border border-red-500/30'
+                )}
+              >
+                {busy === 'false' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldX className="h-4 w-4" />}
+                False Landlord
+              </Button>
+            </div>
+            {landlord?.receipt_verification_at && (
+              <p className="text-[10px] text-muted-foreground mt-1.5">
+                Last verified {formatDistanceToNow(new Date(landlord.receipt_verification_at), { addSuffix: true })}
+              </p>
+            )}
+          </div>
+        </div>
 
         <div className="overflow-y-auto p-4 space-y-2">
           {isLoading ? (

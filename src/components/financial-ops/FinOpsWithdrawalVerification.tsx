@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
   ArrowDownToLine, CheckCircle, XCircle, Loader2, RefreshCw,
-  Smartphone, Clock, Hand,
+  Smartphone, Clock, Hand, Wallet, Briefcase, AlertTriangle,
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
@@ -39,8 +39,13 @@ interface WithdrawalRequest {
   assigned_cashout_agent_id: string | null;
   claimed_at: string | null;
   claimed_by: string | null;
+  agent_id?: string | null;
+  initiated_by?: string | null;
+  proxy_partner_id?: string | null;
+  linked_party?: string | null;
   cashout_agent?: { full_name: string | null; phone: string | null } | null;
   user?: { full_name: string; phone: string; avatar_url: string | null };
+  proxy_agent?: { id: string; full_name: string | null; phone: string | null; avatar_url: string | null } | null;
 }
 
 import { formatDynamic } from '@/lib/currencyFormat';
@@ -64,6 +69,32 @@ export function FinOpsWithdrawalVerification() {
   
   const [activeTab, setActiveTab] = useState<ActiveTab>('pending');
 
+  // Live wallet balances for the requester of each withdrawal.
+  // Keyed by user_id → { withdrawable (personal), float (operational) }.
+  const [walletBalances, setWalletBalances] = useState<
+    Record<string, { withdrawable: number; float: number; loading?: boolean }>
+  >({});
+
+  const fetchWalletBalances = useCallback(async (userIds: string[]) => {
+    const uniq = Array.from(new Set(userIds.filter(Boolean)));
+    if (uniq.length === 0) return;
+    const results = await Promise.all(
+      uniq.map(async (uid) => {
+        const { data } = await supabase.rpc('get_user_wallet_view', { p_user_id: uid });
+        const r = (data ?? {}) as Record<string, unknown>;
+        return [uid, {
+          withdrawable: Number((r.withdrawable as number | string | undefined) ?? 0),
+          float: Number((r.float_balance as number | string | undefined) ?? 0),
+        }] as const;
+      })
+    );
+    setWalletBalances((prev) => {
+      const next = { ...prev };
+      for (const [uid, bal] of results) next[uid] = bal;
+      return next;
+    });
+  }, []);
+
   // Force re-render every 60s so the age chip stays fresh.
   const [, setTick] = useState(0);
   useEffect(() => {
@@ -73,20 +104,33 @@ export function FinOpsWithdrawalVerification() {
 
   const fetchProfiles = async (data: any[]) => {
     if (!data.length) return [];
+    const proxyIdFor = (r: any): string | null => {
+      const aid = r.agent_id || r.initiated_by;
+      if (aid && aid !== r.user_id) return aid;
+      return null;
+    };
     const userIds = [...new Set([
       ...data.map(r => r.user_id),
       ...data.map(r => r.claimed_by).filter(Boolean),
+      ...data.map(proxyIdFor).filter(Boolean),
     ])];
     const { data: profiles } = await supabase
       .from('profiles')
       .select('id, full_name, phone, avatar_url')
       .in('id', userIds);
     const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
-    return data.map(r => ({
-      ...r,
-      user: profileMap.get(r.user_id) || { full_name: 'Unknown', phone: '', avatar_url: null },
-      cashout_agent: r.claimed_by ? (profileMap.get(r.claimed_by) || null) : null,
-    }));
+    return data.map(r => {
+      const proxyId = proxyIdFor(r);
+      const proxyProfile = proxyId ? profileMap.get(proxyId) : null;
+      return {
+        ...r,
+        user: profileMap.get(r.user_id) || { full_name: 'Unknown', phone: '', avatar_url: null },
+        cashout_agent: r.claimed_by ? (profileMap.get(r.claimed_by) || null) : null,
+        proxy_agent: proxyProfile
+          ? { id: proxyId, full_name: proxyProfile.full_name, phone: proxyProfile.phone, avatar_url: proxyProfile.avatar_url }
+          : null,
+      };
+    });
   };
 
   const fetchRequests = useCallback(async () => {
@@ -120,13 +164,19 @@ export function FinOpsWithdrawalVerification() {
 
       setPendingRequests(pendingWithProfiles);
       setRejectedRequests(rejectedWithProfiles);
+      void fetchWalletBalances([
+        ...pendingWithProfiles.map((r: any) => r.user_id),
+        ...pendingWithProfiles.map((r: any) => r.proxy_agent?.id).filter(Boolean),
+        ...rejectedWithProfiles.map((r: any) => r.user_id),
+        ...rejectedWithProfiles.map((r: any) => r.proxy_agent?.id).filter(Boolean),
+      ]);
     } catch (e) {
       console.error('FinOps withdrawal fetch error:', e);
       toast.error('Failed to load withdrawal requests');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetchWalletBalances]);
 
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
 
@@ -363,6 +413,132 @@ export function FinOpsWithdrawalVerification() {
   };
 
   const renderPendingCard = (req: WithdrawalRequest) => {
+    void req;
+    return _renderPendingCard(req);
+  };
+
+  const renderBalanceStrip = (req: WithdrawalRequest) => {
+    const amount = Number(req.amount || 0);
+    const proxy = req.proxy_agent || null;
+
+    const renderOneWallet = (
+      opts: {
+        ownerLabel: string;
+        ownerName: string;
+        userId: string;
+        showImpact: boolean;
+        roleTag?: string;
+      },
+    ) => {
+      const bal = walletBalances[opts.userId];
+      const personal = bal?.withdrawable ?? 0;
+      const float = bal?.float ?? 0;
+      const totalAvailable = personal + float;
+      const insufficient = opts.showImpact && bal !== undefined && totalAvailable < amount;
+      const afterPersonal = Math.max(0, personal - amount);
+      // Show "impact" assuming personal bucket is debited first, then float.
+      const personalUsed = Math.min(personal, amount);
+      const floatUsed = Math.min(float, Math.max(0, amount - personal));
+      const afterFloat = float - floatUsed;
+      return (
+        <div
+          className={`px-2 py-1.5 rounded-lg border space-y-1 ${
+            insufficient
+              ? 'bg-destructive/10 border-destructive/40'
+              : 'bg-muted/40 border-border/50'
+          }`}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              {opts.ownerLabel}: <span className="text-foreground normal-case font-semibold">{opts.ownerName}</span>
+            </p>
+            {opts.roleTag && (
+              <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold uppercase tracking-wider">
+                {opts.roleTag}
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-1.5">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Wallet className="h-3 w-3 text-primary shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[9px] uppercase tracking-wider text-muted-foreground leading-none">Personal</p>
+                <p className="text-xs font-bold text-foreground truncate">
+                  {bal ? formatCurrency(personal) : '—'}
+                </p>
+                {opts.showImpact && bal && (
+                  <p className="text-[9px] text-muted-foreground truncate">
+                    → {formatCurrency(afterPersonal)}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Briefcase className="h-3 w-3 text-amber-600 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[9px] uppercase tracking-wider text-muted-foreground leading-none">Op. Float</p>
+                <p className="text-xs font-bold text-foreground truncate">
+                  {bal ? formatCurrency(float) : '—'}
+                </p>
+                {opts.showImpact && bal && (
+                  <p className="text-[9px] text-muted-foreground truncate">
+                    → {formatCurrency(afterFloat)}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+          {opts.showImpact && bal && (
+            <div className="flex items-center justify-between text-[10px] pt-0.5 border-t border-border/40">
+              <span className="text-muted-foreground">
+                Debit {formatCurrency(amount)} → {personalUsed > 0 && `${formatCurrency(personalUsed)} personal`}{personalUsed > 0 && floatUsed > 0 ? ' + ' : ''}{floatUsed > 0 && `${formatCurrency(floatUsed)} float`}
+              </span>
+            </div>
+          )}
+          {insufficient && (
+            <div className="flex items-center gap-1 text-[10px] font-semibold text-destructive">
+              <AlertTriangle className="h-3 w-3" />
+              <span>Insufficient — short {formatCurrency(amount - totalAvailable)}. Debit will be blocked.</span>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    // Proxy withdrawal: agent (proxy) is the debit source (v2 partner
+    // withdrawals still hold partner.withdrawable, but operationally the
+    // proxy agent's wallet is what FinOps must watch for funding). Show
+    // BOTH wallets so the operator sees the full picture and the impact.
+    if (proxy) {
+      return (
+        <div className="space-y-1.5">
+          {renderOneWallet({
+            ownerLabel: 'Requested by',
+            ownerName: req.user?.full_name || 'Partner',
+            userId: req.user_id,
+            showImpact: true,
+            roleTag: 'Partner',
+          })}
+          {renderOneWallet({
+            ownerLabel: 'Proxy agent',
+            ownerName: proxy.full_name || 'Agent',
+            userId: proxy.id,
+            showImpact: true,
+            roleTag: 'Proxy',
+          })}
+        </div>
+      );
+    }
+
+    return renderOneWallet({
+      ownerLabel: 'Wallet',
+      ownerName: req.user?.full_name || 'User',
+      userId: req.user_id,
+      showImpact: true,
+    });
+  };
+
+  const _renderPendingCard = (req: WithdrawalRequest) => {
     const bankLabel = getPayoutLabel(req);
     const ageBadge = getAgeBadge(req.created_at);
     const cluster = (() => {
@@ -421,6 +597,8 @@ export function FinOpsWithdrawalVerification() {
             </div>
           </div>
         </div>
+
+        {renderBalanceStrip(req)}
 
         {req.assigned_cashout_agent_id && (
           <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-orange-500/10 border border-orange-500/40 text-orange-700 dark:text-orange-300">
@@ -524,6 +702,8 @@ export function FinOpsWithdrawalVerification() {
             <Badge variant="destructive" size="sm">Rejected</Badge>
           </div>
         </div>
+
+        {renderBalanceStrip(req)}
 
         {(req.mobile_money_name || req.bank_account_name) && (
           <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-primary/5 border border-primary/10">

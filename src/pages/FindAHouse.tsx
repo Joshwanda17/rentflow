@@ -21,6 +21,7 @@ import { motion } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useMapLinkAnnouncer } from '@/hooks/useMapLinkAnnouncer';
+import { regionLabel } from '@/lib/ugandaDistricts';
 
 const REGIONS = [
   'All Regions', 'Central', 'Eastern', 'Northern', 'Western',
@@ -416,7 +417,7 @@ export default function FindAHouse() {
               <Select value={selectedRegion} onValueChange={setSelectedRegion}>
                 <SelectTrigger className="flex-1 h-9 text-xs"><SelectValue placeholder="Region" /></SelectTrigger>
                 <SelectContent>
-                  {REGIONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                  {REGIONS.map(r => <SelectItem key={r} value={r}>{regionLabel(r)}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Select value={selectedCategory} onValueChange={setSelectedCategory}>

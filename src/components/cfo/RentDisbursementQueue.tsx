@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -15,12 +16,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Loader2, CheckCircle2, Banknote, Home, TrendingUp, Users, Wallet, AlertTriangle, XCircle } from 'lucide-react';
+import { Loader2, CheckCircle2, Banknote, Home, TrendingUp, Users, Wallet, AlertTriangle, XCircle, CalendarDays } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { TreasuryImpactBanner } from './TreasuryImpactBanner';
 import { useAuth } from '@/hooks/useAuth';
+import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
 
 const fmt = (n: number) =>
   new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', maximumFractionDigits: 0 }).format(n);
@@ -41,13 +43,19 @@ interface ApprovedRentItem {
   agent_name: string;
   has_landlord_wallet: boolean;
   payout_target: 'landlord_wallet' | 'agent_float';
+  request_country: string | null;
+  request_city: string | null;
 }
 
 export function RentDisbursementQueue() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [agentFilter, setAgentFilter] = useState<string>('all');
+  const [countryFilter, setCountryFilter] = useState<string>('all');
+  const [dateFilter, setDateFilter] = useState<'all' | '7d' | '30d'>('all');
   const [batchRef, setBatchRef] = useState('');
   const [rejectTarget, setRejectTarget] = useState<ApprovedRentItem | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [drilldownAgentId, setDrilldownAgentId] = useState<string | null>(null);
   const qc = useQueryClient();
   const { user } = useAuth();
 
@@ -57,7 +65,7 @@ export function RentDisbursementQueue() {
       // Get COO-approved rent requests
       const { data: requests, error } = await supabase
         .from('rent_requests')
-        .select('id, rent_amount, tenant_id, landlord_id, agent_id, assigned_agent_id, access_fee, request_fee, total_repayment, created_at')
+        .select('id, rent_amount, tenant_id, landlord_id, agent_id, assigned_agent_id, access_fee, request_fee, total_repayment, created_at, request_country, request_city')
         .eq('status', 'coo_approved')
         .order('created_at', { ascending: true });
       if (error) throw error;
@@ -107,6 +115,8 @@ export function RentDisbursementQueue() {
           agent_name: agentId ? (profileMap.get(agentId) || 'Unknown Agent') : 'No Agent',
           has_landlord_wallet: hasWallet,
           payout_target: hasWallet ? 'landlord_wallet' as const : 'agent_float' as const,
+          request_country: (r as any).request_country ?? null,
+          request_city: (r as any).request_city ?? null,
         };
       });
     },
@@ -117,12 +127,6 @@ export function RentDisbursementQueue() {
   const totalRent = useMemo(() => selectedItems.reduce((s, i) => s + i.rent_amount, 0), [selectedItems]);
   const totalRevenue = useMemo(() => selectedItems.reduce((s, i) => s + i.access_fee + i.request_fee, 0), [selectedItems]);
   const totalRepaymentExpected = useMemo(() => selectedItems.reduce((s, i) => s + i.total_repayment, 0), [selectedItems]);
-  const allSelected = items.length > 0 && selected.size === items.length;
-
-  const toggleAll = () => {
-    if (allSelected) setSelected(new Set());
-    else setSelected(new Set(items.map(i => i.id)));
-  };
 
   const toggle = (id: string) => {
     const next = new Set(selected);
@@ -130,22 +134,70 @@ export function RentDisbursementQueue() {
     setSelected(next);
   };
 
+  // Date-window filter: which requests are within the chosen lookback.
+  const filteredItems = useMemo(() => {
+    if (dateFilter === 'all') return items;
+    const cutoff = Date.now() - (dateFilter === '7d' ? 7 : 30) * 24 * 60 * 60 * 1000;
+    return items.filter(it => new Date(it.created_at).getTime() >= cutoff);
+  }, [items, dateFilter]);
+
   // Group rows by agent so CFO can pick one tenant, a few, or all of an
   // agent's tenants at a glance.
   const grouped = useMemo(() => {
-    const map = new Map<string, { agent_id: string; agent_name: string; rows: ApprovedRentItem[] }>();
-    for (const it of items) {
+    const map = new Map<string, { agent_id: string; agent_name: string; rows: ApprovedRentItem[]; latest: number }>();
+    for (const it of filteredItems) {
       const key = it.assigned_agent_id || it.agent_id || 'unassigned';
-      const g = map.get(key) ?? { agent_id: key, agent_name: it.agent_name, rows: [] };
+      const ts = new Date(it.created_at).getTime();
+      const g = map.get(key) ?? { agent_id: key, agent_name: it.agent_name, rows: [], latest: 0 };
       g.rows.push(it);
+      if (ts > g.latest) g.latest = ts;
       map.set(key, g);
     }
-    return [...map.values()].sort(
-      (a, b) =>
-        b.rows.reduce((s, r) => s + r.rent_amount, 0) -
-        a.rows.reduce((s, r) => s + r.rent_amount, 0),
-    );
-  }, [items]);
+    // Newest request first, so an agent that just posted jumps to the top.
+    // Within each agent, show their newest tenant request first too.
+    for (const g of map.values()) {
+      g.rows.sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      );
+    }
+    return [...map.values()].sort((a, b) => b.latest - a.latest);
+  }, [filteredItems]);
+
+  // Country breakdown — counts + total rent per country across the filtered queue.
+  const countryStats = useMemo(() => {
+    const map = new Map<string, { country: string; count: number; total: number }>();
+    for (const it of filteredItems) {
+      const key = (it.request_country || '').trim() || 'Unknown';
+      const s = map.get(key) ?? { country: key, count: 0, total: 0 };
+      s.count += 1;
+      s.total += it.rent_amount;
+      map.set(key, s);
+    }
+    return [...map.values()].sort((a, b) => b.total - a.total);
+  }, [filteredItems]);
+
+  const countryFilteredGroups = useMemo(() => {
+    if (countryFilter === 'all') return grouped;
+    return grouped
+      .map(g => ({
+        ...g,
+        rows: g.rows.filter(r => ((r.request_country || '').trim() || 'Unknown') === countryFilter),
+      }))
+      .filter(g => g.rows.length > 0);
+  }, [grouped, countryFilter]);
+
+  const visibleGroups = useMemo(
+    () => (agentFilter === 'all' ? countryFilteredGroups : countryFilteredGroups.filter(g => g.agent_id === agentFilter)),
+    [countryFilteredGroups, agentFilter],
+  );
+  const visibleItems = useMemo(() => visibleGroups.flatMap(g => g.rows), [visibleGroups]);
+  const allSelected = visibleItems.length > 0 && visibleItems.every(i => selected.has(i.id));
+  const toggleAll = () => {
+    const next = new Set(selected);
+    if (allSelected) visibleItems.forEach(i => next.delete(i.id));
+    else visibleItems.forEach(i => next.add(i.id));
+    setSelected(next);
+  };
 
   const toggleAgentGroup = (rows: ApprovedRentItem[]) => {
     const ids = rows.map(r => r.id);
@@ -231,23 +283,68 @@ export function RentDisbursementQueue() {
     onError: (e: any) => toast.error(e.message || 'Failed to reject'),
   });
 
-  // Summary totals for ALL queued items
-  const queueTotalRent = useMemo(() => items.reduce((s, i) => s + i.rent_amount, 0), [items]);
-  const queueTotalRevenue = useMemo(() => items.reduce((s, i) => s + i.access_fee + i.request_fee, 0), [items]);
+  // Summary totals for the currently filtered queue.
+  const queueTotalRent = useMemo(() => filteredItems.reduce((s, i) => s + i.rent_amount, 0), [filteredItems]);
+  const queueTotalRevenue = useMemo(() => filteredItems.reduce((s, i) => s + i.access_fee + i.request_fee, 0), [filteredItems]);
+
+  const dateFilterLabel: Record<string, string> = { all: 'All time', '7d': 'Last 7 days', '30d': 'Last 30 days' };
 
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base flex items-center gap-2">
-          <Home className="h-4 w-4 text-primary" />
-          Fund Agent Landlord Payout Float
-          {items.length > 0 && (
-            <Badge variant="outline" className="text-[10px] ml-1 bg-primary/10 text-primary border-primary/30">
-              {items.length} approved · {fmt(queueTotalRent)}
-            </Badge>
-          )}
-        </CardTitle>
-        {items.length > 0 && (
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Home className="h-4 w-4 text-primary" />
+            Fund Agent Landlord Payout Float
+            {filteredItems.length > 0 && (
+              <Badge variant="outline" className="text-[10px] ml-1 bg-primary/10 text-primary border-primary/30">
+                {filteredItems.length} approved{dateFilter !== 'all' ? ` · ${dateFilterLabel[dateFilter]}` : ''} · {fmt(queueTotalRent)}
+              </Badge>
+            )}
+          </CardTitle>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Select value={agentFilter} onValueChange={setAgentFilter}>
+              <SelectTrigger className="h-7 text-xs w-[220px]">
+                <Users className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+                <SelectValue placeholder="Filter by agent" />
+              </SelectTrigger>
+              <SelectContent className="max-h-[320px]">
+                <SelectItem value="all">All agents ({grouped.length})</SelectItem>
+                {grouped.map(g => {
+                  const gTotal = g.rows.reduce((s, r) => s + r.rent_amount, 0);
+                  return (
+                    <SelectItem key={g.agent_id} value={g.agent_id}>
+                      <span className="truncate">
+                        {g.agent_name} · {g.rows.length} · {fmt(gTotal)}
+                      </span>
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+            <Select value={dateFilter} onValueChange={(v) => { setDateFilter(v as any); setSelected(new Set()); }}>
+              <SelectTrigger className="h-7 text-xs w-[150px]">
+                <CalendarDays className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+                <SelectValue placeholder="Date range" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All time</SelectItem>
+                <SelectItem value="7d">Last 7 days</SelectItem>
+                <SelectItem value="30d">Last 30 days</SelectItem>
+              </SelectContent>
+            </Select>
+            {agentFilter !== 'all' && (
+              <button
+                type="button"
+                className="text-[11px] text-primary hover:underline"
+                onClick={() => setAgentFilter('all')}
+              >
+                Clear agent
+              </button>
+            )}
+          </div>
+        </div>
+        {filteredItems.length > 0 && (
           <p className="text-xs text-muted-foreground mt-1">
             COO-approved rent. Funding lands in the assigned agent's <b>Landlord Payout Float</b> — the agent then pays the landlord via MoMo + OTP. Revenue earned: <span className="font-bold text-emerald-600">{fmt(queueTotalRevenue)}</span>
           </p>
@@ -256,25 +353,90 @@ export function RentDisbursementQueue() {
       <CardContent>
         {isLoading ? (
           <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
-        ) : items.length === 0 ? (
+        ) : filteredItems.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <CheckCircle2 className="h-10 w-10 mx-auto mb-2 text-emerald-500" />
             <p className="font-medium">No Pending Rent Payouts</p>
-            <p className="text-xs">All approved rent requests have been disbursed</p>
+            <p className="text-xs">
+              {dateFilter !== 'all'
+                ? `No requests match ${dateFilterLabel[dateFilter]}. `
+                : 'All approved rent requests have been disbursed'}
+              {dateFilter !== 'all' && (
+                <button type="button" className="text-primary hover:underline" onClick={() => setDateFilter('all')}>
+                  Show all
+                </button>
+              )}
+            </p>
           </div>
         ) : (
           <div className="space-y-3">
-            {/* Select all */}
-            <div className="flex items-center justify-between">
+            {/* Country breakdown — click a chip to filter the queue by country */}
+            {countryStats.length > 0 && (
+              <div className="rounded-lg border border-border/60 bg-muted/30 p-2">
+                <div className="flex items-center justify-between mb-1.5 px-1">
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                    Requests by country
+                  </p>
+                  {countryFilter !== 'all' && (
+                    <button
+                      type="button"
+                      className="text-[11px] text-primary hover:underline"
+                      onClick={() => setCountryFilter('all')}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setCountryFilter('all')}
+                    className={cn(
+                      'px-2.5 py-1 rounded-md text-xs border transition-colors',
+                      countryFilter === 'all'
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background hover:bg-muted border-border',
+                    )}
+                  >
+                    🌍 All · {filteredItems.length} · {fmt(queueTotalRent)}
+                  </button>
+                  {countryStats.map(c => (
+                    <button
+                      key={c.country}
+                      type="button"
+                      onClick={() => setCountryFilter(c.country)}
+                      className={cn(
+                        'px-2.5 py-1 rounded-md text-xs border transition-colors',
+                        countryFilter === c.country
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-background hover:bg-muted border-border',
+                      )}
+                    >
+                      <span className="font-semibold">{c.country}</span>
+                      <span className="opacity-80"> · {c.count} · {fmt(c.total)}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Select all + agent filter */}
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <label className="flex items-center gap-2 text-sm cursor-pointer">
                 <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
-                Select all ({items.length})
+                Select all ({visibleItems.length}
+                {agentFilter !== 'all' && items.length !== visibleItems.length
+                  ? ` of ${items.length}`
+                  : ''}
+                )
               </label>
-              {selected.size > 0 && (
-                <Badge className="bg-primary/10 text-primary border-primary/30">
-                  {selected.size} selected · {fmt(totalRent)}
-                </Badge>
-              )}
+              <div className="flex items-center gap-2">
+                {selected.size > 0 && (
+                  <Badge className="bg-primary/10 text-primary border-primary/30">
+                    {selected.size} selected · {fmt(totalRent)}
+                  </Badge>
+                )}
+              </div>
             </div>
 
             {/* Revenue summary for selection */}
@@ -309,26 +471,56 @@ export function RentDisbursementQueue() {
 
             {/* Grouped list (by agent) */}
             <div className="space-y-3 max-h-[420px] overflow-y-auto">
-              {grouped.map(group => {
+              {visibleGroups.length === 0 && (
+                <div className="text-center py-6 text-xs text-muted-foreground">
+                  No tenants match the current filters.{' '}
+                  <button
+                    type="button"
+                    className="text-primary hover:underline"
+                    onClick={() => { setAgentFilter('all'); setCountryFilter('all'); setDateFilter('all'); }}
+                  >
+                    Clear all filters
+                  </button>
+                </div>
+              )}
+              {visibleGroups.map(group => {
                 const groupIds = group.rows.map(r => r.id);
                 const groupSelectedCount = groupIds.filter(id => selected.has(id)).length;
                 const allGroupOn = groupSelectedCount === groupIds.length;
                 const someGroupOn = groupSelectedCount > 0 && !allGroupOn;
                 const groupTotal = group.rows.reduce((s, r) => s + r.rent_amount, 0);
+                const isNew = Date.now() - group.latest < 24 * 60 * 60 * 1000;
+                const isRealAgent = group.agent_id && group.agent_id !== 'unassigned';
                 return (
                   <div key={group.agent_id} className="rounded-lg border">
                     <div className="flex items-center justify-between gap-2 px-3 py-2 bg-muted/40 rounded-t-lg">
-                      <label className="flex items-center gap-2 text-sm cursor-pointer min-w-0 flex-1">
+                      <div className="flex items-center gap-2 text-sm min-w-0 flex-1">
                         <Checkbox
                           checked={allGroupOn ? true : someGroupOn ? 'indeterminate' : false}
                           onCheckedChange={() => toggleAgentGroup(group.rows)}
                         />
                         <Users className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <span className="font-semibold truncate">{group.agent_name}</span>
+                        {isRealAgent ? (
+                          <button
+                            type="button"
+                            onClick={() => setDrilldownAgentId(group.agent_id)}
+                            className="font-semibold truncate text-left hover:text-primary hover:underline focus:outline-none focus-visible:underline"
+                            title="Open agent profile"
+                          >
+                            {group.agent_name}
+                          </button>
+                        ) : (
+                          <span className="font-semibold truncate">{group.agent_name}</span>
+                        )}
+                        {isNew && (
+                          <Badge className="text-[9px] px-1.5 py-0 shrink-0 bg-emerald-500 text-white border-0 animate-pulse">
+                            NEW
+                          </Badge>
+                        )}
                         <Badge variant="outline" className="text-[9px] px-1.5 py-0 shrink-0">
                           {groupSelectedCount}/{group.rows.length}
                         </Badge>
-                      </label>
+                      </div>
                       <span className="text-xs font-bold text-orange-600 shrink-0">{fmt(groupTotal)}</span>
                     </div>
                     <div className="divide-y">
@@ -480,6 +672,12 @@ export function RentDisbursementQueue() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <UserDrilldownDrawer
+        open={!!drilldownAgentId}
+        onOpenChange={(v) => { if (!v) setDrilldownAgentId(null); }}
+        agentId={drilldownAgentId}
+        defaultTab="agent"
+      />
     </Card>
   );
 }

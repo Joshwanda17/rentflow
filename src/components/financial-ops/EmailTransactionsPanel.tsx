@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { archivePdfBlob } from '@/lib/pdfVault';
 import { ArchivedPdfsDrawer } from '@/components/financial-ops/ArchivedPdfsDrawer';
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +23,7 @@ import { invokeEdgeFunction } from '@/lib/invokeEdgeFunction';
 import { normalizeMomoTid } from '@/lib/momoTid';
 import { downloadCsv } from '@/lib/csvExport';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip as RTooltip, CartesianGrid, Legend } from 'recharts';
+import { DebitBucketAuditSearch } from './DebitBucketAuditSearch';
 
 interface GmailTx {
   id: string;
@@ -520,6 +522,48 @@ export function EmailTransactionsPanel() {
   const [reverseBusy, setReverseBusy] = useState<Record<string, boolean>>({});
 
   /**
+   * Already-credited deposits for the currently visible *incoming* emails.
+   * The poller (`gmail-poll-transactions`) auto-credits matched recipients
+   * and stamps either `gmail_transactions.linked_deposit_request_id` (fast
+   * path) or `deposit_requests.auto_match_audit->>gmail_message_id`
+   * (fallback). When an email is already linked to a non-terminal
+   * deposit_request we MUST NOT credit it again — surfacing this in the
+   * list prevents double-credits and tells Financial Ops exactly which
+   * user already received the money.
+   */
+  interface CreditedDeposit {
+    deposit_id: string;
+    user_id: string;
+    user_name: string;
+    user_phone: string;
+    amount: number;
+    status: string;
+    auto_approved: boolean | null;
+    deposit_purpose: string | null;
+    credited_at: string | null;
+  }
+  const [creditedDeposits, setCreditedDeposits] = useState<Record<string, CreditedDeposit[]>>({});
+
+  /**
+   * Manual "mark credited / uncredited" audit log loaded from
+   * `email_credit_manual_marks`. Bulk actions append immutable rows there;
+   * the LATEST mark per gmail_transaction_id is the operative state and
+   * overrides the auto-detected `creditedDeposits` mapping so reviewers can
+   * force a row to be treated as credited (e.g. settled out-of-band) or
+   * uncredited (e.g. reversed manually) without losing history.
+   */
+  interface ManualMark {
+    mark: 'credited' | 'uncredited';
+    marked_by: string;
+    marked_by_name: string | null;
+    reason: string | null;
+    created_at: string;
+  }
+  const [manualMarks, setManualMarks] = useState<Record<string, ManualMark>>({});
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+
+  /**
    * Auto-payout matcher: for outgoing money-out emails (MoMo payouts / bank
    * disbursements), look up the pending `withdrawal_requests` row that the
    * email is *settling*. Match is by normalized TID (strongest) or by
@@ -592,8 +636,15 @@ export function EmailTransactionsPanel() {
       let q: any = (supabase.from('gmail_transactions') as any)
         .select('id,gmail_message_id,from_email,from_name,subject,snippet,amount,transaction_id,parsed,internal_date,direction,channel,counterparty,fee,balance')
         .order('internal_date', { ascending: false, nullsFirst: false });
-      if (fromTsLoad) q = q.gte('internal_date', new Date(fromTsLoad).toISOString());
-      if (toTsLoad) q = q.lte('internal_date', new Date(toTsLoad).toISOString());
+      // When the operator has typed a search query, IGNORE the date range
+      // entirely so the search reaches the full email history. This makes the
+      // search box behave like a global "find any email" tool, independent of
+      // whatever date filter happens to be set above.
+      const searchActiveLoad = tokens.length > 0;
+      if (!searchActiveLoad) {
+        if (fromTsLoad) q = q.gte('internal_date', new Date(fromTsLoad).toISOString());
+        if (toTsLoad) q = q.lte('internal_date', new Date(toTsLoad).toISOString());
+      }
       if (esc) {
         q = q.or(
           [
@@ -709,6 +760,219 @@ export function EmailTransactionsPanel() {
       .subscribe();
     return () => { cancelled = true; supabase.removeChannel(sub); };
   }, [rows]);
+
+  // Background load of "already-credited" deposit links for visible incoming
+  // rows. Uses the same two-step resolution the RouteEmailDepositDialog
+  // uses: (1) gmail_transactions.linked_deposit_request_id fast path,
+  // (2) deposit_requests.auto_match_audit->>gmail_message_id fallback.
+  // Terminal statuses (rejected/cancelled/failed/reversed) are treated as
+  // "not credited" so reversed auto-credits can be re-routed without the
+  // double-credit warning.
+  useEffect(() => {
+    if (!rows.length) { setCreditedDeposits({}); return; }
+    const incoming = rows.filter((r) => r.direction === 'in');
+    if (!incoming.length) { setCreditedDeposits({}); return; }
+    let cancelled = false;
+    const rowIds = incoming.map((r) => r.id);
+    const msgIds = incoming.map((r) => r.gmail_message_id).filter(Boolean) as string[];
+    (async () => {
+      try {
+        // 1) Fast path via gmail_transactions.linked_deposit_request_id
+        const { data: gmailLinks } = await (supabase.from('gmail_transactions') as any)
+          .select('id, linked_deposit_request_id')
+          .in('id', rowIds);
+        const linkByRow = new Map<string, string[]>();
+        const depIds = new Set<string>();
+        for (const g of (gmailLinks ?? []) as Array<{ id: string; linked_deposit_request_id: string | null }>) {
+          if (g.linked_deposit_request_id) {
+            const arr = linkByRow.get(g.id) ?? [];
+            arr.push(g.linked_deposit_request_id);
+            linkByRow.set(g.id, arr);
+            depIds.add(g.linked_deposit_request_id);
+          }
+        }
+        // 2) Fallback via deposit_requests.auto_match_audit->>gmail_message_id
+        const linkByMsg = new Map<string, string[]>();
+        if (msgIds.length) {
+          const { data: audits } = await (supabase.from('deposit_requests') as any)
+            .select('id, status, auto_match_audit')
+            .in('auto_match_audit->>gmail_message_id', msgIds);
+          for (const a of (audits ?? []) as Array<{ id: string; status: string; auto_match_audit: any }>) {
+            const mid = a?.auto_match_audit?.gmail_message_id as string | undefined;
+            if (!mid) continue;
+            if (['rejected', 'cancelled', 'failed', 'reversed'].includes(a.status)) continue;
+            const arr = linkByMsg.get(mid) ?? [];
+            if (!arr.includes(a.id)) {
+              arr.push(a.id);
+              linkByMsg.set(mid, arr);
+              depIds.add(a.id);
+            }
+          }
+        }
+        if (!depIds.size) { if (!cancelled) setCreditedDeposits({}); return; }
+        const { data: deps } = await (supabase.from('deposit_requests') as any)
+          .select('id, user_id, amount, status, auto_approved, deposit_purpose, created_at, updated_at')
+          .in('id', Array.from(depIds));
+        const depById = new Map<string, any>();
+        const userIds = new Set<string>();
+        for (const d of (deps ?? []) as Array<any>) {
+          depById.set(d.id, d);
+          if (d.user_id) userIds.add(d.user_id);
+        }
+        let profById = new Map<string, any>();
+        if (userIds.size) {
+          const { data: profs } = await (supabase.from('profiles') as any)
+            .select('id, full_name, phone')
+            .in('id', Array.from(userIds));
+          profById = new Map(((profs ?? []) as Array<any>).map((p) => [p.id, p]));
+        }
+        const next: Record<string, CreditedDeposit[]> = {};
+        for (const r of incoming) {
+          const ids = new Set<string>();
+          (linkByRow.get(r.id) ?? []).forEach((id) => ids.add(id));
+          if (r.gmail_message_id) (linkByMsg.get(r.gmail_message_id) ?? []).forEach((id) => ids.add(id));
+          if (!ids.size) continue;
+          const list: CreditedDeposit[] = [];
+          for (const depId of ids) {
+            const d = depById.get(depId);
+            if (!d) continue;
+            if (['rejected', 'cancelled', 'failed', 'reversed'].includes(d.status)) continue;
+            const p = profById.get(d.user_id);
+            list.push({
+              deposit_id: d.id,
+              user_id: d.user_id,
+              user_name: (p?.full_name as string) ?? 'Unknown user',
+              user_phone: (p?.phone as string) ?? '',
+              amount: Number(d.amount) || 0,
+              status: d.status,
+              auto_approved: d.auto_approved ?? null,
+              deposit_purpose: d.deposit_purpose ?? null,
+              credited_at: (d.updated_at as string) ?? (d.created_at as string) ?? null,
+            });
+          }
+          if (list.length) next[r.id] = list;
+        }
+        if (!cancelled) setCreditedDeposits(next);
+      } catch {
+        if (!cancelled) setCreditedDeposits({});
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [rows]);
+
+  // Load the LATEST manual credit-mark per visible gmail transaction so the
+  // list can honor operator overrides immediately. Re-runs whenever the row
+  // set changes (e.g. after bulk actions or new polls).
+  useEffect(() => {
+    if (!rows.length) { setManualMarks({}); return; }
+    let cancelled = false;
+    const rowIds = rows.map((r) => r.id);
+    (async () => {
+      try {
+        // Pull ALL marks for visible ids (newest first), then keep the first
+        // (latest) per gmail_transaction_id. Cheap enough at typical page sizes.
+        const { data: marks } = await (supabase.from('email_credit_manual_marks') as any)
+          .select('gmail_transaction_id, mark, reason, marked_by, created_at')
+          .in('gmail_transaction_id', rowIds)
+          .order('created_at', { ascending: false });
+        const arr = (marks ?? []) as Array<{ gmail_transaction_id: string; mark: 'credited'|'uncredited'; reason: string | null; marked_by: string; created_at: string }>;
+        const operatorIds = Array.from(new Set(arr.map((m) => m.marked_by)));
+        let nameById = new Map<string, string>();
+        if (operatorIds.length) {
+          const { data: profs } = await (supabase.from('profiles') as any)
+            .select('id, full_name')
+            .in('id', operatorIds);
+          nameById = new Map(((profs ?? []) as Array<{ id: string; full_name: string | null }>).map((p) => [p.id, p.full_name ?? '']));
+        }
+        const next: Record<string, ManualMark> = {};
+        for (const m of arr) {
+          if (next[m.gmail_transaction_id]) continue; // keep newest only
+          next[m.gmail_transaction_id] = {
+            mark: m.mark,
+            marked_by: m.marked_by,
+            marked_by_name: nameById.get(m.marked_by) ?? null,
+            reason: m.reason,
+            created_at: m.created_at,
+          };
+        }
+        if (!cancelled) setManualMarks(next);
+      } catch {
+        if (!cancelled) setManualMarks({});
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [rows]);
+
+  /**
+   * Bulk mark every currently-selected email as credited or uncredited.
+   * Inserts one append-only row per selection into
+   * `email_credit_manual_marks` (operator = auth.uid, server-stamped
+   * timestamp). RLS restricts inserts to Financial Ops roles. After the
+   * batch lands we refresh the marks map and clear the selection.
+   */
+  const applyBulkMark = async (mark: 'credited' | 'uncredited') => {
+    const ids = Array.from(selectedIds);
+    if (!ids.length) return;
+    const reason = window.prompt(
+      `Reason for marking ${ids.length} email(s) as ${mark} (logged in audit trail, optional):`,
+      ''
+    );
+    // null = cancelled, '' = proceed without reason
+    if (reason === null) return;
+    setBulkBusy(true);
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      const uid = auth?.user?.id;
+      if (!uid) throw new Error('Not signed in');
+      const byId = new Map(rows.map((r) => [r.id, r]));
+      const payload = ids.map((id) => {
+        const r = byId.get(id);
+        return {
+          gmail_transaction_id: id,
+          gmail_message_id: r?.gmail_message_id ?? null,
+          email_tid: r?.transaction_id ?? null,
+          mark,
+          reason: reason.trim() || null,
+          marked_by: uid,
+        };
+      });
+      const { error } = await (supabase.from('email_credit_manual_marks') as any).insert(payload);
+      if (error) throw new Error(error.message);
+      toast({
+        title: `Marked ${ids.length} email(s) as ${mark}`,
+        description: 'Audit trail updated. The list will refresh.',
+      });
+      // Refresh marks for these rows
+      const { data: fresh } = await (supabase.from('email_credit_manual_marks') as any)
+        .select('gmail_transaction_id, mark, reason, marked_by, created_at')
+        .in('gmail_transaction_id', ids)
+        .order('created_at', { ascending: false });
+      const arr = (fresh ?? []) as Array<any>;
+      setManualMarks((prev) => {
+        const next = { ...prev };
+        for (const m of arr) {
+          if (next[m.gmail_transaction_id] && next[m.gmail_transaction_id].created_at >= m.created_at) continue;
+          next[m.gmail_transaction_id] = {
+            mark: m.mark,
+            marked_by: m.marked_by,
+            marked_by_name: prev[m.gmail_transaction_id]?.marked_by_name ?? null,
+            reason: m.reason,
+            created_at: m.created_at,
+          };
+        }
+        return next;
+      });
+      setSelectedIds(new Set());
+    } catch (e: any) {
+      toast({
+        title: 'Bulk mark failed',
+        description: e?.message || String(e),
+        variant: 'destructive',
+      });
+    } finally {
+      setBulkBusy(false);
+    }
+  };
 
   // Background fetch of strict ledger-derived withdrawable balances for
   // every possible-user candidate AND every routed target currently shown.
@@ -1320,7 +1584,10 @@ export function EmailTransactionsPanel() {
     if (toTs && t > toTs) return false;
     return true;
   };
-  const dateRows = rows.filter(inRange);
+  // When a search query is active we DELIBERATELY bypass the date range so
+  // ops can find any email regardless of the date filter currently set.
+  const searchActiveForRange = searchQuery.trim().length > 0;
+  const dateRows = searchActiveForRange ? rows : rows.filter(inRange);
   // Apply the free-text search on top of the date range. Empty query → pass.
   const searchTokens = searchQuery
     .toLowerCase()
@@ -1461,6 +1728,59 @@ export function EmailTransactionsPanel() {
     return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
   })();
 
+  // Navigable rows: the same list the operator sees on the Recent emails page.
+  // This drives the Prev / Next button bar inside the Route dialog so Financial
+  // Ops can walk through emails in order without closing the dialog each time.
+  const visibleRows = useMemo(() => {
+    return filteredRows.filter((r) => {
+      if (directionFilter === 'in' && r.direction !== 'in') return false;
+      if (directionFilter === 'out' && r.direction !== 'out' && r.direction !== 'charge') return false;
+      if (matchFilter === 'all') return true;
+      const list = userMatches[r.id] ?? [];
+      if (matchFilter === 'reference') return list.some((u) => u.matched_on.startsWith('reference '));
+      if (matchFilter === 'from') return list.some((u) => u.matched_on.startsWith('from '));
+      return list.some((u) => u.matched_on.startsWith('reference ') || u.matched_on.startsWith('from '));
+    });
+  }, [filteredRows, directionFilter, matchFilter, userMatches]);
+
+  const navIndex = routingRow ? visibleRows.findIndex((r) => r.id === routingRow.id) : -1;
+  const canPrevNav = navIndex > 0;
+  const canNextNav = navIndex >= 0 && navIndex < visibleRows.length - 1;
+
+  /** Compute the best suggested user for a given row and routing mode. */
+  const computeSuggestedFor = (r: GmailTx, mode: 'credit' | 'debit') => {
+    const matches = userMatches[r.id] ?? [];
+    const scoreFrom = mode === 'credit'
+      ? (u: MatchedUser) => (
+          u.matched_on.startsWith('reference ') ? 100
+          : u.matched_on.startsWith('from ') ? 90
+          : u.matched_on.startsWith('to ') ? 90
+          : u.matched_on.startsWith('name-') ? 75
+          : 60
+        )
+      : (u: MatchedUser) => (
+          u.matched_on.startsWith('reference ') ? 100
+          : u.matched_on.startsWith('to ') ? 90
+          : u.matched_on.startsWith('from ') ? 90
+          : u.matched_on.startsWith('name-') ? 75
+          : 60
+        );
+    const top = matches
+      .map((u) => ({ u, s: scoreFrom(u) }))
+      .sort((a, b) => b.s - a.s)[0]?.u;
+    const prefix = mode === 'credit' ? 'from' : 'to';
+    const matchedPhone = top?.matched_on.startsWith(`${prefix} `) || top?.matched_on.startsWith('phone ')
+      ? top.matched_on.replace(/^(from|to|phone)\s+/, '')
+      : null;
+    return top ? { id: top.id, full_name: top.full_name, phone: top.phone ?? '', matched_phone: matchedPhone } : null;
+  };
+
+  const navigateToRow = (nextRow: GmailTx, mode: 'credit' | 'debit') => {
+    setRoutingSuggestedUser(computeSuggestedFor(nextRow, mode));
+    setRoutingMode(mode);
+    setRoutingRow(nextRow);
+  };
+
   return (
     <div className="space-y-5">
       <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3">
@@ -1472,6 +1792,11 @@ export function EmailTransactionsPanel() {
             Live feed from the connected Gmail inbox. Polls every minute and parses MoMo, Airtel & bank confirmation emails.
           </p>
         </div>
+      </div>
+
+      <DebitBucketAuditSearch />
+
+      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-end gap-3">
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
           <Button onClick={pollNow} disabled={polling} className="gap-2 flex-1 sm:flex-none min-w-[120px]">
             {polling ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
@@ -1519,10 +1844,10 @@ export function EmailTransactionsPanel() {
         <div className="flex-1 min-w-full sm:min-w-[200px]">
           <h3 className="font-semibold text-sm">Date range</h3>
           <p className="text-[11px] text-muted-foreground mt-0.5">
-            {rangeActive
-              ? `Showing ${filteredRows.length} of ${rows.length} emails — totals recomputed for ${fromDate || '…'} → ${toDate || '…'} (${tz})${searchActive ? ` · search "${searchQuery}"` : ''}`
-              : searchActive
-              ? `Showing ${filteredRows.length} of ${rows.length} emails — search "${searchQuery}" · timezone ${tz}`
+            {searchActive
+              ? `Showing ${filteredRows.length} of ${rows.length} emails — search "${searchQuery}" (date range ignored while searching) · timezone ${tz}`
+              : rangeActive
+              ? `Showing ${filteredRows.length} of ${rows.length} emails — totals recomputed for ${fromDate || '…'} → ${toDate || '…'} (${tz})`
               : `No range selected — showing all ${rows.length} emails · timezone ${tz}`}
           </p>
         </div>
@@ -2049,7 +2374,7 @@ export function EmailTransactionsPanel() {
             )}
           </div>
           <p className="text-[11px] text-muted-foreground">
-            Tip: combine words (e.g. <code className="px-1 rounded bg-muted">john 150000</code>) — every word must match. Phone numbers work in any format.
+            Searches the <strong>full email history</strong> — the date range above is ignored while you type. Combine words (e.g. <code className="px-1 rounded bg-muted">john 150000</code>); phone numbers work in any format.
           </p>
         </div>
         <div className="p-4 border-b flex items-center justify-between gap-3 flex-wrap">
@@ -2150,6 +2475,24 @@ export function EmailTransactionsPanel() {
           </div>
         ) : (
           <div className="divide-y max-h-[600px] overflow-y-auto">
+            {selectedIds.size > 0 && (
+              <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 border-b bg-background/95 backdrop-blur px-3 py-2 shadow-sm">
+                <div className="text-xs font-medium">
+                  <span className="text-primary">{selectedIds.size}</span> selected
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="outline" disabled={bulkBusy} onClick={() => applyBulkMark('credited')}>
+                    <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Mark credited
+                  </Button>
+                  <Button size="sm" variant="outline" disabled={bulkBusy} onClick={() => applyBulkMark('uncredited')}>
+                    <Undo2 className="h-3.5 w-3.5 mr-1" /> Mark uncredited
+                  </Button>
+                  <Button size="sm" variant="ghost" disabled={bulkBusy} onClick={() => setSelectedIds(new Set())}>
+                    Clear
+                  </Button>
+                </div>
+              </div>
+            )}
             {(() => {
               const visible = filteredRows.filter((r) => {
                 if (directionFilter === 'in' && r.direction !== 'in') return false;
@@ -2176,6 +2519,56 @@ export function EmailTransactionsPanel() {
                 const history = routingHistory[r.id] ?? [];
                 const isRouted = history.length > 0;
                 const isReversed = history.some((h) => /revers/i.test(h.reason || ''));
+                // Already-credited incoming deposit (linked to a non-terminal
+                // deposit_request by the poller). Distinct emerald treatment
+                // tells reviewers this email's money already landed in the
+                // shown user's wallet — DO NOT credit again.
+                const credited = creditedDeposits[r.id] ?? [];
+                const manualMark = manualMarks[r.id];
+                const isCredited = manualMark
+                  ? manualMark.mark === 'credited'
+                  : credited.length > 0;
+                const totalCredited = credited.reduce((s, c) => s + c.amount, 0);
+                const emailAmount = Number(r.amount ?? 0);
+                const creditShortfall = emailAmount > 0 ? Math.max(0, emailAmount - totalCredited) : 0;
+                const isFullyCredited = manualMark?.mark === 'credited'
+                  ? true
+                  : (emailAmount > 0 && totalCredited >= emailAmount);
+                // ── Insufficient-funds warning for outgoing payouts ───────
+                // When an outgoing email (sent / charge) is matched to a
+                // user wallet whose current balance cannot cover the payout
+                // amount, this row is about to fail on debit. Make it
+                // visually unignorable so reviewers don't blindly auto-debit
+                // or approve a doomed withdrawal.
+                const isOutgoing = r.direction === 'out' || r.direction === 'charge';
+                const outAmount = Number(r.amount ?? 0);
+                const rankedMatches = isOutgoing && outAmount > 0
+                  ? [...matches]
+                      .map((u) => {
+                        const mo = u.matched_on;
+                        const score = mo.startsWith('reference ')
+                          ? 100
+                          : mo.startsWith('from ') || mo.startsWith('to ')
+                            ? 90
+                            : mo.startsWith('name-')
+                              ? 75
+                              : 60;
+                        return { u, score };
+                      })
+                      .sort((a, b) => b.score - a.score)
+                  : [];
+                const topMatch = rankedMatches[0]?.u;
+                const topBal = topMatch ? userBalances[topMatch.id] : undefined;
+                const isInsufficientPayout =
+                  isOutgoing &&
+                  !isRouted &&
+                  outAmount > 0 &&
+                  !!topMatch &&
+                  typeof topBal === 'number' &&
+                  topBal < outAmount;
+                const shortfall = isInsufficientPayout
+                  ? Math.max(0, outAmount - (topBal as number))
+                  : 0;
                 // Build a screen-reader description of the row's match status so
                 // assistive tech announces *why* this row is highlighted, not
                 // just that it's styled differently.
@@ -2202,7 +2595,21 @@ export function EmailTransactionsPanel() {
                 aria-label={matchAriaLabel}
                 data-match-status={isConfident ? 'confident' : isFlagged ? 'flagged' : 'none'}
                 className={`p-4 transition-colors ${
-                  isRouted
+                  isInsufficientPayout
+                    // Loudest treatment in the list: thick destructive accent,
+                    // tinted surface, persistent ring, and a slow pulse so
+                    // the row catches the eye even when scrolling fast.
+                    ? 'bg-destructive/15 hover:bg-destructive/20 border-l-8 border-l-destructive ring-2 ring-destructive/40 ring-inset shadow-sm focus-within:ring-2 focus-within:ring-destructive/60'
+                    : isCredited
+                    // Already-credited incoming deposits get a distinct
+                    // treatment so reviewers can scan the list and see at a
+                    // glance which emails have already landed in a wallet.
+                    // Partial credits use amber (needs attention); fully
+                    // credited use emerald (safe to skip).
+                    ? isFullyCredited
+                      ? 'bg-emerald-500/10 hover:bg-emerald-500/15 border-l-4 border-l-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/40'
+                      : 'bg-amber-500/10 hover:bg-amber-500/15 border-l-4 border-l-amber-500 focus-within:ring-2 focus-within:ring-amber-500/40'
+                    : isRouted
                     // Routed rows get a distinct violet treatment so reviewers
                     // can scan the list and immediately see which emails have
                     // already been re-routed (and how many times).
@@ -2220,7 +2627,53 @@ export function EmailTransactionsPanel() {
                 {/* Visually hidden status line — keeps the announcement consistent
                     for SR users even if the visual chips reflow on narrow screens. */}
                 <span className="sr-only">{matchAriaLabel}.</span>
+                {isInsufficientPayout && (
+                  // Unignorable banner above the row body. Explains the
+                  // exact reason in plain language so reviewers can act
+                  // (top up, change recipient, or skip) instead of pushing
+                  // a debit that will bounce back with NEGATIVE_WALLET_BLOCKED.
+                  <div
+                    role="alert"
+                    className="mb-3 flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-destructive"
+                  >
+                    <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                    <div className="text-xs leading-snug">
+                      <p className="font-semibold uppercase tracking-wide text-[11px]">
+                        Insufficient funds — debit will be blocked
+                      </p>
+                      <p className="mt-0.5 text-destructive/90">
+                        Payout of <strong>{fmtUgx(outAmount)}</strong> to{' '}
+                        <strong>{topMatch?.full_name ?? 'matched user'}</strong>, but their wallet balance is only{' '}
+                        <strong>{fmtUgx(topBal as number)}</strong>{' '}
+                        (short by <strong>{fmtUgx(shortfall)}</strong>). Top up the wallet, pick a different recipient, or skip — do not auto-debit.
+                      </p>
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-start justify-between gap-4">
+                  <div className="pt-0.5 shrink-0">
+                    <Checkbox
+                      checked={selectedIds.has(r.id)}
+                      onCheckedChange={(v) => {
+                        setSelectedIds((prev) => {
+                          const next = new Set(prev);
+                          if (v) next.add(r.id); else next.delete(r.id);
+                          return next;
+                        });
+                      }}
+                      aria-label="Select email for bulk action"
+                    />
+                    {manualMark && (
+                      <div
+                        className={`mt-1 text-[9px] uppercase tracking-wide font-semibold ${
+                          manualMark.mark === 'credited' ? 'text-emerald-600' : 'text-amber-600'
+                        }`}
+                        title={`${manualMark.mark} by ${manualMark.marked_by_name || manualMark.marked_by} at ${new Date(manualMark.created_at).toLocaleString()}${manualMark.reason ? ' — ' + manualMark.reason : ''}`}
+                      >
+                        {manualMark.mark === 'credited' ? '✓ marked' : '↺ unmarked'}
+                      </div>
+                    )}
+                  </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-sm truncate">{r.from_name || r.from_email || 'Unknown'}</span>
@@ -2323,8 +2776,48 @@ export function EmailTransactionsPanel() {
                           )}
                         </Badge>
                       )}
+                      {isCredited && (
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] gap-1 ${isFullyCredited ? 'bg-emerald-500/15 text-emerald-700 border-emerald-500/40' : 'bg-amber-500/15 text-amber-700 border-amber-500/40'}`}
+                          title={[
+                            `${isFullyCredited ? 'Fully credited' : 'Partially credited'} — DO NOT credit again`,
+                            `Email amount: ${fmtUgx(emailAmount)}`,
+                            `Total credited: ${fmtUgx(totalCredited)}`,
+                            creditShortfall > 0 ? `Shortfall: ${fmtUgx(creditShortfall)}` : null,
+                            ...credited.map((c, i) => [
+                              `— Deposit ${i + 1}: ${c.deposit_id}`,
+                              `  Recipient: ${c.user_name}${c.user_phone ? ' (' + c.user_phone + ')' : ''}`,
+                              `  Amount: ${fmtUgx(c.amount)}`,
+                              `  Status: ${c.status}${c.auto_approved ? ' · auto-approved' : ''}`,
+                              c.deposit_purpose ? `  Purpose: ${c.deposit_purpose}` : null,
+                              c.credited_at ? `  When: ${new Date(c.credited_at).toLocaleString()}` : null,
+                            ].filter(Boolean).join('\n')),
+                          ].filter(Boolean).join('\n')}
+                        >
+                          <CheckCircle2 className="h-3 w-3" />
+                          {isFullyCredited ? 'credited' : 'partial'} · {fmtUgx(totalCredited)}{creditShortfall > 0 ? ` / ${fmtUgx(emailAmount)}` : ''}
+                          {credited.length > 1 && <span className="font-mono tabular-nums opacity-80">×{credited.length}</span>}
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground truncate mt-0.5">{r.subject || '(no subject)'}</p>
+                    {isCredited && (
+                      <div className="mt-1.5 space-y-1">
+                        {credited.map((c, i) => (
+                          <p key={c.deposit_id} className={`text-[11px] inline-flex items-center gap-1.5 rounded border px-2 py-0.5 ${isFullyCredited ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700' : 'border-amber-500/30 bg-amber-500/10 text-amber-700'}`}>
+                            <Wallet className="h-3 w-3" />
+                            <span className="font-mono opacity-70">#{i + 1}</span>
+                            <strong className="font-semibold">{c.user_name}</strong>
+                            {c.user_phone ? <span className="font-mono opacity-80">{c.user_phone}</span> : null}
+                            <span className="opacity-70">·</span>
+                            <span className="font-mono font-medium">{fmtUgx(c.amount)}</span>
+                            <span className="opacity-70">·</span>
+                            <span>{c.status}{c.auto_approved ? ' (auto)' : ''}</span>
+                          </p>
+                        ))}
+                      </div>
+                    )}
                     {(r.counterparty || r.fee || r.balance !== null) && (
                       <p className="text-[11px] text-muted-foreground/80 mt-0.5 flex flex-wrap gap-x-3">
                         {r.counterparty && <span>↔ <strong className="text-foreground/80">{r.counterparty}</strong></span>}
@@ -2726,6 +3219,12 @@ export function EmailTransactionsPanel() {
         row={routingRow as EmailRowForRouting | null}
         suggestedUser={routingSuggestedUser}
         mode={routingMode}
+        onPrev={canPrevNav ? () => navigateToRow(visibleRows[navIndex - 1], routingMode) : undefined}
+        onNext={canNextNav ? () => navigateToRow(visibleRows[navIndex + 1], routingMode) : undefined}
+        canPrev={canPrevNav}
+        canNext={canNextNav}
+        currentIndex={navIndex >= 0 ? navIndex + 1 : 0}
+        totalCount={visibleRows.length}
       />
 
       <FixChannelDialog

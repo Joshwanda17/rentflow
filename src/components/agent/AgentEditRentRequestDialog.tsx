@@ -321,7 +321,10 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
         description = raw;
       }
 
-      toast.error(title, description ? { description } : undefined);
+      const debugTag = code || details || hint ? ` [${[code, details, hint].filter(Boolean).join(' · ')}]` : '';
+      toast.error(title, {
+        description: (description ?? raw ?? 'Unknown error') + debugTag,
+      });
       console.error('[agent_resubmit_rent_request] failed', { code, raw, details, hint });
     } finally {
       setSubmitting(false);
@@ -330,7 +333,7 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto pb-0">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <RefreshCw className="h-5 w-5 text-primary" /> Edit & Resubmit Request
@@ -489,11 +492,20 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
           </div>
         </div>
 
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+        <DialogFooter className="sticky bottom-0 -mx-6 px-6 py-4 mt-2 bg-background border-t flex-col-reverse sm:flex-row gap-2 sm:gap-2 sm:space-x-0">
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={submitting}
+            className="w-full sm:w-auto"
+          >
             Cancel
           </Button>
-          <Button onClick={submit} disabled={submitting} className="gap-2">
+          <Button
+            onClick={submit}
+            disabled={submitting}
+            className="w-full sm:w-auto gap-2"
+          >
             {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             Resubmit
           </Button>

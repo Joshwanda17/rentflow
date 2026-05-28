@@ -16,6 +16,7 @@ import {
   MessageCircle, Pencil, UsersRound, Zap, Bot, RefreshCw,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { toast as sonnerToast } from 'sonner';
 import { useCaptureLocation } from '@/hooks/useCaptureLocation';
 import { createShortLink } from '@/lib/createShortLink';
 import { AgentTenantCollectDialog } from './AgentTenantCollectDialog';
@@ -32,6 +33,8 @@ import RentAccessLimitActivity from './RentAccessLimitActivity';
 import { TenantPaymentCalendar } from './TenantPaymentCalendar';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Sparkles, ChevronRight } from 'lucide-react';
+import AgentContactLocationGate from './AgentContactLocationGate';
+import { useRequireContactLocation } from '@/hooks/useRequireContactLocation';
 
 interface TenantProfileViewProps {
   tenantId: string;
@@ -156,6 +159,8 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
   const { toast } = useToast();
   const { user } = useAuth();
   const { floatBalance: agentFloatBalance, isLoading: floatLoading, error: floatError, refetch: refetchFloat } = useAgentLandlordFloat(user?.id);
+  // Agent Field Mandate — tenant location capture banner + gate.
+  const tenantLoc = useRequireContactLocation(tenantId, 'tenant');
   const [profile, setProfile] = useState<TenantProfile | null>(null);
   const [requests, setRequests] = useState<RentRequestRow[]>([]);
   const [repayments, setRepayments] = useState<RepaymentRow[]>([]);
@@ -676,6 +681,30 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
         }}
       />
 
+      {tenantLoc.needsCapture && (
+        <div className="px-3 sm:px-4 pt-3">
+          <button
+            type="button"
+            onClick={tenantLoc.openGate}
+            className="w-full rounded-xl border border-warning/40 bg-warning/10 px-3 py-2.5 text-left flex items-center gap-2"
+          >
+            <span className="text-warning text-sm font-semibold flex-1">
+              📍 Capture this tenant's location — required before payouts/collections
+            </span>
+            <span className="text-xs text-warning font-bold">Tap</span>
+          </button>
+        </div>
+      )}
+      <AgentContactLocationGate
+        open={tenantLoc.gateOpen}
+        targetId={tenantId}
+        targetRole="tenant"
+        targetName={profile.full_name}
+        blocking={false}
+        onComplete={tenantLoc.onCaptured}
+        onCancel={tenantLoc.closeGate}
+      />
+
       <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 space-y-4 max-w-2xl mx-auto w-full">
 
         {/* ── Hero: identity + AI ID + risk ── */}
@@ -1023,16 +1052,51 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
                 </div>
               </div>
               <Button
-                onClick={() => setCollectDialogOpen(true)}
+                onClick={() => {
+                  console.log('[TenantProfileView] Pay-from-Float tapped', {
+                    hasActiveRequest: !!summary.activeRequest,
+                    currentOutstanding: summary.currentOutstanding,
+                    agentFloatBalance,
+                    floatLoading,
+                    floatError,
+                    rejected: summary.activeRequest?.status === 'rejected',
+                    profileId: profile?.id,
+                  });
+                  if (floatLoading) {
+                    sonnerToast.info("Loading your float…", {
+                      description: "Hold on a moment while we fetch your operations float balance.",
+                    });
+                    return;
+                  }
+                  if (floatError) {
+                    sonnerToast.error("Couldn't load your Operations Float", {
+                      description: "Tap Retry above, or check your connection and try again.",
+                    });
+                    return;
+                  }
+                  if (agentFloatBalance < 500) {
+                    sonnerToast.error("Insufficient operations float", {
+                      description: `You have ${formatUGX(agentFloatBalance)} in float. Top up your operations float before paying tenant rent.`,
+                    });
+                    return;
+                  }
+                  if (summary.activeRequest?.status === 'rejected') {
+                    sonnerToast.error("This rent request was rejected", {
+                      description: "You can't pay from float on a rejected request. Resubmit or start a new request for this tenant.",
+                    });
+                    return;
+                  }
+                  if (summary.currentOutstanding <= 0) {
+                    sonnerToast.info("Nothing outstanding to pay", {
+                      description: "This tenant has no outstanding rent right now.",
+                    });
+                    return;
+                  }
+                  setCollectDialogOpen(true);
+                }}
                 className="w-full gap-2 text-base h-14 font-bold rounded-xl shadow-lg active:scale-[0.97] transition-transform"
                 variant="success"
                 size="xl"
-                disabled={
-                  floatLoading ||
-                  !!floatError ||
-                  agentFloatBalance < 500 ||
-                  summary.activeRequest?.status === 'rejected'
-                }
               >
                 {floatLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Banknote className="h-6 w-6" />}
                 {floatLoading ? 'Loading float...' : `Pay ${formatUGX(Math.min(summary.currentOutstanding, agentFloatBalance))}`}

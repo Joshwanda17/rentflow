@@ -24,6 +24,8 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { motion, AnimatePresence } from 'framer-motion';
 import { OtpVerificationStep } from '@/components/auth/OtpVerificationStep';
 import { LandlordPayoutProgress } from './LandlordPayoutProgress';
+import AgentContactLocationGate from './AgentContactLocationGate';
+import { useRequireContactLocation } from '@/hooks/useRequireContactLocation';
 
 interface PropertyInfo {
   id: string;            // landlord_id
@@ -45,6 +47,7 @@ type Step = 'form' | 'otp' | 'progress';
 
 export function AgentLandlordPayoutDialog({ open, onOpenChange, property, onSuccess }: AgentLandlordPayoutDialogProps) {
   const { user } = useAuth();
+  const locGate = useRequireContactLocation(property?.id ?? null, 'landlord', property?.name ?? null);
   const [step, setStep] = useState<Step>('form');
 
   // form
@@ -197,6 +200,20 @@ export function AgentLandlordPayoutDialog({ open, onOpenChange, property, onSucc
   };
 
   if (!property) return null;
+
+  if (open && locGate.needsCapture) {
+    return (
+      <AgentContactLocationGate
+        open
+        targetId={property.id}
+        targetRole="landlord"
+        targetName={property.name}
+        blocking={false}
+        onComplete={() => locGate.onCaptured()}
+        onCancel={() => onOpenChange(false)}
+      />
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>

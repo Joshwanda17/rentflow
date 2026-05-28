@@ -5,11 +5,62 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Loader2, CheckCircle2, Search, Share2, User, Home, Receipt, FileDown } from 'lucide-react';
+import { Loader2, CheckCircle2, Search, Share2, User, Home, Receipt, FileDown, UserCog } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { LandlordPayoutShareCard, type LandlordPayoutShareData } from './LandlordPayoutShareCard';
 import { buildBulkPayoutsPdfBlob, downloadBlob } from './landlordPayoutPdf';
 import { toast } from 'sonner';
+import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Globe2, CalendarDays } from 'lucide-react';
+
+// African countries grouped by sub-region, ordered East → West → South → North.
+const AFRICA_REGIONS: { region: string; countries: string[] }[] = [
+  {
+    region: 'Eastern Africa',
+    countries: [
+      'Uganda', 'Kenya', 'Tanzania', 'Rwanda', 'Burundi', 'South Sudan',
+      'Ethiopia', 'Somalia', 'Djibouti', 'Eritrea', 'Madagascar', 'Mauritius',
+      'Seychelles', 'Comoros', 'Malawi', 'Mozambique', 'Zambia', 'Zimbabwe',
+    ],
+  },
+  {
+    region: 'Western Africa',
+    countries: [
+      'Nigeria', 'Ghana', "Côte d'Ivoire", 'Senegal', 'Mali', 'Burkina Faso',
+      'Niger', 'Guinea', 'Guinea-Bissau', 'Sierra Leone', 'Liberia', 'Togo',
+      'Benin', 'Gambia', 'Cape Verde', 'Mauritania',
+    ],
+  },
+  {
+    region: 'Southern Africa',
+    countries: [
+      'South Africa', 'Namibia', 'Botswana', 'Lesotho', 'Eswatini', 'Angola',
+    ],
+  },
+  {
+    region: 'Northern Africa',
+    countries: [
+      'Egypt', 'Sudan', 'Libya', 'Tunisia', 'Algeria', 'Morocco', 'Western Sahara',
+    ],
+  },
+  {
+    region: 'Central Africa',
+    countries: [
+      'DR Congo', 'Congo', 'Cameroon', 'Central African Republic',
+      'Central African Rep.', 'Chad', 'Gabon', 'Equatorial Guinea',
+      'São Tomé and Príncipe', 'São Tomé & Príncipe',
+    ],
+  },
+];
+
+const AFRICAN_COUNTRY_SET = new Set(AFRICA_REGIONS.flatMap((r) => r.countries));
 
 type Row = {
   id: string;
@@ -25,9 +76,13 @@ type Row = {
   finops_momo_reference: string | null;
   external_reference: string | null;
   created_at: string;
+  rent_request_id: string | null;
+  country: string | null;
   agent_profile?: { full_name: string | null; phone: string | null } | null;
   tenant_profile?: { full_name: string | null } | null;
 };
+type DateFilter = 'all' | '7d' | '30d' | 'custom';
+
 
 const FUNDED_STATUSES = ['awaiting_agent_receipt', 'completed', 'disbursed'] as const;
 
@@ -37,8 +92,19 @@ function formatUGX(n: number) {
 
 export function FundedTenantsList() {
   const [q, setQ] = useState('');
+  const [countryChipSearch, setCountryChipSearch] = useState('');
   const [share, setShare] = useState<LandlordPayoutShareData | null>(null);
   const [bulk, setBulk] = useState<{ done: number; total: number } | null>(null);
+  const [dateFilter, setDateFilter] = useState<DateFilter>('all');
+  const [customDays, setCustomDays] = useState<number>(14);
+  const [countryFilter, setCountryFilter] = useState<string>('all');
+  const [regionFilter, setRegionFilter] = useState<string | null>(null);
+  const [drill, setDrill] = useState<{
+    tenantId: string | null;
+    agentId: string | null;
+    landlordId: string | null;
+    tab?: 'tenant' | 'agent' | 'landlord';
+  } | null>(null);
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['finops-funded-landlord-payouts'],
@@ -46,7 +112,7 @@ export function FundedTenantsList() {
       const { data, error } = await supabase
         .from('landlord_payouts')
         .select(
-          'id, agent_id, tenant_id, landlord_id, landlord_name, landlord_phone, mobile_money_provider, amount, status, finops_disbursed_at, finops_momo_reference, external_reference, created_at',
+          'id, agent_id, tenant_id, landlord_id, landlord_name, landlord_phone, mobile_money_provider, amount, status, finops_disbursed_at, finops_momo_reference, external_reference, created_at, rent_request_id',
         )
         .in('status', FUNDED_STATUSES as unknown as string[])
         .order('finops_disbursed_at', { ascending: false, nullsFirst: false })
@@ -59,17 +125,33 @@ export function FundedTenantsList() {
         new Set([
           ...list.map((r) => r.agent_id),
           ...list.map((r) => r.tenant_id).filter(Boolean) as string[],
+          ...list.map((r) => r.landlord_id).filter(Boolean) as string[],
         ]),
       );
       if (ids.length) {
         const { data: profs } = await supabase
           .from('profiles')
-          .select('id, full_name, phone')
+          .select('id, full_name, phone, country')
           .in('id', ids);
         const map = new Map((profs ?? []).map((p) => [p.id, p]));
         list.forEach((r) => {
           r.agent_profile = (map.get(r.agent_id) as any) ?? null;
           if (r.tenant_id) r.tenant_profile = (map.get(r.tenant_id) as any) ?? null;
+          const ll = r.landlord_id ? (map.get(r.landlord_id) as any) : null;
+          r.country = ll?.country ?? null;
+        });
+      }
+
+      const rrIds = Array.from(new Set(list.map((r) => r.rent_request_id).filter(Boolean) as string[]));
+      if (rrIds.length) {
+        const { data: rrs } = await supabase
+          .from('rent_requests')
+          .select('id, request_country')
+          .in('id', rrIds);
+        const rrMap = new Map((rrs ?? []).map((r: any) => [r.id, r.request_country as string | null]));
+        list.forEach((r) => {
+          const c = r.rent_request_id ? rrMap.get(r.rent_request_id) ?? null : null;
+          if (c) r.country = c;
         });
       }
       return list;
@@ -77,10 +159,125 @@ export function FundedTenantsList() {
     refetchInterval: 60_000,
   });
 
+  const dateFiltered = useMemo(() => {
+    if (dateFilter === 'all') return rows;
+    const days = dateFilter === '7d' ? 7 : dateFilter === '30d' ? 30 : Math.max(1, customDays || 1);
+    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+    return rows.filter((r) => {
+      const ts = new Date(r.finops_disbursed_at ?? r.created_at).getTime();
+      return ts >= cutoff;
+    });
+  }, [rows, dateFilter, customDays]);
+
+  const countryStats = useMemo(() => {
+    const m = new Map<string, { count: number; total: number }>();
+    dateFiltered.forEach((r) => {
+      const key = r.country?.trim() || 'Unknown';
+      const cur = m.get(key) ?? { count: 0, total: 0 };
+      cur.count += 1;
+      cur.total += Number(r.amount || 0);
+      m.set(key, cur);
+    });
+    return Array.from(m.entries())
+      .map(([country, v]) => ({ country, ...v }))
+      .sort((a, b) => b.total - a.total);
+  }, [dateFiltered]);
+
+  const regionStats = useMemo(() => {
+    const m = new Map<string, { count: number; total: number; countries: Set<string> }>();
+    AFRICA_REGIONS.forEach((group) => {
+      m.set(group.region, { count: 0, total: 0, countries: new Set<string>() });
+    });
+    dateFiltered.forEach((r) => {
+      const c = r.country?.trim() || 'Unknown';
+      for (const group of AFRICA_REGIONS) {
+        if (group.countries.includes(c)) {
+          const cur = m.get(group.region)!;
+          cur.count += 1;
+          cur.total += Number(r.amount || 0);
+          cur.countries.add(c);
+          break;
+        }
+      }
+    });
+    return Array.from(m.entries())
+      .map(([region, v]) => ({ region, ...v }))
+      .sort((a, b) => b.total - a.total);
+  }, [dateFiltered]);
+
+  const drilldown = useMemo(() => {
+    if (countryFilter !== 'all') {
+      const rows = dateFiltered.filter((r) => (r.country?.trim() || 'Unknown') === countryFilter);
+      const landlords = new Map<string, { id: string; name: string; tenants: Set<string>; payouts: number; total: number }>();
+      const tenants = new Set<string>();
+      let total = 0;
+      rows.forEach((r) => {
+        total += Number(r.amount || 0);
+        if (r.tenant_id) tenants.add(r.tenant_id);
+        const key = r.landlord_id || r.landlord_name || 'unknown';
+        const cur = landlords.get(key) ?? { id: r.landlord_id, name: r.landlord_name, tenants: new Set<string>(), payouts: 0, total: 0 };
+        cur.payouts += 1;
+        cur.total += Number(r.amount || 0);
+        if (r.tenant_id) cur.tenants.add(r.tenant_id);
+        landlords.set(key, cur);
+      });
+      return {
+        type: 'country' as const,
+        name: countryFilter,
+        tenantCount: tenants.size,
+        landlordCount: landlords.size,
+        payoutCount: rows.length,
+        total,
+        landlords: Array.from(landlords.values()).sort((a, b) => b.total - a.total),
+        countryStats: [] as { country: string; count: number; total: number }[],
+      };
+    }
+    if (regionFilter) {
+      const regionCountries = new Set(AFRICA_REGIONS.find((g) => g.region === regionFilter)?.countries || []);
+      const rows = dateFiltered.filter((r) => regionCountries.has(r.country?.trim() || ''));
+      const landlords = new Map<string, { id: string; name: string; tenants: Set<string>; payouts: number; total: number }>();
+      const tenants = new Set<string>();
+      const countryMap = new Map<string, { count: number; total: number }>();
+      let total = 0;
+      rows.forEach((r) => {
+        total += Number(r.amount || 0);
+        if (r.tenant_id) tenants.add(r.tenant_id);
+        const c = r.country?.trim() || 'Unknown';
+        const cm = countryMap.get(c) ?? { count: 0, total: 0 };
+        cm.count += 1; cm.total += Number(r.amount || 0);
+        countryMap.set(c, cm);
+        const key = r.landlord_id || r.landlord_name || 'unknown';
+        const cur = landlords.get(key) ?? { id: r.landlord_id, name: r.landlord_name, tenants: new Set<string>(), payouts: 0, total: 0 };
+        cur.payouts += 1;
+        cur.total += Number(r.amount || 0);
+        if (r.tenant_id) cur.tenants.add(r.tenant_id);
+        landlords.set(key, cur);
+      });
+      return {
+        type: 'region' as const,
+        name: regionFilter,
+        tenantCount: tenants.size,
+        landlordCount: landlords.size,
+        payoutCount: rows.length,
+        total,
+        landlords: Array.from(landlords.values()).sort((a, b) => b.total - a.total),
+        countryStats: Array.from(countryMap.entries()).map(([country, v]) => ({ country, ...v })).sort((a, b) => b.total - a.total),
+      };
+    }
+    return null;
+  }, [dateFiltered, countryFilter, regionFilter]);
+
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    if (!needle) return rows;
-    return rows.filter((r) => {
+    let base = dateFiltered;
+    if (countryFilter !== 'all') {
+      base = base.filter((r) => (r.country?.trim() || 'Unknown') === countryFilter);
+    } else if (regionFilter) {
+      const regionCountries = new Set(AFRICA_REGIONS.find((g) => g.region === regionFilter)?.countries || []);
+      base = base.filter((r) => regionCountries.has(r.country?.trim() || ''));
+    }
+    if (!needle) return base;
+    return base.filter((r) => {
       const hay = [
         r.landlord_name,
         r.landlord_phone,
@@ -88,12 +285,13 @@ export function FundedTenantsList() {
         r.agent_profile?.full_name ?? '',
         r.finops_momo_reference ?? '',
         r.external_reference ?? '',
+        r.country ?? '',
       ]
         .join(' ')
         .toLowerCase();
       return hay.includes(needle);
     });
-  }, [rows, q]);
+  }, [dateFiltered, countryFilter, regionFilter, q]);
 
   const totalAmount = useMemo(
     () => filtered.reduce((s, r) => s + Number(r.amount || 0), 0),
@@ -112,11 +310,35 @@ export function FundedTenantsList() {
     paid_at: r.finops_disbursed_at ?? r.created_at,
   });
 
+  const scopeLabel = useMemo(() => {
+    const parts: string[] = [];
+    if (dateFilter === '7d') parts.push('last 7 days');
+    else if (dateFilter === '30d') parts.push('last 30 days');
+    else if (dateFilter === 'custom') parts.push(`last ${Math.max(1, customDays || 1)} days`);
+    if (regionFilter) parts.push(regionFilter);
+    else if (countryFilter !== 'all') parts.push(countryFilter);
+    return parts.join(' · ');
+  }, [dateFilter, customDays, countryFilter, regionFilter]);
+
+  const scopeSlug = useMemo(() => {
+    const slug = (s: string) =>
+      s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    const parts: string[] = [];
+    if (dateFilter === '7d') parts.push('last-7d');
+    else if (dateFilter === '30d') parts.push('last-30d');
+    else if (dateFilter === 'custom') parts.push(`last-${Math.max(1, customDays || 1)}d`);
+    else parts.push('all-time');
+    if (regionFilter) parts.push(slug(regionFilter));
+    else if (countryFilter !== 'all') parts.push(slug(countryFilter));
+    return parts.join('-');
+  }, [dateFilter, customDays, countryFilter, regionFilter]);
+
   const handleBulkPdf = async () => {
     if (!filtered.length) return;
+    const scopeText = scopeLabel ? ` (${scopeLabel})` : '';
     if (filtered.length > 50) {
       const ok = window.confirm(
-        `You're about to export ${filtered.length} payouts into one PDF. This may take a minute. Continue?`,
+        `You're about to export ${filtered.length} payouts${scopeText} into one PDF. This may take a minute. Continue?`,
       );
       if (!ok) return;
     }
@@ -127,8 +349,11 @@ export function FundedTenantsList() {
         (done, total) => setBulk({ done, total }),
       );
       const stamp = new Date().toISOString().slice(0, 10);
-      downloadBlob(blob, `welile-funded-landlord-payouts-${stamp}-x${filtered.length}.pdf`);
-      toast.success(`Exported ${filtered.length} payouts to PDF`);
+      downloadBlob(
+        blob,
+        `welile-funded-landlord-payouts-${stamp}-${scopeSlug}-x${filtered.length}.pdf`,
+      );
+      toast.success(`Exported ${filtered.length} payouts${scopeText} to PDF`);
     } catch (e: any) {
       toast.error(e?.message ?? 'Failed to build bulk PDF');
     } finally {
@@ -154,6 +379,13 @@ export function FundedTenantsList() {
         <p className="text-sm text-muted-foreground mt-1">
           Every landlord payout Financial Ops has settled — most recent first.
         </p>
+        <Button
+          size="sm" variant="outline" className="mt-2 gap-1.5"
+          onClick={() => setDrill({ tenantId: null, agentId: null, landlordId: null })}
+        >
+          <UserCog className="h-3.5 w-3.5" />
+          Drill into any user (search globally)
+        </Button>
       </div>
 
       <div className="flex items-center gap-2">
@@ -175,7 +407,11 @@ export function FundedTenantsList() {
           className="shrink-0 gap-1.5"
           onClick={handleBulkPdf}
           disabled={!filtered.length || !!bulk}
-          title="Download a single PDF containing every visible payout (one card per page)"
+          title={
+            scopeLabel
+              ? `Download ${filtered.length} payouts (${scopeLabel}) as one PDF — one card per page`
+              : `Download all ${filtered.length} visible payouts as one PDF — one card per page`
+          }
         >
           {bulk ? (
             <>
@@ -185,11 +421,235 @@ export function FundedTenantsList() {
           ) : (
             <>
               <FileDown className="h-3.5 w-3.5" />
-              Bulk PDF
+              Bulk PDF ({filtered.length}{scopeLabel ? ` · ${scopeLabel}` : ''})
             </>
           )}
         </Button>
       </div>
+
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+          <CalendarDays className="h-3.5 w-3.5" /> Funded in:
+        </div>
+        <Select value={dateFilter} onValueChange={(v) => { setDateFilter(v as DateFilter); setCountryFilter('all'); setRegionFilter(null); }}>
+          <SelectTrigger className="h-8 text-xs w-[160px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All time</SelectItem>
+            <SelectItem value="7d">Last 7 days</SelectItem>
+            <SelectItem value="30d">Last 30 days</SelectItem>
+            <SelectItem value="custom">Custom…</SelectItem>
+          </SelectContent>
+        </Select>
+        {dateFilter === 'custom' && (
+          <div className="inline-flex items-center gap-1.5">
+            <Input
+              type="number"
+              min={1}
+              max={365}
+              value={customDays}
+              onChange={(e) => { setCustomDays(Number(e.target.value) || 1); setCountryFilter('all'); setRegionFilter(null); }}
+              className="h-8 w-20 text-xs"
+            />
+            <span className="text-xs text-muted-foreground">days</span>
+          </div>
+        )}
+      </div>
+
+      {countryStats.length > 0 && (
+        <div className="space-y-1.5">
+          <div className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">
+            <Globe2 className="h-3.5 w-3.5" /> Countries funded
+            {dateFilter !== 'all' && (
+              <span className="normal-case font-normal text-muted-foreground">
+                · {dateFilter === '7d' ? 'last 7 days' : dateFilter === '30d' ? 'last 30 days' : `last ${customDays} days`}
+              </span>
+            )}
+          </div>
+          {(() => {
+            const statsMap = new Map(countryStats.map((c) => [c.country, c]));
+            const renderChip = (country: string) => {
+              const c = statsMap.get(country);
+              const active = countryFilter === country;
+              const hasData = !!c && c.count > 0;
+              return (
+                <button
+                  key={country}
+                  type="button"
+                  onClick={() => { setCountryFilter(country); setRegionFilter(null); }}
+                  className={`px-2.5 py-1 rounded-full text-xs border transition inline-flex items-center gap-1.5 ${
+                    active
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : hasData
+                      ? 'bg-background hover:bg-muted border-border'
+                      : 'bg-background/40 hover:bg-muted border-border/60 text-muted-foreground'
+                  }`}
+                  title={c ? `${c.count} payouts · ${formatUGX(c.total)}` : 'No payouts in range'}
+                >
+                  <span className="font-medium">{country}</span>
+                  <span className={active ? 'opacity-90' : 'text-muted-foreground'}>
+                    {c ? `${c.count} · ${formatUGX(c.total)}` : '0'}
+                  </span>
+                </button>
+              );
+            };
+            const otherCountries = countryStats
+              .map((c) => c.country)
+              .filter((name) => !AFRICAN_COUNTRY_SET.has(name));
+            const chipNeedle = countryChipSearch.trim().toLowerCase();
+            const regionMatches = (group: typeof AFRICA_REGIONS[number]) =>
+              !chipNeedle || group.region.toLowerCase().includes(chipNeedle) ||
+              group.countries.some((c) => c.toLowerCase().includes(chipNeedle));
+            const countryMatches = (country: string) =>
+              !chipNeedle || country.toLowerCase().includes(chipNeedle);
+            const visibleRegions = AFRICA_REGIONS.filter(regionMatches);
+            const visibleOther = otherCountries.filter(countryMatches);
+            return (
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="relative flex-1 min-w-[200px] max-w-sm">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      value={countryChipSearch}
+                      onChange={(e) => setCountryChipSearch(e.target.value)}
+                      placeholder="Find a country or region…"
+                      className="pl-8 h-8 text-xs"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setCountryFilter('all'); setRegionFilter(null); setCountryChipSearch(''); }}
+                    className={`px-2.5 py-1 rounded-full text-xs border transition ${
+                      countryFilter === 'all' && !regionFilter
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background hover:bg-muted border-border'
+                    }`}
+                  >
+                    All ({dateFiltered.length})
+                  </button>
+                  {(countryFilter !== 'all' || regionFilter || countryChipSearch) && (
+                    <button
+                      type="button"
+                      onClick={() => { setCountryFilter('all'); setRegionFilter(null); setCountryChipSearch(''); }}
+                      className="px-2.5 py-1 rounded-full text-xs text-muted-foreground hover:text-foreground underline"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                {visibleRegions.map((group) => {
+                  const rs = regionStats.find((r) => r.region === group.region);
+                  const regionActive = regionFilter === group.region;
+                  const visibleCountries = group.countries.filter(countryMatches);
+                  if (!visibleCountries.length && chipNeedle) return null;
+                  return (
+                    <div key={group.region} className="space-y-1">
+                      <button
+                        type="button"
+                        onClick={() => { setRegionFilter(group.region); setCountryFilter('all'); setCountryChipSearch(''); }}
+                        className={`text-[10px] uppercase tracking-wide font-semibold px-2 py-0.5 rounded-full border transition inline-flex items-center gap-1.5 ${
+                          regionActive
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-background hover:bg-muted border-border text-muted-foreground/80'
+                        }`}
+                        title={rs ? `${rs.count} payouts · ${rs.countries.size} countries · ${formatUGX(rs.total)}` : 'No payouts in range'}
+                      >
+                        {group.region}
+                        {rs && rs.count > 0 && (
+                          <span className={regionActive ? 'opacity-90' : 'text-muted-foreground font-normal'}>
+                            {rs.count} · {formatUGX(rs.total)}
+                          </span>
+                        )}
+                      </button>
+                      <div className="flex flex-wrap gap-1.5">
+                        {visibleCountries.map((country) => renderChip(country))}
+                      </div>
+                    </div>
+                  );
+                })}
+                {visibleOther.length > 0 && (
+                  <div className="space-y-1">
+                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground/80 font-semibold">
+                      Other
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {visibleOther.map((country) => renderChip(country))}
+                    </div>
+                  </div>
+                )}
+                {chipNeedle && visibleRegions.length === 0 && visibleOther.length === 0 && (
+                  <p className="text-xs text-muted-foreground py-2">No country or region matches “{countryChipSearch}”.</p>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {drilldown && (
+        <Card className="p-3 sm:p-4 border-primary/30 bg-primary/5">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="min-w-0">
+              <div className="inline-flex items-center gap-2 text-sm font-semibold">
+                <Globe2 className="h-4 w-4 text-primary" />
+                {drilldown.name}
+                <span className="text-xs font-normal text-muted-foreground">
+                  · {drilldown.landlordCount} landlords · {drilldown.tenantCount} tenants · {drilldown.payoutCount} payouts · {formatUGX(drilldown.total)}
+                </span>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {drilldown.type === 'region'
+                  ? 'Tap any country or landlord to drill deeper.'
+                  : 'Tap any landlord to open their profile.'}
+              </p>
+            </div>
+            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setCountryFilter('all'); setRegionFilter(null); }}>
+              Clear filter
+            </Button>
+          </div>
+          {drilldown.type === 'region' && drilldown.countryStats.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {drilldown.countryStats.map((c) => (
+                <button
+                  key={c.country}
+                  type="button"
+                  onClick={() => { setCountryFilter(c.country); setRegionFilter(null); }}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border border-border bg-background hover:bg-muted transition"
+                >
+                  <Globe2 className="h-3 w-3 text-primary" />
+                  <span className="font-medium">{c.country}</span>
+                  <span className="text-muted-foreground">{c.count} · {formatUGX(c.total)}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {drilldown.landlords.map((l) => (
+              <button
+                key={l.id || l.name}
+                type="button"
+                onClick={() =>
+                  setDrill({
+                    tenantId: null,
+                    agentId: null,
+                    landlordId: l.id ?? null,
+                    tab: 'landlord',
+                  })
+                }
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border border-border bg-background hover:bg-muted transition"
+                title={`${l.tenants.size} tenants · ${l.payouts} payouts · ${formatUGX(l.total)}`}
+              >
+                <Home className="h-3 w-3 text-primary" />
+                <span className="font-medium truncate max-w-[160px]">{l.name}</span>
+                <span className="text-muted-foreground">
+                  {l.tenants.size}t · {formatUGX(l.total)}
+                </span>
+              </button>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {bulk && (
         <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
@@ -208,15 +668,52 @@ export function FundedTenantsList() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1 space-y-1.5">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="inline-flex items-center gap-1 text-sm font-semibold truncate">
-                      <User className="h-3.5 w-3.5 text-muted-foreground" />
-                      {r.tenant_profile?.full_name ?? 'Unallocated tenant'}
-                    </span>
+                    {r.tenant_id ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setDrill({
+                            tenantId: r.tenant_id ?? null,
+                            agentId: r.agent_id ?? null,
+                            landlordId: r.landlord_id ?? null,
+                            tab: 'tenant',
+                          })
+                        }
+                        className="inline-flex items-center gap-1 text-sm font-semibold hover:underline truncate"
+                        title="Open tenant profile"
+                      >
+                        <User className="h-3.5 w-3.5 text-muted-foreground" />
+                        {r.tenant_profile?.full_name ?? 'Unallocated tenant'}
+                      </button>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-sm font-semibold truncate text-muted-foreground">
+                        <User className="h-3.5 w-3.5" />
+                        Unallocated tenant
+                      </span>
+                    )}
                     <span className="text-muted-foreground text-xs">→</span>
-                    <span className="inline-flex items-center gap-1 text-sm font-semibold text-primary truncate">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setDrill({
+                          tenantId: r.tenant_id ?? null,
+                          agentId: r.agent_id ?? null,
+                          landlordId: r.landlord_id ?? null,
+                          tab: 'landlord',
+                        })
+                      }
+                      className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline truncate"
+                      title="Open landlord profile"
+                    >
                       <Home className="h-3.5 w-3.5" />
                       {r.landlord_name}
-                    </span>
+                    </button>
+                    {r.country && (
+                      <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
+                        <Globe2 className="h-2.5 w-2.5" />
+                        {r.country}
+                      </span>
+                    )}
                     {r.status === 'completed' ? (
                       <Badge className="text-[10px] bg-emerald-100 text-emerald-700 border-emerald-200">
                         Completed
@@ -228,7 +725,29 @@ export function FundedTenantsList() {
                     )}
                   </div>
                   <div className="flex items-center gap-3 text-[11px] text-muted-foreground flex-wrap">
-                    <span>Agent: <b className="text-foreground">{r.agent_profile?.full_name ?? '—'}</b></span>
+                    <span>
+                      Agent:{' '}
+                      {r.agent_id ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDrill({
+                              tenantId: r.tenant_id ?? null,
+                              agentId: r.agent_id ?? null,
+                              landlordId: r.landlord_id ?? null,
+                              tab: 'agent',
+                            });
+                          }}
+                          className="font-semibold text-primary hover:underline"
+                          title="Open agent profile"
+                        >
+                          {r.agent_profile?.full_name ?? '—'}
+                        </button>
+                      ) : (
+                        <b className="text-foreground">—</b>
+                      )}
+                    </span>
                     <span>{r.mobile_money_provider}: <span className="font-mono">{r.landlord_phone}</span></span>
                     {(r.finops_momo_reference || r.external_reference) && (
                       <span className="inline-flex items-center gap-1">
@@ -245,10 +764,11 @@ export function FundedTenantsList() {
                 </div>
                 <div className="text-right shrink-0">
                   <p className="text-base sm:text-lg font-bold">{formatUGX(r.amount)}</p>
+                  <div className="flex flex-col gap-1 mt-1">
                   <Button
                     size="sm"
                     variant="outline"
-                    className="mt-1 h-7 text-xs"
+                    className="h-7 text-xs"
                     onClick={() =>
                       setShare({
                         amount: r.amount,
@@ -266,6 +786,22 @@ export function FundedTenantsList() {
                   >
                     <Share2 className="h-3 w-3 mr-1" /> Share
                   </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="h-7 text-xs"
+                    onClick={() =>
+                      setDrill({
+                        tenantId: r.tenant_id ?? null,
+                        agentId: r.agent_id ?? null,
+                        landlordId: r.landlord_id ?? null,
+                      })
+                    }
+                    title="Open profile, edit location, link agent/landlord/funder"
+                  >
+                    <UserCog className="h-3 w-3 mr-1" /> Open profile
+                  </Button>
+                  </div>
                 </div>
               </div>
             </Card>
@@ -277,6 +813,16 @@ export function FundedTenantsList() {
         open={!!share}
         onOpenChange={(o) => !o && setShare(null)}
         data={share}
+      />
+
+      <UserDrilldownDrawer
+        key={drill ? `${drill.agentId ?? ''}-${drill.tenantId ?? ''}-${drill.landlordId ?? ''}-${drill.tab ?? 'landlord'}` : 'closed'}
+        open={!!drill}
+        onOpenChange={(o) => !o && setDrill(null)}
+        tenantId={drill?.tenantId ?? null}
+        agentId={drill?.agentId ?? null}
+        landlordId={drill?.landlordId ?? null}
+        defaultTab={drill?.tab ?? 'landlord'}
       />
     </div>
   );

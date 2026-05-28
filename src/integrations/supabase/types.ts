@@ -65,6 +65,13 @@ export type Database = {
             foreignKeyName: "advance_fee_config_updated_by_fkey"
             columns: ["updated_by"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "advance_fee_config_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -237,6 +244,13 @@ export type Database = {
             foreignKeyName: "agent_advance_requests_agent_id_fkey"
             columns: ["agent_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -265,6 +279,13 @@ export type Database = {
             foreignKeyName: "agent_advance_requests_approved_by_coo_fkey"
             columns: ["approved_by_coo"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_approved_by_coo_fkey"
+            columns: ["approved_by_coo"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -293,6 +314,13 @@ export type Database = {
             foreignKeyName: "agent_advance_requests_paid_by_cfo_fkey"
             columns: ["paid_by_cfo"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_paid_by_cfo_fkey"
+            columns: ["paid_by_cfo"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -316,6 +344,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_reviewed_by_agent_ops_fkey"
+            columns: ["reviewed_by_agent_ops"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "agent_advance_requests_reviewed_by_agent_ops_fkey"
@@ -344,6 +379,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_reviewed_by_landlord_ops_fkey"
+            columns: ["reviewed_by_landlord_ops"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "agent_advance_requests_reviewed_by_landlord_ops_fkey"
@@ -372,6 +414,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_reviewed_by_tenant_ops_fkey"
+            columns: ["reviewed_by_tenant_ops"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "agent_advance_requests_reviewed_by_tenant_ops_fkey"
@@ -435,6 +484,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_topups_topped_up_by_fkey"
+            columns: ["topped_up_by"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "agent_advance_topups_topped_up_by_fkey"
@@ -529,6 +585,13 @@ export type Database = {
             foreignKeyName: "agent_advances_agent_id_fkey"
             columns: ["agent_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "agent_advances_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -552,6 +615,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advances_issued_by_fkey"
+            columns: ["issued_by"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "agent_advances_issued_by_fkey"
@@ -987,6 +1057,13 @@ export type Database = {
             foreignKeyName: "agent_collection_streaks_agent_id_fkey"
             columns: ["agent_id"]
             isOneToOne: true
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "agent_collection_streaks_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -1007,6 +1084,7 @@ export type Database = {
           momo_transaction_id: string | null
           notes: string | null
           payment_method: Database["public"]["Enums"]["collection_payment_method"]
+          rent_request_id: string | null
           sms_sent_agent: boolean | null
           sms_sent_tenant: boolean | null
           tenant_id: string
@@ -1028,6 +1106,7 @@ export type Database = {
           momo_transaction_id?: string | null
           notes?: string | null
           payment_method: Database["public"]["Enums"]["collection_payment_method"]
+          rent_request_id?: string | null
           sms_sent_agent?: boolean | null
           sms_sent_tenant?: boolean | null
           tenant_id: string
@@ -1049,6 +1128,7 @@ export type Database = {
           momo_transaction_id?: string | null
           notes?: string | null
           payment_method?: Database["public"]["Enums"]["collection_payment_method"]
+          rent_request_id?: string | null
           sms_sent_agent?: boolean | null
           sms_sent_tenant?: boolean | null
           tenant_id?: string
@@ -1082,8 +1162,36 @@ export type Database = {
             foreignKeyName: "agent_collections_agent_id_fkey"
             columns: ["agent_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "agent_collections_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
+          },
+          {
+            foreignKeyName: "agent_collections_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "rent_request_formula_drift"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_collections_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "rent_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_collections_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["rent_request_id"]
           },
           {
             foreignKeyName: "agent_collections_tenant_id_fkey"
@@ -1105,6 +1213,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_collections_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "agent_collections_tenant_id_fkey"
@@ -1461,6 +1576,13 @@ export type Database = {
             foreignKeyName: "agent_escalations_agent_id_fkey"
             columns: ["agent_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "agent_escalations_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -1489,6 +1611,13 @@ export type Database = {
             foreignKeyName: "agent_escalations_resolved_by_fkey"
             columns: ["resolved_by"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "agent_escalations_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -1512,6 +1641,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_escalations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "agent_escalations_tenant_id_fkey"
@@ -1582,6 +1718,13 @@ export type Database = {
             foreignKeyName: "agent_float_funding_agent_id_fkey"
             columns: ["agent_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "agent_float_funding_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -1605,6 +1748,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_float_funding_funded_by_fkey"
+            columns: ["funded_by"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "agent_float_funding_funded_by_fkey"
@@ -1687,6 +1837,13 @@ export type Database = {
             foreignKeyName: "agent_float_limits_agent_id_fkey"
             columns: ["agent_id"]
             isOneToOne: true
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "agent_float_limits_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -1710,6 +1867,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_float_limits_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "agent_float_limits_assigned_by_fkey"
@@ -1852,6 +2016,13 @@ export type Database = {
             foreignKeyName: "agent_float_withdrawals_agent_id_fkey"
             columns: ["agent_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "agent_float_withdrawals_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -1875,6 +2046,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_float_withdrawals_agent_ops_reviewed_by_fkey"
+            columns: ["agent_ops_reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "agent_float_withdrawals_agent_ops_reviewed_by_fkey"
@@ -1915,6 +2093,13 @@ export type Database = {
             foreignKeyName: "agent_float_withdrawals_manager_reviewed_by_fkey"
             columns: ["manager_reviewed_by"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "agent_float_withdrawals_manager_reviewed_by_fkey"
+            columns: ["manager_reviewed_by"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -1931,6 +2116,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "rent_requests"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_float_withdrawals_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["rent_request_id"]
           },
           {
             foreignKeyName: "agent_float_withdrawals_tenant_id_fkey"
@@ -1952,6 +2144,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_float_withdrawals_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "agent_float_withdrawals_tenant_id_fkey"
@@ -2014,6 +2213,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_form_tokens_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "agent_form_tokens_agent_id_fkey"
@@ -2114,6 +2320,13 @@ export type Database = {
             foreignKeyName: "agent_incentive_bonuses_agent_id_fkey"
             columns: ["agent_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "agent_incentive_bonuses_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -2173,6 +2386,13 @@ export type Database = {
             foreignKeyName: "agent_landlord_assignments_agent_id_fkey"
             columns: ["agent_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "agent_landlord_assignments_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -2196,6 +2416,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "rent_requests"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_landlord_assignments_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["rent_request_id"]
           },
         ]
       }
@@ -2251,6 +2478,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_landlord_float_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "agent_landlord_float_agent_id_fkey"
@@ -2438,6 +2672,13 @@ export type Database = {
             foreignKeyName: "agent_landlord_payouts_agent_id_fkey"
             columns: ["agent_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "agent_landlord_payouts_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -2590,6 +2831,13 @@ export type Database = {
             foreignKeyName: "agent_rebalance_records_agent_id_fkey"
             columns: ["agent_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "agent_rebalance_records_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -2613,6 +2861,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_rebalance_records_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "agent_rebalance_records_approved_by_fkey"
@@ -2686,6 +2941,13 @@ export type Database = {
             foreignKeyName: "agent_receipts_agent_id_fkey"
             columns: ["agent_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "agent_receipts_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -2746,6 +3008,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_subagents_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "agent_subagents_verified_by_fkey"
@@ -2843,6 +3112,13 @@ export type Database = {
             foreignKeyName: "agent_tasks_agent_id_fkey"
             columns: ["agent_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "agent_tasks_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -2871,6 +3147,13 @@ export type Database = {
             foreignKeyName: "agent_tasks_assigned_by_fkey"
             columns: ["assigned_by"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "agent_tasks_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -2894,6 +3177,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_tasks_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "agent_tasks_tenant_id_fkey"
@@ -3075,6 +3365,13 @@ export type Database = {
             foreignKeyName: "agent_visits_agent_id_fkey"
             columns: ["agent_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "agent_visits_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -3098,6 +3395,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_visits_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "agent_visits_tenant_id_fkey"
@@ -3282,6 +3586,13 @@ export type Database = {
             foreignKeyName: "angel_pool_investments_investor_id_fkey"
             columns: ["investor_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "angel_pool_investments_investor_id_fkey"
+            columns: ["investor_id"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -3388,6 +3699,60 @@ export type Database = {
           vouched_limit_at_acknowledgement?: number | null
         }
         Relationships: []
+      }
+      bulk_bank_payout_allocations: {
+        Row: {
+          allocated_amount: number
+          created_at: string
+          error_message: string | null
+          gmail_transaction_id: string
+          id: string
+          metadata: Json
+          partner_id: string
+          proxy_agent_id: string
+          status: string
+          withdrawal_request_id: string
+        }
+        Insert: {
+          allocated_amount: number
+          created_at?: string
+          error_message?: string | null
+          gmail_transaction_id: string
+          id?: string
+          metadata?: Json
+          partner_id: string
+          proxy_agent_id: string
+          status?: string
+          withdrawal_request_id: string
+        }
+        Update: {
+          allocated_amount?: number
+          created_at?: string
+          error_message?: string | null
+          gmail_transaction_id?: string
+          id?: string
+          metadata?: Json
+          partner_id?: string
+          proxy_agent_id?: string
+          status?: string
+          withdrawal_request_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bulk_bank_payout_allocations_gmail_transaction_id_fkey"
+            columns: ["gmail_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "gmail_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bulk_bank_payout_allocations_withdrawal_request_id_fkey"
+            columns: ["withdrawal_request_id"]
+            isOneToOne: true
+            referencedRelation: "withdrawal_requests"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       business_advance_daily_accruals: {
         Row: {
@@ -3909,6 +4274,13 @@ export type Database = {
             foreignKeyName: "cashout_agents_agent_id_fkey"
             columns: ["agent_id"]
             isOneToOne: true
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "cashout_agents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -3932,6 +4304,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "cashout_agents_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "cashout_agents_assigned_by_fkey"
@@ -4164,6 +4543,13 @@ export type Database = {
             foreignKeyName: "commission_accrual_ledger_agent_id_fkey"
             columns: ["agent_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "commission_accrual_ledger_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -4187,6 +4573,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "commission_accrual_ledger_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "commission_accrual_ledger_approved_by_fkey"
@@ -4210,6 +4603,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "commission_accrual_ledger_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["rent_request_id"]
+          },
+          {
             foreignKeyName: "commission_accrual_ledger_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -4229,6 +4629,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "commission_accrual_ledger_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "commission_accrual_ledger_tenant_id_fkey"
@@ -4734,6 +5141,13 @@ export type Database = {
             foreignKeyName: "default_recovery_ledger_agent_id_fkey"
             columns: ["agent_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "default_recovery_ledger_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -4752,6 +5166,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "default_recovery_ledger_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["rent_request_id"]
+          },
+          {
             foreignKeyName: "default_recovery_ledger_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -4771,6 +5192,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "default_recovery_ledger_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "default_recovery_ledger_tenant_id_fkey"
@@ -4799,6 +5227,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "default_recovery_ledger_write_off_approved_by_fkey"
+            columns: ["write_off_approved_by"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "default_recovery_ledger_write_off_approved_by_fkey"
@@ -4858,6 +5293,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "departments_head_user_id_fkey"
+            columns: ["head_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "departments_head_user_id_fkey"
@@ -5216,6 +5658,13 @@ export type Database = {
             foreignKeyName: "disciplinary_records_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "disciplinary_records_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -5239,6 +5688,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "disciplinary_records_issued_by_fkey"
+            columns: ["issued_by"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "disciplinary_records_issued_by_fkey"
@@ -5315,6 +5771,78 @@ export type Database = {
         }
         Relationships: []
       }
+      email_credit_idempotency: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          email_tid: string | null
+          gmail_message_id: string | null
+          gmail_transaction_id: string | null
+          id: string
+          operation: string
+          reference_id: string | null
+          target_user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          email_tid?: string | null
+          gmail_message_id?: string | null
+          gmail_transaction_id?: string | null
+          id?: string
+          operation?: string
+          reference_id?: string | null
+          target_user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          email_tid?: string | null
+          gmail_message_id?: string | null
+          gmail_transaction_id?: string | null
+          id?: string
+          operation?: string
+          reference_id?: string | null
+          target_user_id?: string
+        }
+        Relationships: []
+      }
+      email_credit_manual_marks: {
+        Row: {
+          created_at: string
+          email_tid: string | null
+          gmail_message_id: string | null
+          gmail_transaction_id: string
+          id: string
+          mark: string
+          marked_by: string
+          reason: string | null
+        }
+        Insert: {
+          created_at?: string
+          email_tid?: string | null
+          gmail_message_id?: string | null
+          gmail_transaction_id: string
+          id?: string
+          mark: string
+          marked_by: string
+          reason?: string | null
+        }
+        Update: {
+          created_at?: string
+          email_tid?: string | null
+          gmail_message_id?: string | null
+          gmail_transaction_id?: string
+          id?: string
+          mark?: string
+          marked_by?: string
+          reason?: string | null
+        }
+        Relationships: []
+      }
       email_match_audit_log: {
         Row: {
           action: string
@@ -5357,6 +5885,66 @@ export type Database = {
           matcher_type?: string | null
           notes?: string | null
           signals?: Json | null
+        }
+        Relationships: []
+      }
+      email_payout_match_attempts: {
+        Row: {
+          amount_delta: number | null
+          attempted_at: string
+          email_amount: number | null
+          email_id: string | null
+          email_transaction_id: string | null
+          error_message: string | null
+          id: string
+          metadata: Json
+          operator_id: string | null
+          outcome: string
+          payment_method: string | null
+          recipient_phone_email: string | null
+          recipient_phone_target: string | null
+          tolerance_amount_ugx: number | null
+          tolerance_phone_tail: number | null
+          withdrawal_amount: number | null
+          withdrawal_id: string | null
+        }
+        Insert: {
+          amount_delta?: number | null
+          attempted_at?: string
+          email_amount?: number | null
+          email_id?: string | null
+          email_transaction_id?: string | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json
+          operator_id?: string | null
+          outcome: string
+          payment_method?: string | null
+          recipient_phone_email?: string | null
+          recipient_phone_target?: string | null
+          tolerance_amount_ugx?: number | null
+          tolerance_phone_tail?: number | null
+          withdrawal_amount?: number | null
+          withdrawal_id?: string | null
+        }
+        Update: {
+          amount_delta?: number | null
+          attempted_at?: string
+          email_amount?: number | null
+          email_id?: string | null
+          email_transaction_id?: string | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json
+          operator_id?: string | null
+          outcome?: string
+          payment_method?: string | null
+          recipient_phone_email?: string | null
+          recipient_phone_target?: string | null
+          tolerance_amount_ugx?: number | null
+          tolerance_phone_tail?: number | null
+          withdrawal_amount?: number | null
+          withdrawal_id?: string | null
         }
         Relationships: []
       }
@@ -5613,6 +6201,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "fee_revenue_ledger_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["rent_request_id"]
+          },
+          {
             foreignKeyName: "fee_revenue_ledger_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -5632,6 +6227,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "fee_revenue_ledger_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "fee_revenue_ledger_tenant_id_fkey"
@@ -5978,6 +6580,13 @@ export type Database = {
             foreignKeyName: "financial_agents_agent_id_fkey"
             columns: ["agent_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "financial_agents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -6001,6 +6610,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "financial_agents_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "financial_agents_assigned_by_fkey"
@@ -6074,6 +6690,13 @@ export type Database = {
             foreignKeyName: "float_requests_agent_id_fkey"
             columns: ["agent_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "float_requests_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -6097,6 +6720,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "float_requests_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "float_requests_approved_by_fkey"
@@ -6182,6 +6812,30 @@ export type Database = {
           user_id?: string | null
           wallet_bucket?: string | null
           wallet_id?: string | null
+        }
+        Relationships: []
+      }
+      geo_coverage_cache: {
+        Row: {
+          cache_key: string
+          created_at: string
+          expires_at: string
+          payload: Json
+          total_count: number
+        }
+        Insert: {
+          cache_key: string
+          created_at?: string
+          expires_at: string
+          payload: Json
+          total_count?: number
+        }
+        Update: {
+          cache_key?: string
+          created_at?: string
+          expires_at?: string
+          payload?: Json
+          total_count?: number
         }
         Relationships: []
       }
@@ -6391,6 +7045,8 @@ export type Database = {
           auto_match_method: string | null
           auto_matched_at: string | null
           balance: number | null
+          bulk_payout_allocated_total: number
+          bulk_payout_settled_at: string | null
           channel: string | null
           counterparty: string | null
           created_at: string
@@ -6403,6 +7059,7 @@ export type Database = {
           gmail_thread_id: string | null
           id: string
           internal_date: string | null
+          is_bulk_bank_payout: boolean
           linked_deposit_request_id: string | null
           parsed: boolean
           raw_body: string | null
@@ -6417,6 +7074,8 @@ export type Database = {
           auto_match_method?: string | null
           auto_matched_at?: string | null
           balance?: number | null
+          bulk_payout_allocated_total?: number
+          bulk_payout_settled_at?: string | null
           channel?: string | null
           counterparty?: string | null
           created_at?: string
@@ -6429,6 +7088,7 @@ export type Database = {
           gmail_thread_id?: string | null
           id?: string
           internal_date?: string | null
+          is_bulk_bank_payout?: boolean
           linked_deposit_request_id?: string | null
           parsed?: boolean
           raw_body?: string | null
@@ -6443,6 +7103,8 @@ export type Database = {
           auto_match_method?: string | null
           auto_matched_at?: string | null
           balance?: number | null
+          bulk_payout_allocated_total?: number
+          bulk_payout_settled_at?: string | null
           channel?: string | null
           counterparty?: string | null
           created_at?: string
@@ -6455,6 +7117,7 @@ export type Database = {
           gmail_thread_id?: string | null
           id?: string
           internal_date?: string | null
+          is_bulk_bank_payout?: boolean
           linked_deposit_request_id?: string | null
           parsed?: boolean
           raw_body?: string | null
@@ -6644,6 +7307,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      house_listings_region_normalization_log: {
+        Row: {
+          house_id: string
+          id: string
+          new_district: string | null
+          new_region: string | null
+          old_district: string | null
+          old_region: string | null
+          run_at: string
+        }
+        Insert: {
+          house_id: string
+          id?: string
+          new_district?: string | null
+          new_region?: string | null
+          old_district?: string | null
+          old_region?: string | null
+          run_at?: string
+        }
+        Update: {
+          house_id?: string
+          id?: string
+          new_district?: string | null
+          new_region?: string | null
+          old_district?: string | null
+          old_region?: string | null
+          run_at?: string
+        }
+        Relationships: []
       }
       house_questions: {
         Row: {
@@ -6994,6 +7687,13 @@ export type Database = {
             foreignKeyName: "investor_portfolios_agent_id_fkey"
             columns: ["agent_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "investor_portfolios_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -7017,6 +7717,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "investor_portfolios_investor_id_fkey"
+            columns: ["investor_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "investor_portfolios_investor_id_fkey"
@@ -7070,6 +7777,45 @@ export type Database = {
           rent_processed?: number
           status?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      landlord_funder_links: {
+        Row: {
+          active: boolean
+          created_at: string
+          funder_id: string
+          id: string
+          landlord_id: string
+          linked_by: string | null
+          notes: string | null
+          reason: string
+          unlinked_at: string | null
+          unlinked_by: string | null
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          funder_id: string
+          id?: string
+          landlord_id: string
+          linked_by?: string | null
+          notes?: string | null
+          reason: string
+          unlinked_at?: string | null
+          unlinked_by?: string | null
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          funder_id?: string
+          id?: string
+          landlord_id?: string
+          linked_by?: string | null
+          notes?: string | null
+          reason?: string
+          unlinked_at?: string | null
+          unlinked_by?: string | null
         }
         Relationships: []
       }
@@ -7134,6 +7880,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "landlord_leads_referrer_agent_id_fkey"
+            columns: ["referrer_agent_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "landlord_leads_referrer_agent_id_fkey"
@@ -7472,6 +8225,13 @@ export type Database = {
           phone: string
           property_address: string
           ready_to_receive: boolean | null
+          receipt_request_channel: string | null
+          receipt_requested_at: string | null
+          receipt_requested_by: string | null
+          receipt_verification_at: string | null
+          receipt_verification_by: string | null
+          receipt_verification_note: string | null
+          receipt_verification_status: string | null
           region: string | null
           registered_by: string | null
           rent_balance_due: number
@@ -7524,6 +8284,13 @@ export type Database = {
           phone: string
           property_address: string
           ready_to_receive?: boolean | null
+          receipt_request_channel?: string | null
+          receipt_requested_at?: string | null
+          receipt_requested_by?: string | null
+          receipt_verification_at?: string | null
+          receipt_verification_by?: string | null
+          receipt_verification_note?: string | null
+          receipt_verification_status?: string | null
           region?: string | null
           registered_by?: string | null
           rent_balance_due?: number
@@ -7576,6 +8343,13 @@ export type Database = {
           phone?: string
           property_address?: string
           ready_to_receive?: boolean | null
+          receipt_request_channel?: string | null
+          receipt_requested_at?: string | null
+          receipt_requested_by?: string | null
+          receipt_verification_at?: string | null
+          receipt_verification_by?: string | null
+          receipt_verification_note?: string | null
+          receipt_verification_status?: string | null
           region?: string | null
           registered_by?: string | null
           rent_balance_due?: number
@@ -7615,6 +8389,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "landlords_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "landlords_verified_by_fkey"
@@ -7709,6 +8490,13 @@ export type Database = {
             foreignKeyName: "leave_balances_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "leave_balances_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -7783,6 +8571,13 @@ export type Database = {
             foreignKeyName: "leave_requests_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "leave_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -7806,6 +8601,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "leave_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "leave_requests_reviewed_by_fkey"
@@ -8262,6 +9064,13 @@ export type Database = {
             foreignKeyName: "liquidity_alerts_agent_id_fkey"
             columns: ["agent_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "liquidity_alerts_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -8285,6 +9094,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "liquidity_alerts_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "liquidity_alerts_resolved_by_fkey"
@@ -8442,6 +9258,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "rent_requests"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "location_requests_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["rent_request_id"]
           },
         ]
       }
@@ -8726,6 +9549,13 @@ export type Database = {
             foreignKeyName: "offline_collection_submissions_agent_id_fkey"
             columns: ["agent_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "offline_collection_submissions_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -8742,6 +9572,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "rent_requests"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offline_collection_submissions_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["rent_request_id"]
           },
         ]
       }
@@ -9140,6 +9977,13 @@ export type Database = {
             foreignKeyName: "payment_tokens_agent_id_fkey"
             columns: ["agent_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "payment_tokens_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -9163,6 +10007,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payment_tokens_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "payment_tokens_tenant_id_fkey"
@@ -9252,6 +10103,13 @@ export type Database = {
             foreignKeyName: "payout_codes_claimed_by_fkey"
             columns: ["claimed_by"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "payout_codes_claimed_by_fkey"
+            columns: ["claimed_by"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -9280,6 +10138,13 @@ export type Database = {
             foreignKeyName: "payout_codes_paid_by_fkey"
             columns: ["paid_by"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "payout_codes_paid_by_fkey"
+            columns: ["paid_by"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -9303,6 +10168,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payout_codes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "payout_codes_user_id_fkey"
@@ -9410,6 +10282,13 @@ export type Database = {
             foreignKeyName: "payroll_batches_approved_by_fkey"
             columns: ["approved_by"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "payroll_batches_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -9438,6 +10317,13 @@ export type Database = {
             foreignKeyName: "payroll_batches_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "payroll_batches_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -9461,6 +10347,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payroll_batches_prepared_by_fkey"
+            columns: ["prepared_by"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "payroll_batches_prepared_by_fkey"
@@ -9601,6 +10494,13 @@ export type Database = {
             foreignKeyName: "payroll_items_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "payroll_items_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -9708,6 +10608,13 @@ export type Database = {
             foreignKeyName: "pending_wallet_operations_target_wallet_user_id_fkey"
             columns: ["target_wallet_user_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "pending_wallet_operations_target_wallet_user_id_fkey"
+            columns: ["target_wallet_user_id"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -9773,6 +10680,13 @@ export type Database = {
             foreignKeyName: "platform_expense_transfers_agent_id_fkey"
             columns: ["agent_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "platform_expense_transfers_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -9796,6 +10710,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "platform_expense_transfers_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "platform_expense_transfers_approved_by_fkey"
@@ -10134,8 +11055,76 @@ export type Database = {
         }
         Relationships: []
       }
+      profile_completion_log: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          new_value: Json | null
+          previous_value: Json | null
+          reason: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          new_value?: Json | null
+          previous_value?: Json | null
+          reason?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          new_value?: Json | null
+          previous_value?: Json | null
+          reason?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_completion_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "profile_completion_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_completion_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "profile_completion_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "profile_completion_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
+          address_complete: boolean
+          address_completed_at: string | null
           agent_tier: Database["public"]["Enums"]["agent_tier"] | null
           agent_type: string | null
           always_share_location: boolean | null
@@ -10143,6 +11132,7 @@ export type Database = {
           business_advance_notify_email: boolean
           business_advance_notify_sms: boolean
           city: string | null
+          continent: string | null
           country: string | null
           country_code: string | null
           created_at: string
@@ -10162,6 +11152,7 @@ export type Database = {
           funder_rejection_reason: string | null
           funder_verified_at: string | null
           funder_verified_by: string | null
+          has_smartphone: boolean
           id: string
           is_frozen: boolean
           is_seller: boolean
@@ -10175,10 +11166,15 @@ export type Database = {
           monthly_rent: number | null
           must_change_password: boolean | null
           national_id: string | null
+          occupation: string | null
+          ops_note: string | null
           parish: string | null
           phone: string
           prefers_easy_read: boolean
+          primary_persona: string | null
           referrer_id: string | null
+          referrer_locked: boolean
+          referrer_override_at: string | null
           region: string | null
           rent_discount_active: boolean
           residence_lat: number | null
@@ -10190,6 +11186,7 @@ export type Database = {
           sub_county: string | null
           tenant_status: string
           territory: string | null
+          town: string | null
           updated_at: string
           verified: boolean
           village: string | null
@@ -10198,6 +11195,8 @@ export type Database = {
           whatsapp_verified_at: string | null
         }
         Insert: {
+          address_complete?: boolean
+          address_completed_at?: string | null
           agent_tier?: Database["public"]["Enums"]["agent_tier"] | null
           agent_type?: string | null
           always_share_location?: boolean | null
@@ -10205,6 +11204,7 @@ export type Database = {
           business_advance_notify_email?: boolean
           business_advance_notify_sms?: boolean
           city?: string | null
+          continent?: string | null
           country?: string | null
           country_code?: string | null
           created_at?: string
@@ -10224,6 +11224,7 @@ export type Database = {
           funder_rejection_reason?: string | null
           funder_verified_at?: string | null
           funder_verified_by?: string | null
+          has_smartphone?: boolean
           id: string
           is_frozen?: boolean
           is_seller?: boolean
@@ -10237,10 +11238,15 @@ export type Database = {
           monthly_rent?: number | null
           must_change_password?: boolean | null
           national_id?: string | null
+          occupation?: string | null
+          ops_note?: string | null
           parish?: string | null
           phone: string
           prefers_easy_read?: boolean
+          primary_persona?: string | null
           referrer_id?: string | null
+          referrer_locked?: boolean
+          referrer_override_at?: string | null
           region?: string | null
           rent_discount_active?: boolean
           residence_lat?: number | null
@@ -10252,6 +11258,7 @@ export type Database = {
           sub_county?: string | null
           tenant_status?: string
           territory?: string | null
+          town?: string | null
           updated_at?: string
           verified?: boolean
           village?: string | null
@@ -10260,6 +11267,8 @@ export type Database = {
           whatsapp_verified_at?: string | null
         }
         Update: {
+          address_complete?: boolean
+          address_completed_at?: string | null
           agent_tier?: Database["public"]["Enums"]["agent_tier"] | null
           agent_type?: string | null
           always_share_location?: boolean | null
@@ -10267,6 +11276,7 @@ export type Database = {
           business_advance_notify_email?: boolean
           business_advance_notify_sms?: boolean
           city?: string | null
+          continent?: string | null
           country?: string | null
           country_code?: string | null
           created_at?: string
@@ -10286,6 +11296,7 @@ export type Database = {
           funder_rejection_reason?: string | null
           funder_verified_at?: string | null
           funder_verified_by?: string | null
+          has_smartphone?: boolean
           id?: string
           is_frozen?: boolean
           is_seller?: boolean
@@ -10299,10 +11310,15 @@ export type Database = {
           monthly_rent?: number | null
           must_change_password?: boolean | null
           national_id?: string | null
+          occupation?: string | null
+          ops_note?: string | null
           parish?: string | null
           phone?: string
           prefers_easy_read?: boolean
+          primary_persona?: string | null
           referrer_id?: string | null
+          referrer_locked?: boolean
+          referrer_override_at?: string | null
           region?: string | null
           rent_discount_active?: boolean
           residence_lat?: number | null
@@ -10314,6 +11330,7 @@ export type Database = {
           sub_county?: string | null
           tenant_status?: string
           territory?: string | null
+          town?: string | null
           updated_at?: string
           verified?: boolean
           village?: string | null
@@ -10617,6 +11634,13 @@ export type Database = {
             foreignKeyName: "proxy_agent_assignments_agent_id_fkey"
             columns: ["agent_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "proxy_agent_assignments_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -10645,6 +11669,13 @@ export type Database = {
             foreignKeyName: "proxy_agent_assignments_approved_by_fkey"
             columns: ["approved_by"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "proxy_agent_assignments_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -10673,6 +11704,13 @@ export type Database = {
             foreignKeyName: "proxy_agent_assignments_assigned_by_fkey"
             columns: ["assigned_by"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "proxy_agent_assignments_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -10696,6 +11734,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "proxy_agent_assignments_beneficiary_id_fkey"
+            columns: ["beneficiary_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "proxy_agent_assignments_beneficiary_id_fkey"
@@ -10993,6 +12038,13 @@ export type Database = {
             foreignKeyName: "referrals_referred_id_fkey"
             columns: ["referred_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "referrals_referred_id_fkey"
+            columns: ["referred_id"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -11196,6 +12248,51 @@ export type Database = {
           tenant_phone?: string | null
           tenant_wallet?: number
           total_repayment?: number
+        }
+        Relationships: []
+      }
+      rent_request_drafts: {
+        Row: {
+          agent_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          payload: Json
+          rent_amount: number
+          required_per_tenant_max: number
+          status: string
+          submitted_rent_request_id: string | null
+          tenant_name: string
+          tenant_phone: string
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payload?: Json
+          rent_amount: number
+          required_per_tenant_max?: number
+          status?: string
+          submitted_rent_request_id?: string | null
+          tenant_name: string
+          tenant_phone: string
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payload?: Json
+          rent_amount?: number
+          required_per_tenant_max?: number
+          status?: string
+          submitted_rent_request_id?: string | null
+          tenant_name?: string
+          tenant_phone?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -11541,6 +12638,13 @@ export type Database = {
             foreignKeyName: "rent_requests_agent_verified_by_fkey"
             columns: ["agent_verified_by"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "rent_requests_agent_verified_by_fkey"
+            columns: ["agent_verified_by"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -11578,6 +12682,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "rent_requests_manager_verified_by_fkey"
+            columns: ["manager_verified_by"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "rent_requests_manager_verified_by_fkey"
@@ -11624,6 +12735,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "rent_requests"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "repayments_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["rent_request_id"]
           },
         ]
       }
@@ -11784,6 +12902,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "role_access_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "role_access_requests_user_id_fkey"
@@ -12046,6 +13171,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "settlement_reconciliation_ledger_reconciled_by_fkey"
+            columns: ["reconciled_by"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "settlement_reconciliation_ledger_reconciled_by_fkey"
@@ -12409,6 +13541,13 @@ export type Database = {
             referencedRelation: "rent_requests"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "subscription_charges_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["rent_request_id"]
+          },
         ]
       }
       supporter_agreement_acceptance: {
@@ -12494,6 +13633,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "supporter_capital_ledger_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["rent_request_id"]
+          },
+          {
             foreignKeyName: "supporter_capital_ledger_supporter_id_fkey"
             columns: ["supporter_id"]
             isOneToOne: false
@@ -12513,6 +13659,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "supporter_capital_ledger_supporter_id_fkey"
+            columns: ["supporter_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "supporter_capital_ledger_supporter_id_fkey"
@@ -12704,6 +13857,13 @@ export type Database = {
             referencedRelation: "rent_requests"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "supporter_roi_payments_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["rent_request_id"]
+          },
         ]
       }
       suppressed_emails: {
@@ -12811,6 +13971,13 @@ export type Database = {
             foreignKeyName: "suspense_ledger_matched_by_fkey"
             columns: ["matched_by"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "suspense_ledger_matched_by_fkey"
+            columns: ["matched_by"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -12839,6 +14006,13 @@ export type Database = {
             foreignKeyName: "suspense_ledger_matched_to_user_id_fkey"
             columns: ["matched_to_user_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "suspense_ledger_matched_to_user_id_fkey"
+            columns: ["matched_to_user_id"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -12862,6 +14036,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "suspense_ledger_written_off_by_fkey"
+            columns: ["written_off_by"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "suspense_ledger_written_off_by_fkey"
@@ -12998,6 +14179,39 @@ export type Database = {
           tenant_phone?: string | null
           transaction_id?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      tenant_ops_filter_presets: {
+        Row: {
+          created_at: string
+          filters: Json
+          id: string
+          name: string
+          owner_id: string
+          share_slug: string | null
+          updated_at: string
+          visibility: string
+        }
+        Insert: {
+          created_at?: string
+          filters: Json
+          id?: string
+          name: string
+          owner_id?: string
+          share_slug?: string | null
+          updated_at?: string
+          visibility?: string
+        }
+        Update: {
+          created_at?: string
+          filters?: Json
+          id?: string
+          name?: string
+          owner_id?: string
+          share_slug?: string | null
+          updated_at?: string
+          visibility?: string
         }
         Relationships: []
       }
@@ -13148,6 +14362,13 @@ export type Database = {
             foreignKeyName: "tenant_transfers_from_agent_id_fkey"
             columns: ["from_agent_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "tenant_transfers_from_agent_id_fkey"
+            columns: ["from_agent_id"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -13176,6 +14397,13 @@ export type Database = {
             foreignKeyName: "tenant_transfers_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "tenant_transfers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -13204,6 +14432,13 @@ export type Database = {
             foreignKeyName: "tenant_transfers_to_agent_id_fkey"
             columns: ["to_agent_id"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "tenant_transfers_to_agent_id_fkey"
+            columns: ["to_agent_id"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -13227,6 +14462,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "tenant_transfers_transferred_by_fkey"
+            columns: ["transferred_by"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
           },
           {
             foreignKeyName: "tenant_transfers_transferred_by_fkey"
@@ -13938,6 +15180,57 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_debit_bucket_attempts: {
+        Row: {
+          amount: number
+          attempted_bucket: string
+          available_at_attempt: number
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          failure_reason: string | null
+          gmail_transaction_id: string | null
+          id: string
+          outcome: string
+          switched_to_bucket: string | null
+          target_user_id: string
+          target_user_name: string | null
+          transaction_reference: string | null
+        }
+        Insert: {
+          amount: number
+          attempted_bucket: string
+          available_at_attempt?: number
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          failure_reason?: string | null
+          gmail_transaction_id?: string | null
+          id?: string
+          outcome: string
+          switched_to_bucket?: string | null
+          target_user_id: string
+          target_user_name?: string | null
+          transaction_reference?: string | null
+        }
+        Update: {
+          amount?: number
+          attempted_bucket?: string
+          available_at_attempt?: number
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          failure_reason?: string | null
+          gmail_transaction_id?: string | null
+          id?: string
+          outcome?: string
+          switched_to_bucket?: string | null
+          target_user_id?: string
+          target_user_name?: string | null
+          transaction_reference?: string | null
+        }
+        Relationships: []
+      }
       wallet_deductions: {
         Row: {
           amount: number
@@ -14475,6 +15768,13 @@ export type Database = {
             foreignKeyName: "welile_trust_score_cache_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: true
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "welile_trust_score_cache_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -14789,6 +16089,13 @@ export type Database = {
             foreignKeyName: "agent_subagents_verified_by_fkey"
             columns: ["approved_by"]
             isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "agent_subagents_verified_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
           },
@@ -14925,6 +16232,35 @@ export type Database = {
         }
         Relationships: []
       }
+      v_tenant_location_pivot: {
+        Row: {
+          agent_id: string | null
+          country: string | null
+          district: string | null
+          house_category: string | null
+          house_image_urls: string[] | null
+          landlord_id: string | null
+          region: string | null
+          rent_amount: number | null
+          rent_request_id: string | null
+          tenant_avatar_url: string | null
+          tenant_created_at: string | null
+          tenant_id: string | null
+          tenant_name: string | null
+          tenant_phone: string | null
+          tenant_photo_url: string | null
+          ward: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rent_requests_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: false
+            referencedRelation: "landlords"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_user_wallet_strict: {
         Row: {
           advance_balance: number | null
@@ -14976,6 +16312,20 @@ export type Database = {
         Args: { p_active_count: number; p_ratio: number }
         Returns: string
       }
+      _geo_cache_key: {
+        Args: {
+          p_city: string
+          p_country: string
+          p_district: string
+          p_from: string
+          p_kind: string
+          p_roles: string[]
+          p_to: string
+        }
+        Returns: string
+      }
+      _geo_coverage_caller_allowed: { Args: never; Returns: boolean }
+      _geo_norm: { Args: { p: string }; Returns: string }
       _test_proxy_capability_sync: {
         Args: never
         Returns: {
@@ -15009,6 +16359,18 @@ export type Database = {
             }
             Returns: Json
           }
+      agent_capture_contact_location: {
+        Args: {
+          p_accuracy?: number
+          p_address: Json
+          p_landmark?: string
+          p_latitude?: number
+          p_longitude?: number
+          p_target_id: string
+          p_target_role: string
+        }
+        Returns: Json
+      }
       agent_delete_rejected_rent_request: {
         Args: { p_reason: string; p_request_id: string }
         Returns: string
@@ -15022,6 +16384,7 @@ export type Database = {
         }
         Returns: Json
       }
+      agent_per_tenant_max: { Args: { _agent_id: string }; Returns: number }
       agent_resubmit_rent_request: {
         Args: { p_agent_note: string; p_patch: Json; p_request_id: string }
         Returns: string
@@ -15553,6 +16916,27 @@ export type Database = {
           user_id: string
         }[]
       }
+      diagnose_pending_proxy_withdrawals: {
+        Args: never
+        Returns: {
+          agent_id: string
+          already_allocated: boolean
+          amount: number
+          bulk_emails_open: number
+          created_at: string
+          partner_id: string
+          partner_name: string
+          payout_method: string
+          proxy_agent_id: string
+          proxy_agent_name: string
+          proxy_available: number
+          reason: string
+          reason_code: string
+          status: string
+          total_remaining_in_emails: number
+          withdrawal_id: string
+        }[]
+      }
       drain_withdrawable_buckets: {
         Args: { p_amount: number; p_user_id: string }
         Returns: {
@@ -15725,6 +17109,27 @@ export type Database = {
           running_balance: number
           signed_amount: number
           transaction_group_id: string
+        }[]
+      }
+      get_agent_geo_breakdown: {
+        Args: {
+          p_city?: string
+          p_country?: string
+          p_district?: string
+          p_limit?: number
+          p_offset?: number
+        }
+        Returns: {
+          agent_city: string
+          agent_country: string
+          agent_district: string
+          agent_id: string
+          agent_name: string
+          agent_phone: string
+          landlords_count: number
+          partners_count: number
+          tenants_count: number
+          total_count: number
         }[]
       }
       get_agent_mission_stats: { Args: { p_agent_id?: string }; Returns: Json }
@@ -15946,12 +17351,59 @@ export type Database = {
         Args: { p_entry_id: string; p_user_id: string }
         Returns: Json
       }
+      get_funded_tenants_at: {
+        Args: {
+          p_city?: string
+          p_country?: string
+          p_district?: string
+          p_from?: string
+          p_limit?: number
+          p_offset?: number
+          p_to?: string
+        }
+        Returns: {
+          landlord_id: string
+          landlord_name: string
+          latest_rent_amount: number
+          latest_status: string
+          rent_request_id: string
+          tenant_city: string
+          tenant_country: string
+          tenant_district: string
+          tenant_id: string
+          tenant_name: string
+          tenant_phone: string
+          total_count: number
+        }[]
+      }
       get_funder_approval_status: {
         Args: { _user_id: string }
         Returns: {
           approved_at: string
           rejection_reason: string
           status: string
+        }[]
+      }
+      get_geo_user_coverage: {
+        Args: {
+          p_city?: string
+          p_country?: string
+          p_district?: string
+          p_from?: string
+          p_limit?: number
+          p_offset?: number
+          p_roles?: string[]
+          p_to?: string
+        }
+        Returns: {
+          agents: number
+          bucket: string
+          funded_tenants: number
+          funders: number
+          landlords: number
+          level: string
+          tenants: number
+          total_buckets: number
         }[]
       }
       get_house_activity_timeline: {
@@ -16172,6 +17624,31 @@ export type Database = {
           warning_count: number
         }[]
       }
+      get_tenant_location_breakdown: {
+        Args: {
+          p_agent_id?: string
+          p_country?: string
+          p_district?: string
+          p_funded_since?: string
+          p_funded_until?: string
+          p_level: string
+          p_region?: string
+          p_ward?: string
+        }
+        Returns: {
+          agent_id: string
+          agent_name: string
+          hidden: number
+          key: string
+          label: string
+          landlord_id: string
+          landlord_name: string
+          occupied: number
+          revenue_ugx: number
+          total: number
+          vacant: number
+        }[]
+      }
       get_tenant_missed_dates: {
         Args: { p_as_of?: string; p_window_days: number }
         Returns: {
@@ -16186,6 +17663,95 @@ export type Database = {
           tenant_id: string
         }[]
       }
+      get_tenant_ops_preset_by_slug: {
+        Args: { p_slug: string }
+        Returns: {
+          created_at: string
+          filters: Json
+          id: string
+          name: string
+          owner_id: string
+          share_slug: string
+          visibility: string
+        }[]
+      }
+      get_tenants_at_leaf:
+        | {
+            Args: {
+              p_agent_id: string
+              p_country: string
+              p_district: string
+              p_funded_since?: string
+              p_funded_until?: string
+              p_landlord_id: string
+              p_limit?: number
+              p_region: string
+              p_ward: string
+            }
+            Returns: {
+              agent_id: string
+              agent_name: string
+              country: string
+              district: string
+              house_category: string
+              house_image_urls: string[]
+              landlord_funded_amount: number
+              landlord_funded_at: string
+              landlord_id: string
+              landlord_name: string
+              landlord_payout_count: number
+              region: string
+              rent_amount: number
+              rent_request_id: string
+              tenant_avatar_url: string
+              tenant_id: string
+              tenant_name: string
+              tenant_phone: string
+              tenant_photo_url: string
+              ward: string
+            }[]
+          }
+        | {
+            Args: {
+              p_agent_id: string
+              p_country: string
+              p_district: string
+              p_funded_since?: string
+              p_funded_until?: string
+              p_funding_source?: string
+              p_landlord_id: string
+              p_limit?: number
+              p_outstanding?: string
+              p_region: string
+              p_verification?: string
+              p_ward: string
+            }
+            Returns: {
+              agent_id: string
+              agent_name: string
+              country: string
+              district: string
+              funding_source: string
+              house_category: string
+              house_image_urls: string[]
+              landlord_funded_amount: number
+              landlord_funded_at: string
+              landlord_id: string
+              landlord_name: string
+              landlord_payout_count: number
+              outstanding_status: string
+              region: string
+              rent_amount: number
+              rent_request_id: string
+              tenant_avatar_url: string
+              tenant_id: string
+              tenant_name: string
+              tenant_phone: string
+              tenant_photo_url: string
+              verification_status: string
+              ward: string
+            }[]
+          }
       get_trust_coverage_stats: { Args: never; Returns: Json }
       get_user_available_balance: {
         Args: { p_user_id: string }
@@ -16237,6 +17803,10 @@ export type Database = {
         Args: { _agent_id: string; _capability: string }
         Returns: boolean
       }
+      has_agent_contact_relationship: {
+        Args: { _agent_id: string; _target_id: string }
+        Returns: boolean
+      }
       has_dashboard_access: {
         Args: { _dashboard: string; _user_id: string }
         Returns: boolean
@@ -16272,6 +17842,7 @@ export type Database = {
       }
       is_financial_ops_staff: { Args: { p_user: string }; Returns: boolean }
       is_funder_approved: { Args: { _user_id: string }; Returns: boolean }
+      is_ops_role: { Args: { _user_id: string }; Returns: boolean }
       is_parent_agent: { Args: { _agent_id: string }; Returns: boolean }
       is_proxy_for: {
         Args: { _agent_id: string; _beneficiary_id: string }
@@ -16391,6 +17962,8 @@ export type Database = {
       }
       normalize_momo_tid: { Args: { p_tid: string }; Returns: string }
       normalize_phone_last9: { Args: { phone: string }; Returns: string }
+      normalize_uganda_district: { Args: { p_raw: string }; Returns: string }
+      normalize_uganda_region: { Args: { p_raw: string }; Returns: string }
       notify_landlord_registration_helper: {
         Args: { p_landlord_id: string }
         Returns: undefined
@@ -16411,6 +17984,18 @@ export type Database = {
           _capability: string
           _reason: string
         }
+        Returns: Json
+      }
+      ops_link_agent_landlord: {
+        Args: { p_agent_id: string; p_landlord_id: string; p_reason: string }
+        Returns: Json
+      }
+      ops_link_landlord_funder: {
+        Args: { p_funder_id: string; p_landlord_id: string; p_reason: string }
+        Returns: Json
+      }
+      ops_link_user_to_agent: {
+        Args: { p_agent_id: string; p_reason: string; p_user_id: string }
         Returns: Json
       }
       ops_query_tenants: {
@@ -16484,6 +18069,71 @@ export type Database = {
         Args: { _job_id: string; _reason: string }
         Returns: Json
       }
+      ops_update_landlord: {
+        Args: { p_landlord_id: string; p_patch: Json; p_reason: string }
+        Returns: Json
+      }
+      ops_update_landlord_smartphone: {
+        Args: {
+          p_has_smartphone: boolean
+          p_landlord_id: string
+          p_reason: string
+        }
+        Returns: Json
+      }
+      ops_update_rent_request_amount: {
+        Args: {
+          p_reason: string
+          p_rent_amount: number
+          p_rent_request_id: string
+        }
+        Returns: Json
+      }
+      ops_update_user_identity:
+        | {
+            Args: {
+              p_full_name: string
+              p_phone: string
+              p_reason: string
+              p_user_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_avatar_url?: string
+              p_full_name: string
+              p_ops_note?: string
+              p_phone: string
+              p_reason: string
+              p_user_id: string
+            }
+            Returns: Json
+          }
+      ops_update_user_location:
+        | {
+            Args: {
+              p_accuracy: number
+              p_address: Json
+              p_latitude: number
+              p_longitude: number
+              p_reason: string
+              p_user_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_accuracy: number
+              p_address: Json
+              p_has_smartphone?: boolean
+              p_latitude: number
+              p_longitude: number
+              p_reason: string
+              p_user_id: string
+            }
+            Returns: Json
+          }
       populate_wallet_review_queue: {
         Args: never
         Returns: {
@@ -16507,6 +18157,7 @@ export type Database = {
         }
         Returns: Json
       }
+      purge_geo_coverage_cache: { Args: never; Returns: number }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {
@@ -17071,6 +18722,8 @@ export type Database = {
         | "rent_request_force_approved"
         | "rent_request.resubmitted_by_agent"
         | "rent_request.returned_for_correction"
+        | "house_listings.region_normalized"
+        | "agent.contact_location_captured"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -17323,6 +18976,8 @@ export const Constants = {
         "rent_request_force_approved",
         "rent_request.resubmitted_by_agent",
         "rent_request.returned_for_correction",
+        "house_listings.region_normalized",
+        "agent.contact_location_captured",
       ],
     },
   },

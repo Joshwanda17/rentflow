@@ -17,6 +17,8 @@ import { useOffline } from '@/contexts/OfflineContext';
 import { CommissionCelebration } from './CommissionCelebration';
 import { captureOfflineDraft } from '@/lib/offlineCollectionDrafts';
 import { setCriticalFlowActive } from '@/lib/criticalFlowGuard';
+import AgentContactLocationGate from './AgentContactLocationGate';
+import { useRequireContactLocation } from '@/hooks/useRequireContactLocation';
 
 /**
  * Translate raw RPC / Postgres errors into something an agent can act on.
@@ -77,6 +79,7 @@ export function AgentTenantCollectDialog({
   open, onOpenChange, tenant, rentRequestId, outstandingBalance, onSuccess,
 }: AgentTenantCollectDialogProps) {
   const { user } = useAuth();
+  const locGate = useRequireContactLocation(tenant?.id ?? null, 'tenant', tenant?.full_name);
   const { floatBalance, refetch: refetchBalances } = useAgentLandlordFloat(user?.id);
   const { limit: creditLimit } = useCreditAccessLimit(user?.id);
   const queryClient = useQueryClient();
@@ -140,14 +143,88 @@ export function AgentTenantCollectDialog({
     }
     setLoading(true);
     setRpcError(null);
-    try {
-      const { data, error } = await supabase.rpc('agent_allocate_tenant_payment', {
-        p_agent_id: user.id,
-        p_tenant_id: tenant.id,
-        p_rent_request_id: rentRequestId,
-        p_amount: amount,
-        p_notes: notes.trim() || null,
+    // Progressive feedback so Chrome users on slow networks don't feel
+    // the app has frozen. Two toasts at 4s and 10s, cancelled on resolve.
+    const slowToast = setTimeout(() => {
+      toast.loading('Still processing… holding your float steady.', {
+        id: 'allocate-progress',
       });
+    }, 4000);
+    const verySlowToast = setTimeout(() => {
+      toast.loading('Network is slow — waiting a few more seconds. Do NOT tap again.', {
+        id: 'allocate-progress',
+      });
+    }, 10000);
+    try {
+      // Race the RPC against a 15s timeout. Chrome users on flaky
+      // networks were perceiving the previous 25s spinner as a freeze.
+      // 15s + progressive toasts gives a clear "still working" signal
+      // and bails out cleanly if the request truly stalled.
+      // Some browsers (iOS Safari, flaky mobile Chrome) abort the
+      // fetch with a raw `TypeError: Failed to fetch` before the
+      // request even reaches the server. That's a transient transport
+      // error, not a real allocation failure — auto-retry up to 2
+      // times with a short backoff before surfacing it to the agent.
+      const callRpc = () =>
+        supabase.rpc('agent_allocate_tenant_payment', {
+          p_agent_id: user.id,
+          p_tenant_id: tenant.id,
+          p_rent_request_id: rentRequestId,
+          p_amount: amount,
+          p_notes: notes.trim() || null,
+        });
+      const timeoutPromise = new Promise<{ data: null; error: { message: string } }>((resolve) =>
+        setTimeout(
+          () =>
+            resolve({
+              data: null,
+              error: {
+                message:
+                  'Network is too slow or offline. Check your connection and try Confirm again — your float was NOT charged.',
+              },
+            }),
+          15000,
+        ),
+      );
+      let data: any = null;
+      let error: any = null;
+      const maxAttempts = 3;
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          const res = (await Promise.race([callRpc(), timeoutPromise])) as any;
+          data = res?.data ?? null;
+          error = res?.error ?? null;
+        } catch (transportErr: any) {
+          // Native fetch rejection (TypeError: Failed to fetch, etc.)
+          error = { message: transportErr?.message || 'Network request failed' };
+          data = null;
+        }
+        const msgLower = String(error?.message || '').toLowerCase();
+        const isTransientNetwork =
+          !!error &&
+          (msgLower.includes('failed to fetch') ||
+            msgLower.includes('networkerror') ||
+            msgLower.includes('network request failed') ||
+            msgLower.includes('load failed'));
+        if (!isTransientNetwork) break;
+        if (attempt < maxAttempts) {
+          console.warn(
+            `[AgentTenantCollectDialog] transient network error on attempt ${attempt}, retrying…`,
+            error,
+          );
+          toast.loading(`Connection blip — retrying (${attempt}/${maxAttempts - 1})…`, {
+            id: 'allocate-progress',
+          });
+          await new Promise((r) => setTimeout(r, 800 * attempt));
+        } else {
+          // Final attempt failed — replace cryptic "TypeError: Failed to fetch"
+          // with an actionable message. Float was NOT charged (RPC is atomic).
+          error = {
+            message:
+              'Connection dropped before the allocation could be confirmed. Your float was NOT charged. Check your internet and tap Confirm again.',
+          };
+        }
+      }
 
       if (error) {
         const message = await extractFromErrorObject(error, 'Allocation failed');
@@ -242,13 +319,23 @@ export function AgentTenantCollectDialog({
         }
       }
     } catch (err: any) {
-      const msg = err instanceof Error ? err.message : 'Allocation failed. Please try again.';
+      const raw = err instanceof Error ? err.message : 'Allocation failed. Please try again.';
+      const rawLower = raw.toLowerCase();
+      const msg =
+        rawLower.includes('failed to fetch') ||
+        rawLower.includes('networkerror') ||
+        rawLower.includes('load failed')
+          ? 'Connection dropped before the allocation could be confirmed. Your float was NOT charged. Check your internet and tap Confirm again.'
+          : raw;
       // Keep the user IN the confirming view and show the reason inline so
       // they can act on it (reduce amount, top up float, etc.) instead of
       // experiencing it as a "button does nothing" failure.
       setRpcError(msg);
       toast.error('Allocation failed', { description: msg });
     } finally {
+      clearTimeout(slowToast);
+      clearTimeout(verySlowToast);
+      toast.dismiss('allocate-progress');
       setLoading(false);
     }
   };
@@ -286,16 +373,53 @@ export function AgentTenantCollectDialog({
 
   if (!tenant) return null;
 
+  // Force agent to capture the tenant's location BEFORE the collect dialog mounts.
+  if (open && locGate.needsCapture) {
+    return (
+      <AgentContactLocationGate
+        open
+        targetId={tenant.id}
+        targetRole="tenant"
+        targetName={tenant.full_name}
+        blocking={false}
+        onComplete={() => locGate.onCaptured()}
+        onCancel={() => onOpenChange(false)}
+      />
+    );
+  }
+
   return (
     <>
     <Dialog open={open} onOpenChange={(o) => { if (!o && !loading) handleClose(); }}>
-      <DialogContent 
-        className="max-w-sm max-h-[85vh] overflow-y-auto pointer-events-auto"
+      <DialogContent
+        className={
+          // Mobile: true bottom sheet (slides from bottom, ~88vh, internal
+          // scroll, sticky header). Desktop: standard centered card.
+          [
+            "app-dialog-bottom-sheet",
+            "!left-0 !right-0 !top-auto !bottom-0",
+            "!translate-x-0 !translate-y-0",
+            "!max-w-none !w-full",
+            "!rounded-t-3xl !rounded-b-none",
+            "!p-0 !gap-0",
+            "h-[88vh]",
+            "flex flex-col overflow-hidden",
+            "pointer-events-auto",
+            "sm:!left-[50%] sm:!top-[50%] sm:!bottom-auto sm:!right-auto",
+            "sm:!translate-x-[-50%] sm:!translate-y-[-50%]",
+            "sm:!max-w-md sm:!w-full",
+            "sm:!rounded-2xl",
+            "sm:h-auto sm:max-h-[90vh]",
+          ].join(" ")
+        }
         onInteractOutside={(e) => e.preventDefault()}
         onPointerDownOutside={(e) => e.preventDefault()}
       >
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base">
+        <div className="sm:hidden flex justify-center pt-2 pb-1 shrink-0">
+          <div className="h-1.5 w-12 rounded-full bg-muted-foreground/30" />
+        </div>
+        <DialogHeader className="shrink-0 px-5 pt-2 pb-3 border-b border-border/50 bg-background">
+          <DialogTitle className="flex items-center gap-2 text-base text-left">
             {confirming ? (
               <>
                 <AlertCircle className="h-5 w-5 text-warning" />
@@ -310,7 +434,8 @@ export function AgentTenantCollectDialog({
           </DialogTitle>
         </DialogHeader>
 
-        {/* Header: on the entry form it's the educational "how it grows" card.
+        <div className="flex-1 overflow-y-auto px-5 py-3 space-y-3 overscroll-contain pb-[calc(env(safe-area-inset-bottom)+16px)]">
+        {/* Body: on the entry form it's the educational "how it grows" card.
             On the Confirm Payment step it switches to a live readout of the
             agent's current borrow limit and the impact of THIS allocation. */}
         {confirming ? (() => {
@@ -778,6 +903,7 @@ export function AgentTenantCollectDialog({
             </Button>
           </div>
         )}
+        </div>
       </DialogContent>
     </Dialog>
 

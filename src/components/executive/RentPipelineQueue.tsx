@@ -159,9 +159,15 @@ const WhatsAppButton = ({ phone, name, label }: { phone: string; name: string; l
 
 interface RentPipelineQueueProps {
   stage: PipelineStage;
+  /**
+   * Extra rent_request.status values that share the same review stage and should
+   * appear in this queue alongside the canonical `stage`. Used to surface legacy
+   * statuses (e.g. `agent_verified`) that pre-date the unified pipeline naming.
+   */
+  additionalStatuses?: string[];
 }
 
-export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
+export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipelineQueueProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -378,13 +384,26 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
   };
 
   const { data: requests, isLoading } = useQuery({
-    queryKey: ['rent-pipeline', stage],
+    queryKey: ['rent-pipeline', stage, additionalStatuses.join(',')],
     queryFn: async () => {
-      const { data } = await supabase
+      const statuses = [stage, ...additionalStatuses];
+      let query = supabase
         .from('rent_requests')
-        .select('id, tenant_id, agent_id, landlord_id, lc1_id, rent_amount, duration_days, access_fee, request_fee, total_repayment, daily_repayment, status, created_at, house_category, request_city, request_latitude, request_longitude, assigned_agent_id, payout_method, payout_transaction_reference, approval_comment, agent_ops_comment, tenant_ops_comment, landlord_ops_comment, registration_type, initial_outstanding_balance, tenant_photo_url, house_image_urls, latest_rent_receipt_url, latest_rent_receipt_uploaded_at')
-        .eq('status', stage)
-        .order('created_at', { ascending: true })
+        .select('id, tenant_id, agent_id, landlord_id, lc1_id, rent_amount, duration_days, access_fee, request_fee, total_repayment, daily_repayment, status, created_at, updated_at, resubmitted_at, agent_ops_reviewed_at, tenant_ops_reviewed_at, landlord_ops_reviewed_at, coo_reviewed_at, house_category, request_city, request_latitude, request_longitude, assigned_agent_id, payout_method, payout_transaction_reference, approval_comment, agent_ops_comment, tenant_ops_comment, landlord_ops_comment, registration_type, initial_outstanding_balance, tenant_photo_url, house_image_urls, latest_rent_receipt_url, latest_rent_receipt_uploaded_at')
+        .in('status', statuses);
+
+      // Outstanding-balance rent requests bypass COO + CFO (DB trigger short-circuits
+      // them straight to `repaying` after Landlord Ops approval). Hide them from
+      // those queues so reviewers can't accidentally try to approve them.
+      if (stage === 'landlord_ops_approved' || stage === 'coo_approved') {
+        query = query.or('registration_type.is.null,registration_type.neq.outstanding_balance');
+      }
+
+      const { data } = await query
+        // FIFO by latest activity — most recently bumped/resubmitted/approved-into-stage first
+        .order('resubmitted_at', { ascending: false, nullsFirst: false })
+        .order('updated_at', { ascending: false, nullsFirst: false })
+        .order('created_at', { ascending: false })
         .limit(100);
 
       if (!data || data.length === 0) return [];
@@ -1075,17 +1094,17 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
 
                   <div>
                     <label className="text-xs text-muted-foreground mb-1 block">Verification Method</label>
-                    <Select value={landlordVerificationMethod} onValueChange={setLandlordVerificationMethod}>
-                      <SelectTrigger className="h-9">
-                        <SelectValue placeholder="How was the landlord verified?" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="phone_call">Phone Call</SelectItem>
-                        <SelectItem value="physical_visit">Physical Visit</SelectItem>
-                        <SelectItem value="lc1_confirmation">LC1 Confirmation</SelectItem>
-                        <SelectItem value="video_call">Video Call</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <select
+                      value={landlordVerificationMethod}
+                      onChange={(e) => setLandlordVerificationMethod(e.target.value)}
+                      className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      <option value="" disabled>How was the landlord verified?</option>
+                      <option value="phone_call">Phone Call</option>
+                      <option value="physical_visit">Physical Visit</option>
+                      <option value="lc1_confirmation">LC1 Confirmation</option>
+                      <option value="video_call">Video Call</option>
+                    </select>
                   </div>
 
                   <div>
