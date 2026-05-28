@@ -114,8 +114,8 @@ export default function BucketTransferDialog({ open, onOpenChange }: BucketTrans
           <div className="space-y-2">
             <Label>User</Label>
             <UserSearchPicker
-              value={user}
-              onChange={(u) => setUser(u ? { id: u.id, full_name: u.full_name } : null)}
+              selectedUser={user as any}
+              onSelect={(u) => setUser(u ? { id: u.id, full_name: u.full_name } : null)}
               placeholder="Search by name, phone, or email…"
             />
           </div>
