@@ -298,6 +298,7 @@ export default function AgentPerformanceReport() {
       const status = paid >= expected && expected > 0 ? 'Paid' : paid > 0 ? 'Partial' : 'Missed';
       return {
         tenant: tenantNameMap.get(r.tenant_id) || 'Tenant',
+        phone: tenantPhoneMap.get(r.tenant_id) || '',
         unit: (r.house_category || '—').slice(0, 6),
         expected,
         paid,
