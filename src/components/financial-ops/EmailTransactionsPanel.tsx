@@ -1823,6 +1823,7 @@ export function EmailTransactionsPanel() {
           <ReconnectGmailDialog />
           <DebugPollDialog />
           <SmsSetupGuide />
+          <BucketTransferLauncher />
         </div>
       </div>
 
