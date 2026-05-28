@@ -49,6 +49,7 @@ interface QueueItem {
     bankAccountName?: string;
     agentLocation?: string;
     status?: string;
+    payoutCode?: string;
   };
 }
 
@@ -117,6 +118,7 @@ export function ApprovalQueue() {
             bankAccountName: w.bank_account_name || undefined,
             agentLocation: w.agent_location || undefined,
             status: w.status,
+            payoutCode: (w as any).payout_code || undefined,
           },
         };
       });
@@ -334,7 +336,14 @@ export function ApprovalQueue() {
           }
 
           // Handle cash payout codes for cash withdrawals
-          const cashItems = items.filter(i => approvalResults.includes(i.id) && i.payoutDetails?.method === 'cash');
+          // Skip any that already have a code (now generated at REQUEST time
+          // by submit_withdrawal_request). Only legacy rows without a code
+          // need a fresh one at approval time.
+          const cashItems = items.filter(
+            i => approvalResults.includes(i.id)
+              && i.payoutDetails?.method === 'cash'
+              && !i.payoutDetails?.payoutCode,
+          );
           if (cashItems.length > 0) {
             for (const ci of cashItems) {
               const code = 'WPO-' + Math.random().toString(36).substring(2, 7).toUpperCase();
@@ -582,7 +591,14 @@ export function ApprovalQueue() {
                               </>
                             )}
                             {item.payoutDetails.method === 'cash' && (
-                              <p className="text-xs font-semibold">💵 Cash at: {item.payoutDetails.agentLocation || 'Agent'}</p>
+                              <>
+                                <p className="text-xs font-semibold">💵 Cash at: {item.payoutDetails.agentLocation || 'Agent'}</p>
+                                {item.payoutDetails.payoutCode && (
+                                  <p className="text-[11px] font-mono font-bold text-amber-700">
+                                    Pickup code: {item.payoutDetails.payoutCode}
+                                  </p>
+                                )}
+                              </>
                             )}
                             <Badge variant="outline" className="h-5 px-1.5 text-[9px]">
                               {item.payoutDetails.status?.replace(/_/g, ' ')}
@@ -665,7 +681,12 @@ export function ApprovalQueue() {
                       </div>
                     )}
                     {item.payoutDetails?.method === 'cash' && (
-                      <p className="text-xs font-medium">💵 Cash payout — code will be generated for the user</p>
+                      <p className="text-xs font-medium">
+                        💵 Cash payout — pickup code:{' '}
+                        <span className="font-mono font-bold text-amber-700">
+                          {item.payoutDetails.payoutCode || '— (will be generated)'}
+                        </span>
+                      </p>
                     )}
                   </div>
                 ))}
