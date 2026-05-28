@@ -156,6 +156,12 @@ Deno.serve(async (req) => {
     // Parse body
     const body = await req.json();
     const { withdrawal_id, reference, payment_method } = body;
+    // System auto-approval (gmail-poll MoMo match) forces the debit onto the
+    // REQUESTER's own wallet — consuming the "reserved against pending
+    // requests" hold — instead of auto-routing to a proxy agent. The cash
+    // physically left via the requester's MoMo number, so the requester is
+    // the funder by definition.
+    const forceRequesterDebit = Boolean((body as any)?.force_requester_debit) && isSystemCall;
 
     if (!withdrawal_id || typeof withdrawal_id !== "string") {
       return new Response(JSON.stringify({ error: "withdrawal_id is required" }), {
@@ -364,7 +370,18 @@ Deno.serve(async (req) => {
     // when the partner has no active proxy assignment at all.
     let autoRoutedToProxy = false;
     let autoRouteAssignedAgentId: string | null = null;
-    if (!isProxyPayout) {
+    if (forceRequesterDebit) {
+      // Override any inferred proxy routing — debit the requester directly.
+      proxyPartnerId = null;
+      beneficiaryUserId = wr.user_id;
+      fundingUserId = wr.user_id;
+      isProxyPayout = false;
+      managedProxyAgentId = null;
+      console.log(
+        `[approve-withdrawal] force_requester_debit=true — debiting requester ${wr.user_id} ` +
+        `(bypassing proxy auto-routing) for system MoMo auto-approval`
+      );
+    } else if (!isProxyPayout) {
       const { data: partnerAssignment } = await admin
         .from("proxy_agent_assignments")
         .select("agent_id, is_managed_account, created_at")
