@@ -106,6 +106,14 @@ export default function WithdrawFlow({
   // at REQUEST time for cash withdrawals. Shown prominently above the
   // amount on the receipt screen and emailed to the Financial Ops inbox.
   const [cashPickupCode, setCashPickupCode] = useState<string | null>(null);
+  // User must re-type the WPO code (delivered via email) on the
+  // confirmation screen before the cash withdrawal request is
+  // considered complete. This proves the user actually has the code
+  // before they walk to an agent — so a lost/un-checked email surfaces
+  // immediately instead of at the pickup counter.
+  const [cashCodeInput, setCashCodeInput] = useState('');
+  const [cashCodeAcknowledged, setCashCodeAcknowledged] = useState(false);
+  const [cashCodeError, setCashCodeError] = useState<string | null>(null);
   // Server-confirmed submission timestamp. Set the moment the
   // withdrawal_requests insert returns successfully so the success
   // receipt can display the exact processed date/time.
