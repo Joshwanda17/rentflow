@@ -216,6 +216,20 @@ Deno.serve(async (req) => {
     const wrPayoutMethod = String((wr as any).payout_method || "").toLowerCase();
     const isCashPayout =
       wrPayoutMethod === "cash" || wrPayoutMethod === "cash_pickup";
+    // Hoisted so the post-completion success-burn block can also write
+    // an "approved" audit log entry referencing the resolved code row.
+    let resolvedPayoutCodeId: string | null = null;
+    let resolvedCodeOnFile: string | null = null;
+    let logCodeAttempt:
+      | ((params: {
+          outcome: string;
+          errorCode?: string | null;
+          errorMessage?: string | null;
+          statusResult?: string | null;
+          codeOnFile?: string | null;
+          payoutCodeId?: string | null;
+        }) => Promise<void>)
+      | null = null;
     if (isCashPayout && !isSystemCall) {
       // Audit logger for every WPO code verification attempt. Fire-and-forget
       // so audit DB hiccups never block a real payout decision.
@@ -233,7 +247,7 @@ Deno.serve(async (req) => {
       const approverEmail =
         (user && (user.email as string)) ||
         null;
-      const logCodeAttempt = async (params: {
+      logCodeAttempt = async (params: {
         outcome: string;
         errorCode?: string | null;
         errorMessage?: string | null;
@@ -424,11 +438,8 @@ Deno.serve(async (req) => {
         codeOnFile: onFileCode,
         payoutCodeId: codeRow.id,
       });
-      // Stash the resolved code id on the closure-visible variable so the
-      // post-burn success log can reference it.
-      ;(globalThis as any).__wpo_resolved_code_id = codeRow.id;
-      ;(globalThis as any).__wpo_resolved_code_on_file = onFileCode;
-      ;(globalThis as any).__wpo_log_attempt = logCodeAttempt;
+      resolvedPayoutCodeId = codeRow.id;
+      resolvedCodeOnFile = onFileCode;
     }
 
     // Only allow approval of pending/requested/manager_approved/rejected (re-approval)
