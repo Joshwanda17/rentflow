@@ -3710,6 +3710,7 @@ export type Database = {
           metadata: Json
           partner_id: string
           proxy_agent_id: string
+          remaining_after: number | null
           status: string
           withdrawal_request_id: string
         }
@@ -3722,6 +3723,7 @@ export type Database = {
           metadata?: Json
           partner_id: string
           proxy_agent_id: string
+          remaining_after?: number | null
           status?: string
           withdrawal_request_id: string
         }
@@ -3734,6 +3736,7 @@ export type Database = {
           metadata?: Json
           partner_id?: string
           proxy_agent_id?: string
+          remaining_after?: number | null
           status?: string
           withdrawal_request_id?: string
         }
@@ -3753,6 +3756,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      bulk_payout_sender_patterns: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string | null
+          id: string
+          label: string | null
+          needle: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          label?: string | null
+          needle: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          label?: string | null
+          needle?: string
+        }
+        Relationships: []
       }
       business_advance_daily_accruals: {
         Row: {
