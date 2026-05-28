@@ -271,6 +271,25 @@ export function AgentTenantCollectDialog({
         description: `${formatUGX(amount)} moved from float for ${tenant.full_name}`,
       });
 
+      // Fire-and-forget: email the agent a friendly receipt + today's report
+      // + their current wallet capacity. Never blocks the allocation flow.
+      try {
+        supabase.functions
+          .invoke('send-agent-payment-receipt-email', {
+            body: {
+              agent_id: user.id,
+              tenant_id: tenant.id,
+              rent_request_id: rentRequestId,
+              amount,
+              commission: earnedCommission,
+              allocation_id: res?.collection_id || res?.tracking_id || null,
+            },
+          })
+          .catch((e) => console.warn('[AgentTenantCollectDialog] receipt email failed', e));
+      } catch (e) {
+        console.warn('[AgentTenantCollectDialog] receipt email dispatch failed', e);
+      }
+
       // Fire-and-forget: send the tenant a branded SMS card linking
       // to their live "Rent Money You Can Get" page. Never blocks the
       // allocation flow — failures are logged client-side and surfaced
