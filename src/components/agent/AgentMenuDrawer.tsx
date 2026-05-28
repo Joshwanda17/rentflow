@@ -80,6 +80,7 @@ interface AgentMenuDrawerProps {
   onViewPromissoryNotes?: () => void;
   onRequestAdvance?: () => void;
   onViewCreditAccess?: () => void;
+  onViewSavedDrafts?: () => void;
   isFinancialAgent?: boolean;
 }
 
@@ -135,6 +136,7 @@ export function AgentMenuDrawer({
   onViewPromissoryNotes,
   onRequestAdvance,
   onViewCreditAccess,
+  onViewSavedDrafts,
   isFinancialAgent = false,
 }: AgentMenuDrawerProps) {
   const navigate = useNavigate();
