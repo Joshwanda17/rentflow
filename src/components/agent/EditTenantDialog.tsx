@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Save, User, Phone, Mail, IdCard, Pencil, UserX, UserCheck, CheckCircle2, ArrowRight, X, ShieldAlert, RefreshCw, MessageSquare, AlertCircle } from 'lucide-react';
+import { Loader2, Save, User, Phone, Mail, IdCard, Pencil, UserX, UserCheck, CheckCircle2, ArrowRight, X, ShieldAlert, RefreshCw, MessageSquare, AlertCircle, MapPin, Home, Briefcase, Banknote } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useIdempotentSubmit } from '@/hooks/useIdempotentSubmit';
@@ -22,7 +22,7 @@ interface EditTenantDialogProps {
     tenant_status?: string | null;
     evicted_at?: string | null;
   };
-  onSaved?: (updated: { full_name: string; phone: string; email: string | null; national_id: string | null; tenant_status?: string | null }) => void;
+  onSaved?: (updated: Record<string, any>) => void;
 }
 
 const normalizePhone = (v: string) => v.replace(/[\s-]/g, '');
@@ -77,6 +77,14 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
   const [phone, setPhone] = useState(tenant.phone);
   const [email, setEmail] = useState(tenant.email || '');
   const [nationalId, setNationalId] = useState(tenant.national_id || '');
+  // Extended editable fields (location + occupation + monthly rent)
+  const [city, setCity] = useState('');
+  const [district, setDistrict] = useState('');
+  const [village, setVillage] = useState('');
+  const [town, setTown] = useState('');
+  const [occupation, setOccupation] = useState('');
+  const [monthlyRent, setMonthlyRent] = useState<string>('');
+  const [extendedLoading, setExtendedLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [statusBusy, setStatusBusy] = useState(false);
   const { submit: doSave, isSubmitting: saveSubmitting, reset: resetSave } = useIdempotentSubmit({ cooldownMs: 2000 });
@@ -97,6 +105,23 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
       setStatusSummary(null);
       setPermissionBlock(null);
       resetSave();
+      // Lazy-load extended profile fields so we never overwrite values we
+      // didn't fetch when the agent saves.
+      setExtendedLoading(true);
+      (async () => {
+        const { data } = await supabase
+          .from('profiles')
+          .select('city, district, village, town, occupation, monthly_rent')
+          .eq('id', tenant.id)
+          .maybeSingle();
+        setCity(data?.city || '');
+        setDistrict(data?.district || '');
+        setVillage(data?.village || '');
+        setTown(data?.town || '');
+        setOccupation(data?.occupation || '');
+        setMonthlyRent(data?.monthly_rent != null ? String(data.monthly_rent) : '');
+        setExtendedLoading(false);
+      })();
     }
   }, [open, tenant, resetSave]);
 
