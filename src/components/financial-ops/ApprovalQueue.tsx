@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Textarea } from '@/components/ui/textarea';
 import { formatUGX } from '@/lib/rentCalculations';
 import { differenceInHours } from 'date-fns';
-import { Search, CheckCircle2, XCircle, Clock, Banknote, Wallet, Loader2, ArrowUpDown } from 'lucide-react';
+import { Search, CheckCircle2, XCircle, Clock, Banknote, Wallet, Loader2, ArrowUpDown, Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { extractFromErrorObject, extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
 import { RequestDetailSheet } from './RequestDetailSheet';
@@ -65,6 +65,7 @@ export function ApprovalQueue() {
   const [inspectItem, setInspectItem] = useState<QueueItem | null>(null);
   const [payoutProof, setPayoutProof] = useState('');
   const [sortNewest, setSortNewest] = useState(false);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   // Wallet withdrawal requests (from withdrawal_requests table)
   const { data: walletWithdrawals = [], isLoading: loadingWalletWithdrawals } = useQuery({
@@ -210,6 +211,180 @@ export function ApprovalQueue() {
     }
     return list;
   }, [activeQueue, search, sortNewest, walletWithdrawals, walletOps]);
+
+  // Group cash withdrawals by pickup code for visual clustering
+  const groupedByCode = useMemo(() => {
+    const groups = new Map<string, QueueItem[]>();
+    const nonGrouped: QueueItem[] = [];
+    for (const item of items) {
+      const code = item.payoutDetails?.payoutCode;
+      if (item.payoutDetails?.method === 'cash' && code) {
+        if (!groups.has(code)) groups.set(code, []);
+        groups.get(code)!.push(item);
+      } else {
+        nonGrouped.push(item);
+      }
+    }
+    return { groups, nonGrouped };
+  }, [items]);
+
+  const handleCopyCode = async (code: string) => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopiedCode(code);
+      toast.success(`Copied ${code}`);
+      setTimeout(() => setCopiedCode((prev) => (prev === code ? null : prev)), 2000);
+    } catch {
+      toast.error('Failed to copy code');
+    }
+  };
+
+  const renderItemCard = (item: QueueItem) => {
+    const Icon = queueIcon[item.type];
+    const isCashOut = item.type === 'wallet_withdrawals';
+    const ageMinutes = Math.floor((Date.now() - new Date(item.createdAt).getTime()) / 60000);
+    const ageLabel = ageMinutes < 60 ? `${ageMinutes}m` : ageMinutes < 1440 ? `${Math.floor(ageMinutes / 60)}h` : `${Math.floor(ageMinutes / 1440)}d`;
+
+    return (
+      <div
+        key={item.id}
+        className={`rounded-xl border-2 overflow-hidden transition-colors ${
+          isCashOut
+            ? 'border-orange-500/40 bg-gradient-to-r from-orange-500/5 to-card'
+            : `border-l-4 ${urgencyBg[item.urgency]} border-t border-r border-b border-border/60 bg-card`
+        }`}
+      >
+        <div className={`px-3 py-1.5 flex items-center justify-between ${
+          isCashOut ? 'bg-orange-500/10' : 'bg-muted/30'
+        }`} onClick={() => setInspectItem(item)}>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              checked={selected.has(item.id)}
+              onCheckedChange={() => toggleSelect(item.id)}
+              onClick={(e) => e.stopPropagation()}
+              className="shrink-0"
+            />
+            <div className={`p-1 rounded-lg ${isCashOut ? 'bg-orange-500/20' : 'bg-muted'}`}>
+              <Icon className={`h-3.5 w-3.5 ${isCashOut ? 'text-orange-600' : 'text-amber-600'}`} />
+            </div>
+            <span className={`text-[10px] font-bold uppercase tracking-wider ${
+              isCashOut ? 'text-orange-600' : 'text-muted-foreground'
+            }`}>
+              {isCashOut ? 'Cash Out' : 'Wallet Op'}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            {item.pairedLegs && item.pairedLegs.length > 1 && (
+              <Badge variant="outline" className="text-[9px] h-5 px-1.5 gap-1 border-primary/40 bg-primary/5 text-primary">
+                ⛓ {item.pairedLegs.length} linked legs
+              </Badge>
+            )}
+            <Badge variant={item.urgency === 'red' ? 'destructive' : item.urgency === 'amber' ? 'secondary' : 'outline'} className="text-[9px] h-5 px-1.5">
+              {ageLabel} ago
+            </Badge>
+          </div>
+        </div>
+
+        <div className="p-3 space-y-2" onClick={() => setInspectItem(item)}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold truncate">{item.userName}</p>
+              <p className="text-[11px] text-muted-foreground truncate">{getItemDisplayLabel(item)}</p>
+              {item.userPhone && (
+                <p className="text-[10px] text-muted-foreground/70">{item.userPhone}</p>
+              )}
+            </div>
+            <div className={`text-right shrink-0 px-3 py-2 rounded-xl ${
+              isCashOut ? 'bg-orange-500/10' : 'bg-muted/50'
+            }`}>
+              <p className={`text-lg font-black tabular-nums ${
+                isCashOut ? 'text-orange-600' : 'text-foreground'
+              }`}>
+                {formatUGX(item.amount)}
+              </p>
+            </div>
+          </div>
+
+          {item.pairedLegs && item.pairedLegs.length > 1 && (
+            <div className="p-2.5 rounded-xl bg-primary/5 border border-primary/20 space-y-1.5">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                Double-entry event · approved as one unit
+              </p>
+              {item.pairedLegs.map((leg) => (
+                <div key={leg.id} className="flex items-center justify-between text-[11px]">
+                  <span className="flex items-center gap-1.5">
+                    <span className={`inline-block w-1.5 h-1.5 rounded-full ${leg.direction === 'cash_in' ? 'bg-emerald-500' : 'bg-orange-500'}`} />
+                    <span className="font-semibold uppercase tracking-wider text-muted-foreground">
+                      {leg.direction === 'cash_in' ? 'Credit (deposit)' : 'Debit (withdrawal)'}
+                    </span>
+                  </span>
+                  <span className="font-mono text-muted-foreground/70">#{leg.id.slice(0, 8)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {item.payoutDetails && isCashOut && (
+            <div className="p-2.5 rounded-xl bg-orange-500/5 border border-orange-500/20 space-y-1">
+              {item.payoutDetails.method === 'mobile_money' && (
+                <>
+                  <p className="text-xs font-semibold">📱 {item.payoutDetails.provider || 'MoMo'}: <span className="font-mono">{item.payoutDetails.number}</span></p>
+                  {item.payoutDetails.name && <p className="text-[11px] text-muted-foreground">Name: {item.payoutDetails.name}</p>}
+                </>
+              )}
+              {item.payoutDetails.method === 'bank_transfer' && (
+                <>
+                  <p className="text-xs font-semibold">🏦 {item.payoutDetails.bankName}</p>
+                  <p className="text-[11px] font-mono">Acc: {item.payoutDetails.bankAccountNumber}</p>
+                  {item.payoutDetails.bankAccountName && <p className="text-[11px] text-muted-foreground">Name: {item.payoutDetails.bankAccountName}</p>}
+                </>
+              )}
+              {item.payoutDetails.method === 'cash' && (
+                <>
+                  <p className="text-xs font-semibold">💵 Cash at: {item.payoutDetails.agentLocation || 'Agent'}</p>
+                  {item.payoutDetails.payoutCode && (
+                    <p className="text-[11px] font-mono font-bold text-amber-700">
+                      Pickup code: {item.payoutDetails.payoutCode}
+                    </p>
+                  )}
+                </>
+              )}
+              <Badge variant="outline" className="h-5 px-1.5 text-[9px]">
+                {item.payoutDetails.status?.replace(/_/g, ' ')}
+              </Badge>
+            </div>
+          )}
+
+          {item.payoutDetails?.status && !isCashOut && (
+            <Badge variant="outline" className="h-5 px-1.5 text-[9px]">
+              {item.payoutDetails.status.replace(/_/g, ' ')}
+            </Badge>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-0 border-t border-border/40">
+          <Button
+            variant="ghost"
+            className="h-12 rounded-none text-sm font-bold gap-1.5 text-primary hover:bg-primary/10"
+            onClick={(e) => { e.stopPropagation(); setSelected(new Set([item.id])); setBulkAction('approve'); }}
+            disabled={processing}
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            Approve
+          </Button>
+          <Button
+            variant="ghost"
+            className="h-12 rounded-none text-sm font-bold gap-1.5 text-destructive hover:bg-destructive/10 border-l border-border/40"
+            onClick={(e) => { e.stopPropagation(); setSelected(new Set([item.id])); setBulkAction('reject'); }}
+            disabled={processing}
+          >
+            <XCircle className="h-4 w-4" />
+            Reject
+          </Button>
+        </div>
+      </div>
+    );
+  };
 
   const toggleSelect = (id: string) => {
     setSelected(prev => {
@@ -507,152 +682,60 @@ export function ApprovalQueue() {
                     {selected.size > 0 ? `${selected.size} selected` : `${items.length} pending`}
                   </span>
                 </div>
-                {items.map((item) => {
-                  const Icon = queueIcon[item.type];
-                  const isCashOut = item.type === 'wallet_withdrawals';
-                  const ageMinutes = Math.floor((Date.now() - new Date(item.createdAt).getTime()) / 60000);
-                  const ageLabel = ageMinutes < 60 ? `${ageMinutes}m` : ageMinutes < 1440 ? `${Math.floor(ageMinutes / 60)}h` : `${Math.floor(ageMinutes / 1440)}d`;
-
+                {/* Render cash groups with pickup codes */}
+                {Array.from(groupedByCode.groups.entries()).map(([code, groupItems]) => {
+                  const groupTotal = groupItems.reduce((s, i) => s + i.amount, 0);
+                  const groupSelectedCount = groupItems.filter(i => selected.has(i.id)).length;
+                  const allSelected = groupItems.length > 0 && groupItems.every(i => selected.has(i.id));
                   return (
-                    <div
-                      key={item.id}
-                      className={`rounded-xl border-2 overflow-hidden transition-colors ${
-                        isCashOut
-                          ? 'border-orange-500/40 bg-gradient-to-r from-orange-500/5 to-card'
-                          : `border-l-4 ${urgencyBg[item.urgency]} border-t border-r border-b border-border/60 bg-card`
-                      }`}
-                    >
-                      <div className={`px-3 py-1.5 flex items-center justify-between ${
-                        isCashOut ? 'bg-orange-500/10' : 'bg-muted/30'
-                      }`} onClick={() => setInspectItem(item)}>
-                        <div className="flex items-center gap-2">
+                    <div key={code} className="rounded-xl border-2 border-amber-500/50 overflow-hidden bg-gradient-to-b from-amber-500/[0.07] to-card">
+                      {/* Group header: pickup code banner */}
+                      <div className="px-3 py-2 bg-amber-500/15 border-b border-amber-500/30 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="p-1 rounded-md bg-amber-500/25">
+                            <Banknote className="h-3.5 w-3.5 text-amber-700" />
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800">Cash Pickup Group</span>
+                            <span className="text-xs font-mono font-black text-amber-900 tracking-widest truncate">{code}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-amber-500/20 text-amber-900 border-amber-500/30">
+                            {groupItems.length} req · {formatUGX(groupTotal)}
+                          </Badge>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className={`h-7 text-[10px] px-2 gap-1 border-amber-500/40 ${copiedCode === code ? 'bg-emerald-500/15 text-emerald-700 border-emerald-500/40' : 'text-amber-800 hover:bg-amber-500/20'}`}
+                            onClick={() => handleCopyCode(code)}
+                          >
+                            {copiedCode === code ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                            {copiedCode === code ? 'Copied' : 'Copy'}
+                          </Button>
                           <Checkbox
-                            checked={selected.has(item.id)}
-                            onCheckedChange={() => toggleSelect(item.id)}
-                            onClick={(e) => e.stopPropagation()}
+                            checked={allSelected}
+                            onCheckedChange={() => {
+                              if (allSelected) {
+                                groupItems.forEach(i => { if (selected.has(i.id)) toggleSelect(i.id); });
+                              } else {
+                                groupItems.forEach(i => { if (!selected.has(i.id)) toggleSelect(i.id); });
+                              }
+                            }}
                             className="shrink-0"
                           />
-                          <div className={`p-1 rounded-lg ${isCashOut ? 'bg-orange-500/20' : 'bg-muted'}`}>
-                            <Icon className={`h-3.5 w-3.5 ${isCashOut ? 'text-orange-600' : 'text-amber-600'}`} />
-                          </div>
-                          <span className={`text-[10px] font-bold uppercase tracking-wider ${
-                            isCashOut ? 'text-orange-600' : 'text-muted-foreground'
-                          }`}>
-                            {isCashOut ? 'Cash Out' : 'Wallet Op'}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          {item.pairedLegs && item.pairedLegs.length > 1 && (
-                            <Badge variant="outline" className="text-[9px] h-5 px-1.5 gap-1 border-primary/40 bg-primary/5 text-primary">
-                              ⛓ {item.pairedLegs.length} linked legs
-                            </Badge>
-                          )}
-                          <Badge variant={item.urgency === 'red' ? 'destructive' : item.urgency === 'amber' ? 'secondary' : 'outline'} className="text-[9px] h-5 px-1.5">
-                            {ageLabel} ago
-                          </Badge>
                         </div>
                       </div>
-
-                      <div className="p-3 space-y-2" onClick={() => setInspectItem(item)}>
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-bold truncate">{item.userName}</p>
-                            <p className="text-[11px] text-muted-foreground truncate">{getItemDisplayLabel(item)}</p>
-                            {item.userPhone && (
-                              <p className="text-[10px] text-muted-foreground/70">{item.userPhone}</p>
-                            )}
-                          </div>
-                          <div className={`text-right shrink-0 px-3 py-2 rounded-xl ${
-                            isCashOut ? 'bg-orange-500/10' : 'bg-muted/50'
-                          }`}>
-                            <p className={`text-lg font-black tabular-nums ${
-                              isCashOut ? 'text-orange-600' : 'text-foreground'
-                            }`}>
-                              {formatUGX(item.amount)}
-                            </p>
-                          </div>
-                        </div>
-
-                        {item.pairedLegs && item.pairedLegs.length > 1 && (
-                          <div className="p-2.5 rounded-xl bg-primary/5 border border-primary/20 space-y-1.5">
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-primary">
-                              Double-entry event · approved as one unit
-                            </p>
-                            {item.pairedLegs.map((leg) => (
-                              <div key={leg.id} className="flex items-center justify-between text-[11px]">
-                                <span className="flex items-center gap-1.5">
-                                  <span className={`inline-block w-1.5 h-1.5 rounded-full ${leg.direction === 'cash_in' ? 'bg-emerald-500' : 'bg-orange-500'}`} />
-                                  <span className="font-semibold uppercase tracking-wider text-muted-foreground">
-                                    {leg.direction === 'cash_in' ? 'Credit (deposit)' : 'Debit (withdrawal)'}
-                                  </span>
-                                </span>
-                                <span className="font-mono text-muted-foreground/70">#{leg.id.slice(0, 8)}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        {item.payoutDetails && isCashOut && (
-                          <div className="p-2.5 rounded-xl bg-orange-500/5 border border-orange-500/20 space-y-1">
-                            {item.payoutDetails.method === 'mobile_money' && (
-                              <>
-                                <p className="text-xs font-semibold">📱 {item.payoutDetails.provider || 'MoMo'}: <span className="font-mono">{item.payoutDetails.number}</span></p>
-                                {item.payoutDetails.name && <p className="text-[11px] text-muted-foreground">Name: {item.payoutDetails.name}</p>}
-                              </>
-                            )}
-                            {item.payoutDetails.method === 'bank_transfer' && (
-                              <>
-                                <p className="text-xs font-semibold">🏦 {item.payoutDetails.bankName}</p>
-                                <p className="text-[11px] font-mono">Acc: {item.payoutDetails.bankAccountNumber}</p>
-                                {item.payoutDetails.bankAccountName && <p className="text-[11px] text-muted-foreground">Name: {item.payoutDetails.bankAccountName}</p>}
-                              </>
-                            )}
-                            {item.payoutDetails.method === 'cash' && (
-                              <>
-                                <p className="text-xs font-semibold">💵 Cash at: {item.payoutDetails.agentLocation || 'Agent'}</p>
-                                {item.payoutDetails.payoutCode && (
-                                  <p className="text-[11px] font-mono font-bold text-amber-700">
-                                    Pickup code: {item.payoutDetails.payoutCode}
-                                  </p>
-                                )}
-                              </>
-                            )}
-                            <Badge variant="outline" className="h-5 px-1.5 text-[9px]">
-                              {item.payoutDetails.status?.replace(/_/g, ' ')}
-                            </Badge>
-                          </div>
-                        )}
-
-                        {item.payoutDetails?.status && !isCashOut && (
-                          <Badge variant="outline" className="h-5 px-1.5 text-[9px]">
-                            {item.payoutDetails.status.replace(/_/g, ' ')}
-                          </Badge>
-                        )}
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-0 border-t border-border/40">
-                        <Button
-                          variant="ghost"
-                          className="h-12 rounded-none text-sm font-bold gap-1.5 text-primary hover:bg-primary/10"
-                          onClick={(e) => { e.stopPropagation(); setSelected(new Set([item.id])); setBulkAction('approve'); }}
-                          disabled={processing}
-                        >
-                          <CheckCircle2 className="h-4 w-4" />
-                          Approve
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          className="h-12 rounded-none text-sm font-bold gap-1.5 text-destructive hover:bg-destructive/10 border-l border-border/40"
-                          onClick={(e) => { e.stopPropagation(); setSelected(new Set([item.id])); setBulkAction('reject'); }}
-                          disabled={processing}
-                        >
-                          <XCircle className="h-4 w-4" />
-                          Reject
-                        </Button>
+                      {/* Items in this group */}
+                      <div className="p-2 space-y-2">
+                        {groupItems.map(item => renderItemCard(item))}
                       </div>
                     </div>
                   );
                 })}
+
+                {/* Render non-grouped items flat */}
+                {groupedByCode.nonGrouped.map(item => renderItemCard(item))}
               </div>
             )}
           </ScrollArea>
