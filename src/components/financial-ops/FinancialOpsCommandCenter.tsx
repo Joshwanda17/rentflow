@@ -19,6 +19,7 @@ import { WithdrawalHistoryStatement } from './WithdrawalHistoryStatement';
 import { PortfolioTopUpVerification } from './PortfolioTopUpVerification';
 import { WalletBreakdownReadOnly } from './WalletBreakdownReadOnly';
 import { EmailTransactionsPanel } from './EmailTransactionsPanel';
+import { BulkBankPayoutPanel } from './BulkBankPayoutPanel';
 import { FundedTenantsList } from './FundedTenantsList';
 import { AutoCreditReviewPanel } from './AutoCreditReviewPanel';
 import { ProxyWithdrawalDiagnosticsPanel } from './ProxyWithdrawalDiagnosticsPanel';
@@ -157,6 +158,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
             </div>
             <LandlordPayoutsQueue />
             <EmailPayoutAutoMatchPanel />
+            <BulkBankPayoutPanel />
             <FinOpsWithdrawalVerification />
             <PendingWalletOperationsWidget requirePaymentRef={requirePaymentRef} />
             {/* Portfolio top-ups parked at status='awaiting_verification' —

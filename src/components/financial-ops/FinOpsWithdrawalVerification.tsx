@@ -19,6 +19,7 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
+import { extractToPhones, normalizeUgPhone } from '@/components/financial-ops/emailExtraction';
 
 interface WithdrawalRequest {
   id: string;
@@ -66,13 +67,39 @@ export function FinOpsWithdrawalVerification() {
   const [rejectionReason, setRejectionReason] = useState('');
   const [reference, setReference] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<string>('');
+
+  // Suggested TIDs / references pulled from recent outgoing emails matching
+  // this withdrawal (same recipient phone + amount, last 7 days). Lets the
+  // operator one-tap-fill the reference instead of hunting through Gmail.
+  type TidSuggestion = {
+    tid: string;
+    amount: number;
+    date: string;
+    channel: string | null;
+    counterparty: string | null;
+    used: boolean;
+  };
+  const [suggestedTids, setSuggestedTids] = useState<TidSuggestion[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   
   const [activeTab, setActiveTab] = useState<ActiveTab>('pending');
+
+  // Map a withdrawal's payout_method + provider → the dialog's payment-method
+  // dropdown value. Used to pre-select the method when an operator opens the
+  // Approve dialog.
+  const inferPaymentMethod = (req: WithdrawalRequest): string => {
+    const m = (req.payout_method || 'mobile_money').toLowerCase();
+    if (m === 'bank_transfer' || m === 'bank') return 'bank_transfer';
+    if (m === 'cash') return 'cash';
+    const prov = (req.mobile_money_provider || '').toLowerCase();
+    if (prov.includes('airtel')) return 'airtel_money';
+    return 'mtn_momo';
+  };
 
   // Live wallet balances for the requester of each withdrawal.
   // Keyed by user_id → { withdrawable (personal), float (operational) }.
   const [walletBalances, setWalletBalances] = useState<
-    Record<string, { withdrawable: number; float: number; loading?: boolean }>
+    Record<string, { withdrawable: number; float: number; pendingHolds: number; loading?: boolean }>
   >({});
 
   const fetchWalletBalances = useCallback(async (userIds: string[]) => {
@@ -85,6 +112,7 @@ export function FinOpsWithdrawalVerification() {
         return [uid, {
           withdrawable: Number((r.withdrawable as number | string | undefined) ?? 0),
           float: Number((r.float_balance as number | string | undefined) ?? 0),
+          pendingHolds: Number((r.pending_holds as number | string | undefined) ?? 0),
         }] as const;
       })
     );
@@ -179,6 +207,92 @@ export function FinOpsWithdrawalVerification() {
   }, [fetchWalletBalances]);
 
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
+
+  // When the Approve dialog opens for a withdrawal, (1) pre-fill the payment
+  // method from the request and (2) fetch matching outgoing email TIDs so
+  // the operator can one-tap the reference instead of typing it.
+  useEffect(() => {
+    if (!approveOpen || !selected) {
+      setSuggestedTids([]);
+      return;
+    }
+    setPaymentMethod((prev) => prev || inferPaymentMethod(selected));
+
+    let cancelled = false;
+    (async () => {
+      setLoadingSuggestions(true);
+      try {
+        const amt = Number(selected.amount || 0);
+        if (!amt) {
+          if (!cancelled) setSuggestedTids([]);
+          return;
+        }
+        const phone = normalizeUgPhone(selected.mobile_money_number || '');
+        const method = (selected.payout_method || 'mobile_money').toLowerCase();
+        const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        const { data, error } = await supabase
+          .from('gmail_transactions')
+          .select('id,amount,transaction_id,internal_date,channel,counterparty,subject,snippet,from_email,from_name,direction')
+          .eq('direction', 'out')
+          .not('transaction_id', 'is', null)
+          .gte('amount', amt - 100)
+          .lte('amount', amt + 100)
+          .gte('internal_date', since)
+          .order('internal_date', { ascending: false })
+          .limit(50);
+        if (error) throw error;
+        const rows = (data ?? []).filter((r: any) => {
+          // For mobile-money withdrawals we additionally require the
+          // recipient phone to appear after "to" in the email body — this
+          // is what discriminates the right TID from other same-amount
+          // payouts on the same day.
+          if (method === 'mobile_money' && phone) {
+            return extractToPhones(r).includes(phone);
+          }
+          return true;
+        });
+        const tids = Array.from(
+          new Set(rows.map((r: any) => String(r.transaction_id).trim().toUpperCase())),
+        );
+        const usedSet = new Set<string>();
+        if (tids.length) {
+          const { data: used } = await supabase
+            .from('withdrawal_requests')
+            .select('fin_ops_reference,status')
+            .in('fin_ops_reference', tids);
+          (used ?? []).forEach((u: any) => {
+            if (!u.fin_ops_reference) return;
+            if (['rejected', 'cancelled', 'failed', 'expired'].includes(String(u.status))) return;
+            usedSet.add(String(u.fin_ops_reference).trim().toUpperCase());
+          });
+        }
+        const seen = new Set<string>();
+        const list: TidSuggestion[] = [];
+        for (const r of rows as any[]) {
+          const t = String(r.transaction_id).trim().toUpperCase();
+          if (seen.has(t)) continue;
+          seen.add(t);
+          list.push({
+            tid: t,
+            amount: Number(r.amount) || 0,
+            date: r.internal_date,
+            channel: r.channel ?? null,
+            counterparty: r.counterparty ?? null,
+            used: usedSet.has(t),
+          });
+          if (list.length >= 6) break;
+        }
+        if (!cancelled) setSuggestedTids(list);
+      } catch (e) {
+        console.error('TID suggestion fetch failed:', e);
+        if (!cancelled) setSuggestedTids([]);
+      } finally {
+        if (!cancelled) setLoadingSuggestions(false);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [approveOpen, selected?.id]);
 
   // Realtime: refetch on any insert/update to withdrawal_requests so cards
   // disappear the moment ANY operator approves/rejects them.
@@ -433,6 +547,7 @@ export function FinOpsWithdrawalVerification() {
       const bal = walletBalances[opts.userId];
       const personal = bal?.withdrawable ?? 0;
       const float = bal?.float ?? 0;
+      const pendingHolds = bal?.pendingHolds ?? 0;
       const totalAvailable = personal + float;
       const insufficient = opts.showImpact && bal !== undefined && totalAvailable < amount;
       const afterPersonal = Math.max(0, personal - amount);
@@ -488,6 +603,17 @@ export function FinOpsWithdrawalVerification() {
               </div>
             </div>
           </div>
+          {bal && pendingHolds > 0 && (
+            <div className="flex items-center justify-between gap-2 px-1 py-1 rounded bg-amber-500/10 border border-amber-500/30">
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider">
+                <Clock className="h-3 w-3" />
+                Reserved against pending requests
+              </span>
+              <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400 tabular-nums">
+                {formatCurrency(pendingHolds)}
+              </span>
+            </div>
+          )}
           {opts.showImpact && bal && (
             <div className="flex items-center justify-between text-[10px] pt-0.5 border-t border-border/40">
               <span className="text-muted-foreground">
@@ -921,6 +1047,40 @@ export function FinOpsWithdrawalVerification() {
                   <p className="text-xs font-medium text-muted-foreground mb-1.5">
                     {paymentMethod === 'cash' ? 'Receipt Number' : paymentMethod === 'bank_transfer' ? 'Bank Reference' : 'Transaction ID (TID)'}
                   </p>
+                  {(loadingSuggestions || suggestedTids.length > 0) && (
+                    <div className="mb-2 p-2 rounded-lg border border-primary/20 bg-primary/5">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-primary mb-1.5">
+                        {loadingSuggestions
+                          ? 'Scanning recent emails…'
+                          : `Matching emails (last 7d) — tap to fill`}
+                      </p>
+                      {loadingSuggestions ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                      ) : (
+                        <div className="flex flex-wrap gap-1.5">
+                          {suggestedTids.map((s) => (
+                            <button
+                              key={s.tid}
+                              type="button"
+                              onClick={() => setReference(s.tid)}
+                              className={`px-2 py-1 rounded-md border text-[11px] font-mono transition-colors ${
+                                s.used
+                                  ? 'border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/15'
+                                  : reference.trim().toUpperCase() === s.tid
+                                    ? 'border-primary bg-primary text-primary-foreground'
+                                    : 'border-primary/40 bg-background hover:bg-primary/10 text-foreground'
+                              }`}
+                              title={`${formatCurrency(s.amount)} · ${new Date(s.date).toLocaleString()}${s.counterparty ? ` · ${s.counterparty}` : ''}${s.used ? ' · already used on another withdrawal' : ''}`}
+                            >
+                              <span className="font-bold">{s.tid}</span>
+                              <span className="ml-1 opacity-70">{formatCurrency(s.amount)}</span>
+                              {s.used && <span className="ml-1 font-bold">· USED</span>}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <Input
                     placeholder={paymentMethod === 'cash' ? 'Enter receipt number' : paymentMethod === 'bank_transfer' ? 'Enter bank reference' : 'Enter TID to confirm payment'}
                     value={reference}

@@ -3710,6 +3710,7 @@ export type Database = {
           metadata: Json
           partner_id: string
           proxy_agent_id: string
+          remaining_after: number | null
           status: string
           withdrawal_request_id: string
         }
@@ -3722,6 +3723,7 @@ export type Database = {
           metadata?: Json
           partner_id: string
           proxy_agent_id: string
+          remaining_after?: number | null
           status?: string
           withdrawal_request_id: string
         }
@@ -3734,6 +3736,7 @@ export type Database = {
           metadata?: Json
           partner_id?: string
           proxy_agent_id?: string
+          remaining_after?: number | null
           status?: string
           withdrawal_request_id?: string
         }
@@ -3753,6 +3756,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      bulk_payout_sender_patterns: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string | null
+          id: string
+          label: string | null
+          needle: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          label?: string | null
+          needle: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          label?: string | null
+          needle?: string
+        }
+        Relationships: []
       }
       business_advance_daily_accruals: {
         Row: {
@@ -12351,6 +12381,9 @@ export type Database = {
           landlord_payout_last_run_at: string | null
           landlord_payout_next_run_at: string | null
           landlord_verification_method: string | null
+          last_payment_amount: number | null
+          last_payment_recipient_name: string | null
+          last_payment_recipient_role: string | null
           last_resubmitted_at: string | null
           latest_rent_receipt_uploaded_at: string | null
           latest_rent_receipt_url: string | null
@@ -12387,6 +12420,7 @@ export type Database = {
           schedule_status: string | null
           status: string | null
           supporter_id: string | null
+          tenancy_continuity: string | null
           tenancy_end_reason: string | null
           tenancy_ended_at: string | null
           tenancy_status: string
@@ -12456,6 +12490,9 @@ export type Database = {
           landlord_payout_last_run_at?: string | null
           landlord_payout_next_run_at?: string | null
           landlord_verification_method?: string | null
+          last_payment_amount?: number | null
+          last_payment_recipient_name?: string | null
+          last_payment_recipient_role?: string | null
           last_resubmitted_at?: string | null
           latest_rent_receipt_uploaded_at?: string | null
           latest_rent_receipt_url?: string | null
@@ -12492,6 +12529,7 @@ export type Database = {
           schedule_status?: string | null
           status?: string | null
           supporter_id?: string | null
+          tenancy_continuity?: string | null
           tenancy_end_reason?: string | null
           tenancy_ended_at?: string | null
           tenancy_status?: string
@@ -12561,6 +12599,9 @@ export type Database = {
           landlord_payout_last_run_at?: string | null
           landlord_payout_next_run_at?: string | null
           landlord_verification_method?: string | null
+          last_payment_amount?: number | null
+          last_payment_recipient_name?: string | null
+          last_payment_recipient_role?: string | null
           last_resubmitted_at?: string | null
           latest_rent_receipt_uploaded_at?: string | null
           latest_rent_receipt_url?: string | null
@@ -12597,6 +12638,7 @@ export type Database = {
           schedule_status?: string | null
           status?: string | null
           supporter_id?: string | null
+          tenancy_continuity?: string | null
           tenancy_end_reason?: string | null
           tenancy_ended_at?: string | null
           tenancy_status?: string
@@ -16449,6 +16491,9 @@ export type Database = {
           landlord_payout_last_run_at: string | null
           landlord_payout_next_run_at: string | null
           landlord_verification_method: string | null
+          last_payment_amount: number | null
+          last_payment_recipient_name: string | null
+          last_payment_recipient_role: string | null
           last_resubmitted_at: string | null
           latest_rent_receipt_uploaded_at: string | null
           latest_rent_receipt_url: string | null
@@ -16485,6 +16530,7 @@ export type Database = {
           schedule_status: string | null
           status: string | null
           supporter_id: string | null
+          tenancy_continuity: string | null
           tenancy_end_reason: string | null
           tenancy_ended_at: string | null
           tenancy_status: string

@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
 
     const { data: tx, error: txErr } = await admin
       .from("gmail_transactions")
-      .select("id, amount, transaction_id, gmail_message_id, is_bulk_bank_payout, bulk_payout_allocated_total, bulk_payout_settled_at, raw_body, snippet, subject")
+      .select("id, amount, transaction_id, gmail_message_id, is_bulk_bank_payout, bulk_payout_allocated_total, bulk_payout_settled_at, raw_body, snippet, subject, internal_date")
       .eq("id", gmailTxId)
       .maybeSingle();
     if (txErr || !tx) {
@@ -69,14 +69,23 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Candidate withdrawal requests: bank payout, pending, not yet allocated
-    const { data: candidates } = await admin
+    // Date window: only allocate to withdrawals made the SAME calendar day (UTC) as the bulk email
+    const emailDateIso = tx.internal_date ? new Date(tx.internal_date).toISOString() : null;
+    const dayStart = emailDateIso ? `${emailDateIso.slice(0, 10)}T00:00:00.000Z` : null;
+    const dayEnd = emailDateIso ? `${emailDateIso.slice(0, 10)}T23:59:59.999Z` : null;
+
+    // Candidate withdrawal requests: bank payout, pending, created on same date as email
+    let query = admin
       .from("withdrawal_requests")
       .select("id, user_id, amount, payout_method, agent_id, proxy_partner_id, status, created_at")
       .in("status", ["pending", "manager_approved", "cfo_approved"])
       .ilike("payout_method", "bank%")
       .order("created_at", { ascending: true })
       .limit(200);
+    if (dayStart && dayEnd) {
+      query = query.gte("created_at", dayStart).lte("created_at", dayEnd);
+    }
+    const { data: candidates } = await query;
 
     const { data: alreadyAllocated } = await admin
       .from("bulk_bank_payout_allocations")
@@ -156,7 +165,17 @@ Deno.serve(async (req) => {
         proxy_agent_id: proxy.agent_id,
         allocated_amount: wrAmount,
         status: "settled",
-        metadata: { reference: ref, email_tid: tx.transaction_id, settled_via: "skybubbles_bulk" },
+        remaining_after: remaining - wrAmount,
+        metadata: {
+          reference: ref,
+          email_tid: tx.transaction_id,
+          settled_via: "bulk_bank_payout",
+          batch_total: totalAmount,
+          remaining_before: remaining,
+          remaining_after: remaining - wrAmount,
+          email_date: emailDateIso,
+          withdrawal_date: wr.created_at,
+        },
       });
       remaining -= wrAmount;
       settled.push({ id: wr.id, amount: wrAmount, proxy_agent_id: proxy.agent_id });
