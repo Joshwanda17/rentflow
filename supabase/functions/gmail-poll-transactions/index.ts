@@ -1196,9 +1196,10 @@ async function tryAutoApproveMomoWithdrawal(
     try {
       await supabase.from('system_events').insert({
         event_type: 'withdrawal.momo.auto_approved',
-        aggregate_type: 'withdrawal_request',
-        aggregate_id: match.id,
-        payload: {
+        related_entity_type: 'withdrawal_request',
+        related_entity_id: match.id,
+        user_id: match.user_id,
+        metadata: {
           withdrawal_id: match.id,
           user_id: match.user_id,
           provider,
