@@ -133,6 +133,15 @@ function parseTransaction(text: string): {
     if (mob) out.counterparty = mob[1];
   }
 
+  // MTN MoMo outbound "sent to NAME (07XXXXXXXX)" — capture the recipient
+  // phone in counterparty so the withdrawal auto-approver can match it
+  // against a pending withdrawal_request.mobile_money_number.
+  if (out.direction === 'out' && !airtelAgentPayout) {
+    const mtnTo = t.match(/\bto\b[^()]{0,80}?\(\s*((?:\+?256|0)\d{8,9})\s*\)/i)
+      || t.match(/\bto\s+((?:\+?256|0)\d{8,9})\b/i);
+    if (mtnTo) out.counterparty = mtnTo[1];
+  }
+
   // Sum every fee/charge/tax/excise/commission/VAT/stamp-duty component
   // mentioned in the body so totals reflect the FULL cost the provider
   // (MTN / Airtel / Equity Bank / etc.) deducted, not just the first label.
