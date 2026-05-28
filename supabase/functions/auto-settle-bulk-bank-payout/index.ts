@@ -194,6 +194,69 @@ Deno.serve(async (req) => {
           },
         });
       } catch (_) { /* non-fatal */ }
+
+      // ── Notify proxy agent: wallet was debited + pending request cleared ──
+      try {
+        // Resolve agent email + names
+        const { data: agentProfile } = await admin
+          .from("profiles")
+          .select("email, full_name")
+          .eq("id", proxy.agent_id)
+          .maybeSingle();
+        const { data: partnerProfile } = await admin
+          .from("profiles")
+          .select("full_name")
+          .eq("id", wr.user_id)
+          .maybeSingle();
+
+        // Compute remaining in-flight for this partner AFTER this settlement
+        const { data: stillPending } = await admin
+          .from("withdrawal_requests")
+          .select("amount")
+          .eq("user_id", wr.user_id)
+          .in("status", ["pending", "requested", "manager_approved", "cfo_approved", "processing"]);
+        const remainingInFlight = (stillPending || [])
+          .reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+
+        if (agentProfile?.email) {
+          await admin.functions.invoke("send-transactional-email", {
+            body: {
+              templateName: "proxy-payout-settled",
+              recipientEmail: agentProfile.email,
+              idempotencyKey: `proxy-payout-settled-${wr.id}`,
+              templateData: {
+                agent_name: agentProfile.full_name || "Agent",
+                partner_name: partnerProfile?.full_name || "your partner",
+                amount: wrAmount,
+                currency: "UGX",
+                reference: ref,
+                date: new Date().toLocaleDateString("en-GB", {
+                  day: "2-digit",
+                  month: "long",
+                  year: "numeric",
+                }),
+                remaining_in_flight: remainingInFlight,
+              },
+            },
+          });
+        }
+
+        // Emit system event so UIs (proxy agent dashboard) can refresh
+        await admin.from("system_events").insert({
+          event_type: "proxy.payout.settled",
+          payload: {
+            withdrawal_request_id: wr.id,
+            partner_id: wr.user_id,
+            proxy_agent_id: proxy.agent_id,
+            amount: wrAmount,
+            reference: ref,
+            gmail_transaction_id: gmailTxId,
+            remaining_in_flight: remainingInFlight,
+          },
+        });
+      } catch (notifyEx) {
+        console.warn("[auto-settle] proxy notification failed:", notifyEx);
+      }
     }
 
     const newAllocated = totalAmount - remaining;
