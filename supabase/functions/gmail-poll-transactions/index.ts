@@ -111,7 +111,16 @@ function parseTransaction(text: string): {
   // wallet — it's a payout, not an incoming credit. Match this BEFORE the
   // generic "deposited" → 'in' rule so it wins.
   const airtelAgentPayout = /you\s+have\s+deposited\s+ugx[\s\d,.]+.*\bmobile\s+number\s*[:\-]?\s*(?:\+?256|0)?\d{6,}/i.test(t);
+  // Bank-style outbound payouts (Equity/Stanbic/Centenary etc) phrase it as
+  // "<AMOUNT> UGX was sent to <RECIPIENT>". The boilerplate disclaimer in the
+  // same email almost always contains "If you have received this message by
+  // error", which falsely triggers the generic 'in' rule. Detect the explicit
+  // bank payout shape FIRST so the disclaimer cannot flip direction.
+  const bankOutboundPayout = /\bugx\s*was\s+sent\s+to\b/i.test(t)
+    || /\bwas\s+sent\s+to\s+[A-Z]/.test(t)
+    || /\byou\s+(?:have\s+)?(?:sent|paid|transferred)\b/i.test(t);
   if (airtelAgentPayout) out.direction = 'out';
+  else if (bankOutboundPayout) out.direction = 'out';
   else if (/\b(received|deposited|credited|you have received|payment received|recd from|cash in|deposit of)\b/i.test(t)) out.direction = 'in';
   else if (/\b(sent|paid|withdrawn|withdrew|debited|cash out|transferred to|payment to|purchase of|bought)\b/i.test(t)) out.direction = 'out';
   else if (/\b(charge|fee|fees|tax|levy)\b/i.test(t) && !/charge\s*[:\-]?\s*(?:ugx)?\s*0\b/i.test(t)) out.direction = 'charge';
