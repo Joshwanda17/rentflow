@@ -314,15 +314,32 @@ export function ApprovalQueue() {
           const approvalResults: string[] = [];
           const failedApprovals: string[] = [];
           for (const id of ids) {
+            const itemForId = items.find((i) => i.id === id);
+            const isCashItem = itemForId?.payoutDetails?.method === 'cash';
+            // Cash payouts: prefer the WPO code already attached to the
+            // request (issued at submission time). Fall back to the
+            // payoutProof field so an operator can manually type the code
+            // the user presented. Always normalise to upper-case so the
+            // server-side equality check is unambiguous.
+            const cashCode = isCashItem
+              ? (itemForId?.payoutDetails?.payoutCode || payoutProof.trim())
+                  .toUpperCase()
+              : undefined;
             const { data: approveData, error: approveErr } = await supabase.functions.invoke('approve-withdrawal', {
               body: {
                 withdrawal_id: id,
                 reference: payoutProof.trim().toUpperCase(),
                 payment_method: paymentMethodLabel,
+                ...(isCashItem ? { payout_code: cashCode } : {}),
               },
             });
             if (approveErr || approveData?.error) {
-              const realMsg = await extractFromErrorObject(approveErr || new Error(approveData?.error || 'unknown'), approveData?.error || 'unknown error');
+              // Server returns a friendly `message` alongside `error` for
+              // WPO mismatches/expirations — surface it verbatim instead
+              // of the opaque error code.
+              const friendly = approveData?.message as string | undefined;
+              const realMsg = friendly
+                || await extractFromErrorObject(approveErr || new Error(approveData?.error || 'unknown'), approveData?.error || 'unknown error');
               console.error(`[ApprovalQueue] approve-withdrawal failed for ${id}:`, realMsg);
               failedApprovals.push(id);
               toast.warning(`Failed to approve ${id.slice(0, 8)}: ${realMsg}`);
