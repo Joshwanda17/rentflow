@@ -441,6 +441,35 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
   };
 
   const handleCloseConfirmation = () => {
+    // no-op
+    setSavedSummary(null);
+    setStatusSummary(null);
+    setPermissionBlock(null);
+    onOpenChange(false);
+  };
+
+  const captureGps = () => {
+    if (!('geolocation' in navigator)) {
+      toast.error('GPS not available on this device');
+      return;
+    }
+    setPinningGps(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setResidenceLat(Number(pos.coords.latitude.toFixed(6)));
+        setResidenceLng(Number(pos.coords.longitude.toFixed(6)));
+        setPinningGps(false);
+        toast.success('GPS captured');
+      },
+      (err) => {
+        setPinningGps(false);
+        toast.error(err.message || 'Failed to capture GPS');
+      },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  };
+
+  const _legacyClose = () => {
     setSavedSummary(null);
     setStatusSummary(null);
     setPermissionBlock(null);
