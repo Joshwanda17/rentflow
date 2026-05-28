@@ -1268,6 +1268,9 @@ async function tryAutoApproveMomoWithdrawal(
         reference,
         payment_method: paymentMethod,
         system_caller: true,
+        // Consume the requester's "reserved against pending requests" hold
+        // and debit their wallet directly — the cash left via their MoMo #.
+        force_requester_debit: true,
       }),
     });
     const text = await res.text();
