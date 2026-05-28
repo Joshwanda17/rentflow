@@ -585,7 +585,7 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
                 Edit Tenant Details
               </DialogTitle>
               <DialogDescription>
-                Update contact information for this tenant. Other fields (verification, balances) cannot be changed here.
+                Update contact, location and property details for this tenant. Verification status and rent-plan balances are not changed here.
               </DialogDescription>
             </DialogHeader>
 
