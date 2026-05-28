@@ -3619,6 +3619,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         totalCount: localPortfolios.length,
         rows: filtered.map((p) => ({
           investorId: p.investorId,
+          portfolioId: p.portfolioId,
           name: p.name,
           portfolioName: p.portfolioName,
           phone: p.phone,
@@ -3629,6 +3630,9 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
           daysUntil: p.daysUntil,
           nextPayoutDate: p.nextPayoutDate,
           createdAt: p.createdAt,
+          durationMonths: p.durationMonths,
+          nextRoiDate: p.nextRoiDate,
+          payoutDay: p.payoutDay,
         })),
       });
       const stamp = new Date().toISOString().slice(0, 10);
