@@ -980,6 +980,18 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
       if (requestError) throw requestError;
 
+      // If this submission resolved a saved draft, mark it submitted.
+      if (draftId && rentReq?.id) {
+        try {
+          await supabase
+            .from('rent_request_drafts' as any)
+            .update({ status: 'submitted', submitted_rent_request_id: rentReq.id })
+            .eq('id', draftId);
+        } catch (e) {
+          console.warn('Failed to mark draft submitted', e);
+        }
+      }
+
       // Upload house photos if any
       if (housePhotos.length > 0 && rentReq?.id) {
         const photoUrls = await uploadHousePhotos(rentReq.id);
@@ -2035,20 +2047,36 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 >
                   Back
                 </Button>
-                <Button 
-                  onClick={handleSubmit} 
-                  className="flex-1"
-                  disabled={loading || !amount || amount < 50000}
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Submitting...
-                    </>
-                  ) : (
-                    'Submit Request'
-                  )}
-                </Button>
+                {amount > perTenantMax ? (
+                  <Button
+                    type="button"
+                    onClick={handleSaveForLater}
+                    className="flex-1"
+                    disabled={savingDraft || !amount}
+                    variant="secondary"
+                  >
+                    {savingDraft ? (
+                      <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving…</>
+                    ) : (
+                      `Save for later (over ${formatUGX(perTenantMax)} cap)`
+                    )}
+                  </Button>
+                ) : (
+                  <Button 
+                    onClick={handleSubmit} 
+                    className="flex-1"
+                    disabled={loading || !amount || amount < 50000}
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Submitting...
+                      </>
+                    ) : (
+                      'Submit Request'
+                    )}
+                  </Button>
+                )}
               </div>
               </>
               )}
