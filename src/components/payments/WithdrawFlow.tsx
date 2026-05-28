@@ -290,6 +290,10 @@ export default function WithdrawFlow({
     setSelectedSavedId(null);
     setSaveAsNew(true);
     setSavedNickname('');
+    setCashPickupCode(null);
+    setCashCodeInput('');
+    setCashCodeAcknowledged(false);
+    setCashCodeError(null);
   };
 
   /**
