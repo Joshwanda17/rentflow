@@ -133,6 +133,16 @@ function parseTransaction(text: string): {
     if (mob) out.counterparty = mob[1];
   }
 
+  // MTN outbound "sent" emails: "You have sent UGX X to NAME (256780123456)"
+  // or "...to 0780123456". When direction is 'out' on MTN MoMo and we don't
+  // already have a counterparty phone, lift the recipient phone so the
+  // withdrawal auto-approver can match it.
+  if (!out.counterparty && out.direction === 'out' &&
+      (/\bmomo\b|mtn\s*mobile\s*money|mtn\s*momo|\bmtn\b/i.test(t))) {
+    const mtnTo = t.match(/\bto\b[^()]{0,80}?\(?\s*((?:\+?256|0)\d{8,9})\s*\)?/i);
+    if (mtnTo) out.counterparty = mtnTo[1];
+  }
+
   // Sum every fee/charge/tax/excise/commission/VAT/stamp-duty component
   // mentioned in the body so totals reflect the FULL cost the provider
   // (MTN / Airtel / Equity Bank / etc.) deducted, not just the first label.
