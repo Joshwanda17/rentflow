@@ -584,7 +584,14 @@ export function ApprovalQueue() {
                               </>
                             )}
                             {item.payoutDetails.method === 'cash' && (
-                              <p className="text-xs font-semibold">💵 Cash at: {item.payoutDetails.agentLocation || 'Agent'}</p>
+                              <>
+                                <p className="text-xs font-semibold">💵 Cash at: {item.payoutDetails.agentLocation || 'Agent'}</p>
+                                {item.payoutDetails.payoutCode && (
+                                  <p className="text-[11px] font-mono font-bold text-amber-700">
+                                    Pickup code: {item.payoutDetails.payoutCode}
+                                  </p>
+                                )}
+                              </>
                             )}
                             <Badge variant="outline" className="h-5 px-1.5 text-[9px]">
                               {item.payoutDetails.status?.replace(/_/g, ' ')}
@@ -667,7 +674,12 @@ export function ApprovalQueue() {
                       </div>
                     )}
                     {item.payoutDetails?.method === 'cash' && (
-                      <p className="text-xs font-medium">💵 Cash payout — code will be generated for the user</p>
+                      <p className="text-xs font-medium">
+                        💵 Cash payout — pickup code:{' '}
+                        <span className="font-mono font-bold text-amber-700">
+                          {item.payoutDetails.payoutCode || '— (will be generated)'}
+                        </span>
+                      </p>
                     )}
                   </div>
                 ))}
