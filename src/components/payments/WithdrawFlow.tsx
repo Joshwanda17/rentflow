@@ -1290,6 +1290,20 @@ export default function WithdrawFlow({
         // self-cancel button while still pending.
         return (
           <div className="space-y-4">
+            {payoutMode === 'cash' && cashPickupCode && (
+              <div className="rounded-xl border-2 border-amber-500/40 bg-amber-500/10 p-4 text-center">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-700">
+                  Cash Pickup Code — present this to the agent
+                </p>
+                <p className="mt-2 font-mono text-3xl font-bold tracking-[0.2em] text-amber-900">
+                  {cashPickupCode}
+                </p>
+                <p className="mt-1 text-xs text-amber-700">
+                  Reserved against your pending request of {formatCurrency(amount, currency)}.
+                  A copy was emailed to Financial Ops.
+                </p>
+              </div>
+            )}
             {/* Server-confirmed receipt — shown immediately after the
                 withdrawal_requests insert returns. Contains the
                 reference ID, processed date/time and verified amount.
