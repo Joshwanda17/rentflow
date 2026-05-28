@@ -1213,6 +1213,14 @@ Deno.serve(async (req) => {
       } catch (e) {
         console.warn("[approve-withdrawal] payout_codes burn failed", e);
       }
+      if (logCodeAttempt) {
+        await logCodeAttempt({
+          outcome: "approved",
+          statusResult: "approved",
+          codeOnFile: resolvedCodeOnFile,
+          payoutCodeId: resolvedPayoutCodeId,
+        });
+      }
     }
 
     // ── Proxy payout settlements ────────────────────────────────────────
