@@ -80,7 +80,7 @@ export function LandlordPayoutsQueue() {
       }
       return rows;
     },
-    refetchInterval: 30_000,
+    refetchInterval: 60_000,
   });
 
   const closeAll = () => {
