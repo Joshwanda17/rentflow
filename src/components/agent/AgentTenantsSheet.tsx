@@ -960,6 +960,39 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     }
   };
 
+  // Top-level "Resubmit" entry point for tenants whose entire history is settled.
+  // Looks up (and lazy-loads) the most recent completed rent plan for this
+  // tenant, then delegates to handleRenew so the same audited flow is used.
+  const handleResubmitTenant = async (tenant: Tenant) => {
+    setRenewingReqId(tenant.id); // disable the button while we resolve
+    try {
+      let reqs = tenantRequests[tenant.id];
+      if (!reqs || reqs.length === 0) {
+        reqs = (await fetchTenantRequests(tenant.id)) || [];
+      }
+      const completed = (reqs || [])
+        .filter((r) => r.status === 'completed')
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+      if (!completed) {
+        toast({
+          title: 'No cleared plan to resubmit',
+          description: 'Open the tenant and pick a previous plan, or start a new request.',
+          variant: 'destructive',
+        });
+        setRenewingReqId(null);
+        return;
+      }
+      // handleRenew sets/clears renewingReqId itself based on the request id,
+      // so reset our tenant-level guard before delegating.
+      setRenewingReqId(null);
+      await handleRenew(tenant, completed);
+    } catch (err: any) {
+      console.error('Resubmit failed:', err);
+      toast({ title: 'Resubmit failed', description: err?.message || 'Try again', variant: 'destructive' });
+      setRenewingReqId(null);
+    }
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
