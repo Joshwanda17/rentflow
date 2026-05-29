@@ -24,6 +24,7 @@ import { TenantOpsLandlordFloatPanel } from './TenantOpsLandlordFloatPanel';
 import { TenantOpsLandlordFloatTimeline } from './TenantOpsLandlordFloatTimeline';
 import { LocationBrowser } from './landlord-ops/LocationBrowser';
 import { TenantLocationBrowser } from './tenant-ops/TenantLocationBrowser';
+import { GlobalVerificationHub } from './GlobalVerificationHub';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -61,7 +62,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { ChevronDown } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
-type ActiveView = 'overview' | 'pipeline' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'transfer-audit' | 'collect-rent' | 'agent-tenants' | 'tenant-detail' | 'registration-review' | 'advance-requests' | 'agent-allocations' | 'daily-collections' | 'landlord-float' | 'landlord-float-timeline' | 'location-browser' | 'tenant-location-browser';
+type ActiveView = 'overview' | 'pipeline' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'transfer-audit' | 'collect-rent' | 'agent-tenants' | 'tenant-detail' | 'registration-review' | 'advance-requests' | 'agent-allocations' | 'daily-collections' | 'landlord-float' | 'landlord-float-timeline' | 'location-browser' | 'tenant-location-browser' | 'global-verification';
 
 interface NavCard {
   id: ActiveView;
@@ -1293,6 +1294,8 @@ export function TenantOpsDashboard() {
         return <LocationBrowser />;
       case 'tenant-location-browser':
         return <TenantLocationBrowser />;
+      case 'global-verification':
+        return <GlobalVerificationHub />;
       case 'daily-collections':
         return <DailyCollectionMonitoringDashboard mode="editable" title="Daily Collection Monitoring" />;
       default:
@@ -1323,7 +1326,22 @@ export function TenantOpsDashboard() {
             transition={{ duration: 0.15 }}
             className="space-y-3"
           >
-            {/* HERO: Tenants whose landlords were funded — always first */}
+            {/* HERO: Global verification center — always first */}
+            <button
+              onClick={() => { setActiveView('global-verification'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+              className="w-full rounded-xl border-2 border-primary/50 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-3.5 flex items-center gap-3 text-left min-h-[64px] touch-manipulation active:scale-[0.98] transition-transform shadow-sm"
+            >
+              <div className="p-2 rounded-lg bg-primary/15">
+                <Shield className="h-5 w-5 text-primary shrink-0" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-sm text-foreground leading-tight">Global Verification Center</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">New landlords, LC1 chairpersons &amp; rent requests to verify — by country (Uganda, Kenya…)</p>
+              </div>
+              <ArrowRight className="h-5 w-5 text-primary shrink-0" />
+            </button>
+
+            {/* HERO: Tenants whose landlords were funded */}
             <button
               onClick={() => { setActiveView('tenant-location-browser'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
               className="w-full rounded-xl border-2 border-[#9234EA]/50 bg-gradient-to-r from-[#9234EA]/10 via-[#9234EA]/5 to-transparent p-3.5 flex items-center gap-3 text-left min-h-[64px] touch-manipulation active:scale-[0.98] transition-transform shadow-sm"
