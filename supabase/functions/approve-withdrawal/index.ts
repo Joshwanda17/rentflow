@@ -464,15 +464,26 @@ Deno.serve(async (req) => {
     //    be used for two different withdrawals. FinOps sometimes pastes the
     //    same MoMo confirmation TID into a duplicate request — that means
     //    the cash physically only moved once and we must NOT debit twice.
+    //
+    //    EXCEPTION — POOL-FUNDED SKYBUBBLES BULK SETTLEMENT: one SKYBUBBLES
+    //    bulk-bank email is a SINGLE physical bank transfer that legitimately
+    //    covers MANY proxy-partner payouts. They all share the same bank
+    //    reference by design, so the duplicate-reference guard must NOT apply
+    //    here — otherwise only the first leg of a bulk disbursement settles
+    //    and the rest get a false 409 DUPLICATE_REFERENCE. The bulk settler
+    //    already enforces one allocation per request via
+    //    `bulk_bank_payout_allocations`, so double-payout is still prevented.
     const refTrimmed = reference.trim().toUpperCase();
-    const { data: dupRefRows } = await admin
-      .from("withdrawal_requests")
-      .select("id, status, user_id, amount")
-      .eq("fin_ops_reference", refTrimmed)
-      .neq("id", withdrawal_id)
-      .in("status", ["completed", "processing", "paid", "disbursed"])
-      .limit(1);
-    if (dupRefRows && dupRefRows.length > 0) {
+    const { data: dupRefRows } = poolFunded
+      ? { data: null }
+      : await admin
+          .from("withdrawal_requests")
+          .select("id, status, user_id, amount")
+          .eq("fin_ops_reference", refTrimmed)
+          .neq("id", withdrawal_id)
+          .in("status", ["completed", "processing", "paid", "disbursed"])
+          .limit(1);
+    if (!poolFunded && dupRefRows && dupRefRows.length > 0) {
       const dup = dupRefRows[0] as any;
       return new Response(
         JSON.stringify({
