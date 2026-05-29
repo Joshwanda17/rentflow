@@ -2121,7 +2121,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                 <div className="mx-auto max-w-md flex items-center gap-3">
                   <div className="flex-1 min-w-0">
                     <p className="text-2xl font-extrabold font-mono leading-none text-emerald-600">{formatUGX(bulkTotal)}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{bulkPayableTenants.length} selected</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{bulkPayableTenants.length} {tr('selected')}</p>
                   </div>
                   <Button
                     onClick={() => setBulkConfirmOpen(true)}
@@ -2129,7 +2129,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                     className="h-14 px-6 text-base font-bold rounded-2xl gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
                   >
                     <CheckCircle2 className="h-6 w-6" />
-                    Mark paid
+                    {tr('markPaid')}
                   </Button>
                 </div>
               </div>
