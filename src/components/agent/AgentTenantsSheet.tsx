@@ -1375,6 +1375,24 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           {/* Simple Mode search — one big, obvious box, nothing else. */}
           {simpleMode && (
             <>
+              {/* ── Language toggle: English ⇄ Luganda ── */}
+              <div className="flex justify-end">
+                <div className="inline-flex rounded-full bg-muted/50 p-1">
+                  {(['en', 'lg'] as SimpleLang[]).map((lng) => (
+                    <button
+                      key={lng}
+                      onClick={() => setSimpleLang(lng)}
+                      aria-pressed={simpleLang === lng}
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                        simpleLang === lng ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'
+                      }`}
+                      style={{ minHeight: '36px' }}
+                    >
+                      {lng === 'en' ? 'English' : 'Luganda'}
+                    </button>
+                  ))}
+                </div>
+              </div>
               {/* ── Simple Summary: total to collect vs total paid ── */}
               {(() => {
                 let totalToCollect = 0;
@@ -1389,13 +1407,13 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                 return (
                   <div className="grid grid-cols-2 gap-2">
                     <div className="rounded-2xl bg-rose-50 border border-rose-200 p-3 text-center">
-                      <p className="text-[10px] uppercase tracking-wide font-bold text-rose-700">To collect</p>
+                      <p className="text-[10px] uppercase tracking-wide font-bold text-rose-700">{tr('toCollect')}</p>
                       <p className="text-xl font-extrabold font-mono text-rose-700 leading-tight mt-0.5">
                         {formatUGX(totalToCollect)}
                       </p>
                     </div>
                     <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-3 text-center">
-                      <p className="text-[10px] uppercase tracking-wide font-bold text-emerald-700">Paid</p>
+                      <p className="text-[10px] uppercase tracking-wide font-bold text-emerald-700">{tr('paid')}</p>
                       <p className="text-xl font-extrabold font-mono text-emerald-700 leading-tight mt-0.5">
                         {formatUGX(totalPaid)}
                       </p>
