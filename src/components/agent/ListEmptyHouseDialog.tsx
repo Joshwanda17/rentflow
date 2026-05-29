@@ -165,13 +165,25 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         }
       }
 
-      const hits: LandlordHit[] = (landlords || []).map((l) => ({
-        id: l.id,
-        name: l.name,
-        phone: l.phone,
-        verified: !!l.verified,
-        verifiedHouses: counts[l.id] || 0,
-      }));
+      // A landlord is "verified" (and therefore trustworthy to list against) if
+      // either their landlord record is verified OR they already have at least
+      // one verified house in the system. Landlords do NOT need to be app users
+      // — every landlord in the system is searchable.
+      const hits: LandlordHit[] = (landlords || []).map((l) => {
+        const verifiedHouses = counts[l.id] || 0;
+        return {
+          id: l.id,
+          name: l.name,
+          phone: l.phone,
+          verified: !!l.verified || verifiedHouses > 0,
+          verifiedHouses,
+        };
+      });
+      // Surface verified landlords (and those with verified houses) first.
+      hits.sort((a, b) => {
+        if (a.verified !== b.verified) return a.verified ? -1 : 1;
+        return b.verifiedHouses - a.verifiedHouses;
+      });
       setLandlordResults(hits);
     } catch (err: any) {
       console.error('[ListEmptyHouseDialog] landlord search failed:', err);
