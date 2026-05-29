@@ -17,8 +17,9 @@ import {
   Building2, Phone, MapPin, Loader2, CheckCircle2,
   Navigation, AlertTriangle, Share2, Eye, EyeOff,
   RefreshCw, Copy, User, Hash, Zap, Droplets,
-  Wallet, ShieldCheck, XCircle,
+  Wallet, ShieldCheck, XCircle, Home,
 } from 'lucide-react';
+import { ListEmptyHouseDialog } from '@/components/agent/ListEmptyHouseDialog';
 
 const HOUSE_CATEGORIES = [
   'Single Room', 'Double Room', 'Bedsitter', 'One Bedroom',
@@ -50,6 +51,7 @@ export default function LandlordRegistrationForm({
   const { location, loading: locationLoading, error: locationError, captureLocation } = useCaptureLocation();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [showListHouse, setShowListHouse] = useState(false);
   const [activationLink, setActivationLink] = useState('');
   const [locationCaptured, setLocationCaptured] = useState(false);
 
