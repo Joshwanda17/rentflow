@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Home, MapPin, Loader2, Shield, ShieldCheck, Search, X, UserCheck, Share2, MessageCircle, Copy, Check, PartyPopper, ChevronDown } from 'lucide-react';
+import { Home, MapPin, Loader2, Shield, ShieldCheck, Search, X, UserCheck, Share2, MessageCircle, Copy, Check, PartyPopper, ChevronDown, ArrowLeft, ArrowRight, Camera } from 'lucide-react';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -28,14 +28,14 @@ interface ListEmptyHouseDialogProps {
 }
 
 const HOUSE_CATEGORIES = [
-  { value: 'single_room', label: 'Single Room' },
-  { value: 'double_room', label: 'Double Room' },
-  { value: 'bedsitter', label: 'Bedsitter' },
-  { value: 'one_bedroom', label: '1 Bedroom' },
-  { value: 'two_bedroom', label: '2 Bedrooms' },
-  { value: 'three_bedroom', label: '3 Bedrooms' },
-  { value: 'studio', label: 'Studio' },
-  { value: 'shop', label: 'Shop / Commercial' },
+  { value: 'single_room', label: 'Single Room', emoji: '🚪' },
+  { value: 'double_room', label: 'Double Room', emoji: '🚪🚪' },
+  { value: 'bedsitter', label: 'Bedsitter', emoji: '🛏️' },
+  { value: 'one_bedroom', label: '1 Bedroom', emoji: '🏠' },
+  { value: 'two_bedroom', label: '2 Bedrooms', emoji: '🏡' },
+  { value: 'three_bedroom', label: '3 Bedrooms', emoji: '🏘️' },
+  { value: 'studio', label: 'Studio', emoji: '🎨' },
+  { value: 'shop', label: 'Shop', emoji: '🏪' },
 ];
 
 const REGIONS = [
