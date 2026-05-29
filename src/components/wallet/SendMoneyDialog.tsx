@@ -697,6 +697,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                               onClick={() =>
                                 setRecipient({
                                   status: 'found',
+                                  id: m.id,
                                   name: m.name,
                                   phone: m.phone,
                                   email: m.email,
