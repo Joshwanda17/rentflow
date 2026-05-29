@@ -54,6 +54,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   const getPosition = geo.requestGPSPermission;
   const [submitting, setSubmitting] = useState(false);
   const [houseImages, setHouseImages] = useState<HouseImageFile[]>([]);
+  // Guided wizard step (1-4) so agents who struggle with long forms only see
+  // one simple question at a time.
+  const [step, setStep] = useState(1);
   const [existingLc1Options, setExistingLc1Options] = useState<Array<{name: string; phone: string; village: string}>>([]);
   const [attempted, setAttempted] = useState(false);
   const [showOptional, setShowOptional] = useState(false);
