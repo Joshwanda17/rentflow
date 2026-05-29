@@ -287,6 +287,7 @@ export function FundedTenantsList() {
         r.landlord_phone,
         r.tenant_profile?.full_name ?? '',
         r.agent_profile?.full_name ?? '',
+        r.funder_profile?.full_name ?? '',
         r.finops_momo_reference ?? '',
         r.external_reference ?? '',
         r.country ?? '',
