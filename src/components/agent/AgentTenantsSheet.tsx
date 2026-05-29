@@ -411,6 +411,50 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     }
   };
 
+  // Build & share a simple daily allocation report (one row per tenant) the
+  // agent can forward to a manager or supporter. Uses the native share sheet
+  // and falls back to a plain download.
+  const [reportSharing, setReportSharing] = useState(false);
+  const handleShareAllocationReport = async () => {
+    setReportSharing(true);
+    try {
+      const rows: AllocationRow[] = processedTenants.map((t) => {
+        const totals = tenantTotals[t.id];
+        const outstanding = totals
+          ? Math.max(0, totals.total - totals.paid)
+          : (tenantBalances[t.id] || 0);
+        return {
+          name: t.full_name?.trim() || 'Tenant',
+          property: tenantContext[t.id]?.propertyAddress || '',
+          daily: outstanding > 0 ? (tenantDaily[t.id] || 0) : 0,
+          outstanding,
+          paid: totals?.paid || 0,
+        };
+      });
+      if (rows.length === 0) {
+        toast({ title: 'Nothing to report', description: 'No tenants are showing with the current filters.' });
+        return;
+      }
+      const result = await shareDailyAllocationPdf({
+        agentName: (user?.user_metadata as any)?.full_name || user?.email || undefined,
+        agentPhone: (user?.user_metadata as any)?.phone || undefined,
+        rows,
+        collectedToday: todayStats.collectedAmount,
+        tenantsCollectedToday: todayStats.tenantsCollected,
+      });
+      toast({
+        title: result === 'shared' ? 'Report ready to share ✅' : 'Report downloaded ✅',
+        description: result === 'shared'
+          ? 'Send it to your manager or supporter.'
+          : 'Saved as a PDF you can forward.',
+      });
+    } catch (e: any) {
+      toast({ title: 'Could not create report', description: e?.message || 'Try again.', variant: 'destructive' });
+    } finally {
+      setReportSharing(false);
+    }
+  };
+
   const handleShareLastReceiptWhatsApp = async (tenant: Tenant) => {
     setReceiptLoadingId(tenant.id);
     try {
