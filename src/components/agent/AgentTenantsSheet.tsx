@@ -24,6 +24,7 @@ import { format, startOfDay, formatDistanceToNowStrict } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { downloadRepaymentPdf, shareRepaymentPdfWhatsApp } from '@/lib/repaymentSchedulePdf';
 import { downloadRentStatement, buildRentStatementWhatsApp } from '@/lib/receiptPdf';
+import { shareDailyAllocationPdf, type AllocationRow } from '@/lib/dailyAllocationPdf';
 import { useToast } from '@/hooks/use-toast';
 import { toast as sonnerToast } from 'sonner';
 import AgentRentRequestDialog from './AgentRentRequestDialog';
@@ -407,6 +408,50 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
       toast({ title: 'Failed to open receipt', description: e?.message || 'Try again.', variant: 'destructive' });
     } finally {
       setReceiptLoadingId(null);
+    }
+  };
+
+  // Build & share a simple daily allocation report (one row per tenant) the
+  // agent can forward to a manager or supporter. Uses the native share sheet
+  // and falls back to a plain download.
+  const [reportSharing, setReportSharing] = useState(false);
+  const handleShareAllocationReport = async () => {
+    setReportSharing(true);
+    try {
+      const rows: AllocationRow[] = processedTenants.map((t) => {
+        const totals = tenantTotals[t.id];
+        const outstanding = totals
+          ? Math.max(0, totals.total - totals.paid)
+          : (tenantBalances[t.id] || 0);
+        return {
+          name: t.full_name?.trim() || 'Tenant',
+          property: tenantContext[t.id]?.propertyAddress || '',
+          daily: outstanding > 0 ? (tenantDaily[t.id] || 0) : 0,
+          outstanding,
+          paid: totals?.paid || 0,
+        };
+      });
+      if (rows.length === 0) {
+        toast({ title: 'Nothing to report', description: 'No tenants are showing with the current filters.' });
+        return;
+      }
+      const result = await shareDailyAllocationPdf({
+        agentName: (user?.user_metadata as any)?.full_name || user?.email || undefined,
+        agentPhone: (user?.user_metadata as any)?.phone || undefined,
+        rows,
+        collectedToday: todayStats.collectedAmount,
+        tenantsCollectedToday: todayStats.tenantsCollected,
+      });
+      toast({
+        title: result === 'shared' ? 'Report ready to share ✅' : 'Report downloaded ✅',
+        description: result === 'shared'
+          ? 'Send it to your manager or supporter.'
+          : 'Saved as a PDF you can forward.',
+      });
+    } catch (e: any) {
+      toast({ title: 'Could not create report', description: e?.message || 'Try again.', variant: 'destructive' });
+    } finally {
+      setReportSharing(false);
     }
   };
 
@@ -1421,6 +1466,18 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                   </div>
                 );
               })()}
+              {/* ── Share a simple daily allocation report (PDF) ── */}
+              <button
+                onClick={handleShareAllocationReport}
+                disabled={reportSharing}
+                aria-label={simpleLang === 'lg' ? 'Sindika lipoota ya leero' : 'Share daily report'}
+                className="w-full h-14 rounded-2xl bg-primary text-primary-foreground font-bold text-base flex items-center justify-center gap-2 disabled:opacity-60 active:scale-[0.99] transition-transform"
+              >
+                {reportSharing
+                  ? <Loader2 className="h-6 w-6 animate-spin" />
+                  : <FileDown className="h-6 w-6" strokeWidth={2.4} />}
+                <span>{simpleLang === 'lg' ? 'Sindika lipoota' : 'Share daily report'}</span>
+              </button>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input
