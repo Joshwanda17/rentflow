@@ -696,53 +696,53 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     const cleanTenantPhone = tenantPhone.replace(/\s/g, '');
     const cleanLandlordPhone = landlordPhone.replace(/\s/g, '');
 
-    if (!guarantorConsent) errors.push('Please accept guarantor responsibility');
-    if (!tenantName.trim()) errors.push('Tenant name is required');
-    if (!tenantPhone.trim()) errors.push('Tenant phone is required');
-    else if (!isValidUgPhone(cleanTenantPhone)) errors.push('Tenant phone must be a valid Ugandan number (e.g. 0783 123 456)');
+    if (!guarantorConsent) errors.push('Tick the box to accept guarantor responsibility');
+    if (!tenantName.trim()) errors.push('Type the tenant\'s full name');
+    if (!tenantPhone.trim()) errors.push('Type the tenant\'s phone number');
+    else if (!isValidUgPhone(cleanTenantPhone)) errors.push('Tenant phone looks wrong — use a number like 0783 123 456');
 
     const cleanNationalId = tenantNationalId.trim().toUpperCase();
     if (!isOutstanding) {
       if (!cleanNationalId || cleanNationalId.length < 10 || cleanNationalId.length > 14 || !/^[A-Z0-9]+$/.test(cleanNationalId)) {
-        errors.push('National ID is required (10-14 alphanumeric characters)');
+        errors.push('Enter the tenant\'s National ID (the long number/letters on their ID card)');
       }
     }
 
-    if (!preferredLanguage) errors.push('Preferred language is required');
+    if (!preferredLanguage) errors.push('Choose the language the tenant speaks');
 
-    if (!tenantPhoto) errors.push('Tenant passport photo is required');
-    if (!latestRentReceipt) errors.push("Photo of tenant's latest rent receipt is required");
+    if (!tenantPhoto) errors.push('Take a photo of the tenant (their face)');
+    if (!latestRentReceipt) errors.push("Take a photo of the tenant's latest rent receipt");
 
     // Outstanding flow uses a searchable landlord picker (LC already linked).
     // Other flows still collect landlord + LC1 inline.
     if (isOutstanding) {
-      if (!selectedLandlord) errors.push('Please select a landlord');
+      if (!selectedLandlord) errors.push('Pick the landlord from the list');
       if (!outstandingRentAmount || parseInt(outstandingRentAmount.replace(/,/g, '')) <= 0) {
-        errors.push('Rent amount is required');
+        errors.push('Type the rent amount');
       }
       // Outstanding balance and days remaining can both be 0
       // (tenant already cleared / no current period left).
       if (outstandingDaysRemaining === '' || isNaN(parseInt(outstandingDaysRemaining))) {
-        errors.push('Days remaining is required');
+        errors.push('Type the days remaining');
       }
       if (outstandingBalance === '' || isNaN(parseInt(outstandingBalance.replace(/,/g, '')))) {
-        errors.push('Outstanding balance is required');
+        errors.push('Type the outstanding balance');
       }
     } else {
-      if (!landlordName.trim()) errors.push('Landlord name is required');
-      if (!landlordPhone.trim()) errors.push('Landlord phone is required');
-      else if (!isValidUgPhone(cleanLandlordPhone)) errors.push('Landlord phone must be a valid Ugandan number (e.g. 0700 123 456)');
+      if (!landlordName.trim()) errors.push('Type the landlord\'s name');
+      if (!landlordPhone.trim()) errors.push('Type the landlord\'s phone number');
+      else if (!isValidUgPhone(cleanLandlordPhone)) errors.push('Landlord phone looks wrong — use a number like 0700 123 456');
 
-      if (!propertyAddress.trim()) errors.push('Property address is required');
-      if (!lc1Name.trim()) errors.push('LC1 name is required');
-      if (!lc1Phone.trim()) errors.push('LC1 phone is required');
+      if (!propertyAddress.trim()) errors.push('Type the property address');
+      if (!lc1Name.trim()) errors.push('Type the LC1 chairperson\'s name');
+      if (!lc1Phone.trim()) errors.push('Type the LC1 phone number');
       else {
         const cleanLc1 = lc1Phone.replace(/\s/g, '');
-        if (!isValidUgPhone(cleanLc1)) errors.push('LC1 phone must be a valid Ugandan number');
+        if (!isValidUgPhone(cleanLc1)) errors.push('LC1 phone looks wrong — use a valid Ugandan number');
       }
-      if (!lc1Village.trim()) errors.push('LC1 village is required');
-      if (!propertyCity.trim()) errors.push('City / Town is required');
-      if (!houseCategory) errors.push('House category is required');
+      if (!lc1Village.trim()) errors.push('Type the LC1 village');
+      if (!propertyCity.trim()) errors.push('Type the town / city');
+      if (!houseCategory) errors.push('Choose the house type');
     }
 
     // ===== Block duplicate phone numbers across roles =====
@@ -752,13 +752,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     const lc1PhoneValid = cleanLc1Phone && isValidUgPhone(cleanLc1Phone);
 
     if (tenantPhoneValid && landlordPhoneValid && cleanTenantPhone === cleanLandlordPhone) {
-      errors.push('Tenant and Landlord phone numbers cannot be the same');
+      errors.push('Tenant and Landlord phones must be different numbers');
     }
     if (tenantPhoneValid && lc1PhoneValid && cleanTenantPhone === cleanLc1Phone) {
-      errors.push('Tenant and LC1 phone numbers cannot be the same');
+      errors.push('Tenant and LC1 phones must be different numbers');
     }
     if (landlordPhoneValid && lc1PhoneValid && cleanLandlordPhone === cleanLc1Phone) {
-      errors.push('Landlord and LC1 phone numbers cannot be the same');
+      errors.push('Landlord and LC1 phones must be different numbers');
     }
 
     return errors;
