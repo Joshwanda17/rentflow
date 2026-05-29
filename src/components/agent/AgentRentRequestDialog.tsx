@@ -1028,6 +1028,35 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       const cleanLandlordPhone = landlordPhone.replace(/\s/g, '');
       let landlordId: string;
 
+      // ===== Gate: landlord must already exist WITH a verified house =====
+      // Resolve the candidate landlord (without creating one) and confirm they
+      // own at least one verified house before allowing the rent request.
+      const gateLandlordId = (isOutstanding && selectedLandlord)
+        ? selectedLandlord.id
+        : (await supabase
+            .from('landlords')
+            .select('id')
+            .eq('phone', cleanLandlordPhone)
+            .limit(1)
+            .maybeSingle()).data?.id ?? null;
+
+      const { count: verifiedHouseCount } = gateLandlordId
+        ? await supabase
+            .from('house_listings')
+            .select('id', { count: 'exact', head: true })
+            .eq('landlord_id', gateLandlordId)
+            .eq('verified', true)
+        : { count: 0 };
+
+      if (!gateLandlordId || !verifiedHouseCount || verifiedHouseCount < 1) {
+        toast.error('This landlord needs a verified house first', {
+          description: 'Register the landlord and list a house — you can post this rent request once Landlord Ops verifies it.',
+        });
+        setShowRegisterLandlord(true);
+        setSubmitting(false);
+        return;
+      }
+
       if (isOutstanding && selectedLandlord) {
         landlordId = selectedLandlord.id;
       } else {
