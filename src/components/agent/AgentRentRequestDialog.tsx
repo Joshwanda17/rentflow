@@ -1367,6 +1367,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 <button
                   onClick={() => {
                     setIncomeType('daily');
+                    setDetailStep(0);
+                    setValidationErrors([]);
                     setStep('details');
                   }}
                   className="p-4 rounded-xl border-2 border-muted hover:border-primary hover:bg-primary/5 transition-all text-left group active:scale-[0.98]"
@@ -1385,6 +1387,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 <button
                   onClick={() => {
                     setIncomeType('weekly-monthly');
+                    setDetailStep(0);
+                    setValidationErrors([]);
                     setStep('details');
                   }}
                   className="p-4 rounded-xl border-2 border-muted hover:border-success hover:bg-success/5 transition-all text-left group active:scale-[0.98]"
