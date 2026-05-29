@@ -2475,6 +2475,184 @@ function AgentWalletStatements({ agentId }: { agentId: string }) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Wallet buckets card — full 3-bucket view for any user (profile +   */
+/* withdrawable/float/advance). Strict withdrawable from RPC.         */
+/* ------------------------------------------------------------------ */
+function WalletBucketsCard({ userId }: { userId: string }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['drilldown-wallet-buckets', userId],
+    queryFn: async () => {
+      const [walletRes, strictRes] = await Promise.all([
+        supabase
+          .from('wallets')
+          .select('withdrawable_balance, float_balance, advance_balance, locked_balance, currency')
+          .eq('user_id', userId)
+          .maybeSingle(),
+        supabase.rpc('get_user_available_balance', { p_user_id: userId } as any),
+      ]);
+      return {
+        wallet: walletRes.data as any,
+        strict: Number(strictRes.data ?? 0),
+      };
+    },
+    enabled: !!userId,
+  });
+
+  const w = data?.wallet;
+
+  return (
+    <Card className="p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <Wallet className="h-4 w-4 text-primary" /> Wallet
+        </div>
+        {w?.currency && (
+          <Badge variant="outline" className="text-[10px]">{w.currency}</Badge>
+        )}
+      </div>
+      {isLoading ? (
+        <Loader2 className="h-4 w-4 animate-spin mx-auto my-2" />
+      ) : !w ? (
+        <p className="text-xs text-muted-foreground">No wallet on file.</p>
+      ) : (
+        <>
+          <div className="grid grid-cols-3 gap-2 text-[11px]">
+            <div className="rounded-md bg-emerald-50 dark:bg-emerald-950/30 p-2">
+              <p className="text-muted-foreground text-[10px] uppercase">Withdrawable</p>
+              <p className="font-semibold text-emerald-700 dark:text-emerald-300">
+                {fmtUGX(data?.strict ?? 0)}
+              </p>
+              {Number(w.withdrawable_balance ?? 0) !== (data?.strict ?? 0) && (
+                <p className="text-[9px] text-muted-foreground">cache {fmtUGX(w.withdrawable_balance ?? 0)}</p>
+              )}
+            </div>
+            <div className="rounded-md bg-sky-50 dark:bg-sky-950/30 p-2">
+              <p className="text-muted-foreground text-[10px] uppercase">Float</p>
+              <p className="font-semibold text-sky-700 dark:text-sky-300">
+                {fmtUGX(w.float_balance ?? 0)}
+              </p>
+            </div>
+            <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 p-2">
+              <p className="text-muted-foreground text-[10px] uppercase">Advance</p>
+              <p className="font-semibold text-amber-700 dark:text-amber-300">
+                {fmtUGX(w.advance_balance ?? 0)}
+              </p>
+            </div>
+          </div>
+          {Number(w.locked_balance ?? 0) > 0 && (
+            <p className="text-[10px] text-muted-foreground">
+              Locked / pending holds: {fmtUGX(w.locked_balance)}
+            </p>
+          )}
+        </>
+      )}
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* User-to-user transfers — wallet_transactions where this user is    */
+/* the sender or recipient. Counterpart names are clickable so any    */
+/* operator can open the other party's profile + wallet.              */
+/* ------------------------------------------------------------------ */
+function UserTransfersList({
+  userId, onSelectUser,
+}: { userId: string; onSelectUser?: (id: string, name: string) => void }) {
+  const { data: rows = [], isLoading } = useQuery({
+    queryKey: ['drilldown-transfers', userId],
+    queryFn: async () => {
+      const { data: txs, error } = await supabase
+        .from('wallet_transactions')
+        .select('id, sender_id, recipient_id, amount, description, created_at')
+        .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
+        .order('created_at', { ascending: false })
+        .limit(25);
+      if (error) throw error;
+      const list = txs ?? [];
+      const ids = Array.from(
+        new Set(list.flatMap((r: any) => [r.sender_id, r.recipient_id]).filter(Boolean)),
+      );
+      const nameMap: Record<string, string> = {};
+      if (ids.length) {
+        const { data: profs } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', ids);
+        (profs ?? []).forEach((p: any) => { nameMap[p.id] = p.full_name; });
+      }
+      return list.map((r: any) => ({
+        ...r,
+        senderName: nameMap[r.sender_id] ?? null,
+        recipientName: nameMap[r.recipient_id] ?? null,
+      }));
+    },
+    enabled: !!userId,
+  });
+
+  return (
+    <Card className="p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <ArrowLeftRight className="h-4 w-4 text-primary" /> Transfers
+        </div>
+        <Badge variant="outline" className="text-[10px]">last {rows.length}</Badge>
+      </div>
+      <p className="text-[10px] text-muted-foreground">
+        Money moved between this user and others. Tap a name to open that person's profile & wallet.
+      </p>
+      {isLoading ? (
+        <Loader2 className="h-4 w-4 animate-spin mx-auto my-2" />
+      ) : rows.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No transfers on file.</p>
+      ) : (
+        <ul className="space-y-1 text-xs max-h-72 overflow-y-auto pr-1">
+          {rows.map((r: any) => {
+            const isOut = r.sender_id === userId;
+            const counterpartId = isOut ? r.recipient_id : r.sender_id;
+            const counterpartName =
+              (isOut ? r.recipientName : r.senderName) || 'Unknown user';
+            return (
+              <li key={r.id} className="flex items-start justify-between gap-2 border-b border-border/40 py-1.5">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-medium">
+                    <span className="text-muted-foreground">{isOut ? 'Sent to' : 'Received from'} </span>
+                    {counterpartId ? (
+                      <button
+                        type="button"
+                        onClick={() => onSelectUser?.(counterpartId, counterpartName)}
+                        className="text-primary hover:underline disabled:no-underline disabled:text-foreground font-semibold"
+                        disabled={!onSelectUser}
+                      >
+                        {counterpartName}
+                      </button>
+                    ) : (
+                      <span className="font-semibold">{counterpartName}</span>
+                    )}
+                  </p>
+                  {r.description && (
+                    <p className="text-[10px] text-muted-foreground truncate">{r.description}</p>
+                  )}
+                  <p className="text-[10px] text-muted-foreground">
+                    {r.created_at ? format(parseISO(r.created_at), 'dd MMM yyyy, HH:mm') : '—'}
+                  </p>
+                </div>
+                <span
+                  className={`font-semibold whitespace-nowrap text-[11px] ${
+                    isOut ? 'text-rose-700 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'
+                  }`}
+                >
+                  {isOut ? '−' : '+'} {fmtUGX(r.amount)}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Tenant statements — rent obligations & repayments from ledger     */
 /* ------------------------------------------------------------------ */
 function TenantStatements({
