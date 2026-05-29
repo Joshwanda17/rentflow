@@ -24,11 +24,48 @@ function isUgandanPhone(phone: string): boolean {
   const f = formatPhoneInternational(phone);
   return f.startsWith("+256") && f.length >= 13;
 }
-async function sendSMS(phone: string, message: string): Promise<boolean> {
+interface SmsLogMeta {
+  recipientUserId?: string | null;
+  recipientName?: string | null;
+  referenceId?: string | null;
+  source?: string;
+}
+
+// Records every send attempt to public.sms_delivery_log so the admin view can
+// show sent/failed status, the raw provider response, cost, timestamp and the
+// linked transaction reference.
+async function logSmsDelivery(row: Record<string, unknown>): Promise<void> {
+  try {
+    const url = Deno.env.get("SUPABASE_URL")!;
+    const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const admin = createClient(url, key);
+    await admin.from("sms_delivery_log").insert(row);
+  } catch (e) {
+    console.error("[cfo-direct-credit] sms_delivery_log insert failed:", (e as Error).message);
+  }
+}
+
+async function sendSMS(phone: string, message: string, meta: SmsLogMeta = {}): Promise<boolean> {
   const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
   const username = Deno.env.get("AFRICASTALKING_USERNAME");
-  if (!apiKey || !username) return false;
-  if (!isUgandanPhone(phone)) return false;
+  const source = meta.source ?? "cfo-direct-credit";
+  const baseRow = {
+    recipient_phone: formatPhoneInternational(phone) || phone,
+    recipient_user_id: meta.recipientUserId ?? null,
+    recipient_name: meta.recipientName ?? null,
+    message,
+    reference_id: meta.referenceId ?? null,
+    source,
+    provider: "africastalking",
+  };
+  if (!apiKey || !username) {
+    await logSmsDelivery({ ...baseRow, status: "failed", error: "Missing Africa's Talking credentials" });
+    return false;
+  }
+  if (!isUgandanPhone(phone)) {
+    await logSmsDelivery({ ...baseRow, status: "failed", error: "Invalid/non-Ugandan phone number" });
+    return false;
+  }
   const isSandbox = username.toLowerCase() === "sandbox";
   const baseUrl = isSandbox
     ? "https://api.sandbox.africastalking.com/version1/messaging"
@@ -50,11 +87,19 @@ async function sendSMS(phone: string, message: string): Promise<boolean> {
       body: body.toString(),
     });
     const data = await res.json();
-    const recipients = data?.SMSMessageData?.Recipients || [];
-    return recipients.some(
-      (r: any) => r.statusCode === 101 || r.statusCode === 100,
-    );
+    const recipient = (data?.SMSMessageData?.Recipients || [])[0];
+    const success = recipient?.statusCode === 101 || recipient?.statusCode === 100;
+    await logSmsDelivery({
+      ...baseRow,
+      status: success ? "sent" : "failed",
+      provider_message_id: recipient?.messageId ?? null,
+      cost: recipient?.cost ?? null,
+      provider_response: data ?? null,
+      error: success ? null : (recipient?.status ?? data?.SMSMessageData?.Message ?? "Provider rejected message"),
+    });
+    return success;
   } catch (err) {
+    await logSmsDelivery({ ...baseRow, status: "failed", error: (err as Error).message });
     console.error("[cfo-direct-credit] SMS error:", err);
     return false;
   }
@@ -636,7 +681,12 @@ Deno.serve(async (req) => {
       // edge isolate tears down right after the response is returned, so the
       // text never reaches Africa's Talking. Awaiting guarantees instant delivery.
       try {
-        const sent = await sendSMS(targetProfile.phone, smsMsg);
+        const sent = await sendSMS(targetProfile.phone, smsMsg, {
+          recipientUserId: target_user_id,
+          recipientName: targetProfile.full_name ?? null,
+          referenceId: refId,
+          source: "cfo-direct-credit",
+        });
         console.log(`[cfo-direct-credit] recipient SMS to ${targetProfile.phone}: ${sent ? "sent" : "failed"} ref=${refId}`);
       } catch (e) {
         console.error("[cfo-direct-credit] recipient SMS failed:", (e as Error).message);

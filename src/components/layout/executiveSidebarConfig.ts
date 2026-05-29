@@ -102,6 +102,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Approval History', icon: ShieldCheck, id: 'approval-audit' },
         { label: 'Allocation Traces', icon: ClipboardList, id: 'allocation-traces' },
         { label: 'System Health', icon: Activity, id: 'ledger-health' },
+        { label: 'SMS Delivery Log', icon: MessageSquare, id: 'sms-log' },
         { label: 'Capital Opportunities', icon: TrendingUp, id: 'capital-opportunities' },
         { label: 'Angel Pool', icon: Layers, id: 'angel-pool' },
       ],

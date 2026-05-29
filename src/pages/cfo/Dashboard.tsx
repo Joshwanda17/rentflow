@@ -53,6 +53,7 @@ import { CFOWalletActivities } from '@/components/cfo/CFOWalletActivities';
 import { AgentAllocationTracesPanel } from '@/components/cfo/AgentAllocationTracesPanel';
 import { PhantomCorrectionDriftPanel } from '@/components/cfo/PhantomCorrectionDriftPanel';
 import { CFOUnfundingApprovals } from '@/components/cfo/CFOUnfundingApprovals';
+import { SmsDeliveryLogPanel } from '@/components/cfo/SmsDeliveryLogPanel';
 import { usePersistedActiveTab } from '@/hooks/usePersistedActiveTab';
 
 export default function CFODashboardPage() {
@@ -235,6 +236,8 @@ export default function CFODashboardPage() {
         );
       case 'wallet-activities':
         return <CFOWalletActivities />;
+      case 'sms-log':
+        return <SmsDeliveryLogPanel />;
       default:
         return <CFOOverviewDashboard onTabChange={setActiveTab} />;
     }

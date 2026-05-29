@@ -7,7 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { 
   ArrowLeft, BarChart3, Shield, Banknote, ClipboardList, 
   BookOpen, AlertTriangle, TrendingUp, Loader2, Scale, ArrowDownToLine,
-  Receipt, Wallet, Bell, Layers, DollarSign, FileText, HandCoins
+  Receipt, Wallet, Bell, Layers, DollarSign, FileText, HandCoins, MessageSquare
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -35,6 +35,7 @@ import { RentCollectionsFeed } from '@/components/cfo/RentCollectionsFeed';
 import { AgentPerformanceRankings } from '@/components/cfo/AgentPerformanceRankings';
 import { CFOPartnerInvestments } from '@/components/cfo/CFOPartnerInvestments';
 import { CronJobsHealthPanel } from '@/components/cfo/CronJobsHealthPanel';
+import { SmsDeliveryLogPanel } from '@/components/cfo/SmsDeliveryLogPanel';
 export default function CFODashboard() {
   const { user, loading: authLoading, role } = useAuth();
   const navigate = useNavigate();
@@ -83,6 +84,7 @@ export default function CFODashboard() {
     { id: 'channels', label: 'Channels', icon: Receipt },
     { id: 'revenue', label: 'P&L', icon: DollarSign },
     { id: 'disbursements', label: 'Disbursements', icon: Receipt },
+    { id: 'sms', label: 'SMS Log', icon: MessageSquare },
   ];
 
   return (
@@ -169,6 +171,11 @@ export default function CFODashboard() {
           {/* Disbursement Registry Tab */}
           <TabsContent value="disbursements" className="space-y-6">
             <DisbursementRegistry />
+          </TabsContent>
+
+          {/* SMS Delivery Log Tab */}
+          <TabsContent value="sms" className="space-y-6">
+            <SmsDeliveryLogPanel />
           </TabsContent>
 
           {/* Financial Statements Tab */}
