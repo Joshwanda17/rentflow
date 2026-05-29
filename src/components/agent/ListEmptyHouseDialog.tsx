@@ -279,7 +279,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
       }
 
       toast.success('House listed successfully!', {
-        description: `Daily rate: ${formatUGX(pricing.dailyRate)}/day · Earn UGX 5,000 the moment a tenant is placed in this house`,
+        description: `UGX 1,000 sent to your wallet now · earn UGX 4,000 more when Landlord Ops verifies this house (UGX 5,000 total)`,
       });
       onSuccess?.();
 
