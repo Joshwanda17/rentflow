@@ -434,6 +434,11 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     });
     setExistingLc1Options([]);
     setShowOptional(false);
+    setLandlordQuery('');
+    setLandlordResults([]);
+    setSearchedOnce(false);
+    setSelectedLandlord(null);
+    setManualLandlord(false);
   };
 
   const buildShare = () => {
