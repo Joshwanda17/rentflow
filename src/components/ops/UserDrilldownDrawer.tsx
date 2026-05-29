@@ -17,7 +17,7 @@ import {
   Wallet, ShieldAlert, Building2, ReceiptText, Smartphone, SmartphoneNfc,
   Search, Pencil, X, TrendingUp, Users, Sparkles, Download, FileText,
   ChevronRight, ChevronLeft, ArrowLeft, MessageSquare, StickyNote, CheckCircle2, XCircle,
-  CalendarIcon, Info, AlertTriangle, RefreshCw, Filter,
+  CalendarIcon, Info, AlertTriangle, RefreshCw, Filter, ArrowLeftRight,
 } from 'lucide-react';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
