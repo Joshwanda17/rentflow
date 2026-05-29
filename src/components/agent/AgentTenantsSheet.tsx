@@ -24,6 +24,7 @@ import { format, startOfDay, formatDistanceToNowStrict } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { downloadRepaymentPdf, shareRepaymentPdfWhatsApp } from '@/lib/repaymentSchedulePdf';
 import { downloadRentStatement, buildRentStatementWhatsApp } from '@/lib/receiptPdf';
+import { shareDailyAllocationPdf, type AllocationRow } from '@/lib/dailyAllocationPdf';
 import { useToast } from '@/hooks/use-toast';
 import { toast as sonnerToast } from 'sonner';
 import AgentRentRequestDialog from './AgentRentRequestDialog';
