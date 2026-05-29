@@ -118,6 +118,9 @@ function PaymentEditDialog({ edit, remaining, agentId }: { edit: any; remaining:
 
         {disputing && (
           <div className="space-y-1">
+            <p className="text-[11px] text-muted-foreground">
+              Disputing reverts the amount to {fmtUGX(edit.old_amount)} and pauses it there until Tenant Ops resolves the dispute.
+            </p>
             <Textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
