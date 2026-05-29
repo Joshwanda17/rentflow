@@ -20,6 +20,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
 import { extractToPhones, normalizeUgPhone } from '@/components/financial-ops/emailExtraction';
+import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
 
 interface WithdrawalRequest {
   id: string;
