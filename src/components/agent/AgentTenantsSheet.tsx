@@ -1466,6 +1466,18 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                   </div>
                 );
               })()}
+              {/* ── Share a simple daily allocation report (PDF) ── */}
+              <button
+                onClick={handleShareAllocationReport}
+                disabled={reportSharing}
+                aria-label={simpleLang === 'lg' ? 'Sindika lipoota ya leero' : 'Share daily report'}
+                className="w-full h-14 rounded-2xl bg-primary text-primary-foreground font-bold text-base flex items-center justify-center gap-2 disabled:opacity-60 active:scale-[0.99] transition-transform"
+              >
+                {reportSharing
+                  ? <Loader2 className="h-6 w-6 animate-spin" />
+                  : <FileDown className="h-6 w-6" strokeWidth={2.4} />}
+                <span>{simpleLang === 'lg' ? 'Sindika lipoota' : 'Share daily report'}</span>
+              </button>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input
