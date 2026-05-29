@@ -809,8 +809,6 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setHousePhotos([]);
     if (tenantPhoto) URL.revokeObjectURL(tenantPhoto.preview);
     setTenantPhoto(null);
-    if (latestRentReceipt) URL.revokeObjectURL(latestRentReceipt.preview);
-    setLatestRentReceipt(null);
     setGuarantorConsent(false);
     setValidationErrors([]);
     setSubmissionError(null);
@@ -897,7 +895,6 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     if (!preferredLanguage) errors.push('Choose the language the tenant speaks');
 
     if (!tenantPhoto) errors.push('Take a photo of the tenant (their face)');
-    if (!latestRentReceipt) errors.push("Take a photo of the tenant's latest rent receipt");
 
     // Outstanding flow uses a searchable landlord picker (LC already linked).
     // Other flows still collect landlord + LC1 inline.
@@ -1239,20 +1236,6 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           await supabase
             .from('rent_requests')
             .update({ tenant_photo_url: tenantPhotoUrl } as any)
-            .eq('id', rentReq.id);
-        }
-      }
-
-      // Upload latest rent receipt photo from the landlord (required)
-      if (latestRentReceipt && rentReq?.id) {
-        const receiptUrl = await uploadLatestRentReceipt(rentReq.id);
-        if (receiptUrl) {
-          await supabase
-            .from('rent_requests')
-            .update({
-              latest_rent_receipt_url: receiptUrl,
-              latest_rent_receipt_uploaded_at: new Date().toISOString(),
-            } as any)
             .eq('id', rentReq.id);
         }
       }
