@@ -22,6 +22,9 @@ interface ListEmptyHouseDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  /** Pre-fill the landlord fields (e.g. when opened from the landlord registration form). */
+  initialLandlordName?: string;
+  initialLandlordPhone?: string;
 }
 
 const HOUSE_CATEGORIES = [
@@ -44,7 +47,7 @@ const REGIONS = [
 
 import { normalizeDistrict, districtWarning, regionLabel } from '@/lib/ugandaDistricts';
 
-export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmptyHouseDialogProps) {
+export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLandlordName, initialLandlordPhone }: ListEmptyHouseDialogProps) {
   const geo = useGeolocation(true);
   const geoLoading = geo.loading;
   const position = geo.latitude && geo.longitude ? { latitude: geo.latitude, longitude: geo.longitude } : null;
@@ -89,6 +92,18 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
     lc1_phone: '',
     lc1_village: '',
   });
+
+  // Pre-fill landlord details when the dialog opens from the landlord form.
+  useEffect(() => {
+    if (open && (initialLandlordName || initialLandlordPhone)) {
+      setForm((f) => ({
+        ...f,
+        landlord_name: initialLandlordName ?? f.landlord_name,
+        landlord_phone: initialLandlordPhone ?? f.landlord_phone,
+      }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialLandlordName, initialLandlordPhone]);
 
   const monthlyRent = parseInt(form.monthly_rent) || 0;
   const pricing = calculateDailyRentalRate(monthlyRent);
