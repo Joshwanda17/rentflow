@@ -1064,7 +1064,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   };
 
   /* Simple Mode label translator (English ⇄ Luganda) */
-  const t = useCallback(
+  const tr = useCallback(
     (key: SimpleTextKey, vars?: Record<string, string | number>) => {
       let out = SIMPLE_TEXT[key][simpleLang];
       if (vars) for (const k of Object.keys(vars)) out = out.replace(`{${k}}`, String(vars[k]));
