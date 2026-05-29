@@ -995,7 +995,16 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               {geoLoading ? 'Getting location...' : position ? '📍 GPS Captured' : 'Capture GPS Location'}
             </Button>
           </div>
+          </>
+          )}
 
+          {/* ── Step 4: LC1 & confirm ── */}
+          {step === 4 && (
+          <>
+          <div className="text-center">
+            <p className="text-base font-semibold">Almost done!</p>
+            <p className="text-xs text-muted-foreground">Add the LC1 chairperson, then list the house</p>
+          </div>
           {/* LC1 Chairperson — Required */}
           <div className="space-y-3 p-3 rounded-xl bg-primary/5 border border-primary/20">
             <div className="flex items-center gap-2">
