@@ -42,6 +42,8 @@ interface GmailTx {
   counterparty: string | null;
   fee: number | null;
   balance: number | null;
+  linked_deposit_request_id: string | null;
+  auto_matched_at: string | null;
 }
 
 interface PollState {
@@ -635,7 +637,7 @@ export function EmailTransactionsPanel() {
     // same builder across awaits can stack modifiers in PostgREST.
     const buildQuery = () => {
       let q: any = (supabase.from('gmail_transactions') as any)
-        .select('id,gmail_message_id,from_email,from_name,subject,snippet,amount,transaction_id,parsed,internal_date,direction,channel,counterparty,fee,balance')
+        .select('id,gmail_message_id,from_email,from_name,subject,snippet,amount,transaction_id,parsed,internal_date,direction,channel,counterparty,fee,balance,linked_deposit_request_id,auto_matched_at')
         .order('internal_date', { ascending: false, nullsFirst: false });
       // When the operator has typed a search query, IGNORE the date range
       // entirely so the search reaches the full email history. This makes the
@@ -1675,6 +1677,19 @@ export function EmailTransactionsPanel() {
     .reduce((s, r) => s + (r.amount ?? 0), 0);
   const netAmount = totalIn - totalOut;
 
+  // Unmatched email counters — deposit emails with no linked request and
+  // payout emails neither routed to a wallet nor matched to an open withdrawal.
+  const unmatchedInCount = filteredRows.filter(
+    (r) => r.parsed && r.direction === 'in' && !r.linked_deposit_request_id && !r.auto_matched_at,
+  ).length;
+  const unmatchedOutCount = filteredRows.filter(
+    (r) =>
+      isCountable(r) &&
+      (r.direction === 'out' || r.direction === 'charge') &&
+      !routingHistory[r.id]?.length &&
+      !(withdrawalMatches[r.id]?.length),
+  ).length;
+
   // Per-channel breakdown with counts and totals per direction.
   const channelBreakdown = (() => {
     const map = new Map<
@@ -2055,6 +2070,32 @@ export function EmailTransactionsPanel() {
               </span>
             ) : (
               <span className="text-[10px] text-emerald-600">all parsed rows valid</span>
+            )
+          }
+        />
+        <StatCard
+          label="Unmatched deposits"
+          value={unmatchedInCount.toString()}
+          sub={
+            unmatchedInCount > 0 ? (
+              <span className="inline-flex items-center gap-1 text-amber-600 text-[10px]">
+                <AlertTriangle className="h-3 w-3" /> not linked to any deposit request
+              </span>
+            ) : (
+              <span className="text-[10px] text-emerald-600">all deposits matched</span>
+            )
+          }
+        />
+        <StatCard
+          label="Unmatched payouts"
+          value={unmatchedOutCount.toString()}
+          sub={
+            unmatchedOutCount > 0 ? (
+              <span className="inline-flex items-center gap-1 text-rose-600 text-[10px]">
+                <AlertTriangle className="h-3 w-3" /> not routed or matched to withdrawal
+              </span>
+            ) : (
+              <span className="text-[10px] text-emerald-600">all payouts settled</span>
             )
           }
         />
