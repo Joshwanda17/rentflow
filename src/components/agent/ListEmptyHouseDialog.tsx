@@ -282,6 +282,12 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
+    // If the form is submitted (e.g. Enter key) before the last step, just
+    // advance the wizard instead of running full validation.
+    if (step < TOTAL_STEPS) {
+      goNext();
+      return;
+    }
     setAttempted(true);
 
     // Auto-sync lc1_village from village
