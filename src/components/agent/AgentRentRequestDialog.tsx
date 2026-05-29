@@ -1370,6 +1370,16 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           </DialogDescription>
         </DialogHeader>
 
+        {!isOnline && !success && (
+          <div className="flex items-start gap-2 rounded-xl border-2 border-warning/50 bg-warning/10 p-3 text-warning-foreground">
+            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-warning" />
+            <p className="text-xs leading-relaxed">
+              <span className="font-semibold">No internet right now.</span> Keep filling in the form —
+              your progress is saved automatically and nothing will be lost. You can submit once you reconnect.
+            </p>
+          </div>
+        )}
+
         <AnimatePresence mode="wait">
           {success ? (
             <motion.div
