@@ -939,6 +939,23 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
     },
   });
 
+  // ── Same-user bucket move detection ────────────────────────────────
+  // If this email was ALREADY auto-credited to the *same* user but in the
+  // other bucket (e.g. auto-approved into Operational Float), then choosing
+  // the other bucket here must MOVE the money between buckets — never credit
+  // a second time. We surface this in the UI and route through the dedicated
+  // `ops-bucket-transfer` function in the mutation.
+  const priorAutoCredit = existing.data;
+  const priorAutoCreditWasFloat =
+    (priorAutoCredit?.deposit_purpose ?? 'operational_float') === 'operational_float';
+  const isSameUserBucketMove =
+    mode === 'credit' &&
+    !transferFromUser &&
+    !!priorAutoCredit &&
+    !!user &&
+    priorAutoCredit.original_user_id === user.id &&
+    priorAutoCreditWasFloat !== (route === 'operational_float');
+
   const send = useMutation({
     mutationFn: async () => {
       if (!row) throw new Error('No email row');
