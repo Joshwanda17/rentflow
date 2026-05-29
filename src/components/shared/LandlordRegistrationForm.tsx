@@ -284,6 +284,7 @@ export default function LandlordRegistrationForm({
   };
 
   return (
+    <>
     <AnimatePresence mode="wait">
       {success ? (
         <motion.div
