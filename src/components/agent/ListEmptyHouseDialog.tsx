@@ -206,27 +206,6 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     setForm((f) => ({ ...f, landlord_name: '', landlord_phone: '' }));
   };
 
-  // Auto-populate LC1 village from property village and fetch existing LC1 chairpersons
-  const fetchLc1ForVillage = async (villageQuery: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('lc1_chairpersons')
-        .select('name, phone, village')
-        .ilike('village', `%${villageQuery.trim()}%`)
-        .limit(5);
-      
-      if (error) throw error;
-      setExistingLc1Options(data || []);
-      
-      // Auto-fill if exact match exists
-      if (data && data.length === 1 && data[0].village.toLowerCase() === villageQuery.toLowerCase()) {
-        setForm(f => ({ ...f, lc1_name: data[0].name, lc1_phone: data[0].phone }));
-      }
-    } catch (error) {
-      console.error('Error fetching LC1 chairpersons:', error);
-    }
-  };
-
   const scrollDialogToTop = () => {
     requestAnimationFrame(() => {
       document
