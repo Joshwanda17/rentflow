@@ -124,6 +124,17 @@ export function UserDrilldownDrawer({
     });
   };
 
+  // Open any user (e.g. the counterpart of a wallet transfer) in the
+  // Tenant pane, which now shows their profile + full wallet buckets.
+  const handleSelectUser = (id: string, name: string) => {
+    setPickedUser({ id, full_name: name, phone: null });
+    setTab('tenant');
+    setCameFromAgent(false);
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
@@ -173,11 +184,12 @@ export function UserDrilldownDrawer({
                 isOps={isOps}
                 onBackToAgent={cameFromAgent && agentId ? () => { setTab('agent'); scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); } : undefined}
                 onSelectLandlord={handleSelectLandlord}
+                onSelectUser={handleSelectUser}
               />
             )}
           </TabsContent>
           <TabsContent value="agent" className="py-4">
-            {agentId && <AgentPane agentId={agentId} isOps={isOps} onSelectTenant={handleSelectTenant} onSelectLandlord={handleSelectLandlord} />}
+            {agentId && <AgentPane agentId={agentId} isOps={isOps} onSelectTenant={handleSelectTenant} onSelectLandlord={handleSelectLandlord} onSelectUser={handleSelectUser} />}
           </TabsContent>
           <TabsContent value="landlord" className="py-4">
             {effectiveLandlordId && <LandlordPane landlordId={effectiveLandlordId} isOps={isOps} />}
