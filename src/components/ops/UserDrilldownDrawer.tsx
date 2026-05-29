@@ -1275,6 +1275,9 @@ function TenantPane({
       {/* Tenant repayment / obligation ledger history */}
       <TenantStatements tenantId={tenantId} dateRange={dateRange} onDateRangeChange={setDateRange} />
 
+      {/* Landlord payments recorded by the agent — Tenant Ops can edit the amount */}
+      <TenantLandlordPayoutsEditor tenantId={tenantId} canEdit={isOps} />
+
       {activeRr?.landlord_id && (
         <Card className="p-3 space-y-1.5">
           <div className="flex items-center gap-2 text-sm font-medium">
