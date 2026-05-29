@@ -157,7 +157,7 @@ function AgentCapacityBanner({ agentId }: { agentId?: string }) {
             <span className="text-xs font-extrabold uppercase tracking-wide">New Agent — Building Your Book</span>
             <DailyRatingThresholdPopover />
           </div>
-          <p className="text-[11px] leading-snug opacity-95">
+          <p className="text-sm leading-snug opacity-95">
             You can post rent requests up to <strong className="font-mono">{formatUGX(NEW_AGENT_RENT_CAP_UGX)}</strong> per tenant.
             You currently have <strong>{cap.active_tenant_count}</strong> active {cap.active_tenant_count === 1 ? 'tenant' : 'tenants'}.
             {remaining > 0
@@ -177,7 +177,7 @@ function AgentCapacityBanner({ agentId }: { agentId?: string }) {
             <span className="text-xs font-extrabold uppercase tracking-wide">Very Good — Allowed Today</span>
             <DailyRatingThresholdPopover />
           </div>
-          <p className="text-[11px] leading-snug opacity-95">
+          <p className="text-sm leading-snug opacity-95">
             Today you have collected <strong className="font-mono">{formatUGX(cap.paid_today)}</strong> ({tpct}%) of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong> today&apos;s target. You are well above the {threshold}% law and may post new rent requests. (Yesterday: {ypct}%.)
           </p>
         </div>
@@ -190,7 +190,7 @@ function AgentCapacityBanner({ agentId }: { agentId?: string }) {
             <span className="text-xs font-extrabold uppercase tracking-wide">Good — Allowed Today</span>
             <DailyRatingThresholdPopover />
           </div>
-          <p className="text-[11px] leading-snug opacity-95">
+          <p className="text-sm leading-snug opacity-95">
             Today you have collected <strong className="font-mono">{formatUGX(cap.paid_today)}</strong> ({tpct}%) of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong> today&apos;s target. You met the {threshold}% law and may post new rent requests. Keep going to reach Very Good (≥ 50%). (Yesterday: {ypct}%.)
           </p>
         </div>
@@ -203,7 +203,7 @@ function AgentCapacityBanner({ agentId }: { agentId?: string }) {
             <span className="text-xs font-extrabold uppercase tracking-wide">Fair — Blocked from posting today</span>
             <DailyRatingThresholdPopover />
           </div>
-          <p className="text-[11px] leading-snug opacity-95">
+          <p className="text-sm leading-snug opacity-95">
             Today you have collected <strong className="font-mono">{formatUGX(cap.paid_today)}</strong> ({tpct}%) of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong> today&apos;s target. You are between 15% and 19%, just below the {threshold}% law. Hit {threshold}% today to be unblocked and rated Good immediately. (Yesterday: {ypct}%.)
           </p>
         </div>
@@ -216,7 +216,7 @@ function AgentCapacityBanner({ agentId }: { agentId?: string }) {
             <span className="text-xs font-extrabold uppercase tracking-wide">Bad — Blocked from posting today</span>
             <DailyRatingThresholdPopover />
           </div>
-          <p className="text-[11px] leading-snug opacity-95">
+          <p className="text-sm leading-snug opacity-95">
             Today you have collected <strong className="font-mono">{formatUGX(cap.paid_today)}</strong> ({tpct}%) of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong> today&apos;s target. You are between 5% and 14%, below the {threshold}% law. Hit {threshold}% today to be unblocked and rated Good immediately. (Yesterday: {ypct}%.)
           </p>
         </div>
@@ -229,7 +229,7 @@ function AgentCapacityBanner({ agentId }: { agentId?: string }) {
           <span className="text-xs font-extrabold uppercase tracking-wide">Very Bad — Blocked from posting today</span>
           <DailyRatingThresholdPopover />
         </div>
-        <p className="text-[11px] leading-snug opacity-95">
+        <p className="text-sm leading-snug opacity-95">
           Today you have collected <strong className="font-mono">{formatUGX(cap.paid_today)}</strong> ({tpct}%) of <strong className="font-mono">{formatUGX(cap.expected_daily)}</strong> today&apos;s target. You are below 5%, far below the {threshold}% law. Hit {threshold}% today to be unblocked and rated Good immediately. (Yesterday: {ypct}%.)
         </p>
       </div>
@@ -252,7 +252,7 @@ function AgentCapacityBanner({ agentId }: { agentId?: string }) {
             style={{ width: `${pct}%` }}
           />
         </div>
-        <p className="text-[11px] mt-1.5 leading-snug opacity-90">
+        <p className="text-sm mt-1.5 leading-snug opacity-90">
           Headroom available for new rent requests:{' '}
           <strong className="font-mono">{formatUGX(headroom)}</strong>.
           Per-tenant rent limits scale with each tenant's repayment rate.
@@ -1290,7 +1290,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   : 'The rent request is now visible to supporters'}
               </p>
               {incomeType === 'outstanding' && (
-                <div className="mx-auto mt-2 p-3 rounded-xl bg-warning/10 border border-warning/20 text-left space-y-1 max-w-xs">
+                <div className="mx-auto mt-2 p-3 rounded-xl bg-warning/10 border border-warning/20 text-left space-y-2 max-w-xs">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground">Tenant</span>
                     <span className="font-semibold">{tenantName}</span>
@@ -1445,7 +1445,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   <FileText className="h-4 w-4 text-amber-600" />
                   📄 Tenant's Latest Rent Receipt *
                 </h4>
-                <p className="text-[11px] text-muted-foreground leading-snug">
+                <p className="text-sm text-muted-foreground leading-snug">
                   Upload a clear photo of the most recent rent receipt the landlord
                   gave the tenant. Used to verify rent amount, payment history and
                   tenancy before approval.
@@ -1469,7 +1469,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   ) : (
                     <label className="h-28 w-28 rounded-lg border-2 border-dashed border-amber-500/40 flex flex-col items-center justify-center cursor-pointer hover:border-amber-500 hover:bg-amber-100/40 dark:hover:bg-amber-500/10 transition-colors shrink-0">
                       <span className="text-2xl">🧾</span>
-                      <span className="text-[10px] text-muted-foreground mt-0.5 text-center px-1 leading-tight">
+                      <span className="text-xs text-muted-foreground mt-0.5 text-center px-1 leading-tight">
                         Tap to capture
                       </span>
                       <input
@@ -1481,7 +1481,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       />
                     </label>
                   )}
-                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
                     Make sure the receipt date, amount and landlord name are clearly
                     visible. Blurry or cropped photos will be rejected.
                   </p>
@@ -1505,7 +1505,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       <Building2 className="h-4 w-4 text-primary" />
                       🏠 Select Landlord
                     </h4>
-                    <p className="text-[11px] text-muted-foreground -mt-1">
+                    <p className="text-sm text-muted-foreground -mt-1">
                       LC1 is already linked to the landlord — no need to add it again.
                     </p>
                     <LandlordSearchSelect
@@ -1514,12 +1514,12 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       onChange={setSelectedLandlord}
                     />
                     {selectedLandlord?.property_address && (
-                      <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                      <p className="text-sm text-muted-foreground flex items-center gap-1">
                         <MapPin className="h-3 w-3" /> {selectedLandlord.property_address}
                       </p>
                     )}
                     <div className="flex items-center justify-between gap-2 pt-1">
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-sm text-muted-foreground">
                         Can't find the landlord?
                       </p>
                       <Button
@@ -1542,8 +1542,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       👤 Personal Information
                     </h4>
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs">Tenant Name *</Label>
+                      <div className="space-y-2">
+                        <Label className="""">Tenant Name *</Label>
                         <Input
                           value={tenantName}
                           onChange={(e) => setTenantName(e.target.value)}
@@ -1552,8 +1552,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           required
                         />
                       </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Tenant Phone *</Label>
+                      <div className="space-y-2">
+                        <Label className="""">Tenant Phone *</Label>
                         <Input
                           value={tenantPhone}
                           onChange={(e) => setTenantPhone(formatPhoneInput(e.target.value))}
@@ -1563,15 +1563,15 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           required
                         />
                         {tenantPhone.replace(/\s/g, '').length >= 10 && !isValidUgPhone(tenantPhone.replace(/\s/g, '')) && (
-                          <p className="text-[10px] text-destructive">Invalid Ugandan phone number</p>
+                          <p className="text-xs text-destructive">Invalid Ugandan phone number</p>
                         )}
                       </div>
                     </div>
 
-                    <div className="space-y-1">
-                      <Label className="text-xs">Preferred Language *</Label>
+                    <div className="space-y-2">
+                      <Label className="""">Preferred Language *</Label>
                       <Select value={preferredLanguage} onValueChange={setPreferredLanguage}>
-                        <SelectTrigger className="h-10">
+                        <SelectTrigger className="">
                           <SelectValue placeholder="Select tenant language" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1591,8 +1591,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     </h4>
 
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs font-semibold">Rent Amount (UGX) *</Label>
+                      <div className="space-y-2">
+                        <Label className=""font-semibold"">Rent Amount (UGX) *</Label>
                         <Input
                           value={formatCurrencyInput(outstandingRentAmount)}
                           onChange={(e) => setOutstandingRentAmount(e.target.value.replace(/[^0-9]/g, ''))}
@@ -1601,10 +1601,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           required
                         />
                       </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs font-semibold">Repayment Duration *</Label>
+                      <div className="space-y-2">
+                        <Label className=""font-semibold"">Repayment Duration *</Label>
                         <Select value={duration} onValueChange={(v) => setDuration(v as '30' | '60' | '90')}>
-                          <SelectTrigger className="h-10">
+                          <SelectTrigger className="">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -1616,8 +1616,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       </div>
                     </div>
 
-                    <div className="space-y-1">
-                      <Label className="text-xs font-semibold">Outstanding Balance (UGX) *</Label>
+                    <div className="space-y-2">
+                      <Label className=""font-semibold"">Outstanding Balance (UGX) *</Label>
                       <Input
                         value={formatCurrencyInput(outstandingBalance)}
                         onChange={(e) => setOutstandingBalance(e.target.value.replace(/[^0-9]/g, ''))}
@@ -1632,8 +1632,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       )}
                     </div>
 
-                    <div className="space-y-1">
-                      <Label className="text-xs font-semibold">Days Remaining *</Label>
+                    <div className="space-y-2">
+                      <Label className=""font-semibold"">Days Remaining *</Label>
                       <Input
                         type="number"
                         inputMode="numeric"
@@ -1646,10 +1646,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       />
                     </div>
 
-                    <div className="space-y-1">
-                      <Label className="text-xs font-semibold">House Type *</Label>
+                    <div className="space-y-2">
+                      <Label className=""font-semibold"">House Type *</Label>
                       <Select value={outstandingHouseCategory} onValueChange={setOutstandingHouseCategory}>
-                        <SelectTrigger className="h-10">
+                        <SelectTrigger className="">
                           <SelectValue placeholder="Select house type" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1676,7 +1676,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       <ul className="space-y-2">
                         {validationErrors.map((err, i) => (
                           <li key={i} className="flex items-start gap-2 text-sm font-semibold text-destructive">
-                            <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[11px] font-bold">{i + 1}</span>
+                            <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-destructive text-destructive-foreground text-sm font-bold">{i + 1}</span>
                             <span>{err}</span>
                           </li>
                         ))}
@@ -1727,9 +1727,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   💰 Rent Details
                 </h4>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs font-semibold text-primary/80">Rent Amount (UGX) *</Label>
-                    <p className="text-[10px] font-bold text-primary/60 italic">Let Welile pay this today</p>
+                  <div className="space-y-2">
+                    <Label className=""font-semibold text-primary/80"">Rent Amount (UGX) *</Label>
+                    <p className="text-xs font-bold text-primary/60 italic">Let Welile pay this today</p>
                     {/* FIX #7: Currency formatting */}
                     <Input
                       value={formatCurrencyInput(rentAmount)}
@@ -1739,11 +1739,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       required
                     />
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs font-semibold text-primary/80">
+                  <div className="space-y-2">
+                    <Label className=""font-semibold text-primary/80"">
                       {incomeType === 'daily' ? 'Duration' : 'Repayment Period'} *
                     </Label>
-                    <p className="text-[10px] text-muted-foreground">
+                    <p className="text-xs text-muted-foreground">
                       {incomeType === 'daily'
                         ? 'tenant will take to repay.'
                         : 'Select the repayment cycle length for this tenant.'}
@@ -1785,7 +1785,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <div className="p-3 rounded-xl bg-primary/10 border border-primary/30 flex items-center gap-3">
                       <Calendar className="h-4 w-4 text-primary flex-shrink-0" />
                       <div>
-                        <p className="text-[10px] text-primary/60 font-medium">Repayment starts</p>
+                        <p className="text-xs text-primary/60 font-medium">Repayment starts</p>
                         <p className="font-bold text-sm text-primary">
                           {format(addDays(new Date(), 1), 'EEEE, MMMM d, yyyy')}
                         </p>
@@ -1833,8 +1833,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 </button>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label htmlFor="tenantName" className="text-xs">Full Name *</Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="tenantName" className="""">Full Name *</Label>
                     <Input
                       id="tenantName"
                       value={tenantName}
@@ -1844,8 +1844,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       required
                     />
                   </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="tenantPhone" className="text-xs">Phone *</Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="tenantPhone" className="""">Phone *</Label>
                     <Input
                       id="tenantPhone"
                       value={tenantPhone}
@@ -1856,13 +1856,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       required
                     />
                     {tenantPhone.replace(/\s/g, '').length >= 10 && !isValidUgPhone(tenantPhone.replace(/\s/g, '')) && (
-                      <p className="text-[10px] text-destructive">Invalid Ugandan phone number</p>
+                      <p className="text-xs text-destructive">Invalid Ugandan phone number</p>
                     )}
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <Label htmlFor="tenantNationalId" className="text-xs">National ID *</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="tenantNationalId" className="""">National ID *</Label>
                   <Input
                     id="tenantNationalId"
                     value={tenantNationalId}
@@ -1873,13 +1873,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     required
                   />
                   {tenantNationalId.length > 0 && (tenantNationalId.length < 10 || tenantNationalId.length > 14) && (
-                    <p className="text-[10px] text-destructive">Must be 10-14 characters</p>
+                    <p className="text-xs text-destructive">Must be 10-14 characters</p>
                   )}
                 </div>
 
                 {/* Tenant passport photo (required) */}
-                <div className="space-y-1">
-                  <Label className="text-xs flex items-center gap-1">
+                <div className="space-y-2">
+                  <Label className=""flex items-center gap-1"">
                     🪪 Tenant Passport Photo *
                   </Label>
                   <div className="flex items-start gap-3">
@@ -1897,7 +1897,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     ) : (
                       <label className="h-24 w-20 rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors shrink-0">
                         <span className="text-xl text-muted-foreground/60">📷</span>
-                        <span className="text-[10px] text-muted-foreground/60 mt-0.5">Capture</span>
+                        <span className="text-xs text-muted-foreground/60 mt-0.5">Capture</span>
                         <input
                           type="file"
                           accept="image/*"
@@ -1907,16 +1907,16 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         />
                       </label>
                     )}
-                    <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    <p className="text-xs text-muted-foreground leading-relaxed">
                       Take a clear, well-lit photo of the tenant's face (passport-style). Landlord Ops uses this to verify the tenant during review.
                     </p>
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <Label className="text-xs">Preferred Language *</Label>
+                <div className="space-y-2">
+                  <Label className="""">Preferred Language *</Label>
                   <Select value={preferredLanguage} onValueChange={setPreferredLanguage}>
-                    <SelectTrigger className="h-10">
+                    <SelectTrigger className="">
                       <SelectValue placeholder="Select tenant language" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1939,7 +1939,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   House Category *
                 </h4>
                 <Select value={houseCategory} onValueChange={setHouseCategory}>
-                  <SelectTrigger className="h-10">
+                  <SelectTrigger className="">
                     <SelectValue placeholder="Select house type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1961,8 +1961,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   Landlord Details
                 </h4>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Name *</Label>
+                  <div className="space-y-2">
+                    <Label className="""">Name *</Label>
                     <Input
                       value={landlordName}
                       onChange={(e) => setLandlordName(e.target.value)}
@@ -1971,8 +1971,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       required
                     />
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Phone *</Label>
+                  <div className="space-y-2">
+                    <Label className="""">Phone *</Label>
                     <Input
                       value={landlordPhone}
                       onChange={(e) => setLandlordPhone(formatPhoneInput(e.target.value))}
@@ -1982,17 +1982,17 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       required
                     />
                     {landlordPhone.replace(/\s/g, '').length >= 10 && !isValidUgPhone(landlordPhone.replace(/\s/g, '')) && (
-                      <p className="text-[10px] text-destructive">Invalid Ugandan phone number</p>
+                      <p className="text-xs text-destructive">Invalid Ugandan phone number</p>
                     )}
                     {landlordPhone.replace(/\s/g, '').length >= 10 &&
                       tenantPhone.replace(/\s/g, '').length >= 10 &&
                       landlordPhone.replace(/\s/g, '') === tenantPhone.replace(/\s/g, '') && (
-                        <p className="text-[10px] text-destructive">Cannot be the same as Tenant phone</p>
+                        <p className="text-xs text-destructive">Cannot be the same as Tenant phone</p>
                       )}
                   </div>
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs flex items-center gap-1">
+                <div className="space-y-2">
+                  <Label className=""flex items-center gap-1"">
                     <MapPin className="h-3 w-3" /> Property Address *
                   </Label>
                   <Input
@@ -2005,8 +2005,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 </div>
 
                 {/* GPS Capture */}
-                <div className="space-y-1">
-                  <Label className="text-xs flex items-center gap-1">
+                <div className="space-y-2">
+                  <Label className=""flex items-center gap-1"">
                     <Navigation className="h-3 w-3" /> Property GPS
                   </Label>
                   {gpsLocation ? (
@@ -2014,7 +2014,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       <Navigation className="h-4 w-4 text-success flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-semibold text-success">📍 GPS Captured</p>
-                        <p className="text-[10px] text-muted-foreground truncate">
+                        <p className="text-xs text-muted-foreground truncate">
                           {gpsLocation.lat.toFixed(5)}, {gpsLocation.lng.toFixed(5)} (±{Math.round(gpsLocation.accuracy)}m)
                         </p>
                       </div>
@@ -2053,17 +2053,17 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
                 {/* House Photos — 4 outside views */}
                 <div className="space-y-2">
-                  <Label className="text-xs flex items-center gap-1">
+                  <Label className=""flex items-center gap-1"">
                     📸 House Photos — capture all 4 outside views
                   </Label>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-sm text-muted-foreground">
                     Take one photo of each outside part of the house: front, back, left side and right side.
                   </p>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {HOUSE_PHOTO_SLOTS.map((slot, idx) => {
                       const photo = housePhotos[idx];
                       return (
-                        <div key={slot.key} className="space-y-1">
+                        <div key={slot.key} className="space-y-2">
                           {photo ? (
                             <div className="relative aspect-square rounded-lg overflow-hidden border border-border">
                               <img src={photo.preview} alt={slot.label} className="w-full h-full object-cover" />
@@ -2078,8 +2078,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           ) : (
                             <label className="aspect-square rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors text-center px-1">
                               <span className="text-xl text-muted-foreground/60">📷</span>
-                              <span className="text-[10px] font-medium text-foreground/80 mt-1 leading-tight">{slot.label}</span>
-                              <span className="text-[9px] text-muted-foreground/60 mt-0.5 leading-tight">{slot.hint}</span>
+                              <span className="text-xs font-medium text-foreground/80 mt-1 leading-tight">{slot.label}</span>
+                              <span className="text-xs text-muted-foreground/60 mt-0.5 leading-tight">{slot.hint}</span>
                               <input
                                 type="file"
                                 accept="image/*"
@@ -2089,7 +2089,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                               />
                             </label>
                           )}
-                          <p className="text-[10px] text-center text-muted-foreground truncate">{slot.label}</p>
+                          <p className="text-xs text-center text-muted-foreground truncate">{slot.label}</p>
                         </div>
                       );
                     })}
@@ -2108,8 +2108,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   LC1 Chairperson Details
                 </h4>
                 <div className="grid grid-cols-3 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Name *</Label>
+                  <div className="space-y-2">
+                    <Label className="""">Name *</Label>
                     <Input
                       value={lc1Name}
                       onChange={(e) => setLc1Name(e.target.value)}
@@ -2118,8 +2118,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       required
                     />
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Phone *</Label>
+                  <div className="space-y-2">
+                    <Label className="""">Phone *</Label>
                     <Input
                       value={lc1Phone}
                       onChange={(e) => setLc1Phone(formatPhoneInput(e.target.value))}
@@ -2131,16 +2131,16 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     {lc1Phone.replace(/\s/g, '').length >= 10 &&
                       tenantPhone.replace(/\s/g, '').length >= 10 &&
                       lc1Phone.replace(/\s/g, '') === tenantPhone.replace(/\s/g, '') && (
-                        <p className="text-[10px] text-destructive">Cannot be the same as Tenant phone</p>
+                        <p className="text-xs text-destructive">Cannot be the same as Tenant phone</p>
                       )}
                     {lc1Phone.replace(/\s/g, '').length >= 10 &&
                       landlordPhone.replace(/\s/g, '').length >= 10 &&
                       lc1Phone.replace(/\s/g, '') === landlordPhone.replace(/\s/g, '') && (
-                        <p className="text-[10px] text-destructive">Cannot be the same as Landlord phone</p>
+                        <p className="text-xs text-destructive">Cannot be the same as Landlord phone</p>
                       )}
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Village *</Label>
+                  <div className="space-y-2">
+                    <Label className="""">Village *</Label>
                     <Input
                       value={lc1Village}
                       onChange={(e) => setLc1Village(e.target.value)}
@@ -2155,8 +2155,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     location in Tenant Ops drill-down instead of the
                     "Entebbe (please verify)" placeholder. */}
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <Label className="text-xs flex items-center gap-1">
+                  <div className="space-y-2">
+                    <Label className=""flex items-center gap-1"">
                       <MapPin className="h-3 w-3" /> Town / City *
                     </Label>
                     <Input
@@ -2167,8 +2167,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       required
                     />
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">District</Label>
+                  <div className="space-y-2">
+                    <Label className="""">District</Label>
                     <Input
                       value={propertyDistrict}
                       onChange={(e) => setPropertyDistrict(e.target.value)}
@@ -2182,7 +2182,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       className="h-10"
                     />
                     {districtWarning(propertyDistrict) && (
-                      <p className="text-[10px] text-warning leading-tight">
+                      <p className="text-xs text-warning leading-tight">
                         {districtWarning(propertyDistrict)}
                       </p>
                     )}
@@ -2191,8 +2191,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
               </div>
 
               {/* Landlord auto-payout day */}
-              <div className="space-y-1 rounded-xl border border-primary/30 bg-primary/5 p-3">
-                <Label className="text-xs flex items-center gap-1 font-semibold">
+              <div className="space-y-2 rounded-xl border border-primary/30 bg-primary/5 p-3">
+                <Label className=""flex items-center gap-1 font-semibold"">
                   <Calendar className="h-3 w-3" /> Landlord payout day (1–28) *
                 </Label>
                 <Input
@@ -2205,7 +2205,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   className="h-10"
                   required
                 />
-                <p className="text-[11px] text-muted-foreground leading-snug">
+                <p className="text-sm text-muted-foreground leading-snug">
                   Welile will automatically credit the landlord wallet with UGX{' '}
                   {(parseInt(rentAmount.replace(/,/g, '')) || 0).toLocaleString()} on day{' '}
                   <span className="font-semibold text-foreground">{landlordPayoutDay || '–'}</span>{' '}
@@ -2222,7 +2222,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 <h4 className="text-sm font-bold flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-primary" /> Review &amp; confirm
                 </h4>
-                <div className="space-y-1 text-xs">
+                <div className="space-y-2 text-xs">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Tenant</span>
                     <span className="font-semibold">{tenantName || '—'}</span>
@@ -2262,7 +2262,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   <ul className="space-y-2">
                     {validationErrors.map((err, i) => (
                       <li key={i} className="flex items-start gap-2 text-sm font-semibold text-destructive">
-                        <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[11px] font-bold">{i + 1}</span>
+                        <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-destructive text-destructive-foreground text-sm font-bold">{i + 1}</span>
                         <span>{err}</span>
                       </li>
                     ))}
