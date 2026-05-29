@@ -134,6 +134,13 @@ export type AgentCapacity = {
   daily_rating: DailyRating;
   /** True iff agent may post a new rent request today. */
   can_post_rent_today: boolean;
+  /**
+   * True while the agent is still in the new-agent onboarding phase
+   * (fewer than NEW_AGENT_TENANT_THRESHOLD active tenants). New agents are
+   * capped at NEW_AGENT_RENT_CAP_UGX per tenant and are exempt from daily
+   * performance regulation until they graduate.
+   */
+  is_new_agent: boolean;
   /** Sum of daily_repayment across active (non-unfunded) rent_requests. */
   expected_daily: number;
   /** @deprecated alias of `response_rate` kept for backwards compatibility. */
