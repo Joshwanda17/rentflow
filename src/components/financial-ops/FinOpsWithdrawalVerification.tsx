@@ -20,6 +20,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
 import { extractToPhones, normalizeUgPhone } from '@/components/financial-ops/emailExtraction';
+import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
 
 interface WithdrawalRequest {
   id: string;
@@ -58,6 +59,7 @@ export function FinOpsWithdrawalVerification() {
   const { user } = useAuth();
   const [pendingRequests, setPendingRequests] = useState<WithdrawalRequest[]>([]);
   const [rejectedRequests, setRejectedRequests] = useState<WithdrawalRequest[]>([]);
+  const [profileUser, setProfileUser] = useState<{ id: string; name: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
   const [rejectOpen, setRejectOpen] = useState(false);
@@ -711,10 +713,15 @@ export function FinOpsWithdrawalVerification() {
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2">
             <UserAvatar fullName={req.user?.full_name || ''} avatarUrl={req.user?.avatar_url} size="sm" />
-            <div>
-              <p className="text-sm font-bold">{req.user?.full_name}</p>
-              <p className="text-xs text-muted-foreground">{req.user?.phone}</p>
-            </div>
+            <button
+              type="button"
+              onClick={() => setProfileUser({ id: req.user_id, name: req.user?.full_name || 'User' })}
+              className="text-left group"
+              title="Open full profile"
+            >
+              <p className="text-sm font-bold underline decoration-dotted underline-offset-2 group-hover:text-primary">{req.user?.full_name}</p>
+              <p className="text-xs text-muted-foreground">{req.user?.phone} · tap for full profile</p>
+            </button>
           </div>
           <div className="text-right space-y-1">
             <p className="text-base font-black">{formatCurrency(req.amount)}</p>
@@ -818,10 +825,15 @@ export function FinOpsWithdrawalVerification() {
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2">
             <UserAvatar fullName={req.user?.full_name || ''} avatarUrl={req.user?.avatar_url} size="sm" />
-            <div>
-              <p className="text-sm font-bold">{req.user?.full_name}</p>
-              <p className="text-xs text-muted-foreground">{req.user?.phone}</p>
-            </div>
+            <button
+              type="button"
+              onClick={() => setProfileUser({ id: req.user_id, name: req.user?.full_name || 'User' })}
+              className="text-left group"
+              title="Open full profile"
+            >
+              <p className="text-sm font-bold underline decoration-dotted underline-offset-2 group-hover:text-primary">{req.user?.full_name}</p>
+              <p className="text-xs text-muted-foreground">{req.user?.phone} · tap for full profile</p>
+            </button>
           </div>
           <div className="text-right">
             <p className="text-base font-black">{formatCurrency(req.amount)}</p>
@@ -1140,6 +1152,15 @@ export function FinOpsWithdrawalVerification() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Full requester profile — wallet, balances, roles, transfers */}
+      <UserDrilldownDrawer
+        open={!!profileUser}
+        onOpenChange={(o) => { if (!o) setProfileUser(null); }}
+        agentId={profileUser?.id ?? null}
+        tenantId={profileUser?.id ?? null}
+        defaultTab="agent"
+      />
 
     </>
   );
