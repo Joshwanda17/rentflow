@@ -1413,10 +1413,33 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
               animate={{ opacity: 1 }}
               className="space-y-4"
             >
+              {/* Guided wizard progress (standard flow only) */}
+              {incomeType !== 'outstanding' && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-bold">
+                      Step {detailStep + 1} of {DETAIL_STEPS.length}: {DETAIL_STEPS[detailStep]}
+                    </p>
+                    <span className="text-xs text-muted-foreground">
+                      {Math.round(((detailStep + 1) / DETAIL_STEPS.length) * 100)}%
+                    </span>
+                  </div>
+                  <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full bg-primary transition-all"
+                      style={{ width: `${((detailStep + 1) / DETAIL_STEPS.length) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
               {/* Agent rent exposure capacity (100M UGX cap) */}
-              <AgentCapacityBanner agentId={user?.id} />
+              {(incomeType === 'outstanding' || detailStep === 0) && (
+                <AgentCapacityBanner agentId={user?.id} />
+              )}
 
               {/* Latest rent receipt from landlord (required for all flows) */}
+              {(incomeType === 'outstanding' || detailStep === 0) && (
               <div className="space-y-2 p-4 rounded-2xl border-2 border-amber-400/40 bg-amber-50/60 dark:bg-amber-500/5">
                 <h4 className="text-sm font-semibold flex items-center gap-2">
                   <FileText className="h-4 w-4 text-amber-600" />
@@ -1464,6 +1487,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </p>
                 </div>
               </div>
+              )}
 
               {/* ===== 1. RENT DETAILS — PRIMARY SECTION ===== */}
               {incomeType === 'outstanding' ? (
