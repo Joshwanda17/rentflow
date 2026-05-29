@@ -290,9 +290,6 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     }
     setAttempted(true);
 
-    // Auto-sync lc1_village from village
-    const syncedForm = { ...form, lc1_village: form.village.trim() };
-
     const failWith = (msg: string) => {
       toast.error(msg);
       scrollDialogToTop();
@@ -315,29 +312,23 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       failWith('Monthly rent must be at least UGX 10,000');
       return;
     }
-    if (!syncedForm.region) {
+    if (!form.region) {
       failWith('Please select a region');
       return;
     }
-    if (!syncedForm.address.trim()) {
+    if (!form.address.trim()) {
       failWith('Address is required');
       return;
     }
-    if (!syncedForm.village.trim()) {
+    if (!form.village.trim()) {
       failWith('Village/Zone is required');
       return;
     }
-    if (!syncedForm.lc1_name.trim()) {
-      failWith('LC1 Chairperson name is required');
+    const lc1Err = validateLc1Selection(lc1Selection);
+    if (lc1Err) {
+      failWith(lc1Err);
       return;
     }
-    if (!syncedForm.lc1_phone.trim()) {
-      failWith('LC1 Chairperson phone is required');
-      return;
-    }
-
-    // Update form with synced lc1_village
-    setForm(syncedForm);
 
     setSubmitting(true);
     try {
