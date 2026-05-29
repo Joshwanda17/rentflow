@@ -5,7 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const LISTING_BONUS = 5000;
+const LISTING_BONUS = 4000;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -352,7 +352,7 @@ Deno.serve(async (req) => {
     // Step 7: Notify agent — bonus already in wallet
     await adminClient.from("notifications").insert({
       user_id: agentId,
-      title: "Listing Verified — UGX 5,000 Credited! 💰",
+      title: "Listing Verified — UGX 4,000 Credited! 💰",
       message: `Your listing "${listing.title}" has been verified. UGX ${LISTING_BONUS.toLocaleString()} has been credited to your commission wallet.`,
       type: "earning",
       metadata: {
@@ -374,7 +374,7 @@ Deno.serve(async (req) => {
         bonus_amount: LISTING_BONUS,
         listing_title: listing.title,
         tx_group_id: txGroupId,
-        reason: "Landlord Ops verified listing — UGX 5,000 auto-credited to agent commission wallet",
+        reason: "Landlord Ops verified listing — UGX 4,000 auto-credited to agent withdrawable wallet",
       },
     });
 
@@ -391,7 +391,7 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({
       success: true,
-      message: "Listing verified — UGX 5,000 credited to agent commission wallet",
+      message: "Listing verified — UGX 4,000 credited to agent withdrawable wallet",
       approval_id: approvalId,
       bonus: LISTING_BONUS,
       agent_id: agentId,
