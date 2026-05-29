@@ -1391,7 +1391,7 @@ async function tryAutoApproveBankBatch(
   // waiting on FinOps to push the cash.
   const { data: pending, error } = await supabase
     .from('withdrawal_requests')
-    .select('id, user_id, amount, status, payout_method, created_at, agent_id')
+    .select('id, user_id, amount, status, payout_method, created_at, agent_id, proxy_partner_id, linked_party')
     .in('payout_method', ['bank_transfer', 'bank'])
     .in('status', ['pending', 'requested', 'manager_approved', 'cfo_approved', 'coo_approved'])
     .order('created_at', { ascending: true })
