@@ -202,7 +202,7 @@ export function CreditAccessDrawSheet({ open, onOpenChange, userId, creditLimit 
               {submitting ? (
                 <><Loader2 className="h-4 w-4 animate-spin" /> Processing...</>
               ) : (
-                <><Send className="h-4 w-4" /> ⚡ Access {formatUGX(amount)} Now</>
+                <><Send className="h-4 w-4" /> Submit {formatUGX(amount)} for Approval</>
               )}
             </Button>
           </div>
