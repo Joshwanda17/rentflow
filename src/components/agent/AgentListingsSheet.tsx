@@ -20,6 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { TenantProfileView } from './TenantProfileView';
 import { ReassignAgentDialog } from '@/components/shared/ReassignAgentDialog';
 import { HouseActivityTimeline } from '@/components/shared/HouseActivityTimeline';
+import { HouseBonusTimeline } from './HouseBonusTimeline';
 import { HighlightText } from '@/components/shared/HighlightText';
 import { useFilterKeyboardShortcuts } from '@/hooks/useFilterKeyboardShortcuts';
 import { HouseDetailSheet } from './HouseDetailSheet';
