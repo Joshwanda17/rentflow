@@ -1,0 +1,147 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+// Instant leg of the UGX 5,000 listing reward. Paid the moment the agent
+// lists a house. The remaining UGX 4,000 is paid by `credit-listing-bonus`
+// when Landlord Ops verifies the house.
+const LISTED_BONUS = 1000;
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+    // Verify caller identity (the listing agent)
+    const authHeader = req.headers.get("authorization") || "";
+    const token = authHeader.replace("Bearer ", "");
+    const anonClient = createClient(supabaseUrl, anonKey);
+    const { data: { user }, error: authError } = await anonClient.auth.getUser(token);
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const body = await req.json();
+    const { listing_id } = body;
+    if (!listing_id || typeof listing_id !== "string") {
+      return new Response(JSON.stringify({ error: "listing_id is required" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Treasury guard: credits agent wallet — block when paused
+    const guardBlock = await checkTreasuryGuard(adminClient, "credit", authHeader);
+    if (guardBlock) return guardBlock;
+
+    // Load the listing
+    const { data: listing, error: listingErr } = await adminClient
+      .from("house_listings")
+      .select("id, agent_id, title, listed_bonus_paid")
+      .eq("id", listing_id)
+      .single();
+
+    if (listingErr || !listing) {
+      return new Response(JSON.stringify({ error: "Listing not found" }), {
+        status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Idempotency: only pay once per listing
+    if (listing.listed_bonus_paid) {
+      return new Response(JSON.stringify({ success: true, already_paid: true }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const agentId = listing.agent_id;
+    if (!agentId) {
+      return new Response(JSON.stringify({ error: "No agent linked to this listing" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Only the listing agent can trigger their own instant bonus
+    if (agentId !== user.id) {
+      return new Response(JSON.stringify({ error: "Only the listing agent can claim this bonus" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const now = new Date().toISOString();
+
+    // ─── Post balanced double-entry: wallet agent_commission (cash_in) ↔
+    // platform marketing_expense (cash_out). recipient_type 'user' routes the
+    // credit to the agent's WITHDRAWABLE bucket. ───
+    const { error: ledgerErr } = await adminClient.rpc("create_ledger_transaction", {
+      entries: [
+        {
+          user_id: agentId,
+          amount: LISTED_BONUS,
+          direction: "cash_in",
+          category: "agent_commission",
+          ledger_scope: "wallet",
+          recipient_type: "user",
+          source_table: "house_listings",
+          source_id: listing_id,
+          description: `UGX ${LISTED_BONUS.toLocaleString()} instant house-listed reward — ${listing.title || "house"}`,
+          currency: "UGX",
+          transaction_date: now,
+        },
+        {
+          amount: LISTED_BONUS,
+          direction: "cash_out",
+          category: "marketing_expense",
+          ledger_scope: "platform",
+          source_table: "house_listings",
+          source_id: listing_id,
+          description: `Platform expense: instant house-listed reward — ${listing.title || "house"}`,
+          currency: "UGX",
+          transaction_date: now,
+        },
+      ],
+    });
+
+    if (ledgerErr) {
+      console.error("[credit-house-listed-bonus] Ledger write failed:", ledgerErr.message);
+      return new Response(JSON.stringify({ error: "Failed to credit listing reward" }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Mark paid only after money has moved (idempotency anchor)
+    const { error: flagErr } = await adminClient
+      .from("house_listings")
+      .update({ listed_bonus_paid: true, listed_bonus_paid_at: now })
+      .eq("id", listing_id)
+      .eq("listed_bonus_paid", false);
+
+    if (flagErr) {
+      console.error("[credit-house-listed-bonus] Flag update failed (money already moved):", flagErr.message);
+    }
+
+    console.log(`[credit-house-listed-bonus] Credited UGX ${LISTED_BONUS} to ${agentId} for listing ${listing_id}`);
+
+    return new Response(JSON.stringify({ success: true, bonus: LISTED_BONUS }), {
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (err: any) {
+    console.error("[credit-house-listed-bonus] Error:", err);
+    return new Response(JSON.stringify({ error: err.message || "Internal error" }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});

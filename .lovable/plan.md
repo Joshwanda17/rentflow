@@ -1,40 +1,49 @@
-# Proxy withdrawals: charge the agent's wallet + auto-approve by email
-
 ## Goal
-When a proxy agent requests a withdrawal for one of their proxy partners:
-1. The money (both the *reserved/pending hold* and the *final debit*) comes out of the **proxy agent's** wallet — not the partner's.
-2. The request **auto-approves** as soon as the matching outgoing mobile-money payout email is extracted (the same email-match engine that already auto-approves ordinary MoMo withdrawals), instead of waiting in the Financial Ops queue forever.
 
-## Why this is needed
-Today a proxy request is stored with `user_id = partner`, so:
-- The pending "reserved" amount is subtracted from the **partner's** balance (strict wallet view groups holds by `user_id`).
-- At approval, the debit also lands on the **partner's** wallet.
-- It never auto-approves — proxy rows are forced into the Financial Ops queue and stay `pending` (live data confirms 15+ stuck pending rows).
+When an agent posts a rent request, the landlord must already exist in the system **with at least one verified house**. If not, the landlord registration form shows a clear "List a house" shortcut that explains the agent earns **UGX 5,000** when Landlord Ops verifies the house — **UGX 1,000 paid instantly** the moment the house is listed, and the remaining **UGX 4,000 paid automatically** when Landlord Ops marks the house verified, straight into the agent's withdrawable wallet.
 
-## Changes
+This splits today's single UGX 5,000 "pay-on-verification" bonus into two stages without changing the total.
 
-### 1. Move the reserve onto the agent (strict wallet view)
-Update `v_user_wallet_strict` so a proxy withdrawal's pending amount is attributed to the **proxy agent** (`agent_id`) instead of the partner (`user_id`). Result: the agent's spendable balance drops the instant they request a proxy withdrawal, and the partner is no longer phantom-held.
+## What changes
 
-### 2. Debit the agent at approval (`approve-withdrawal` edge function)
-For proxy rows, re-point the funding wallet (`fundingUserId`) to the assigned proxy agent (from `agent_id` / managed assignment) instead of the partner. The partner stays as the beneficiary on the row for audit and settlement. The existing ledger gate already checks the funding agent's wallet and allows it to draw from withdrawable + float.
+### 1. Split the listing bonus (money flow)
 
-### 3. Auto-approve from the extracted email (`gmail-poll-transactions` edge function)
-The email poller already matches an outgoing MoMo email to a pending withdrawal by amount + recipient phone, then auto-approves it. Today it forces the debit onto the *requester* (which for proxy rows is the partner). Change: when the matched request is a proxy row, approve it **without** that override so the agent-wallet routing from step 2 applies. Non-proxy withdrawals keep working exactly as before.
+Today: `credit-listing-bonus` pays the full UGX 5,000 only when Landlord Ops verifies the house.
 
-### 4. Financial Ops visibility — unchanged
-Financial Ops keeps seeing every proxy row (the visibility trigger stays). The only difference is that a matching payout email now auto-completes the payout instead of requiring a manual tap.
+New behavior:
+```text
+House listed (agent submits)      -> UGX 1,000 instant  -> agent withdrawable wallet
+Landlord Ops marks "verified"     -> UGX 4,000 auto-paid -> agent withdrawable wallet
+                                     -------------------------------------------------
+Total                                UGX 5,000 (unchanged)
+```
 
-## Guardrails respected
-- The proxy-custody fortress trigger only blocks *crediting* money into an agent wallet; *debiting* (a withdrawal) is already allowed, so no guard is relaxed.
-- `wallet_withdrawal` is already on the balance-bypass allowlist; no new ledger categories are invented.
-- Balanced double-entry legs, the April production cutoff, and the withdrawable-strict rule all stay intact. The agent's own commission/float withdrawals now correctly compete with their outstanding proxy reserves (intended).
+- **DB migration**: add `listed_bonus_paid boolean default false` + `listed_bonus_paid_at timestamptz` to `house_listings` (tracks the instant UGX 1,000 leg). Verification stays tracked by the existing `listing_bonus_paid` flag + `listing_bonus_approvals` row.
+- **New edge function `credit-house-listed-bonus`** (verify_jwt = false): called right after a listing is created. Posts a balanced double-entry via `create_ledger_transaction` (wallet `agent_commission` cash_in ↔ platform `marketing_expense` cash_out) for **UGX 1,000**, idempotent on `house_listings.id` (guarded by `listed_bonus_paid`). Goes to the withdrawable bucket (`recipient_type = user`).
+- **Edit `credit-listing-bonus`**: change `LISTING_BONUS` from `5000` to `4000` (the remaining verification leg). Update its success message/notes to "UGX 4,000".
+- **Edit `approve-listing-bonus`** (CFO manual fallback path): same UGX 4,000 amount and messaging so the two verification paths stay consistent.
 
-## Technical detail
-- `v_user_wallet_strict.holds`: group pending `withdrawal_requests` by `CASE WHEN proxy_partner_id IS NOT NULL THEN agent_id ELSE user_id END`.
-- `approve-withdrawal`: in the proxy branch, set `fundingUserId` to the resolved proxy agent (managed assignment → `agent_id` → active assignment lookup); keep `beneficiaryUserId = partner`.
-- `gmail-poll-transactions` (`tryAutoApproveMomoWithdrawal`): select `proxy_partner_id, agent_id`; if the matched row is a proxy row, omit `force_requester_debit` in the approve-withdrawal call.
+### 2. "List a house" shortcut on the landlord registration form
 
-## Out of scope (confirm if you want these too)
-- Removing Financial Ops visibility for proxy rows entirely.
-- Auto-approving proxy *bank-transfer* or *cash* payouts (this plan covers mobile-money email matches, same as the existing auto-approver).
+- In `LandlordRegistrationForm` (agent mode only), add an info card + button: **"This landlord needs a verified house — List a house"** that opens `ListEmptyHouseDialog`, pre-filling landlord name/phone when already typed.
+- Card copy: "You earn **UGX 5,000** when Landlord Ops verifies this house — **UGX 1,000 now**, **UGX 4,000 on verification**, paid straight to your withdrawable wallet."
+
+### 3. Rent-request gating (landlord must have a verified house)
+
+- In `AgentRentRequestDialog`, when resolving the landlord (both the outstanding picker and the inline name/phone path), check `house_listings` for `landlord_id = <landlord> AND verified = true`.
+- If none exists, block submission with a friendly message and surface the landlord dialog with the "List a house" shortcut, so the agent lists + gets the house verified first.
+- The check runs against the resolved/created landlord id; existing landlords with a verified house pass straight through.
+
+### 4. Messaging updates
+
+- `ListEmptyHouseDialog` success + intro copy updated to reflect the UGX 1,000-now / UGX 4,000-on-verification split (currently it only mentions the separate tenant-placement bounty).
+
+## Technical notes
+
+- Wallet credits go exclusively through `create_ledger_transaction` with `recipient_type = user` so both legs land in the withdrawable bucket — consistent with the existing listing-bonus and `credit_agent_event_bonus` patterns (no direct wallet writes).
+- Both bonus legs are idempotent (listing-level flags + `commission_accrual_ledger` / `listing_bonus_approvals` guards) so retries never double-pay.
+- `config.toml` gets a `[functions.credit-house-listed-bonus]` entry with `verify_jwt = false`.
+
+## Open question
+
+For the rent-request gate: should an unverified-landlord rent request be a **hard block** (cannot submit until a house is verified), or a **soft warning** (agent can still proceed but is strongly nudged to list a house)? The plan above assumes a **hard block** per "they must be in the system already with at least a house verified" — tell me if you'd prefer the softer version.

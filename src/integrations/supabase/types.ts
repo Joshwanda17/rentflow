@@ -7280,6 +7280,8 @@ export type Database = {
           lc1_chairperson_name: string | null
           lc1_chairperson_phone: string | null
           lc1_chairperson_village: string | null
+          listed_bonus_paid: boolean
+          listed_bonus_paid_at: string | null
           listing_bonus_paid: boolean | null
           listing_bonus_paid_at: string | null
           longitude: number | null
@@ -7331,6 +7333,8 @@ export type Database = {
           lc1_chairperson_name?: string | null
           lc1_chairperson_phone?: string | null
           lc1_chairperson_village?: string | null
+          listed_bonus_paid?: boolean
+          listed_bonus_paid_at?: string | null
           listing_bonus_paid?: boolean | null
           listing_bonus_paid_at?: string | null
           longitude?: number | null
@@ -7382,6 +7386,8 @@ export type Database = {
           lc1_chairperson_name?: string | null
           lc1_chairperson_phone?: string | null
           lc1_chairperson_village?: string | null
+          listed_bonus_paid?: boolean
+          listed_bonus_paid_at?: string | null
           listing_bonus_paid?: boolean | null
           listing_bonus_paid_at?: string | null
           longitude?: number | null

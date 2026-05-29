@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,6 +22,9 @@ interface ListEmptyHouseDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  /** Pre-fill the landlord fields (e.g. when opened from the landlord registration form). */
+  initialLandlordName?: string;
+  initialLandlordPhone?: string;
 }
 
 const HOUSE_CATEGORIES = [
@@ -44,7 +47,7 @@ const REGIONS = [
 
 import { normalizeDistrict, districtWarning, regionLabel } from '@/lib/ugandaDistricts';
 
-export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmptyHouseDialogProps) {
+export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLandlordName, initialLandlordPhone }: ListEmptyHouseDialogProps) {
   const geo = useGeolocation(true);
   const geoLoading = geo.loading;
   const position = geo.latitude && geo.longitude ? { latitude: geo.latitude, longitude: geo.longitude } : null;
@@ -89,6 +92,18 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
     lc1_phone: '',
     lc1_village: '',
   });
+
+  // Pre-fill landlord details when the dialog opens from the landlord form.
+  useEffect(() => {
+    if (open && (initialLandlordName || initialLandlordPhone)) {
+      setForm((f) => ({
+        ...f,
+        landlord_name: initialLandlordName ?? f.landlord_name,
+        landlord_phone: initialLandlordPhone ?? f.landlord_phone,
+      }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialLandlordName, initialLandlordPhone]);
 
   const monthlyRent = parseInt(form.monthly_rent) || 0;
   const pricing = calculateDailyRentalRate(monthlyRent);
@@ -244,6 +259,15 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
 
       if (error) throw error;
 
+      // Instant UGX 1,000 listing reward → agent withdrawable wallet (best-effort,
+      // never blocks listing). The remaining UGX 4,000 is auto-paid when Landlord
+      // Ops verifies the house.
+      if (listing?.id) {
+        supabase.functions
+          .invoke('credit-house-listed-bonus', { body: { listing_id: listing.id } })
+          .catch((e) => console.warn('[ListEmptyHouseDialog] instant listing bonus failed:', e));
+      }
+
       // Save LC1 chairperson to lookup table if new
       const { error: lc1Error } = await supabase
         .from('lc1_chairpersons')
@@ -270,7 +294,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
       }
 
       toast.success('House listed successfully!', {
-        description: `Daily rate: ${formatUGX(pricing.dailyRate)}/day · Earn UGX 5,000 the moment a tenant is placed in this house`,
+        description: `UGX 1,000 sent to your wallet now · earn UGX 4,000 more when Landlord Ops verifies this house (UGX 5,000 total)`,
       });
       onSuccess?.();
 
@@ -374,8 +398,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
               </div>
               <DialogTitle className="text-xl">House listed!</DialogTitle>
               <p className="text-sm text-muted-foreground">
-                Share it now so a tenant can rent it fast — you earn{' '}
-                <span className="font-semibold text-foreground">UGX 5,000</span> the moment they're placed.
+                <span className="font-semibold text-foreground">UGX 1,000</span> is on its way to your wallet now.
+                You earn <span className="font-semibold text-foreground">UGX 4,000</span> more once Landlord Ops verifies
+                this house — <span className="font-semibold text-foreground">UGX 5,000</span> in total.
               </p>
             </div>
 

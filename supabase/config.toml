@@ -117,3 +117,5 @@ project_id = "wirntoujqoyjobfhyelc"
     verify_jwt = false
   [functions.send-signup-invite-sms]
     verify_jwt = false
+  [functions.credit-house-listed-bonus]
+    verify_jwt = false

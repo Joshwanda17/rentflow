@@ -17,8 +17,9 @@ import {
   Building2, Phone, MapPin, Loader2, CheckCircle2,
   Navigation, AlertTriangle, Share2, Eye, EyeOff,
   RefreshCw, Copy, User, Hash, Zap, Droplets,
-  Wallet, ShieldCheck, XCircle,
+  Wallet, ShieldCheck, XCircle, Home,
 } from 'lucide-react';
+import { ListEmptyHouseDialog } from '@/components/agent/ListEmptyHouseDialog';
 
 const HOUSE_CATEGORIES = [
   'Single Room', 'Double Room', 'Bedsitter', 'One Bedroom',
@@ -50,6 +51,7 @@ export default function LandlordRegistrationForm({
   const { location, loading: locationLoading, error: locationError, captureLocation } = useCaptureLocation();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [showListHouse, setShowListHouse] = useState(false);
   const [activationLink, setActivationLink] = useState('');
   const [locationCaptured, setLocationCaptured] = useState(false);
 
@@ -282,6 +284,7 @@ export default function LandlordRegistrationForm({
   };
 
   return (
+    <>
     <AnimatePresence mode="wait">
       {success ? (
         <motion.div
@@ -350,6 +353,31 @@ export default function LandlordRegistrationForm({
           onSubmit={handleSubmit}
           className="space-y-3"
         >
+          {/* List-a-house shortcut — a landlord needs a verified house before
+              they can be used on a rent request. Agent earns UGX 5,000 total. */}
+          {registeredByRole === 'agent' && (
+            <div className="p-3 rounded-lg border border-primary/30 bg-primary/5 space-y-2">
+              <p className="text-xs text-muted-foreground">
+                A landlord needs at least one <span className="font-medium text-foreground">verified house</span> before
+                you can post a rent request for them.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                List a house and earn <span className="font-semibold text-foreground">UGX 5,000</span> when Landlord Ops
+                verifies it — <span className="font-semibold text-foreground">UGX 1,000 now</span>,{' '}
+                <span className="font-semibold text-foreground">UGX 4,000 on verification</span>, straight to your withdrawable wallet.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full gap-2"
+                onClick={() => setShowListHouse(true)}
+              >
+                <Home className="h-4 w-4" />
+                List a house for this landlord
+              </Button>
+            </div>
+          )}
+
           {/* Qualification Score Bar */}
           {!minimal && (
           <div className="p-2.5 rounded-lg bg-muted/50 border">
@@ -629,5 +657,15 @@ export default function LandlordRegistrationForm({
         </motion.form>
       )}
     </AnimatePresence>
+
+    {registeredByRole === 'agent' && (
+      <ListEmptyHouseDialog
+        open={showListHouse}
+        onOpenChange={setShowListHouse}
+        initialLandlordName={landlordName}
+        initialLandlordPhone={landlordPhone}
+      />
+    )}
+    </>
   );
 }
