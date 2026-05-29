@@ -632,9 +632,15 @@ Deno.serve(async (req) => {
       const smsMsg =
         `WELILE: UGX ${amount.toLocaleString()} has been sent to your wallet ` +
         `by Welile Technologies Finance. Ref: ${refId}. Thank you.`;
-      sendSMS(targetProfile.phone, smsMsg).catch((e) =>
-        console.error("[cfo-direct-credit] recipient SMS failed:", e),
-      );
+      // IMPORTANT: await the SMS. A fire-and-forget promise gets killed when the
+      // edge isolate tears down right after the response is returned, so the
+      // text never reaches Africa's Talking. Awaiting guarantees instant delivery.
+      try {
+        const sent = await sendSMS(targetProfile.phone, smsMsg);
+        console.log(`[cfo-direct-credit] recipient SMS to ${targetProfile.phone}: ${sent ? "sent" : "failed"} ref=${refId}`);
+      } catch (e) {
+        console.error("[cfo-direct-credit] recipient SMS failed:", (e as Error).message);
+      }
     }
 
     // ── Send Partner Wallet Deposit email on ROI payouts (mirrors approve-wallet-operation) ──
