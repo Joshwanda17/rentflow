@@ -1478,6 +1478,14 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
         onOpenChange(false);
         return;
       }
+      if (res?.bucketMoved) {
+        toast({
+          title: 'Moved between buckets',
+          description: `${formatUGX(Number(res.moveAmount) || Number(amount))} moved to ${res.movedToFloat ? 'Operational Float' : 'Personal Deposit'} for ${user?.full_name} (no new credit — funds switched buckets).`,
+        });
+        onOpenChange(false);
+        return;
+      }
       const routeLabel = route === 'operational_float' ? 'Operational Float' : 'Personal Deposit';
       const reversedPart = res?.forcedReversal
         ? ' Original auto-credit force-reversed; recoverable obligation recorded.'
