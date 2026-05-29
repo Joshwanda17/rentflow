@@ -754,6 +754,29 @@ export function FundedTenantsList() {
                       )}
                     </span>
                     <span>{r.mobile_money_provider}: <span className="font-mono">{r.landlord_phone}</span></span>
+                    <span>
+                      Funded by:{' '}
+                      {r.finops_disbursed_by ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDrill({
+                              tenantId: null,
+                              agentId: r.finops_disbursed_by,
+                              landlordId: null,
+                              tab: 'agent',
+                            });
+                          }}
+                          className="font-semibold text-primary hover:underline"
+                          title="Open the profile and wallet of the operator who transferred this money"
+                        >
+                          {r.funder_profile?.full_name ?? 'View operator'}
+                        </button>
+                      ) : (
+                        <b className="text-foreground">—</b>
+                      )}
+                    </span>
                     {(r.finops_momo_reference || r.external_reference) && (
                       <span className="inline-flex items-center gap-1">
                         <Receipt className="h-3 w-3" />
