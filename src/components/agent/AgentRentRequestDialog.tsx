@@ -573,7 +573,6 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       if (!cleanNationalId || cleanNationalId.length < 10 || cleanNationalId.length > 14 || !/^[A-Z0-9]+$/.test(cleanNationalId)) {
         errors.push("Enter the tenant's National ID (the long number/letters on their ID card)");
       }
-      if (!tenantPhoto) errors.push('Take a photo of the tenant (their face)');
       if (!preferredLanguage) errors.push('Choose the language the tenant speaks');
     } else if (idx === 2) {
       if (!houseCategory) errors.push('Choose the house type');
