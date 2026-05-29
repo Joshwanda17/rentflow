@@ -227,6 +227,19 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       scrollDialogToTop();
     };
 
+    // Search-first: the agent must look up the landlord in the system before
+    // listing. They either select an existing (ideally verified) landlord or
+    // explicitly add a new one after searching returns no match.
+    if (!selectedLandlord && !manualLandlord) {
+      failWith('Search for the landlord first, then select them or add a new one');
+      scrollDialogToTop();
+      return;
+    }
+    if (manualLandlord && (!form.landlord_name.trim() || !form.landlord_phone.trim())) {
+      failWith('Enter the new landlord name and phone');
+      return;
+    }
+
     if (!monthlyRent || monthlyRent < 10000) {
       failWith('Monthly rent must be at least UGX 10,000');
       return;
