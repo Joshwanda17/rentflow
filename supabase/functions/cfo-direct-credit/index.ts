@@ -435,7 +435,7 @@ Deno.serve(async (req) => {
         .from("email_credit_idempotency")
         .insert({
           gmail_transaction_id: gmailTxId,
-          gmail_message_id: gmailMsgId,
+          gmail_message_id: effectiveGmailMsgId,
           email_tid: emailTid,
           target_user_id,
           amount,
