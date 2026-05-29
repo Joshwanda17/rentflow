@@ -184,10 +184,15 @@ Deno.serve(async (req) => {
     // tell them apart.
     const looksLikeTxnRef = (v: unknown): v is string =>
       typeof v === "string" && v.length >= 4 && /\d/.test(v);
-    const emailTid: string | null = looksLikeTxnRef(rawEmailTid)
-      ? rawEmailTid
-      : (looksLikeTxnRef(sub_category) ? sub_category : null);
-    const isEmailOriginCredit = op === "credit" && (gmailMsgId || emailTid);
+    // For manual CFO payouts we ignore every potential idempotency key so the
+    // tool can pay the same user under the same category endlessly.
+    const emailTid: string | null = isManualCredit
+      ? null
+      : (looksLikeTxnRef(rawEmailTid)
+          ? rawEmailTid
+          : (looksLikeTxnRef(sub_category) ? sub_category : null));
+    const effectiveGmailMsgId: string | null = isManualCredit ? null : gmailMsgId;
+    const isEmailOriginCredit = op === "credit" && (effectiveGmailMsgId || emailTid);
 
     // ── Forced reversal mode ────────────────────────────────────────────
     // Email-deposit rerouting and other recovery workflows may need to
