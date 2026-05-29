@@ -118,6 +118,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         landlord_name: initialLandlordName ?? f.landlord_name,
         landlord_phone: initialLandlordPhone ?? f.landlord_phone,
       }));
+      // Treat a pre-filled landlord (from the registration form) as a manual
+      // new-landlord entry so the search-first gate is satisfied.
+      setManualLandlord(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialLandlordName, initialLandlordPhone]);
