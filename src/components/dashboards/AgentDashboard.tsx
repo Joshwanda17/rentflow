@@ -447,6 +447,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         )}
 
         <AgentAgreementBanner />
+        <AgentPaymentEditAlert agentId={user.id} />
 
         {/* Linked-but-uncredited deposits — surfaces stuck float receipts */}
         <AgentPendingReceiptPanel />
