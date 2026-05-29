@@ -1470,8 +1470,8 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                 {/* Sort group: by amount (high→low) / by name (A→Z) — pictures only */}
                 <div className="flex items-center gap-2">
                   {([
-                    { key: 'balance' as SortKey, dir: 'desc' as SortDir, Icon: Banknote, label: 'Sort by biggest amount first' },
-                    { key: 'name' as SortKey, dir: 'asc' as SortDir, Icon: ArrowDownAZ, label: 'Sort by name A to Z' },
+                    { key: 'balance' as SortKey, dir: 'desc' as SortDir, Icon: Banknote, label: tr('sortBiggest') },
+                    { key: 'name' as SortKey, dir: 'asc' as SortDir, Icon: ArrowDownAZ, label: tr('sortName') },
                   ]).map(({ key, dir, Icon, label }) => {
                     const active = sortKey === key && sortDir === dir;
                     return (
@@ -1491,9 +1491,9 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                 {/* Bulk select toggle — pictures only */}
                 <button
                   onClick={() => { if (bulkSelectMode) exitBulkSelect(); else setBulkSelectMode(true); }}
-                  aria-label={bulkSelectMode ? 'Stop selecting tenants' : 'Select many tenants to collect'}
+                  aria-label={bulkSelectMode ? tr('stopSelecting') : tr('selectMany')}
                   aria-pressed={bulkSelectMode}
-                  title={bulkSelectMode ? 'Stop selecting' : 'Select many to collect'}
+                  title={bulkSelectMode ? tr('stopSelecting') : tr('selectMany')}
                   className={`h-14 w-14 rounded-2xl border-2 flex items-center justify-center transition-colors ${bulkSelectMode ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-muted/40 text-muted-foreground border-transparent'}`}
                 >
                   {bulkSelectMode ? <CheckSquare className="h-7 w-7" strokeWidth={2.4} /> : <ListChecks className="h-7 w-7" strokeWidth={2.4} />}
