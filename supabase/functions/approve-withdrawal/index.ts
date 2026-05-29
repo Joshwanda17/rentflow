@@ -596,12 +596,40 @@ Deno.serve(async (req) => {
       Boolean(proxyPartnerId && (reasonLooksProxy || managedProxyAgentId || proxyAgentCandidates.length > 0)) ||
       (reasonLooksProxy && ((wr.linked_party && wr.linked_party !== wr.user_id) || isProxyAgent));
 
+    // ── Resolve the proxy agent whose wallet FUNDS this proxy payout ──────
+    // Policy (per product owner): a proxy agent who requests a withdrawal on
+    // behalf of their partner is debited from THEIR OWN wallet. Resolve the
+    // funding agent in priority order: explicit managed assignment → the
+    // agent recorded on the request (agent_id / initiated_by) → any active +
+    // approved proxy assignment for the partner. The partner remains the
+    // beneficiary for audit / settlement.
+    let resolvedProxyAgentId: string | null =
+      managedProxyAgentId ?? (proxyAgentCandidates[0] ?? null);
+    if (isProxyPayout && proxyPartnerId && !resolvedProxyAgentId) {
+      const { data: anyAssignment } = await admin
+        .from("proxy_agent_assignments")
+        .select("agent_id")
+        .eq("beneficiary_id", proxyPartnerId)
+        .eq("is_active", true)
+        .eq("approval_status", "approved")
+        .order("is_managed_account", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      resolvedProxyAgentId =
+        (anyAssignment?.agent_id && anyAssignment.agent_id !== proxyPartnerId)
+          ? (anyAssignment.agent_id as string)
+          : null;
+    }
+
     const amount = Number(wr.amount);
     let beneficiaryUserId =
       isProxyPayout && proxyPartnerId ? proxyPartnerId : wr.user_id;
-    let fundingUserId = isProxyPayout && proxyPartnerId
-      ? proxyPartnerId
-      : wr.user_id;
+    // Debit the resolved proxy agent's wallet. Fall back to the partner only
+    // if no agent could be resolved (keeps legacy partner-owned rows working).
+    let fundingUserId = isProxyPayout && resolvedProxyAgentId
+      ? resolvedProxyAgentId
+      : (isProxyPayout && proxyPartnerId ? proxyPartnerId : wr.user_id);
 
     // ── Partner → Proxy Agent auto-routing ────────────────────────────────
     // Policy: whenever the requester (`wr.user_id`) is a partner with an
@@ -736,7 +764,16 @@ Deno.serve(async (req) => {
         return acc;
       }, 0);
 
-      const proxyLedgerPartnerId = isProxyPayout && proxyPartnerId ? String(proxyPartnerId) : null;
+      // Only use the partner-EARMARK gate for legacy custody / managed-ROI
+      // rows that explicitly carry `linked_party` (ROI credits parked on the
+      // agent wallet, tagged to the partner). Agent-initiated proxy
+      // withdrawals from the dialog have NO linked_party — they spend the
+      // agent's own withdrawable/float and must use the agent full-wallet gate
+      // below (the `else if (isProxyPayout)` branch).
+      const proxyLedgerPartnerId =
+        isProxyPayout && wr.linked_party && String(wr.linked_party) !== String(fundingUserId)
+          ? String(wr.linked_party)
+          : null;
       if (proxyLedgerPartnerId) {
 
         const { data: linkedRows, error: linkedErr } = await admin
