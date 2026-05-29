@@ -1124,22 +1124,38 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               💰 You earn UGX 5,000 the moment a tenant is placed in this house
             </p>
           </div>
+          </>
+          )}
 
-          <Button
-            type="submit"
-            className="w-full h-12 text-base"
-            disabled={submitting}
-            onClick={(e) => {
-              // Defensive: some mobile browsers swallow form submit when
-              // a native-validated input (e.g. type="number") rejects silently.
-              // Guarantee the handler always runs.
-              if (e.currentTarget.form) return;
-              handleSubmit();
-            }}
-          >
-            {submitting ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Home className="h-5 w-5 mr-2" />}
-            List & share house{monthlyRent > 0 ? ` · ${formatUGX(pricing.dailyRate)}/day` : ''}
-          </Button>
+          {/* Wizard navigation — big Back / Next / List buttons */}
+          <div className="flex gap-2 pt-1">
+            {step > 1 && (
+              <Button type="button" variant="outline" className="h-12 flex-1 text-base" onClick={goBack}>
+                <ArrowLeft className="h-5 w-5 mr-1" /> Back
+              </Button>
+            )}
+            {step < TOTAL_STEPS ? (
+              <Button type="button" className="h-12 flex-[2] text-base" onClick={goNext}>
+                Next <ArrowRight className="h-5 w-5 ml-1" />
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                className="h-12 flex-[2] text-base"
+                disabled={submitting}
+                onClick={(e) => {
+                  // Defensive: some mobile browsers swallow form submit when
+                  // a native-validated input (e.g. type="number") rejects silently.
+                  // Guarantee the handler always runs.
+                  if (e.currentTarget.form) return;
+                  handleSubmit();
+                }}
+              >
+                {submitting ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Home className="h-5 w-5 mr-2" />}
+                List house
+              </Button>
+            )}
+          </div>
         </form>
         </>
         )}
