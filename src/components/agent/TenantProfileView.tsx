@@ -32,6 +32,7 @@ import { RentAccessLimitCard } from './RentAccessLimitCard';
 import RentAccessLimitActivity from './RentAccessLimitActivity';
 import { TenantPaymentCalendar } from './TenantPaymentCalendar';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Sparkles, ChevronRight } from 'lucide-react';
 import AgentContactLocationGate from './AgentContactLocationGate';
 import { useRequireContactLocation } from '@/hooks/useRequireContactLocation';
@@ -52,6 +53,7 @@ interface TenantProfile {
   national_id: string | null;
   avatar_url: string | null;
   tenant_status?: string | null;
+  previous_full_name?: string | null;
 }
 
 interface RentRequestRow {
@@ -227,7 +229,7 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
       const [profileRes, rentRes, repaymentRes, walletRes, portfolioRes, ledgerRes, rolesRes] = await Promise.all([
         supabase
           .from('profiles')
-          .select('id, full_name, phone, email, created_at, monthly_rent, verified, national_id, avatar_url, tenant_status')
+          .select('id, full_name, phone, email, created_at, monthly_rent, verified, national_id, avatar_url, tenant_status, previous_full_name')
           .eq('id', tenantId)
           .single(),
         supabase
@@ -712,7 +714,36 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
           <div className="flex items-center gap-3 sm:gap-4">
             <UserAvatar avatarUrl={profile.avatar_url} fullName={profile.full_name} size="lg" />
             <div className="min-w-0 flex-1">
-              <h2 className="text-lg sm:text-xl font-bold leading-tight truncate">{profile.full_name}</h2>
+              {profile.previous_full_name && profile.previous_full_name !== profile.full_name ? (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="group flex items-center gap-1.5 text-left max-w-full"
+                    >
+                      <h2 className="text-lg sm:text-xl font-bold leading-tight truncate underline decoration-dotted decoration-primary/50 underline-offset-4">
+                        {profile.full_name}
+                      </h2>
+                      <History className="h-3.5 w-3.5 shrink-0 text-primary/70 group-hover:text-primary" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="w-64 p-3 space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Name history
+                    </p>
+                    <div>
+                      <p className="text-[11px] text-muted-foreground">Previous name</p>
+                      <p className="text-sm line-through text-muted-foreground">{profile.previous_full_name}</p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] text-muted-foreground">Current name</p>
+                      <p className="text-sm font-semibold">{profile.full_name}</p>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              ) : (
+                <h2 className="text-lg sm:text-xl font-bold leading-tight truncate">{profile.full_name}</h2>
+              )}
               <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                 {profile.verified ? (
                   <Badge className="bg-success/15 text-success border-0 text-xs">✓ Verified</Badge>
