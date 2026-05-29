@@ -38,6 +38,7 @@ import { ListingPhotoUploadDialog } from './ListingPhotoUploadDialog';
 import { ImagePlus } from 'lucide-react';
 import { ContactActions } from './ContactActions';
 import { LandlordEditCard } from './LandlordEditCard';
+import { TenantLandlordPayoutsEditor } from './TenantLandlordPayoutsEditor';
 
 type UserBrief = { id: string; full_name: string | null; phone: string | null };
 
