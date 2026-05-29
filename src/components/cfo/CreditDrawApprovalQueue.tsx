@@ -267,7 +267,7 @@ export function CreditDrawApprovalQueue() {
                       <Button
                         size="sm"
                         className="flex-1 h-8"
-                        onClick={() => approve.mutate(item)}
+                        onClick={() => setConfirming(item)}
                         disabled={approve.isPending || !amount || amount < 10000}
                       >
                         {approve.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Banknote className="h-3 w-3 mr-1" />}
@@ -285,6 +285,50 @@ export function CreditDrawApprovalQueue() {
           </div>
         )}
       </CardContent>
+
+      {/* Two-step confirm before money actually moves */}
+      <AlertDialog open={!!confirming} onOpenChange={(o) => { if (!o) setConfirming(null); }}>
+        <AlertDialogContent>
+          {confirming && (() => {
+            const e = edits[confirming.id];
+            const amount = e?.amount !== undefined && e.amount !== '' ? Number(e.amount) : confirming.amount;
+            const months = e?.months !== undefined && e.months !== '' ? Number(e.months) : confirming.duration_months;
+            const terms = calcTerms(amount || 0, Math.max(1, Math.min(12, months || 1)));
+            return (
+              <>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Confirm disbursement?</AlertDialogTitle>
+                  <AlertDialogDescription asChild>
+                    <div className="space-y-2 text-sm">
+                      <p>
+                        You are about to credit <strong>{fmt(amount || 0)}</strong> into{' '}
+                        <strong>{confirming.user_name}</strong>'s withdrawable wallet for{' '}
+                        <strong>{Math.max(1, Math.min(12, months || 1))} month(s)</strong>.
+                      </p>
+                      <div className="rounded-md bg-muted/40 p-2 grid grid-cols-3 gap-2 text-center text-[11px]">
+                        <div><p className="text-muted-foreground">Access Fee</p><p className="font-bold text-warning">{fmt(terms.accessFee)}</p></div>
+                        <div><p className="text-muted-foreground">Total Repay</p><p className="font-bold">{fmt(terms.totalPayable)}</p></div>
+                        <div><p className="text-muted-foreground">Daily Charge</p><p className="font-bold">{fmt(terms.dailyCharge)}</p></div>
+                      </div>
+                      <p className="text-xs text-muted-foreground">This moves real money and cannot be undone.</p>
+                    </div>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={approve.isPending}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={(ev) => { ev.preventDefault(); const target = confirming; setConfirming(null); approve.mutate(target); }}
+                    disabled={approve.isPending}
+                  >
+                    {approve.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Banknote className="h-3 w-3 mr-1" />}
+                    Confirm & Disburse {fmt(amount || 0)}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </>
+            );
+          })()}
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
