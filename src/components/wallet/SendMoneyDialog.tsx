@@ -76,7 +76,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
     | { status: 'idle' }
     | { status: 'invalid'; reason: string }
     | { status: 'searching' }
-    | { status: 'found'; name: string; phone: string; email: string | null; isSelf: boolean }
+    | { status: 'found'; id: string; name: string; phone: string; email: string | null; isSelf: boolean }
     | { status: 'multiple'; matches: RecipientMatch[] }
     | { status: 'not_found' }
   >({ status: 'idle' });
@@ -116,12 +116,10 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
       setRecipient({ status: 'searching' });
       let cancelled = false;
       const timer = setTimeout(async () => {
-        const variants = [`0${last9}`, `256${last9}`, `+256${last9}`, last9];
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('id, full_name, phone, email')
-          .in('phone', variants)
-          .limit(10);
+        const { data, error } = await supabase.rpc('resolve_transfer_recipient', {
+          p_phone: last9,
+          p_email: null,
+        });
         if (cancelled) return;
         if (error || !data || data.length === 0) {
           setRecipient({ status: 'not_found' });
@@ -129,15 +127,16 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
         }
         const matches: RecipientMatch[] = data.map((d) => ({
           id: d.id,
-          name: d.full_name || d.email || 'Unnamed user',
-          phone: d.phone || phone,
-          email: d.email || null,
-          isSelf: d.id === user?.id,
+          name: d.display_name || 'Welile user',
+          phone: d.masked_phone || '',
+          email: d.masked_email || null,
+          isSelf: !!d.is_self,
         }));
         if (matches.length === 1) {
           const m = matches[0];
           setRecipient({
             status: 'found',
+            id: m.id,
             name: m.name,
             phone: m.phone,
             email: m.email,
@@ -174,32 +173,27 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
     setRecipient({ status: 'searching' });
     let cancelled = false;
     const timer = setTimeout(async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone, email')
-        .ilike('email', trimmed)
-        .limit(10);
+      const { data, error } = await supabase.rpc('resolve_transfer_recipient', {
+        p_phone: null,
+        p_email: trimmed,
+      });
       if (cancelled) return;
       if (error || !data || data.length === 0) {
         setRecipient({ status: 'not_found' });
         return;
       }
-      const withPhone = data.filter((d) => !!d.phone);
-      if (withPhone.length === 0) {
-        setRecipient({ status: 'not_found' });
-        return;
-      }
-      const matches: RecipientMatch[] = withPhone.map((d) => ({
+      const matches: RecipientMatch[] = data.map((d) => ({
         id: d.id,
-        name: d.full_name || d.email || 'Unnamed user',
-        phone: d.phone as string,
-        email: d.email || null,
-        isSelf: d.id === user?.id,
+        name: d.display_name || 'Welile user',
+        phone: d.masked_phone || '',
+        email: d.masked_email || null,
+        isSelf: !!d.is_self,
       }));
       if (matches.length === 1) {
         const m = matches[0];
         setRecipient({
           status: 'found',
+          id: m.id,
           name: m.name,
           phone: m.phone,
           email: m.email,
@@ -341,10 +335,17 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
   const executeSend = async () => {
     const amountNum = parseFloat(amount);
     setLoading(true);
-    // Always send via matched phone (edge function accepts recipient_phone)
-    const recipientPhone =
-      recipient.status === 'found' ? recipient.phone : phone;
-    const { error } = await sendMoney(recipientPhone, amountNum, description);
+    // Send by the resolved recipient id (returned by resolve_transfer_recipient).
+    // We no longer pass a raw phone — the masked phone shown in the UI is
+    // display-only and is never used to route the transfer.
+    const recipientId =
+      recipient.status === 'found' ? recipient.id : undefined;
+    if (!recipientId) {
+      setLoading(false);
+      toast.error('Pick a valid recipient before sending');
+      return;
+    }
+    const { error } = await sendMoney(recipientId, amountNum, description);
     setLoading(false);
 
     if (error) {
@@ -703,6 +704,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                               onClick={() =>
                                 setRecipient({
                                   status: 'found',
+                                  id: m.id,
                                   name: m.name,
                                   phone: m.phone,
                                   email: m.email,

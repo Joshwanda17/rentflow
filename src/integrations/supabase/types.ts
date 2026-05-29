@@ -18540,6 +18540,16 @@ export type Database = {
           target_path: string
         }[]
       }
+      resolve_transfer_recipient: {
+        Args: { p_email?: string; p_phone?: string }
+        Returns: {
+          display_name: string
+          id: string
+          is_self: boolean
+          masked_email: string
+          masked_phone: string
+        }[]
+      }
       resolve_welile_ai_id: { Args: { ai_id: string }; Returns: string }
       resubmit_rejected_deposit: {
         Args: { p_id: string; p_payload: Json }
