@@ -1875,6 +1875,34 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   Tenant Details
                 </h4>
 
+                {/* One-tap auto-fill from an existing tenant */}
+                {existingTenants.length > 0 && (
+                  <div className="space-y-1 rounded-xl border-2 border-primary/30 bg-primary/5 p-3">
+                    <Label className="flex items-center gap-1 text-primary">
+                      ⚡ Quick fill from a tenant you already registered
+                    </Label>
+                    <Select
+                      value=""
+                      onValueChange={applyExistingTenant}
+                      disabled={autofillingTenant || loadingTenants}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={autofillingTenant ? 'Filling in…' : 'Tap to pick an existing tenant'} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {existingTenants.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {t.full_name}{t.phone ? ` · ${t.phone}` : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[10px] text-muted-foreground">
+                      Pulls their phone, National ID and photo automatically. You can still edit anything below.
+                    </p>
+                  </div>
+                )}
+
                 {/* No Smartphone Toggle */}
                 <button
                   type="button"
