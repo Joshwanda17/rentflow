@@ -311,7 +311,7 @@ Deno.serve(async (req) => {
 
     const { data: targetProfile } = await adminClient
       .from("profiles")
-      .select("id, full_name, email")
+      .select("id, full_name, email, phone")
       .eq("id", target_user_id)
       .single();
 
