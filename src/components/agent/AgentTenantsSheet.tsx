@@ -1309,7 +1309,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               Simple
             </button>
             <button
-              onClick={() => setSimpleMode(false)}
+              onClick={() => { setSimpleMode(false); exitBulkSelect(); }}
               className={`py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
                 !simpleMode ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'
               }`}
