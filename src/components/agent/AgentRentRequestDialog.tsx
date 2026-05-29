@@ -679,6 +679,40 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     });
   }, []);
 
+  // Auto-fill the tenant fields from a previously-registered tenant. Pulls
+  // their name, phone and National ID instantly, and best-effort downloads
+  // their saved passport photo so the agent doesn't have to re-capture it.
+  const applyExistingTenant = useCallback(async (tenantId: string) => {
+    const t = existingTenants.find((x) => x.id === tenantId);
+    if (!t) return;
+    setAutofillingTenant(true);
+    try {
+      if (t.full_name) setTenantName(t.full_name);
+      if (t.phone) setTenantPhone(formatPhoneInput(t.phone));
+      if (t.national_id) setTenantNationalId(t.national_id.replace(/[^a-zA-Z0-9]/g, '').toUpperCase());
+
+      if (t.avatar_url) {
+        try {
+          const res = await fetch(t.avatar_url);
+          if (res.ok) {
+            const blob = await res.blob();
+            const ext = (blob.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
+            const file = new File([blob], `tenant_passport.${ext}`, { type: blob.type || 'image/jpeg' });
+            setTenantPhoto((prev) => {
+              if (prev) URL.revokeObjectURL(prev.preview);
+              return { file, preview: URL.createObjectURL(file) };
+            });
+          }
+        } catch {
+          // Photo fetch is best-effort — agent can still capture a fresh one.
+        }
+      }
+      toast.success(`Filled in ${t.full_name}'s details`);
+    } finally {
+      setAutofillingTenant(false);
+    }
+  }, [existingTenants]);
+
   const handleLatestRentReceipt = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     const input = e.target;
