@@ -573,7 +573,6 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       if (!cleanNationalId || cleanNationalId.length < 10 || cleanNationalId.length > 14 || !/^[A-Z0-9]+$/.test(cleanNationalId)) {
         errors.push("Enter the tenant's National ID (the long number/letters on their ID card)");
       }
-      if (!tenantPhoto) errors.push('Take a photo of the tenant (their face)');
       if (!preferredLanguage) errors.push('Choose the language the tenant speaks');
     } else if (idx === 2) {
       if (!houseCategory) errors.push('Choose the house type');
@@ -893,8 +892,6 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     }
 
     if (!preferredLanguage) errors.push('Choose the language the tenant speaks');
-
-    if (!tenantPhoto) errors.push('Take a photo of the tenant (their face)');
 
     // Outstanding flow uses a searchable landlord picker (LC already linked).
     // Other flows still collect landlord + LC1 inline.
@@ -1905,10 +1902,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   )}
                 </div>
 
-                {/* Tenant passport photo (required) */}
+                {/* Tenant passport photo (optional — can be added later) */}
                 <div className="space-y-1">
                   <Label className="flex items-center gap-1">
-                    🪪 Tenant Passport Photo *
+                    🪪 Tenant Passport Photo (optional)
                   </Label>
                   <div className="flex items-start gap-3">
                     {tenantPhoto ? (
@@ -1936,7 +1933,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       </label>
                     )}
                     <p className="text-[10px] text-muted-foreground leading-relaxed">
-                      Take a clear, well-lit photo of the tenant's face (passport-style). Landlord Ops uses this to verify the tenant during review.
+                      Optional now — you can attach it later. Take a clear, well-lit photo of the tenant's face (passport-style). Landlord Ops uses this to verify the tenant during review.
                     </p>
                   </div>
                 </div>
@@ -2035,7 +2032,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 {/* GPS Capture */}
                 <div className="space-y-1">
                   <Label className="flex items-center gap-1">
-                    <Navigation className="h-3 w-3" /> Property GPS
+                    <Navigation className="h-3 w-3" /> Property GPS (optional)
                   </Label>
                   {gpsLocation ? (
                     <div className="flex items-center gap-2 p-2.5 rounded-xl bg-success/10 border border-success/30">
@@ -2082,10 +2079,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 {/* House Photos — 4 outside views */}
                 <div className="space-y-2">
                   <Label className="flex items-center gap-1">
-                    📸 House Photos — capture all 4 outside views
+                    📸 House Photos (optional) — capture all 4 outside views
                   </Label>
                   <p className="text-[11px] text-muted-foreground">
-                    Take one photo of each outside part of the house: front, back, left side and right side.
+                    Optional now — you can attach these later. Take one photo of each outside part of the house: front, back, left side and right side.
                   </p>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {HOUSE_PHOTO_SLOTS.map((slot, idx) => {
