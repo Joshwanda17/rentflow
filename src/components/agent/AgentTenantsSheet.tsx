@@ -82,6 +82,43 @@ type RiskFilter = 'all' | 'good' | 'standard' | 'caution' | 'new';
 type SortKey = 'risk' | 'aiId' | 'property' | 'balance' | 'daily' | 'property-daily' | 'property-balance' | 'lastCollected' | 'recent' | 'name';
 type SortDir = 'asc' | 'desc';
 
+// Simple Mode language — English or Luganda. Lets agents who read little flip
+// the picture-first labels into their own language. Persisted in prefs.
+type SimpleLang = 'en' | 'lg';
+
+type SimpleTextKey =
+  | 'toCollect' | 'paid' | 'allPaid' | 'searchTenant'
+  | 'showAll' | 'showOwing' | 'showPaid'
+  | 'sortBiggest' | 'sortName'
+  | 'selectMany' | 'stopSelecting'
+  | 'selected' | 'markPaid' | 'collect' | 'call'
+  | 'markNPaid' | 'recordsFull' | 'totalToRecord' | 'confirm' | 'cancel'
+  | 'langName';
+
+const SIMPLE_TEXT: Record<SimpleTextKey, { en: string; lg: string }> = {
+  toCollect:     { en: 'To collect',   lg: 'Ebbanja' },
+  paid:          { en: 'Paid',         lg: 'Ezasasulwa' },
+  allPaid:       { en: 'All paid',     lg: 'Yamaze' },
+  searchTenant:  { en: 'Search tenant…', lg: 'Noonya omupangisa…' },
+  showAll:       { en: 'Show all tenants', lg: 'Laga bonna' },
+  showOwing:     { en: 'Show tenants who must pay', lg: 'Laga ab’ebbanja' },
+  showPaid:      { en: 'Show tenants who paid', lg: 'Laga abasasudde' },
+  sortBiggest:   { en: 'Sort by biggest amount first', lg: 'Ssente ennene mu maaso' },
+  sortName:      { en: 'Sort by name A to Z', lg: 'Erinnya A okutuuka Z' },
+  selectMany:    { en: 'Select many to collect', lg: 'Londa bangi okusooza' },
+  stopSelecting: { en: 'Stop selecting', lg: 'Lekera awo' },
+  selected:      { en: 'selected',      lg: 'abalondedwa' },
+  markPaid:      { en: 'Mark paid',     lg: 'Basasudde' },
+  collect:       { en: 'Collect',       lg: 'Sooza' },
+  call:          { en: 'Call',          lg: 'Kuba essimu' },
+  markNPaid:     { en: 'Mark {n} paid?', lg: 'Teeka {n} nti basasudde?' },
+  recordsFull:   { en: 'Records full payment for each selected tenant. Works offline.', lg: 'Kiwandiika nti buli omu asasudde byonna. Kikola ne awatali yintaneeti.' },
+  totalToRecord: { en: 'Total to record', lg: 'Omugatte ogusasulwa' },
+  confirm:       { en: 'Confirm',       lg: 'Kakasa' },
+  cancel:        { en: 'Cancel',        lg: 'Sazaamu' },
+  langName:      { en: 'English',       lg: 'Luganda' },
+};
+
 const PREFS_KEY = 'agent-tenants-sheet:prefs:v2';
 const RECENT_PROPERTIES_KEY = 'agent-tenants-sheet:recent-properties:v1';
 const MAX_RECENT_PROPERTIES = 5;
