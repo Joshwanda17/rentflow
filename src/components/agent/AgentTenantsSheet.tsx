@@ -1063,6 +1063,16 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     setBulkSelected(new Set());
   };
 
+  /* Simple Mode label translator (English ⇄ Luganda) */
+  const t = useCallback(
+    (key: SimpleTextKey, vars?: Record<string, string | number>) => {
+      let out = SIMPLE_TEXT[key][simpleLang];
+      if (vars) for (const k of Object.keys(vars)) out = out.replace(`{${k}}`, String(vars[k]));
+      return out;
+    },
+    [simpleLang]
+  );
+
   // Tenants that are selected AND still owe something — only these get a record.
   const bulkPayableTenants = useMemo(
     () => processedTenants.filter((t) => bulkSelected.has(t.id) && (tenantBalances[t.id] || 0) > 0),
