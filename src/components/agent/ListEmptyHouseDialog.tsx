@@ -244,6 +244,15 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
 
       if (error) throw error;
 
+      // Instant UGX 1,000 listing reward → agent withdrawable wallet (best-effort,
+      // never blocks listing). The remaining UGX 4,000 is auto-paid when Landlord
+      // Ops verifies the house.
+      if (listing?.id) {
+        supabase.functions
+          .invoke('credit-house-listed-bonus', { body: { listing_id: listing.id } })
+          .catch((e) => console.warn('[ListEmptyHouseDialog] instant listing bonus failed:', e));
+      }
+
       // Save LC1 chairperson to lookup table if new
       const { error: lc1Error } = await supabase
         .from('lc1_chairpersons')
