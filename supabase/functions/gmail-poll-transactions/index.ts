@@ -138,6 +138,9 @@ function parseTransaction(text: string): {
   // against a pending withdrawal_request.mobile_money_number.
   if (out.direction === 'out' && !airtelAgentPayout) {
     const mtnTo = t.match(/\bto\b[^()]{0,80}?\(\s*((?:\+?256|0)\d{8,9})\s*\)/i)
+      // "sent UGX 900000 to NELSON MUGUME, 256789536301 on ..." — phone sits
+      // after the recipient NAME and a comma/space, not in parentheses.
+      || t.match(/\bto\b[^.\n]{0,80}?[,\s(]\s*((?:\+?256|0)\d{8,9})\b/i)
       || t.match(/\bto\s+((?:\+?256|0)\d{8,9})\b/i);
     if (mtnTo) out.counterparty = mtnTo[1];
   }
@@ -340,7 +343,7 @@ Deno.serve(async (req) => {
       ).toISOString();
       const { data: rows, error: rowsErr } = await supabase
         .from('gmail_transactions')
-        .select('id, gmail_message_id, transaction_id, amount, direction, channel, counterparty, internal_date, parsed')
+        .select('id, gmail_message_id, transaction_id, amount, direction, channel, counterparty, internal_date, parsed, snippet, subject, raw_body')
         .eq('direction', 'out')
         .in('channel', ['mtn_momo', 'airtel_money'])
         .gte('internal_date', sinceIso)
@@ -355,12 +358,23 @@ Deno.serve(async (req) => {
       const report: any[] = [];
       for (const r of rows ?? []) {
         const parsedRow = (r as any).parsed ?? {};
+        // Re-derive the recipient phone from the stored email text when the
+        // saved counterparty is null (older rows parsed before the MTN
+        // "to NAME, 256XXXXXXXXX" recipient fix).
+        let counterparty = r.counterparty ?? parsedRow.counterparty ?? null;
+        if (!counterparty) {
+          const body = `${(r as any).snippet ?? ''} ${(r as any).raw_body ?? ''}`;
+          const reTo = body.match(/\bto\b[^.\n]{0,80}?[,\s(]\s*((?:\+?256|0)\d{8,9})\b/i);
+          if (reTo) counterparty = reTo[1];
+        }
         const parsed = {
           amount: r.amount ?? parsedRow.amount ?? null,
           direction: r.direction ?? parsedRow.direction ?? null,
           channel: r.channel ?? parsedRow.channel ?? null,
-          counterparty: r.counterparty ?? parsedRow.counterparty ?? null,
+          counterparty,
           transaction_id: r.transaction_id ?? parsedRow.transaction_id ?? null,
+          snippet: (r as any).snippet ?? null,
+          subject: (r as any).subject ?? null,
         } as ReturnType<typeof parseTransaction>;
         attempted += 1;
         try {
