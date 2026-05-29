@@ -262,7 +262,10 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
 
       // Try to find or create landlord reference
       let landlordId: string | null = null;
-      if (form.landlord_phone) {
+      if (selectedLandlord?.id) {
+        // Agent picked an existing landlord from the system search — link directly.
+        landlordId = selectedLandlord.id;
+      } else if (form.landlord_phone) {
         const normalizedPhone = form.landlord_phone.trim();
         const { data: landlord } = await supabase
           .from('landlords')
