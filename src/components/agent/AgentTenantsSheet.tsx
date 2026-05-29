@@ -1259,28 +1259,58 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
 
           {/* Simple Mode search — one big, obvious box, nothing else. */}
           {simpleMode && (
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input
-                placeholder="Search tenant…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-11 h-14 rounded-2xl bg-muted/40 border-2 border-primary/40 text-lg"
-                style={{ fontSize: '16px' }}
-                aria-label="Search tenants"
-                inputMode="search"
-                autoComplete="off"
-              />
-              {search && (
-                <button
-                  onClick={() => setSearch('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
-                  aria-label="Clear search"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              )}
-            </div>
+            <>
+              {/* ── Simple Summary: total to collect vs total paid ── */}
+              {(() => {
+                let totalToCollect = 0;
+                let totalPaid = 0;
+                processedTenants.forEach((t) => {
+                  const totals = tenantTotals[t.id];
+                  if (totals) {
+                    totalToCollect += Math.max(0, totals.total - totals.paid);
+                    totalPaid += totals.paid;
+                  }
+                });
+                return (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-2xl bg-rose-50 border border-rose-200 p-3 text-center">
+                      <p className="text-[10px] uppercase tracking-wide font-bold text-rose-700">To collect</p>
+                      <p className="text-xl font-extrabold font-mono text-rose-700 leading-tight mt-0.5">
+                        {formatUGX(totalToCollect)}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-3 text-center">
+                      <p className="text-[10px] uppercase tracking-wide font-bold text-emerald-700">Paid</p>
+                      <p className="text-xl font-extrabold font-mono text-emerald-700 leading-tight mt-0.5">
+                        {formatUGX(totalPaid)}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input
+                  placeholder="Search tenant…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-11 h-14 rounded-2xl bg-muted/40 border-2 border-primary/40 text-lg"
+                  style={{ fontSize: '16px' }}
+                  aria-label="Search tenants"
+                  inputMode="search"
+                  autoComplete="off"
+                />
+                {search && (
+                  <button
+                    onClick={() => setSearch('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
+                    aria-label="Clear search"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                )}
+              </div>
+            </>
           )}
 
           {!simpleMode && (
