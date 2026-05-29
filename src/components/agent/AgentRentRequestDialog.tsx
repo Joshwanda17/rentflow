@@ -1543,22 +1543,22 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     </h4>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
-                        <Label className="text-xs">Tenant Name *</Label>
+                        <Label >Tenant Name *</Label>
                         <Input
                           value={tenantName}
                           onChange={(e) => setTenantName(e.target.value)}
                           placeholder="Full name"
-                          className="h-10"
+                         
                           required
                         />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">Tenant Phone *</Label>
+                        <Label >Tenant Phone *</Label>
                         <Input
                           value={tenantPhone}
                           onChange={(e) => setTenantPhone(formatPhoneInput(e.target.value))}
                           placeholder="0783 123 456"
-                          className="h-10"
+                         
                           maxLength={12}
                           required
                         />
@@ -1569,9 +1569,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     </div>
 
                     <div className="space-y-1">
-                      <Label className="text-xs">Preferred Language *</Label>
+                      <Label >Preferred Language *</Label>
                       <Select value={preferredLanguage} onValueChange={setPreferredLanguage}>
-                        <SelectTrigger className="h-10">
+                        <SelectTrigger>
                           <SelectValue placeholder="Select tenant language" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1592,19 +1592,19 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
-                        <Label className="text-xs font-semibold">Rent Amount (UGX) *</Label>
+                        <Label className="font-semibold">Rent Amount (UGX) *</Label>
                         <Input
                           value={formatCurrencyInput(outstandingRentAmount)}
                           onChange={(e) => setOutstandingRentAmount(e.target.value.replace(/[^0-9]/g, ''))}
                           placeholder="e.g. 300,000"
-                          className="h-10"
+                         
                           required
                         />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs font-semibold">Repayment Duration *</Label>
+                        <Label className="font-semibold">Repayment Duration *</Label>
                         <Select value={duration} onValueChange={(v) => setDuration(v as '30' | '60' | '90')}>
-                          <SelectTrigger className="h-10">
+                          <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -1617,7 +1617,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     </div>
 
                     <div className="space-y-1">
-                      <Label className="text-xs font-semibold">Outstanding Balance (UGX) *</Label>
+                      <Label className="font-semibold">Outstanding Balance (UGX) *</Label>
                       <Input
                         value={formatCurrencyInput(outstandingBalance)}
                         onChange={(e) => setOutstandingBalance(e.target.value.replace(/[^0-9]/g, ''))}
@@ -1633,7 +1633,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     </div>
 
                     <div className="space-y-1">
-                      <Label className="text-xs font-semibold">Days Remaining *</Label>
+                      <Label className="font-semibold">Days Remaining *</Label>
                       <Input
                         type="number"
                         inputMode="numeric"
@@ -1641,15 +1641,15 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         value={outstandingDaysRemaining}
                         onChange={(e) => setOutstandingDaysRemaining(e.target.value.replace(/[^0-9]/g, ''))}
                         placeholder="Days left on current rent period"
-                        className="h-10"
+                       
                         required
                       />
                     </div>
 
                     <div className="space-y-1">
-                      <Label className="text-xs font-semibold">House Type *</Label>
+                      <Label className="font-semibold">House Type *</Label>
                       <Select value={outstandingHouseCategory} onValueChange={setOutstandingHouseCategory}>
-                        <SelectTrigger className="h-10">
+                        <SelectTrigger>
                           <SelectValue placeholder="Select house type" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1728,7 +1728,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 </h4>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label className="text-xs font-semibold text-primary/80">Rent Amount (UGX) *</Label>
+                    <Label className="font-semibold text-primary/80">Rent Amount (UGX) *</Label>
                     <p className="text-[10px] font-bold text-primary/60 italic">Let Welile pay this today</p>
                     {/* FIX #7: Currency formatting */}
                     <Input
@@ -1740,7 +1740,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs font-semibold text-primary/80">
+                    <Label className="font-semibold text-primary/80">
                       {incomeType === 'daily' ? 'Duration' : 'Repayment Period'} *
                     </Label>
                     <p className="text-[10px] text-muted-foreground">
@@ -1834,18 +1834,18 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label htmlFor="tenantName" className="text-xs">Full Name *</Label>
+                    <Label htmlFor="tenantName" >Full Name *</Label>
                     <Input
                       id="tenantName"
                       value={tenantName}
                       onChange={(e) => setTenantName(e.target.value)}
                       placeholder="Tenant's name"
-                      className="h-10"
+                     
                       required
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label htmlFor="tenantPhone" className="text-xs">Phone *</Label>
+                    <Label htmlFor="tenantPhone" >Phone *</Label>
                     <Input
                       id="tenantPhone"
                       value={tenantPhone}
@@ -1862,13 +1862,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 </div>
 
                 <div className="space-y-1">
-                  <Label htmlFor="tenantNationalId" className="text-xs">National ID *</Label>
+                  <Label htmlFor="tenantNationalId" >National ID *</Label>
                   <Input
                     id="tenantNationalId"
                     value={tenantNationalId}
                     onChange={(e) => setTenantNationalId(e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase())}
                     placeholder="e.g. CM12345678901"
-                    className="h-10 font-mono uppercase"
+                    className="font-mono uppercase"
                     maxLength={14}
                     required
                   />
@@ -1879,7 +1879,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
                 {/* Tenant passport photo (required) */}
                 <div className="space-y-1">
-                  <Label className="text-xs flex items-center gap-1">
+                  <Label className="flex items-center gap-1">
                     🪪 Tenant Passport Photo *
                   </Label>
                   <div className="flex items-start gap-3">
@@ -1914,9 +1914,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-xs">Preferred Language *</Label>
+                  <Label >Preferred Language *</Label>
                   <Select value={preferredLanguage} onValueChange={setPreferredLanguage}>
-                    <SelectTrigger className="h-10">
+                    <SelectTrigger>
                       <SelectValue placeholder="Select tenant language" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1939,7 +1939,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   House Category *
                 </h4>
                 <Select value={houseCategory} onValueChange={setHouseCategory}>
-                  <SelectTrigger className="h-10">
+                  <SelectTrigger>
                     <SelectValue placeholder="Select house type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1962,17 +1962,17 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 </h4>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label className="text-xs">Name *</Label>
+                    <Label >Name *</Label>
                     <Input
                       value={landlordName}
                       onChange={(e) => setLandlordName(e.target.value)}
                       placeholder="Landlord name"
-                      className="h-10"
+                     
                       required
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">Phone *</Label>
+                    <Label >Phone *</Label>
                     <Input
                       value={landlordPhone}
                       onChange={(e) => setLandlordPhone(formatPhoneInput(e.target.value))}
@@ -1992,21 +1992,21 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs flex items-center gap-1">
+                  <Label className="flex items-center gap-1">
                     <MapPin className="h-3 w-3" /> Property Address *
                   </Label>
                   <Input
                     value={propertyAddress}
                     onChange={(e) => setPropertyAddress(e.target.value)}
                     placeholder="Full property address"
-                    className="h-10"
+                   
                     required
                   />
                 </div>
 
                 {/* GPS Capture */}
                 <div className="space-y-1">
-                  <Label className="text-xs flex items-center gap-1">
+                  <Label className="flex items-center gap-1">
                     <Navigation className="h-3 w-3" /> Property GPS
                   </Label>
                   {gpsLocation ? (
@@ -2053,7 +2053,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
                 {/* House Photos — 4 outside views */}
                 <div className="space-y-2">
-                  <Label className="text-xs flex items-center gap-1">
+                  <Label className="flex items-center gap-1">
                     📸 House Photos — capture all 4 outside views
                   </Label>
                   <p className="text-[11px] text-muted-foreground">
@@ -2109,17 +2109,17 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 </h4>
                 <div className="grid grid-cols-3 gap-3">
                   <div className="space-y-1">
-                    <Label className="text-xs">Name *</Label>
+                    <Label >Name *</Label>
                     <Input
                       value={lc1Name}
                       onChange={(e) => setLc1Name(e.target.value)}
                       placeholder="LC1 name"
-                      className="h-10"
+                     
                       required
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">Phone *</Label>
+                    <Label >Phone *</Label>
                     <Input
                       value={lc1Phone}
                       onChange={(e) => setLc1Phone(formatPhoneInput(e.target.value))}
@@ -2140,12 +2140,12 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       )}
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">Village *</Label>
+                    <Label >Village *</Label>
                     <Input
                       value={lc1Village}
                       onChange={(e) => setLc1Village(e.target.value)}
                       placeholder="Village"
-                      className="h-10"
+                     
                       required
                     />
                   </div>
@@ -2156,7 +2156,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     "Entebbe (please verify)" placeholder. */}
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
-                    <Label className="text-xs flex items-center gap-1">
+                    <Label className="flex items-center gap-1">
                       <MapPin className="h-3 w-3" /> Town / City *
                     </Label>
                     <Input
@@ -2168,7 +2168,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">District</Label>
+                    <Label >District</Label>
                     <Input
                       value={propertyDistrict}
                       onChange={(e) => setPropertyDistrict(e.target.value)}
@@ -2179,7 +2179,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         }
                       }}
                       placeholder="e.g. Wakiso"
-                      className="h-10"
+                     
                     />
                     {districtWarning(propertyDistrict) && (
                       <p className="text-[10px] text-warning leading-tight">
@@ -2192,7 +2192,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
               {/* Landlord auto-payout day */}
               <div className="space-y-1 rounded-xl border border-primary/30 bg-primary/5 p-3">
-                <Label className="text-xs flex items-center gap-1 font-semibold">
+                <Label className="flex items-center gap-1 font-semibold">
                   <Calendar className="h-3 w-3" /> Landlord payout day (1–28) *
                 </Label>
                 <Input
@@ -2202,7 +2202,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   value={landlordPayoutDay}
                   onChange={(e) => setLandlordPayoutDay(e.target.value)}
                   placeholder="e.g. 5"
-                  className="h-10"
+                 
                   required
                 />
                 <p className="text-[11px] text-muted-foreground leading-snug">
