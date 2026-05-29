@@ -13487,6 +13487,57 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_delivery_log: {
+        Row: {
+          cost: string | null
+          created_at: string
+          error: string | null
+          id: string
+          message: string | null
+          provider: string
+          provider_message_id: string | null
+          provider_response: Json | null
+          recipient_name: string | null
+          recipient_phone: string
+          recipient_user_id: string | null
+          reference_id: string | null
+          source: string | null
+          status: string
+        }
+        Insert: {
+          cost?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          message?: string | null
+          provider?: string
+          provider_message_id?: string | null
+          provider_response?: Json | null
+          recipient_name?: string | null
+          recipient_phone: string
+          recipient_user_id?: string | null
+          reference_id?: string | null
+          source?: string | null
+          status?: string
+        }
+        Update: {
+          cost?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          message?: string | null
+          provider?: string
+          provider_message_id?: string | null
+          provider_response?: Json | null
+          recipient_name?: string | null
+          recipient_phone?: string
+          recipient_user_id?: string | null
+          reference_id?: string | null
+          source?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       staff_access_passwords: {
         Row: {
           created_at: string | null
