@@ -1512,22 +1512,26 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
                   {/* Validation Error Summary */}
                   {validationErrors.length > 0 && (
-                    <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30 space-y-1">
-                      <p className="text-xs font-semibold text-destructive flex items-center gap-1.5">
-                        <AlertTriangle className="h-3.5 w-3.5" />
-                        Please fix the following:
+                    <div ref={errorSummaryRef} className="p-4 rounded-2xl bg-destructive/10 border-2 border-destructive/40 space-y-3 scroll-mt-4">
+                      <p className="text-base font-extrabold text-destructive flex items-center gap-2">
+                        <AlertTriangle className="h-5 w-5 flex-shrink-0" />
+                        {validationErrors.length} thing{validationErrors.length > 1 ? 's' : ''} still needed
                       </p>
-                      <ul className="list-disc list-inside space-y-0.5">
+                      <ul className="space-y-2">
                         {validationErrors.map((err, i) => (
-                          <li key={i} className="text-[11px] text-destructive">{err}</li>
+                          <li key={i} className="flex items-start gap-2 text-sm font-semibold text-destructive">
+                            <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[11px] font-bold">{i + 1}</span>
+                            <span>{err}</span>
+                          </li>
                         ))}
                       </ul>
+                      <p className="text-xs text-destructive/80">Fix these, then press the button again.</p>
                     </div>
                   )}
 
                   {submissionError && validationErrors.length === 0 && (
-                    <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30 text-xs font-medium text-destructive flex items-start gap-2">
-                      <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                    <div ref={errorSummaryRef} className="p-4 rounded-2xl bg-destructive/10 border-2 border-destructive/40 text-sm font-semibold text-destructive flex items-start gap-2 scroll-mt-4">
+                      <AlertTriangle className="h-5 w-5 mt-0.5 flex-shrink-0" />
                       <span>{submissionError}</span>
                     </div>
                   )}
