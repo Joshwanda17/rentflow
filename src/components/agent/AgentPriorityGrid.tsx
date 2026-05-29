@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, CloudUpload, WifiOff, UserPlus, ShieldCheck, Wallet, Home as HomeIcon } from 'lucide-react';
+import { ArrowRight, CloudUpload, WifiOff, UserPlus, ShieldCheck, Wallet, Home as HomeIcon, Sparkles } from 'lucide-react';
 import { useTrustProfile } from '@/hooks/useTrustProfile';
 import { useProfile } from '@/hooks/useProfile';
 import { generateWelileAiId } from '@/lib/welileAiId';
@@ -129,13 +129,19 @@ export function AgentPriorityGrid({ agentId, onOpenFieldCollect, onOpenNewTenant
       {/* 4. List House — open empty house listing flow */}
       <PriorityTile
         onClick={() => { hapticTap(); onOpenListHouse(); }}
-        icon={<HomeIcon className="h-6 w-6" strokeWidth={2.2} />}
-        iconBg="bg-[hsl(var(--chart-2))] text-white"
+        icon={
+          <div className="relative">
+            <HomeIcon className="h-6 w-6" strokeWidth={2.2} />
+            <Sparkles className="h-3 w-3 text-amber-300 absolute -top-1 -right-1" />
+          </div>
+        }
+        iconBg="bg-amber-500 text-white"
         label="List House"
-        valueLabel="Add listing"
-        sub="Earn placement bonus"
-        ariaLabel="List an empty house — earn a placement bonus when a tenant moves in"
+        valueLabel={formatUGX(10000)}
+        sub="Landlord + LC1 bonus"
+        ariaLabel="List an empty house — earn up to UGX 10,000 when you register the landlord and LC1 chairperson"
         title="List an empty house"
+        highlight
       />
     </div>
   );
@@ -153,6 +159,7 @@ function PriorityTile({
   statusIcon,
   ariaLabel,
   title,
+  highlight,
 }: {
   onClick: () => void;
   icon: React.ReactNode;
@@ -163,30 +170,38 @@ function PriorityTile({
   statusIcon?: React.ReactNode;
   ariaLabel?: string;
   title?: string;
+  highlight?: boolean;
 }) {
   return (
     <button
       onClick={onClick}
       aria-label={ariaLabel ?? `${label}: ${valueLabel}${sub ? ` — ${sub}` : ''}`}
       title={title ?? label}
-      className="flex flex-col items-start gap-2 p-4 rounded-2xl bg-card border border-border/60 active:scale-[0.97] active:bg-accent/40 transition-all min-h-[112px] text-left hover:border-border touch-manipulation focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:border-primary"
+      className={cn(
+        'flex flex-col items-start gap-2 p-4 rounded-2xl border active:scale-[0.97] transition-all min-h-[112px] text-left touch-manipulation focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:border-primary',
+        highlight
+          ? 'bg-amber-500/10 border-amber-500/40 hover:border-amber-500/60 hover:bg-amber-500/15'
+          : 'bg-card border-border/60 active:bg-accent/40 hover:border-border'
+      )}
       style={{ WebkitTapHighlightColor: 'transparent' }}
     >
       <div className="flex items-center justify-between w-full">
         <div className={cn('h-11 w-11 rounded-xl flex items-center justify-center shadow-sm shrink-0', iconBg)}>
           {icon}
         </div>
-        <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/60" />
+        <ArrowRight className={cn('h-3.5 w-3.5', highlight ? 'text-amber-600' : 'text-muted-foreground/60')} />
       </div>
       <div className="min-w-0 w-full">
-        <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">{label}</p>
-        <p className="text-base font-bold tabular-nums leading-tight tracking-tight truncate mt-0.5">
+        <p className={cn('text-[10px] uppercase tracking-wide font-medium', highlight ? 'text-amber-700' : 'text-muted-foreground')}>
+          {label}
+        </p>
+        <p className={cn('text-base font-bold tabular-nums leading-tight tracking-tight truncate mt-0.5', highlight && 'text-amber-900')}>
           {valueLabel}
         </p>
         {(sub || statusIcon) && (
-          <p className="inline-flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5 truncate">
+          <p className="inline-flex items-center gap-1 text-[11px] mt-0.5 truncate">
             {statusIcon}
-            <span className="truncate">{sub}</span>
+            <span className={cn('truncate', highlight ? 'text-amber-700/80' : 'text-muted-foreground')}>{sub}</span>
           </p>
         )}
       </div>

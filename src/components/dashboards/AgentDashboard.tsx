@@ -128,6 +128,7 @@ import { AgentVerificationOpportunitiesCard } from '@/components/agent/AgentVeri
 import { ShareRentRecorderCard } from '@/components/agent/ShareRentRecorderCard';
 import { TodayCollectionsCard } from '@/components/agent/TodayCollectionsCard';
 import { AgentPriorityGrid } from '@/components/agent/AgentPriorityGrid';
+import { AgentListingPromoCard } from '@/components/agent/AgentListingPromoCard';
 import { useIsFinancialAgent } from '@/hooks/useIsFinancialAgent';
 import { FinancialAgentSection } from '@/components/agent/FinancialAgentSection';
 import { PromissoryNoteDialog } from '@/components/agent/PromissoryNoteDialog';
@@ -603,6 +604,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
              * lives behind the single "Grow" button, which opens the existing
              * AgentMenuDrawer so no functionality is lost.
              */}
+            <AgentListingPromoCard onClick={() => setListHouseOpen(true)} />
+
             <AgentPriorityGrid
               agentId={user.id}
               onOpenFieldCollect={() => setFieldCollectOpen(true)}
