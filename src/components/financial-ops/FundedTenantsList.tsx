@@ -80,6 +80,8 @@ type Row = {
   country: string | null;
   agent_profile?: { full_name: string | null; phone: string | null } | null;
   tenant_profile?: { full_name: string | null } | null;
+  finops_disbursed_by: string | null;
+  funder_profile?: { full_name: string | null } | null;
 };
 type DateFilter = 'all' | '7d' | '30d' | 'custom';
 
@@ -112,7 +114,7 @@ export function FundedTenantsList() {
       const { data, error } = await supabase
         .from('landlord_payouts')
         .select(
-          'id, agent_id, tenant_id, landlord_id, landlord_name, landlord_phone, mobile_money_provider, amount, status, finops_disbursed_at, finops_momo_reference, external_reference, created_at, rent_request_id',
+          'id, agent_id, tenant_id, landlord_id, landlord_name, landlord_phone, mobile_money_provider, amount, status, finops_disbursed_at, finops_disbursed_by, finops_momo_reference, external_reference, created_at, rent_request_id',
         )
         .in('status', FUNDED_STATUSES as unknown as string[])
         .order('finops_disbursed_at', { ascending: false, nullsFirst: false })
@@ -126,6 +128,7 @@ export function FundedTenantsList() {
           ...list.map((r) => r.agent_id),
           ...list.map((r) => r.tenant_id).filter(Boolean) as string[],
           ...list.map((r) => r.landlord_id).filter(Boolean) as string[],
+          ...list.map((r) => r.finops_disbursed_by).filter(Boolean) as string[],
         ]),
       );
       if (ids.length) {
@@ -137,6 +140,7 @@ export function FundedTenantsList() {
         list.forEach((r) => {
           r.agent_profile = (map.get(r.agent_id) as any) ?? null;
           if (r.tenant_id) r.tenant_profile = (map.get(r.tenant_id) as any) ?? null;
+          if (r.finops_disbursed_by) r.funder_profile = (map.get(r.finops_disbursed_by) as any) ?? null;
           const ll = r.landlord_id ? (map.get(r.landlord_id) as any) : null;
           r.country = ll?.country ?? null;
         });
@@ -283,6 +287,7 @@ export function FundedTenantsList() {
         r.landlord_phone,
         r.tenant_profile?.full_name ?? '',
         r.agent_profile?.full_name ?? '',
+        r.funder_profile?.full_name ?? '',
         r.finops_momo_reference ?? '',
         r.external_reference ?? '',
         r.country ?? '',
@@ -749,6 +754,29 @@ export function FundedTenantsList() {
                       )}
                     </span>
                     <span>{r.mobile_money_provider}: <span className="font-mono">{r.landlord_phone}</span></span>
+                    <span>
+                      Funded by:{' '}
+                      {r.finops_disbursed_by ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDrill({
+                              tenantId: null,
+                              agentId: r.finops_disbursed_by,
+                              landlordId: null,
+                              tab: 'agent',
+                            });
+                          }}
+                          className="font-semibold text-primary hover:underline"
+                          title="Open the profile and wallet of the operator who transferred this money"
+                        >
+                          {r.funder_profile?.full_name ?? 'View operator'}
+                        </button>
+                      ) : (
+                        <b className="text-foreground">—</b>
+                      )}
+                    </span>
                     {(r.finops_momo_reference || r.external_reference) && (
                       <span className="inline-flex items-center gap-1">
                         <Receipt className="h-3 w-3" />
