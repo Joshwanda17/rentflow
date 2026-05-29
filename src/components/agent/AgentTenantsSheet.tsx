@@ -1787,6 +1787,8 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           )}
           </>
           )}
+          </>
+          )}
         </div>
 
         {/* ───── Body ───── */}
