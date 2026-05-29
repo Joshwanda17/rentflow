@@ -1792,7 +1792,95 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         </div>
 
         {/* ───── Body ───── */}
-        {mapMode ? (
+        {simpleMode ? (
+          <div className="px-4 py-3 space-y-3">
+            {loading ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : processedTenants.length === 0 ? (
+              <div className="text-center py-20">
+                <Users className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
+                <p className="text-sm text-muted-foreground">
+                  {search ? `No results for "${search}"` : 'No tenants yet'}
+                </p>
+              </div>
+            ) : (
+              processedTenants.map((tenant) => {
+                const balance = tenantBalances[tenant.id] || 0;
+                const hasDebt = balance > 0;
+                const ctx = tenantContext[tenant.id];
+                const propertyAddress = ctx?.propertyAddress || '';
+                return (
+                  <div
+                    key={tenant.id}
+                    className="rounded-3xl border border-border/60 bg-card p-4 shadow-sm"
+                  >
+                    {/* Tenant identity — tap to open full profile */}
+                    <button
+                      type="button"
+                      onClick={() => setProfileTenantId(tenant.id)}
+                      className="flex items-center gap-3 w-full text-left active:opacity-80"
+                      style={{ touchAction: 'manipulation' }}
+                    >
+                      <div className={`w-16 h-16 rounded-full flex items-center justify-center shrink-0 text-2xl font-bold ${
+                        hasDebt ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
+                      }`}>
+                        {(tenant.full_name?.trim()?.charAt(0) || tenant.phone?.charAt(0) || '?').toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-lg leading-tight truncate">
+                          {tenant.full_name?.trim() || 'Tenant'}
+                        </p>
+                        {propertyAddress ? (
+                          <p className="text-sm text-muted-foreground truncate flex items-center gap-1 mt-0.5">
+                            <MapPin className="h-3.5 w-3.5 shrink-0" />
+                            {propertyAddress}
+                          </p>
+                        ) : tenant.phone ? (
+                          <p className="text-sm text-muted-foreground truncate flex items-center gap-1 mt-0.5">
+                            <Phone className="h-3.5 w-3.5 shrink-0" />
+                            {tenant.phone}
+                          </p>
+                        ) : null}
+                      </div>
+                    </button>
+
+                    {/* Big, unmissable amount */}
+                    <div className={`mt-3 rounded-2xl px-4 py-3 text-center ${hasDebt ? 'bg-rose-50' : 'bg-emerald-50'}`}>
+                      <p className={`text-[11px] uppercase tracking-wide font-bold ${hasDebt ? 'text-rose-600' : 'text-emerald-600'}`}>
+                        {hasDebt ? 'To collect' : 'All paid'}
+                      </p>
+                      <p className={`text-3xl font-extrabold font-mono leading-none mt-1 ${hasDebt ? 'text-rose-600' : 'text-emerald-600'}`}>
+                        {hasDebt ? formatUGX(balance) : 'UGX 0'}
+                      </p>
+                    </div>
+
+                    {/* Two big actions */}
+                    <div className="grid grid-cols-2 gap-2.5 mt-3">
+                      <Button
+                        onClick={() => setFieldCollectTarget(tenant)}
+                        className="h-14 text-base font-bold rounded-2xl gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                      >
+                        <Banknote className="h-5 w-5" />
+                        Collect
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => { if (tenant.phone) window.open(`tel:${tenant.phone.replace(/\s/g, '')}`); }}
+                        disabled={!tenant.phone}
+                        className="h-14 text-base font-bold rounded-2xl gap-2"
+                      >
+                        <PhoneCall className="h-5 w-5" />
+                        Call
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        ) : mapMode ? (
           <div className="flex-1 overflow-hidden px-4 py-3">
             <PropertyMapView
               tenants={processedTenants}
