@@ -76,7 +76,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
     | { status: 'idle' }
     | { status: 'invalid'; reason: string }
     | { status: 'searching' }
-    | { status: 'found'; name: string; phone: string; email: string | null; isSelf: boolean }
+    | { status: 'found'; id: string; name: string; phone: string; email: string | null; isSelf: boolean }
     | { status: 'multiple'; matches: RecipientMatch[] }
     | { status: 'not_found' }
   >({ status: 'idle' });
