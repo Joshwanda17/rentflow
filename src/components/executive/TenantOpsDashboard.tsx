@@ -24,6 +24,7 @@ import { TenantOpsLandlordFloatPanel } from './TenantOpsLandlordFloatPanel';
 import { TenantOpsLandlordFloatTimeline } from './TenantOpsLandlordFloatTimeline';
 import { LocationBrowser } from './landlord-ops/LocationBrowser';
 import { TenantLocationBrowser } from './tenant-ops/TenantLocationBrowser';
+import { GlobalVerificationHub } from './GlobalVerificationHub';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
