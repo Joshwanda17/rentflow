@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Home, MapPin, Loader2, Shield, ShieldCheck, Search, X, UserCheck, Share2, MessageCircle, Copy, Check, PartyPopper, ChevronDown, ArrowLeft, ArrowRight, Camera } from 'lucide-react';
+import { Home, MapPin, Loader2, ShieldCheck, Search, X, UserCheck, Share2, MessageCircle, Copy, Check, PartyPopper, ChevronDown, ArrowLeft, ArrowRight, Camera } from 'lucide-react';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -14,6 +14,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { calculateDailyRentalRate } from '@/hooks/useHouseListings';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { HouseImageUploader, uploadHouseImages, type HouseImageFile } from './HouseImageUploader';
+import { Lc1ChairpersonPicker, validateLc1Selection, type Lc1Selection } from './Lc1ChairpersonPicker';
 
 const APP_URL = 'https://welilereceipts.com';
 const OG_FUNCTION_URL = 'https://wirntoujqoyjobfhyelc.supabase.co/functions/v1/og-house';
@@ -57,7 +58,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   // Guided wizard step (1-4) so agents who struggle with long forms only see
   // one simple question at a time.
   const [step, setStep] = useState(1);
-  const [existingLc1Options, setExistingLc1Options] = useState<Array<{name: string; phone: string; village: string}>>([]);
+  // LC1 chairperson: search-first selection or a brand-new registration.
+  const [lc1Selection, setLc1Selection] = useState<Lc1Selection | null>(null);
   const [attempted, setAttempted] = useState(false);
   const [showOptional, setShowOptional] = useState(false);
   const [successListing, setSuccessListing] = useState<null | {
@@ -204,27 +206,6 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     setForm((f) => ({ ...f, landlord_name: '', landlord_phone: '' }));
   };
 
-  // Auto-populate LC1 village from property village and fetch existing LC1 chairpersons
-  const fetchLc1ForVillage = async (villageQuery: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('lc1_chairpersons')
-        .select('name, phone, village')
-        .ilike('village', `%${villageQuery.trim()}%`)
-        .limit(5);
-      
-      if (error) throw error;
-      setExistingLc1Options(data || []);
-      
-      // Auto-fill if exact match exists
-      if (data && data.length === 1 && data[0].village.toLowerCase() === villageQuery.toLowerCase()) {
-        setForm(f => ({ ...f, lc1_name: data[0].name, lc1_phone: data[0].phone }));
-      }
-    } catch (error) {
-      console.error('Error fetching LC1 chairpersons:', error);
-    }
-  };
-
   const scrollDialogToTop = () => {
     requestAnimationFrame(() => {
       document
@@ -273,6 +254,13 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         return false;
       }
     }
+    if (s === 4) {
+      const lc1Err = validateLc1Selection(lc1Selection);
+      if (lc1Err) {
+        toast.error(lc1Err);
+        return false;
+      }
+    }
     return true;
   };
 
@@ -302,9 +290,6 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     }
     setAttempted(true);
 
-    // Auto-sync lc1_village from village
-    const syncedForm = { ...form, lc1_village: form.village.trim() };
-
     const failWith = (msg: string) => {
       toast.error(msg);
       scrollDialogToTop();
@@ -327,29 +312,23 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       failWith('Monthly rent must be at least UGX 10,000');
       return;
     }
-    if (!syncedForm.region) {
+    if (!form.region) {
       failWith('Please select a region');
       return;
     }
-    if (!syncedForm.address.trim()) {
+    if (!form.address.trim()) {
       failWith('Address is required');
       return;
     }
-    if (!syncedForm.village.trim()) {
+    if (!form.village.trim()) {
       failWith('Village/Zone is required');
       return;
     }
-    if (!syncedForm.lc1_name.trim()) {
-      failWith('LC1 Chairperson name is required');
+    const lc1Err = validateLc1Selection(lc1Selection);
+    if (lc1Err) {
+      failWith(lc1Err);
       return;
     }
-    if (!syncedForm.lc1_phone.trim()) {
-      failWith('LC1 Chairperson phone is required');
-      return;
-    }
-
-    // Update form with synced lc1_village
-    setForm(syncedForm);
 
     setSubmitting(true);
     try {
@@ -427,9 +406,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           caretaker_name: caretakerName,
           caretaker_phone: caretakerPhone,
           // LC1 fields
-          lc1_chairperson_name: form.lc1_name,
-          lc1_chairperson_phone: form.lc1_phone,
-          lc1_chairperson_village: form.lc1_village || null,
+          lc1_chairperson_name: lc1Selection?.name ?? null,
+          lc1_chairperson_phone: lc1Selection?.phone ?? null,
+          lc1_chairperson_village: lc1Selection?.village || form.village || null,
         } as any)
         .select('id')
         .single();
@@ -445,15 +424,65 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           .catch((e) => console.warn('[ListEmptyHouseDialog] instant listing bonus failed:', e));
       }
 
-      // Save LC1 chairperson to lookup table if new
-      const { error: lc1Error } = await supabase
-        .from('lc1_chairpersons')
-        .upsert(
-          { name: form.lc1_name.trim(), phone: form.lc1_phone.trim(), village: form.lc1_village.trim() },
-          { onConflict: 'phone,village', ignoreDuplicates: true }
-        );
+      // ─── LC1 chairperson persistence + two-stage reward ───
+      // Existing LC1 (picked from search) → nothing to insert, no bonus.
+      // New LC1 (agent registering) → insert with registered_by = agent and
+      // trigger the UGX 1,000 instant reward. The remaining UGX 4,000 is auto-
+      // paid by `credit-lc1-verification-bonus` once Landlord Ops verifies.
+      if (lc1Selection?.mode === 'new') {
+        try {
+          const lc1Phone = lc1Selection.phone.trim();
+          const lc1Village = lc1Selection.village.trim();
+          // Guard against duplicates (and double-paying) if the agent skipped the
+          // search: reuse an existing row when phone+village already matches.
+          const { data: existingLc1 } = await supabase
+            .from('lc1_chairpersons')
+            .select('id, registered_by')
+            .eq('phone', lc1Phone)
+            .eq('village', lc1Village)
+            .maybeSingle();
 
-      if (lc1Error) console.warn('LC1 save warning:', lc1Error);
+          let lc1Id = existingLc1?.id ?? null;
+          if (lc1Id) {
+            if (!existingLc1?.registered_by) {
+              await supabase
+                .from('lc1_chairpersons')
+                .update({ registered_by: user.id } as any)
+                .eq('id', lc1Id);
+            }
+          } else {
+            const { data: createdLc1, error: lc1InsertErr } = await supabase
+              .from('lc1_chairpersons')
+              .insert({
+                name: lc1Selection.name.trim(),
+                phone: lc1Phone,
+                village: lc1Village,
+                region: lc1Selection.region || null,
+                district: lc1Selection.district || null,
+                county: lc1Selection.county || null,
+                sub_county: lc1Selection.sub_county || null,
+                parish: lc1Selection.parish || null,
+                town_council: lc1Selection.town_council || null,
+                cell: lc1Selection.cell || null,
+                zone: lc1Selection.zone || null,
+                registered_by: user.id,
+              } as any)
+              .select('id')
+              .single();
+            if (lc1InsertErr) throw lc1InsertErr;
+            lc1Id = createdLc1?.id ?? null;
+          }
+
+          // Instant UGX 1,000 LC1-registration reward (best-effort, idempotent).
+          if (lc1Id) {
+            supabase.functions
+              .invoke('credit-lc1-registered-bonus', { body: { lc1_id: lc1Id } })
+              .catch((e) => console.warn('[ListEmptyHouseDialog] instant LC1 reward failed:', e));
+          }
+        } catch (lc1Err) {
+          console.warn('[ListEmptyHouseDialog] LC1 registration warning:', lc1Err);
+        }
+      }
 
       // Upload images if any
       if (houseImages.length > 0 && listing) {
@@ -512,7 +541,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       caretaker_type: 'none', caretaker_name: '', caretaker_phone: '',
       lc1_name: '', lc1_phone: '', lc1_village: '',
     });
-    setExistingLc1Options([]);
+    setLc1Selection(null);
     setShowOptional(false);
     setLandlordQuery('');
     setLandlordResults([]);
@@ -996,7 +1025,6 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                 onChange={e => {
                   const val = e.target.value;
                   setForm(f => ({ ...f, village: val, lc1_village: val }));
-                  if (val.trim().length >= 3) fetchLc1ForVillage(val);
                 }}
                 className={attempted && !form.village.trim() ? 'border-destructive' : ''}
               />
@@ -1023,62 +1051,15 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
             <p className="text-base font-semibold">Almost done!</p>
             <p className="text-xs text-muted-foreground">Add the LC1 chairperson, then list the house</p>
           </div>
-          {/* LC1 Chairperson — Required */}
-          <div className="space-y-3 p-3 rounded-xl bg-primary/5 border border-primary/20">
-            <div className="flex items-center gap-2">
-              <Shield className="h-4 w-4 text-primary" />
-              <p className="text-xs font-semibold text-primary uppercase">LC1 Chairperson Details *</p>
-            </div>
-            <p className="text-xs text-muted-foreground">Required for property verification by the platform</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs">Name *</Label>
-                <Input
-                  placeholder="Chairperson name"
-                  value={form.lc1_name}
-                  onChange={e => setForm(f => ({ ...f, lc1_name: e.target.value }))}
-                  className={attempted && !form.lc1_name.trim() ? 'border-destructive' : ''}
-                />
-              </div>
-              <div>
-                <Label className="text-xs">Phone *</Label>
-                <Input
-                  placeholder="0771234567"
-                  value={form.lc1_phone}
-                  onChange={e => setForm(f => ({ ...f, lc1_phone: e.target.value }))}
-                  className={attempted && !form.lc1_phone.trim() ? 'border-destructive' : ''}
-                />
-              </div>
-            </div>
-            <div>
-              <Label className="text-xs">Village / Zone (auto-filled from property address)</Label>
-              <Input
-                value={form.lc1_village}
-                disabled
-                className="bg-muted/50"
-              />
-              {existingLc1Options.length > 0 && (
-                <div className="mt-2 p-2 bg-primary/5 border border-primary/20 rounded-lg text-xs">
-                  <p className="font-semibold text-primary mb-1.5">✅ Existing LC1 Chairpersons in {form.village}:</p>
-                  <div className="space-y-1">
-                    {existingLc1Options.map((lc1, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => {
-                          setForm(f => ({ ...f, lc1_name: lc1.name, lc1_phone: lc1.phone }));
-                          toast.success('LC1 details auto-filled');
-                        }}
-                        className="block w-full text-left px-2 py-1.5 hover:bg-primary/10 rounded transition-colors"
-                      >
-                        <span className="font-medium">{lc1.name}</span> · <span className="text-muted-foreground">{lc1.phone}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+          {/* LC1 Chairperson — search-first or register a new one (earns UGX 5,000) */}
+          <Lc1ChairpersonPicker
+            value={lc1Selection}
+            onChange={setLc1Selection}
+            defaultRegion={form.region}
+            defaultDistrict={form.district}
+            defaultVillage={form.village}
+            attempted={attempted}
+          />
 
           {/* Amenities */}
           {/* Optional extras — collapsed by default to keep the form short */}
