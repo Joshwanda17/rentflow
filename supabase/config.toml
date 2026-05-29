@@ -119,3 +119,7 @@ project_id = "wirntoujqoyjobfhyelc"
     verify_jwt = false
   [functions.credit-house-listed-bonus]
     verify_jwt = false
+  [functions.credit-lc1-registered-bonus]
+    verify_jwt = false
+  [functions.credit-lc1-verification-bonus]
+    verify_jwt = false
