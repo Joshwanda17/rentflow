@@ -2316,93 +2316,16 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                       </div>
                     </div>
 
-                    {/* Quick actions row — mobile-friendly tap targets */}
-                    {tenantLastPaid[tenant.id] ? (
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <button
-                            type="button"
-                            onClick={(e) => e.stopPropagation()}
-                            className="mt-2 w-full flex items-center justify-between gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 active:scale-[0.99] transition-transform hover:bg-emerald-100"
-                            style={{ touchAction: 'manipulation' }}
-                            aria-label="Open latest receipt"
-                          >
-                            <span className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wider flex items-center gap-1">
-                              {receiptLoadingId === tenant.id ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : (
-                                <CheckCircle2 className="h-3 w-3" />
-                              )}
-                              Last collected
-                            </span>
-                            <span className="text-[11px] font-mono font-bold text-emerald-700">
-                              +{formatUGX(tenantLastPaid[tenant.id].amount)}
-                              <span className="font-sans font-normal text-emerald-600/80 ml-1.5">
-                                · {formatDistanceToNowStrict(new Date(tenantLastPaid[tenant.id].date), { addSuffix: true })}
-                              </span>
-                            </span>
-                          </button>
-                        </PopoverTrigger>
-                        <PopoverContent
-                          className="w-56 p-2"
-                          align="end"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <p className="px-2 pt-1 pb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                            Latest receipt
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => handleDownloadLastReceipt(tenant)}
-                            disabled={receiptLoadingId === tenant.id}
-                            className="w-full flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-muted active:bg-muted disabled:opacity-60"
-                          >
-                            <FileDown className="h-4 w-4" />
-                            Download PDF
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleShareLastReceiptWhatsApp(tenant)}
-                            disabled={receiptLoadingId === tenant.id}
-                            className="w-full flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-muted active:bg-muted disabled:opacity-60"
-                          >
-                            <MessageCircle className="h-4 w-4 text-emerald-600" />
-                            Share via WhatsApp
-                          </button>
-                        </PopoverContent>
-                      </Popover>
-                    ) : (
-                      <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-muted/40 border border-border/40 px-2.5 py-1.5">
-                        <AlertCircle className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                          No collections yet
+                    {/* Slim last-collected hint — full actions appear on tap (expand) */}
+                    {tenantLastPaid[tenant.id] && (
+                      <p className="mt-1.5 text-[11px] font-medium text-emerald-600 flex items-center gap-1 truncate">
+                        <CheckCircle2 className="h-3 w-3 shrink-0" />
+                        Last collected +{formatUGX(tenantLastPaid[tenant.id].amount)}
+                        <span className="text-emerald-600/70 font-normal">
+                          · {formatDistanceToNowStrict(new Date(tenantLastPaid[tenant.id].date), { addSuffix: true })}
                         </span>
-                      </div>
+                      </p>
                     )}
-
-                    <div className="grid grid-cols-2 gap-2 mt-3">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (tenant.phone) window.open(`https://wa.me/${tenant.phone.replace(/\D/g, '')}`, '_blank');
-                        }}
-                        className="h-9 gap-1.5 rounded-lg text-xs"
-                      >
-                        <MessageCircle className="h-3.5 w-3.5" />
-                        Message
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={(e) => { e.stopPropagation(); setProfileTenantId(tenant.id); }}
-                        className="h-9 gap-1.5 rounded-lg text-xs"
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                        Profile
-                      </Button>
-                    </div>
 
                     {tIsSettled && (
                       <Button
