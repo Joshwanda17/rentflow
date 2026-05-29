@@ -3277,27 +3277,46 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                 />
               </div>
 
-              {/* Preview */}
-              {Number(walletToPortfolioAmount) >= 1000 && walletToPortfolioReason.trim().length >= 10 && (
-                <div className="rounded-lg bg-accent/50 border border-accent p-3 space-y-2">
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Transfer amount</span>
-                    <span className="font-bold text-foreground">{formatUGX(Number(walletToPortfolioAmount))}</span>
-                  </div>
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Source</span>
-                    <span className="font-medium text-foreground">
-                      {walletTransferMethod === 'wallet' ? 'Partner Wallet' : `${proxyAgentInfo?.agentName} (Proxy Agent)`}
-                    </span>
-                  </div>
-                  <div className="flex items-start gap-1.5 pt-1 border-t border-border/50">
-                    <CheckCircle2 className="h-3 w-3 text-primary mt-0.5 shrink-0" />
-                    <p className="text-[10px] text-muted-foreground">
-                      Instant deduction — funds will be applied to portfolio capital at maturity.
+              {/* Prominent charge confirmation — always visible so the operator
+                  cannot miss WHICH wallet is being debited. */}
+              {(() => {
+                const isProxy = walletTransferMethod === 'proxy_agent';
+                const chargeOwner = isProxy
+                  ? (proxyAgentInfo?.agentName || 'Proxy Agent')
+                  : (detailPartner.profile.full_name || 'Partner');
+                const ownerRole = isProxy ? 'Proxy Agent' : 'Partner';
+                const amt = Number(walletToPortfolioAmount) || 0;
+                return (
+                  <div className={cn(
+                    "rounded-lg border-2 p-3 space-y-2",
+                    isProxy
+                      ? "border-amber-500/60 bg-amber-500/10"
+                      : "border-primary/50 bg-primary/10"
+                  )}>
+                    <div className="flex items-center gap-2">
+                      {isProxy
+                        ? <Users className="h-4 w-4 text-amber-600 shrink-0" />
+                        : <Wallet className="h-4 w-4 text-primary shrink-0" />}
+                      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        This will charge
+                      </span>
+                    </div>
+                    <p className={cn("text-sm font-bold", isProxy ? "text-amber-700 dark:text-amber-400" : "text-primary")}>
+                      {chargeOwner}'s wallet ({ownerRole})
                     </p>
+                    {amt >= 1000 && (
+                      <p className="text-xs text-muted-foreground">
+                        <span className="font-bold text-foreground">{formatUGX(amt)}</span> will be deducted from this wallet and applied to portfolio capital at maturity.
+                      </p>
+                    )}
+                    {isProxy && (
+                      <p className="text-[10px] text-amber-700 dark:text-amber-400 font-medium">
+                        ⚠️ Not the partner's own wallet — funds leave {chargeOwner}'s balance.
+                      </p>
+                    )}
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
           )}
 
@@ -3308,7 +3327,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
               disabled={walletToPortfolioSaving || Number(walletToPortfolioAmount) < 1000 || walletToPortfolioReason.trim().length < 10 || (walletTransferMethod === 'proxy_agent' && !proxyAgentInfo)}
             >
               {walletToPortfolioSaving && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
-              Submit Top-Up
+              {walletTransferMethod === 'proxy_agent'
+                ? `Charge ${proxyAgentInfo?.agentName || 'Proxy Agent'}'s Wallet`
+                : `Charge ${detailPartner?.profile?.full_name || 'Partner'}'s Wallet`}
             </Button>
           </DialogFooter>
         </DialogContent>
