@@ -35,6 +35,7 @@ import { RentCollectionsFeed } from '@/components/cfo/RentCollectionsFeed';
 import { AgentPerformanceRankings } from '@/components/cfo/AgentPerformanceRankings';
 import { CFOPartnerInvestments } from '@/components/cfo/CFOPartnerInvestments';
 import { CronJobsHealthPanel } from '@/components/cfo/CronJobsHealthPanel';
+import { SmsDeliveryLogPanel } from '@/components/cfo/SmsDeliveryLogPanel';
 export default function CFODashboard() {
   const { user, loading: authLoading, role } = useAuth();
   const navigate = useNavigate();
