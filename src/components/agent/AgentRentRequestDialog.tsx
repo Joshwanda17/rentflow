@@ -1798,8 +1798,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
               {incomeType !== 'outstanding' && (
               <>
-              <Separator />
-
+              {detailStep === 1 && (
+              <>
               {/* ===== 2. TENANT DETAILS ===== */}
               <div className="space-y-3">
                 <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-1">
