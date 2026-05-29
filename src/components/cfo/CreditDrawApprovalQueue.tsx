@@ -51,6 +51,7 @@ export function CreditDrawApprovalQueue() {
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const [confirming, setConfirming] = useState<PendingDraw | null>(null);
 
   const { data: items = [], isLoading } = useQuery<PendingDraw[]>({
     queryKey: ['credit-draw-approval-queue'],
