@@ -304,6 +304,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [savingDraft, setSavingDraft] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  // Live network status — used to keep the draft safe and warn the agent
+  // before they try to submit on a dropped connection.
+  const [isOnline, setIsOnline] = useState<boolean>(typeof navigator !== 'undefined' ? navigator.onLine : true);
   const [activationLink, setActivationLink] = useState<string | null>(null);
   const [step, setStep] = useState<'type' | 'details' | 'confirm'>('type');
   // Current sub-step inside the standard flow's guided wizard (0-based).
