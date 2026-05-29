@@ -289,6 +289,13 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   // one big "Collect" + "Call" action each. Built for agents who don't like
   // reading, don't notice fine detail, and use cheap phones. Persisted.
   const [simpleMode, setSimpleMode] = useState<boolean>(() => loadPrefs().simpleMode ?? false);
+  // Simple Mode bulk collect — let an agent tick several tenants and record a
+  // full-balance cash collection for all of them in one tap. Queues offline
+  // (same store as the per-tenant Collect flow). Picture-first, no reading.
+  const [bulkSelectMode, setBulkSelectMode] = useState(false);
+  const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
+  const [bulkSaving, setBulkSaving] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [mapMode, setMapMode] = useState(false);
   const [receiptLoadingId, setReceiptLoadingId] = useState<string | null>(null);
