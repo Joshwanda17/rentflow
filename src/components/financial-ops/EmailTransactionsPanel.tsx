@@ -42,6 +42,8 @@ interface GmailTx {
   counterparty: string | null;
   fee: number | null;
   balance: number | null;
+  linked_deposit_request_id: string | null;
+  auto_matched_at: string | null;
 }
 
 interface PollState {
