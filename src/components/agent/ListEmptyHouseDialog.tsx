@@ -254,6 +254,13 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         return false;
       }
     }
+    if (s === 4) {
+      const lc1Err = validateLc1Selection(lc1Selection);
+      if (lc1Err) {
+        toast.error(lc1Err);
+        return false;
+      }
+    }
     return true;
   };
 
