@@ -1448,9 +1448,9 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                 {/* Filter group: All / Owing / Paid — pictures only */}
                 <div className="flex flex-1 items-center gap-2">
                   {([
-                    { key: 'all' as FilterTab, Icon: Users, label: 'Show all tenants', on: 'bg-primary text-primary-foreground border-primary', off: 'bg-muted/40 text-muted-foreground border-transparent' },
-                    { key: 'owing' as FilterTab, Icon: AlertCircle, label: 'Show tenants who must pay', on: 'bg-rose-600 text-white border-rose-600', off: 'bg-rose-50 text-rose-500 border-transparent' },
-                    { key: 'paid-up' as FilterTab, Icon: CheckCircle2, label: 'Show tenants who paid', on: 'bg-emerald-600 text-white border-emerald-600', off: 'bg-emerald-50 text-emerald-500 border-transparent' },
+                    { key: 'all' as FilterTab, Icon: Users, label: tr('showAll'), on: 'bg-primary text-primary-foreground border-primary', off: 'bg-muted/40 text-muted-foreground border-transparent' },
+                    { key: 'owing' as FilterTab, Icon: AlertCircle, label: tr('showOwing'), on: 'bg-rose-600 text-white border-rose-600', off: 'bg-rose-50 text-rose-500 border-transparent' },
+                    { key: 'paid-up' as FilterTab, Icon: CheckCircle2, label: tr('showPaid'), on: 'bg-emerald-600 text-white border-emerald-600', off: 'bg-emerald-50 text-emerald-500 border-transparent' },
                   ]).map(({ key, Icon, label, on, off }) => {
                     const active = activeFilter === key;
                     return (
