@@ -513,6 +513,9 @@ export function DirectCreditTool() {
           category_label: categoryLabel,
           sub_category: selectedSubCategoryId || null,
           recipient_type: effectiveRecipient,
+          // Manual CFO payout — never subject to email-origin idempotency.
+          // Allows paying any user, any category/sub-category, countless times.
+          manual_credit: true,
         },
       });
       if (error) {
