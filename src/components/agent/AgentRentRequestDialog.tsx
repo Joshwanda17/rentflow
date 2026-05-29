@@ -802,11 +802,20 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     if (errors.length > 0) {
       setValidationErrors(errors);
       setSubmissionError(errors[0]);
-      toast.error(errors[0]);
-      // Scroll the dialog so the agent actually sees the error summary
+      toast.error(
+        errors.length === 1
+          ? errors[0]
+          : `${errors.length} things still needed before you can post`,
+      );
+      // Scroll the agent straight to the checklist of what is missing —
+      // a single toast is easy to miss on a small phone.
       requestAnimationFrame(() => {
-        const dialog = document.querySelector('[role="dialog"]');
-        if (dialog) dialog.scrollTo({ top: 0, behavior: 'smooth' });
+        if (errorSummaryRef.current) {
+          errorSummaryRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else {
+          const dialog = document.querySelector('[role="dialog"]');
+          if (dialog) dialog.scrollTo({ top: 0, behavior: 'smooth' });
+        }
       });
       return;
     }
