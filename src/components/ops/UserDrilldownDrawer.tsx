@@ -1058,13 +1058,14 @@ function RentBalanceEditor({
     }
     setSaving(true);
     try {
-      const { error } = await supabase.rpc('ops_update_rent_request_amount', {
-        p_rent_request_id: activeRr.id,
-        p_rent_amount: amt,
+      const { error } = await supabase.rpc('ops_record_payment_edit', {
+        p_edit_type: 'rent_amount',
+        p_target_id: activeRr.id,
+        p_new_amount: amt,
         p_reason: reason.trim(),
       } as any);
       if (error) throw error;
-      toast.success('Rent amount updated');
+      toast.success('Rent updated — agent notified to agree');
       setEditing(false);
       setReason('');
       onSaved();
