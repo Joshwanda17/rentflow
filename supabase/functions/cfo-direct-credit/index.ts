@@ -10,6 +10,56 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// ── SMS helper (Africa's Talking) ─────────────────────────────────────
+// Mirrors approve-withdrawal so a recipient gets an immediate text alert
+// whenever the CFO sends money to their wallet.
+function formatPhoneInternational(phone: string): string {
+  const digits = (phone || "").replace(/[^0-9]/g, "");
+  if (digits.startsWith("256")) return `+${digits}`;
+  if (digits.startsWith("0")) return `+256${digits.slice(1)}`;
+  if (digits.length === 9) return `+256${digits}`;
+  return digits ? `+${digits}` : "";
+}
+function isUgandanPhone(phone: string): boolean {
+  const f = formatPhoneInternational(phone);
+  return f.startsWith("+256") && f.length >= 13;
+}
+async function sendSMS(phone: string, message: string): Promise<boolean> {
+  const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
+  const username = Deno.env.get("AFRICASTALKING_USERNAME");
+  if (!apiKey || !username) return false;
+  if (!isUgandanPhone(phone)) return false;
+  const isSandbox = username.toLowerCase() === "sandbox";
+  const baseUrl = isSandbox
+    ? "https://api.sandbox.africastalking.com/version1/messaging"
+    : "https://api.africastalking.com/version1/messaging";
+  try {
+    const body = new URLSearchParams({
+      username,
+      to: formatPhoneInternational(phone),
+      message,
+      from: "WELILE",
+    });
+    const res = await fetch(baseUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        apiKey,
+        Accept: "application/json",
+      },
+      body: body.toString(),
+    });
+    const data = await res.json();
+    const recipients = data?.SMSMessageData?.Recipients || [];
+    return recipients.some(
+      (r: any) => r.statusCode === 101 || r.statusCode === 100,
+    );
+  } catch (err) {
+    console.error("[cfo-direct-credit] SMS error:", err);
+    return false;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -261,7 +311,7 @@ Deno.serve(async (req) => {
 
     const { data: targetProfile } = await adminClient
       .from("profiles")
-      .select("id, full_name, email")
+      .select("id, full_name, email, phone")
       .eq("id", target_user_id)
       .single();
 
@@ -575,6 +625,17 @@ Deno.serve(async (req) => {
         payload: { title: op === "credit" ? "💰 Welile Technologies Finance" : "💸 Wallet Debited", body: `UGX ${amount.toLocaleString()} ${verb} your wallet by Welile Technologies Finance`, url: "/dashboard/funder", type: "success" },
       }),
     }).catch(() => {});
+
+    // ── Recipient SMS alert (fire-and-forget) ───────────────────────────
+    // Notify the user by text whenever the CFO sends money to their wallet.
+    if (op === "credit" && targetProfile.phone) {
+      const smsMsg =
+        `WELILE: UGX ${amount.toLocaleString()} has been sent to your wallet ` +
+        `by Welile Technologies Finance. Ref: ${refId}. Thank you.`;
+      sendSMS(targetProfile.phone, smsMsg).catch((e) =>
+        console.error("[cfo-direct-credit] recipient SMS failed:", e),
+      );
+    }
 
     // ── Send Partner Wallet Deposit email on ROI payouts (mirrors approve-wallet-operation) ──
     if (op === "credit" && (walletCat === "roi_wallet_credit" || platformCat === "roi_expense")) {
