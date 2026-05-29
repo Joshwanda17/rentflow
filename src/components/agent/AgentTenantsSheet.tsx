@@ -2314,6 +2314,8 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                           {formatUGX(tenantDaily[tenant.id] || 0)}/day
                         </p>
                       </div>
+                      {/* Expand chevron — signals tap reveals actions */}
+                      <ChevronsUpDown className={`h-4 w-4 shrink-0 text-muted-foreground/50 transition-transform ${isExpanded ? 'text-primary' : ''}`} />
                     </div>
 
                     {/* Slim last-collected hint — full actions appear on tap (expand) */}
