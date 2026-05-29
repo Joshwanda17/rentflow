@@ -1321,7 +1321,14 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       console.error('Submission error:', error);
       const msg = error.message || 'Failed to submit request';
       const capacityMsg = humanizeCapacityError(msg);
-      if (capacityMsg) {
+      const isNetworkError =
+        !navigator.onLine ||
+        /failed to fetch|network ?error|networkrequestfailed|load failed|err_internet|err_network|fetch failed/i.test(msg);
+      if (isNetworkError) {
+        const friendly = 'Connection dropped before we could send it. Don\'t worry — your draft is saved. Reconnect and tap Submit again.';
+        setSubmissionError(friendly);
+        toast.warning('Connection lost', { description: 'Your draft is saved. Try again when you\'re back online.' });
+      } else if (capacityMsg) {
         setSubmissionError(capacityMsg);
         toast.error('Rent capacity reached', { description: capacityMsg });
       } else if (msg.includes('row-level security') || msg.includes('RLS')) {
