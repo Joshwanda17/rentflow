@@ -1105,6 +1105,65 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
 
       const isFloat = route === 'operational_float';
 
+      // ── Same-user bucket MOVE (Float ↔ Personal) ─────────────────────
+      // The email was already auto-credited to THIS user in the other
+      // bucket. Re-routing to the same user must MOVE the funds between
+      // their own buckets (no second credit, no double money). Routed
+      // through the dedicated ops-bucket-transfer correction function.
+      if (isSameUserBucketMove && existing.data) {
+        const prior = existing.data;
+        const moveAmount = Math.min(prior.original_amount || amt, amt);
+        const direction = isFloat ? 'withdrawable_to_float' : 'float_to_withdrawable';
+        const moveReason =
+          `Re-routed auto-credited deposit ${isFloat ? 'Personal→Float' : 'Float→Personal'} (same user ${user.full_name}): ${reason.trim()}`.slice(0, 480);
+        const { data: moveData, error: moveErr } = await supabase.functions.invoke('ops-bucket-transfer', {
+          body: {
+            target_user_id: user.id,
+            amount: moveAmount,
+            direction,
+            reason: moveReason,
+          },
+        });
+        const moveErrMsg = (moveErr as any)?.message || (moveData as any)?.error;
+        if (moveErrMsg) throw new Error(`Bucket move failed: ${moveErrMsg}`);
+
+        // Keep the deposit's recorded purpose in sync so future detection
+        // reflects the new bucket.
+        try {
+          await (supabase.from('deposit_requests') as any)
+            .update({ deposit_purpose: isFloat ? 'operational_float' : 'personal_deposit' })
+            .eq('id', prior.deposit_id);
+        } catch { /* ignore */ }
+
+        // Best-effort routing-history + SMS so the move is auditable.
+        try {
+          const { data: me } = await supabase.auth.getUser();
+          if (me?.user?.id) {
+            await (supabase.from('email_routing_history') as any).insert({
+              gmail_transaction_id: row.id,
+              gmail_message_id: row.gmail_message_id ?? null,
+              transaction_id: row.transaction_id,
+              from_email: row.from_email,
+              from_name: row.from_name,
+              subject: row.subject,
+              amount: moveAmount,
+              route: isFloat ? 'operational_float' : 'personal_deposit',
+              target_user_id: user.id,
+              target_user_name: user.full_name,
+              target_user_phone: user.phone,
+              reason: `BUCKET MOVE (${isFloat ? 'Personal→Float' : 'Float→Personal'}): ${reason.trim()}`,
+              ledger_reference_id: (moveData as any)?.transaction_group_id ?? null,
+              routed_by: me.user.id,
+              routed_by_name: null,
+              sms_sent: false,
+              sms_error: null,
+            });
+          }
+        } catch (e) { console.warn('[RouteEmailDeposit] bucket-move history insert failed', e); }
+
+        return { bucketMoved: true, movedToFloat: isFloat, moveAmount };
+      }
+
       // ── 0a) Wallet-to-wallet transfer leg ─────────────────────────
       // When the operator picked a source user, debit that user's
       // withdrawable balance for the same amount before crediting the
