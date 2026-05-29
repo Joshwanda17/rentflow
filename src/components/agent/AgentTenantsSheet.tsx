@@ -36,7 +36,8 @@ import { MarkNotFundedDialog } from './MarkNotFundedDialog';
 import { AgentRentCapacitySelfCard } from './AgentRentCapacitySelfCard';
 import { useCreditAccessLimit, formatCreditAmount } from '@/hooks/useCreditAccessLimit';
 import { AgentAdvanceRequestForm } from './AgentAdvanceRequestForm';
-import { Sparkles, Zap, ArrowDownAZ } from 'lucide-react';
+import { Sparkles, Zap, ArrowDownAZ, ListChecks, CheckSquare } from 'lucide-react';
+import { addEntry, newClientUuid, type FieldEntry } from '@/lib/fieldCollectStore';
 
 interface Tenant {
   id: string;
@@ -288,6 +289,13 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   // one big "Collect" + "Call" action each. Built for agents who don't like
   // reading, don't notice fine detail, and use cheap phones. Persisted.
   const [simpleMode, setSimpleMode] = useState<boolean>(() => loadPrefs().simpleMode ?? false);
+  // Simple Mode bulk collect — let an agent tick several tenants and record a
+  // full-balance cash collection for all of them in one tap. Queues offline
+  // (same store as the per-tenant Collect flow). Picture-first, no reading.
+  const [bulkSelectMode, setBulkSelectMode] = useState(false);
+  const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
+  const [bulkSaving, setBulkSaving] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [mapMode, setMapMode] = useState(false);
   const [receiptLoadingId, setReceiptLoadingId] = useState<string | null>(null);
@@ -999,6 +1007,62 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     }
   };
 
+  /* ── Simple Mode bulk collect helpers ── */
+  const toggleBulkSelect = (tenantId: string) => {
+    setBulkSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(tenantId)) next.delete(tenantId);
+      else next.add(tenantId);
+      return next;
+    });
+  };
+
+  const exitBulkSelect = () => {
+    setBulkSelectMode(false);
+    setBulkSelected(new Set());
+  };
+
+  // Tenants that are selected AND still owe something — only these get a record.
+  const bulkPayableTenants = useMemo(
+    () => processedTenants.filter((t) => bulkSelected.has(t.id) && (tenantBalances[t.id] || 0) > 0),
+    [processedTenants, bulkSelected, tenantBalances]
+  );
+  const bulkTotal = useMemo(
+    () => bulkPayableTenants.reduce((s, t) => s + (tenantBalances[t.id] || 0), 0),
+    [bulkPayableTenants, tenantBalances]
+  );
+
+  const handleBulkCollect = async () => {
+    if (!user?.id || bulkPayableTenants.length === 0) return;
+    setBulkSaving(true);
+    try {
+      const now = Date.now();
+      for (const t of bulkPayableTenants) {
+        const amt = tenantBalances[t.id] || 0;
+        if (amt <= 0) continue;
+        const entry: FieldEntry = {
+          id: newClientUuid(),
+          agentId: user.id,
+          tenantId: t.id,
+          tenantName: t.full_name || '',
+          tenantPhone: t.phone || null,
+          amount: amt,
+          notes: 'Bulk collect — marked paid',
+          capturedAt: now,
+          syncState: 'queued',
+        };
+        await addEntry(entry);
+      }
+      sonnerToast.success(`Saved ${bulkPayableTenants.length} · ${formatUGX(bulkTotal)}`);
+      setBulkConfirmOpen(false);
+      exitBulkSelect();
+    } catch (e) {
+      sonnerToast.error(e instanceof Error ? e.message : 'Failed to save');
+    } finally {
+      setBulkSaving(false);
+    }
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
@@ -1245,7 +1309,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               Simple
             </button>
             <button
-              onClick={() => setSimpleMode(false)}
+              onClick={() => { setSimpleMode(false); exitBulkSelect(); }}
               className={`py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
                 !simpleMode ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'
               }`}
@@ -1355,6 +1419,16 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                     );
                   })}
                 </div>
+                {/* Bulk select toggle — pictures only */}
+                <button
+                  onClick={() => { if (bulkSelectMode) exitBulkSelect(); else setBulkSelectMode(true); }}
+                  aria-label={bulkSelectMode ? 'Stop selecting tenants' : 'Select many tenants to collect'}
+                  aria-pressed={bulkSelectMode}
+                  title={bulkSelectMode ? 'Stop selecting' : 'Select many to collect'}
+                  className={`h-14 w-14 rounded-2xl border-2 flex items-center justify-center transition-colors ${bulkSelectMode ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-muted/40 text-muted-foreground border-transparent'}`}
+                >
+                  {bulkSelectMode ? <CheckSquare className="h-7 w-7" strokeWidth={2.4} /> : <ListChecks className="h-7 w-7" strokeWidth={2.4} />}
+                </button>
               </div>
             </>
           )}
@@ -1869,7 +1943,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
 
         {/* ───── Body ───── */}
         {simpleMode ? (
-          <div className="px-4 py-3 space-y-3">
+          <div className={`px-4 py-3 space-y-3 ${bulkSelectMode ? 'pb-28' : ''}`}>
             {loading ? (
               <div className="flex items-center justify-center py-20">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -1887,23 +1961,38 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                 const hasDebt = balance > 0;
                 const ctx = tenantContext[tenant.id];
                 const propertyAddress = ctx?.propertyAddress || '';
+                const selected = bulkSelected.has(tenant.id);
+                const selectable = bulkSelectMode && hasDebt;
                 return (
                   <div
                     key={tenant.id}
-                    className="rounded-3xl border border-border/60 bg-card p-4 shadow-sm"
+                    className={`rounded-3xl border bg-card p-4 shadow-sm transition-colors ${
+                      selected ? 'border-emerald-500 ring-2 ring-emerald-500/50 bg-emerald-50/40' : 'border-border/60'
+                    } ${bulkSelectMode && !hasDebt ? 'opacity-50' : ''}`}
                   >
-                    {/* Tenant identity — tap to open full profile */}
+                    {/* Tenant identity — tap to open profile, or tick in select mode */}
                     <button
                       type="button"
-                      onClick={() => setProfileTenantId(tenant.id)}
+                      onClick={() => {
+                        if (bulkSelectMode) { if (hasDebt) toggleBulkSelect(tenant.id); }
+                        else setProfileTenantId(tenant.id);
+                      }}
                       className="flex items-center gap-3 w-full text-left active:opacity-80"
                       style={{ touchAction: 'manipulation' }}
                     >
+                      {bulkSelectMode ? (
+                        <div className={`w-16 h-16 rounded-full flex items-center justify-center shrink-0 border-2 ${
+                          selected ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-muted-foreground/30 text-muted-foreground/40'
+                        }`}>
+                          {selected ? <CheckCircle2 className="h-9 w-9" strokeWidth={2.5} /> : <CheckSquare className="h-8 w-8" strokeWidth={2} />}
+                        </div>
+                      ) : (
                       <div className={`w-16 h-16 rounded-full flex items-center justify-center shrink-0 text-2xl font-bold ${
                         hasDebt ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
                       }`}>
                         {(tenant.full_name?.trim()?.charAt(0) || tenant.phone?.charAt(0) || '?').toUpperCase()}
                       </div>
+                      )}
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-lg leading-tight truncate">
                           {tenant.full_name?.trim() || 'Tenant'}
@@ -1932,7 +2021,8 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                       </p>
                     </div>
 
-                    {/* Two big actions */}
+                    {/* Two big actions — hidden while picking many tenants */}
+                    {!bulkSelectMode && (
                     <div className="grid grid-cols-2 gap-2.5 mt-3">
                       <Button
                         onClick={() => setFieldCollectTarget(tenant)}
@@ -1951,9 +2041,29 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                         Call
                       </Button>
                     </div>
+                    )}
                   </div>
                 );
               })
+            )}
+            {/* Sticky bulk-collect bar — appears while picking many tenants */}
+            {bulkSelectMode && (
+              <div className="fixed inset-x-0 bottom-0 z-40 px-4 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-3 bg-background/95 backdrop-blur border-t">
+                <div className="mx-auto max-w-md flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-2xl font-extrabold font-mono leading-none text-emerald-600">{formatUGX(bulkTotal)}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{bulkPayableTenants.length} selected</p>
+                  </div>
+                  <Button
+                    onClick={() => setBulkConfirmOpen(true)}
+                    disabled={bulkPayableTenants.length === 0}
+                    className="h-14 px-6 text-base font-bold rounded-2xl gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                  >
+                    <CheckCircle2 className="h-6 w-6" />
+                    Mark paid
+                  </Button>
+                </div>
+              </div>
             )}
           </div>
         ) : mapMode ? (
@@ -2588,6 +2698,42 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         tenantName={fieldCollectTarget?.full_name || ''}
         tenantPhone={fieldCollectTarget?.phone || null}
       />
+      {/* Bulk collect confirmation — pictures + big numbers, minimal reading */}
+      <Dialog open={bulkConfirmOpen} onOpenChange={(o) => { if (!bulkSaving) setBulkConfirmOpen(o); }}>
+        <DialogContent className="max-w-sm rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+              Mark {bulkPayableTenants.length} paid?
+            </DialogTitle>
+            <DialogDescription>
+              Records full payment for each selected tenant. Works offline.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-4 text-center">
+            <p className="text-[11px] uppercase tracking-wide font-bold text-emerald-700">Total to record</p>
+            <p className="text-3xl font-extrabold font-mono text-emerald-700 leading-none mt-1">{formatUGX(bulkTotal)}</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5 mt-1">
+            <Button
+              variant="outline"
+              onClick={() => setBulkConfirmOpen(false)}
+              disabled={bulkSaving}
+              className="h-14 text-base font-bold rounded-2xl"
+            >
+              <X className="h-5 w-5" />
+            </Button>
+            <Button
+              onClick={handleBulkCollect}
+              disabled={bulkSaving || bulkPayableTenants.length === 0}
+              className="h-14 text-base font-bold rounded-2xl gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {bulkSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle2 className="h-6 w-6" />}
+              Confirm
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <MarkNotFundedDialog
         open={!!notFundedTarget}
         onOpenChange={(open) => { if (!open) setNotFundedTarget(null); }}
