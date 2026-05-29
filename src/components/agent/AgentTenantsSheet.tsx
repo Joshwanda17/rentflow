@@ -2083,7 +2083,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                     {/* Big, unmissable amount */}
                     <div className={`mt-3 rounded-2xl px-4 py-3 text-center ${hasDebt ? 'bg-rose-50' : 'bg-emerald-50'}`}>
                       <p className={`text-[11px] uppercase tracking-wide font-bold ${hasDebt ? 'text-rose-600' : 'text-emerald-600'}`}>
-                        {hasDebt ? 'To collect' : 'All paid'}
+                        {hasDebt ? tr('toCollect') : tr('allPaid')}
                       </p>
                       <p className={`text-3xl font-extrabold font-mono leading-none mt-1 ${hasDebt ? 'text-rose-600' : 'text-emerald-600'}`}>
                         {hasDebt ? formatUGX(balance) : 'UGX 0'}
@@ -2098,7 +2098,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                         className="h-14 text-base font-bold rounded-2xl gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
                       >
                         <Banknote className="h-5 w-5" />
-                        Collect
+                        {tr('collect')}
                       </Button>
                       <Button
                         variant="outline"
@@ -2107,7 +2107,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                         className="h-14 text-base font-bold rounded-2xl gap-2"
                       >
                         <PhoneCall className="h-5 w-5" />
-                        Call
+                        {tr('call')}
                       </Button>
                     </div>
                     )}
