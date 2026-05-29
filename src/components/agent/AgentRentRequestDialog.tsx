@@ -1010,6 +1010,14 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       toast.error('You must be signed in to submit a request');
       return;
     }
+    // Offline guard: never lose the draft to a doomed network call. The form
+    // state is already auto-saved, so we just stop and reassure the agent.
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      const offlineMsg = 'No internet right now. Your draft is saved — it will still be here when you reconnect. Try submitting again once you have a signal.';
+      setSubmissionError(offlineMsg);
+      toast.warning('No internet', { description: 'Your draft is saved. Submit again when you reconnect.' });
+      return;
+    }
     // Daily Eligibility Law: only applies once an agent has graduated
     // (reached the tenant threshold). New agents are exempt and gated only
     // by the per-tenant cap. `can_post_rent_today` already encodes this.
