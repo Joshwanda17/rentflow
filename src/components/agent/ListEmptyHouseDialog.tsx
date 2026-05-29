@@ -406,9 +406,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           caretaker_name: caretakerName,
           caretaker_phone: caretakerPhone,
           // LC1 fields
-          lc1_chairperson_name: form.lc1_name,
-          lc1_chairperson_phone: form.lc1_phone,
-          lc1_chairperson_village: form.lc1_village || null,
+          lc1_chairperson_name: lc1Selection?.name ?? null,
+          lc1_chairperson_phone: lc1Selection?.phone ?? null,
+          lc1_chairperson_village: lc1Selection?.village || form.village || null,
         } as any)
         .select('id')
         .single();
@@ -424,15 +424,65 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           .catch((e) => console.warn('[ListEmptyHouseDialog] instant listing bonus failed:', e));
       }
 
-      // Save LC1 chairperson to lookup table if new
-      const { error: lc1Error } = await supabase
-        .from('lc1_chairpersons')
-        .upsert(
-          { name: form.lc1_name.trim(), phone: form.lc1_phone.trim(), village: form.lc1_village.trim() },
-          { onConflict: 'phone,village', ignoreDuplicates: true }
-        );
+      // ─── LC1 chairperson persistence + two-stage reward ───
+      // Existing LC1 (picked from search) → nothing to insert, no bonus.
+      // New LC1 (agent registering) → insert with registered_by = agent and
+      // trigger the UGX 1,000 instant reward. The remaining UGX 4,000 is auto-
+      // paid by `credit-lc1-verification-bonus` once Landlord Ops verifies.
+      if (lc1Selection?.mode === 'new') {
+        try {
+          const lc1Phone = lc1Selection.phone.trim();
+          const lc1Village = lc1Selection.village.trim();
+          // Guard against duplicates (and double-paying) if the agent skipped the
+          // search: reuse an existing row when phone+village already matches.
+          const { data: existingLc1 } = await supabase
+            .from('lc1_chairpersons')
+            .select('id, registered_by')
+            .eq('phone', lc1Phone)
+            .eq('village', lc1Village)
+            .maybeSingle();
 
-      if (lc1Error) console.warn('LC1 save warning:', lc1Error);
+          let lc1Id = existingLc1?.id ?? null;
+          if (lc1Id) {
+            if (!existingLc1?.registered_by) {
+              await supabase
+                .from('lc1_chairpersons')
+                .update({ registered_by: user.id } as any)
+                .eq('id', lc1Id);
+            }
+          } else {
+            const { data: createdLc1, error: lc1InsertErr } = await supabase
+              .from('lc1_chairpersons')
+              .insert({
+                name: lc1Selection.name.trim(),
+                phone: lc1Phone,
+                village: lc1Village,
+                region: lc1Selection.region || null,
+                district: lc1Selection.district || null,
+                county: lc1Selection.county || null,
+                sub_county: lc1Selection.sub_county || null,
+                parish: lc1Selection.parish || null,
+                town_council: lc1Selection.town_council || null,
+                cell: lc1Selection.cell || null,
+                zone: lc1Selection.zone || null,
+                registered_by: user.id,
+              } as any)
+              .select('id')
+              .single();
+            if (lc1InsertErr) throw lc1InsertErr;
+            lc1Id = createdLc1?.id ?? null;
+          }
+
+          // Instant UGX 1,000 LC1-registration reward (best-effort, idempotent).
+          if (lc1Id) {
+            supabase.functions
+              .invoke('credit-lc1-registered-bonus', { body: { lc1_id: lc1Id } })
+              .catch((e) => console.warn('[ListEmptyHouseDialog] instant LC1 reward failed:', e));
+          }
+        } catch (lc1Err) {
+          console.warn('[ListEmptyHouseDialog] LC1 registration warning:', lc1Err);
+        }
+      }
 
       // Upload images if any
       if (houseImages.length > 0 && listing) {
