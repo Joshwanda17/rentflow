@@ -36,7 +36,7 @@ import { MarkNotFundedDialog } from './MarkNotFundedDialog';
 import { AgentRentCapacitySelfCard } from './AgentRentCapacitySelfCard';
 import { useCreditAccessLimit, formatCreditAmount } from '@/hooks/useCreditAccessLimit';
 import { AgentAdvanceRequestForm } from './AgentAdvanceRequestForm';
-import { Sparkles, Zap } from 'lucide-react';
+import { Sparkles, Zap, ArrowDownAZ } from 'lucide-react';
 
 interface Tenant {
   id: string;
@@ -1309,6 +1309,52 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                     <X className="h-5 w-5" />
                   </button>
                 )}
+              </div>
+              {/* ── Icon-only filters & sort (no reading required) ── */}
+              <div className="flex items-center gap-2">
+                {/* Filter group: All / Owing / Paid — pictures only */}
+                <div className="flex flex-1 items-center gap-2">
+                  {([
+                    { key: 'all' as FilterTab, Icon: Users, label: 'Show all tenants', on: 'bg-primary text-primary-foreground border-primary', off: 'bg-muted/40 text-muted-foreground border-transparent' },
+                    { key: 'owing' as FilterTab, Icon: AlertCircle, label: 'Show tenants who must pay', on: 'bg-rose-600 text-white border-rose-600', off: 'bg-rose-50 text-rose-500 border-transparent' },
+                    { key: 'paid-up' as FilterTab, Icon: CheckCircle2, label: 'Show tenants who paid', on: 'bg-emerald-600 text-white border-emerald-600', off: 'bg-emerald-50 text-emerald-500 border-transparent' },
+                  ]).map(({ key, Icon, label, on, off }) => {
+                    const active = activeFilter === key;
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => setActiveFilter(key)}
+                        aria-label={label}
+                        aria-pressed={active}
+                        title={label}
+                        className={`flex-1 h-14 rounded-2xl border-2 flex items-center justify-center transition-colors ${active ? on : off}`}
+                      >
+                        <Icon className="h-7 w-7" strokeWidth={2.4} />
+                      </button>
+                    );
+                  })}
+                </div>
+                {/* Sort group: by amount (high→low) / by name (A→Z) — pictures only */}
+                <div className="flex items-center gap-2">
+                  {([
+                    { key: 'balance' as SortKey, dir: 'desc' as SortDir, Icon: Banknote, label: 'Sort by biggest amount first' },
+                    { key: 'name' as SortKey, dir: 'asc' as SortDir, Icon: ArrowDownAZ, label: 'Sort by name A to Z' },
+                  ]).map(({ key, dir, Icon, label }) => {
+                    const active = sortKey === key && sortDir === dir;
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => { setSortKey(key); setSortDir(dir); }}
+                        aria-label={label}
+                        aria-pressed={active}
+                        title={label}
+                        className={`h-14 w-14 rounded-2xl border-2 flex items-center justify-center transition-colors ${active ? 'bg-foreground text-background border-foreground' : 'bg-muted/40 text-muted-foreground border-transparent'}`}
+                      >
+                        <Icon className="h-7 w-7" strokeWidth={2.4} />
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </>
           )}
