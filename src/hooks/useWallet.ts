@@ -138,13 +138,13 @@ export function useWallet() {
     }
   }, [user]);
 
-  const sendMoney = useCallback(async (recipientPhone: string, amount: number, description?: string) => {
+  const sendMoney = useCallback(async (recipientId: string, amount: number, description?: string) => {
     if (!user) return { error: new Error('Please log in first') };
 
     // Phase 4: Optional pre-validation via new service layer
     const transferCheck = preValidateTransfer({
       senderId: user.id,
-      recipientPhone,
+      recipientId,
       amount,
       description,
     });
@@ -163,7 +163,7 @@ export function useWallet() {
     try {
       const { data, error } = await supabase.functions.invoke('wallet-transfer', {
         body: {
-          recipient_phone: recipientPhone,
+          recipient_id: recipientId,
           amount,
           description: description || 'Wallet transfer',
         },
