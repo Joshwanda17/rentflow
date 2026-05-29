@@ -174,6 +174,15 @@ Deno.serve(async (req) => {
     // the funder by definition.
     const forceRequesterDebit = Boolean((body as any)?.force_requester_debit) && isSystemCall;
 
+    // POOL-FUNDED proxy bank settlement (SKYBUBBLES bulk-bank email match).
+    // When auto-settle-bulk-bank-payout matches a proxy partner bank payout to
+    // an outgoing company bank-payout email with enough remaining pool
+    // capacity, the company pool FIRST tops up the proxy agent's FLOAT bucket
+    // for the exact amount, then the payout debits that same float — net zero
+    // on the agent wallet. This draws against the pool (the matched email),
+    // NOT against the agent's pre-existing withdrawable balance. System-only.
+    const poolFunded = Boolean((body as any)?.pool_funded) && isSystemCall;
+
     if (!withdrawal_id || typeof withdrawal_id !== "string") {
       return new Response(JSON.stringify({ error: "withdrawal_id is required" }), {
         status: 400,
