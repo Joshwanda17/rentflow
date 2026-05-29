@@ -1215,6 +1215,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
       hapticSuccess();
       setSuccess(true);
+      // Submitted successfully — clear the saved draft progress.
+      try { localStorage.removeItem(draftStorageKey); } catch { /* ignore */ }
       toast.success(incomeType === 'outstanding' ? 'Tenant registered with outstanding balance!' : 'Rent request posted successfully!');
       onSuccess?.();
     } catch (error: any) {
