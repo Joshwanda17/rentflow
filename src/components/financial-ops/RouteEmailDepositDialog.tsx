@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Loader2, Wallet, Banknote, ArrowRight, AlertTriangle, UserCog, ChevronLeft, ChevronRight, ArrowDownLeft, ArrowUpRight, Receipt, WifiOff, Wifi, History, Copy, Check } from 'lucide-react';
+import { Loader2, Wallet, Banknote, ArrowRight, ArrowLeftRight, AlertTriangle, UserCog, ChevronLeft, ChevronRight, ArrowDownLeft, ArrowUpRight, Receipt, WifiOff, Wifi, History, Copy, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -939,6 +939,23 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
     },
   });
 
+  // ── Same-user bucket move detection ────────────────────────────────
+  // If this email was ALREADY auto-credited to the *same* user but in the
+  // other bucket (e.g. auto-approved into Operational Float), then choosing
+  // the other bucket here must MOVE the money between buckets — never credit
+  // a second time. We surface this in the UI and route through the dedicated
+  // `ops-bucket-transfer` function in the mutation.
+  const priorAutoCredit = existing.data;
+  const priorAutoCreditWasFloat =
+    (priorAutoCredit?.deposit_purpose ?? 'operational_float') === 'operational_float';
+  const isSameUserBucketMove =
+    mode === 'credit' &&
+    !transferFromUser &&
+    !!priorAutoCredit &&
+    !!user &&
+    priorAutoCredit.original_user_id === user.id &&
+    priorAutoCreditWasFloat !== (route === 'operational_float');
+
   const send = useMutation({
     mutationFn: async () => {
       if (!row) throw new Error('No email row');
@@ -1087,6 +1104,65 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
       }
 
       const isFloat = route === 'operational_float';
+
+      // ── Same-user bucket MOVE (Float ↔ Personal) ─────────────────────
+      // The email was already auto-credited to THIS user in the other
+      // bucket. Re-routing to the same user must MOVE the funds between
+      // their own buckets (no second credit, no double money). Routed
+      // through the dedicated ops-bucket-transfer correction function.
+      if (isSameUserBucketMove && existing.data) {
+        const prior = existing.data;
+        const moveAmount = Math.min(prior.original_amount || amt, amt);
+        const direction = isFloat ? 'withdrawable_to_float' : 'float_to_withdrawable';
+        const moveReason =
+          `Re-routed auto-credited deposit ${isFloat ? 'Personal→Float' : 'Float→Personal'} (same user ${user.full_name}): ${reason.trim()}`.slice(0, 480);
+        const { data: moveData, error: moveErr } = await supabase.functions.invoke('ops-bucket-transfer', {
+          body: {
+            target_user_id: user.id,
+            amount: moveAmount,
+            direction,
+            reason: moveReason,
+          },
+        });
+        const moveErrMsg = (moveErr as any)?.message || (moveData as any)?.error;
+        if (moveErrMsg) throw new Error(`Bucket move failed: ${moveErrMsg}`);
+
+        // Keep the deposit's recorded purpose in sync so future detection
+        // reflects the new bucket.
+        try {
+          await (supabase.from('deposit_requests') as any)
+            .update({ deposit_purpose: isFloat ? 'operational_float' : 'personal_deposit' })
+            .eq('id', prior.deposit_id);
+        } catch { /* ignore */ }
+
+        // Best-effort routing-history + SMS so the move is auditable.
+        try {
+          const { data: me } = await supabase.auth.getUser();
+          if (me?.user?.id) {
+            await (supabase.from('email_routing_history') as any).insert({
+              gmail_transaction_id: row.id,
+              gmail_message_id: row.gmail_message_id ?? null,
+              transaction_id: row.transaction_id,
+              from_email: row.from_email,
+              from_name: row.from_name,
+              subject: row.subject,
+              amount: moveAmount,
+              route: isFloat ? 'operational_float' : 'personal_deposit',
+              target_user_id: user.id,
+              target_user_name: user.full_name,
+              target_user_phone: user.phone,
+              reason: `BUCKET MOVE (${isFloat ? 'Personal→Float' : 'Float→Personal'}): ${reason.trim()}`,
+              ledger_reference_id: (moveData as any)?.transaction_group_id ?? null,
+              routed_by: me.user.id,
+              routed_by_name: null,
+              sms_sent: false,
+              sms_error: null,
+            });
+          }
+        } catch (e) { console.warn('[RouteEmailDeposit] bucket-move history insert failed', e); }
+
+        return { bucketMoved: true, movedToFloat: isFloat, moveAmount };
+      }
 
       // ── 0a) Wallet-to-wallet transfer leg ─────────────────────────
       // When the operator picked a source user, debit that user's
@@ -1398,6 +1474,14 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
         toast({
           title: 'Wallet debited',
           description: `${formatUGX(Number(amount))} debited from ${res?.debitTargetName ?? user?.full_name}${proxyNote} as ${routeLabel}.${res?.smsSent ? ' SMS sent.' : ''}`,
+        });
+        onOpenChange(false);
+        return;
+      }
+      if (res?.bucketMoved) {
+        toast({
+          title: 'Moved between buckets',
+          description: `${formatUGX(Number(res.moveAmount) || Number(amount))} moved to ${res.movedToFloat ? 'Operational Float' : 'Personal Deposit'} for ${user?.full_name} (no new credit — funds switched buckets).`,
         });
         onOpenChange(false);
         return;
@@ -1926,6 +2010,18 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
                 </div>
               </label>
             </RadioGroup>
+            {isSameUserBucketMove && user && (
+              <div className="mt-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-[11px] text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200 flex items-start gap-1.5">
+                <ArrowLeftRight className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                <span>
+                  This deposit was already credited to <span className="font-medium">{user.full_name}</span> as{' '}
+                  <span className="font-medium">{priorAutoCreditWasFloat ? 'Operational Float' : 'Personal Deposit'}</span>.
+                  Confirming will <span className="font-semibold">move</span> the funds to{' '}
+                  <span className="font-medium">{route === 'operational_float' ? 'Operational Float' : 'Personal Deposit'}</span>{' '}
+                  on the same wallet — no second credit is created.
+                </span>
+              </div>
+            )}
             {transferFromUser && sourceUser && user && (
               <div className="mt-2 rounded-md border border-primary/30 bg-primary/5 p-2 text-[11px] flex items-center gap-1.5">
                 <ArrowRight className="h-3 w-3 text-primary shrink-0" />
