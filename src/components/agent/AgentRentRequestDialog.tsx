@@ -2032,7 +2032,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 {/* GPS Capture */}
                 <div className="space-y-1">
                   <Label className="flex items-center gap-1">
-                    <Navigation className="h-3 w-3" /> Property GPS
+                    <Navigation className="h-3 w-3" /> Property GPS (optional)
                   </Label>
                   {gpsLocation ? (
                     <div className="flex items-center gap-2 p-2.5 rounded-xl bg-success/10 border border-success/30">
