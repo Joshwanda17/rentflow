@@ -18467,6 +18467,7 @@ export type Database = {
         }
         Returns: Json
       }
+      ops_global_verification_overview: { Args: never; Returns: Json }
       ops_link_agent_landlord: {
         Args: { p_agent_id: string; p_landlord_id: string; p_reason: string }
         Returns: Json
