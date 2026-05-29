@@ -125,6 +125,67 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   const monthlyRent = parseInt(form.monthly_rent) || 0;
   const pricing = calculateDailyRentalRate(monthlyRent);
 
+  // ─── Search the system for a landlord by verified name (or phone) ───
+  const searchLandlords = async () => {
+    const q = landlordQuery.trim();
+    if (q.length < 2) {
+      toast.error('Type at least 2 letters of the landlord name');
+      return;
+    }
+    setSearchingLandlord(true);
+    setSearchedOnce(true);
+    try {
+      const isPhone = /^[0-9+]/.test(q);
+      let query = supabase
+        .from('landlords')
+        .select('id, name, phone, verified')
+        .order('verified', { ascending: false })
+        .limit(10);
+      query = isPhone ? query.ilike('phone', `%${q}%`) : query.ilike('name', `%${q}%`);
+      const { data: landlords, error } = await query;
+      if (error) throw error;
+
+      const ids = (landlords || []).map((l) => l.id);
+      // Count verified houses per landlord so the agent can confirm the match.
+      const counts: Record<string, number> = {};
+      if (ids.length) {
+        const { data: houses } = await supabase
+          .from('house_listings')
+          .select('landlord_id')
+          .in('landlord_id', ids)
+          .eq('verified', true);
+        for (const h of houses || []) {
+          if (h.landlord_id) counts[h.landlord_id] = (counts[h.landlord_id] || 0) + 1;
+        }
+      }
+
+      const hits: LandlordHit[] = (landlords || []).map((l) => ({
+        id: l.id,
+        name: l.name,
+        phone: l.phone,
+        verified: !!l.verified,
+        verifiedHouses: counts[l.id] || 0,
+      }));
+      setLandlordResults(hits);
+    } catch (err: any) {
+      console.error('[ListEmptyHouseDialog] landlord search failed:', err);
+      toast.error('Could not search landlords');
+    } finally {
+      setSearchingLandlord(false);
+    }
+  };
+
+  const selectLandlord = (hit: LandlordHit) => {
+    setSelectedLandlord(hit);
+    setManualLandlord(false);
+    setForm((f) => ({ ...f, landlord_name: hit.name, landlord_phone: hit.phone }));
+  };
+
+  const clearLandlordSelection = () => {
+    setSelectedLandlord(null);
+    setForm((f) => ({ ...f, landlord_name: '', landlord_phone: '' }));
+  };
+
   // Auto-populate LC1 village from property village and fetch existing LC1 chairpersons
   const fetchLc1ForVillage = async (villageQuery: string) => {
     try {
