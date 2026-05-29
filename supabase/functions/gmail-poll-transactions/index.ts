@@ -1229,7 +1229,7 @@ async function tryAutoApproveMomoWithdrawal(
   // Find pending withdrawal requests (mobile-money path) for this provider.
   const { data: candidates, error } = await supabase
     .from('withdrawal_requests')
-    .select('id, user_id, amount, status, mobile_money_number, mobile_money_provider, payout_method')
+    .select('id, user_id, agent_id, proxy_partner_id, amount, status, mobile_money_number, mobile_money_provider, payout_method')
     .in('status', ['pending', 'requested', 'manager_approved'])
     .eq('amount', parsed.amount)
     .order('created_at', { ascending: true })
@@ -1256,7 +1256,11 @@ async function tryAutoApproveMomoWithdrawal(
   }
   const matchedNorm = normalizeUgPhone(match.mobile_money_number)!;
   const matchKind = matchByFull ? 'full' : 'last9';
-  console.log(`[gmail-poll] auto-approving wr=${match.id} provider=${provider} phone=${matchedNorm.full} (${matchKind}) amount=${parsed.amount}`);
+  // Proxy rows are funded by the proxy AGENT's wallet, not the requester
+  // (partner). For those we must NOT force the debit onto the requester —
+  // let approve-withdrawal route the debit to the assigned proxy agent.
+  const isProxyRow = !!(match as any).proxy_partner_id;
+  console.log(`[gmail-poll] auto-approving wr=${match.id} provider=${provider} phone=${matchedNorm.full} (${matchKind}) amount=${parsed.amount} proxy=${isProxyRow}`);
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -1278,7 +1282,10 @@ async function tryAutoApproveMomoWithdrawal(
         system_caller: true,
         // Consume the requester's "reserved against pending requests" hold
         // and debit their wallet directly — the cash left via their MoMo #.
-        force_requester_debit: true,
+        // EXCEPTION: proxy withdrawals are funded by the proxy agent's wallet,
+        // so we omit force_requester_debit and let approve-withdrawal route
+        // the debit to the assigned proxy agent.
+        force_requester_debit: !isProxyRow,
       }),
     });
     const text = await res.text();
