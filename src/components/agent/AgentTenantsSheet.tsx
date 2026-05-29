@@ -109,6 +109,7 @@ interface SheetPrefs {
   recentCollectionFilter?: RecentCollectionFilter;
   groupByProperty?: boolean;
   lifecycleFilter?: LifecycleFilter;
+  simpleMode?: boolean;
 }
 
 function loadPrefs(): SheetPrefs {
