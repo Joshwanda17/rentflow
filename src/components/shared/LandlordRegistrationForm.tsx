@@ -632,5 +632,15 @@ export default function LandlordRegistrationForm({
         </motion.form>
       )}
     </AnimatePresence>
+
+    {registeredByRole === 'agent' && (
+      <ListEmptyHouseDialog
+        open={showListHouse}
+        onOpenChange={setShowListHouse}
+        initialLandlordName={landlordName}
+        initialLandlordPhone={landlordPhone}
+      />
+    )}
+    </>
   );
 }
