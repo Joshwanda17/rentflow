@@ -84,6 +84,7 @@ export default function CFODashboard() {
     { id: 'channels', label: 'Channels', icon: Receipt },
     { id: 'revenue', label: 'P&L', icon: DollarSign },
     { id: 'disbursements', label: 'Disbursements', icon: Receipt },
+    { id: 'sms', label: 'SMS Log', icon: MessageSquare },
   ];
 
   return (
