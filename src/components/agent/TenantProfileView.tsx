@@ -52,6 +52,7 @@ interface TenantProfile {
   national_id: string | null;
   avatar_url: string | null;
   tenant_status?: string | null;
+  previous_full_name?: string | null;
 }
 
 interface RentRequestRow {
