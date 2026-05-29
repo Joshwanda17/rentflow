@@ -1294,6 +1294,8 @@ export function TenantOpsDashboard() {
         return <LocationBrowser />;
       case 'tenant-location-browser':
         return <TenantLocationBrowser />;
+      case 'global-verification':
+        return <GlobalVerificationHub />;
       case 'daily-collections':
         return <DailyCollectionMonitoringDashboard mode="editable" title="Daily Collection Monitoring" />;
       default:
