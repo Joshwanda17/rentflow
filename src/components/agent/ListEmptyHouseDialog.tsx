@@ -906,7 +906,16 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               )}
             </div>
           </div>
+          </>
+          )}
 
+          {/* ── Step 3: Photos & place ── */}
+          {step === 3 && (
+          <>
+          <div className="text-center">
+            <p className="text-base font-semibold">Photos &amp; where is it?</p>
+            <p className="text-xs text-muted-foreground">Take photos and set the location</p>
+          </div>
           {/* Photos */}
           <HouseImageUploader
             images={houseImages}
