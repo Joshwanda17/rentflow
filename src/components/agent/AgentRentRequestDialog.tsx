@@ -96,6 +96,9 @@ const ACTIVE_RENT_STATUSES = [
 ];
 const AGENT_RENT_CAP_UGX = 100_000_000;
 
+// Guided wizard steps for the standard (non-outstanding) rent request flow.
+const DETAIL_STEPS = ['Rent', 'Tenant', 'Property', 'Officials', 'Review'] as const;
+
 function AgentCapacityBanner({ agentId }: { agentId?: string }) {
   const [exposure, setExposure] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
