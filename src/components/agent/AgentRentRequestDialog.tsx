@@ -752,8 +752,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       toast.error('You must be signed in to submit a request');
       return;
     }
-    // Daily Eligibility Law: block posting if yesterday < 20% of expected daily.
-    if (myCap && myCap.daily_status === 'blocked') {
+    // Daily Eligibility Law: only applies once an agent has graduated
+    // (reached the tenant threshold). New agents are exempt and gated only
+    // by the per-tenant cap. `can_post_rent_today` already encodes this.
+    if (myCap && !myCap.is_new_agent && !myCap.can_post_rent_today) {
       const threshold = Math.round(DAILY_ELIGIBILITY_THRESHOLD * 100);
       const ypct = Math.round(myCap.yesterday_response_pct * 100);
       const msg =
