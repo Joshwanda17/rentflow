@@ -284,6 +284,10 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [propertyPickerOpen, setPropertyPickerOpen] = useState(false);
   const [recentProperties, setRecentProperties] = useState<string[]>(() => loadRecentProperties());
   const [groupByProperty, setGroupByProperty] = useState<boolean>(() => loadPrefs().groupByProperty ?? false);
+  // Simple Mode — strips the page down to large photo-first tenant cards with
+  // one big "Collect" + "Call" action each. Built for agents who don't like
+  // reading, don't notice fine detail, and use cheap phones. Persisted.
+  const [simpleMode, setSimpleMode] = useState<boolean>(() => loadPrefs().simpleMode ?? false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [mapMode, setMapMode] = useState(false);
   const [receiptLoadingId, setReceiptLoadingId] = useState<string | null>(null);
