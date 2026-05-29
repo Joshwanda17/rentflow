@@ -89,7 +89,8 @@ Deno.serve(async (req) => {
 
     const { data: alreadyAllocated } = await admin
       .from("bulk_bank_payout_allocations")
-      .select("withdrawal_request_id");
+      .select("withdrawal_request_id, status")
+      .neq("status", "failed");
     const allocatedSet = new Set((alreadyAllocated || []).map((r: any) => r.withdrawal_request_id));
 
     const settled: any[] = [];
@@ -142,7 +143,7 @@ Deno.serve(async (req) => {
 
       if (!resp.ok) {
         const errText = await resp.text().catch(() => "");
-        await admin.from("bulk_bank_payout_allocations").insert({
+        await admin.from("bulk_bank_payout_allocations").upsert({
           gmail_transaction_id: gmailTxId,
           withdrawal_request_id: wr.id,
           partner_id: wr.user_id,
@@ -151,12 +152,12 @@ Deno.serve(async (req) => {
           status: "failed",
           error_message: errText.slice(0, 500),
           metadata: { http_status: resp.status },
-        });
+        }, { onConflict: "withdrawal_request_id" });
         skipped.push({ id: wr.id, reason: "approve_failed", status: resp.status });
         continue;
       }
 
-      await admin.from("bulk_bank_payout_allocations").insert({
+      await admin.from("bulk_bank_payout_allocations").upsert({
         gmail_transaction_id: gmailTxId,
         withdrawal_request_id: wr.id,
         partner_id: wr.user_id,
@@ -174,7 +175,7 @@ Deno.serve(async (req) => {
           email_date: emailDateIso,
           withdrawal_date: wr.created_at,
         },
-      });
+      }, { onConflict: "withdrawal_request_id" });
       remaining -= wrAmount;
       settled.push({ id: wr.id, amount: wrAmount, proxy_agent_id: proxy.agent_id });
 
