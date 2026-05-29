@@ -129,13 +129,19 @@ export function AgentPriorityGrid({ agentId, onOpenFieldCollect, onOpenNewTenant
       {/* 4. List House — open empty house listing flow */}
       <PriorityTile
         onClick={() => { hapticTap(); onOpenListHouse(); }}
-        icon={<HomeIcon className="h-6 w-6" strokeWidth={2.2} />}
-        iconBg="bg-[hsl(var(--chart-2))] text-white"
+        icon={
+          <div className="relative">
+            <HomeIcon className="h-6 w-6" strokeWidth={2.2} />
+            <Sparkles className="h-3 w-3 text-amber-300 absolute -top-1 -right-1" />
+          </div>
+        }
+        iconBg="bg-amber-500 text-white"
         label="List House"
-        valueLabel="Add listing"
-        sub="Earn placement bonus"
-        ariaLabel="List an empty house — earn a placement bonus when a tenant moves in"
+        valueLabel={formatUGX(10000)}
+        sub="Landlord + LC1 bonus"
+        ariaLabel="List an empty house — earn up to UGX 10,000 when you register the landlord and LC1 chairperson"
         title="List an empty house"
+        highlight
       />
     </div>
   );
