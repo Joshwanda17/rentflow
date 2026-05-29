@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Home, Pencil, Loader2, History, CheckCircle2, AlertTriangle, Clock } from 'lucide-react';
+import { Home, Pencil, Loader2, History, CheckCircle2, AlertTriangle, Clock, Undo2, Gavel, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
@@ -44,7 +44,7 @@ export function TenantLandlordPayoutsEditor({ tenantId, canEdit }: Props) {
     queryFn: async () => {
       const { data } = await supabase
         .from('landlord_payment_edits')
-        .select('id, edit_type, old_amount, new_amount, reason, edited_by_name, created_at, agent_response, agent_responded_at, agent_dispute_note, landlord_name')
+        .select('id, edit_type, old_amount, new_amount, reason, edited_by_name, created_at, agent_response, agent_responded_at, agent_dispute_note, landlord_name, reverted_on_dispute, resolution, resolved_by_name, resolved_at, resolution_note, final_amount')
         .eq('tenant_id', tenantId)
         .order('created_at', { ascending: false })
         .limit(15);
@@ -82,26 +82,7 @@ export function TenantLandlordPayoutsEditor({ tenantId, canEdit }: Props) {
           </div>
           <ul className="space-y-2">
             {history.map((h: any) => (
-              <li key={h.id} className="text-[11px] rounded-lg border border-border/60 p-2 space-y-1">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium text-foreground">
-                    {h.edit_type === 'rent_amount' ? 'Rent amount' : `Landlord payout${h.landlord_name ? ` · ${h.landlord_name}` : ''}`}
-                  </span>
-                  <ResponseBadge response={h.agent_response} />
-                </div>
-                <div className="text-muted-foreground">
-                  <span className="line-through">{fmtUGX(h.old_amount)}</span>
-                  {' → '}
-                  <span className="font-semibold text-foreground">{fmtUGX(h.new_amount)}</span>
-                </div>
-                <div className="text-muted-foreground">Reason: {h.reason}</div>
-                {h.agent_dispute_note && (
-                  <div className="text-destructive">Agent dispute: {h.agent_dispute_note}</div>
-                )}
-                <div className="text-muted-foreground/80">
-                  By {h.edited_by_name || 'Ops'} · {format(new Date(h.created_at), 'MMM dd, HH:mm')}
-                </div>
-              </li>
+              <EditHistoryItem key={h.id} edit={h} canResolve={canEdit} onResolved={refresh} />
             ))}
           </ul>
         </div>
@@ -110,14 +91,163 @@ export function TenantLandlordPayoutsEditor({ tenantId, canEdit }: Props) {
   );
 }
 
-function ResponseBadge({ response }: { response: string | null }) {
+function ResponseBadge({ edit }: { edit: any }) {
+  const response = edit.agent_response;
+  if (edit.resolution === 'upheld') {
+    return <Badge variant="outline" className="text-[9px] gap-1 border-primary/40 text-primary"><ShieldCheck className="h-3 w-3" /> Resolved · upheld</Badge>;
+  }
+  if (edit.resolution === 'reverted') {
+    return <Badge variant="outline" className="text-[9px] gap-1 border-muted-foreground/40 text-muted-foreground"><Undo2 className="h-3 w-3" /> Resolved · reverted</Badge>;
+  }
   if (response === 'agreed') {
     return <Badge variant="outline" className="text-[9px] gap-1 border-emerald-500/40 text-emerald-600"><CheckCircle2 className="h-3 w-3" /> Agreed</Badge>;
   }
   if (response === 'disputed') {
-    return <Badge variant="outline" className="text-[9px] gap-1 border-destructive/40 text-destructive"><AlertTriangle className="h-3 w-3" /> Disputed</Badge>;
+    return <Badge variant="outline" className="text-[9px] gap-1 border-destructive/40 text-destructive"><AlertTriangle className="h-3 w-3" /> Disputed · paused</Badge>;
   }
   return <Badge variant="outline" className="text-[9px] gap-1 text-amber-600 border-amber-500/40"><Clock className="h-3 w-3" /> Awaiting agent</Badge>;
+}
+
+function EditHistoryItem({ edit, canResolve, onResolved }: { edit: any; canResolve: boolean; onResolved: () => void }) {
+  const isOpenDispute = edit.agent_response === 'disputed' && !edit.resolution;
+  return (
+    <li className="text-[11px] rounded-lg border border-border/60 p-2 space-y-1">
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-medium text-foreground">
+          {edit.edit_type === 'rent_amount' ? 'Rent amount' : `Landlord payout${edit.landlord_name ? ` · ${edit.landlord_name}` : ''}`}
+        </span>
+        <ResponseBadge edit={edit} />
+      </div>
+      <div className="text-muted-foreground">
+        <span className="line-through">{fmtUGX(edit.old_amount)}</span>
+        {' → '}
+        <span className="font-semibold text-foreground">{fmtUGX(edit.new_amount)}</span>
+      </div>
+      <div className="text-muted-foreground">Reason: {edit.reason}</div>
+      {edit.agent_dispute_note && (
+        <div className="text-destructive">Agent dispute: {edit.agent_dispute_note}</div>
+      )}
+      {isOpenDispute && (
+        <div className="flex items-start gap-1.5 rounded-md bg-amber-500/10 border border-amber-500/20 p-1.5 text-amber-700">
+          <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
+          <span>Paused at the original {fmtUGX(edit.old_amount)} until you resolve this dispute.</span>
+        </div>
+      )}
+      {edit.resolution && (
+        <div className="text-muted-foreground">
+          Resolution: applied {fmtUGX(edit.final_amount)}{edit.resolution_note ? ` — ${edit.resolution_note}` : ''}
+          {edit.resolved_by_name ? ` (by ${edit.resolved_by_name})` : ''}
+        </div>
+      )}
+      <div className="text-muted-foreground/80">
+        By {edit.edited_by_name || 'Ops'} · {format(new Date(edit.created_at), 'MMM dd, HH:mm')}
+      </div>
+      {isOpenDispute && canResolve && (
+        <ResolveDisputeControls edit={edit} onResolved={onResolved} />
+      )}
+    </li>
+  );
+}
+
+function ResolveDisputeControls({ edit, onResolved }: { edit: any; onResolved: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<'upheld' | 'reverted'>('reverted');
+  const [finalAmount, setFinalAmount] = useState(String(edit.new_amount ?? ''));
+  const [note, setNote] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const resolve = async () => {
+    if (note.trim().length < 10) {
+      toast.error('Resolution note must be at least 10 characters');
+      return;
+    }
+    let amt: number | undefined;
+    if (mode === 'upheld') {
+      amt = Number(finalAmount);
+      if (!Number.isFinite(amt) || amt <= 0) {
+        toast.error('Enter a valid final amount');
+        return;
+      }
+    }
+    setSaving(true);
+    try {
+      const { error } = await supabase.rpc('ops_resolve_payment_edit', {
+        p_edit_id: edit.id,
+        p_resolution: mode,
+        p_note: note.trim(),
+        p_final_amount: mode === 'upheld' ? amt : null,
+      } as any);
+      if (error) throw error;
+      toast.success(mode === 'upheld' ? 'Dispute resolved — change applied' : 'Dispute resolved — kept original amount');
+      setOpen(false);
+      onResolved();
+    } catch (e: any) {
+      toast.error(e.message ?? 'Could not resolve dispute');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!open) {
+    return (
+      <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1 mt-1" onClick={() => setOpen(true)}>
+        <Gavel className="h-3 w-3" /> Resolve dispute
+      </Button>
+    );
+  }
+
+  return (
+    <div className="space-y-2 mt-1 rounded-md border border-border/60 p-2">
+      <div className="flex gap-1.5">
+        <Button
+          size="sm"
+          variant={mode === 'reverted' ? 'default' : 'outline'}
+          className="h-7 px-2 text-xs gap-1 flex-1"
+          onClick={() => setMode('reverted')}
+        >
+          <Undo2 className="h-3 w-3" /> Keep original
+        </Button>
+        <Button
+          size="sm"
+          variant={mode === 'upheld' ? 'default' : 'outline'}
+          className="h-7 px-2 text-xs gap-1 flex-1"
+          onClick={() => setMode('upheld')}
+        >
+          <ShieldCheck className="h-3 w-3" /> Uphold change
+        </Button>
+      </div>
+      {mode === 'upheld' && (
+        <div className="space-y-1">
+          <Label className="text-xs">Final amount to apply (UGX)</Label>
+          <Input
+            type="number"
+            min={1}
+            value={finalAmount}
+            onChange={(e) => setFinalAmount(e.target.value)}
+            className="h-8 text-sm"
+          />
+        </div>
+      )}
+      <div className="space-y-1">
+        <Label className="text-xs">Resolution note (min 10 chars)</Label>
+        <Textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          rows={2}
+          className="text-sm"
+          placeholder="Explain how the dispute was resolved"
+        />
+      </div>
+      <div className="flex items-center gap-2">
+        <Button size="sm" onClick={resolve} disabled={saving} className="h-7 px-3 text-xs">
+          {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Confirm resolution'}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => setOpen(false)} disabled={saving} className="h-7 px-3 text-xs">
+          Cancel
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 function PayoutRow({ payout, canEdit, onSaved }: { payout: any; canEdit: boolean; onSaved: () => void }) {
