@@ -1562,6 +1562,9 @@ function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord, onSelectU
       {/* Recent wallet statements (last 25 entries, user-facing filter) */}
       <AgentWalletStatements agentId={agentId} />
 
+      {/* User-to-user transfers — who sent/received money */}
+      <UserTransfersList userId={agentId} onSelectUser={onSelectUser} />
+
       {/* Capacity / credit access */}
       {cap && (
         <Card className="p-3 space-y-2">
