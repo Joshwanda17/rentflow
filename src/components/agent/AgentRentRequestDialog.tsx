@@ -893,8 +893,6 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
     if (!preferredLanguage) errors.push('Choose the language the tenant speaks');
 
-    if (!tenantPhoto) errors.push('Take a photo of the tenant (their face)');
-
     // Outstanding flow uses a searchable landlord picker (LC already linked).
     // Other flows still collect landlord + LC1 inline.
     if (isOutstanding) {
