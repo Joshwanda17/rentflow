@@ -1153,6 +1153,15 @@ export function FinOpsWithdrawalVerification() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Full requester profile — wallet, balances, roles, transfers */}
+      <UserDrilldownDrawer
+        open={!!profileUser}
+        onOpenChange={(o) => { if (!o) setProfileUser(null); }}
+        agentId={profileUser?.id ?? null}
+        tenantId={profileUser?.id ?? null}
+        defaultTab="agent"
+      />
+
     </>
   );
 }
