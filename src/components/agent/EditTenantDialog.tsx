@@ -106,6 +106,11 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
   const [savedSummary, setSavedSummary] = useState<SavedField[] | null>(null);
   const [statusSummary, setStatusSummary] = useState<{ oldStatus: string; newStatus: string } | null>(null);
   const [permissionBlock, setPermissionBlock] = useState<PermissionBlock | null>(null);
+  // Snapshot of the values loaded from the DB so we can save ONLY changed fields.
+  // Sending the whole profile on every edit dragged unchanged identity fields
+  // (phone, national_id, monthly_rent…) through uniqueness/restriction triggers
+  // and made simple name edits fail. Diffing keeps a name-only edit name-only.
+  const [original, setOriginal] = useState<Record<string, any>>({});
 
   useEffect(() => {
     if (open) {
@@ -146,6 +151,30 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
         setAvatarUrl(data?.avatar_url || '');
         setResidenceLat(data?.residence_lat ?? null);
         setResidenceLng(data?.residence_lng ?? null);
+        setOriginal({
+          full_name: tenant.full_name,
+          phone: tenant.phone,
+          email: tenant.email || '',
+          national_id: tenant.national_id || '',
+          city: data?.city || '',
+          district: data?.district || '',
+          village: data?.village || '',
+          town: data?.town || '',
+          occupation: data?.occupation || '',
+          monthly_rent: data?.monthly_rent != null ? String(data.monthly_rent) : '',
+          region: data?.region || '',
+          sub_county: data?.sub_county || '',
+          parish: data?.parish || '',
+          landmark: data?.landmark || '',
+          country: data?.country || '',
+          mobile_money_number: data?.mobile_money_number || '',
+          mobile_money_provider: data?.mobile_money_provider || '',
+          has_smartphone: data?.has_smartphone ?? true,
+          ops_note: data?.ops_note || '',
+          avatar_url: data?.avatar_url || '',
+          residence_lat: data?.residence_lat ?? null,
+          residence_lng: data?.residence_lng ?? null,
+        });
         setExtendedLoading(false);
       })();
     }
