@@ -35,6 +35,12 @@ export interface HouseListing {
   created_at: string;
   updated_at?: string;
   short_code?: string | null;
+  verified_at?: string | null;
+  // Bonus tracking
+  listed_bonus_paid?: boolean | null;
+  listed_bonus_paid_at?: string | null;
+  listing_bonus_paid?: boolean | null;
+  listing_bonus_paid_at?: string | null;
   // Distance from spatial query
   distance_km?: number;
   // Agent contact (enriched client-side)
