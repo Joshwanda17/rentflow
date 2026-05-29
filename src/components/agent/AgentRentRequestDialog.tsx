@@ -344,6 +344,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [guarantorConsent, setGuarantorConsent] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
+  // Ref to the "things still needed" banner so we can scroll the agent
+  // straight to it — ordinary agents on small phones often miss a toast.
+  const errorSummaryRef = useRef<HTMLDivElement>(null);
 
   // FIX #9: house category for outstanding flow
   const [outstandingHouseCategory, setOutstandingHouseCategory] = useState('');
