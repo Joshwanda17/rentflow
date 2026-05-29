@@ -1025,7 +1025,6 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                 onChange={e => {
                   const val = e.target.value;
                   setForm(f => ({ ...f, village: val, lc1_village: val }));
-                  if (val.trim().length >= 3) fetchLc1ForVillage(val);
                 }}
                 className={attempted && !form.village.trim() ? 'border-destructive' : ''}
               />
