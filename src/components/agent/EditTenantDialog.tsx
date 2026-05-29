@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Save, User, Phone, Mail, IdCard, Pencil, UserX, UserCheck, CheckCircle2, ArrowRight, X, ShieldAlert, RefreshCw, MessageSquare, AlertCircle, MapPin, Home, Briefcase, Banknote, Smartphone, Wallet, StickyNote, Globe, Crosshair, Image as ImageIcon } from 'lucide-react';
+import { Loader2, Save, User, Phone, Mail, IdCard, Pencil, UserX, UserCheck, CheckCircle2, ArrowRight, X, ShieldAlert, RefreshCw, MessageSquare, AlertCircle, MapPin, Home, Briefcase, Banknote, Smartphone, Wallet, StickyNote, Globe, Crosshair, Image as ImageIcon, ChevronDown, ChevronUp } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -106,6 +106,10 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
   const [savedSummary, setSavedSummary] = useState<SavedField[] | null>(null);
   const [statusSummary, setStatusSummary] = useState<{ oldStatus: string; newStatus: string } | null>(null);
   const [permissionBlock, setPermissionBlock] = useState<PermissionBlock | null>(null);
+  // Simple-first: only Name + Phone show by default. Everything else hides
+  // behind a single "More" toggle so an agent who doesn't like reading sees
+  // almost nothing on screen.
+  const [showMore, setShowMore] = useState(false);
   // Snapshot of the values loaded from the DB so we can save ONLY changed fields.
   // Sending the whole profile on every edit dragged unchanged identity fields
   // (phone, national_id, monthly_rent…) through uniqueness/restriction triggers
@@ -123,6 +127,7 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
       setSavedSummary(null);
       setStatusSummary(null);
       setPermissionBlock(null);
+      setShowMore(false);
       resetSave();
       // Lazy-load extended profile fields so we never overwrite values we
       // didn't fetch when the agent saves.
