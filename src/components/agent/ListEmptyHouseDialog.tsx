@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Home, MapPin, Loader2, Shield, UserCheck, Share2, MessageCircle, Copy, Check, PartyPopper, ChevronDown } from 'lucide-react';
+import { Home, MapPin, Loader2, Shield, ShieldCheck, Search, X, UserCheck, Share2, MessageCircle, Copy, Check, PartyPopper, ChevronDown } from 'lucide-react';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -65,6 +65,23 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     dailyRate: number;
   }>(null);
   const [copied, setCopied] = useState(false);
+  // ─── Landlord search-first flow ───
+  // Agents must search the system for the landlord (by verified name) before
+  // listing, so houses link to an existing verified landlord instead of
+  // creating duplicates.
+  type LandlordHit = {
+    id: string;
+    name: string;
+    phone: string;
+    verified: boolean;
+    verifiedHouses: number;
+  };
+  const [landlordQuery, setLandlordQuery] = useState('');
+  const [landlordResults, setLandlordResults] = useState<LandlordHit[]>([]);
+  const [searchingLandlord, setSearchingLandlord] = useState(false);
+  const [searchedOnce, setSearchedOnce] = useState(false);
+  const [selectedLandlord, setSelectedLandlord] = useState<LandlordHit | null>(null);
+  const [manualLandlord, setManualLandlord] = useState(false);
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -101,12 +118,76 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         landlord_name: initialLandlordName ?? f.landlord_name,
         landlord_phone: initialLandlordPhone ?? f.landlord_phone,
       }));
+      // Treat a pre-filled landlord (from the registration form) as a manual
+      // new-landlord entry so the search-first gate is satisfied.
+      setManualLandlord(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialLandlordName, initialLandlordPhone]);
 
   const monthlyRent = parseInt(form.monthly_rent) || 0;
   const pricing = calculateDailyRentalRate(monthlyRent);
+
+  // ─── Search the system for a landlord by verified name (or phone) ───
+  const searchLandlords = async () => {
+    const q = landlordQuery.trim();
+    if (q.length < 2) {
+      toast.error('Type at least 2 letters of the landlord name');
+      return;
+    }
+    setSearchingLandlord(true);
+    setSearchedOnce(true);
+    try {
+      const isPhone = /^[0-9+]/.test(q);
+      let query = supabase
+        .from('landlords')
+        .select('id, name, phone, verified')
+        .order('verified', { ascending: false })
+        .limit(10);
+      query = isPhone ? query.ilike('phone', `%${q}%`) : query.ilike('name', `%${q}%`);
+      const { data: landlords, error } = await query;
+      if (error) throw error;
+
+      const ids = (landlords || []).map((l) => l.id);
+      // Count verified houses per landlord so the agent can confirm the match.
+      const counts: Record<string, number> = {};
+      if (ids.length) {
+        const { data: houses } = await supabase
+          .from('house_listings')
+          .select('landlord_id')
+          .in('landlord_id', ids)
+          .eq('verified', true);
+        for (const h of houses || []) {
+          if (h.landlord_id) counts[h.landlord_id] = (counts[h.landlord_id] || 0) + 1;
+        }
+      }
+
+      const hits: LandlordHit[] = (landlords || []).map((l) => ({
+        id: l.id,
+        name: l.name,
+        phone: l.phone,
+        verified: !!l.verified,
+        verifiedHouses: counts[l.id] || 0,
+      }));
+      setLandlordResults(hits);
+    } catch (err: any) {
+      console.error('[ListEmptyHouseDialog] landlord search failed:', err);
+      toast.error('Could not search landlords');
+    } finally {
+      setSearchingLandlord(false);
+    }
+  };
+
+  const selectLandlord = (hit: LandlordHit) => {
+    setSelectedLandlord(hit);
+    setManualLandlord(false);
+    setForm((f) => ({ ...f, landlord_name: hit.name, landlord_phone: hit.phone }));
+  };
+
+  const clearLandlordSelection = () => {
+    setSelectedLandlord(null);
+    setForm((f) => ({ ...f, landlord_name: '', landlord_phone: '' }));
+  };
 
   // Auto-populate LC1 village from property village and fetch existing LC1 chairpersons
   const fetchLc1ForVillage = async (villageQuery: string) => {
@@ -149,6 +230,19 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       scrollDialogToTop();
     };
 
+    // Search-first: the agent must look up the landlord in the system before
+    // listing. They either select an existing (ideally verified) landlord or
+    // explicitly add a new one after searching returns no match.
+    if (!selectedLandlord && !manualLandlord) {
+      failWith('Search for the landlord first, then select them or add a new one');
+      scrollDialogToTop();
+      return;
+    }
+    if (manualLandlord && (!form.landlord_name.trim() || !form.landlord_phone.trim())) {
+      failWith('Enter the new landlord name and phone');
+      return;
+    }
+
     if (!monthlyRent || monthlyRent < 10000) {
       failWith('Monthly rent must be at least UGX 10,000');
       return;
@@ -184,7 +278,10 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
 
       // Try to find or create landlord reference
       let landlordId: string | null = null;
-      if (form.landlord_phone) {
+      if (selectedLandlord?.id) {
+        // Agent picked an existing landlord from the system search — link directly.
+        landlordId = selectedLandlord.id;
+      } else if (form.landlord_phone) {
         const normalizedPhone = form.landlord_phone.trim();
         const { data: landlord } = await supabase
           .from('landlords')
@@ -337,6 +434,11 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     });
     setExistingLc1Options([]);
     setShowOptional(false);
+    setLandlordQuery('');
+    setLandlordResults([]);
+    setSearchedOnce(false);
+    setSelectedLandlord(null);
+    setManualLandlord(false);
   };
 
   const buildShare = () => {
@@ -453,27 +555,128 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           {/* Landlord Info */}
           <div className="space-y-3 p-3 rounded-xl bg-muted/30 border border-border">
             <p className="text-xs font-semibold text-muted-foreground uppercase">Landlord Details</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs">Landlord Name</Label>
-                <Input
-                  placeholder="Name"
-                  value={form.landlord_name}
-                  onChange={e => setForm(f => ({ ...f, landlord_name: e.target.value }))}
-                />
+
+            {/* Step 1 — search the system for a verified landlord */}
+            {!selectedLandlord && !manualLandlord && (
+              <div className="space-y-2">
+                <Label className="text-xs">Search the landlord in the system first</Label>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Landlord name or phone"
+                    value={landlordQuery}
+                    onChange={(e) => setLandlordQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') { e.preventDefault(); searchLandlords(); }
+                    }}
+                  />
+                  <Button type="button" variant="secondary" onClick={searchLandlords} disabled={searchingLandlord}>
+                    {searchingLandlord ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                  </Button>
+                </div>
+
+                {landlordResults.length > 0 && (
+                  <div className="space-y-1.5 max-h-56 overflow-y-auto">
+                    {landlordResults.map((hit) => (
+                      <button
+                        type="button"
+                        key={hit.id}
+                        onClick={() => selectLandlord(hit)}
+                        className="w-full text-left p-2.5 rounded-lg border border-border bg-background hover:bg-accent/40 transition-colors"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-medium text-sm truncate">{hit.name}</span>
+                          {hit.verified ? (
+                            <span className="flex items-center gap-1 text-[10px] font-semibold text-success shrink-0">
+                              <ShieldCheck className="h-3.5 w-3.5" /> Verified
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground shrink-0">Unverified</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">{hit.phone}</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          {hit.verifiedHouses > 0
+                            ? `${hit.verifiedHouses} verified house${hit.verifiedHouses > 1 ? 's' : ''} in system`
+                            : 'No verified houses yet'}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {searchedOnce && !searchingLandlord && landlordResults.length === 0 && (
+                  <p className="text-xs text-muted-foreground">No landlord found in the system for that search.</p>
+                )}
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-8 text-xs w-full"
+                  onClick={() => { setManualLandlord(true); setForm(f => ({ ...f, landlord_name: landlordQuery.trim().match(/^[0-9+]/) ? f.landlord_name : landlordQuery.trim() })); }}
+                >
+                  Can't find them? Add a new landlord
+                </Button>
               </div>
-              <div>
-                <Label className="text-xs">Landlord Phone</Label>
-                <PhoneInput
-                  placeholder="0771234567"
-                  value={form.landlord_phone}
-                  onChange={(v) => setForm(f => ({ ...f, landlord_phone: v }))}
-                  onContactPicked={({ name }) => {
-                    if (name && !form.landlord_name.trim()) setForm(f => ({ ...f, landlord_name: name }));
-                  }}
-                />
+            )}
+
+            {/* Selected existing landlord */}
+            {selectedLandlord && (
+              <div className="p-2.5 rounded-lg border border-success/40 bg-success/5 space-y-1">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm truncate flex items-center gap-1.5">
+                      {selectedLandlord.verified && <ShieldCheck className="h-4 w-4 text-success shrink-0" />}
+                      {selectedLandlord.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{selectedLandlord.phone}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {selectedLandlord.verifiedHouses > 0
+                        ? `${selectedLandlord.verifiedHouses} verified house${selectedLandlord.verifiedHouses > 1 ? 's' : ''} in system`
+                        : 'No verified houses yet'}
+                    </p>
+                  </div>
+                  <Button type="button" variant="ghost" size="sm" className="h-8 text-xs shrink-0" onClick={clearLandlordSelection}>
+                    <X className="h-3.5 w-3.5 mr-1" /> Change
+                  </Button>
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Manual new landlord entry (after search returned no match) */}
+            {manualLandlord && !selectedLandlord && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Landlord Name</Label>
+                    <Input
+                      placeholder="Name"
+                      value={form.landlord_name}
+                      onChange={e => setForm(f => ({ ...f, landlord_name: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Landlord Phone</Label>
+                    <PhoneInput
+                      placeholder="0771234567"
+                      value={form.landlord_phone}
+                      onChange={(v) => setForm(f => ({ ...f, landlord_phone: v }))}
+                      onContactPicked={({ name }) => {
+                        if (name && !form.landlord_name.trim()) setForm(f => ({ ...f, landlord_name: name }));
+                      }}
+                    />
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-8 text-xs"
+                  onClick={() => { setManualLandlord(false); setForm(f => ({ ...f, landlord_name: '', landlord_phone: '' })); }}
+                >
+                  ← Back to search
+                </Button>
+              </div>
+            )}
+
             <label className="flex items-center gap-2 cursor-pointer">
               <Checkbox
                 checked={!form.landlord_has_smartphone}
