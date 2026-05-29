@@ -2121,6 +2121,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </Button>
                 )}
               </div>
+              {(!amount || amount < 50000) && amount > 0 && amount < 50000 && (
+                <p className="text-xs font-semibold text-warning text-center -mt-1">
+                  Rent amount must be at least UGX 50,000 to post.
+                </p>
+              )}
               </>
               )}
             </motion.div>
