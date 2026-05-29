@@ -392,7 +392,15 @@ export function useAgentCapacityMap(agentIds: string[]) {
           expected_tenant_days > 0
             ? Math.min(1, responding_tenant_days / expected_tenant_days)
             : 0;
-        const { tier, per_tenant_max } = classifyAgent(exp.count, response_rate);
+        const active_tenant_count = activeTenantsByAgent.get(id)?.size || 0;
+        const { tier, per_tenant_max: tier_per_tenant_max } =
+          classifyAgent(exp.count, response_rate);
+        // New-agent phase: under the tenant threshold the agent may post up
+        // to UGX 2,000,000 per tenant regardless of the response-rate tier.
+        const is_new_agent = active_tenant_count < NEW_AGENT_TENANT_THRESHOLD;
+        const per_tenant_max = is_new_agent
+          ? NEW_AGENT_RENT_CAP_UGX
+          : tier_per_tenant_max;
         const headroom = Math.max(AGENT_RENT_CAP_UGX - exp.used, 0);
         const pct = Math.min(100, Math.round((exp.used / AGENT_RENT_CAP_UGX) * 100));
         // Server-side eligibility values (Africa/Kampala TZ, from
@@ -403,16 +411,21 @@ export function useAgentCapacityMap(agentIds: string[]) {
         const today_response_pct  = elig?.today_pct      ?? 0;
         const yesterday_response_pct = elig?.yesterday_pct ?? 0;
         const effective_daily_pct = elig?.effective_pct  ?? 0;
+        const daily_blocked =
+          exp.count > 0 && effective_daily_pct < DAILY_ELIGIBILITY_THRESHOLD;
         let daily_status: AgentCapacity['daily_status'];
         if (exp.count <= 0) daily_status = 'starter';
-        else if (effective_daily_pct >= DAILY_ELIGIBILITY_THRESHOLD) daily_status = 'good';
-        else daily_status = 'blocked';
-        const can_post_rent_today = daily_status !== 'blocked';
+        else if (daily_blocked) daily_status = 'blocked';
+        else daily_status = 'good';
+        // Daily performance regulation only kicks in once the agent has
+        // graduated (reached the tenant threshold). New agents are governed
+        // solely by the per-tenant cap above.
+        const can_post_rent_today = is_new_agent ? true : !daily_blocked;
         const daily_rating = classifyDailyRating(exp.count, effective_daily_pct);
         out.set(id, {
           used: exp.used,
           active_count: exp.count,
-          active_tenant_count: activeTenantsByAgent.get(id)?.size || 0,
+          active_tenant_count,
           paying_tenants_last_week: payingTenantsByAgent.get(id)?.size || 0,
           unfunded_tenant_count: unfundedTenantsByAgent.get(id)?.size || 0,
           response_rate,
@@ -427,6 +440,7 @@ export function useAgentCapacityMap(agentIds: string[]) {
           daily_status,
           daily_rating,
           can_post_rent_today,
+          is_new_agent,
           expected_daily: dailyExpected,
           repayment_rate: response_rate,
           expected_weekly,
