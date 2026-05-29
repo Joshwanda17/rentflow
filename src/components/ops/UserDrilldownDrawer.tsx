@@ -1359,7 +1359,7 @@ function TenantPane({
 /* ------------------------------------------------------------------ */
 /* Agent pane                                                          */
 /* ------------------------------------------------------------------ */
-function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord }: { agentId: string; isOps: boolean; onSelectTenant?: (id: string, name: string) => void; onSelectLandlord?: (id: string) => void }) {
+function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord, onSelectUser }: { agentId: string; isOps: boolean; onSelectTenant?: (id: string, name: string) => void; onSelectLandlord?: (id: string) => void; onSelectUser?: (id: string, name: string) => void }) {
   const qc = useQueryClient();
   const { data: profile, isLoading } = useProfile(agentId);
   const { data: roles = [] } = useUserRoles(agentId);
