@@ -11417,6 +11417,7 @@ export type Database = {
           parish: string | null
           phone: string
           prefers_easy_read: boolean
+          previous_full_name: string | null
           primary_persona: string | null
           referrer_id: string | null
           referrer_locked: boolean
@@ -11489,6 +11490,7 @@ export type Database = {
           parish?: string | null
           phone: string
           prefers_easy_read?: boolean
+          previous_full_name?: string | null
           primary_persona?: string | null
           referrer_id?: string | null
           referrer_locked?: boolean
@@ -11561,6 +11563,7 @@ export type Database = {
           parish?: string | null
           phone?: string
           prefers_easy_read?: boolean
+          previous_full_name?: string | null
           primary_persona?: string | null
           referrer_id?: string | null
           referrer_locked?: boolean
