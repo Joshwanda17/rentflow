@@ -327,6 +327,8 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   // one big "Collect" + "Call" action each. Built for agents who don't like
   // reading, don't notice fine detail, and use cheap phones. Persisted.
   const [simpleMode, setSimpleMode] = useState<boolean>(() => loadPrefs().simpleMode ?? false);
+  // Simple Mode language toggle (English ⇄ Luganda). Persisted.
+  const [simpleLang, setSimpleLang] = useState<SimpleLang>(() => loadPrefs().simpleLang ?? 'en');
   // Simple Mode bulk collect — let an agent tick several tenants and record a
   // full-balance cash collection for all of them in one tap. Queues offline
   // (same store as the per-tenant Collect flow). Picture-first, no reading.
