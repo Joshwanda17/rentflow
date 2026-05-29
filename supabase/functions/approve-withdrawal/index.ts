@@ -764,7 +764,16 @@ Deno.serve(async (req) => {
         return acc;
       }, 0);
 
-      const proxyLedgerPartnerId = isProxyPayout && proxyPartnerId ? String(proxyPartnerId) : null;
+      // Only use the partner-EARMARK gate for legacy custody / managed-ROI
+      // rows that explicitly carry `linked_party` (ROI credits parked on the
+      // agent wallet, tagged to the partner). Agent-initiated proxy
+      // withdrawals from the dialog have NO linked_party — they spend the
+      // agent's own withdrawable/float and must use the agent full-wallet gate
+      // below (the `else if (isProxyPayout)` branch).
+      const proxyLedgerPartnerId =
+        isProxyPayout && wr.linked_party && String(wr.linked_party) !== String(fundingUserId)
+          ? String(wr.linked_party)
+          : null;
       if (proxyLedgerPartnerId) {
 
         const { data: linkedRows, error: linkedErr } = await admin
