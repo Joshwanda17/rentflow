@@ -30,7 +30,7 @@ const VERIFY_ROLES = new Set([
 ]);
 
 function locationLine(r: Record<string, any>): string {
-  return [r.village, r.cell, r.parish, r.sub_county, r.county, r.district, r.region]
+  return [r.village, r.cell, r.parish, r.town_council, r.sub_county, r.county, r.district, r.region]
     .filter(Boolean)
     .slice(0, 3)
     .join(' · ');
@@ -225,7 +225,7 @@ function LandlordVerifyList({ country, canVerify, onChanged }: { country: string
     queryFn: async () => {
       let q = supabase
         .from('landlords')
-        .select('id, name, phone, village, cell, parish, sub_county, county, district, region, monthly_rent, created_at')
+        .select('id, name, phone, village, cell, town_council, sub_county, county, district, region, monthly_rent, created_at')
         .neq('verified', true)
         .order('created_at', { ascending: false })
         .limit(PAGE);
