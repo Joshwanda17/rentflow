@@ -348,7 +348,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [gpsLoading, setGpsLoading] = useState(false);
   const [housePhotos, setHousePhotos] = useState<{ file: File; preview: string }[]>([]);
   const [tenantPhoto, setTenantPhoto] = useState<{ file: File; preview: string } | null>(null);
-  const [latestRentReceipt, setLatestRentReceipt] = useState<{ file: File; preview: string } | null>(null);
+  
   // Existing tenants this agent has already registered — used for the
   // one-tap auto-fill so agents don't re-key phone/National ID/photo.
   const [existingTenants, setExistingTenants] = useState<{ id: string; full_name: string | null; phone: string | null; national_id: string | null; avatar_url: string | null }[]>([]);
@@ -566,7 +566,6 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     if (idx === 0) {
       if (!amount) errors.push('Type the rent amount');
       else if (amount < 50000) errors.push('Rent amount must be at least UGX 50,000');
-      if (!latestRentReceipt) errors.push("Take a photo of the tenant's latest rent receipt");
     } else if (idx === 1) {
       if (!tenantName.trim()) errors.push("Type the tenant's full name");
       if (!tenantPhone.trim()) errors.push("Type the tenant's phone number");
@@ -735,53 +734,6 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     }
   }, [existingTenants]);
 
-  const handleLatestRentReceipt = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    const input = e.target;
-    if (input) input.value = '';
-    if (!file) return;
-    try {
-      // Optimize immediately so we don't hold a multi-MB raw camera photo in memory
-      // (low-end phones OOM when the preview blob + original File both live in state).
-      const optimized = await optimizeImage(file, { maxWidth: 1600, quality: 0.85 });
-      setLatestRentReceipt(prev => {
-        if (prev) URL.revokeObjectURL(prev.preview);
-        return { file: optimized.file, preview: optimized.previewUrl };
-      });
-    } catch (err) {
-      console.warn('Receipt optimize failed, falling back to raw file:', err);
-      setLatestRentReceipt(prev => {
-        if (prev) URL.revokeObjectURL(prev.preview);
-        return { file, preview: URL.createObjectURL(file) };
-      });
-    }
-  }, []);
-
-  const removeLatestRentReceipt = useCallback(() => {
-    setLatestRentReceipt(prev => {
-      if (prev) URL.revokeObjectURL(prev.preview);
-      return null;
-    });
-  }, []);
-
-  const uploadLatestRentReceipt = async (requestId: string): Promise<string | null> => {
-    if (!user || !latestRentReceipt) return null;
-    try {
-      // Already optimized at capture-time; just upload as-is.
-      const file = latestRentReceipt.file;
-      const ext = file.name.split('.').pop() || 'webp';
-      const path = `${user.id}/${requestId}/latest_rent_receipt.${ext}`;
-      const { error } = await supabase.storage
-        .from('house-images')
-        .upload(path, file, { cacheControl: '86400', upsert: true });
-      if (error) throw error;
-      const { data } = supabase.storage.from('house-images').getPublicUrl(path);
-      return data.publicUrl;
-    } catch (err) {
-      console.warn('Latest rent receipt upload failed:', err);
-      return null;
-    }
-  };
 
   const uploadTenantPhoto = async (requestId: string, tenantUserId?: string | null): Promise<string | null> => {
     if (!user || !tenantPhoto) return null;
