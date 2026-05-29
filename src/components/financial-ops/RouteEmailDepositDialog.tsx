@@ -2010,6 +2010,18 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
                 </div>
               </label>
             </RadioGroup>
+            {isSameUserBucketMove && user && (
+              <div className="mt-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-[11px] text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200 flex items-start gap-1.5">
+                <ArrowLeftRight className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                <span>
+                  This deposit was already credited to <span className="font-medium">{user.full_name}</span> as{' '}
+                  <span className="font-medium">{priorAutoCreditWasFloat ? 'Operational Float' : 'Personal Deposit'}</span>.
+                  Confirming will <span className="font-semibold">move</span> the funds to{' '}
+                  <span className="font-medium">{route === 'operational_float' ? 'Operational Float' : 'Personal Deposit'}</span>{' '}
+                  on the same wallet — no second credit is created.
+                </span>
+              </div>
+            )}
             {transferFromUser && sourceUser && user && (
               <div className="mt-2 rounded-md border border-primary/30 bg-primary/5 p-2 text-[11px] flex items-center gap-1.5">
                 <ArrowRight className="h-3 w-3 text-primary shrink-0" />
