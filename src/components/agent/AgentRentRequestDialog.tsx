@@ -1053,7 +1053,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           description: 'Register the landlord and list a house — you can post this rent request once Landlord Ops verifies it.',
         });
         setShowRegisterLandlord(true);
-        setSubmitting(false);
+        setLoading(false);
         return;
       }
 
