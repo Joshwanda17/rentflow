@@ -626,6 +626,17 @@ Deno.serve(async (req) => {
       }),
     }).catch(() => {});
 
+    // ── Recipient SMS alert (fire-and-forget) ───────────────────────────
+    // Notify the user by text whenever the CFO sends money to their wallet.
+    if (op === "credit" && targetProfile.phone) {
+      const smsMsg =
+        `WELILE: UGX ${amount.toLocaleString()} has been sent to your wallet ` +
+        `by Welile Technologies Finance. Ref: ${refId}. Thank you.`;
+      sendSMS(targetProfile.phone, smsMsg).catch((e) =>
+        console.error("[cfo-direct-credit] recipient SMS failed:", e),
+      );
+    }
+
     // ── Send Partner Wallet Deposit email on ROI payouts (mirrors approve-wallet-operation) ──
     if (op === "credit" && (walletCat === "roi_wallet_credit" || platformCat === "roi_expense")) {
       try {
