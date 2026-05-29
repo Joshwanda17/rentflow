@@ -2561,30 +2561,62 @@ function UserTransfersList({
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['drilldown-transfers', userId],
     queryFn: async () => {
-      const { data: txs, error } = await supabase
-        .from('wallet_transactions')
-        .select('id, sender_id, recipient_id, amount, description, created_at')
-        .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
-        .order('created_at', { ascending: false })
+      // User-to-user transfers live in the LEDGER (source of truth), not in
+      // wallet_transactions. Each transfer is two `wallet_transfer` legs that
+      // share a `reference_id` — one cash_out (sender) and one cash_in
+      // (recipient). We read this user's legs, then resolve the counterpart
+      // leg (same reference_id, different user) to know who they transacted with.
+      const { data: legs, error } = await supabase
+        .from('general_ledger')
+        .select('id, amount, direction, description, transaction_date, reference_id')
+        .eq('user_id', userId)
+        .eq('category', 'wallet_transfer')
+        .order('transaction_date', { ascending: false })
         .limit(25);
       if (error) throw error;
-      const list = txs ?? [];
-      const ids = Array.from(
-        new Set(list.flatMap((r: any) => [r.sender_id, r.recipient_id]).filter(Boolean)),
+      const list = legs ?? [];
+      const refs = Array.from(
+        new Set(list.map((r: any) => r.reference_id).filter(Boolean)),
       );
+
+      // reference_id -> counterpart user_id
+      const counterpartByRef: Record<string, string> = {};
+      if (refs.length) {
+        const { data: others } = await supabase
+          .from('general_ledger')
+          .select('reference_id, user_id')
+          .eq('category', 'wallet_transfer')
+          .in('reference_id', refs)
+          .neq('user_id', userId);
+        (others ?? []).forEach((o: any) => {
+          if (o.reference_id && !counterpartByRef[o.reference_id]) {
+            counterpartByRef[o.reference_id] = o.user_id;
+          }
+        });
+      }
+
+      const counterpartIds = Array.from(new Set(Object.values(counterpartByRef)));
       const nameMap: Record<string, string> = {};
-      if (ids.length) {
+      if (counterpartIds.length) {
         const { data: profs } = await supabase
           .from('profiles')
           .select('id, full_name')
-          .in('id', ids);
+          .in('id', counterpartIds);
         (profs ?? []).forEach((p: any) => { nameMap[p.id] = p.full_name; });
       }
-      return list.map((r: any) => ({
-        ...r,
-        senderName: nameMap[r.sender_id] ?? null,
-        recipientName: nameMap[r.recipient_id] ?? null,
-      }));
+
+      return list.map((r: any) => {
+        const counterpartId = r.reference_id ? counterpartByRef[r.reference_id] ?? null : null;
+        return {
+          id: r.id,
+          amount: r.amount,
+          direction: r.direction,
+          description: r.description,
+          created_at: r.transaction_date,
+          counterpartId,
+          counterpartName: counterpartId ? nameMap[counterpartId] ?? null : null,
+        };
+      });
     },
     enabled: !!userId,
   });
@@ -2607,10 +2639,9 @@ function UserTransfersList({
       ) : (
         <ul className="space-y-1 text-xs max-h-72 overflow-y-auto pr-1">
           {rows.map((r: any) => {
-            const isOut = r.sender_id === userId;
-            const counterpartId = isOut ? r.recipient_id : r.sender_id;
-            const counterpartName =
-              (isOut ? r.recipientName : r.senderName) || 'Unknown user';
+            const isOut = r.direction === 'cash_out';
+            const counterpartId = r.counterpartId;
+            const counterpartName = r.counterpartName || 'Unknown user';
             return (
               <li key={r.id} className="flex items-start justify-between gap-2 border-b border-border/40 py-1.5">
                 <div className="min-w-0 flex-1">
