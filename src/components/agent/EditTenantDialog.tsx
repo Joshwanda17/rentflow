@@ -106,6 +106,11 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
   const [savedSummary, setSavedSummary] = useState<SavedField[] | null>(null);
   const [statusSummary, setStatusSummary] = useState<{ oldStatus: string; newStatus: string } | null>(null);
   const [permissionBlock, setPermissionBlock] = useState<PermissionBlock | null>(null);
+  // Snapshot of the values loaded from the DB so we can save ONLY changed fields.
+  // Sending the whole profile on every edit dragged unchanged identity fields
+  // (phone, national_id, monthly_rent…) through uniqueness/restriction triggers
+  // and made simple name edits fail. Diffing keeps a name-only edit name-only.
+  const [original, setOriginal] = useState<Record<string, any>>({});
 
   useEffect(() => {
     if (open) {
@@ -146,6 +151,30 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
         setAvatarUrl(data?.avatar_url || '');
         setResidenceLat(data?.residence_lat ?? null);
         setResidenceLng(data?.residence_lng ?? null);
+        setOriginal({
+          full_name: tenant.full_name,
+          phone: tenant.phone,
+          email: tenant.email || '',
+          national_id: tenant.national_id || '',
+          city: data?.city || '',
+          district: data?.district || '',
+          village: data?.village || '',
+          town: data?.town || '',
+          occupation: data?.occupation || '',
+          monthly_rent: data?.monthly_rent != null ? String(data.monthly_rent) : '',
+          region: data?.region || '',
+          sub_county: data?.sub_county || '',
+          parish: data?.parish || '',
+          landmark: data?.landmark || '',
+          country: data?.country || '',
+          mobile_money_number: data?.mobile_money_number || '',
+          mobile_money_provider: data?.mobile_money_provider || '',
+          has_smartphone: data?.has_smartphone ?? true,
+          ops_note: data?.ops_note || '',
+          avatar_url: data?.avatar_url || '',
+          residence_lat: data?.residence_lat ?? null,
+          residence_lng: data?.residence_lng ?? null,
+        });
         setExtendedLoading(false);
       })();
     }
@@ -265,7 +294,8 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
 
     await doSave(async () => {
       const cleanRent = monthlyRent.replace(/[^\d]/g, '');
-      const payload: Record<string, any> = {
+      // Full candidate (normalized) — what the form currently holds.
+      const candidate: Record<string, any> = {
         full_name: parsed.data.full_name,
         phone: parsed.data.phone,
         email: parsed.data.email || null,
@@ -290,13 +320,81 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
         residence_lng: residenceLng,
       };
 
+      // Same normalization applied to the originally-loaded values, so we can
+      // send ONLY the fields the agent actually changed. A name-only edit then
+      // produces { full_name } and never touches phone/national_id triggers.
+      const origRent = String(original.monthly_rent || '').replace(/[^\d]/g, '');
+      const origCandidate: Record<string, any> = {
+        full_name: (original.full_name || '').trim(),
+        phone: normalizePhone(original.phone || ''),
+        email: (original.email || '').trim() || null,
+        national_id: normalizeNationalId((original.national_id || '').toUpperCase()).trim() || null,
+        city: (original.city || '').trim() || null,
+        district: (original.district || '').trim() || null,
+        village: (original.village || '').trim() || null,
+        town: (original.town || '').trim() || null,
+        occupation: (original.occupation || '').trim() || null,
+        monthly_rent: origRent ? Number(origRent) : null,
+        region: (original.region || '').trim() || null,
+        sub_county: (original.sub_county || '').trim() || null,
+        parish: (original.parish || '').trim() || null,
+        landmark: (original.landmark || '').trim() || null,
+        country: (original.country || '').trim() || null,
+        mobile_money_number: (original.mobile_money_number || '').trim() || null,
+        mobile_money_provider: (original.mobile_money_provider || '').trim() || null,
+        has_smartphone: original.has_smartphone ?? true,
+        ops_note: (original.ops_note || '').trim() || null,
+        avatar_url: (original.avatar_url || '').trim() || null,
+        residence_lat: original.residence_lat ?? null,
+        residence_lng: original.residence_lng ?? null,
+      };
+
+      const payload: Record<string, any> = {};
+      for (const key of Object.keys(candidate)) {
+        if (candidate[key] !== origCandidate[key]) payload[key] = candidate[key];
+      }
+
       try {
+        // Nothing changed — short-circuit so we never round-trip an empty update.
+        if (Object.keys(payload).length === 0) {
+          setSavedSummary([
+            { label: 'Full Name', oldValue: tenant.full_name, newValue: parsed.data.full_name, changed: false },
+            { label: 'Phone Number', oldValue: tenant.phone, newValue: parsed.data.phone, changed: false },
+            { label: 'Email', oldValue: tenant.email || '—', newValue: parsed.data.email || '—', changed: false },
+            { label: 'National ID', oldValue: tenant.national_id || '—', newValue: parsed.data.national_id || '—', changed: false },
+          ]);
+          toast.success('No changes to save');
+          return;
+        }
+
         const { data, error } = await supabase
           .from('profiles')
           .update(payload)
           .eq('id', tenant.id)
           .select('id, full_name, phone, email, national_id');
-        const rowsReturned = data?.length ?? 0;
+        let rowsReturned = data?.length ?? 0;
+
+        // RLS can allow the UPDATE but withhold the returned row (the SELECT-on-
+        // returning policy is narrower). That is NOT a permission failure. When
+        // there's no error but no row came back, verify by re-reading the row;
+        // if our changes landed, treat it as a success instead of falsely
+        // showing "Manager Approval Required".
+        if (!error && rowsReturned === 0) {
+          const { data: verify } = await supabase
+            .from('profiles')
+            .select('full_name, phone, email, national_id')
+            .eq('id', tenant.id)
+            .maybeSingle();
+          if (
+            verify &&
+            (!('full_name' in payload) || verify.full_name === payload.full_name) &&
+            (!('phone' in payload) || verify.phone === payload.phone) &&
+            (!('national_id' in payload) || (verify.national_id || null) === payload.national_id)
+          ) {
+            rowsReturned = 1;
+          }
+        }
+
         if (error || rowsReturned === 0) {
           if (isPermissionError(error, rowsReturned)) {
             const attempted = {
