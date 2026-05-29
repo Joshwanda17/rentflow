@@ -2698,6 +2698,42 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         tenantName={fieldCollectTarget?.full_name || ''}
         tenantPhone={fieldCollectTarget?.phone || null}
       />
+      {/* Bulk collect confirmation — pictures + big numbers, minimal reading */}
+      <Dialog open={bulkConfirmOpen} onOpenChange={(o) => { if (!bulkSaving) setBulkConfirmOpen(o); }}>
+        <DialogContent className="max-w-sm rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+              Mark {bulkPayableTenants.length} paid?
+            </DialogTitle>
+            <DialogDescription>
+              Records full payment for each selected tenant. Works offline.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-4 text-center">
+            <p className="text-[11px] uppercase tracking-wide font-bold text-emerald-700">Total to record</p>
+            <p className="text-3xl font-extrabold font-mono text-emerald-700 leading-none mt-1">{formatUGX(bulkTotal)}</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5 mt-1">
+            <Button
+              variant="outline"
+              onClick={() => setBulkConfirmOpen(false)}
+              disabled={bulkSaving}
+              className="h-14 text-base font-bold rounded-2xl"
+            >
+              <X className="h-5 w-5" />
+            </Button>
+            <Button
+              onClick={handleBulkCollect}
+              disabled={bulkSaving || bulkPayableTenants.length === 0}
+              className="h-14 text-base font-bold rounded-2xl gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {bulkSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle2 className="h-6 w-6" />}
+              Confirm
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <MarkNotFundedDialog
         open={!!notFundedTarget}
         onOpenChange={(open) => { if (!open) setNotFundedTarget(null); }}
