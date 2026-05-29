@@ -138,6 +138,9 @@ function parseTransaction(text: string): {
   // against a pending withdrawal_request.mobile_money_number.
   if (out.direction === 'out' && !airtelAgentPayout) {
     const mtnTo = t.match(/\bto\b[^()]{0,80}?\(\s*((?:\+?256|0)\d{8,9})\s*\)/i)
+      // "sent UGX 900000 to NELSON MUGUME, 256789536301 on ..." — phone sits
+      // after the recipient NAME and a comma/space, not in parentheses.
+      || t.match(/\bto\b[^.\n]{0,80}?[,\s(]\s*((?:\+?256|0)\d{8,9})\b/i)
       || t.match(/\bto\s+((?:\+?256|0)\d{8,9})\b/i);
     if (mtnTo) out.counterparty = mtnTo[1];
   }
