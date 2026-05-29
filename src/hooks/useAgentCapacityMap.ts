@@ -25,6 +25,19 @@ export const AGENT_RENT_CAP_UGX = 100_000_000;
 export const DAILY_ELIGIBILITY_THRESHOLD = 0.20;
 
 /**
+ * New-agent onboarding rule:
+ *   A brand-new agent who has not yet reached NEW_AGENT_TENANT_THRESHOLD
+ *   active tenants is in the "new agent" phase. During this phase they may
+ *   post rent requests up to NEW_AGENT_RENT_CAP_UGX per tenant and are NOT
+ *   regulated by daily collection performance — we want to give new agents
+ *   room to build their book. The moment they reach the tenant threshold
+ *   they "graduate" and the Daily Eligibility Law (above) takes over,
+ *   gating new posts on their daily collection performance.
+ */
+export const NEW_AGENT_TENANT_THRESHOLD = 10;
+export const NEW_AGENT_RENT_CAP_UGX = 2_000_000;
+
+/**
  * Daily rating tiers based on the BEST of yesterday's and today's
  * collection ratios (paid / expected_daily). 20% is the unblock line
  * and is explicitly the start of "Good". Using the best of the two
