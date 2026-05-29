@@ -221,6 +221,65 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     });
   };
 
+  // ─── Guided wizard navigation ───
+  const TOTAL_STEPS = 4;
+  const STEP_LABELS = ['Landlord', 'House', 'Photos & Place', 'Confirm'];
+
+  // Validate just the current step before moving forward. Returns true if OK.
+  const validateStep = (s: number): boolean => {
+    if (s === 1) {
+      if (!selectedLandlord && !manualLandlord) {
+        toast.error('Pick the landlord or add a new one');
+        return false;
+      }
+      if (manualLandlord && (!form.landlord_name.trim() || !form.landlord_phone.trim())) {
+        toast.error('Enter the new landlord name and phone');
+        return false;
+      }
+      if (form.caretaker_type === 'other' && (!form.caretaker_name.trim() || !form.caretaker_phone.trim())) {
+        toast.error('Enter the caretaker name and phone');
+        return false;
+      }
+    }
+    if (s === 2) {
+      if (!monthlyRent || monthlyRent < 10000) {
+        toast.error('Monthly rent must be at least UGX 10,000');
+        return false;
+      }
+    }
+    if (s === 3) {
+      if (!form.region) {
+        toast.error('Please select a region');
+        return false;
+      }
+      if (!form.address.trim()) {
+        toast.error('Address is required');
+        return false;
+      }
+      if (!form.village.trim()) {
+        toast.error('Village / Zone is required');
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const goNext = () => {
+    setAttempted(true);
+    if (!validateStep(step)) {
+      scrollDialogToTop();
+      return;
+    }
+    setAttempted(false);
+    setStep((s) => Math.min(TOTAL_STEPS, s + 1));
+    scrollDialogToTop();
+  };
+
+  const goBack = () => {
+    setStep((s) => Math.max(1, s - 1));
+    scrollDialogToTop();
+  };
+
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
     setAttempted(true);
