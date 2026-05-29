@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { notifyAgentBonus } from "../_shared/notifyAgentBonus.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -349,19 +350,14 @@ Deno.serve(async (req) => {
       if (bonusErr) console.error("[credit-listing-bonus] Event bonus ledger error:", bonusErr.message);
     });
 
-    // Step 7: Notify agent — bonus already in wallet
-    await adminClient.from("notifications").insert({
-      user_id: agentId,
-      title: "Listing Verified — UGX 4,000 Credited! 💰",
-      message: `Your listing "${listing.title}" has been verified. UGX ${LISTING_BONUS.toLocaleString()} has been credited to your withdrawable wallet (plus the UGX 1,000 paid instantly when you listed it).`,
-      type: "earning",
-      metadata: {
-        listing_id,
-        bonus_amount: LISTING_BONUS,
-        approval_id: approvalId,
-        tx_group_id: txGroupId,
-      },
-    });
+    // Step 7: Notify agent — bonus already in wallet (in-app + SMS/WhatsApp)
+    await notifyAgentBonus(adminClient, {
+      agentId,
+      stage: "verified",
+      listingTitle: listing.title,
+      listingId: listing_id,
+      metadata: { approval_id: approvalId, tx_group_id: txGroupId },
+    }).catch((e) => console.error("[credit-listing-bonus] notify failed:", e));
 
     // Audit log
     await adminClient.from("audit_logs").insert({

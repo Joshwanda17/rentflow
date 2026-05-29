@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
+import { notifyAgentBonus } from "../_shared/notifyAgentBonus.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -134,6 +135,15 @@ Deno.serve(async (req) => {
     }
 
     console.log(`[credit-house-listed-bonus] Credited UGX ${LISTED_BONUS} to ${agentId} for listing ${listing_id}`);
+
+    // Notify the agent immediately (in-app + SMS/WhatsApp). Best-effort —
+    // never let a notification failure affect the credited bonus.
+    await notifyAgentBonus(adminClient, {
+      agentId,
+      stage: "listed",
+      listingTitle: listing.title,
+      listingId: listing_id,
+    }).catch((e) => console.error("[credit-house-listed-bonus] notify failed:", e));
 
     return new Response(JSON.stringify({ success: true, bonus: LISTED_BONUS }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
