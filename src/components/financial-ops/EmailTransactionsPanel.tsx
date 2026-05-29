@@ -1679,10 +1679,10 @@ export function EmailTransactionsPanel() {
 
   // Unmatched email counters — deposit emails with no linked request and
   // payout emails neither routed to a wallet nor matched to an open withdrawal.
-  const unmatchedInCount = rows.filter(
+  const unmatchedInCount = filteredRows.filter(
     (r) => r.parsed && r.direction === 'in' && !r.linked_deposit_request_id && !r.auto_matched_at,
   ).length;
-  const unmatchedOutCount = rows.filter(
+  const unmatchedOutCount = filteredRows.filter(
     (r) =>
       isCountable(r) &&
       (r.direction === 'out' || r.direction === 'charge') &&
