@@ -604,6 +604,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
              * lives behind the single "Grow" button, which opens the existing
              * AgentMenuDrawer so no functionality is lost.
              */}
+            <AgentListingPromoCard onClick={() => setListHouseOpen(true)} />
+
             <AgentPriorityGrid
               agentId={user.id}
               onOpenFieldCollect={() => setFieldCollectOpen(true)}
