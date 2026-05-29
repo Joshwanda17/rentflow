@@ -537,6 +537,25 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     propertyDistrict, houseCategory, landlordPayoutDay,
   ]);
 
+  // Track connectivity so the form can reassure the agent their draft is safe
+  // when the network drops, and warn them before a doomed submit attempt.
+  useEffect(() => {
+    const goOnline = () => {
+      setIsOnline(true);
+      if (open) toast.success("You're back online — your draft is safe. You can submit now.");
+    };
+    const goOffline = () => {
+      setIsOnline(false);
+      if (open) toast.warning("No internet — keep filling in. Your progress is saved automatically.");
+    };
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, [open]);
+
   // Per-step validation for the standard flow's guided wizard.
   const getStepErrors = (idx: number): string[] => {
     const errors: string[] = [];
