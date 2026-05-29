@@ -1288,6 +1288,12 @@ function TenantPane({
       {/* Tenant repayment / obligation ledger history */}
       <TenantStatements tenantId={tenantId} dateRange={dateRange} onDateRangeChange={setDateRange} />
 
+      {/* Wallet buckets — works for any picked user (tenant, funder, anyone) */}
+      <WalletBucketsCard userId={tenantId} />
+
+      {/* User-to-user transfers — who sent/received money */}
+      <UserTransfersList userId={tenantId} onSelectUser={onSelectUser} />
+
       {/* Landlord payments recorded by the agent — Tenant Ops can edit the amount */}
       <TenantLandlordPayoutsEditor tenantId={tenantId} canEdit={isOps} />
 
