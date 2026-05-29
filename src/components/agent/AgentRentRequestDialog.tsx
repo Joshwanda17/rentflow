@@ -304,6 +304,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [savingDraft, setSavingDraft] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  // Live network status — used to keep the draft safe and warn the agent
+  // before they try to submit on a dropped connection.
+  const [isOnline, setIsOnline] = useState<boolean>(typeof navigator !== 'undefined' ? navigator.onLine : true);
   const [activationLink, setActivationLink] = useState<string | null>(null);
   const [step, setStep] = useState<'type' | 'details' | 'confirm'>('type');
   // Current sub-step inside the standard flow's guided wizard (0-based).
@@ -533,6 +536,25 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     propertyAddress, lc1Name, lc1Phone, lc1Village, propertyCity,
     propertyDistrict, houseCategory, landlordPayoutDay,
   ]);
+
+  // Track connectivity so the form can reassure the agent their draft is safe
+  // when the network drops, and warn them before a doomed submit attempt.
+  useEffect(() => {
+    const goOnline = () => {
+      setIsOnline(true);
+      if (open) toast.success("You're back online — your draft is safe. You can submit now.");
+    };
+    const goOffline = () => {
+      setIsOnline(false);
+      if (open) toast.warning("No internet — keep filling in. Your progress is saved automatically.");
+    };
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, [open]);
 
   // Per-step validation for the standard flow's guided wizard.
   const getStepErrors = (idx: number): string[] => {
@@ -988,6 +1010,14 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       toast.error('You must be signed in to submit a request');
       return;
     }
+    // Offline guard: never lose the draft to a doomed network call. The form
+    // state is already auto-saved, so we just stop and reassure the agent.
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      const offlineMsg = 'No internet right now. Your draft is saved — it will still be here when you reconnect. Try submitting again once you have a signal.';
+      setSubmissionError(offlineMsg);
+      toast.warning('No internet', { description: 'Your draft is saved. Submit again when you reconnect.' });
+      return;
+    }
     // Daily Eligibility Law: only applies once an agent has graduated
     // (reached the tenant threshold). New agents are exempt and gated only
     // by the per-tenant cap. `can_post_rent_today` already encodes this.
@@ -1291,7 +1321,14 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       console.error('Submission error:', error);
       const msg = error.message || 'Failed to submit request';
       const capacityMsg = humanizeCapacityError(msg);
-      if (capacityMsg) {
+      const isNetworkError =
+        !navigator.onLine ||
+        /failed to fetch|network ?error|networkrequestfailed|load failed|err_internet|err_network|fetch failed/i.test(msg);
+      if (isNetworkError) {
+        const friendly = 'Connection dropped before we could send it. Don\'t worry — your draft is saved. Reconnect and tap Submit again.';
+        setSubmissionError(friendly);
+        toast.warning('Connection lost', { description: 'Your draft is saved. Try again when you\'re back online.' });
+      } else if (capacityMsg) {
         setSubmissionError(capacityMsg);
         toast.error('Rent capacity reached', { description: capacityMsg });
       } else if (msg.includes('row-level security') || msg.includes('RLS')) {
@@ -1332,6 +1369,16 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
             Submit a rent request on behalf of a tenant who doesn't have the app
           </DialogDescription>
         </DialogHeader>
+
+        {!isOnline && !success && (
+          <div className="flex items-start gap-2 rounded-xl border-2 border-warning/50 bg-warning/10 p-3 text-warning-foreground">
+            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-warning" />
+            <p className="text-xs leading-relaxed">
+              <span className="font-semibold">No internet right now.</span> Keep filling in the form —
+              your progress is saved automatically and nothing will be lost. You can submit once you reconnect.
+            </p>
+          </div>
+        )}
 
         <AnimatePresence mode="wait">
           {success ? (
