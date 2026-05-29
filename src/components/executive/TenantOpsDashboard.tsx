@@ -25,6 +25,7 @@ import { TenantOpsLandlordFloatTimeline } from './TenantOpsLandlordFloatTimeline
 import { LocationBrowser } from './landlord-ops/LocationBrowser';
 import { TenantLocationBrowser } from './tenant-ops/TenantLocationBrowser';
 import { GlobalVerificationHub } from './GlobalVerificationHub';
+import { WelileOperationsHub } from './WelileOperationsHub';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -62,7 +63,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { ChevronDown } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
-type ActiveView = 'overview' | 'pipeline' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'transfer-audit' | 'collect-rent' | 'agent-tenants' | 'tenant-detail' | 'registration-review' | 'advance-requests' | 'agent-allocations' | 'daily-collections' | 'landlord-float' | 'landlord-float-timeline' | 'location-browser' | 'tenant-location-browser' | 'global-verification';
+type ActiveView = 'overview' | 'pipeline' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'transfer-audit' | 'collect-rent' | 'agent-tenants' | 'tenant-detail' | 'registration-review' | 'advance-requests' | 'agent-allocations' | 'daily-collections' | 'landlord-float' | 'landlord-float-timeline' | 'location-browser' | 'tenant-location-browser' | 'global-verification' | 'welile-operations';
 
 interface NavCard {
   id: ActiveView;
@@ -1294,6 +1295,8 @@ export function TenantOpsDashboard() {
         return <LocationBrowser />;
       case 'tenant-location-browser':
         return <TenantLocationBrowser />;
+      case 'welile-operations':
+        return <WelileOperationsHub />;
       case 'global-verification':
         return <GlobalVerificationHub />;
       case 'daily-collections':
@@ -1341,17 +1344,17 @@ export function TenantOpsDashboard() {
               <ArrowRight className="h-5 w-5 text-primary shrink-0" />
             </button>
 
-            {/* HERO: Tenants whose landlords were funded */}
+            {/* HERO: Welile Operations — manage every user category */}
             <button
-              onClick={() => { setActiveView('tenant-location-browser'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+              onClick={() => { setActiveView('welile-operations'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
               className="w-full rounded-xl border-2 border-[#9234EA]/50 bg-gradient-to-r from-[#9234EA]/10 via-[#9234EA]/5 to-transparent p-3.5 flex items-center gap-3 text-left min-h-[64px] touch-manipulation active:scale-[0.98] transition-transform shadow-sm"
             >
               <div className="p-2 rounded-lg bg-[#9234EA]/15">
                 <Landmark className="h-5 w-5 text-[#9234EA] shrink-0" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-bold text-sm text-foreground leading-tight">Tenants whose Landlords were Funded</p>
-                <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">Every tenant · Country → Region → District → Ward → Agent → Landlord → Tenant &amp; house photos</p>
+                <p className="font-bold text-sm text-foreground leading-tight">Welile Operations</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">Manage every user category — tenants, landlords, agents &amp; partners with deep profiles</p>
               </div>
               <ArrowRight className="h-5 w-5 text-[#9234EA] shrink-0" />
             </button>
