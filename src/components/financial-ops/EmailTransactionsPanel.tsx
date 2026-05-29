@@ -2073,6 +2073,32 @@ export function EmailTransactionsPanel() {
             )
           }
         />
+        <StatCard
+          label="Unmatched deposits"
+          value={unmatchedInCount.toString()}
+          sub={
+            unmatchedInCount > 0 ? (
+              <span className="inline-flex items-center gap-1 text-amber-600 text-[10px]">
+                <AlertTriangle className="h-3 w-3" /> not linked to any deposit request
+              </span>
+            ) : (
+              <span className="text-[10px] text-emerald-600">all deposits matched</span>
+            )
+          }
+        />
+        <StatCard
+          label="Unmatched payouts"
+          value={unmatchedOutCount.toString()}
+          sub={
+            unmatchedOutCount > 0 ? (
+              <span className="inline-flex items-center gap-1 text-rose-600 text-[10px]">
+                <AlertTriangle className="h-3 w-3" /> not routed or matched to withdrawal
+              </span>
+            ) : (
+              <span className="text-[10px] text-emerald-600">all payouts settled</span>
+            )
+          }
+        />
       </div>
 
       {channelBreakdown.length > 0 && (
