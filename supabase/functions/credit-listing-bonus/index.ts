@@ -353,7 +353,7 @@ Deno.serve(async (req) => {
     await adminClient.from("notifications").insert({
       user_id: agentId,
       title: "Listing Verified — UGX 4,000 Credited! 💰",
-      message: `Your listing "${listing.title}" has been verified. UGX ${LISTING_BONUS.toLocaleString()} has been credited to your commission wallet.`,
+      message: `Your listing "${listing.title}" has been verified. UGX ${LISTING_BONUS.toLocaleString()} has been credited to your withdrawable wallet (plus the UGX 1,000 paid instantly when you listed it).`,
       type: "earning",
       metadata: {
         listing_id,
