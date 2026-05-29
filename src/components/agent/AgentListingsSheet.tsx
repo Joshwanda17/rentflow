@@ -741,6 +741,11 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
                                 </div>
                               )}
                               <div onClick={(e) => e.stopPropagation()}>
+                                <div className="rounded-md border bg-success/5 border-success/20 p-2.5">
+                                  <HouseBonusTimeline listing={l} />
+                                </div>
+                              </div>
+                              <div onClick={(e) => e.stopPropagation()}>
                                 <Button
                                   size="sm" variant="ghost" className="h-7 text-[11px] gap-1 px-2"
                                   onClick={() => setTimelineOpen(s => ({ ...s, [l.id]: !s[l.id] }))}
