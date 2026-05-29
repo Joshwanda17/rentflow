@@ -96,6 +96,9 @@ const ACTIVE_RENT_STATUSES = [
 ];
 const AGENT_RENT_CAP_UGX = 100_000_000;
 
+// Guided wizard steps for the standard (non-outstanding) rent request flow.
+const DETAIL_STEPS = ['Rent', 'Tenant', 'Property', 'Officials', 'Review'] as const;
+
 function AgentCapacityBanner({ agentId }: { agentId?: string }) {
   const [exposure, setExposure] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -303,7 +306,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [success, setSuccess] = useState(false);
   const [activationLink, setActivationLink] = useState<string | null>(null);
   const [step, setStep] = useState<'type' | 'details' | 'confirm'>('type');
-  
+  // Current sub-step inside the standard flow's guided wizard (0-based).
+  const [detailStep, setDetailStep] = useState(0);
+
   // Income type
   const [incomeType, setIncomeType] = useState<IncomeType | null>(null);
   
@@ -430,6 +435,144 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     } finally {
       setSavingDraft(false);
     }
+  };
+
+  // ===== Autosave: keep the agent's progress safe as they fill the form =====
+  // Photos/GPS can't be serialized, but every typed field + the current wizard
+  // step are persisted to localStorage so an ordinary agent never loses their
+  // work if the app reloads or they close the dialog by mistake.
+  const draftStorageKey = `welile:rentReqDraft:${user?.id || 'anon'}`;
+  const restoredRef = useRef(false);
+
+  useEffect(() => {
+    if (!open) { restoredRef.current = false; return; }
+    // Explicit prefill (resuming a saved server draft / prefilled props) wins.
+    if (prefillDraft || prefillTenantName || prefillRentAmount) { restoredRef.current = true; return; }
+    if (restoredRef.current) return;
+    restoredRef.current = true;
+    try {
+      const raw = localStorage.getItem(draftStorageKey);
+      if (!raw) return;
+      const p = JSON.parse(raw);
+      if (!p || typeof p !== 'object') return;
+      if (p.incomeType) setIncomeType(p.incomeType);
+      if (p.tenantName) setTenantName(p.tenantName);
+      if (p.tenantPhone) setTenantPhone(p.tenantPhone);
+      if (p.tenantNationalId) setTenantNationalId(p.tenantNationalId);
+      if (p.preferredLanguage) setPreferredLanguage(p.preferredLanguage);
+      if (p.rentAmount) setRentAmount(p.rentAmount);
+      if (p.duration) setDuration(p.duration);
+      if (p.repaymentPeriod) setRepaymentPeriod(p.repaymentPeriod);
+      if (p.landlordName) setLandlordName(p.landlordName);
+      if (p.landlordPhone) setLandlordPhone(p.landlordPhone);
+      if (p.propertyAddress) setPropertyAddress(p.propertyAddress);
+      if (p.lc1Name) setLc1Name(p.lc1Name);
+      if (p.lc1Phone) setLc1Phone(p.lc1Phone);
+      if (p.lc1Village) setLc1Village(p.lc1Village);
+      if (p.propertyCity) setPropertyCity(p.propertyCity);
+      if (p.propertyDistrict) setPropertyDistrict(p.propertyDistrict);
+      if (p.houseCategory) setHouseCategory(p.houseCategory);
+      if (p.landlordPayoutDay) setLandlordPayoutDay(p.landlordPayoutDay);
+      const hasSaved = Object.keys(p).some((k) => k !== 'incomeType' && p[k]);
+      if (p.incomeType && p.incomeType !== 'outstanding') {
+        setStep('details');
+        if (typeof p.detailStep === 'number') {
+          setDetailStep(Math.min(Math.max(0, p.detailStep), DETAIL_STEPS.length - 1));
+        }
+      }
+      if (hasSaved) toast.info('We brought back your saved progress.');
+    } catch { /* ignore corrupt storage */ }
+  }, [open, prefillDraft, prefillTenantName, prefillRentAmount, draftStorageKey]);
+
+  // Persist on every change (only while the dialog is open and not yet submitted).
+  useEffect(() => {
+    if (!open || success) return;
+    if (!restoredRef.current) return;
+    try {
+      localStorage.setItem(draftStorageKey, JSON.stringify({ ...buildDraftPayload(), detailStep }));
+    } catch { /* storage full / unavailable */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    open, success, draftStorageKey, detailStep,
+    incomeType, tenantName, tenantPhone, tenantNationalId, preferredLanguage,
+    rentAmount, outstandingBalance, duration, repaymentPeriod, landlordName, landlordPhone,
+    propertyAddress, lc1Name, lc1Phone, lc1Village, propertyCity,
+    propertyDistrict, houseCategory, landlordPayoutDay,
+  ]);
+
+  // Per-step validation for the standard flow's guided wizard.
+  const getStepErrors = (idx: number): string[] => {
+    const errors: string[] = [];
+    const cleanTenantPhone = tenantPhone.replace(/\s/g, '');
+    const cleanLandlordPhone = landlordPhone.replace(/\s/g, '');
+    const cleanLc1Phone = lc1Phone.replace(/\s/g, '');
+    const cleanNationalId = tenantNationalId.trim().toUpperCase();
+    if (idx === 0) {
+      if (!amount) errors.push('Type the rent amount');
+      else if (amount < 50000) errors.push('Rent amount must be at least UGX 50,000');
+      if (!latestRentReceipt) errors.push("Take a photo of the tenant's latest rent receipt");
+    } else if (idx === 1) {
+      if (!tenantName.trim()) errors.push("Type the tenant's full name");
+      if (!tenantPhone.trim()) errors.push("Type the tenant's phone number");
+      else if (!isValidUgPhone(cleanTenantPhone)) errors.push('Tenant phone looks wrong — use a number like 0783 123 456');
+      if (!cleanNationalId || cleanNationalId.length < 10 || cleanNationalId.length > 14 || !/^[A-Z0-9]+$/.test(cleanNationalId)) {
+        errors.push("Enter the tenant's National ID (the long number/letters on their ID card)");
+      }
+      if (!tenantPhoto) errors.push('Take a photo of the tenant (their face)');
+      if (!preferredLanguage) errors.push('Choose the language the tenant speaks');
+    } else if (idx === 2) {
+      if (!houseCategory) errors.push('Choose the house type');
+      if (!landlordName.trim()) errors.push("Type the landlord's name");
+      if (!landlordPhone.trim()) errors.push("Type the landlord's phone number");
+      else if (!isValidUgPhone(cleanLandlordPhone)) errors.push('Landlord phone looks wrong — use a number like 0700 123 456');
+      if (!propertyAddress.trim()) errors.push('Type the property address');
+    } else if (idx === 3) {
+      if (!lc1Name.trim()) errors.push("Type the LC1 chairperson's name");
+      if (!lc1Phone.trim()) errors.push('Type the LC1 phone number');
+      else if (!isValidUgPhone(cleanLc1Phone)) errors.push('LC1 phone looks wrong — use a valid Ugandan number');
+      if (!lc1Village.trim()) errors.push('Type the LC1 village');
+      if (!propertyCity.trim()) errors.push('Type the town / city');
+      const tOk = !!cleanTenantPhone && isValidUgPhone(cleanTenantPhone);
+      const lOk = !!cleanLandlordPhone && isValidUgPhone(cleanLandlordPhone);
+      const cOk = !!cleanLc1Phone && isValidUgPhone(cleanLc1Phone);
+      if (tOk && lOk && cleanTenantPhone === cleanLandlordPhone) errors.push('Tenant and Landlord phones must be different numbers');
+      if (tOk && cOk && cleanTenantPhone === cleanLc1Phone) errors.push('Tenant and LC1 phones must be different numbers');
+      if (lOk && cOk && cleanLandlordPhone === cleanLc1Phone) errors.push('Landlord and LC1 phones must be different numbers');
+    } else if (idx === 4) {
+      if (!guarantorConsent) errors.push('Tick the box to accept guarantor responsibility');
+    }
+    return errors;
+  };
+
+  const scrollDialogTop = () => {
+    requestAnimationFrame(() => {
+      const dialog = document.querySelector('[role="dialog"]');
+      if (dialog) dialog.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  };
+
+  const goNextStep = () => {
+    const errs = getStepErrors(detailStep);
+    if (errs.length > 0) {
+      setValidationErrors(errs);
+      setSubmissionError(null);
+      toast.error(errs.length === 1 ? errs[0] : `${errs.length} things still needed`);
+      requestAnimationFrame(() => {
+        errorSummaryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+      return;
+    }
+    setValidationErrors([]);
+    setDetailStep((s) => Math.min(s + 1, DETAIL_STEPS.length - 1));
+    scrollDialogTop();
+  };
+
+  const goBackStep = () => {
+    setValidationErrors([]);
+    setSubmissionError(null);
+    if (detailStep === 0) { setStep('type'); return; }
+    setDetailStep((s) => Math.max(s - 1, 0));
+    scrollDialogTop();
   };
 
   const captureGPS = useCallback(() => {
@@ -632,6 +775,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setSuccess(false);
     setActivationLink(null);
     setStep('type');
+    setDetailStep(0);
   };
 
   const handleOpenChange = (newOpen: boolean) => {
@@ -1071,6 +1215,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
       hapticSuccess();
       setSuccess(true);
+      // Submitted successfully — clear the saved draft progress.
+      try { localStorage.removeItem(draftStorageKey); } catch { /* ignore */ }
       toast.success(incomeType === 'outstanding' ? 'Tenant registered with outstanding balance!' : 'Rent request posted successfully!');
       onSuccess?.();
     } catch (error: any) {
@@ -1221,6 +1367,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 <button
                   onClick={() => {
                     setIncomeType('daily');
+                    setDetailStep(0);
+                    setValidationErrors([]);
                     setStep('details');
                   }}
                   className="p-4 rounded-xl border-2 border-muted hover:border-primary hover:bg-primary/5 transition-all text-left group active:scale-[0.98]"
@@ -1239,6 +1387,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 <button
                   onClick={() => {
                     setIncomeType('weekly-monthly');
+                    setDetailStep(0);
+                    setValidationErrors([]);
                     setStep('details');
                   }}
                   className="p-4 rounded-xl border-2 border-muted hover:border-success hover:bg-success/5 transition-all text-left group active:scale-[0.98]"
@@ -1263,10 +1413,33 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
               animate={{ opacity: 1 }}
               className="space-y-4"
             >
+              {/* Guided wizard progress (standard flow only) */}
+              {incomeType !== 'outstanding' && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-bold">
+                      Step {detailStep + 1} of {DETAIL_STEPS.length}: {DETAIL_STEPS[detailStep]}
+                    </p>
+                    <span className="text-xs text-muted-foreground">
+                      {Math.round(((detailStep + 1) / DETAIL_STEPS.length) * 100)}%
+                    </span>
+                  </div>
+                  <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full bg-primary transition-all"
+                      style={{ width: `${((detailStep + 1) / DETAIL_STEPS.length) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
               {/* Agent rent exposure capacity (100M UGX cap) */}
-              <AgentCapacityBanner agentId={user?.id} />
+              {(incomeType === 'outstanding' || detailStep === 0) && (
+                <AgentCapacityBanner agentId={user?.id} />
+              )}
 
               {/* Latest rent receipt from landlord (required for all flows) */}
+              {(incomeType === 'outstanding' || detailStep === 0) && (
               <div className="space-y-2 p-4 rounded-2xl border-2 border-amber-400/40 bg-amber-50/60 dark:bg-amber-500/5">
                 <h4 className="text-sm font-semibold flex items-center gap-2">
                   <FileText className="h-4 w-4 text-amber-600" />
@@ -1314,6 +1487,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </p>
                 </div>
               </div>
+              )}
 
               {/* ===== 1. RENT DETAILS — PRIMARY SECTION ===== */}
               {incomeType === 'outstanding' ? (
@@ -1544,7 +1718,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     </Button>
                   </div>
                 </>
-              ) : (
+              ) : detailStep === 0 ? (
               <div className="space-y-3 p-4 rounded-2xl bg-primary/10 border-2 border-primary/40">
                 <h4 className="text-base font-extrabold text-primary flex items-center gap-2">
                   <div className="p-2 rounded-xl bg-primary/20">
@@ -1620,12 +1794,12 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </div>
                 )}
               </div>
-              )}
+              ) : null}
 
               {incomeType !== 'outstanding' && (
               <>
-              <Separator />
-
+              {detailStep === 1 && (
+              <>
               {/* ===== 2. TENANT DETAILS ===== */}
               <div className="space-y-3">
                 <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-1">
@@ -1753,9 +1927,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </Select>
                 </div>
               </div>
+              </>
+              )}
 
-              <Separator />
-
+              {detailStep === 2 && (
+              <>
               {/* ===== 3. HOUSE CATEGORY ===== */}
               <div className="space-y-3">
                 <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-1">
@@ -1920,9 +2096,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </div>
                 </div>
               </div>
+              </>
+              )}
 
-              <Separator />
-
+              {detailStep === 3 && (
+              <>
               {/* ===== 5. LC1 DETAILS ===== */}
               <div className="space-y-3">
                 <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-1">
@@ -2034,8 +2212,45 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   of every month, regardless of when the tenant pays.
                 </p>
               </div>
+              </>
+              )}
+
+              {detailStep === 4 && (
+              <>
+              {/* ===== 6. REVIEW & CONFIRM ===== */}
+              <div className="space-y-2 p-4 rounded-2xl bg-muted/40 border border-border">
+                <h4 className="text-sm font-bold flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-primary" /> Review &amp; confirm
+                </h4>
+                <div className="space-y-1 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Tenant</span>
+                    <span className="font-semibold">{tenantName || '—'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Rent amount</span>
+                    <span className="font-semibold">{amount ? formatUGX(amount) : '—'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">{incomeType === 'daily' ? 'Duration' : 'Repayment'}</span>
+                    <span className="font-semibold">{incomeType === 'daily' ? `${duration} days` : getPeriodLabel(repaymentPeriod)}</span>
+                  </div>
+                  {fees && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">You pay</span>
+                      <span className="font-semibold">{formatUGX(fees.dailyRepayment)}/day</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Landlord</span>
+                    <span className="font-semibold">{landlordName || '—'}</span>
+                  </div>
+                </div>
+              </div>
 
               <GuarantorConsentCheckbox checked={guarantorConsent} onCheckedChange={setGuarantorConsent} />
+              </>
+              )}
 
               {/* Validation Error Summary */}
               {validationErrors.length > 0 && (
@@ -2063,16 +2278,21 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 </div>
               )}
 
+              {/* Wizard navigation */}
               <div className="flex gap-3 pt-2">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => { setStep('type'); setValidationErrors([]); }}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={goBackStep}
                   className="flex-1"
                 >
-                  Back
+                  {detailStep === 0 ? 'Back' : 'Previous'}
                 </Button>
-                {amount > perTenantMax ? (
+                {detailStep < DETAIL_STEPS.length - 1 ? (
+                  <Button type="button" onClick={goNextStep} className="flex-1">
+                    Next
+                  </Button>
+                ) : amount > perTenantMax ? (
                   <Button
                     type="button"
                     onClick={handleSaveForLater}
@@ -2087,8 +2307,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     )}
                   </Button>
                 ) : (
-                  <Button 
-                    onClick={handleSubmit} 
+                  <Button
+                    onClick={handleSubmit}
                     className="flex-1"
                     disabled={loading || !amount || amount < 50000}
                   >
@@ -2103,7 +2323,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </Button>
                 )}
               </div>
-              {amount > 0 && amount < 50000 && (
+              {detailStep === DETAIL_STEPS.length - 1 && amount > 0 && amount < 50000 && (
                 <p className="text-xs font-semibold text-warning text-center -mt-1">
                   Rent amount must be at least UGX 50,000 to post.
                 </p>
