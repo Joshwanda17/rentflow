@@ -745,29 +745,24 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Pencil className="h-5 w-5 text-primary" />
-                Edit Tenant Details
+                Edit tenant
               </DialogTitle>
-              <DialogDescription>
-                Update contact, location and property details for this tenant. Verification status and rent-plan balances are not changed here.
+              <DialogDescription className="sr-only">
+                Edit the tenant name and phone number.
               </DialogDescription>
             </DialogHeader>
 
             {isEvicted && (
-              <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-                This tenant is marked <strong>Evicted</strong>{tenant.evicted_at ? ` as of ${new Date(tenant.evicted_at).toLocaleDateString()}` : ''} — record locked for audit. Identity fields cannot be changed.
+              <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive flex items-center gap-2">
+                <ShieldAlert className="h-4 w-4 shrink-0" /> Locked
               </div>
             )}
 
-            {isInactive && !isEvicted && (
-              <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300">
-                This tenant is currently marked <strong>Not active</strong>. Tenant Ops will see this status.
-              </div>
-            )}
-
-            <fieldset disabled={isEvicted} className="space-y-3 pt-2 disabled:opacity-60">
-              <div>
-                <Label className="text-xs flex items-center gap-1.5">
-                  <User className="h-3 w-3" /> Full Name *
+            <fieldset disabled={isEvicted} className="space-y-4 pt-2 disabled:opacity-60">
+              {/* ===== ALWAYS VISIBLE: name + phone, big and icon-led ===== */}
+              <div className="space-y-1.5">
+                <Label className="flex items-center gap-2 text-sm font-semibold">
+                  <User className="h-5 w-5 text-primary" /> Name
                 </Label>
                 <Input
                   value={fullName}
@@ -775,17 +770,18 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
                   onBlur={() => validateField('full_name')}
                   placeholder="Jane Doe"
                   maxLength={100}
+                  className="h-12 text-base"
                 />
-                {errors.full_name ? (
-                  <p className="text-xs text-destructive mt-1">{errors.full_name}</p>
-                ) : (
-                  <p className="text-[11px] text-muted-foreground mt-1">At least 2 characters</p>
+                {errors.full_name && (
+                  <p className="text-xs text-destructive mt-1 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" /> {errors.full_name}
+                  </p>
                 )}
               </div>
 
-              <div>
-                <Label className="text-xs flex items-center gap-1.5">
-                  <Phone className="h-3 w-3" /> Phone Number *
+              <div className="space-y-1.5">
+                <Label className="flex items-center gap-2 text-sm font-semibold">
+                  <Phone className="h-5 w-5 text-primary" /> Phone
                 </Label>
                 <PhoneInput
                   value={phone}
@@ -796,13 +792,35 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
                   }}
                   placeholder="+256712345678"
                 />
-                {errors.phone ? (
-                  <p className="text-xs text-destructive mt-1">{errors.phone}</p>
-                ) : (
-                  <p className="text-[11px] text-muted-foreground mt-1">Format: +2567XXXXXXXX or 07XXXXXXXX</p>
+                {errors.phone && (
+                  <p className="text-xs text-destructive mt-1 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" /> {errors.phone}
+                  </p>
                 )}
               </div>
 
+              {/* Big, obvious Save */}
+              <Button
+                className="w-full h-12 text-base font-semibold"
+                onClick={handleSave}
+                disabled={saveSubmitting || extendedLoading}
+              >
+                {saveSubmitting ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <CheckCircle2 className="h-5 w-5 mr-2" />}
+                Save
+              </Button>
+
+              {/* Single low-reading toggle to reveal everything else */}
+              <button
+                type="button"
+                onClick={() => setShowMore((s) => !s)}
+                className="w-full flex items-center justify-center gap-1.5 text-xs font-medium text-muted-foreground py-1.5"
+              >
+                {showMore ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                {showMore ? 'Less' : 'More'}
+              </button>
+
+              {showMore && (
+              <div className="space-y-3 border-t pt-3">
               <div>
                 <Label className="text-xs flex items-center gap-1.5">
                   <Mail className="h-3 w-3" /> Email <span className="text-muted-foreground">(optional)</span>
@@ -815,11 +833,7 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
                   placeholder="jane@example.com"
                   maxLength={255}
                 />
-                {errors.email ? (
-                  <p className="text-xs text-destructive mt-1">{errors.email}</p>
-                ) : (
-                  <p className="text-[11px] text-muted-foreground mt-1">name@domain.com</p>
-                )}
+                {errors.email && <p className="text-xs text-destructive mt-1">{errors.email}</p>}
               </div>
 
               <div>
@@ -833,14 +847,10 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
                   placeholder="CM12345678ABCD"
                   maxLength={18}
                 />
-                {errors.national_id ? (
-                  <p className="text-xs text-destructive mt-1">{errors.national_id}</p>
-                ) : (
-                  <p className="text-[11px] text-muted-foreground mt-1">10–14 letters and numbers</p>
-                )}
+                {errors.national_id && <p className="text-xs text-destructive mt-1">{errors.national_id}</p>}
               </div>
 
-              <div className="border-t pt-3 mt-1 space-y-3">
+              <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <MapPin className="h-4 w-4 text-primary" />
                   <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
@@ -888,9 +898,6 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
                     onChange={(e) => setMonthlyRent(e.target.value.replace(/[^\d]/g, ''))}
                     placeholder="e.g. 250,000"
                   />
-                  <p className="text-[11px] text-muted-foreground mt-1">
-                    This is what the tenant pays the landlord monthly. Rent plan amounts on active requests are not changed here.
-                  </p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
@@ -989,43 +996,6 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
                 </div>
               </div>
 
-              {Object.keys(errors).length > 0 && (
-                <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 space-y-2">
-                  <div className="flex items-center gap-2 text-destructive">
-                    <AlertCircle className="h-4 w-4 shrink-0" />
-                    <span className="text-xs font-semibold uppercase tracking-wide">
-                      Fix {Object.keys(errors).length} field{Object.keys(errors).length > 1 ? 's' : ''} before saving
-                    </span>
-                  </div>
-                  <div className="space-y-1">
-                    {Object.entries(errors).map(([key, msg]) => {
-                      const label =
-                        key === 'full_name' ? 'Full Name' :
-                        key === 'phone' ? 'Phone Number' :
-                        key === 'email' ? 'Email' :
-                        key === 'national_id' ? 'National ID' : key;
-                      return (
-                        <div key={key} className="flex items-start gap-2 text-[11px]">
-                          <span className="font-medium text-destructive shrink-1">{label}:</span>
-                          <span className="text-muted-foreground">{msg}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              <div className="flex gap-2 pt-2">
-                <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)} disabled={saveSubmitting}>
-                  <X className="h-4 w-4 mr-2" />
-                  Cancel
-                </Button>
-                <Button className="flex-1" onClick={handleSave} disabled={saveSubmitting}>
-                  {saveSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-                  Save Changes
-                </Button>
-              </div>
-
               {!isEvicted && (
                 <div className="border-t pt-3 mt-1">
                   <Button
@@ -1044,12 +1014,9 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
                     )}
                     {isInactive ? 'Reactivate tenant' : 'Mark as not active'}
                   </Button>
-                  <p className="text-[11px] text-muted-foreground mt-1.5 text-center">
-                    {isInactive
-                      ? 'Tenant currently hidden from active counts. Tenant Ops still sees them flagged as Inactive.'
-                      : 'Use this if the tenant moved out, stopped paying, or the number is wrong.'}
-                  </p>
                 </div>
+              )}
+              </div>
               )}
             </fieldset>
           </>
