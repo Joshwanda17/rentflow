@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, CloudUpload, WifiOff, UserPlus, ShieldCheck, Wallet, Home as HomeIcon } from 'lucide-react';
+import { ArrowRight, CloudUpload, WifiOff, UserPlus, ShieldCheck, Wallet, Home as HomeIcon, Sparkles } from 'lucide-react';
 import { useTrustProfile } from '@/hooks/useTrustProfile';
 import { useProfile } from '@/hooks/useProfile';
 import { generateWelileAiId } from '@/lib/welileAiId';
