@@ -437,6 +437,144 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     }
   };
 
+  // ===== Autosave: keep the agent's progress safe as they fill the form =====
+  // Photos/GPS can't be serialized, but every typed field + the current wizard
+  // step are persisted to localStorage so an ordinary agent never loses their
+  // work if the app reloads or they close the dialog by mistake.
+  const draftStorageKey = `welile:rentReqDraft:${user?.id || 'anon'}`;
+  const restoredRef = useRef(false);
+
+  useEffect(() => {
+    if (!open) { restoredRef.current = false; return; }
+    // Explicit prefill (resuming a saved server draft / prefilled props) wins.
+    if (prefillDraft || prefillTenantName || prefillRentAmount) { restoredRef.current = true; return; }
+    if (restoredRef.current) return;
+    restoredRef.current = true;
+    try {
+      const raw = localStorage.getItem(draftStorageKey);
+      if (!raw) return;
+      const p = JSON.parse(raw);
+      if (!p || typeof p !== 'object') return;
+      if (p.incomeType) setIncomeType(p.incomeType);
+      if (p.tenantName) setTenantName(p.tenantName);
+      if (p.tenantPhone) setTenantPhone(p.tenantPhone);
+      if (p.tenantNationalId) setTenantNationalId(p.tenantNationalId);
+      if (p.preferredLanguage) setPreferredLanguage(p.preferredLanguage);
+      if (p.rentAmount) setRentAmount(p.rentAmount);
+      if (p.duration) setDuration(p.duration);
+      if (p.repaymentPeriod) setRepaymentPeriod(p.repaymentPeriod);
+      if (p.landlordName) setLandlordName(p.landlordName);
+      if (p.landlordPhone) setLandlordPhone(p.landlordPhone);
+      if (p.propertyAddress) setPropertyAddress(p.propertyAddress);
+      if (p.lc1Name) setLc1Name(p.lc1Name);
+      if (p.lc1Phone) setLc1Phone(p.lc1Phone);
+      if (p.lc1Village) setLc1Village(p.lc1Village);
+      if (p.propertyCity) setPropertyCity(p.propertyCity);
+      if (p.propertyDistrict) setPropertyDistrict(p.propertyDistrict);
+      if (p.houseCategory) setHouseCategory(p.houseCategory);
+      if (p.landlordPayoutDay) setLandlordPayoutDay(p.landlordPayoutDay);
+      const hasSaved = Object.keys(p).some((k) => k !== 'incomeType' && p[k]);
+      if (p.incomeType && p.incomeType !== 'outstanding') {
+        setStep('details');
+        if (typeof p.detailStep === 'number') {
+          setDetailStep(Math.min(Math.max(0, p.detailStep), DETAIL_STEPS.length - 1));
+        }
+      }
+      if (hasSaved) toast.info('We brought back your saved progress.');
+    } catch { /* ignore corrupt storage */ }
+  }, [open, prefillDraft, prefillTenantName, prefillRentAmount, draftStorageKey]);
+
+  // Persist on every change (only while the dialog is open and not yet submitted).
+  useEffect(() => {
+    if (!open || success) return;
+    if (!restoredRef.current) return;
+    try {
+      localStorage.setItem(draftStorageKey, JSON.stringify({ ...buildDraftPayload(), detailStep }));
+    } catch { /* storage full / unavailable */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    open, success, draftStorageKey, detailStep,
+    incomeType, tenantName, tenantPhone, tenantNationalId, preferredLanguage,
+    rentAmount, outstandingBalance, duration, repaymentPeriod, landlordName, landlordPhone,
+    propertyAddress, lc1Name, lc1Phone, lc1Village, propertyCity,
+    propertyDistrict, houseCategory, landlordPayoutDay,
+  ]);
+
+  // Per-step validation for the standard flow's guided wizard.
+  const getStepErrors = (idx: number): string[] => {
+    const errors: string[] = [];
+    const cleanTenantPhone = tenantPhone.replace(/\s/g, '');
+    const cleanLandlordPhone = landlordPhone.replace(/\s/g, '');
+    const cleanLc1Phone = lc1Phone.replace(/\s/g, '');
+    const cleanNationalId = tenantNationalId.trim().toUpperCase();
+    if (idx === 0) {
+      if (!amount) errors.push('Type the rent amount');
+      else if (amount < 50000) errors.push('Rent amount must be at least UGX 50,000');
+      if (!latestRentReceipt) errors.push("Take a photo of the tenant's latest rent receipt");
+    } else if (idx === 1) {
+      if (!tenantName.trim()) errors.push("Type the tenant's full name");
+      if (!tenantPhone.trim()) errors.push("Type the tenant's phone number");
+      else if (!isValidUgPhone(cleanTenantPhone)) errors.push('Tenant phone looks wrong — use a number like 0783 123 456');
+      if (!cleanNationalId || cleanNationalId.length < 10 || cleanNationalId.length > 14 || !/^[A-Z0-9]+$/.test(cleanNationalId)) {
+        errors.push("Enter the tenant's National ID (the long number/letters on their ID card)");
+      }
+      if (!tenantPhoto) errors.push('Take a photo of the tenant (their face)');
+      if (!preferredLanguage) errors.push('Choose the language the tenant speaks');
+    } else if (idx === 2) {
+      if (!houseCategory) errors.push('Choose the house type');
+      if (!landlordName.trim()) errors.push("Type the landlord's name");
+      if (!landlordPhone.trim()) errors.push("Type the landlord's phone number");
+      else if (!isValidUgPhone(cleanLandlordPhone)) errors.push('Landlord phone looks wrong — use a number like 0700 123 456');
+      if (!propertyAddress.trim()) errors.push('Type the property address');
+    } else if (idx === 3) {
+      if (!lc1Name.trim()) errors.push("Type the LC1 chairperson's name");
+      if (!lc1Phone.trim()) errors.push('Type the LC1 phone number');
+      else if (!isValidUgPhone(cleanLc1Phone)) errors.push('LC1 phone looks wrong — use a valid Ugandan number');
+      if (!lc1Village.trim()) errors.push('Type the LC1 village');
+      if (!propertyCity.trim()) errors.push('Type the town / city');
+      const tOk = !!cleanTenantPhone && isValidUgPhone(cleanTenantPhone);
+      const lOk = !!cleanLandlordPhone && isValidUgPhone(cleanLandlordPhone);
+      const cOk = !!cleanLc1Phone && isValidUgPhone(cleanLc1Phone);
+      if (tOk && lOk && cleanTenantPhone === cleanLandlordPhone) errors.push('Tenant and Landlord phones must be different numbers');
+      if (tOk && cOk && cleanTenantPhone === cleanLc1Phone) errors.push('Tenant and LC1 phones must be different numbers');
+      if (lOk && cOk && cleanLandlordPhone === cleanLc1Phone) errors.push('Landlord and LC1 phones must be different numbers');
+    } else if (idx === 4) {
+      if (!guarantorConsent) errors.push('Tick the box to accept guarantor responsibility');
+    }
+    return errors;
+  };
+
+  const scrollDialogTop = () => {
+    requestAnimationFrame(() => {
+      const dialog = document.querySelector('[role="dialog"]');
+      if (dialog) dialog.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  };
+
+  const goNextStep = () => {
+    const errs = getStepErrors(detailStep);
+    if (errs.length > 0) {
+      setValidationErrors(errs);
+      setSubmissionError(null);
+      toast.error(errs.length === 1 ? errs[0] : `${errs.length} things still needed`);
+      requestAnimationFrame(() => {
+        errorSummaryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+      return;
+    }
+    setValidationErrors([]);
+    setDetailStep((s) => Math.min(s + 1, DETAIL_STEPS.length - 1));
+    scrollDialogTop();
+  };
+
+  const goBackStep = () => {
+    setValidationErrors([]);
+    setSubmissionError(null);
+    if (detailStep === 0) { setStep('type'); return; }
+    setDetailStep((s) => Math.max(s - 1, 0));
+    scrollDialogTop();
+  };
+
   const captureGPS = useCallback(() => {
     if (!navigator.geolocation) {
       toast.error('GPS not supported on this device');
