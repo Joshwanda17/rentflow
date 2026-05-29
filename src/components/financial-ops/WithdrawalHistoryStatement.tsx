@@ -8,6 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import { Search, Loader2, X, Receipt, ChevronLeft, ChevronRight } from 'lucide-react';
+import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
 
 interface Row {
   withdrawal_id: string;
@@ -53,6 +54,7 @@ export function WithdrawalHistoryStatement() {
   const [loading, setLoading] = useState(false);
   const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [drillUserId, setDrillUserId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -183,7 +185,18 @@ export function WithdrawalHistoryStatement() {
                         <div className="text-[10px] text-muted-foreground tabular-nums">{format(new Date(ts), 'HH:mm:ss')}</div>
                       </td>
                       <td>
-                        <div className="font-medium truncate max-w-[180px]">{r.user_name || '—'}</div>
+                        {r.user_id ? (
+                          <button
+                            type="button"
+                            onClick={() => setDrillUserId(r.user_id)}
+                            className="font-medium truncate max-w-[180px] text-primary hover:underline text-left"
+                            title="Open profile, wallet & transfers"
+                          >
+                            {r.user_name || 'View user'}
+                          </button>
+                        ) : (
+                          <div className="font-medium truncate max-w-[180px]">{r.user_name || '—'}</div>
+                        )}
                         <div className="text-[10px] text-muted-foreground tabular-nums">{r.user_phone || '—'}</div>
                       </td>
                       <td>
@@ -246,6 +259,13 @@ export function WithdrawalHistoryStatement() {
           </div>
         )}
       </CardContent>
+
+      <UserDrilldownDrawer
+        open={!!drillUserId}
+        onOpenChange={(v) => { if (!v) setDrillUserId(null); }}
+        tenantId={drillUserId}
+        defaultTab="tenant"
+      />
     </Card>
   );
 }
