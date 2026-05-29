@@ -116,16 +116,13 @@ Deno.serve(async (req) => {
 
       if (!proxy?.agent_id) { skipped.push({ id: wr.id, reason: "no_proxy" }); continue; }
 
-      // Check proxy strict withdrawable
-      const { data: avail } = await admin.rpc("get_user_available_balance", {
-        p_user_id: proxy.agent_id,
-      });
-      const proxyAvailable = Number(avail || 0);
-      if (proxyAvailable < wrAmount) {
-        skipped.push({ id: wr.id, reason: "proxy_insufficient", available: proxyAvailable });
-        continue;
-      }
-
+      // POOL-FUNDED: the only capacity gate is this bulk email's remaining
+      // amount (checked above via `wrAmount > remaining`). The proxy agent's
+      // own withdrawable balance is NOT required — approve-withdrawal will
+      // top up the agent's float from the company pool and immediately debit
+      // it for the payout (net zero on the agent wallet). This draws the
+      // payout against the matched SKYBUBBLES pool, not the agent's balance.
+      //
       // Invoke approve-withdrawal as system call
       const ref = (tx.transaction_id || tx.gmail_message_id || `SKYBUBBLES-${gmailTxId.slice(0, 8)}`).toString();
       const resp = await fetch(`${supabaseUrl}/functions/v1/approve-withdrawal`, {
@@ -136,6 +133,7 @@ Deno.serve(async (req) => {
         },
         body: JSON.stringify({
           system_caller: true,
+          pool_funded: true,
           withdrawal_id: wr.id,
           reference: ref,
           payment_method: "bank_transfer",
