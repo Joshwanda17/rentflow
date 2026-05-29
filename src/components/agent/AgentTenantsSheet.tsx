@@ -1419,6 +1419,16 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                     );
                   })}
                 </div>
+                {/* Bulk select toggle — pictures only */}
+                <button
+                  onClick={() => { if (bulkSelectMode) exitBulkSelect(); else setBulkSelectMode(true); }}
+                  aria-label={bulkSelectMode ? 'Stop selecting tenants' : 'Select many tenants to collect'}
+                  aria-pressed={bulkSelectMode}
+                  title={bulkSelectMode ? 'Stop selecting' : 'Select many to collect'}
+                  className={`h-14 w-14 rounded-2xl border-2 flex items-center justify-center transition-colors ${bulkSelectMode ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-muted/40 text-muted-foreground border-transparent'}`}
+                >
+                  {bulkSelectMode ? <CheckSquare className="h-7 w-7" strokeWidth={2.4} /> : <ListChecks className="h-7 w-7" strokeWidth={2.4} />}
+                </button>
               </div>
             </>
           )}
