@@ -306,7 +306,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [success, setSuccess] = useState(false);
   const [activationLink, setActivationLink] = useState<string | null>(null);
   const [step, setStep] = useState<'type' | 'details' | 'confirm'>('type');
-  
+  // Current sub-step inside the standard flow's guided wizard (0-based).
+  const [detailStep, setDetailStep] = useState(0);
+
   // Income type
   const [incomeType, setIncomeType] = useState<IncomeType | null>(null);
   
