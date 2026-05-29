@@ -1165,8 +1165,8 @@ function RentBalanceEditor({
 }
 
 function TenantPane({
-  tenantId, isOps, onBackToAgent, onSelectLandlord,
-}: { tenantId: string; isOps: boolean; onBackToAgent?: () => void; onSelectLandlord?: (id: string) => void }) {
+  tenantId, isOps, onBackToAgent, onSelectLandlord, onSelectUser,
+}: { tenantId: string; isOps: boolean; onBackToAgent?: () => void; onSelectLandlord?: (id: string) => void; onSelectUser?: (id: string, name: string) => void }) {
   const qc = useQueryClient();
   const [dateRange, setDateRange] = useState<StatementDateRange>({ preset: 'today' });
   const { data: profile, isLoading } = useProfile(tenantId);
