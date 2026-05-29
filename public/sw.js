@@ -7,7 +7,7 @@
 // agents like "the app refreshed mid-payment". Real cache busting
 // comes from Vite's content-hashed asset filenames; bump this constant
 // manually only when the SW logic itself needs to invalidate caches.
-const CACHE_VERSION = "v3-2026-05-stable";
+const CACHE_VERSION = "v4-2026-05-29-force";
 const CACHE_NAME = `welile-core-v3-${CACHE_VERSION}`;
 const STATIC_CACHE = `welile-static-v3-${CACHE_VERSION}`;
 const OFFLINE_URL = "/offline.html";
