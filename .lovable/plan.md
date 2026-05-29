@@ -1,103 +1,40 @@
-# Structured Solvency Bypass Reason Codes
+# Proxy withdrawals: charge the agent's wallet + auto-approve by email
 
-The solvency guard `enforce_no_negative_wallet_ledger` today silently lets several "escape hatch" categories through (`admin_correction`, `system_balance_correction`, `platform_loss_writeoff`, float-category list, wallet_deduction adjustments). Operators can therefore push a wallet bucket negative with no machine-readable justification — only free-text in `description`/`audit_logs`. This plan formalizes the bypass and forces every escape to carry one of a short list of audit-grade reason codes.
+## Goal
+When a proxy agent requests a withdrawal for one of their proxy partners:
+1. The money (both the *reserved/pending hold* and the *final debit*) comes out of the **proxy agent's** wallet — not the partner's.
+2. The request **auto-approves** as soon as the matching outgoing mobile-money payout email is extracted (the same email-match engine that already auto-approves ordinary MoMo withdrawals), instead of waiting in the Financial Ops queue forever.
 
----
+## Why this is needed
+Today a proxy request is stored with `user_id = partner`, so:
+- The pending "reserved" amount is subtracted from the **partner's** balance (strict wallet view groups holds by `user_id`).
+- At approval, the debit also lands on the **partner's** wallet.
+- It never auto-approves — proxy rows are forced into the Financial Ops queue and stay `pending` (live data confirms 15+ stuck pending rows).
 
-## Scope
+## Changes
 
-In:
-- New enum + column on `general_ledger` for the reason code.
-- Updated DB trigger that **requires** the code whenever a bypass path is hit and **rejects** the code on normal (non-bypass) legs.
-- Edge functions that produce bypass legs accept + forward the code.
-- CFO/FinOps UI surfaces a required dropdown the moment a bypass is detected.
-- Audit log captures the code separately so reports can group by reason.
+### 1. Move the reserve onto the agent (strict wallet view)
+Update `v_user_wallet_strict` so a proxy withdrawal's pending amount is attributed to the **proxy agent** (`agent_id`) instead of the partner (`user_id`). Result: the agent's spendable balance drops the instant they request a proxy withdrawal, and the partner is no longer phantom-held.
 
-Out (separate work):
-- Retroactive backfill of historical legacy bypass rows.
-- Reason-code analytics dashboard (just leave the data clean for it).
+### 2. Debit the agent at approval (`approve-withdrawal` edge function)
+For proxy rows, re-point the funding wallet (`fundingUserId`) to the assigned proxy agent (from `agent_id` / managed assignment) instead of the partner. The partner stays as the beneficiary on the row for audit and settlement. The existing ledger gate already checks the funding agent's wallet and allows it to draw from withdrawable + float.
 
----
+### 3. Auto-approve from the extracted email (`gmail-poll-transactions` edge function)
+The email poller already matches an outgoing MoMo email to a pending withdrawal by amount + recipient phone, then auto-approves it. Today it forces the debit onto the *requester* (which for proxy rows is the partner). Change: when the matched request is a proxy row, approve it **without** that override so the agent-wallet routing from step 2 applies. Non-proxy withdrawals keep working exactly as before.
 
-## Reason codes (initial set)
+### 4. Financial Ops visibility — unchanged
+Financial Ops keeps seeing every proxy row (the visibility trigger stays). The only difference is that a matching payout email now auto-completes the payout instead of requiring a manual tap.
 
-| Code                          | When to use                                                             |
-|-------------------------------|-------------------------------------------------------------------------|
-| `legacy_offline_paid`         | Funds already moved off-platform; ledger catches up.                    |
-| `write_off`                   | Uncollectible balance written off the platform.                         |
-| `admin_correction_seed`       | One-time wallet seed/migration entry.                                   |
-| `legacy_real_backfill`        | Backfill of a pre-platform real event.                                  |
-| `dispute_resolution`          | Settlement of a customer/agent dispute.                                 |
-| `regulatory_adjustment`       | Forced by BOU/CMA or external counterparty.                             |
-| `duplicate_reversal`          | Rolling back a duplicate posting.                                       |
-| `other_with_note`             | Catch-all — requires the operator's `reason` text to be ≥ 30 chars.     |
+## Guardrails respected
+- The proxy-custody fortress trigger only blocks *crediting* money into an agent wallet; *debiting* (a withdrawal) is already allowed, so no guard is relaxed.
+- `wallet_withdrawal` is already on the balance-bypass allowlist; no new ledger categories are invented.
+- Balanced double-entry legs, the April production cutoff, and the withdrawable-strict rule all stay intact. The agent's own commission/float withdrawals now correctly compete with their outstanding proxy reserves (intended).
 
----
+## Technical detail
+- `v_user_wallet_strict.holds`: group pending `withdrawal_requests` by `CASE WHEN proxy_partner_id IS NOT NULL THEN agent_id ELSE user_id END`.
+- `approve-withdrawal`: in the proxy branch, set `fundingUserId` to the resolved proxy agent (managed assignment → `agent_id` → active assignment lookup); keep `beneficiaryUserId = partner`.
+- `gmail-poll-transactions` (`tryAutoApproveMomoWithdrawal`): select `proxy_partner_id, agent_id`; if the matched row is a proxy row, omit `force_requester_debit` in the approve-withdrawal call.
 
-## Steps
-
-### 1. Database migration
-
-```sql
-CREATE TYPE public.solvency_bypass_reason AS ENUM (
-  'legacy_offline_paid','write_off','admin_correction_seed',
-  'legacy_real_backfill','dispute_resolution','regulatory_adjustment',
-  'duplicate_reversal','other_with_note'
-);
-
-ALTER TABLE public.general_ledger
-  ADD COLUMN solvency_bypass_reason public.solvency_bypass_reason;
-
-CREATE INDEX idx_gl_solvency_bypass_reason
-  ON public.general_ledger (solvency_bypass_reason)
-  WHERE solvency_bypass_reason IS NOT NULL;
-```
-
-Rewrite `enforce_no_negative_wallet_ledger` so that on every bypass branch it:
-1. Raises `SOLVENCY_BYPASS_REASON_REQUIRED` if `NEW.solvency_bypass_reason IS NULL`.
-2. For `other_with_note`, also requires `length(coalesce(NEW.description,'')) >= 30`.
-
-On the **non-bypass** path (normal cash_out that passes the strict-balance check) it raises `SOLVENCY_BYPASS_REASON_NOT_ALLOWED` if the code is set — preventing operators from attaching a "legacy_offline_paid" tag to a regular debit just to look clean.
-
-### 2. RPC + edge functions
-
-- `create_ledger_transaction`: pass `solvency_bypass_reason` through from each entry untouched.
-- `cfo-direct-credit`:
-  - Accept optional `solvency_bypass_reason` in body.
-  - For `operation:'debit'` OR when caller selects `classification:'admin_correction'` / wallet leg category in the bypass set, validate via Zod that the code is present and one of the enum values. Forward on both legs.
-- `ops-bucket-transfer`: same — only relevant if direction would push a bucket negative, otherwise ignore.
-- Other edge functions that intentionally post `admin_correction` / `system_balance_correction` / `platform_loss_writeoff` (search list below) get the same field plumbed through.
-
-### 3. UI surfaces
-
-- `CfoDirectCreditPanel` (and Debit twin): when the user picks an `admin_correction` classification, picks a bypass category, OR the live strict-balance check shows the debit would underflow, render a required `<Select>` with the eight reason codes plus a help tooltip. Submit button stays disabled until selected. `other_with_note` also enforces 30-char minimum on the existing reason textarea.
-- `RouteEmailDepositDialog` debit flow: same dropdown when the destination user lacks funds and the operator chooses to proceed via an admin path.
-- Audit logs: write the code into `audit_logs.metadata.solvency_bypass_reason` so the existing CFO audit explorer can filter on it.
-
-### 4. Tests
-
-- New SQL test: trigger raises `SOLVENCY_BYPASS_REASON_REQUIRED` for admin-correction cash_out without a code; succeeds with code; rejects bogus codes (enum guard).
-- Integration test for `cfo-direct-credit` rejecting bypass debits with no code, and stamping the code onto both legs when supplied.
-
----
-
-## Files to touch (technical)
-
-- New migration `supabase/migrations/2026xxxx_solvency_bypass_reason.sql`
-- `supabase/functions/cfo-direct-credit/index.ts`
-- `supabase/functions/ops-bucket-transfer/index.ts`
-- `supabase/functions/approve-deposit/index.ts` and other producers of `admin_correction` / `system_balance_correction` / `platform_loss_writeoff` (rg list during implementation)
-- `src/components/cfo/CfoDirectCreditPanel.tsx` (+ debit panel)
-- `src/components/financial-ops/RouteEmailDepositDialog.tsx`
-- `src/lib/ledgerConstants.ts` — add `SOLVENCY_BYPASS_REASONS` const for client/edge reuse
-- New mem note `mem://constraints/solvency-bypass-reason` documenting the rule
-
----
-
-## Risk & rollout
-
-- Hot path: every cash_out wallet leg flows through the trigger; change is small but must be deployed in lockstep with edge functions that already post bypass categories — otherwise live writes start failing. Mitigation: ship edge-function plumbing first with `solvency_bypass_reason` optional, then flip the trigger to required in a follow-up migration the same day, after backfilling any in-flight rows.
-- No data loss: historical rows remain `NULL`; trigger only fires on INSERT.
-- UI is purely additive — never blocks normal credits or in-bound deposits.
-
-Please confirm the reason-code list (add/remove/rename any) and approve so I can ship the migration + edge function + UI changes.
+## Out of scope (confirm if you want these too)
+- Removing Financial Ops visibility for proxy rows entirely.
+- Auto-approving proxy *bank-transfer* or *cash* payouts (this plan covers mobile-money email matches, same as the existing auto-approver).
