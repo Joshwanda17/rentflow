@@ -1,5 +1,4 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,10 +17,8 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Treasury guard: credit draws move money to user wallet
-    const guardBlock = await checkTreasuryGuard(supabase, "credit");
-    if (guardBlock) return guardBlock;
-
+    // NOTE: No treasury guard here anymore — submitting a draw moves NO money.
+    // Money only moves when the CFO manually approves + disburses the draw.
     const authHeader = req.headers.get('Authorization');
     const anonClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!);
     const { data: { user }, error: authError } = await anonClient.auth.getUser(
@@ -56,13 +53,16 @@ Deno.serve(async (req) => {
 
     const { data: existingDraw } = await supabase
       .from('credit_access_draws')
-      .select('id')
+      .select('id, status')
       .eq('user_id', user.id)
-      .eq('status', 'active')
+      .in('status', ['active', 'overdue', 'pending_cfo'])
       .maybeSingle();
 
     if (existingDraw) {
-      return new Response(JSON.stringify({ error: 'You already have an active credit draw. Repay first.' }), {
+      const msg = existingDraw.status === 'pending_cfo'
+        ? 'You already have a credit request awaiting CFO approval.'
+        : 'You already have an active credit draw. Repay first.';
+      return new Response(JSON.stringify({ error: msg }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -74,19 +74,25 @@ Deno.serve(async (req) => {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + durationDays);
 
+    // Create the draw as PENDING CFO REVIEW. No money moves and no ledger
+    // entry is posted until the CFO edits + manually approves the draw.
+    const nowIso = new Date().toISOString();
     const { data: draw, error: drawError } = await supabase
       .from('credit_access_draws')
       .insert({
         user_id: user.id,
         agent_id: agent_id || null,
         amount,
+        requested_amount: amount,
         duration_months,
+        duration_days: durationDays,
         monthly_rate: MONTHLY_RATE,
         access_fee: accessFee,
         total_payable: totalPayable,
         daily_charge: dailyCharge,
         outstanding_balance: totalPayable,
-        status: 'active',
+        status: 'pending_cfo',
+        submitted_at: nowIso,
         expires_at: expiresAt.toISOString(),
       })
       .select('id')
@@ -94,40 +100,11 @@ Deno.serve(async (req) => {
 
     if (drawError) throw drawError;
 
-    // Credit user's wallet via balanced RPC: platform cash_out + wallet cash_in
-    const { error: rpcErr } = await supabase.rpc('create_ledger_transaction', {
-      entries: [
-        {
-          ledger_scope: 'platform',
-          direction: 'cash_out',
-          amount,
-          category: 'wallet_deposit',
-          source_table: 'credit_access_draws',
-          source_id: draw.id,
-          description: `Credit access disbursement: UGX ${amount.toLocaleString()} for ${duration_months} month(s)`,
-          currency: 'UGX',
-        },
-        {
-          user_id: user.id,
-          ledger_scope: 'wallet',
-          direction: 'cash_in',
-          amount,
-          category: 'wallet_deposit',
-          source_table: 'credit_access_draws',
-          source_id: draw.id,
-          description: `Credit access: UGX ${amount.toLocaleString()} for ${duration_months} month(s)`,
-          currency: 'UGX',
-        },
-      ],
-    });
-
-    if (rpcErr) console.error('[process-credit-draw] RPC error:', rpcErr);
-
-    // Notify managers (fire-and-forget)
+    // Notify CFO/managers that a credit request needs approval (fire-and-forget)
     fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
-      body: JSON.stringify({ title: "📋 Credit Draw", body: "Activity: credit draw", url: "/dashboard/manager" }),
+      body: JSON.stringify({ title: "📋 Credit Request → CFO", body: `New credit request UGX ${amount.toLocaleString()} awaiting CFO approval`, url: "/dashboard/cfo" }),
     }).catch(() => {});
 
     fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
@@ -135,12 +112,13 @@ Deno.serve(async (req) => {
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
       body: JSON.stringify({
         userIds: [user.id],
-        payload: { title: "✅ Credit Draw Processed", body: `UGX ${amount.toLocaleString()} credit draw approved`, url: "/dashboard/tenant", type: "success" },
+        payload: { title: "⏳ Credit Request Submitted", body: `Your UGX ${amount.toLocaleString()} request was sent to the CFO for approval`, url: "/dashboard/tenant", type: "info" },
       }),
     }).catch(() => {});
 
     return new Response(JSON.stringify({
       success: true,
+      pending_cfo: true,
       draw_id: draw.id,
       amount,
       access_fee: accessFee,
