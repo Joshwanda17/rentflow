@@ -1718,7 +1718,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     </Button>
                   </div>
                 </>
-              ) : (
+              ) : detailStep === 0 ? (
               <div className="space-y-3 p-4 rounded-2xl bg-primary/10 border-2 border-primary/40">
                 <h4 className="text-base font-extrabold text-primary flex items-center gap-2">
                   <div className="p-2 rounded-xl bg-primary/20">
@@ -1794,7 +1794,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </div>
                 )}
               </div>
-              )}
+              ) : null}
 
               {incomeType !== 'outstanding' && (
               <>
