@@ -65,6 +65,23 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     dailyRate: number;
   }>(null);
   const [copied, setCopied] = useState(false);
+  // ─── Landlord search-first flow ───
+  // Agents must search the system for the landlord (by verified name) before
+  // listing, so houses link to an existing verified landlord instead of
+  // creating duplicates.
+  type LandlordHit = {
+    id: string;
+    name: string;
+    phone: string;
+    verified: boolean;
+    verifiedHouses: number;
+  };
+  const [landlordQuery, setLandlordQuery] = useState('');
+  const [landlordResults, setLandlordResults] = useState<LandlordHit[]>([]);
+  const [searchingLandlord, setSearchingLandlord] = useState(false);
+  const [searchedOnce, setSearchedOnce] = useState(false);
+  const [selectedLandlord, setSelectedLandlord] = useState<LandlordHit | null>(null);
+  const [manualLandlord, setManualLandlord] = useState(false);
   const [form, setForm] = useState({
     title: '',
     description: '',
