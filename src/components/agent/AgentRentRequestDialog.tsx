@@ -346,6 +346,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [housePhotos, setHousePhotos] = useState<{ file: File; preview: string }[]>([]);
   const [tenantPhoto, setTenantPhoto] = useState<{ file: File; preview: string } | null>(null);
   const [latestRentReceipt, setLatestRentReceipt] = useState<{ file: File; preview: string } | null>(null);
+  // Existing tenants this agent has already registered — used for the
+  // one-tap auto-fill so agents don't re-key phone/National ID/photo.
+  const [existingTenants, setExistingTenants] = useState<{ id: string; full_name: string | null; phone: string | null; national_id: string | null; avatar_url: string | null }[]>([]);
+  const [loadingTenants, setLoadingTenants] = useState(false);
+  const [autofillingTenant, setAutofillingTenant] = useState(false);
   const [guarantorConsent, setGuarantorConsent] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
