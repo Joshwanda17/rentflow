@@ -59,6 +59,7 @@ export function FinOpsWithdrawalVerification() {
   const { user } = useAuth();
   const [pendingRequests, setPendingRequests] = useState<WithdrawalRequest[]>([]);
   const [rejectedRequests, setRejectedRequests] = useState<WithdrawalRequest[]>([]);
+  const [profileUser, setProfileUser] = useState<{ id: string; name: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
   const [rejectOpen, setRejectOpen] = useState(false);
