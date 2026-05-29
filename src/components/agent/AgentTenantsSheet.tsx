@@ -109,6 +109,7 @@ interface SheetPrefs {
   recentCollectionFilter?: RecentCollectionFilter;
   groupByProperty?: boolean;
   lifecycleFilter?: LifecycleFilter;
+  simpleMode?: boolean;
 }
 
 function loadPrefs(): SheetPrefs {
@@ -283,6 +284,10 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [propertyPickerOpen, setPropertyPickerOpen] = useState(false);
   const [recentProperties, setRecentProperties] = useState<string[]>(() => loadRecentProperties());
   const [groupByProperty, setGroupByProperty] = useState<boolean>(() => loadPrefs().groupByProperty ?? false);
+  // Simple Mode — strips the page down to large photo-first tenant cards with
+  // one big "Collect" + "Call" action each. Built for agents who don't like
+  // reading, don't notice fine detail, and use cheap phones. Persisted.
+  const [simpleMode, setSimpleMode] = useState<boolean>(() => loadPrefs().simpleMode ?? false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [mapMode, setMapMode] = useState(false);
   const [receiptLoadingId, setReceiptLoadingId] = useState<string | null>(null);
@@ -399,12 +404,13 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           recentCollectionFilter,
           groupByProperty,
           lifecycleFilter,
+          simpleMode,
         } satisfies SheetPrefs),
       );
     } catch {
       /* storage unavailable — ignore */
     }
-  }, [search, activeFilter, riskFilter, propertyFilter, sortKey, sortDir, recentCollectionFilter, groupByProperty, lifecycleFilter]);
+  }, [search, activeFilter, riskFilter, propertyFilter, sortKey, sortDir, recentCollectionFilter, groupByProperty, lifecycleFilter, simpleMode]);
 
   const fetchTenants = async () => {
     if (!user) return;
@@ -1224,6 +1230,61 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
 
           {view === 'tenants' && (
           <>
+          {/* Simple / Detailed view switch — Simple Mode is the easy, photo-first
+              list for agents who don't like reading. */}
+          <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-muted/50">
+            <button
+              onClick={() => setSimpleMode(true)}
+              className={`py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
+                simpleMode ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'
+              }`}
+              style={{ touchAction: 'manipulation', minHeight: '44px' }}
+              aria-pressed={simpleMode}
+            >
+              <Sparkles className="h-4 w-4" />
+              Simple
+            </button>
+            <button
+              onClick={() => setSimpleMode(false)}
+              className={`py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
+                !simpleMode ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'
+              }`}
+              style={{ touchAction: 'manipulation', minHeight: '44px' }}
+              aria-pressed={!simpleMode}
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              Detailed
+            </button>
+          </div>
+
+          {/* Simple Mode search — one big, obvious box, nothing else. */}
+          {simpleMode && (
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Input
+                placeholder="Search tenant…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-11 h-14 rounded-2xl bg-muted/40 border-2 border-primary/40 text-lg"
+                style={{ fontSize: '16px' }}
+                aria-label="Search tenants"
+                inputMode="search"
+                autoComplete="off"
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
+                  aria-label="Clear search"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              )}
+            </div>
+          )}
+
+          {!simpleMode && (
+          <>
           {/* Rent capacity + Today/Week paid vs expected */}
           <div className="pt-1">
             <AgentRentCapacitySelfCard />
@@ -1726,10 +1787,100 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           )}
           </>
           )}
+          </>
+          )}
         </div>
 
         {/* ───── Body ───── */}
-        {mapMode ? (
+        {simpleMode ? (
+          <div className="px-4 py-3 space-y-3">
+            {loading ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : processedTenants.length === 0 ? (
+              <div className="text-center py-20">
+                <Users className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
+                <p className="text-sm text-muted-foreground">
+                  {search ? `No results for "${search}"` : 'No tenants yet'}
+                </p>
+              </div>
+            ) : (
+              processedTenants.map((tenant) => {
+                const balance = tenantBalances[tenant.id] || 0;
+                const hasDebt = balance > 0;
+                const ctx = tenantContext[tenant.id];
+                const propertyAddress = ctx?.propertyAddress || '';
+                return (
+                  <div
+                    key={tenant.id}
+                    className="rounded-3xl border border-border/60 bg-card p-4 shadow-sm"
+                  >
+                    {/* Tenant identity — tap to open full profile */}
+                    <button
+                      type="button"
+                      onClick={() => setProfileTenantId(tenant.id)}
+                      className="flex items-center gap-3 w-full text-left active:opacity-80"
+                      style={{ touchAction: 'manipulation' }}
+                    >
+                      <div className={`w-16 h-16 rounded-full flex items-center justify-center shrink-0 text-2xl font-bold ${
+                        hasDebt ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
+                      }`}>
+                        {(tenant.full_name?.trim()?.charAt(0) || tenant.phone?.charAt(0) || '?').toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-lg leading-tight truncate">
+                          {tenant.full_name?.trim() || 'Tenant'}
+                        </p>
+                        {propertyAddress ? (
+                          <p className="text-sm text-muted-foreground truncate flex items-center gap-1 mt-0.5">
+                            <MapPin className="h-3.5 w-3.5 shrink-0" />
+                            {propertyAddress}
+                          </p>
+                        ) : tenant.phone ? (
+                          <p className="text-sm text-muted-foreground truncate flex items-center gap-1 mt-0.5">
+                            <Phone className="h-3.5 w-3.5 shrink-0" />
+                            {tenant.phone}
+                          </p>
+                        ) : null}
+                      </div>
+                    </button>
+
+                    {/* Big, unmissable amount */}
+                    <div className={`mt-3 rounded-2xl px-4 py-3 text-center ${hasDebt ? 'bg-rose-50' : 'bg-emerald-50'}`}>
+                      <p className={`text-[11px] uppercase tracking-wide font-bold ${hasDebt ? 'text-rose-600' : 'text-emerald-600'}`}>
+                        {hasDebt ? 'To collect' : 'All paid'}
+                      </p>
+                      <p className={`text-3xl font-extrabold font-mono leading-none mt-1 ${hasDebt ? 'text-rose-600' : 'text-emerald-600'}`}>
+                        {hasDebt ? formatUGX(balance) : 'UGX 0'}
+                      </p>
+                    </div>
+
+                    {/* Two big actions */}
+                    <div className="grid grid-cols-2 gap-2.5 mt-3">
+                      <Button
+                        onClick={() => setFieldCollectTarget(tenant)}
+                        className="h-14 text-base font-bold rounded-2xl gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                      >
+                        <Banknote className="h-5 w-5" />
+                        Collect
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => { if (tenant.phone) window.open(`tel:${tenant.phone.replace(/\s/g, '')}`); }}
+                        disabled={!tenant.phone}
+                        className="h-14 text-base font-bold rounded-2xl gap-2"
+                      >
+                        <PhoneCall className="h-5 w-5" />
+                        Call
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        ) : mapMode ? (
           <div className="flex-1 overflow-hidden px-4 py-3">
             <PropertyMapView
               tenants={processedTenants}
