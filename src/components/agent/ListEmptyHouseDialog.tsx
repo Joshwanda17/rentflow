@@ -501,6 +501,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     setSearchedOnce(false);
     setSelectedLandlord(null);
     setManualLandlord(false);
+    setStep(1);
   };
 
   const buildShare = () => {
