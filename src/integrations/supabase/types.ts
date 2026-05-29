@@ -8012,6 +8012,7 @@ export type Database = {
           edit_type: string
           edited_by: string
           edited_by_name: string | null
+          final_amount: number | null
           id: string
           landlord_name: string | null
           new_amount: number
@@ -8019,6 +8020,12 @@ export type Database = {
           payout_id: string | null
           reason: string
           rent_request_id: string | null
+          resolution: string | null
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          resolved_by_name: string | null
+          reverted_on_dispute: boolean
           tenant_id: string | null
         }
         Insert: {
@@ -8030,6 +8037,7 @@ export type Database = {
           edit_type: string
           edited_by: string
           edited_by_name?: string | null
+          final_amount?: number | null
           id?: string
           landlord_name?: string | null
           new_amount?: number
@@ -8037,6 +8045,12 @@ export type Database = {
           payout_id?: string | null
           reason: string
           rent_request_id?: string | null
+          resolution?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          resolved_by_name?: string | null
+          reverted_on_dispute?: boolean
           tenant_id?: string | null
         }
         Update: {
@@ -8048,6 +8062,7 @@ export type Database = {
           edit_type?: string
           edited_by?: string
           edited_by_name?: string | null
+          final_amount?: number | null
           id?: string
           landlord_name?: string | null
           new_amount?: number
@@ -8055,6 +8070,12 @@ export type Database = {
           payout_id?: string | null
           reason?: string
           rent_request_id?: string | null
+          resolution?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          resolved_by_name?: string | null
+          reverted_on_dispute?: boolean
           tenant_id?: string | null
         }
         Relationships: []
@@ -18433,6 +18454,15 @@ export type Database = {
       }
       ops_resolve_agents_by_identifier: {
         Args: { _items: string[] }
+        Returns: Json
+      }
+      ops_resolve_payment_edit: {
+        Args: {
+          p_edit_id: string
+          p_final_amount?: number
+          p_note?: string
+          p_resolution: string
+        }
         Returns: Json
       }
       ops_set_agent_capability: {
