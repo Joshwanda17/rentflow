@@ -36,7 +36,8 @@ import { MarkNotFundedDialog } from './MarkNotFundedDialog';
 import { AgentRentCapacitySelfCard } from './AgentRentCapacitySelfCard';
 import { useCreditAccessLimit, formatCreditAmount } from '@/hooks/useCreditAccessLimit';
 import { AgentAdvanceRequestForm } from './AgentAdvanceRequestForm';
-import { Sparkles, Zap, ArrowDownAZ } from 'lucide-react';
+import { Sparkles, Zap, ArrowDownAZ, ListChecks, CheckSquare } from 'lucide-react';
+import { addEntry, newClientUuid, type FieldEntry } from '@/lib/fieldCollectStore';
 
 interface Tenant {
   id: string;
