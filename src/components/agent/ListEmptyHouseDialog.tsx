@@ -1051,62 +1051,15 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
             <p className="text-base font-semibold">Almost done!</p>
             <p className="text-xs text-muted-foreground">Add the LC1 chairperson, then list the house</p>
           </div>
-          {/* LC1 Chairperson — Required */}
-          <div className="space-y-3 p-3 rounded-xl bg-primary/5 border border-primary/20">
-            <div className="flex items-center gap-2">
-              <Shield className="h-4 w-4 text-primary" />
-              <p className="text-xs font-semibold text-primary uppercase">LC1 Chairperson Details *</p>
-            </div>
-            <p className="text-xs text-muted-foreground">Required for property verification by the platform</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs">Name *</Label>
-                <Input
-                  placeholder="Chairperson name"
-                  value={form.lc1_name}
-                  onChange={e => setForm(f => ({ ...f, lc1_name: e.target.value }))}
-                  className={attempted && !form.lc1_name.trim() ? 'border-destructive' : ''}
-                />
-              </div>
-              <div>
-                <Label className="text-xs">Phone *</Label>
-                <Input
-                  placeholder="0771234567"
-                  value={form.lc1_phone}
-                  onChange={e => setForm(f => ({ ...f, lc1_phone: e.target.value }))}
-                  className={attempted && !form.lc1_phone.trim() ? 'border-destructive' : ''}
-                />
-              </div>
-            </div>
-            <div>
-              <Label className="text-xs">Village / Zone (auto-filled from property address)</Label>
-              <Input
-                value={form.lc1_village}
-                disabled
-                className="bg-muted/50"
-              />
-              {existingLc1Options.length > 0 && (
-                <div className="mt-2 p-2 bg-primary/5 border border-primary/20 rounded-lg text-xs">
-                  <p className="font-semibold text-primary mb-1.5">✅ Existing LC1 Chairpersons in {form.village}:</p>
-                  <div className="space-y-1">
-                    {existingLc1Options.map((lc1, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => {
-                          setForm(f => ({ ...f, lc1_name: lc1.name, lc1_phone: lc1.phone }));
-                          toast.success('LC1 details auto-filled');
-                        }}
-                        className="block w-full text-left px-2 py-1.5 hover:bg-primary/10 rounded transition-colors"
-                      >
-                        <span className="font-medium">{lc1.name}</span> · <span className="text-muted-foreground">{lc1.phone}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+          {/* LC1 Chairperson — search-first or register a new one (earns UGX 5,000) */}
+          <Lc1ChairpersonPicker
+            value={lc1Selection}
+            onChange={setLc1Selection}
+            defaultRegion={form.region}
+            defaultDistrict={form.district}
+            defaultVillage={form.village}
+            attempted={attempted}
+          />
 
           {/* Amenities */}
           {/* Optional extras — collapsed by default to keep the form short */}
