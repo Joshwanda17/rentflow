@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Home, MapPin, Loader2, Shield, ShieldCheck, Search, X, UserCheck, Share2, MessageCircle, Copy, Check, PartyPopper, ChevronDown } from 'lucide-react';
+import { Home, MapPin, Loader2, Shield, ShieldCheck, Search, X, UserCheck, Share2, MessageCircle, Copy, Check, PartyPopper, ChevronDown, ArrowLeft, ArrowRight, Camera } from 'lucide-react';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -28,14 +28,14 @@ interface ListEmptyHouseDialogProps {
 }
 
 const HOUSE_CATEGORIES = [
-  { value: 'single_room', label: 'Single Room' },
-  { value: 'double_room', label: 'Double Room' },
-  { value: 'bedsitter', label: 'Bedsitter' },
-  { value: 'one_bedroom', label: '1 Bedroom' },
-  { value: 'two_bedroom', label: '2 Bedrooms' },
-  { value: 'three_bedroom', label: '3 Bedrooms' },
-  { value: 'studio', label: 'Studio' },
-  { value: 'shop', label: 'Shop / Commercial' },
+  { value: 'single_room', label: 'Single Room', emoji: '🚪' },
+  { value: 'double_room', label: 'Double Room', emoji: '🚪🚪' },
+  { value: 'bedsitter', label: 'Bedsitter', emoji: '🛏️' },
+  { value: 'one_bedroom', label: '1 Bedroom', emoji: '🏠' },
+  { value: 'two_bedroom', label: '2 Bedrooms', emoji: '🏡' },
+  { value: 'three_bedroom', label: '3 Bedrooms', emoji: '🏘️' },
+  { value: 'studio', label: 'Studio', emoji: '🎨' },
+  { value: 'shop', label: 'Shop', emoji: '🏪' },
 ];
 
 const REGIONS = [
@@ -54,6 +54,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   const getPosition = geo.requestGPSPermission;
   const [submitting, setSubmitting] = useState(false);
   const [houseImages, setHouseImages] = useState<HouseImageFile[]>([]);
+  // Guided wizard step (1-4) so agents who struggle with long forms only see
+  // one simple question at a time.
+  const [step, setStep] = useState(1);
   const [existingLc1Options, setExistingLc1Options] = useState<Array<{name: string; phone: string; village: string}>>([]);
   const [attempted, setAttempted] = useState(false);
   const [showOptional, setShowOptional] = useState(false);
@@ -218,8 +221,73 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     });
   };
 
+  // ─── Guided wizard navigation ───
+  const TOTAL_STEPS = 4;
+  const STEP_LABELS = ['Landlord', 'House', 'Photos & Place', 'Confirm'];
+
+  // Validate just the current step before moving forward. Returns true if OK.
+  const validateStep = (s: number): boolean => {
+    if (s === 1) {
+      if (!selectedLandlord && !manualLandlord) {
+        toast.error('Pick the landlord or add a new one');
+        return false;
+      }
+      if (manualLandlord && (!form.landlord_name.trim() || !form.landlord_phone.trim())) {
+        toast.error('Enter the new landlord name and phone');
+        return false;
+      }
+      if (form.caretaker_type === 'other' && (!form.caretaker_name.trim() || !form.caretaker_phone.trim())) {
+        toast.error('Enter the caretaker name and phone');
+        return false;
+      }
+    }
+    if (s === 2) {
+      if (!monthlyRent || monthlyRent < 10000) {
+        toast.error('Monthly rent must be at least UGX 10,000');
+        return false;
+      }
+    }
+    if (s === 3) {
+      if (!form.region) {
+        toast.error('Please select a region');
+        return false;
+      }
+      if (!form.address.trim()) {
+        toast.error('Address is required');
+        return false;
+      }
+      if (!form.village.trim()) {
+        toast.error('Village / Zone is required');
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const goNext = () => {
+    setAttempted(true);
+    if (!validateStep(step)) {
+      scrollDialogToTop();
+      return;
+    }
+    setAttempted(false);
+    setStep((s) => Math.min(TOTAL_STEPS, s + 1));
+    scrollDialogToTop();
+  };
+
+  const goBack = () => {
+    setStep((s) => Math.max(1, s - 1));
+    scrollDialogToTop();
+  };
+
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
+    // If the form is submitted (e.g. Enter key) before the last step, just
+    // advance the wizard instead of running full validation.
+    if (step < TOTAL_STEPS) {
+      goNext();
+      return;
+    }
     setAttempted(true);
 
     // Auto-sync lc1_village from village
@@ -439,6 +507,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     setSearchedOnce(false);
     setSelectedLandlord(null);
     setManualLandlord(false);
+    setStep(1);
   };
 
   const buildShare = () => {
@@ -552,6 +621,38 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         </DialogHeader>
 
         <form onSubmit={handleSubmit} noValidate className="space-y-4">
+          {/* Progress stepper — big, visual, minimal reading */}
+          <div className="flex items-center gap-1.5">
+            {STEP_LABELS.map((label, i) => {
+              const n = i + 1;
+              const active = n === step;
+              const done = n < step;
+              return (
+                <div key={label} className="flex-1 text-center">
+                  <div
+                    className={`mx-auto mb-1 flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
+                      done
+                        ? 'bg-success text-success-foreground'
+                        : active
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted text-muted-foreground'
+                    }`}
+                  >
+                    {done ? <Check className="h-4 w-4" /> : n}
+                  </div>
+                  <span className={`text-[10px] ${active ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>{label}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* ── Step 1: Landlord ── */}
+          {step === 1 && (
+          <>
+          <div className="text-center">
+            <p className="text-base font-semibold">Who owns the house?</p>
+            <p className="text-xs text-muted-foreground">Find the landlord, or add a new one</p>
+          </div>
           {/* Landlord Info */}
           <div className="space-y-3 p-3 rounded-xl bg-muted/30 border border-border">
             <p className="text-xs font-semibold text-muted-foreground uppercase">Landlord Details</p>
@@ -744,21 +845,19 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               )}
             </div>
           )}
+          </>
+          )}
 
+          {/* ── Step 2: House type & rent ── */}
+          {step === 2 && (
+          <>
+          <div className="text-center">
+            <p className="text-base font-semibold">What kind of house?</p>
+            <p className="text-xs text-muted-foreground">Tap the picture that matches</p>
+          </div>
           {/* Property Details */}
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs">Category *</Label>
-                <Select value={form.house_category} onValueChange={v => setForm(f => ({ ...f, house_category: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {HOUSE_CATEGORIES.map(c => (
-                      <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
               <div>
                 <Label className="text-xs">Rooms</Label>
                 <Input
@@ -769,6 +868,25 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                   onChange={e => setForm(f => ({ ...f, number_of_rooms: parseInt(e.target.value) || 1 }))}
                 />
               </div>
+            </div>
+            {/* Big visual category picker */}
+            <div className="grid grid-cols-3 gap-2">
+              {HOUSE_CATEGORIES.map(c => {
+                const selected = form.house_category === c.value;
+                return (
+                  <button
+                    key={c.value}
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, house_category: c.value }))}
+                    className={`flex flex-col items-center justify-center gap-1 rounded-xl border p-3 text-center transition-colors ${
+                      selected ? 'border-primary bg-primary/10 ring-2 ring-primary' : 'border-border bg-muted/30 hover:bg-muted/50'
+                    }`}
+                  >
+                    <span className="text-2xl leading-none">{c.emoji}</span>
+                    <span className="text-[11px] font-medium leading-tight">{c.label}</span>
+                  </button>
+                );
+              })}
             </div>
 
             <div>
@@ -794,7 +912,16 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               )}
             </div>
           </div>
+          </>
+          )}
 
+          {/* ── Step 3: Photos & place ── */}
+          {step === 3 && (
+          <>
+          <div className="text-center">
+            <p className="text-base font-semibold">Photos &amp; where is it?</p>
+            <p className="text-xs text-muted-foreground">Take photos and set the location</p>
+          </div>
           {/* Photos */}
           <HouseImageUploader
             images={houseImages}
@@ -874,7 +1001,16 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               {geoLoading ? 'Getting location...' : position ? '📍 GPS Captured' : 'Capture GPS Location'}
             </Button>
           </div>
+          </>
+          )}
 
+          {/* ── Step 4: LC1 & confirm ── */}
+          {step === 4 && (
+          <>
+          <div className="text-center">
+            <p className="text-base font-semibold">Almost done!</p>
+            <p className="text-xs text-muted-foreground">Add the LC1 chairperson, then list the house</p>
+          </div>
           {/* LC1 Chairperson — Required */}
           <div className="space-y-3 p-3 rounded-xl bg-primary/5 border border-primary/20">
             <div className="flex items-center gap-2">
@@ -994,22 +1130,38 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               💰 You earn UGX 5,000 the moment a tenant is placed in this house
             </p>
           </div>
+          </>
+          )}
 
-          <Button
-            type="submit"
-            className="w-full h-12 text-base"
-            disabled={submitting}
-            onClick={(e) => {
-              // Defensive: some mobile browsers swallow form submit when
-              // a native-validated input (e.g. type="number") rejects silently.
-              // Guarantee the handler always runs.
-              if (e.currentTarget.form) return;
-              handleSubmit();
-            }}
-          >
-            {submitting ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Home className="h-5 w-5 mr-2" />}
-            List & share house{monthlyRent > 0 ? ` · ${formatUGX(pricing.dailyRate)}/day` : ''}
-          </Button>
+          {/* Wizard navigation — big Back / Next / List buttons */}
+          <div className="flex gap-2 pt-1">
+            {step > 1 && (
+              <Button type="button" variant="outline" className="h-12 flex-1 text-base" onClick={goBack}>
+                <ArrowLeft className="h-5 w-5 mr-1" /> Back
+              </Button>
+            )}
+            {step < TOTAL_STEPS ? (
+              <Button type="button" className="h-12 flex-[2] text-base" onClick={goNext}>
+                Next <ArrowRight className="h-5 w-5 ml-1" />
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                className="h-12 flex-[2] text-base"
+                disabled={submitting}
+                onClick={(e) => {
+                  // Defensive: some mobile browsers swallow form submit when
+                  // a native-validated input (e.g. type="number") rejects silently.
+                  // Guarantee the handler always runs.
+                  if (e.currentTarget.form) return;
+                  handleSubmit();
+                }}
+              >
+                {submitting ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Home className="h-5 w-5 mr-2" />}
+                List house
+              </Button>
+            )}
+          </div>
         </form>
         </>
         )}
