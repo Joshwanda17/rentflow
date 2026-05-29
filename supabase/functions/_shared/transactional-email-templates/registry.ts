@@ -19,6 +19,7 @@ import { template as walletTransferReceivedTemplate } from './wallet-transfer-re
 import { template as walletTransferSentTemplate } from './wallet-transfer-sent.tsx'
 import { template as agentTenantPaymentReceiptTemplate } from './agent-tenant-payment-receipt.tsx'
 import { template as cashWithdrawalCodeTemplate } from './cash-withdrawal-code.tsx'
+import { template as smsFailureAlertTemplate } from './sms-failure-alert.tsx'
 import type { TemplateEntry } from './types.ts'
 
 export const TEMPLATES: Record<string, TemplateEntry> = {
@@ -43,4 +44,5 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'wallet-transfer-sent': walletTransferSentTemplate,
   'agent-tenant-payment-receipt': agentTenantPaymentReceiptTemplate,
   'cash-withdrawal-code': cashWithdrawalCodeTemplate,
+  'sms-failure-alert': smsFailureAlertTemplate,
 }

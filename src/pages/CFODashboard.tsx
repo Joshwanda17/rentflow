@@ -36,6 +36,7 @@ import { AgentPerformanceRankings } from '@/components/cfo/AgentPerformanceRanki
 import { CFOPartnerInvestments } from '@/components/cfo/CFOPartnerInvestments';
 import { CronJobsHealthPanel } from '@/components/cfo/CronJobsHealthPanel';
 import { SmsDeliveryLogPanel } from '@/components/cfo/SmsDeliveryLogPanel';
+import { SmsFailureAlertsPanel } from '@/components/cfo/SmsFailureAlertsPanel';
 export default function CFODashboard() {
   const { user, loading: authLoading, role } = useAuth();
   const navigate = useNavigate();
@@ -175,6 +176,7 @@ export default function CFODashboard() {
 
           {/* SMS Delivery Log Tab */}
           <TabsContent value="sms" className="space-y-6">
+            <SmsFailureAlertsPanel />
             <SmsDeliveryLogPanel />
           </TabsContent>
 

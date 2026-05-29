@@ -13538,6 +13538,99 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_failure_alert_config: {
+        Row: {
+          email_enabled: boolean
+          email_recipients: string[]
+          enabled: boolean
+          failure_count_threshold: number
+          failure_rate_threshold_pct: number
+          id: number
+          min_sample_size: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          email_enabled?: boolean
+          email_recipients?: string[]
+          enabled?: boolean
+          failure_count_threshold?: number
+          failure_rate_threshold_pct?: number
+          id?: number
+          min_sample_size?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          email_enabled?: boolean
+          email_recipients?: string[]
+          enabled?: boolean
+          failure_count_threshold?: number
+          failure_rate_threshold_pct?: number
+          id?: number
+          min_sample_size?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      sms_failure_alerts: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          created_at: string
+          detection_run_id: string | null
+          email_sent: boolean
+          failed_count: number
+          failure_rate_pct: number
+          id: string
+          sent_count: number
+          severity: string
+          status: string
+          top_failed_references: Json
+          total_count: number
+          window_date: string
+          window_end: string
+          window_start: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          created_at?: string
+          detection_run_id?: string | null
+          email_sent?: boolean
+          failed_count?: number
+          failure_rate_pct?: number
+          id?: string
+          sent_count?: number
+          severity?: string
+          status?: string
+          top_failed_references?: Json
+          total_count?: number
+          window_date: string
+          window_end: string
+          window_start: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          created_at?: string
+          detection_run_id?: string | null
+          email_sent?: boolean
+          failed_count?: number
+          failure_rate_pct?: number
+          id?: string
+          sent_count?: number
+          severity?: string
+          status?: string
+          top_failed_references?: Json
+          total_count?: number
+          window_date?: string
+          window_end?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       staff_access_passwords: {
         Row: {
           created_at: string | null
@@ -17151,6 +17244,7 @@ export type Database = {
           window_minutes: number
         }[]
       }
+      detect_sms_failure_alerts: { Args: never; Returns: Json }
       detect_velocity_abuse: {
         Args: { p_threshold?: number; p_window_minutes?: number }
         Returns: {
