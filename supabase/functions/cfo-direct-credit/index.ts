@@ -164,9 +164,23 @@ Deno.serve(async (req) => {
     // Normalise email-origin identifiers (any may be null)
     const gmailTxId: string | null = typeof rawGmailTxId === "string" && rawGmailTxId ? rawGmailTxId : null;
     const gmailMsgId: string | null = typeof rawGmailMsgId === "string" && rawGmailMsgId ? rawGmailMsgId : null;
-    const emailTid: string | null = typeof rawEmailTid === "string" && rawEmailTid
+    // The idempotency key MUST be a real email / MoMo transaction reference.
+    // It may arrive explicitly as `email_tid`, or be carried in `sub_category`
+    // by the email-routing flows (which set sub_category = the email's
+    // transaction_id). The CFO's manual Direct Credit tool ALSO sends a
+    // `sub_category`, but there it is a generic accounting slug ("food",
+    // "rent", "property_equipment", …) that repeats by design and must NEVER
+    // act as a duplicate-prevention key — otherwise the second legitimate
+    // payout to the same user under the same category is wrongly blocked as
+    // DUPLICATE_EMAIL_CREDIT. Real transaction references always contain at
+    // least one digit (TIDs, MoMo refs, gmail hex ids); generic accounting
+    // slugs are lowercase words/underscores with no digits. We use that to
+    // tell them apart.
+    const looksLikeTxnRef = (v: unknown): v is string =>
+      typeof v === "string" && v.length >= 4 && /\d/.test(v);
+    const emailTid: string | null = looksLikeTxnRef(rawEmailTid)
       ? rawEmailTid
-      : (typeof sub_category === "string" && sub_category ? sub_category : null);
+      : (looksLikeTxnRef(sub_category) ? sub_category : null);
     const isEmailOriginCredit = op === "credit" && (gmailMsgId || emailTid);
 
     // ── Forced reversal mode ────────────────────────────────────────────
