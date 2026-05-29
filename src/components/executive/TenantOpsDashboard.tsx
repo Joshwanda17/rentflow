@@ -1295,6 +1295,8 @@ export function TenantOpsDashboard() {
         return <LocationBrowser />;
       case 'tenant-location-browser':
         return <TenantLocationBrowser />;
+      case 'welile-operations':
+        return <WelileOperationsHub />;
       case 'global-verification':
         return <GlobalVerificationHub />;
       case 'daily-collections':
