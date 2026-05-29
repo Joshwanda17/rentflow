@@ -8597,25 +8597,79 @@ export type Database = {
       }
       lc1_chairpersons: {
         Row: {
+          cell: string | null
+          country: string | null
+          county: string | null
           created_at: string
+          district: string | null
           id: string
+          listed_bonus_paid: boolean
+          listed_bonus_paid_at: string | null
           name: string
+          parish: string | null
           phone: string
+          region: string | null
+          registered_at: string | null
+          registered_by: string | null
+          sub_county: string | null
+          town_council: string | null
+          verification_bonus_paid: boolean
+          verification_bonus_paid_at: string | null
+          verified: boolean
+          verified_at: string | null
+          verified_by: string | null
           village: string
+          zone: string | null
         }
         Insert: {
+          cell?: string | null
+          country?: string | null
+          county?: string | null
           created_at?: string
+          district?: string | null
           id?: string
+          listed_bonus_paid?: boolean
+          listed_bonus_paid_at?: string | null
           name: string
+          parish?: string | null
           phone: string
+          region?: string | null
+          registered_at?: string | null
+          registered_by?: string | null
+          sub_county?: string | null
+          town_council?: string | null
+          verification_bonus_paid?: boolean
+          verification_bonus_paid_at?: string | null
+          verified?: boolean
+          verified_at?: string | null
+          verified_by?: string | null
           village: string
+          zone?: string | null
         }
         Update: {
+          cell?: string | null
+          country?: string | null
+          county?: string | null
           created_at?: string
+          district?: string | null
           id?: string
+          listed_bonus_paid?: boolean
+          listed_bonus_paid_at?: string | null
           name?: string
+          parish?: string | null
           phone?: string
+          region?: string | null
+          registered_at?: string | null
+          registered_by?: string | null
+          sub_county?: string | null
+          town_council?: string | null
+          verification_bonus_paid?: boolean
+          verification_bonus_paid_at?: string | null
+          verified?: boolean
+          verified_at?: string | null
+          verified_by?: string | null
           village?: string
+          zone?: string | null
         }
         Relationships: []
       }
