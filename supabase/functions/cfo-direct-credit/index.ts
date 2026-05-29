@@ -681,7 +681,12 @@ Deno.serve(async (req) => {
       // edge isolate tears down right after the response is returned, so the
       // text never reaches Africa's Talking. Awaiting guarantees instant delivery.
       try {
-        const sent = await sendSMS(targetProfile.phone, smsMsg);
+        const sent = await sendSMS(targetProfile.phone, smsMsg, {
+          recipientUserId: target_user_id,
+          recipientName: targetProfile.full_name ?? null,
+          referenceId: refId,
+          source: "cfo-direct-credit",
+        });
         console.log(`[cfo-direct-credit] recipient SMS to ${targetProfile.phone}: ${sent ? "sent" : "failed"} ref=${refId}`);
       } catch (e) {
         console.error("[cfo-direct-credit] recipient SMS failed:", (e as Error).message);
