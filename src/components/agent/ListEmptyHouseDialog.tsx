@@ -615,6 +615,38 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         </DialogHeader>
 
         <form onSubmit={handleSubmit} noValidate className="space-y-4">
+          {/* Progress stepper — big, visual, minimal reading */}
+          <div className="flex items-center gap-1.5">
+            {STEP_LABELS.map((label, i) => {
+              const n = i + 1;
+              const active = n === step;
+              const done = n < step;
+              return (
+                <div key={label} className="flex-1 text-center">
+                  <div
+                    className={`mx-auto mb-1 flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
+                      done
+                        ? 'bg-success text-success-foreground'
+                        : active
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted text-muted-foreground'
+                    }`}
+                  >
+                    {done ? <Check className="h-4 w-4" /> : n}
+                  </div>
+                  <span className={`text-[10px] ${active ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>{label}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* ── Step 1: Landlord ── */}
+          {step === 1 && (
+          <>
+          <div className="text-center">
+            <p className="text-base font-semibold">Who owns the house?</p>
+            <p className="text-xs text-muted-foreground">Find the landlord, or add a new one</p>
+          </div>
           {/* Landlord Info */}
           <div className="space-y-3 p-3 rounded-xl bg-muted/30 border border-border">
             <p className="text-xs font-semibold text-muted-foreground uppercase">Landlord Details</p>
@@ -807,21 +839,19 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               )}
             </div>
           )}
+          </>
+          )}
 
+          {/* ── Step 2: House type & rent ── */}
+          {step === 2 && (
+          <>
+          <div className="text-center">
+            <p className="text-base font-semibold">What kind of house?</p>
+            <p className="text-xs text-muted-foreground">Tap the picture that matches</p>
+          </div>
           {/* Property Details */}
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs">Category *</Label>
-                <Select value={form.house_category} onValueChange={v => setForm(f => ({ ...f, house_category: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {HOUSE_CATEGORIES.map(c => (
-                      <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
               <div>
                 <Label className="text-xs">Rooms</Label>
                 <Input
@@ -832,6 +862,25 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                   onChange={e => setForm(f => ({ ...f, number_of_rooms: parseInt(e.target.value) || 1 }))}
                 />
               </div>
+            </div>
+            {/* Big visual category picker */}
+            <div className="grid grid-cols-3 gap-2">
+              {HOUSE_CATEGORIES.map(c => {
+                const selected = form.house_category === c.value;
+                return (
+                  <button
+                    key={c.value}
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, house_category: c.value }))}
+                    className={`flex flex-col items-center justify-center gap-1 rounded-xl border p-3 text-center transition-colors ${
+                      selected ? 'border-primary bg-primary/10 ring-2 ring-primary' : 'border-border bg-muted/30 hover:bg-muted/50'
+                    }`}
+                  >
+                    <span className="text-2xl leading-none">{c.emoji}</span>
+                    <span className="text-[11px] font-medium leading-tight">{c.label}</span>
+                  </button>
+                );
+              })}
             </div>
 
             <div>
