@@ -404,12 +404,13 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           recentCollectionFilter,
           groupByProperty,
           lifecycleFilter,
+          simpleMode,
         } satisfies SheetPrefs),
       );
     } catch {
       /* storage unavailable — ignore */
     }
-  }, [search, activeFilter, riskFilter, propertyFilter, sortKey, sortDir, recentCollectionFilter, groupByProperty, lifecycleFilter]);
+  }, [search, activeFilter, riskFilter, propertyFilter, sortKey, sortDir, recentCollectionFilter, groupByProperty, lifecycleFilter, simpleMode]);
 
   const fetchTenants = async () => {
     if (!user) return;
