@@ -1468,6 +1468,18 @@ async function tryAutoApproveBankBatch(
   for (let i = 0; i < chosen.rows.length; i++) {
     const wr = chosen.rows[i];
     const perRowRef = `${reference}-${i + 1}`;
+    // Proxy bank payouts (where `proxy_partner_id`/`linked_party` is set, or
+    // `agent_id` differs from the requester) are FUNDED by the proxy agent's
+    // wallet — not the partner who owns the WR row. For those we must NOT
+    // force the debit onto the requester; we let approve-withdrawal route the
+    // debit to the assigned proxy agent (same policy as the MoMo path). Plain
+    // (non-proxy) bank WRs keep force_requester_debit so the requester's
+    // reserved hold is consumed and their wallet is debited directly.
+    const isProxyRow = !!(
+      (wr as any).proxy_partner_id ||
+      ((wr as any).linked_party && (wr as any).linked_party !== wr.user_id) ||
+      ((wr as any).agent_id && (wr as any).agent_id !== wr.user_id)
+    );
     try {
       const res = await fetch(`${supabaseUrl}/functions/v1/approve-withdrawal`, {
         method: 'POST',
@@ -1481,7 +1493,7 @@ async function tryAutoApproveBankBatch(
           reference: perRowRef,
           payment_method: 'bank_transfer',
           system_caller: true,
-          force_requester_debit: true,
+          force_requester_debit: !isProxyRow,
         }),
       });
       const text = await res.text();
