@@ -58,7 +58,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   // Guided wizard step (1-4) so agents who struggle with long forms only see
   // one simple question at a time.
   const [step, setStep] = useState(1);
-  const [existingLc1Options, setExistingLc1Options] = useState<Array<{name: string; phone: string; village: string}>>([]);
+  // LC1 chairperson: search-first selection or a brand-new registration.
+  const [lc1Selection, setLc1Selection] = useState<Lc1Selection | null>(null);
   const [attempted, setAttempted] = useState(false);
   const [showOptional, setShowOptional] = useState(false);
   const [successListing, setSuccessListing] = useState<null | {
