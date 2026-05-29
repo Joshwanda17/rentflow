@@ -2212,8 +2212,45 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   of every month, regardless of when the tenant pays.
                 </p>
               </div>
+              </>
+              )}
+
+              {detailStep === 4 && (
+              <>
+              {/* ===== 6. REVIEW & CONFIRM ===== */}
+              <div className="space-y-2 p-4 rounded-2xl bg-muted/40 border border-border">
+                <h4 className="text-sm font-bold flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-primary" /> Review &amp; confirm
+                </h4>
+                <div className="space-y-1 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Tenant</span>
+                    <span className="font-semibold">{tenantName || '—'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Rent amount</span>
+                    <span className="font-semibold">{amount ? formatUGX(amount) : '—'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">{incomeType === 'daily' ? 'Duration' : 'Repayment'}</span>
+                    <span className="font-semibold">{incomeType === 'daily' ? `${duration} days` : getPeriodLabel(repaymentPeriod)}</span>
+                  </div>
+                  {fees && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">You pay</span>
+                      <span className="font-semibold">{formatUGX(fees.dailyRepayment)}/day</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Landlord</span>
+                    <span className="font-semibold">{landlordName || '—'}</span>
+                  </div>
+                </div>
+              </div>
 
               <GuarantorConsentCheckbox checked={guarantorConsent} onCheckedChange={setGuarantorConsent} />
+              </>
+              )}
 
               {/* Validation Error Summary */}
               {validationErrors.length > 0 && (
@@ -2241,16 +2278,21 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 </div>
               )}
 
+              {/* Wizard navigation */}
               <div className="flex gap-3 pt-2">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => { setStep('type'); setValidationErrors([]); }}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={goBackStep}
                   className="flex-1"
                 >
-                  Back
+                  {detailStep === 0 ? 'Back' : 'Previous'}
                 </Button>
-                {amount > perTenantMax ? (
+                {detailStep < DETAIL_STEPS.length - 1 ? (
+                  <Button type="button" onClick={goNextStep} className="flex-1">
+                    Next
+                  </Button>
+                ) : amount > perTenantMax ? (
                   <Button
                     type="button"
                     onClick={handleSaveForLater}
@@ -2265,8 +2307,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     )}
                   </Button>
                 ) : (
-                  <Button 
-                    onClick={handleSubmit} 
+                  <Button
+                    onClick={handleSubmit}
                     className="flex-1"
                     disabled={loading || !amount || amount < 50000}
                   >
@@ -2281,7 +2323,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </Button>
                 )}
               </div>
-              {amount > 0 && amount < 50000 && (
+              {detailStep === DETAIL_STEPS.length - 1 && amount > 0 && amount < 50000 && (
                 <p className="text-xs font-semibold text-warning text-center -mt-1">
                   Rent amount must be at least UGX 50,000 to post.
                 </p>
