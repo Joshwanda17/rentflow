@@ -383,8 +383,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
               </div>
               <DialogTitle className="text-xl">House listed!</DialogTitle>
               <p className="text-sm text-muted-foreground">
-                Share it now so a tenant can rent it fast — you earn{' '}
-                <span className="font-semibold text-foreground">UGX 5,000</span> the moment they're placed.
+                <span className="font-semibold text-foreground">UGX 1,000</span> is on its way to your wallet now.
+                You earn <span className="font-semibold text-foreground">UGX 4,000</span> more once Landlord Ops verifies
+                this house — <span className="font-semibold text-foreground">UGX 5,000</span> in total.
               </p>
             </div>
 
