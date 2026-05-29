@@ -1007,6 +1007,62 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     }
   };
 
+  /* ── Simple Mode bulk collect helpers ── */
+  const toggleBulkSelect = (tenantId: string) => {
+    setBulkSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(tenantId)) next.delete(tenantId);
+      else next.add(tenantId);
+      return next;
+    });
+  };
+
+  const exitBulkSelect = () => {
+    setBulkSelectMode(false);
+    setBulkSelected(new Set());
+  };
+
+  // Tenants that are selected AND still owe something — only these get a record.
+  const bulkPayableTenants = useMemo(
+    () => processedTenants.filter((t) => bulkSelected.has(t.id) && (tenantBalances[t.id] || 0) > 0),
+    [processedTenants, bulkSelected, tenantBalances]
+  );
+  const bulkTotal = useMemo(
+    () => bulkPayableTenants.reduce((s, t) => s + (tenantBalances[t.id] || 0), 0),
+    [bulkPayableTenants, tenantBalances]
+  );
+
+  const handleBulkCollect = async () => {
+    if (!user?.id || bulkPayableTenants.length === 0) return;
+    setBulkSaving(true);
+    try {
+      const now = Date.now();
+      for (const t of bulkPayableTenants) {
+        const amt = tenantBalances[t.id] || 0;
+        if (amt <= 0) continue;
+        const entry: FieldEntry = {
+          id: newClientUuid(),
+          agentId: user.id,
+          tenantId: t.id,
+          tenantName: t.full_name || '',
+          tenantPhone: t.phone || null,
+          amount: amt,
+          notes: 'Bulk collect — marked paid',
+          capturedAt: now,
+          syncState: 'queued',
+        };
+        await addEntry(entry);
+      }
+      sonnerToast.success(`Saved ${bulkPayableTenants.length} · ${formatUGX(bulkTotal)}`);
+      setBulkConfirmOpen(false);
+      exitBulkSelect();
+    } catch (e) {
+      sonnerToast.error(e instanceof Error ? e.message : 'Failed to save');
+    } finally {
+      setBulkSaving(false);
+    }
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
