@@ -349,13 +349,27 @@ function RentRequestList({ country }: { country: string }) {
       const nameById = new Map((lls ?? []).map((l) => [l.id, l.name]));
       const { data, error } = await supabase
         .from('rent_requests')
-        .select('id, tenant_name, landlord_id, amount, created_at, status')
+        .select('id, tenant_id, landlord_id, rent_amount, created_at, status')
         .eq('status', 'pending')
         .in('landlord_id', ids)
         .order('created_at', { ascending: false })
         .limit(PAGE);
       if (error) throw error;
-      return (data ?? []).map((r: any) => ({ ...r, landlord_name: nameById.get(r.landlord_id) }));
+      const rows = data ?? [];
+      const tenantIds = [...new Set(rows.map((r: any) => r.tenant_id).filter(Boolean))];
+      const tenantName = new Map<string, string>();
+      if (tenantIds.length) {
+        const { data: profs } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', tenantIds as string[]);
+        for (const p of profs ?? []) tenantName.set((p as any).id, (p as any).full_name);
+      }
+      return rows.map((r: any) => ({
+        ...r,
+        landlord_name: nameById.get(r.landlord_id),
+        tenant_name: tenantName.get(r.tenant_id),
+      }));
     },
   });
 
