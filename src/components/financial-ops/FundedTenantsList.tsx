@@ -80,6 +80,8 @@ type Row = {
   country: string | null;
   agent_profile?: { full_name: string | null; phone: string | null } | null;
   tenant_profile?: { full_name: string | null } | null;
+  finops_disbursed_by: string | null;
+  funder_profile?: { full_name: string | null } | null;
 };
 type DateFilter = 'all' | '7d' | '30d' | 'custom';
 
