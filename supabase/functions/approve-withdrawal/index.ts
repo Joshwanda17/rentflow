@@ -1084,13 +1084,63 @@ Deno.serve(async (req) => {
         }
       : undefined;
 
+    // POOL-FUNDED settlements debit FLOAT (company money) after an in-transaction
+    // top-up; all other payouts debit withdrawable as before.
     const proxyFloatPortion = 0;
     const proxyWithdrawablePortion = isProxyPayout ? amount - proxyFloatPortion : 0;
-    const withdrawablePortion = isProxyPayout ? proxyWithdrawablePortion : amount;
-    const floatPortion = proxyFloatPortion;
+    const withdrawablePortion = poolFunded ? 0 : (isProxyPayout ? proxyWithdrawablePortion : amount);
+    const floatPortion = poolFunded ? amount : proxyFloatPortion;
 
     const debitEntries: any[] = [];
-    if (withdrawablePortion > 0) {
+    if (poolFunded) {
+      // Leg 1: company pool funds the proxy agent's FLOAT bucket (platform → wallet).
+      debitEntries.push({
+        user_id: fundingUserId,
+        amount,
+        direction: "cash_in",
+        category: "agent_float_assignment",
+        ledger_scope: "wallet",
+        description: `Pool top-up for proxy partner payout – ${baseDesc}`,
+        currency: "UGX",
+        source_table: "withdrawal_requests",
+        source_id: withdrawal_id,
+        transaction_date: nowIso,
+        recipient_type: "operational_wallet",
+        wallet_bucket: "float",
+        routing_source: "pool_funded_proxy_bank_float_topup",
+        ...(autoRouteMeta ? { metadata: autoRouteMeta } : {}),
+      });
+      // Leg 1b: platform-side counterparty for the pool top-up (pool money out).
+      debitEntries.push({
+        amount,
+        direction: "cash_out",
+        category: "agent_float_funding",
+        ledger_scope: "platform",
+        description: `Pool deploys company funds for proxy partner payout – ${baseDesc}`,
+        currency: "UGX",
+        source_table: "withdrawal_requests",
+        source_id: withdrawal_id,
+        transaction_date: nowIso,
+      });
+      // Leg 2: the proxy partner payout drains the agent's FLOAT (wallet → out).
+      debitEntries.push({
+        user_id: fundingUserId,
+        amount,
+        direction: "cash_out",
+        category: "proxy_partner_withdrawal",
+        ledger_scope: "wallet",
+        description: `Proxy partner payout from pool float – ${baseDesc}`,
+        currency: "UGX",
+        source_table: "withdrawal_requests",
+        source_id: withdrawal_id,
+        transaction_date: nowIso,
+        linked_party: wr.linked_party || beneficiaryUserId,
+        recipient_type: "operational_wallet",
+        wallet_bucket: "float",
+        routing_source: "pool_funded_proxy_bank_float_debit",
+        ...(autoRouteMeta ? { metadata: autoRouteMeta } : {}),
+      });
+    } else if (withdrawablePortion > 0) {
       debitEntries.push({
         user_id: fundingUserId,
         amount: withdrawablePortion,
@@ -1113,7 +1163,7 @@ Deno.serve(async (req) => {
         ...(autoRouteMeta ? { metadata: autoRouteMeta } : {}),
       });
     }
-    if (floatPortion > 0) {
+    if (!poolFunded && floatPortion > 0) {
       debitEntries.push({
         user_id: fundingUserId,
         amount: floatPortion,
