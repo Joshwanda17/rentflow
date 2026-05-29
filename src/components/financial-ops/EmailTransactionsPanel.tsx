@@ -1677,6 +1677,19 @@ export function EmailTransactionsPanel() {
     .reduce((s, r) => s + (r.amount ?? 0), 0);
   const netAmount = totalIn - totalOut;
 
+  // Unmatched email counters — deposit emails with no linked request and
+  // payout emails neither routed to a wallet nor matched to an open withdrawal.
+  const unmatchedInCount = rows.filter(
+    (r) => r.parsed && r.direction === 'in' && !r.linked_deposit_request_id && !r.auto_matched_at,
+  ).length;
+  const unmatchedOutCount = rows.filter(
+    (r) =>
+      isCountable(r) &&
+      (r.direction === 'out' || r.direction === 'charge') &&
+      !routingHistory[r.id]?.length &&
+      !(withdrawalMatches[r.id]?.length),
+  ).length;
+
   // Per-channel breakdown with counts and totals per direction.
   const channelBreakdown = (() => {
     const map = new Map<
