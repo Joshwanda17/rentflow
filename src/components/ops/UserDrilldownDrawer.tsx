@@ -38,6 +38,7 @@ import { ListingPhotoUploadDialog } from './ListingPhotoUploadDialog';
 import { ImagePlus } from 'lucide-react';
 import { ContactActions } from './ContactActions';
 import { LandlordEditCard } from './LandlordEditCard';
+import { TenantLandlordPayoutsEditor } from './TenantLandlordPayoutsEditor';
 
 type UserBrief = { id: string; full_name: string | null; phone: string | null };
 
@@ -1058,13 +1059,14 @@ function RentBalanceEditor({
     }
     setSaving(true);
     try {
-      const { error } = await supabase.rpc('ops_update_rent_request_amount', {
-        p_rent_request_id: activeRr.id,
-        p_rent_amount: amt,
+      const { error } = await supabase.rpc('ops_record_payment_edit', {
+        p_edit_type: 'rent_amount',
+        p_target_id: activeRr.id,
+        p_new_amount: amt,
         p_reason: reason.trim(),
       } as any);
       if (error) throw error;
-      toast.success('Rent amount updated');
+      toast.success('Rent updated — agent notified to agree');
       setEditing(false);
       setReason('');
       onSaved();
@@ -1273,6 +1275,9 @@ function TenantPane({
 
       {/* Tenant repayment / obligation ledger history */}
       <TenantStatements tenantId={tenantId} dateRange={dateRange} onDateRangeChange={setDateRange} />
+
+      {/* Landlord payments recorded by the agent — Tenant Ops can edit the amount */}
+      <TenantLandlordPayoutsEditor tenantId={tenantId} canEdit={isOps} />
 
       {activeRr?.landlord_id && (
         <Card className="p-3 space-y-1.5">

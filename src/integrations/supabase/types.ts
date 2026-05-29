@@ -8002,6 +8002,63 @@ export type Database = {
           },
         ]
       }
+      landlord_payment_edits: {
+        Row: {
+          agent_dispute_note: string | null
+          agent_id: string | null
+          agent_responded_at: string | null
+          agent_response: string | null
+          created_at: string
+          edit_type: string
+          edited_by: string
+          edited_by_name: string | null
+          id: string
+          landlord_name: string | null
+          new_amount: number
+          old_amount: number
+          payout_id: string | null
+          reason: string
+          rent_request_id: string | null
+          tenant_id: string | null
+        }
+        Insert: {
+          agent_dispute_note?: string | null
+          agent_id?: string | null
+          agent_responded_at?: string | null
+          agent_response?: string | null
+          created_at?: string
+          edit_type: string
+          edited_by: string
+          edited_by_name?: string | null
+          id?: string
+          landlord_name?: string | null
+          new_amount?: number
+          old_amount?: number
+          payout_id?: string | null
+          reason: string
+          rent_request_id?: string | null
+          tenant_id?: string | null
+        }
+        Update: {
+          agent_dispute_note?: string | null
+          agent_id?: string | null
+          agent_responded_at?: string | null
+          agent_response?: string | null
+          created_at?: string
+          edit_type?: string
+          edited_by?: string
+          edited_by_name?: string | null
+          id?: string
+          landlord_name?: string | null
+          new_amount?: number
+          old_amount?: number
+          payout_id?: string | null
+          reason?: string
+          rent_request_id?: string | null
+          tenant_id?: string | null
+        }
+        Relationships: []
+      }
       landlord_payout_otp_challenges: {
         Row: {
           agent_id: string
@@ -16709,6 +16766,10 @@ export type Database = {
         Returns: Json
       }
       agent_per_tenant_max: { Args: { _agent_id: string }; Returns: number }
+      agent_respond_payment_edit: {
+        Args: { p_edit_id: string; p_note?: string; p_response: string }
+        Returns: Json
+      }
       agent_resubmit_rent_request: {
         Args: { p_agent_note: string; p_patch: Json; p_request_id: string }
         Returns: string
@@ -18346,6 +18407,15 @@ export type Database = {
           trust_score: number
           trust_tier: string
         }[]
+      }
+      ops_record_payment_edit: {
+        Args: {
+          p_edit_type: string
+          p_new_amount: number
+          p_reason: string
+          p_target_id: string
+        }
+        Returns: Json
       }
       ops_resolve_agent_segment: {
         Args: {

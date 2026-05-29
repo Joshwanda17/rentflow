@@ -57,6 +57,7 @@ import { WalletHeroSkeleton } from '@/components/skeletons/SectionSkeletons';
 
 import { hapticTap } from '@/lib/haptics';
 import { AgentAgreementBanner } from '@/components/agent/agreement';
+import { AgentPaymentEditAlert } from '@/components/agent/AgentPaymentEditAlert';
 import { VerificationChecklist } from '@/components/shared/VerificationChecklist';
 import { useOffline } from '@/contexts/OfflineContext';
 import { OfflineBanner } from '@/components/OfflineBanner';
@@ -446,6 +447,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         )}
 
         <AgentAgreementBanner />
+        <AgentPaymentEditAlert agentId={user.id} />
 
         {/* Linked-but-uncredited deposits — surfaces stuck float receipts */}
         <AgentPendingReceiptPanel />
