@@ -82,6 +82,43 @@ type RiskFilter = 'all' | 'good' | 'standard' | 'caution' | 'new';
 type SortKey = 'risk' | 'aiId' | 'property' | 'balance' | 'daily' | 'property-daily' | 'property-balance' | 'lastCollected' | 'recent' | 'name';
 type SortDir = 'asc' | 'desc';
 
+// Simple Mode language — English or Luganda. Lets agents who read little flip
+// the picture-first labels into their own language. Persisted in prefs.
+type SimpleLang = 'en' | 'lg';
+
+type SimpleTextKey =
+  | 'toCollect' | 'paid' | 'allPaid' | 'searchTenant'
+  | 'showAll' | 'showOwing' | 'showPaid'
+  | 'sortBiggest' | 'sortName'
+  | 'selectMany' | 'stopSelecting'
+  | 'selected' | 'markPaid' | 'collect' | 'call'
+  | 'markNPaid' | 'recordsFull' | 'totalToRecord' | 'confirm' | 'cancel'
+  | 'langName';
+
+const SIMPLE_TEXT: Record<SimpleTextKey, { en: string; lg: string }> = {
+  toCollect:     { en: 'To collect',   lg: 'Ebbanja' },
+  paid:          { en: 'Paid',         lg: 'Ezasasulwa' },
+  allPaid:       { en: 'All paid',     lg: 'Yamaze' },
+  searchTenant:  { en: 'Search tenant…', lg: 'Noonya omupangisa…' },
+  showAll:       { en: 'Show all tenants', lg: 'Laga bonna' },
+  showOwing:     { en: 'Show tenants who must pay', lg: 'Laga ab’ebbanja' },
+  showPaid:      { en: 'Show tenants who paid', lg: 'Laga abasasudde' },
+  sortBiggest:   { en: 'Sort by biggest amount first', lg: 'Ssente ennene mu maaso' },
+  sortName:      { en: 'Sort by name A to Z', lg: 'Erinnya A okutuuka Z' },
+  selectMany:    { en: 'Select many to collect', lg: 'Londa bangi okusooza' },
+  stopSelecting: { en: 'Stop selecting', lg: 'Lekera awo' },
+  selected:      { en: 'selected',      lg: 'abalondedwa' },
+  markPaid:      { en: 'Mark paid',     lg: 'Basasudde' },
+  collect:       { en: 'Collect',       lg: 'Sooza' },
+  call:          { en: 'Call',          lg: 'Kuba essimu' },
+  markNPaid:     { en: 'Mark {n} paid?', lg: 'Teeka {n} nti basasudde?' },
+  recordsFull:   { en: 'Records full payment for each selected tenant. Works offline.', lg: 'Kiwandiika nti buli omu asasudde byonna. Kikola ne awatali yintaneeti.' },
+  totalToRecord: { en: 'Total to record', lg: 'Omugatte ogusasulwa' },
+  confirm:       { en: 'Confirm',       lg: 'Kakasa' },
+  cancel:        { en: 'Cancel',        lg: 'Sazaamu' },
+  langName:      { en: 'English',       lg: 'Luganda' },
+};
+
 const PREFS_KEY = 'agent-tenants-sheet:prefs:v2';
 const RECENT_PROPERTIES_KEY = 'agent-tenants-sheet:recent-properties:v1';
 const MAX_RECENT_PROPERTIES = 5;
@@ -111,6 +148,7 @@ interface SheetPrefs {
   groupByProperty?: boolean;
   lifecycleFilter?: LifecycleFilter;
   simpleMode?: boolean;
+  simpleLang?: SimpleLang;
 }
 
 function loadPrefs(): SheetPrefs {
@@ -289,6 +327,8 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   // one big "Collect" + "Call" action each. Built for agents who don't like
   // reading, don't notice fine detail, and use cheap phones. Persisted.
   const [simpleMode, setSimpleMode] = useState<boolean>(() => loadPrefs().simpleMode ?? false);
+  // Simple Mode language toggle (English ⇄ Luganda). Persisted.
+  const [simpleLang, setSimpleLang] = useState<SimpleLang>(() => loadPrefs().simpleLang ?? 'en');
   // Simple Mode bulk collect — let an agent tick several tenants and record a
   // full-balance cash collection for all of them in one tap. Queues offline
   // (same store as the per-tenant Collect flow). Picture-first, no reading.
@@ -413,12 +453,13 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           groupByProperty,
           lifecycleFilter,
           simpleMode,
+          simpleLang,
         } satisfies SheetPrefs),
       );
     } catch {
       /* storage unavailable — ignore */
     }
-  }, [search, activeFilter, riskFilter, propertyFilter, sortKey, sortDir, recentCollectionFilter, groupByProperty, lifecycleFilter, simpleMode]);
+  }, [search, activeFilter, riskFilter, propertyFilter, sortKey, sortDir, recentCollectionFilter, groupByProperty, lifecycleFilter, simpleMode, simpleLang]);
 
   const fetchTenants = async () => {
     if (!user) return;
@@ -1022,6 +1063,16 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     setBulkSelected(new Set());
   };
 
+  /* Simple Mode label translator (English ⇄ Luganda) */
+  const tr = useCallback(
+    (key: SimpleTextKey, vars?: Record<string, string | number>) => {
+      let out = SIMPLE_TEXT[key][simpleLang];
+      if (vars) for (const k of Object.keys(vars)) out = out.replace(`{${k}}`, String(vars[k]));
+      return out;
+    },
+    [simpleLang]
+  );
+
   // Tenants that are selected AND still owe something — only these get a record.
   const bulkPayableTenants = useMemo(
     () => processedTenants.filter((t) => bulkSelected.has(t.id) && (tenantBalances[t.id] || 0) > 0),
@@ -1324,6 +1375,24 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           {/* Simple Mode search — one big, obvious box, nothing else. */}
           {simpleMode && (
             <>
+              {/* ── Language toggle: English ⇄ Luganda ── */}
+              <div className="flex justify-end">
+                <div className="inline-flex rounded-full bg-muted/50 p-1">
+                  {(['en', 'lg'] as SimpleLang[]).map((lng) => (
+                    <button
+                      key={lng}
+                      onClick={() => setSimpleLang(lng)}
+                      aria-pressed={simpleLang === lng}
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                        simpleLang === lng ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'
+                      }`}
+                      style={{ minHeight: '36px' }}
+                    >
+                      {lng === 'en' ? 'English' : 'Luganda'}
+                    </button>
+                  ))}
+                </div>
+              </div>
               {/* ── Simple Summary: total to collect vs total paid ── */}
               {(() => {
                 let totalToCollect = 0;
@@ -1338,13 +1407,13 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                 return (
                   <div className="grid grid-cols-2 gap-2">
                     <div className="rounded-2xl bg-rose-50 border border-rose-200 p-3 text-center">
-                      <p className="text-[10px] uppercase tracking-wide font-bold text-rose-700">To collect</p>
+                      <p className="text-[10px] uppercase tracking-wide font-bold text-rose-700">{tr('toCollect')}</p>
                       <p className="text-xl font-extrabold font-mono text-rose-700 leading-tight mt-0.5">
                         {formatUGX(totalToCollect)}
                       </p>
                     </div>
                     <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-3 text-center">
-                      <p className="text-[10px] uppercase tracking-wide font-bold text-emerald-700">Paid</p>
+                      <p className="text-[10px] uppercase tracking-wide font-bold text-emerald-700">{tr('paid')}</p>
                       <p className="text-xl font-extrabold font-mono text-emerald-700 leading-tight mt-0.5">
                         {formatUGX(totalPaid)}
                       </p>
@@ -1355,12 +1424,12 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input
-                  placeholder="Search tenant…"
+                  placeholder={tr('searchTenant')}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="pl-11 h-14 rounded-2xl bg-muted/40 border-2 border-primary/40 text-lg"
                   style={{ fontSize: '16px' }}
-                  aria-label="Search tenants"
+                  aria-label={tr('searchTenant')}
                   inputMode="search"
                   autoComplete="off"
                 />
@@ -1379,9 +1448,9 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                 {/* Filter group: All / Owing / Paid — pictures only */}
                 <div className="flex flex-1 items-center gap-2">
                   {([
-                    { key: 'all' as FilterTab, Icon: Users, label: 'Show all tenants', on: 'bg-primary text-primary-foreground border-primary', off: 'bg-muted/40 text-muted-foreground border-transparent' },
-                    { key: 'owing' as FilterTab, Icon: AlertCircle, label: 'Show tenants who must pay', on: 'bg-rose-600 text-white border-rose-600', off: 'bg-rose-50 text-rose-500 border-transparent' },
-                    { key: 'paid-up' as FilterTab, Icon: CheckCircle2, label: 'Show tenants who paid', on: 'bg-emerald-600 text-white border-emerald-600', off: 'bg-emerald-50 text-emerald-500 border-transparent' },
+                    { key: 'all' as FilterTab, Icon: Users, label: tr('showAll'), on: 'bg-primary text-primary-foreground border-primary', off: 'bg-muted/40 text-muted-foreground border-transparent' },
+                    { key: 'owing' as FilterTab, Icon: AlertCircle, label: tr('showOwing'), on: 'bg-rose-600 text-white border-rose-600', off: 'bg-rose-50 text-rose-500 border-transparent' },
+                    { key: 'paid-up' as FilterTab, Icon: CheckCircle2, label: tr('showPaid'), on: 'bg-emerald-600 text-white border-emerald-600', off: 'bg-emerald-50 text-emerald-500 border-transparent' },
                   ]).map(({ key, Icon, label, on, off }) => {
                     const active = activeFilter === key;
                     return (
@@ -1401,8 +1470,8 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                 {/* Sort group: by amount (high→low) / by name (A→Z) — pictures only */}
                 <div className="flex items-center gap-2">
                   {([
-                    { key: 'balance' as SortKey, dir: 'desc' as SortDir, Icon: Banknote, label: 'Sort by biggest amount first' },
-                    { key: 'name' as SortKey, dir: 'asc' as SortDir, Icon: ArrowDownAZ, label: 'Sort by name A to Z' },
+                    { key: 'balance' as SortKey, dir: 'desc' as SortDir, Icon: Banknote, label: tr('sortBiggest') },
+                    { key: 'name' as SortKey, dir: 'asc' as SortDir, Icon: ArrowDownAZ, label: tr('sortName') },
                   ]).map(({ key, dir, Icon, label }) => {
                     const active = sortKey === key && sortDir === dir;
                     return (
@@ -1422,9 +1491,9 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                 {/* Bulk select toggle — pictures only */}
                 <button
                   onClick={() => { if (bulkSelectMode) exitBulkSelect(); else setBulkSelectMode(true); }}
-                  aria-label={bulkSelectMode ? 'Stop selecting tenants' : 'Select many tenants to collect'}
+                  aria-label={bulkSelectMode ? tr('stopSelecting') : tr('selectMany')}
                   aria-pressed={bulkSelectMode}
-                  title={bulkSelectMode ? 'Stop selecting' : 'Select many to collect'}
+                  title={bulkSelectMode ? tr('stopSelecting') : tr('selectMany')}
                   className={`h-14 w-14 rounded-2xl border-2 flex items-center justify-center transition-colors ${bulkSelectMode ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-muted/40 text-muted-foreground border-transparent'}`}
                 >
                   {bulkSelectMode ? <CheckSquare className="h-7 w-7" strokeWidth={2.4} /> : <ListChecks className="h-7 w-7" strokeWidth={2.4} />}
@@ -2014,7 +2083,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                     {/* Big, unmissable amount */}
                     <div className={`mt-3 rounded-2xl px-4 py-3 text-center ${hasDebt ? 'bg-rose-50' : 'bg-emerald-50'}`}>
                       <p className={`text-[11px] uppercase tracking-wide font-bold ${hasDebt ? 'text-rose-600' : 'text-emerald-600'}`}>
-                        {hasDebt ? 'To collect' : 'All paid'}
+                        {hasDebt ? tr('toCollect') : tr('allPaid')}
                       </p>
                       <p className={`text-3xl font-extrabold font-mono leading-none mt-1 ${hasDebt ? 'text-rose-600' : 'text-emerald-600'}`}>
                         {hasDebt ? formatUGX(balance) : 'UGX 0'}
@@ -2029,7 +2098,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                         className="h-14 text-base font-bold rounded-2xl gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
                       >
                         <Banknote className="h-5 w-5" />
-                        Collect
+                        {tr('collect')}
                       </Button>
                       <Button
                         variant="outline"
@@ -2038,7 +2107,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                         className="h-14 text-base font-bold rounded-2xl gap-2"
                       >
                         <PhoneCall className="h-5 w-5" />
-                        Call
+                        {tr('call')}
                       </Button>
                     </div>
                     )}
@@ -2052,7 +2121,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                 <div className="mx-auto max-w-md flex items-center gap-3">
                   <div className="flex-1 min-w-0">
                     <p className="text-2xl font-extrabold font-mono leading-none text-emerald-600">{formatUGX(bulkTotal)}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{bulkPayableTenants.length} selected</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{bulkPayableTenants.length} {tr('selected')}</p>
                   </div>
                   <Button
                     onClick={() => setBulkConfirmOpen(true)}
@@ -2060,7 +2129,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                     className="h-14 px-6 text-base font-bold rounded-2xl gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
                   >
                     <CheckCircle2 className="h-6 w-6" />
-                    Mark paid
+                    {tr('markPaid')}
                   </Button>
                 </div>
               </div>
@@ -2704,14 +2773,14 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CheckCircle2 className="h-6 w-6 text-emerald-600" />
-              Mark {bulkPayableTenants.length} paid?
+              {tr('markNPaid', { n: bulkPayableTenants.length })}
             </DialogTitle>
             <DialogDescription>
-              Records full payment for each selected tenant. Works offline.
+              {tr('recordsFull')}
             </DialogDescription>
           </DialogHeader>
           <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-4 text-center">
-            <p className="text-[11px] uppercase tracking-wide font-bold text-emerald-700">Total to record</p>
+            <p className="text-[11px] uppercase tracking-wide font-bold text-emerald-700">{tr('totalToRecord')}</p>
             <p className="text-3xl font-extrabold font-mono text-emerald-700 leading-none mt-1">{formatUGX(bulkTotal)}</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5 mt-1">
@@ -2719,9 +2788,10 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               variant="outline"
               onClick={() => setBulkConfirmOpen(false)}
               disabled={bulkSaving}
-              className="h-14 text-base font-bold rounded-2xl"
+              className="h-14 text-base font-bold rounded-2xl gap-2"
             >
               <X className="h-5 w-5" />
+              {tr('cancel')}
             </Button>
             <Button
               onClick={handleBulkCollect}
@@ -2729,7 +2799,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               className="h-14 text-base font-bold rounded-2xl gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
             >
               {bulkSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle2 className="h-6 w-6" />}
-              Confirm
+              {tr('confirm')}
             </Button>
           </div>
         </DialogContent>
