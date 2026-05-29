@@ -1703,38 +1703,27 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
             </div>
           </div>
 
-          {/* Stat cards row — exec-dashboard style */}
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
-            {[
-              { icon: Users, label: 'Total Tenants', value: String(stats.total), sub: 'All tenants', bg: 'bg-violet-100', fg: 'text-violet-600' },
-              { icon: CalendarClock, label: 'Daily Expectation', value: formatUGX(stats.dailyExpectation), sub: `From ${stats.owingCount} active`, bg: 'bg-indigo-100', fg: 'text-indigo-600', subClass: 'text-indigo-600 font-medium' },
-              { icon: Wallet, label: 'Owing', value: String(stats.owingCount), sub: 'Tenants owing', bg: 'bg-amber-100', fg: 'text-amber-600', subClass: 'text-rose-600 font-medium' },
-              { icon: DollarSign, label: 'Collected', value: formatUGX(Object.values(tenantTotals).reduce((s, v) => s + (v?.paid || 0), 0)), sub: 'Lifetime', bg: 'bg-emerald-100', fg: 'text-emerald-600' },
-              { icon: AlertCircle, label: 'Total Owed', value: formatUGX(stats.totalOwing), sub: `From ${stats.owingCount} tenants`, bg: 'bg-rose-100', fg: 'text-rose-600', subClass: 'text-rose-600 font-medium', clickable: true },
-              { icon: TrendingUp, label: 'Occupancy', value: stats.total > 0 ? `${Math.round((stats.paidUpCount + stats.owingCount) / stats.total * 100)}%` : '0%', sub: 'Active cycles', bg: 'bg-sky-100', fg: 'text-sky-600', subClass: 'text-emerald-600 font-medium' },
-            ].map((s, i) => {
-              const Icon = s.icon;
-              return (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={s.clickable ? () => setShowBalanceBreakdown(true) : undefined}
-                  className={`rounded-2xl border border-border/60 bg-card p-3 shadow-sm text-left w-full ${s.clickable ? 'cursor-pointer hover:shadow-md hover:border-rose-300 transition-all active:scale-[0.98]' : ''}`}
-                  disabled={!s.clickable}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className={`h-10 w-10 rounded-xl ${s.bg} flex items-center justify-center shrink-0`}>
-                      <Icon className={`h-4 w-4 ${s.fg}`} />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[10px] text-muted-foreground leading-tight">{s.label}</p>
-                      <p className="text-base font-bold leading-tight truncate">{s.value}</p>
-                      <p className={`text-[10px] leading-tight ${s.subClass || 'text-muted-foreground'}`}>{s.sub}</p>
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
+          {/* Compact summary — minimalist: the three numbers that matter most */}
+          <div className="grid grid-cols-3 rounded-2xl border border-border/60 bg-card divide-x divide-border/60 overflow-hidden shadow-sm">
+            <button
+              type="button"
+              onClick={() => setShowBalanceBreakdown(true)}
+              className="p-3 text-left active:bg-muted/30 transition-colors"
+            >
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none">Total owed</p>
+              <p className="text-base font-bold font-mono text-rose-600 leading-tight mt-1 truncate">{formatUGX(stats.totalOwing)}</p>
+              <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{stats.owingCount} owing</p>
+            </button>
+            <div className="p-3">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none">Daily target</p>
+              <p className="text-base font-bold font-mono text-indigo-600 leading-tight mt-1 truncate">{formatUGX(stats.dailyExpectation)}</p>
+              <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">Expected/day</p>
+            </div>
+            <div className="p-3">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none">Tenants</p>
+              <p className="text-base font-bold leading-tight mt-1">{stats.total}</p>
+              <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{stats.paidUpCount} paid up</p>
+            </div>
           </div>
 
           {/* Search — always visible, big and obvious */}
@@ -2325,95 +2314,20 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                           {formatUGX(tenantDaily[tenant.id] || 0)}/day
                         </p>
                       </div>
+                      {/* Expand chevron — signals tap reveals actions */}
+                      <ChevronsUpDown className={`h-4 w-4 shrink-0 text-muted-foreground/50 transition-transform ${isExpanded ? 'text-primary' : ''}`} />
                     </div>
 
-                    {/* Quick actions row — mobile-friendly tap targets */}
-                    {tenantLastPaid[tenant.id] ? (
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <button
-                            type="button"
-                            onClick={(e) => e.stopPropagation()}
-                            className="mt-2 w-full flex items-center justify-between gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 active:scale-[0.99] transition-transform hover:bg-emerald-100"
-                            style={{ touchAction: 'manipulation' }}
-                            aria-label="Open latest receipt"
-                          >
-                            <span className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wider flex items-center gap-1">
-                              {receiptLoadingId === tenant.id ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : (
-                                <CheckCircle2 className="h-3 w-3" />
-                              )}
-                              Last collected
-                            </span>
-                            <span className="text-[11px] font-mono font-bold text-emerald-700">
-                              +{formatUGX(tenantLastPaid[tenant.id].amount)}
-                              <span className="font-sans font-normal text-emerald-600/80 ml-1.5">
-                                · {formatDistanceToNowStrict(new Date(tenantLastPaid[tenant.id].date), { addSuffix: true })}
-                              </span>
-                            </span>
-                          </button>
-                        </PopoverTrigger>
-                        <PopoverContent
-                          className="w-56 p-2"
-                          align="end"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <p className="px-2 pt-1 pb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                            Latest receipt
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => handleDownloadLastReceipt(tenant)}
-                            disabled={receiptLoadingId === tenant.id}
-                            className="w-full flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-muted active:bg-muted disabled:opacity-60"
-                          >
-                            <FileDown className="h-4 w-4" />
-                            Download PDF
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleShareLastReceiptWhatsApp(tenant)}
-                            disabled={receiptLoadingId === tenant.id}
-                            className="w-full flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-muted active:bg-muted disabled:opacity-60"
-                          >
-                            <MessageCircle className="h-4 w-4 text-emerald-600" />
-                            Share via WhatsApp
-                          </button>
-                        </PopoverContent>
-                      </Popover>
-                    ) : (
-                      <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-muted/40 border border-border/40 px-2.5 py-1.5">
-                        <AlertCircle className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                          No collections yet
+                    {/* Slim last-collected hint — full actions appear on tap (expand) */}
+                    {tenantLastPaid[tenant.id] && (
+                      <p className="mt-1.5 text-[11px] font-medium text-emerald-600 flex items-center gap-1 truncate">
+                        <CheckCircle2 className="h-3 w-3 shrink-0" />
+                        Last collected +{formatUGX(tenantLastPaid[tenant.id].amount)}
+                        <span className="text-emerald-600/70 font-normal">
+                          · {formatDistanceToNowStrict(new Date(tenantLastPaid[tenant.id].date), { addSuffix: true })}
                         </span>
-                      </div>
+                      </p>
                     )}
-
-                    <div className="grid grid-cols-2 gap-2 mt-3">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (tenant.phone) window.open(`https://wa.me/${tenant.phone.replace(/\D/g, '')}`, '_blank');
-                        }}
-                        className="h-9 gap-1.5 rounded-lg text-xs"
-                      >
-                        <MessageCircle className="h-3.5 w-3.5" />
-                        Message
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={(e) => { e.stopPropagation(); setProfileTenantId(tenant.id); }}
-                        className="h-9 gap-1.5 rounded-lg text-xs"
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                        Profile
-                      </Button>
-                    </div>
 
                     {tIsSettled && (
                       <Button
