@@ -173,6 +173,11 @@ export default function CFODashboard() {
             <DisbursementRegistry />
           </TabsContent>
 
+          {/* SMS Delivery Log Tab */}
+          <TabsContent value="sms" className="space-y-6">
+            <SmsDeliveryLogPanel />
+          </TabsContent>
+
           {/* Financial Statements Tab */}
           <TabsContent value="statements" className="space-y-6">
             <FinancialStatementsPanel />
