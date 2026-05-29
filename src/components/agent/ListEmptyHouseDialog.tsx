@@ -541,7 +541,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       caretaker_type: 'none', caretaker_name: '', caretaker_phone: '',
       lc1_name: '', lc1_phone: '', lc1_village: '',
     });
-    setExistingLc1Options([]);
+    setLc1Selection(null);
     setShowOptional(false);
     setLandlordQuery('');
     setLandlordResults([]);
