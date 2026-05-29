@@ -59,8 +59,8 @@ export function CreditAccessDrawSheet({ open, onOpenChange, userId, creditLimit 
 
       setSubmitted(true);
       toast({
-        title: '✅ Credit Accessed!',
-        description: `UGX ${amount.toLocaleString()} has been credited to your wallet. Daily charge: UGX ${dailyCharge.toLocaleString()}`,
+        title: '⏳ Submitted for Approval',
+        description: `Your UGX ${amount.toLocaleString()} request was sent to the CFO. You'll be notified once it's approved and credited.`,
       });
     } catch (err: any) {
       toast({ title: 'Failed', description: err.message, variant: 'destructive' });
@@ -90,20 +90,21 @@ export function CreditAccessDrawSheet({ open, onOpenChange, userId, creditLimit 
         <SheetHeader className="text-left pb-2">
           <SheetTitle className="text-lg font-bold flex items-center gap-2">
             <Zap className="h-5 w-5 text-warning" />
-            {submitted ? '✅ Credit Accessed' : 'Access Credit'}
+            {submitted ? '⏳ Submitted for Approval' : 'Access Credit'}
           </SheetTitle>
         </SheetHeader>
 
         {submitted ? (
           <div className="text-center py-8 space-y-3">
             <CheckCircle2 className="h-16 w-16 text-success mx-auto" />
-            <p className="font-bold text-lg">Credited to Your Wallet!</p>
+            <p className="font-bold text-lg">Request Sent to CFO</p>
             <p className="text-sm text-muted-foreground">
-              <strong>{formatUGX(amount)}</strong> is now in your wallet.
+              Your request for <strong>{formatUGX(amount)}</strong> is awaiting CFO approval.
+              Once approved, it will be credited to your wallet.
             </p>
             <div className="p-3 rounded-xl bg-warning/10 border border-warning/20">
-              <p className="text-xs font-bold text-warning">Daily Charge: {formatUGX(dailyCharge)}</p>
-              <p className="text-[10px] text-muted-foreground">Auto-deducted from your wallet every day for {durationDays} days</p>
+              <p className="text-xs font-bold text-warning">Daily Charge (if approved): {formatUGX(dailyCharge)}</p>
+              <p className="text-[10px] text-muted-foreground">Auto-deducted from your wallet every day for {durationDays} days after approval</p>
             </div>
             <Button onClick={handleClose} className="rounded-xl mt-4">Done</Button>
           </div>
@@ -201,7 +202,7 @@ export function CreditAccessDrawSheet({ open, onOpenChange, userId, creditLimit 
               {submitting ? (
                 <><Loader2 className="h-4 w-4 animate-spin" /> Processing...</>
               ) : (
-                <><Send className="h-4 w-4" /> ⚡ Access {formatUGX(amount)} Now</>
+                <><Send className="h-4 w-4" /> Submit {formatUGX(amount)} for Approval</>
               )}
             </Button>
           </div>

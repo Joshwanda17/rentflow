@@ -15,6 +15,7 @@ import { TreasuryImpactBanner } from './TreasuryImpactBanner';
 import { RecipientRoutingWarningBanner } from './RecipientRoutingWarningBanner';
 import { RentDisbursementQueue } from './RentDisbursementQueue';
 import { BusinessAdvanceDisbursementQueue } from './BusinessAdvanceDisbursementQueue';
+import { CreditDrawApprovalQueue } from './CreditDrawApprovalQueue';
 import { ROIPayoutQueue } from './ROIPayoutQueue';
 import { PayoutAutomationToggle } from './PayoutAutomationToggle';
 import { UGANDA_BANKS } from '@/lib/ugandaBanks';
@@ -763,7 +764,10 @@ export function DirectCreditTool() {
 
         {/* ── BUSINESS ADVANCE DISBURSEMENT QUEUE ── */}
         {isBusinessAdvance && (
-          <BusinessAdvanceDisbursementQueue />
+          <div className="space-y-4">
+            <CreditDrawApprovalQueue />
+            <BusinessAdvanceDisbursementQueue />
+          </div>
         )}
 
         {/* ── ROI PAYOUT QUEUE ── */}

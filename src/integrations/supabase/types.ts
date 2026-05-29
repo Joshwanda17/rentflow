@@ -4798,6 +4798,9 @@ export type Database = {
           agent_id: string | null
           amount: number
           amount_repaid: number
+          cfo_approved_at: string | null
+          cfo_approved_by: string | null
+          cfo_notes: string | null
           completed_at: string | null
           created_at: string
           daily_charge: number
@@ -4807,8 +4810,11 @@ export type Database = {
           id: string
           monthly_rate: number
           outstanding_balance: number
+          rejection_reason: string | null
+          requested_amount: number | null
           started_at: string
           status: string
+          submitted_at: string | null
           total_payable: number
           updated_at: string
           user_id: string
@@ -4818,6 +4824,9 @@ export type Database = {
           agent_id?: string | null
           amount: number
           amount_repaid?: number
+          cfo_approved_at?: string | null
+          cfo_approved_by?: string | null
+          cfo_notes?: string | null
           completed_at?: string | null
           created_at?: string
           daily_charge?: number
@@ -4827,8 +4836,11 @@ export type Database = {
           id?: string
           monthly_rate?: number
           outstanding_balance?: number
+          rejection_reason?: string | null
+          requested_amount?: number | null
           started_at?: string
           status?: string
+          submitted_at?: string | null
           total_payable?: number
           updated_at?: string
           user_id: string
@@ -4838,6 +4850,9 @@ export type Database = {
           agent_id?: string | null
           amount?: number
           amount_repaid?: number
+          cfo_approved_at?: string | null
+          cfo_approved_by?: string | null
+          cfo_notes?: string | null
           completed_at?: string | null
           created_at?: string
           daily_charge?: number
@@ -4847,8 +4862,11 @@ export type Database = {
           id?: string
           monthly_rate?: number
           outstanding_balance?: number
+          rejection_reason?: string | null
+          requested_amount?: number | null
           started_at?: string
           status?: string
+          submitted_at?: string | null
           total_payable?: number
           updated_at?: string
           user_id?: string
