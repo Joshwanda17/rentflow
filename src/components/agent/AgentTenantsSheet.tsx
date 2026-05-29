@@ -1943,7 +1943,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
 
         {/* ───── Body ───── */}
         {simpleMode ? (
-          <div className="px-4 py-3 space-y-3">
+          <div className={`px-4 py-3 space-y-3 ${bulkSelectMode ? 'pb-28' : ''}`}>
             {loading ? (
               <div className="flex items-center justify-center py-20">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -1961,23 +1961,38 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                 const hasDebt = balance > 0;
                 const ctx = tenantContext[tenant.id];
                 const propertyAddress = ctx?.propertyAddress || '';
+                const selected = bulkSelected.has(tenant.id);
+                const selectable = bulkSelectMode && hasDebt;
                 return (
                   <div
                     key={tenant.id}
-                    className="rounded-3xl border border-border/60 bg-card p-4 shadow-sm"
+                    className={`rounded-3xl border bg-card p-4 shadow-sm transition-colors ${
+                      selected ? 'border-emerald-500 ring-2 ring-emerald-500/50 bg-emerald-50/40' : 'border-border/60'
+                    } ${bulkSelectMode && !hasDebt ? 'opacity-50' : ''}`}
                   >
-                    {/* Tenant identity — tap to open full profile */}
+                    {/* Tenant identity — tap to open profile, or tick in select mode */}
                     <button
                       type="button"
-                      onClick={() => setProfileTenantId(tenant.id)}
+                      onClick={() => {
+                        if (bulkSelectMode) { if (hasDebt) toggleBulkSelect(tenant.id); }
+                        else setProfileTenantId(tenant.id);
+                      }}
                       className="flex items-center gap-3 w-full text-left active:opacity-80"
                       style={{ touchAction: 'manipulation' }}
                     >
+                      {bulkSelectMode ? (
+                        <div className={`w-16 h-16 rounded-full flex items-center justify-center shrink-0 border-2 ${
+                          selected ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-muted-foreground/30 text-muted-foreground/40'
+                        }`}>
+                          {selected ? <CheckCircle2 className="h-9 w-9" strokeWidth={2.5} /> : <CheckSquare className="h-8 w-8" strokeWidth={2} />}
+                        </div>
+                      ) : (
                       <div className={`w-16 h-16 rounded-full flex items-center justify-center shrink-0 text-2xl font-bold ${
                         hasDebt ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
                       }`}>
                         {(tenant.full_name?.trim()?.charAt(0) || tenant.phone?.charAt(0) || '?').toUpperCase()}
                       </div>
+                      )}
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-lg leading-tight truncate">
                           {tenant.full_name?.trim() || 'Tenant'}
@@ -2006,7 +2021,8 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                       </p>
                     </div>
 
-                    {/* Two big actions */}
+                    {/* Two big actions — hidden while picking many tenants */}
+                    {!bulkSelectMode && (
                     <div className="grid grid-cols-2 gap-2.5 mt-3">
                       <Button
                         onClick={() => setFieldCollectTarget(tenant)}
@@ -2025,6 +2041,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                         Call
                       </Button>
                     </div>
+                    )}
                   </div>
                 );
               })
