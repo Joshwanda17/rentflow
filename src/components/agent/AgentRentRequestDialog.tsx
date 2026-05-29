@@ -377,6 +377,35 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     }
   }, [open, prefillTenantName, prefillTenantPhone, prefillRentAmount]);
 
+  // Load the agent's existing tenants once the dialog opens so they can be
+  // auto-filled with a single tap (phone, National ID and passport photo).
+  useEffect(() => {
+    if (!open || !user?.id) return;
+    let cancelled = false;
+    (async () => {
+      setLoadingTenants(true);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone, national_id, avatar_url')
+        .or(`referrer_id.eq.${user.id},managing_agent_id.eq.${user.id}`)
+        .order('full_name', { ascending: true })
+        .limit(500);
+      if (cancelled) return;
+      if (!error && data) {
+        // De-dupe by id and keep only tenants with at least a name.
+        const seen = new Set<string>();
+        const list = data.filter((t) => {
+          if (!t.full_name || seen.has(t.id)) return false;
+          seen.add(t.id);
+          return true;
+        });
+        setExistingTenants(list);
+      }
+      setLoadingTenants(false);
+    })();
+    return () => { cancelled = true; };
+  }, [open, user?.id]);
+
   // Hydrate from a previously-saved draft snapshot (full form state).
   useEffect(() => {
     if (!open || !prefillDraft) return;
