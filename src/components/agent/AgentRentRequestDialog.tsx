@@ -1243,6 +1243,41 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         setActivationLink(link);
       }
 
+      // Auto-invite anyone who isn't a Welile user yet. As the agent saves, we
+      // text the new tenant (and the landlord, if they're not registered) a
+      // one-tap link to claim their own free account. Fire-and-forget — this
+      // must never block or fail the rent request submission.
+      try {
+        const inviteRecipients: Array<{ role: 'tenant' | 'landlord'; full_name: string; phone: string; activation_token?: string }> = [];
+
+        // Tenant: only when register-tenant created a brand-new account.
+        if (!tenantResult.existing && tenantResult.activation_token && cleanTenantPhone) {
+          inviteRecipients.push({
+            role: 'tenant',
+            full_name: tenantName.trim(),
+            phone: cleanTenantPhone,
+            activation_token: tenantResult.activation_token,
+          });
+        }
+
+        // Landlord: the edge function checks if they're already a user and only
+        // texts those who aren't. Use the picked landlord for the outstanding
+        // flow, otherwise the typed-in landlord details.
+        const inviteLandlordName = (isOutstanding && selectedLandlord ? selectedLandlord.name : landlordName).trim();
+        const inviteLandlordPhone = ((isOutstanding && selectedLandlord ? selectedLandlord.phone : landlordPhone) || '').replace(/\s/g, '');
+        if (inviteLandlordName && inviteLandlordPhone) {
+          inviteRecipients.push({ role: 'landlord', full_name: inviteLandlordName, phone: inviteLandlordPhone });
+        }
+
+        if (inviteRecipients.length > 0) {
+          void supabase.functions.invoke('send-signup-invite-sms', {
+            body: { origin: getPublicOrigin(), recipients: inviteRecipients },
+          }).catch((e) => console.warn('Signup invite SMS failed (non-critical):', e));
+        }
+      } catch (e) {
+        console.warn('Could not queue signup invite SMS (non-critical):', e);
+      }
+
       hapticSuccess();
       setSuccess(true);
       // Submitted successfully — clear the saved draft progress.
