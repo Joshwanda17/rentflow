@@ -32,6 +32,7 @@ import { RentAccessLimitCard } from './RentAccessLimitCard';
 import RentAccessLimitActivity from './RentAccessLimitActivity';
 import { TenantPaymentCalendar } from './TenantPaymentCalendar';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Sparkles, ChevronRight } from 'lucide-react';
 import AgentContactLocationGate from './AgentContactLocationGate';
 import { useRequireContactLocation } from '@/hooks/useRequireContactLocation';
