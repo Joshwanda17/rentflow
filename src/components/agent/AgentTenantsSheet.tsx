@@ -1230,6 +1230,61 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
 
           {view === 'tenants' && (
           <>
+          {/* Simple / Detailed view switch — Simple Mode is the easy, photo-first
+              list for agents who don't like reading. */}
+          <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-muted/50">
+            <button
+              onClick={() => setSimpleMode(true)}
+              className={`py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
+                simpleMode ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'
+              }`}
+              style={{ touchAction: 'manipulation', minHeight: '44px' }}
+              aria-pressed={simpleMode}
+            >
+              <Sparkles className="h-4 w-4" />
+              Simple
+            </button>
+            <button
+              onClick={() => setSimpleMode(false)}
+              className={`py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
+                !simpleMode ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'
+              }`}
+              style={{ touchAction: 'manipulation', minHeight: '44px' }}
+              aria-pressed={!simpleMode}
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              Detailed
+            </button>
+          </div>
+
+          {/* Simple Mode search — one big, obvious box, nothing else. */}
+          {simpleMode && (
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Input
+                placeholder="Search tenant…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-11 h-14 rounded-2xl bg-muted/40 border-2 border-primary/40 text-lg"
+                style={{ fontSize: '16px' }}
+                aria-label="Search tenants"
+                inputMode="search"
+                autoComplete="off"
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
+                  aria-label="Clear search"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              )}
+            </div>
+          )}
+
+          {!simpleMode && (
+          <>
           {/* Rent capacity + Today/Week paid vs expected */}
           <div className="pt-1">
             <AgentRentCapacitySelfCard />
