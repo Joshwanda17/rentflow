@@ -1927,9 +1927,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </Select>
                 </div>
               </div>
+              </>
+              )}
 
-              <Separator />
-
+              {detailStep === 2 && (
+              <>
               {/* ===== 3. HOUSE CATEGORY ===== */}
               <div className="space-y-3">
                 <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-1">
