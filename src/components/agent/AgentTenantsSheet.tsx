@@ -111,6 +111,7 @@ interface SheetPrefs {
   groupByProperty?: boolean;
   lifecycleFilter?: LifecycleFilter;
   simpleMode?: boolean;
+  simpleLang?: SimpleLang;
 }
 
 function loadPrefs(): SheetPrefs {
