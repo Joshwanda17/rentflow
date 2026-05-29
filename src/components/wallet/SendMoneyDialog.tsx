@@ -335,10 +335,17 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
   const executeSend = async () => {
     const amountNum = parseFloat(amount);
     setLoading(true);
-    // Always send via matched phone (edge function accepts recipient_phone)
-    const recipientPhone =
-      recipient.status === 'found' ? recipient.phone : phone;
-    const { error } = await sendMoney(recipientPhone, amountNum, description);
+    // Send by the resolved recipient id (returned by resolve_transfer_recipient).
+    // We no longer pass a raw phone — the masked phone shown in the UI is
+    // display-only and is never used to route the transfer.
+    const recipientId =
+      recipient.status === 'found' ? recipient.id : undefined;
+    if (!recipientId) {
+      setLoading(false);
+      toast.error('Pick a valid recipient before sending');
+      return;
+    }
+    const { error } = await sendMoney(recipientId, amountNum, description);
     setLoading(false);
 
     if (error) {
