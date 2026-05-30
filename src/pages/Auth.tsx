@@ -128,6 +128,7 @@ export default function Auth() {
   const [otpLoginStep, setOtpLoginStep] = useState<'phone' | 'code'>('phone');
   const [otpLoginLoading, setOtpLoginLoading] = useState(false);
   const [otpLoginCountryCode, setOtpLoginCountryCode] = useState('256');
+  const [otpResendCooldown, setOtpResendCooldown] = useState(0);
   const loginOtp = useOtpVerification();
 
   // WhatsApp deeplink
@@ -148,6 +149,15 @@ export default function Auth() {
     }
   }, [deepLinkPhone, deepLinkToken]);
 
+  // Resend SMS cooldown timer
+  useEffect(() => {
+    if (otpResendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setOtpResendCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [otpResendCooldown]);
+
   const getFullOtpPhone = useCallback((phoneVal: string, codeVal: string) => {
     const cleanDigits = phoneVal.replace(/\D/g, '');
     return cleanDigits.startsWith(codeVal) ? cleanDigits : codeVal + (cleanDigits.startsWith('0') ? cleanDigits.slice(1) : cleanDigits);
@@ -164,6 +174,7 @@ export default function Auth() {
     setOtpLoginLoading(false);
     if (success) {
       setOtpLoginStep('code');
+      setOtpResendCooldown(60);
       toast({ title: 'Code Sent! 📱', description: 'Check your phone for the 6-digit code' });
     } else {
       toast({ title: 'Failed', description: loginOtp.otpError || 'Could not send code', variant: 'destructive' });
@@ -751,7 +762,7 @@ export default function Auth() {
                     <div className="flex items-center justify-between pt-1">
                       <button
                         type="button"
-                        onClick={() => { setOtpLoginStep('phone'); setOtpLoginCode(''); }}
+                        onClick={() => { setOtpLoginStep('phone'); setOtpLoginCode(''); setOtpResendCooldown(0); }}
                         className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1 py-1"
                       >
                         <ArrowLeft className="h-4 w-4" /> Change number
@@ -759,10 +770,15 @@ export default function Auth() {
                       <button
                         type="button"
                         onClick={handleSendOtpForLogin}
-                        disabled={otpLoginLoading}
-                        className="text-sm text-primary hover:underline py-1 font-medium"
+                        disabled={otpLoginLoading || otpResendCooldown > 0}
+                        className={cn(
+                          "text-sm py-1 font-medium transition-colors",
+                          otpResendCooldown > 0
+                            ? "text-muted-foreground cursor-not-allowed"
+                            : "text-primary hover:underline"
+                        )}
                       >
-                        Resend code
+                        {otpResendCooldown > 0 ? `Resend in ${otpResendCooldown}s` : 'Resend code'}
                       </button>
                     </div>
                   </>
