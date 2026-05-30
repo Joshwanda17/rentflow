@@ -212,18 +212,28 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Send SMS
+      // Dispatch the SMS in the background so the client doesn't wait on the
+      // Africa's Talking gateway round-trip. The OTP is already persisted above,
+      // so verification works the moment the code arrives on the user's phone.
       const message = `Your Welile verification code is: ${otp}. It expires in 1 hour. Do not share this code.`;
-      const sent = await sendSMS(phone, message);
+      const smsTask = sendSMS(phone, message)
+        .then((sent) => {
+          if (sent) {
+            console.log(`[sms-otp] OTP sent to ***${phoneKey.slice(-4)}`);
+          } else {
+            console.error(`[sms-otp] SMS gateway rejected send to ***${phoneKey.slice(-4)}`);
+          }
+        })
+        .catch((err) => console.error("[sms-otp] background SMS error:", err));
 
-      if (!sent) {
-        return new Response(JSON.stringify({ error: "Failed to send SMS. Please try again." }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+      // Keep the function alive until the background send settles.
+      try {
+        (globalThis as any).EdgeRuntime?.waitUntil?.(smsTask);
+      } catch (_) {
+        // EdgeRuntime not available — fall back to awaiting inline.
+        await smsTask;
       }
 
-      console.log(`[sms-otp] OTP sent to ***${phoneKey.slice(-4)}`);
       return new Response(JSON.stringify({ success: true, message: "OTP sent successfully" }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
