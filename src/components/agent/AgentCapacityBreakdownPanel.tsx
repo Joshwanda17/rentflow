@@ -161,15 +161,39 @@ export function AgentCapacityBreakdownPanel() {
           <Layers className="h-4 w-4 text-primary" />
           <h4 className="text-sm font-bold text-foreground">Why you can / can&apos;t allocate</h4>
         </div>
-        <button
-          type="button"
-          onClick={openPreview}
-          disabled={sharing}
-          className="flex items-center gap-1.5 rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 transition-colors disabled:opacity-60"
-        >
-          {sharing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Share2 className="h-3.5 w-3.5" />}
-          Share
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => { hapticTap(); downloadPng(2); }}
+            disabled={sharing}
+            className="flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted transition-colors disabled:opacity-60"
+          >
+            {sharing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+            Download
+          </button>
+          <button
+            type="button"
+            onClick={openPreview}
+            disabled={sharing}
+            className="flex items-center gap-1.5 rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 transition-colors disabled:opacity-60"
+          >
+            {sharing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Share2 className="h-3.5 w-3.5" />}
+            Share
+          </button>
+        </div>
+      </div>
+
+      {/* Honour badges — esteem big books + daily collection */}
+      <div className="flex flex-wrap gap-2">
+        {badges.map((b) => (
+          <span
+            key={b.id}
+            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${BADGE_CLASS[b.tone]}`}
+          >
+            <span className="text-sm leading-none">{b.icon}</span>
+            {b.label}
+          </span>
+        ))}
       </div>
 
       {/* 1. Collected today vs target */}
