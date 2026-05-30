@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Phone, Users, UserPlus, Loader2, AlertCircle } from 'lucide-react';
+import { Search, Phone, Users, UserPlus, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { getEffectiveRentRequestAmounts } from '@/lib/rentRequestAmounts';
 
@@ -25,7 +25,8 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
-  const [activeFilter, setActiveFilter] = useState<'all' | 'owing'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'owing'>('all');
+  const [activeTenantIds, setActiveTenantIds] = useState<Set<string>>(new Set());
   const [tenantBalances, setTenantBalances] = useState<Record<string, number>>({});
 
   useEffect(() => {
@@ -87,12 +88,15 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
           .or('status.in.(pending,approved,funded,disbursed,repaying,completed),registration_type.eq.outstanding_balance');
 
         const balances: Record<string, number> = {};
+        const activeIds = new Set<string>();
         (rentRequests || []).forEach((rr: any) => {
           const effective = getEffectiveRentRequestAmounts(rr);
           const owing = effective.totalRepayment - (rr.amount_repaid || 0);
           balances[rr.tenant_id] = (balances[rr.tenant_id] || 0) + Math.max(0, owing);
+          if (rr.status !== 'completed') activeIds.add(rr.tenant_id);
         });
         setTenantBalances(balances);
+        setActiveTenantIds(activeIds);
       }
     } finally {
       setLoading(false);
@@ -110,7 +114,9 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
         (qDigits.length > 0 && phoneDigits.includes(qDigits))
       );
     });
-    if (activeFilter === 'owing') {
+    if (activeFilter === 'active') {
+      list = list.filter((t) => activeTenantIds.has(t.id));
+    } else if (activeFilter === 'owing') {
       list = list.filter((t) => (tenantBalances[t.id] || 0) > 0);
     }
     list.sort((a, b) => {
@@ -122,6 +128,10 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
     return list;
   }, [tenants, search, activeFilter, tenantBalances]);
 
+  const activeCount = useMemo(
+    () => tenants.filter((t) => activeTenantIds.has(t.id)).length,
+    [tenants, activeTenantIds]
+  );
   const owingCount = useMemo(
     () => tenants.filter((t) => (tenantBalances[t.id] || 0) > 0).length,
     [tenants, tenantBalances]
@@ -152,7 +162,7 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           <button
             onClick={() => setActiveFilter('all')}
             className={`py-4 rounded-2xl text-base font-bold transition-all flex items-center justify-center gap-2 ${
@@ -166,6 +176,21 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
             All
             <span className="text-sm font-mono px-2 py-0.5 rounded-md bg-muted text-muted-foreground">
               {tenants.length}
+            </span>
+          </button>
+          <button
+            onClick={() => setActiveFilter('active')}
+            className={`py-4 rounded-2xl text-base font-bold transition-all flex items-center justify-center gap-2 ${
+              activeFilter === 'active'
+                ? 'bg-emerald-50 shadow-sm text-emerald-700 border-2 border-emerald-300'
+                : 'text-muted-foreground bg-muted/50'
+            }`}
+            style={{ touchAction: 'manipulation', minHeight: '64px' }}
+          >
+            <CheckCircle2 className="h-5 w-5" />
+            Active
+            <span className="text-sm font-mono px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700">
+              {activeCount}
             </span>
           </button>
           <button
@@ -196,7 +221,13 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
           <div className="text-center py-16 space-y-5">
             <Users className="h-16 w-16 mx-auto text-muted-foreground/30" />
             <p className="text-base text-muted-foreground">
-              {search ? `No results for "${search}"` : activeFilter === 'owing' ? 'No tenants owing' : 'No tenants yet'}
+              {search
+                ? `No results for "${search}"`
+                : activeFilter === 'active'
+                  ? 'No active tenants'
+                  : activeFilter === 'owing'
+                    ? 'No tenants owing'
+                    : 'No tenants yet'}
             </p>
             {!search && (
               <Button
