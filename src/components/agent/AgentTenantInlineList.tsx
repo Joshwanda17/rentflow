@@ -221,7 +221,13 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
           <div className="text-center py-16 space-y-5">
             <Users className="h-16 w-16 mx-auto text-muted-foreground/30" />
             <p className="text-base text-muted-foreground">
-              {search ? `No results for "${search}"` : activeFilter === 'owing' ? 'No tenants owing' : 'No tenants yet'}
+              {search
+                ? `No results for "${search}"`
+                : activeFilter === 'active'
+                  ? 'No active tenants'
+                  : activeFilter === 'owing'
+                    ? 'No tenants owing'
+                    : 'No tenants yet'}
             </p>
             {!search && (
               <Button
