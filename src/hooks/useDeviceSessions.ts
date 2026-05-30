@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 const DEVICE_ID_KEY = 'welile_device_id';
+const DEVICE_LABEL_KEY = 'welile_device_label';
 // A device is considered "active" if seen within this window
 const ACTIVE_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 // Heartbeat interval — keep lean for scale
@@ -33,6 +34,13 @@ function getDeviceId(): string {
 
 /** Best-effort human-friendly device label from the user agent. */
 function getDeviceLabel(): string {
+  // A user-chosen name always wins over the auto-detected one.
+  try {
+    const custom = localStorage.getItem(DEVICE_LABEL_KEY);
+    if (custom && custom.trim()) return custom.trim();
+  } catch {
+    /* ignore */
+  }
   const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
   let os = 'Unknown device';
   if (/Android/i.test(ua)) os = 'Android';
@@ -113,6 +121,29 @@ export function useDeviceSessions(userId: string | undefined) {
     [userId, refresh],
   );
 
+  const renameDevice = useCallback(
+    async (deviceId: string, label: string) => {
+      if (!userId) return;
+      const trimmed = label.trim();
+      if (!trimmed) return;
+      // If renaming the current device, persist locally so heartbeats keep the name.
+      if (deviceId === deviceIdRef.current) {
+        try {
+          localStorage.setItem(DEVICE_LABEL_KEY, trimmed);
+        } catch {
+          /* ignore */
+        }
+      }
+      await supabase
+        .from('user_device_sessions')
+        .update({ device_label: trimmed })
+        .eq('user_id', userId)
+        .eq('device_id', deviceId);
+      await refresh();
+    },
+    [userId, refresh],
+  );
+
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
@@ -139,5 +170,6 @@ export function useDeviceSessions(userId: string | undefined) {
     currentDeviceId: deviceIdRef.current,
     refresh,
     signOutDevice,
+    renameDevice,
   };
 }

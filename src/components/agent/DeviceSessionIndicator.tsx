@@ -1,7 +1,8 @@
-import { useMemo } from 'react';
-import { MonitorSmartphone, Smartphone, Laptop, LogOut, CheckCircle2 } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { MonitorSmartphone, Smartphone, Laptop, LogOut, CheckCircle2, Pencil, Check, X } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useDeviceSessions, type DeviceSession } from '@/hooks/useDeviceSessions';
@@ -19,47 +20,106 @@ function timeAgo(iso: string): string {
 function DeviceRow({
   session,
   onSignOut,
+  onRename,
 }: {
   session: DeviceSession;
   onSignOut: (deviceId: string) => void;
+  onRename: (deviceId: string, label: string) => void;
 }) {
   const isPhone = /Android|iPhone|iPad/i.test(session.device_label ?? '');
   const Icon = isPhone ? Smartphone : Laptop;
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(session.device_label ?? '');
+
+  const save = () => {
+    const trimmed = draft.trim();
+    if (trimmed && trimmed !== session.device_label) onRename(session.device_id, trimmed);
+    setEditing(false);
+  };
+  const cancel = () => {
+    setDraft(session.device_label ?? '');
+    setEditing(false);
+  };
+
   return (
     <div className="flex items-center gap-3 rounded-xl border border-border/50 bg-card px-3 py-2.5">
       <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', session.isActive ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground')}>
         <Icon className="h-4 w-4" />
       </div>
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
-          <p className="truncate text-sm font-medium text-foreground">
-            {session.device_label || 'Unknown device'}
-          </p>
-          {session.isCurrent && (
-            <Badge variant="primary" size="sm" className="shrink-0">This device</Badge>
+        {editing ? (
+          <div className="flex items-center gap-1.5">
+            <Input
+              autoFocus
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') save();
+                if (e.key === 'Escape') cancel();
+              }}
+              maxLength={40}
+              placeholder="e.g. My Phone"
+              className="h-8 text-sm"
+            />
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-1.5">
+              <p className="truncate text-sm font-medium text-foreground">
+                {session.device_label || 'Unknown device'}
+              </p>
+              {session.isCurrent && (
+                <Badge variant="primary" size="sm" className="shrink-0">This device</Badge>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {session.isActive ? 'Active' : 'Last seen'} · {timeAgo(session.last_seen_at)}
+            </p>
+          </>
+        )}
+      </div>
+      {editing ? (
+        <div className="flex shrink-0 items-center gap-1">
+          <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-success" title="Save name" onClick={save}>
+            <Check className="h-4 w-4" />
+          </Button>
+          <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-muted-foreground" title="Cancel" onClick={cancel}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      ) : (
+        <div className="flex shrink-0 items-center gap-1">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+            title="Rename device"
+            onClick={() => {
+              setDraft(session.device_label ?? '');
+              setEditing(true);
+            }}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </Button>
+          {!session.isCurrent && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+              title="Sign out this device"
+              onClick={() => onSignOut(session.device_id)}
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
           )}
         </div>
-        <p className="text-xs text-muted-foreground">
-          {session.isActive ? 'Active' : 'Last seen'} · {timeAgo(session.last_seen_at)}
-        </p>
-      </div>
-      {!session.isCurrent && (
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-8 w-8 shrink-0 p-0 text-muted-foreground hover:text-destructive"
-          title="Sign out this device"
-          onClick={() => onSignOut(session.device_id)}
-        >
-          <LogOut className="h-4 w-4" />
-        </Button>
       )}
     </div>
   );
 }
 
 export function DeviceSessionIndicator({ userId }: { userId: string | undefined }) {
-  const { sessions, activeCount, isMultiDevice, loading, signOutDevice } = useDeviceSessions(userId);
+  const { sessions, activeCount, isMultiDevice, loading, signOutDevice, renameDevice } = useDeviceSessions(userId);
 
   const sortedSessions = useMemo(
     () => [...sessions].sort((a, b) => Number(b.isCurrent) - Number(a.isCurrent)),
@@ -103,7 +163,7 @@ export function DeviceSessionIndicator({ userId }: { userId: string | undefined 
         )}
         <div className="space-y-2 max-h-72 overflow-y-auto">
           {sortedSessions.map((s) => (
-            <DeviceRow key={s.id} session={s} onSignOut={signOutDevice} />
+            <DeviceRow key={s.id} session={s} onSignOut={signOutDevice} onRename={renameDevice} />
           ))}
         </div>
       </PopoverContent>
