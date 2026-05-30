@@ -820,21 +820,34 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
             )}
           </div>
         )}
-        <div className="flex flex-col sm:flex-row gap-2 mt-2">
-          <Select value={selectedTenantId} onValueChange={setSelectedTenantId}>
-            <SelectTrigger className="h-9 text-sm sm:w-[260px]">
-              <User className="h-3.5 w-3.5 mr-1 text-muted-foreground shrink-0" />
-              <SelectValue placeholder="Choose a tenant to fund" />
-            </SelectTrigger>
-            <SelectContent className="max-h-[320px]">
-              <SelectItem value="all">All tenants ({tenantOptions.length})</SelectItem>
-              {tenantOptions.map(t => (
-                <SelectItem key={t.id} value={t.id}>
-                  <span className="truncate">{t.name} → {t.landlord_name}</span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="flex flex-col sm:flex-row gap-2 mt-2 items-start">
+          <div className="flex items-center gap-2">
+            <Select value={selectedTenantId} onValueChange={setSelectedTenantId}>
+              <SelectTrigger className="h-9 text-sm sm:w-[260px]">
+                <User className="h-3.5 w-3.5 mr-1 text-muted-foreground shrink-0" />
+                <SelectValue placeholder="Choose a tenant to fund" />
+              </SelectTrigger>
+              <SelectContent className="max-h-[320px]">
+                <SelectItem value="all">All tenants ({tenantOptions.length})</SelectItem>
+                {tenantOptions.map(t => (
+                  <SelectItem key={t.id} value={t.id}>
+                    <span className="truncate">{t.name} → {t.landlord_name}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {tenantSyncStatus === 'synced' ? (
+              <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+                <Cloud className="h-3 w-3" />
+                Synced to account
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+                <HardDrive className="h-3 w-3" />
+                Saved locally
+              </span>
+            )}
+          </div>
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
