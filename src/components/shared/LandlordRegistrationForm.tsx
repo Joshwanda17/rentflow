@@ -597,6 +597,7 @@ export default function LandlordRegistrationForm({
             <div className="space-y-1">
               <Label className="text-xs font-semibold flex items-center gap-1.5">
                 <Droplets className="h-3 w-3 text-blue-500" /> NWSC Meter
+                <span className="text-[10px] font-normal text-muted-foreground">(optional)</span>
               </Label>
               <Input
                 value={nwscMeter}
@@ -608,6 +609,7 @@ export default function LandlordRegistrationForm({
             <div className="space-y-1">
               <Label className="text-xs font-semibold flex items-center gap-1.5">
                 <Zap className="h-3 w-3 text-yellow-500" /> UEDCL Meter
+                <span className="text-[10px] font-normal text-muted-foreground">(optional)</span>
               </Label>
               <Input
                 value={uedclMeter}

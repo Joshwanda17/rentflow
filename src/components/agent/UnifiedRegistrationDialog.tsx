@@ -746,6 +746,7 @@ Password: ${createdInvite?.password}`;
             <div className="space-y-1.5">
               <Label className="text-sm font-medium flex items-center gap-1">
                 <Droplets className="h-3 w-3 text-blue-500" /> NWSC Meter
+                <span className="text-xs font-normal text-muted-foreground">(optional)</span>
               </Label>
               <Input
                 value={nwscMeter}
@@ -757,6 +758,7 @@ Password: ${createdInvite?.password}`;
             <div className="space-y-1.5">
               <Label className="text-sm font-medium flex items-center gap-1">
                 <Zap className="h-3 w-3 text-yellow-500" /> UEDCL Meter
+                <span className="text-xs font-normal text-muted-foreground">(optional)</span>
               </Label>
               <Input
                 value={uedclMeter}
