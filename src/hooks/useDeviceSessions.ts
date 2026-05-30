@@ -126,7 +126,7 @@ export function useDeviceSessions(userId: string | undefined) {
     async (deviceId: string, label: string) => {
       if (!userId) return;
       const trimmed = label.trim();
-      if (!trimmed) return;
+      if (!trimmed || trimmed.length > MAX_DEVICE_LABEL_LENGTH) return;
       // If renaming the current device, persist locally so heartbeats keep the name.
       if (deviceId === deviceIdRef.current) {
         try {
