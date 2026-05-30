@@ -14,6 +14,8 @@ import {
   Send,
   LinkIcon,
   Activity,
+  Rocket,
+  Users,
 } from "lucide-react";
 import {
   hardRecover,
@@ -22,6 +24,13 @@ import {
   MAX_RECOVERY_ATTEMPTS,
 } from "@/lib/hardRecovery";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  refreshRolloutConfig,
+  getRolloutState,
+  getDeviceBucket,
+  type RolloutConfig,
+} from "@/lib/rollout";
 
 type Status = "ok" | "warn" | "bad" | "info";
 
