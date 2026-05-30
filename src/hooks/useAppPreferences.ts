@@ -13,6 +13,8 @@ export interface AppPreferences {
   defaultRole: DefaultRolePreference;
   unlockAllRoles: boolean;
   disableAgentAutoDefault: boolean;
+  /** Which sign-in method the login screen opens with by default. */
+  preferredLoginMethod: 'otp' | 'password';
 }
 
 const DEFAULT_PREFERENCES: AppPreferences = {
@@ -24,6 +26,7 @@ const DEFAULT_PREFERENCES: AppPreferences = {
   defaultRole: 'auto',
   unlockAllRoles: false,
   disableAgentAutoDefault: false,
+  preferredLoginMethod: 'otp',
 };
 
 const STORAGE_KEY = 'welile_app_preferences';
@@ -209,4 +212,17 @@ export function isAgentAutoDefaultDisabled(): boolean {
     }
   } catch (e) {}
   return false;
+}
+
+// Standalone: which sign-in method the login screen should open with.
+// Defaults to OTP-first; password remains available as a backup.
+export function getPreferredLoginMethod(): 'otp' | 'password' {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const prefs = JSON.parse(stored);
+      return prefs.preferredLoginMethod === 'password' ? 'password' : 'otp';
+    }
+  } catch (e) {}
+  return 'otp';
 }

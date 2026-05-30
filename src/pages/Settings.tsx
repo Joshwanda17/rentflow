@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Check, Type, Vibrate, RotateCcw, LogIn, Volume2, RefreshCw, Scale, Lock, Eye, EyeOff, LayoutDashboard, Unlock, Settings as SettingsIcon, Palette, ShieldCheck, Globe, DollarSign, Zap } from 'lucide-react';
+import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Check, Type, Vibrate, RotateCcw, LogIn, Volume2, RefreshCw, Scale, Lock, Eye, EyeOff, LayoutDashboard, Unlock, Settings as SettingsIcon, Palette, ShieldCheck, Globe, DollarSign, Zap, Smartphone } from 'lucide-react';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useCurrency, currencies as ALL_CURRENCIES } from '@/hooks/useCurrency';
 import { Language, languageNames, languageFlags } from '@/i18n/translations';
@@ -619,6 +619,53 @@ export default function Settings() {
 
             {activeSection === 'security' && (
               <div className="space-y-4">
+                <Card className="border-border/40 rounded-2xl">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center gap-2">
+                      <LogIn className="h-4 w-4 text-primary" />
+                      <div>
+                        <CardTitle className="text-sm">Sign-in method</CardTitle>
+                        <CardDescription className="text-xs">Pick how the login screen opens for you next time. Password always stays available as a backup.</CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <RadioGroup
+                      value={preferences.preferredLoginMethod}
+                      onValueChange={(v) => { updatePreference('preferredLoginMethod', v as 'otp' | 'password'); toast.success(v === 'otp' ? 'SMS code is now your default' : 'Password is now your default'); }}
+                      className="grid grid-cols-1 gap-2"
+                    >
+                      <Label
+                        htmlFor="login-otp"
+                        className={cn(
+                          "flex items-center gap-3 p-3 rounded-xl border cursor-pointer",
+                          preferences.preferredLoginMethod === 'otp' ? 'border-primary bg-primary/10' : 'border-border/50'
+                        )}
+                      >
+                        <RadioGroupItem value="otp" id="login-otp" />
+                        <Smartphone className="h-4 w-4 text-primary shrink-0" />
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm">SMS code first <span className="text-[10px] text-muted-foreground font-normal">(recommended)</span></p>
+                          <p className="text-[11px] text-muted-foreground">Get a one-time code on your phone — no password needed</p>
+                        </div>
+                      </Label>
+                      <Label
+                        htmlFor="login-password"
+                        className={cn(
+                          "flex items-center gap-3 p-3 rounded-xl border cursor-pointer",
+                          preferences.preferredLoginMethod === 'password' ? 'border-primary bg-primary/10' : 'border-border/50'
+                        )}
+                      >
+                        <RadioGroupItem value="password" id="login-password" />
+                        <Lock className="h-4 w-4 text-primary shrink-0" />
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm">Password first</p>
+                          <p className="text-[11px] text-muted-foreground">Open straight to phone &amp; password; SMS code stays one tap away</p>
+                        </div>
+                      </Label>
+                    </RadioGroup>
+                  </CardContent>
+                </Card>
                 <LazySection name="PinSecurity"><PinSecuritySection /></LazySection>
                 <LazySection name="BiometricSecurity"><BiometricSecuritySection /></LazySection>
                 <LazySection name="TrustPrivacy"><TrustPrivacySection /></LazySection>

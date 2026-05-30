@@ -18,6 +18,7 @@ import { SIGNUP_PAUSED } from '@/components/SignupPauseBanner';
 import { useState, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { useOtpVerification } from '@/hooks/useOtpVerification';
+import { getPreferredLoginMethod } from '@/hooks/useAppPreferences';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -120,8 +121,9 @@ export default function Auth() {
     }
   }, [authLoading, user, authRoles, navigate]);
 
-  // Login mode: 'otp' is the primary path; 'password' (phone+pw) and 'email' are backups
-  const [loginMode, setLoginMode] = useState<'password' | 'otp' | 'email'>('otp');
+  // Login mode: defaults to the user's saved preference (OTP-first out of the
+  // box). 'password' (phone+pw) and 'email' remain available as backups.
+  const [loginMode, setLoginMode] = useState<'password' | 'otp' | 'email'>(() => getPreferredLoginMethod());
   const [emailLoginAddress, setEmailLoginAddress] = useState('');
   const [otpLoginPhone, setOtpLoginPhone] = useState('');
   const [otpLoginCode, setOtpLoginCode] = useState('');
