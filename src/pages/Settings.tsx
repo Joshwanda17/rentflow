@@ -355,6 +355,7 @@ export default function Settings() {
                             otpVerified={otp.otpVerified}
                             otpLoading={otp.otpLoading}
                             otpError={otp.otpError}
+                            sendStatus={otp.sendStatus}
                             onSendOtp={() => otp.sendOtp(phone.trim())}
                             onVerifyOtp={(code) => otp.verifyOtp(phone.trim(), code)}
                             onResendOtp={() => otp.sendOtp(phone.trim())}
