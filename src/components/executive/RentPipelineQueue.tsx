@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/select';
 import { CheckCircle2, XCircle, Clock, MapPin, User, UserCheck, Home, Banknote, ArrowRight, Loader2, Search, MessageCircle, Phone, Pencil, Check, X, PhoneCall, ShieldCheck, AlertCircle, Image as ImageIcon, Camera, Cloud, HardDrive } from 'lucide-react';
 import { calculateRentRepayment } from '@/lib/rentCalculations';
-import { formatTenantSyncShort, formatTenantSyncLong } from '@/lib/tenantFilterSyncFormat';
+import { formatTenantSync } from '@/lib/tenantFilterSyncFormat';
 import { toast as sonnerToast } from 'sonner';
 import { format } from 'date-fns';
 import { AgentProximitySelector } from './AgentProximitySelector';
