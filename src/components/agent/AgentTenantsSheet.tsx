@@ -1580,6 +1580,10 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           <div className="pt-1">
             <AgentRentCapacitySelfCard />
           </div>
+          {/* Breakdown of today vs target, yesterday & remaining slots */}
+          <div className="pt-2">
+            <AgentCapacityBreakdownPanel />
+          </div>
           {/* Quick search — pinned at the top of the sheet so agents can
               jump straight to a tenant without scrolling past stats. */}
           <div className="sticky top-14 z-20 -mx-4 px-4 pt-1 pb-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
