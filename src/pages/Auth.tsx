@@ -120,8 +120,8 @@ export default function Auth() {
     }
   }, [authLoading, user, authRoles, navigate]);
 
-  // Login mode: 'password' (phone+pw), 'email', 'otp'
-  const [loginMode, setLoginMode] = useState<'password' | 'otp' | 'email'>('password');
+  // Login mode: 'otp' is the primary path; 'password' (phone+pw) and 'email' are backups
+  const [loginMode, setLoginMode] = useState<'password' | 'otp' | 'email'>('otp');
   const [emailLoginAddress, setEmailLoginAddress] = useState('');
   const [otpLoginPhone, setOtpLoginPhone] = useState('');
   const [otpLoginCode, setOtpLoginCode] = useState('');
