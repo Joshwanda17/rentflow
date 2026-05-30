@@ -208,6 +208,9 @@ Deno.serve(async (req) => {
             last_sent_at: new Date(now).toISOString(),
             send_count: sendCount + 1,
             send_window_start: new Date(windowStart).toISOString(),
+            send_status: "pending",
+            send_status_reason: null,
+            send_status_at: new Date(now).toISOString(),
           },
           { onConflict: "phone" }
         );
