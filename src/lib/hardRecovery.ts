@@ -128,6 +128,7 @@ export async function clearAndReload(
 ): Promise<void> {
   logUpdateFailure(event, { reload_attempts: getRecoveryAttempts() });
   await purgeCachesAndServiceWorkers();
+  clearRecoveryAttempts();
   reloadWithCacheBust();
 }
 
