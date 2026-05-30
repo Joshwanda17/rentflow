@@ -356,10 +356,13 @@ export default function ProfileCompletionGate() {
       void supabase.from("profile_completion_log").insert(logRows as any);
 
       toast.success("Profile updated", {
-        description: "Thanks — this helps us route the right agent to you.",
+        description: editMode
+          ? "Your profile details have been saved."
+          : "Thanks — this helps us route the right agent to you.",
       });
       await refetch();
       queryClient.invalidateQueries({ queryKey: ["profile-completion-gate"] });
+      if (editMode) setEditMode(false);
     } catch (e: any) {
       console.error("[ProfileCompletionGate] save failed", e);
       toast.error("Couldn't save your profile", {
