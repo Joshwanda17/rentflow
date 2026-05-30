@@ -438,7 +438,7 @@ export default function ProfileCompletionGate() {
         onPointerDownOutside={(e) => { if (!editMode) e.preventDefault(); }}
         onEscapeKeyDown={(e) => { if (!editMode) e.preventDefault(); }}
         onInteractOutside={(e) => { if (!editMode) e.preventDefault(); }}
-        className="sm:max-w-lg max-h-[90vh] overflow-y-auto [&>button]:hidden"
+        className="w-[calc(100vw-1.5rem)] max-w-[calc(100vw-1.5rem)] sm:max-w-lg max-h-[92vh] overflow-y-auto p-4 sm:p-6 [&>button]:hidden"
       >
         <button
           type="button"
