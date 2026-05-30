@@ -23,6 +23,7 @@ import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
 
 export type PipelineStage =
   | 'pending'
+  | 'pending'
   | 'agent_ops_approved'
   | 'tenant_ops_approved'
   | 'landlord_ops_approved'
