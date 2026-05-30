@@ -191,6 +191,7 @@ export default function ProfileCompletionGate() {
   // Auto-derive continent from country selection and cascade-clear
   // dependent address fields so they never mismatch a previous city.
   useEffect(() => {
+    if (seeding.current) return;
     const cont = continentForCountry(country);
     if (cont) setContinent(cont);
 
@@ -212,6 +213,7 @@ export default function ProfileCompletionGate() {
   // When continent is changed manually, wipe all sub-fields so the user
   // re-selects a matching country → city chain.
   useEffect(() => {
+    if (seeding.current) return;
     setCountry("");
     setRegion("");
     setDistrict("");
