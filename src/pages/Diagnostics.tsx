@@ -621,6 +621,86 @@ export default function Diagnostics() {
         {/* Report */}
         <div className="rounded-xl border border-border bg-card p-4">
           <h2 className="mb-3 text-sm font-semibold">Support report</h2>
+
+        </div>
+
+        {/* Update-failure telemetry (managers only — RLS returns rows only to them) */}
+        <Section title="Update-failure telemetry" icon={Activity}>
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">
+              Last 50 stuck-device signals (SW/cache cleared, chunk mismatch, reload
+              attempts, iOS/Safari version). Visible to managers only.
+            </p>
+            <button
+              onClick={loadTelemetry}
+              disabled={telemetryLoading}
+              className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-xs font-medium hover:bg-muted/80 disabled:opacity-50"
+            >
+              {telemetryLoading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="h-3.5 w-3.5" />
+              )}
+              Refresh
+            </button>
+          </div>
+          {telemetry === null || telemetryLoading ? (
+            <p className="text-xs text-muted-foreground/60">Loading…</p>
+          ) : telemetry.length === 0 ? (
+            <p className="text-xs text-muted-foreground/60">
+              No telemetry yet (or you don't have manager access to view it).
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {telemetry.map((t) => (
+                <div
+                  key={t.id}
+                  className="rounded-lg border border-border/60 bg-muted/30 p-2.5 text-[11px]"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded bg-primary/15 px-2 py-0.5 font-medium text-primary">
+                      {t.event_type}
+                    </span>
+                    <span className="text-muted-foreground">
+                      {new Date(t.created_at).toLocaleString()}
+                    </span>
+                    {t.chunk_mismatch && (
+                      <span className="rounded bg-destructive/15 px-2 py-0.5 text-destructive">
+                        chunk mismatch
+                      </span>
+                    )}
+                    {t.sw_cleared && (
+                      <span className="rounded bg-amber-500/15 px-2 py-0.5 text-amber-600 dark:text-amber-400">
+                        SW cleared
+                      </span>
+                    )}
+                    {t.cache_cleared && (
+                      <span className="rounded bg-amber-500/15 px-2 py-0.5 text-amber-600 dark:text-amber-400">
+                        cache cleared
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 text-muted-foreground">
+                    <span>reloads: {t.reload_attempts ?? "—"}</span>
+                    <span>
+                      {t.is_ios ? `iOS ${t.ios_version ?? "?"}` : "non-iOS"}
+                      {t.is_safari ? ` • Safari ${t.safari_version ?? "?"}` : ""}
+                      {t.is_standalone ? " • PWA" : ""}
+                    </span>
+                  </div>
+                  {t.user_agent && (
+                    <p className="mt-1 break-all font-mono text-[10px] text-muted-foreground/70">
+                      {t.user_agent}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </Section>
+
+        {/* Report (continued) */}
+        <div className="rounded-xl border border-border bg-card p-4">
           <p className="mb-3 text-xs text-muted-foreground">
             Generate a full diagnostic report you can paste into a support ticket or download as a .txt file.
           </p>
