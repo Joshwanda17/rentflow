@@ -88,12 +88,15 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
           .or('status.in.(pending,approved,funded,disbursed,repaying,completed),registration_type.eq.outstanding_balance');
 
         const balances: Record<string, number> = {};
+        const activeIds = new Set<string>();
         (rentRequests || []).forEach((rr: any) => {
           const effective = getEffectiveRentRequestAmounts(rr);
           const owing = effective.totalRepayment - (rr.amount_repaid || 0);
           balances[rr.tenant_id] = (balances[rr.tenant_id] || 0) + Math.max(0, owing);
+          if (rr.status !== 'completed') activeIds.add(rr.tenant_id);
         });
         setTenantBalances(balances);
+        setActiveTenantIds(activeIds);
       }
     } finally {
       setLoading(false);
