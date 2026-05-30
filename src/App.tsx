@@ -87,6 +87,7 @@ const BecomeSupporter = lazy(() => import('./pages/BecomeSupporter'));
 const DepositsManagement = lazy(() => import('./pages/DepositsManagement'));
 const Install = lazy(() => import('./pages/Install'));
 const Diagnostics = lazy(() => import('./pages/Diagnostics'));
+const SupportReport = lazy(() => import('./pages/SupportReport'));
 const ActivateSupporter = lazy(() => import('./pages/ActivateSupporter'));
 // Chat feature removed
 const AgentRegistrations = lazy(() => import('./pages/AgentRegistrations'));
@@ -360,6 +361,7 @@ function AppRoutes() {
           <Route path="/deposits-management" element={<DepositsManagement />} />
           <Route path="/install" element={<Install />} />
           <Route path="/diagnostics" element={<Diagnostics />} />
+          <Route path="/support-report/:token" element={<SupportReport />} />
           <Route path="/activate-supporter" element={<ActivateSupporter />} />
           {/* Chat feature removed */}
           <Route path="/agent-registrations" element={<AgentRegistrations />} />

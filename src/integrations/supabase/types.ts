@@ -14126,6 +14126,39 @@ export type Database = {
           },
         ]
       }
+      support_diagnostic_reports: {
+        Row: {
+          created_at: string
+          expires_at: string
+          first_viewed_at: string | null
+          id: string
+          metadata: Json
+          report: string
+          token: string
+          view_count: number
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          first_viewed_at?: string | null
+          id?: string
+          metadata?: Json
+          report: string
+          token: string
+          view_count?: number
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          first_viewed_at?: string | null
+          id?: string
+          metadata?: Json
+          report?: string
+          token?: string
+          view_count?: number
+        }
+        Relationships: []
+      }
       supporter_agreement_acceptance: {
         Row: {
           accepted_at: string

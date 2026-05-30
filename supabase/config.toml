@@ -1,6 +1,10 @@
 project_id = "wirntoujqoyjobfhyelc"
 
 [functions]
+  [functions.submit-diagnostics-report]
+    verify_jwt = false
+  [functions.view-diagnostics-report]
+    verify_jwt = false
   [functions.activate-supporter]
     verify_jwt = false
   [functions.admin-reset-password]
