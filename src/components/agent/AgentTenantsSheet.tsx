@@ -1524,10 +1524,11 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                     );
                   })}
                 </div>
-                {/* Sort group: by amount (high→low) / by name (A→Z) — pictures only */}
+                {/* Sort group: by amount (high→low) / daily target (high→low) / by name (A→Z) — pictures only */}
                 <div className="flex items-center gap-2">
                   {([
                     { key: 'balance' as SortKey, dir: 'desc' as SortDir, Icon: Banknote, label: tr('sortBiggest') },
+                    { key: 'daily' as SortKey, dir: 'desc' as SortDir, Icon: TrendingUp, label: 'Highest daily target' },
                     { key: 'name' as SortKey, dir: 'asc' as SortDir, Icon: ArrowDownAZ, label: tr('sortName') },
                   ]).map(({ key, dir, Icon, label }) => {
                     const active = sortKey === key && sortDir === dir;
