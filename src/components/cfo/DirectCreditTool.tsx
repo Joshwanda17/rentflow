@@ -1104,7 +1104,15 @@ export function DirectCreditTool() {
                     ? 'bg-emerald-600 hover:bg-emerald-700'
                     : 'bg-destructive hover:bg-destructive/90'
               }`}
-              onClick={() => mutation.mutate()}
+              onClick={() => {
+                // Float (Operational Wallet) credits — e.g. Agent Float / Rent
+                // Disbursement — need no transaction ID, just an explicit confirm.
+                if (isCredit && recipientType === 'operational_wallet') {
+                  setFloatConfirmOpen(true);
+                  return;
+                }
+                mutation.mutate();
+              }}
               disabled={mutation.isPending || !selectedUser || !amount || reason.length < 10 || !selectedCategoryId || !recipientType}
             >
               {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
@@ -1112,6 +1120,40 @@ export function DirectCreditTool() {
                 ? `Withdraw UGX ${amt.toLocaleString()} → ${selectedUser?.full_name || '...'}`
                 : `${isCredit ? 'Credit' : 'Debit'} UGX ${amt.toLocaleString()} ${isCredit ? 'to' : 'from'} ${selectedUser?.full_name || '...'}`}
             </Button>
+
+            <AlertDialog open={floatConfirmOpen} onOpenChange={setFloatConfirmOpen}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Confirm float transfer</AlertDialogTitle>
+                  <AlertDialogDescription asChild>
+                    <div className="space-y-2 text-sm">
+                      <p>
+                        You're sending <strong>UGX {amt.toLocaleString()}</strong> to{' '}
+                        <strong>{selectedUser?.full_name || '...'}</strong>'s Float (Operational Wallet)
+                        {selectedCategory ? <> via <strong>{selectedCategory.label}</strong></> : null}.
+                      </p>
+                      <p className="text-muted-foreground">
+                        No transaction ID is required for float transfers — just confirm to post the movement.
+                      </p>
+                    </div>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={mutation.isPending}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-emerald-600 hover:bg-emerald-700"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      mutation.mutate(undefined, { onSettled: () => setFloatConfirmOpen(false) });
+                    }}
+                    disabled={mutation.isPending}
+                  >
+                    {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                    Confirm transfer
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </>
         )}
       </CardContent>
