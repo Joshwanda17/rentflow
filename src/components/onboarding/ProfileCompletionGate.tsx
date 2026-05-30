@@ -548,7 +548,7 @@ export default function ProfileCompletionGate() {
               <Button
                 type="button"
                 size="lg"
-                className="w-full h-13 min-h-[52px] rounded-xl text-base font-semibold"
+                className="w-full min-h-[52px] rounded-xl text-base font-semibold"
                 onClick={handleSubmit}
                 disabled={submitting || !persona}
               >
