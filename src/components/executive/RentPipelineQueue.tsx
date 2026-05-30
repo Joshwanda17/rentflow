@@ -194,6 +194,8 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   // Agent profile drilldown
   const [drilldownAgentId, setDrilldownAgentId] = useState<string | null>(null);
+  // Tenant selector — CFO picks which tenant's landlord to fund before approving
+  const [selectedTenantId, setSelectedTenantId] = useState<string>('all');
 
   const startEditing = useCallback((field: string, currentValue: any) => {
     setEditingField(field);
