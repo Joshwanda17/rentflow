@@ -369,19 +369,20 @@ export function AgentLandlordPayoutFlow({ open, onOpenChange }: AgentLandlordPay
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs font-bold">Transaction ID (TID) *</Label>
+                <Label className="text-xs font-bold">Transaction ID (TID)</Label>
                 <Input
                   value={transactionId}
                   onChange={e => setTransactionId(e.target.value)}
-                  placeholder="Enter the MoMo transaction ID"
+                  placeholder="Not required for float payouts"
                   className="font-mono"
+                  disabled
                 />
-                <p className="text-[10px] text-muted-foreground">Enter the exact TID from the MoMo confirmation message</p>
+                <p className="text-[10px] text-muted-foreground">No transaction ID is required when paying the landlord from float.</p>
               </div>
 
               <Button
                 className="w-full"
-                disabled={!provider || !transactionId.trim()}
+                disabled={!provider}
                 onClick={() => setStep('receipt')}
               >
                 <ArrowRight className="h-4 w-4 mr-2" />
