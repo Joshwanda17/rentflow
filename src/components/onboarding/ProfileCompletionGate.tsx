@@ -403,7 +403,7 @@ export default function ProfileCompletionGate() {
                   </div>
                   <div className="space-y-1.5">
                     <Label>City</Label>
-                    <Input value={city} onChange={(e) => setCity(e.target.value)} maxLength={60} />
+                    <CityCombobox countryIso={countryIso} value={city} onChange={setCity} />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
