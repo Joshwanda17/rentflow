@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Phone, Users, UserPlus, Loader2, AlertCircle } from 'lucide-react';
+import { Search, Phone, Users, UserPlus, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { getEffectiveRentRequestAmounts } from '@/lib/rentRequestAmounts';
 
