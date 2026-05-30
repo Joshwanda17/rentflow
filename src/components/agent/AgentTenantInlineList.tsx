@@ -114,7 +114,9 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
         (qDigits.length > 0 && phoneDigits.includes(qDigits))
       );
     });
-    if (activeFilter === 'owing') {
+    if (activeFilter === 'active') {
+      list = list.filter((t) => activeTenantIds.has(t.id));
+    } else if (activeFilter === 'owing') {
       list = list.filter((t) => (tenantBalances[t.id] || 0) > 0);
     }
     list.sort((a, b) => {
