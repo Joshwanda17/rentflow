@@ -510,6 +510,16 @@ export default function ProfileCompletionGate() {
       }
       void supabase.from("profile_completion_log").insert(logRows as any);
 
+      // The profile is saved — clear any locally stored draft.
+      if (draftKey) {
+        try {
+          localStorage.removeItem(draftKey);
+        } catch {
+          /* ignore */
+        }
+      }
+      setDraftSavedAt(null);
+
       toast.success("Profile updated", {
         description: editMode
           ? "Your profile details have been saved."
