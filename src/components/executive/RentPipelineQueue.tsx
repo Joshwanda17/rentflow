@@ -269,10 +269,13 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                 { onConflict: 'user_id,key' },
               );
         if (error) {
-          // Server unavailable → localStorage (written above) is the fallback.
+          setTenantSyncStatus('local');
           console.warn('[RentPipelineQueue] tenant pref cloud write failed, using localStorage', error);
+        } else {
+          setTenantSyncStatus('synced');
         }
       } catch (err) {
+        setTenantSyncStatus('local');
         console.warn('[RentPipelineQueue] tenant pref write failed, using localStorage', err);
       }
     })();
