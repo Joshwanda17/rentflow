@@ -162,7 +162,7 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           <button
             onClick={() => setActiveFilter('all')}
             className={`py-4 rounded-2xl text-base font-bold transition-all flex items-center justify-center gap-2 ${
@@ -176,6 +176,21 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
             All
             <span className="text-sm font-mono px-2 py-0.5 rounded-md bg-muted text-muted-foreground">
               {tenants.length}
+            </span>
+          </button>
+          <button
+            onClick={() => setActiveFilter('active')}
+            className={`py-4 rounded-2xl text-base font-bold transition-all flex items-center justify-center gap-2 ${
+              activeFilter === 'active'
+                ? 'bg-emerald-50 shadow-sm text-emerald-700 border-2 border-emerald-300'
+                : 'text-muted-foreground bg-muted/50'
+            }`}
+            style={{ touchAction: 'manipulation', minHeight: '64px' }}
+          >
+            <CheckCircle2 className="h-5 w-5" />
+            Active
+            <span className="text-sm font-mono px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700">
+              {activeCount}
             </span>
           </button>
           <button
