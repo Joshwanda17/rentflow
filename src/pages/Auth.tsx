@@ -174,6 +174,7 @@ export default function Auth() {
     setOtpLoginLoading(false);
     if (success) {
       setOtpLoginStep('code');
+      setOtpResendCooldown(60);
       toast({ title: 'Code Sent! 📱', description: 'Check your phone for the 6-digit code' });
     } else {
       toast({ title: 'Failed', description: loginOtp.otpError || 'Could not send code', variant: 'destructive' });
