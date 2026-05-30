@@ -132,6 +132,40 @@ function SummaryBar({
   );
 }
 
+function MethodSummary({ rows }: { rows: CollectionRow[] }) {
+  const byMethod = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const r of rows) {
+      const m = (r.payment_method || 'Other').replace(/_/g, ' ');
+      map.set(m, (map.get(m) || 0) + (Number(r.amount) || 0));
+    }
+    return Array.from(map.entries())
+      .sort((a, b) => b[1] - a[1]);
+  }, [rows]);
+
+  if (byMethod.length === 0) return null;
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-3 space-y-2">
+      <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+        <Receipt className="h-3.5 w-3.5 text-primary" />
+        By method
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {byMethod.map(([method, amt]) => (
+          <div
+            key={method}
+            className="flex items-center gap-1.5 rounded-lg bg-muted px-2.5 py-1 text-xs"
+          >
+            <span className="font-medium text-foreground">{method}</span>
+            <span className="font-extrabold tabular-nums text-primary">{formatUGX(amt)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function CollectionList({ groups }: { groups: TenantGroup[] }) {
   if (groups.length === 0) {
     return (
