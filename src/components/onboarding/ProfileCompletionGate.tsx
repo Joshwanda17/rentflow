@@ -474,22 +474,22 @@ export default function ProfileCompletionGate() {
         </DialogHeader>
 
         {quickMode && !editMode && (
-          <div className="space-y-7 pt-1">
+          <div className="space-y-6 sm:space-y-7 pt-1">
             {/* 1) Location — one tap, sensible Kampala default */}
             <div className="space-y-3">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Where you live
               </p>
-              <div className="rounded-2xl border bg-card p-4 space-y-3">
+              <div className="rounded-2xl border bg-card p-3.5 sm:p-4 space-y-3">
                 <div className="flex items-center gap-2.5">
                   <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <span className="text-sm font-medium truncate">
+                  <span className="text-sm font-medium truncate min-w-0">
                     {[town || village, city || district, country]
                       .filter(Boolean)
                       .join(", ")}
                   </span>
                   {residenceLat != null && (
-                    <span className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-primary">
+                    <span className="ml-auto inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary">
                       <Check className="h-3.5 w-3.5" /> Pinned
                     </span>
                   )}
@@ -497,7 +497,7 @@ export default function ProfileCompletionGate() {
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full gap-2 h-11 rounded-xl text-sm font-medium"
+                  className="w-full gap-2 h-12 rounded-xl text-sm sm:text-base font-medium"
                   onClick={handleUseMyLocation}
                   disabled={locating}
                 >
@@ -516,7 +516,7 @@ export default function ProfileCompletionGate() {
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Who you are
               </p>
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
                 {QUICK_PERSONAS.map((p) => {
                   const selected = persona === p.value;
                   return (
@@ -525,7 +525,7 @@ export default function ProfileCompletionGate() {
                       type="button"
                       onClick={() => setPersona(p.value)}
                       aria-pressed={selected}
-                      className={`group relative flex flex-col items-center justify-center gap-2 rounded-2xl border p-4 text-center transition-all duration-150 ${
+                      className={`group relative flex min-h-[88px] flex-col items-center justify-center gap-1.5 sm:gap-2 rounded-2xl border p-3 sm:p-4 text-center transition-all duration-150 ${
                         selected
                           ? "border-primary bg-primary/5 dark:bg-primary/20 ring-1 ring-primary dark:ring-2"
                           : "border-border dark:border-border/60 hover:border-foreground/20 hover:bg-muted/40 dark:hover:bg-muted/50"
@@ -536,8 +536,8 @@ export default function ProfileCompletionGate() {
                           <Check className="h-2.5 w-2.5" />
                         </span>
                       )}
-                      <span className="text-2xl" aria-hidden>{p.emoji}</span>
-                      <span className="text-sm font-medium leading-tight">{p.label}</span>
+                      <span className="text-2xl sm:text-3xl" aria-hidden>{p.emoji}</span>
+                      <span className="text-[13px] sm:text-sm font-medium leading-tight">{p.label}</span>
                     </button>
                   );
                 })}
@@ -548,7 +548,7 @@ export default function ProfileCompletionGate() {
               <Button
                 type="button"
                 size="lg"
-                className="w-full h-12 rounded-xl text-base font-semibold"
+                className="w-full h-13 min-h-[52px] rounded-xl text-base font-semibold"
                 onClick={handleSubmit}
                 disabled={submitting || !persona}
               >
