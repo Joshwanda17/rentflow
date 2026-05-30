@@ -3,6 +3,7 @@
 import './lib/ephemeralGuard';
 import { createRoot } from 'react-dom/client';
 import {
+  clearAndReload,
   hardRecover,
   recoveryExhausted,
   clearRecoveryAttempts,
@@ -59,6 +60,7 @@ try {
 const isInIframe = (() => {
   try { return window.self !== window.top; } catch { return true; }
 })();
+const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent || '') && !(window as any).MSStream;
 
 if (isPreviewHost || isInIframe) {
   navigator.serviceWorker?.getRegistrations().then((regs) => {
@@ -195,7 +197,8 @@ const loadApp = async () => {
     // the aggressive auto cache-bust recovery. Devices outside the cohort fall
     // through to the manual recovery UI, so the fix is verified on a small
     // percentage before full deployment.
-    const inRolloutCohort = isRolloutEnabledForDevice();
+    const emergencyIOSRecovery = isIOSDevice;
+    const inRolloutCohort = emergencyIOSRecovery || isRolloutEnabledForDevice();
     // Stale-deploy recovery: purge caches/SWs and reload to a cache-busted URL
     // so iOS Safari fetches a fresh HTML shell. Stop once attempts are
     // exhausted to avoid an endless "Updating…" loop.
@@ -209,7 +212,7 @@ const loadApp = async () => {
     if (isChunkError && !inRolloutCohort) {
       logUpdateFailure('chunk_error_detected', {
         chunk_mismatch: true,
-        details: { rolloutCohort: false, message: 'outside rollout cohort — manual recovery UI' },
+        details: { rolloutCohort: false, emergencyIOSRecovery, message: 'outside rollout cohort — manual recovery UI' },
       });
     }
     if (isChunkError && recoveryExhausted()) {
@@ -243,15 +246,7 @@ function showErrorUI() {
   const btn = document.createElement('button');
   btn.textContent = 'Reload App';
   btn.onclick = async () => {
-    logUpdateFailure('manual_reload');
-    await purgeCachesAndServiceWorkers();
-    try {
-      const url = new URL(window.location.href);
-      url.searchParams.set('_v', Date.now().toString(36));
-      window.location.replace(url.toString());
-    } catch {
-      location.reload();
-    }
+    await clearAndReload('manual_reload');
   };
   btn.style.cssText = 'padding:12px 24px;background:#7c3aed;color:white;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;min-height:44px';
 
@@ -273,7 +268,7 @@ setTimeout(() => {
   if (root.innerHTML.includes('animation:')) {
     const retryBtn = document.createElement('button');
     retryBtn.textContent = 'Tap to Retry';
-    retryBtn.onclick = () => location.reload();
+    retryBtn.onclick = () => void clearAndReload('manual_reload');
     retryBtn.style.cssText = 'padding:12px 24px;background:#7c3aed;color:white;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;min-height:44px;margin-top:8px';
     root.firstElementChild?.appendChild(retryBtn);
   }
