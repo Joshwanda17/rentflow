@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { Loader2, CheckCircle2, RefreshCw, ShieldCheck, AlertCircle } from 'lucide-react';
@@ -11,6 +11,8 @@ interface OtpVerificationStepProps {
   otpError: string | null;
   /** Gateway-acceptance status of the most recent send (optional). */
   sendStatus?: 'idle' | 'pending' | 'accepted' | 'failed';
+  /** Seconds remaining before another send is allowed (driven by the hook). */
+  cooldownSeconds?: number;
   onSendOtp: () => void;
   onVerifyOtp: (otp: string) => void;
   onResendOtp: () => void;
@@ -23,30 +25,22 @@ export function OtpVerificationStep({
   otpLoading,
   otpError,
   sendStatus,
+  cooldownSeconds = 0,
   onSendOtp,
   onVerifyOtp,
   onResendOtp,
 }: OtpVerificationStepProps) {
   const [otp, setOtp] = useState('');
-  const [resendCooldown, setResendCooldown] = useState(0);
-  const cooldownRef = useRef<ReturnType<typeof setTimeout>>();
-
-  useEffect(() => {
-    if (resendCooldown > 0) {
-      cooldownRef.current = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
-    }
-    return () => clearTimeout(cooldownRef.current);
-  }, [resendCooldown]);
 
   const handleSend = () => {
     onSendOtp();
-    setResendCooldown(60);
   };
 
   const handleResend = () => {
+    // Guard against overlapping sends — the cooldown owns the timing.
+    if (cooldownSeconds > 0 || otpLoading) return;
     setOtp('');
     onResendOtp();
-    setResendCooldown(60);
   };
 
   const handleOtpComplete = (value: string) => {
@@ -142,13 +136,13 @@ export function OtpVerificationStep({
         <button
           type="button"
           onClick={handleResend}
-          disabled={resendCooldown > 0 || otpLoading}
+          disabled={cooldownSeconds > 0 || otpLoading}
           className="text-xs text-primary hover:underline disabled:text-muted-foreground disabled:no-underline"
         >
-          {resendCooldown > 0 ? (
+          {cooldownSeconds > 0 ? (
             <span className="flex items-center gap-1 justify-center">
               <RefreshCw className="h-3 w-3" />
-              Resend in {resendCooldown}s
+              Resend available in {cooldownSeconds}s
             </span>
           ) : (
             <span className="flex items-center gap-1 justify-center">
@@ -157,6 +151,11 @@ export function OtpVerificationStep({
             </span>
           )}
         </button>
+        {cooldownSeconds > 0 && (
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            To avoid duplicate texts, you can request a new code once the timer ends.
+          </p>
+        )}
       </div>
     </div>
   );

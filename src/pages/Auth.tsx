@@ -57,7 +57,7 @@ export default function Auth() {
     isGoogleLoading, isAppleLoading,
     phoneInputRef, passwordInputRef,
     isDuplicate, isCheckingDuplicate, duplicateMessage,
-    otpSent, otpVerified, otpLoading, otpError, otpSendStatus,
+    otpSent, otpVerified, otpLoading, otpError, otpSendStatus, otpCooldownSeconds,
     sendOtp, verifyOtp, resetOtp: resetOtpState,
     resetStep, setResetStep,
     resetPhone, setResetPhone,
@@ -1057,6 +1057,7 @@ export default function Auth() {
                         otpLoading={otpLoading}
                         otpError={otpError}
                         sendStatus={otpSendStatus}
+                        cooldownSeconds={otpCooldownSeconds}
                         onSendOtp={() => {
                           const d = phone.replace(/\D/g, '');
                           const full = d.startsWith(countryCode) ? d : countryCode + (d.startsWith('0') ? d.slice(1) : d);
