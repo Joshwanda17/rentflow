@@ -132,18 +132,62 @@ Deno.serve(async (req) => {
     const phoneKey = phone.slice(-9);
 
     if (action === "send") {
-      // Rate limit check
-      if (!checkSendRateLimit(phoneKey)) {
-        return new Response(JSON.stringify({ error: "Too many OTP requests. Please try again later." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+      const now = Date.now();
+
+      // Load existing record to enforce durable, DB-backed rate limits.
+      const { data: existing } = await adminClient
+        .from("otp_verifications")
+        .select("last_sent_at, send_count, send_window_start")
+        .eq("phone", phoneKey)
+        .maybeSingle();
+
+      // Cooldown: minimum time between consecutive sends (survives reloads).
+      if (existing?.last_sent_at) {
+        const elapsed = now - new Date(existing.last_sent_at).getTime();
+        const remaining = Math.ceil((RESEND_COOLDOWN_SECONDS * 1000 - elapsed) / 1000);
+        if (remaining > 0) {
+          return new Response(
+            JSON.stringify({
+              error: `Please wait ${remaining}s before requesting another code.`,
+              retry_after: remaining,
+            }),
+            {
+              status: 429,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            }
+          );
+        }
+      }
+
+      // Hourly cap: limit total sends within a rolling 1-hour window.
+      let windowStart = existing?.send_window_start
+        ? new Date(existing.send_window_start).getTime()
+        : 0;
+      let sendCount = existing?.send_count ?? 0;
+
+      if (!windowStart || now - windowStart > HOUR_MS) {
+        // Window expired (or first send) — reset.
+        windowStart = now;
+        sendCount = 0;
+      }
+
+      if (sendCount >= MAX_SENDS_PER_HOUR) {
+        const resetIn = Math.ceil((HOUR_MS - (now - windowStart)) / 60000);
+        return new Response(
+          JSON.stringify({
+            error: `Too many code requests. Please try again in about ${resetIn} minute(s).`,
+          }),
+          {
+            status: 429,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
       }
 
       const otp = generateOTP();
-      const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour expiry
+      const expiresAt = new Date(now + 60 * 60 * 1000).toISOString(); // 1 hour expiry
 
-      // Store OTP in database (upsert by phone)
+      // Store OTP and updated rate-limit counters (upsert by phone)
       const { error: upsertError } = await adminClient
         .from("otp_verifications")
         .upsert(
@@ -153,6 +197,9 @@ Deno.serve(async (req) => {
             expires_at: expiresAt,
             attempts: 0,
             verified: false,
+            last_sent_at: new Date(now).toISOString(),
+            send_count: sendCount + 1,
+            send_window_start: new Date(windowStart).toISOString(),
           },
           { onConflict: "phone" }
         );
