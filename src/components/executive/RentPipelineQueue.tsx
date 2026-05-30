@@ -194,10 +194,72 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   // Agent profile drilldown
   const [drilldownAgentId, setDrilldownAgentId] = useState<string | null>(null);
-  // Tenant selector — CFO picks which tenant's landlord to fund before approving
+  // Tenant selector — CFO picks which tenant's landlord to fund before approving.
+  // localStorage acts as an offline mirror; the durable cross-device source of
+  // truth is the per-user `user_ui_preferences` row keyed by TENANT_FILTER_PREF_KEY.
   const [selectedTenantId, setSelectedTenantId] = useState<string>(() => {
     try { return localStorage.getItem('rentPipeline_selectedTenantId') || 'all'; } catch { return 'all'; }
   });
+  // Guards the cloud-write effect so the initial localStorage value doesn't
+  // overwrite a fresher cloud value before hydration completes.
+  const hasTenantPrefHydratedRef = useRef(false);
+
+  // Hydrate the selected tenant from the server so the filter follows the
+  // CFO across devices/browsers, then mirror back into localStorage.
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('user_ui_preferences')
+          .select('value')
+          .eq('user_id', user.id)
+          .eq('key', TENANT_FILTER_PREF_KEY)
+          .maybeSingle();
+        if (cancelled || error) { hasTenantPrefHydratedRef.current = true; return; }
+        const cloudValue = typeof data?.value === 'string' ? data.value : null;
+        if (cloudValue) {
+          setSelectedTenantId(cloudValue);
+          try {
+            if (cloudValue === 'all') localStorage.removeItem('rentPipeline_selectedTenantId');
+            else localStorage.setItem('rentPipeline_selectedTenantId', cloudValue);
+          } catch { /* noop */ }
+        }
+      } catch (err) {
+        console.warn('[RentPipelineQueue] tenant pref hydrate failed', err);
+      } finally {
+        hasTenantPrefHydratedRef.current = true;
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
+  // Push every selection to the cloud (best-effort). Default 'all' = no row.
+  useEffect(() => {
+    if (!user?.id) return;
+    if (!hasTenantPrefHydratedRef.current) return;
+    (async () => {
+      try {
+        if (selectedTenantId === 'all') {
+          await supabase
+            .from('user_ui_preferences')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('key', TENANT_FILTER_PREF_KEY);
+        } else {
+          await supabase
+            .from('user_ui_preferences')
+            .upsert(
+              { user_id: user.id, key: TENANT_FILTER_PREF_KEY, value: selectedTenantId },
+              { onConflict: 'user_id,key' },
+            );
+        }
+      } catch (err) {
+        console.warn('[RentPipelineQueue] tenant pref write failed', err);
+      }
+    })();
+  }, [selectedTenantId, user?.id]);
 
   const startEditing = useCallback((field: string, currentValue: any) => {
     setEditingField(field);
