@@ -108,8 +108,14 @@ export default function ProfileCompletionGate() {
     },
   });
 
-  // The dialog opens automatically and CANNOT be dismissed by the user.
-  const open = !!profile && profile.address_complete === false;
+  // Edit mode is triggered manually (e.g. from Settings) so users can
+  // revise an already-complete profile without the mandatory gate.
+  const [editMode, setEditMode] = useState(false);
+
+  // The gate opens automatically when the profile is incomplete (mandatory,
+  // non-dismissable) OR when the user explicitly opens the editor.
+  const mandatory = !!profile && profile.address_complete === false;
+  const open = mandatory || editMode;
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
