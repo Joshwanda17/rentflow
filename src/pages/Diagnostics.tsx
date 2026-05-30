@@ -248,6 +248,117 @@ export default function Diagnostics() {
     setBusy(false);
   };
 
+  const generateReport = useCallback((): string => {
+    const ts = new Date().toISOString();
+    const loc = window.location.href;
+
+    const lines: string[] = [];
+    lines.push("========================================");
+    lines.push("  Welile App Diagnostics Report");
+    lines.push("========================================");
+    lines.push(`Generated: ${ts}`);
+    lines.push(`URL:       ${loc}`);
+    lines.push("");
+
+    lines.push("--- Verdict ---");
+    if (shell?.stale === true) {
+      lines.push("STALE SHELL — loaded chunks are no longer in live deploy");
+    } else if (shell?.stale === false) {
+      lines.push("OK — loaded shell matches live deploy");
+    } else if (shell?.error) {
+      lines.push(`UNCERTAIN — shell check failed: ${shell.error}`);
+    } else {
+      lines.push("UNKNOWN — shell check result unavailable");
+    }
+    lines.push(`Recovery attempts: ${attempts}/${MAX_RECOVERY_ATTEMPTS}`);
+    lines.push("");
+
+    lines.push("--- Chunk Mismatch ---");
+    if (shell) {
+      lines.push(`Stale: ${shell.stale === true ? "YES" : shell.stale === false ? "NO" : "N/A"}`);
+      lines.push(`Error: ${shell.error || "none"}`);
+      lines.push("Loaded assets:");
+      shell.loadedScripts.forEach((s) => lines.push(`  - ${s}`));
+      lines.push("Live deploy assets:");
+      shell.networkScripts.forEach((s) => lines.push(`  - ${s}`));
+    } else {
+      lines.push("Shell data not yet loaded.");
+    }
+    lines.push("");
+
+    lines.push("--- Environment ---");
+    if (env) {
+      lines.push(`iOS:        ${env.isIOS ? "Yes" : "No"}`);
+      lines.push(`Safari:     ${env.isSafari ? "Yes" : "No"}`);
+      lines.push(`Standalone: ${env.isStandalone ? "Yes" : "No"}`);
+      lines.push(`Iframe:     ${env.inIframe ? "Yes" : "No"}`);
+      lines.push(`Preview:    ${env.isPreviewHost ? "Yes" : "No"}`);
+      lines.push(`Online:     ${env.online ? "Yes" : "No"}`);
+      lines.push(`User-Agent: ${env.userAgent}`);
+    }
+    lines.push("");
+
+    lines.push("--- Service Worker ---");
+    if (sw) {
+      lines.push(`Supported:   ${sw.supported ? "Yes" : "No"}`);
+      lines.push(`Controller:  ${sw.controller ?? "none"}`);
+      lines.push(`Registered:  ${sw.registrations.length}`);
+      sw.registrations.forEach((r, i) => {
+        lines.push(`  [${i}] scope=${r.scope}`);
+        lines.push(`        script=${r.scriptURL}`);
+        lines.push(`        state=${r.active ?? "—"} waiting=${r.waiting} installing=${r.installing}`);
+      });
+    }
+    lines.push("");
+
+    lines.push("--- Cache Storage ---");
+    if (cacheInfo) {
+      lines.push(`Supported: ${cacheInfo.supported ? "Yes" : "No"}`);
+      lines.push(`Buckets:   ${cacheInfo.caches.length}`);
+      cacheInfo.caches.forEach((c) => {
+        lines.push(`  - ${c.name}: ${c.entries < 0 ? "?" : c.entries} entries`);
+      });
+    }
+    lines.push("");
+    lines.push("--- End of Report ---");
+
+    return lines.join("\n");
+  }, [shell, env, sw, cacheInfo, attempts]);
+
+  const copyReport = async () => {
+    const report = generateReport();
+    reportRef.current = report;
+    try {
+      await navigator.clipboard.writeText(report);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback
+      const ta = document.createElement("textarea");
+      ta.value = report;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const downloadReport = () => {
+    const report = generateReport();
+    reportRef.current = report;
+    const blob = new Blob([report], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `welile-diagnostics-${new Date().toISOString().replace(/[:.]/g, "-")}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const shellStatus: Status =
     shell?.stale === true ? "bad" : shell?.stale === false ? "ok" : "warn";
   const swStatus: Status = !sw?.supported
