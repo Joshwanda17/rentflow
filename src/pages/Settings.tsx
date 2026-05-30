@@ -39,6 +39,7 @@ const RentDiscountToggle = lazy(() => import('@/components/tenant/RentDiscountTo
 const StaffAccessCard = lazy(() => import('@/components/settings/StaffAccessCard'));
 const ResidenceAddressForm = lazy(() => import('@/components/profile/ResidenceAddressForm'));
 const EmailEditor = lazy(() => import('@/components/profile/EmailEditor'));
+const ProfileChangeHistory = lazy(() => import('@/components/settings/ProfileChangeHistory'));
 const ShareCardThemeSettings = lazy(() => import('@/components/agent/ShareCardThemeSettings'));
 const AgentRentCapacitySelfCard = lazy(() =>
   import('@/components/agent/AgentRentCapacitySelfCard').then((m) => ({ default: m.AgentRentCapacitySelfCard })),
