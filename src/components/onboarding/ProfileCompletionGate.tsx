@@ -113,12 +113,12 @@ export default function ProfileCompletionGate() {
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
-  // Address state
-  const [continent, setContinent] = useState("");
-  const [country, setCountry] = useState("");
-  const [region, setRegion] = useState("");
-  const [district, setDistrict] = useState("");
-  const [city, setCity] = useState("");
+  // Address state — defaults to Africa, Uganda, Kampala for the majority user base
+  const [continent, setContinent] = useState("Africa");
+  const [country, setCountry] = useState("Uganda");
+  const [region, setRegion] = useState("Central");
+  const [district, setDistrict] = useState("Kampala");
+  const [city, setCity] = useState("Kampala");
   const [town, setTown] = useState("");
   const [subCounty, setSubCounty] = useState("");
   const [parish, setParish] = useState("");
@@ -143,17 +143,17 @@ export default function ProfileCompletionGate() {
   // fill the blanks.
   useEffect(() => {
     if (!profile) return;
-    setContinent(profile.continent ?? "");
-    setCountry(profile.country ?? "");
-    setRegion(profile.region ?? "");
-    setDistrict(profile.district ?? "");
-    setCity(profile.city ?? "");
-    setTown(profile.town ?? "");
-    setSubCounty(profile.sub_county ?? "");
-    setParish(profile.parish ?? "");
-    setVillage(profile.village ?? "");
-    setPersona(profile.primary_persona ?? "");
-    setOccupation(profile.occupation ?? "");
+    if (profile.continent) setContinent(profile.continent);
+    if (profile.country) setCountry(profile.country);
+    if (profile.region) setRegion(profile.region);
+    if (profile.district) setDistrict(profile.district);
+    if (profile.city) setCity(profile.city);
+    if (profile.town) setTown(profile.town);
+    if (profile.sub_county) setSubCounty(profile.sub_county);
+    if (profile.parish) setParish(profile.parish);
+    if (profile.village) setVillage(profile.village);
+    if (profile.primary_persona) setPersona(profile.primary_persona);
+    if (profile.occupation) setOccupation(profile.occupation);
   }, [profile?.id]);
 
   // Auto-derive continent from country selection if not yet set
