@@ -241,17 +241,22 @@ export default function Auth() {
       <div className="w-full max-w-sm relative z-10">
 
         {/* Logo — compact */}
-        <div className="text-center mb-5">
-          <div className="flex items-center justify-center mb-1">
+        <div className="text-center mb-6">
+          <div className="flex items-center justify-center mb-2">
             <WelileLogo linkToHome={false} />
           </div>
           {isLoginView && (
-            <p className="text-sm text-muted-foreground mt-2 animate-in fade-in duration-300">
-              {hadSession && lastUserName ? `Welcome back, ${lastUserName}` : 'Sign in to continue'}
+            <p className="text-lg font-semibold text-foreground mt-3 animate-in fade-in duration-300">
+              {hadSession && lastUserName ? `Welcome back, ${lastUserName}` : 'Welcome back'}
+            </p>
+          )}
+          {isLoginView && (
+            <p className="text-sm text-muted-foreground mt-0.5 animate-in fade-in duration-300">
+              Sign in with your phone number
             </p>
           )}
           {isSignUp && (
-            <p className="text-sm text-muted-foreground mt-2 animate-in fade-in duration-300">Create your account</p>
+            <p className="text-lg font-semibold text-foreground mt-3 animate-in fade-in duration-300">Create your account</p>
           )}
         </div>
 
@@ -314,15 +319,15 @@ export default function Auth() {
 
             {/* ===== SIGN IN VIEW ===== */}
             {isLoginView && loginMode === 'password' && (
-              <div className="space-y-4">
+              <div className="space-y-5">
                 {/* Phone + Password — primary path (phone-first for African users) */}
-                <form onSubmit={wrappedHandleSubmit} className="space-y-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground px-1">Phone number</Label>
+                <form onSubmit={wrappedHandleSubmit} className="space-y-5">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-foreground px-1">Phone number</Label>
                     <div className="relative flex">
-                      <CountryCodeSelect value={countryCode} onChange={setCountryCode} />
+                      <CountryCodeSelect value={countryCode} onChange={setCountryCode} triggerClassName="h-16 text-lg" />
                       <div className="relative flex-1">
-                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                        <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 h-6 w-6 text-muted-foreground" />
                         <Input
                           ref={phoneInputRef}
                           type="tel"
@@ -331,7 +336,7 @@ export default function Auth() {
                           value={phone}
                           onChange={(e) => { setPhone(e.target.value); setLoginError(null); }}
                           placeholder="700 123 456"
-                          className={cn("pl-11 h-14 text-base rounded-xl rounded-l-none", loginError && 'border-destructive')}
+                          className={cn("pl-12 h-16 text-lg rounded-xl rounded-l-none", loginError && 'border-destructive')}
                           style={{ fontSize: '16px' }}
                           required
                         />
@@ -339,10 +344,10 @@ export default function Auth() {
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground px-1">Password</Label>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold text-foreground px-1">Password</Label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-6 w-6 text-muted-foreground" />
                       <Input
                         ref={passwordInputRef}
                         type={showPassword ? "text" : "password"}
@@ -350,14 +355,14 @@ export default function Auth() {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="Your password"
-                        className="pl-11 pr-14 h-14 text-base rounded-xl"
+                        className="pl-12 pr-16 h-16 text-lg rounded-xl"
                         style={{ fontSize: '16px' }}
                         required
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-2 text-sm font-semibold text-primary hover:text-primary/80 transition-colors"
                       >
                         {showPassword ? 'Hide' : 'Show'}
                       </button>
@@ -379,18 +384,18 @@ export default function Auth() {
                   )}
 
                   <div className="flex items-center justify-between">
-                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <label className="flex items-center gap-2 cursor-pointer select-none py-1">
                       <Checkbox
                         checked={rememberMe}
                         onCheckedChange={(checked) => {
                           setRememberMe(!!checked);
                           localStorage.setItem('welile_remember_me', String(!!checked));
                         }}
-                        className="h-4 w-4"
+                        className="h-5 w-5"
                       />
-                      <span className="text-xs text-muted-foreground">Remember me</span>
+                      <span className="text-sm text-muted-foreground">Remember me</span>
                     </label>
-                    <button type="button" onClick={() => setIsForgotPassword(true)} className="text-sm font-medium text-primary hover:underline">
+                    <button type="button" onClick={() => setIsForgotPassword(true)} className="text-sm font-semibold text-primary hover:underline py-1">
                       Forgot password?
                     </button>
                   </div>
@@ -409,7 +414,7 @@ export default function Auth() {
 
                   <Button
                     type="submit"
-                    className="w-full h-14 text-base rounded-xl font-semibold touch-manipulation active:scale-[0.98] transition-transform"
+                    className="w-full h-16 text-lg rounded-xl font-bold shadow-md touch-manipulation active:scale-[0.98] transition-transform"
                     disabled={isLoading}
                     style={{ fontSize: '16px', WebkitTapHighlightColor: 'transparent' }}
                   >
@@ -460,12 +465,12 @@ export default function Auth() {
                 )}
 
                 {/* Alternative login methods — subtle links */}
-                <div className="flex items-center justify-center gap-4 pt-1">
-                  <button type="button" onClick={() => setLoginMode('email')} className="text-xs text-muted-foreground hover:text-primary transition-colors">
+                <div className="flex items-center justify-center gap-4 pt-2">
+                  <button type="button" onClick={() => setLoginMode('email')} className="text-sm text-muted-foreground hover:text-primary transition-colors py-1">
                     Use email instead
                   </button>
                   <span className="text-border">•</span>
-                  <button type="button" onClick={() => setLoginMode('otp')} className="text-xs text-muted-foreground hover:text-primary transition-colors">
+                  <button type="button" onClick={() => setLoginMode('otp')} className="text-sm text-muted-foreground hover:text-primary transition-colors py-1">
                     SMS code login
                   </button>
                 </div>

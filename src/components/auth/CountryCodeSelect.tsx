@@ -1,4 +1,5 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 
 const COUNTRIES = [
   // East Africa
@@ -69,14 +70,15 @@ const COUNTRIES = [
 interface CountryCodeSelectProps {
   value: string;
   onChange: (code: string) => void;
+  triggerClassName?: string;
 }
 
-export function CountryCodeSelect({ value, onChange }: CountryCodeSelectProps) {
+export function CountryCodeSelect({ value, onChange, triggerClassName }: CountryCodeSelectProps) {
   const selected = COUNTRIES.find(c => c.code === value);
 
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="w-[90px] h-14 rounded-xl rounded-r-none border-r-0 px-2 text-base shrink-0">
+      <SelectTrigger className={cn("w-[90px] h-14 rounded-xl rounded-r-none border-r-0 px-2 text-base shrink-0", triggerClassName)}>
         <SelectValue>
           {selected ? `${selected.flag} +${selected.code}` : '+256'}
         </SelectValue>
