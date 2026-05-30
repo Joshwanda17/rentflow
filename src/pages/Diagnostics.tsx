@@ -11,6 +11,8 @@ import {
   ServerCog,
   ClipboardCopy,
   Download,
+  Send,
+  LinkIcon,
 } from "lucide-react";
 import {
   hardRecover,
@@ -18,6 +20,7 @@ import {
   getRecoveryAttempts,
   MAX_RECOVERY_ATTEMPTS,
 } from "@/lib/hardRecovery";
+import { supabase } from "@/integrations/supabase/client";
 
 type Status = "ok" | "warn" | "bad" | "info";
 
