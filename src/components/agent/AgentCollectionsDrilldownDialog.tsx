@@ -80,6 +80,58 @@ function groupByTenant(
   return Array.from(map.values()).sort((a, b) => b.total - a.total);
 }
 
+function SummaryBar({
+  total,
+  expectedDaily,
+  headroom,
+  perTenantMax,
+  label,
+}: {
+  total: number;
+  expectedDaily: number;
+  headroom: number;
+  perTenantMax: number;
+  label: string;
+}) {
+  const remainingTarget = Math.max(0, expectedDaily - total);
+  const remainingSlots =
+    perTenantMax > 0 && headroom > 0
+      ? Math.floor(Math.min(headroom, remainingTarget) / perTenantMax)
+      : 0;
+  const pct = expectedDaily > 0 ? Math.min(100, Math.round((total / expectedDaily) * 100)) : 0;
+  const barColor = pct >= 50 ? 'bg-emerald-500' : pct >= 20 ? 'bg-amber-500' : 'bg-destructive';
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-3 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+          <PiggyBank className="h-3.5 w-3.5 text-primary" />
+          {label} total
+        </div>
+        <span className="text-sm font-extrabold tabular-nums text-foreground">{formatUGX(total)}</span>
+      </div>
+      {expectedDaily > 0 && (
+        <>
+          <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+            <div className={`h-full ${barColor} transition-all`} style={{ width: `${pct}%` }} />
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">
+              <Target className="h-3 w-3 inline-block mr-1 -mt-0.5 text-primary" />
+              {formatUGX(remainingTarget)} remaining to target
+            </span>
+            {remainingSlots > 0 && (
+              <span className="font-semibold text-foreground">
+                {remainingSlots} {remainingSlots === 1 ? 'slot' : 'slots'} left
+              </span>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function CollectionList({ groups }: { groups: TenantGroup[] }) {
   if (groups.length === 0) {
     return (
