@@ -1524,24 +1524,38 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                     );
                   })}
                 </div>
-                {/* Sort group: by amount (high→low) / daily target (high→low) / by name (A→Z) — pictures only */}
+                {/* Sort group: balance / daily / name — tap to pick, tap again to flip direction */}
                 <div className="flex items-center gap-2">
                   {([
-                    { key: 'balance' as SortKey, dir: 'desc' as SortDir, Icon: Banknote, label: tr('sortBiggest') },
-                    { key: 'daily' as SortKey, dir: 'desc' as SortDir, Icon: TrendingUp, label: 'Highest daily target' },
-                    { key: 'name' as SortKey, dir: 'asc' as SortDir, Icon: ArrowDownAZ, label: tr('sortName') },
-                  ]).map(({ key, dir, Icon, label }) => {
-                    const active = sortKey === key && sortDir === dir;
+                    { key: 'balance' as SortKey, Icon: Banknote, labelAsc: 'Lowest balance first', labelDesc: 'Highest balance first' },
+                    { key: 'daily' as SortKey, Icon: TrendingUp, labelAsc: 'Lowest daily first', labelDesc: 'Highest daily first' },
+                    { key: 'name' as SortKey, Icon: ArrowDownAZ, labelAsc: 'Name Z → A', labelDesc: 'Name A → Z' },
+                  ]).map(({ key, Icon, labelAsc, labelDesc }) => {
+                    const active = sortKey === key;
+                    const dir: SortDir = active ? sortDir : 'desc';
+                    const label = dir === 'asc' ? labelAsc : labelDesc;
                     return (
                       <button
                         key={key}
-                        onClick={() => { setSortKey(key); setSortDir(dir); }}
+                        onClick={() => {
+                          if (sortKey === key) {
+                            setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+                          } else {
+                            setSortKey(key);
+                            setSortDir('desc');
+                          }
+                        }}
                         aria-label={label}
                         aria-pressed={active}
                         title={label}
-                        className={`h-14 w-14 rounded-2xl border-2 flex items-center justify-center transition-colors ${active ? 'bg-foreground text-background border-foreground' : 'bg-muted/40 text-muted-foreground border-transparent'}`}
+                        className={`relative h-14 w-14 rounded-2xl border-2 flex items-center justify-center transition-colors ${active ? 'bg-foreground text-background border-foreground' : 'bg-muted/40 text-muted-foreground border-transparent'}`}
                       >
                         <Icon className="h-7 w-7" strokeWidth={2.4} />
+                        {active && (
+                          <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center border-2 border-background">
+                            {sortDir === 'asc' ? '↑' : '↓'}
+                          </span>
+                        )}
                       </button>
                     );
                   })}
