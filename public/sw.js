@@ -2,9 +2,10 @@
 //
 // Older iPhone installs can be trapped by a previously registered worker that
 // serves a stale app shell/chunk set. This worker intentionally owns the same
-// path (/sw.js), deletes every Cache Storage bucket, navigates open tabs to a
-// cache-busted URL, then unregisters itself. Keep this file for at least one
-// release cycle so already-installed devices receive the cleanup.
+// path (/sw.js; /service-worker.js has the same kill-switch), deletes every
+// Cache Storage bucket, navigates open tabs to a cache-busted URL, then
+// unregisters itself. Keep this file for at least one release cycle so
+// already-installed devices receive the cleanup.
 
 self.addEventListener("install", (event) => {
   event.waitUntil(self.skipWaiting());
