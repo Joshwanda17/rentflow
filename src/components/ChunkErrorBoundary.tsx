@@ -1,6 +1,11 @@
 import React, { Component, ReactNode } from "react";
 import { RefreshCw, Loader2, Home } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  hardRecover,
+  recoveryExhausted,
+  purgeCachesAndServiceWorkers,
+} from "@/lib/hardRecovery";
 
 interface Props {
   children: ReactNode;
@@ -10,6 +15,7 @@ interface State {
   hasError: boolean;
   isChunkError: boolean;
   isRetrying: boolean;
+  exhausted: boolean;
   errorMessage: string;
 }
 
@@ -57,6 +63,7 @@ class ChunkErrorBoundary extends Component<Props, State> {
       hasError: false,
       isChunkError: false,
       isRetrying: false,
+      exhausted: false,
       errorMessage: "",
     };
   }
@@ -66,6 +73,7 @@ class ChunkErrorBoundary extends Component<Props, State> {
     return {
       hasError: true,
       isChunkError,
+      exhausted: recoveryExhausted(),
       errorMessage: error?.message || error?.name || "Unknown error",
     };
   }
@@ -108,6 +116,13 @@ class ChunkErrorBoundary extends Component<Props, State> {
 
     // Auto-retry once for chunk errors — clears caches/SWs then reloads.
     if (this.state.isChunkError || classifyChunkError(error)) {
+      // Stop auto-reloading once we've exhausted attempts in this window —
+      // otherwise iOS Safari can loop forever on a stale HTML shell. Show the
+      // manual recovery UI instead.
+      if (recoveryExhausted()) {
+        this.setState({ exhausted: true });
+        return;
+      }
       try {
         const last = Number(sessionStorage.getItem(AUTO_RETRY_KEY) || "0");
         const now = Date.now();
@@ -126,27 +141,27 @@ class ChunkErrorBoundary extends Component<Props, State> {
 
   handleRetry = async () => {
     this.setState({ isRetrying: true });
-
+    // Full hard recovery: purge ALL caches + SWs and reload to a cache-busted
+    // URL so iOS Safari fetches a fresh HTML shell instead of the stale one.
     try {
-      if ("serviceWorker" in navigator) {
-        const regs = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(regs.map((r) => r.unregister()));
-      }
-
-      if ("caches" in window) {
-        const keys = await caches.keys();
-        await Promise.all(
-          keys
-            .filter((k) => k.startsWith("welile-"))
-            .map((k) => caches.delete(k))
-        );
-      }
-
       localStorage.removeItem("welile_chunk_recovery_attempted");
-      window.location.reload();
     } catch {
-      window.location.reload();
+      // ignore
     }
+    await hardRecover();
+  };
+
+  // Last-resort manual recovery once auto-retries are exhausted: purge
+  // everything without incrementing the attempt counter, then plain reload.
+  handleForceClear = async () => {
+    this.setState({ isRetrying: true });
+    try {
+      localStorage.removeItem(AUTO_RETRY_KEY);
+    } catch {
+      // ignore
+    }
+    await purgeCachesAndServiceWorkers();
+    window.location.replace(window.location.pathname);
   };
 
   handleGoHome = () => {
