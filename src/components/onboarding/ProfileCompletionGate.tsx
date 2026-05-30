@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, MapPin, User as UserIcon, UserCheck, Lock, Search, X } from "lucide-react";
+import { Loader2, MapPin, RotateCcw, User as UserIcon, UserCheck, Lock, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -213,6 +213,18 @@ export default function ProfileCompletionGate() {
     !!referrerOverride && referrerOverride !== profile?.referrer_id;
   const step3Valid =
     !referrerWillChange || overrideReason.trim().length >= 10;
+
+  const handleResetLocation = () => {
+    setContinent("Africa");
+    setCountry("Uganda");
+    setRegion("Central");
+    setDistrict("Kampala");
+    setCity("Kampala");
+    setTown("");
+    setSubCounty("");
+    setParish("");
+    setVillage("");
+  };
 
   const handleSubmit = async () => {
     if (!user || !profile) return;
@@ -419,7 +431,17 @@ export default function ProfileCompletionGate() {
               </>
             )}
 
-            <div className="flex justify-end pt-2">
+            <div className="flex justify-between pt-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleResetLocation}
+                className="gap-1.5 text-muted-foreground hover:text-foreground"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Reset to Kampala
+              </Button>
               <Button onClick={() => setStep(2)} disabled={!step1Valid}>
                 Continue
               </Button>
