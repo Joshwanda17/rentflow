@@ -214,6 +214,18 @@ export default function ProfileCompletionGate() {
   const step3Valid =
     !referrerWillChange || overrideReason.trim().length >= 10;
 
+  const handleResetLocation = () => {
+    setContinent("Africa");
+    setCountry("Uganda");
+    setRegion("Central");
+    setDistrict("Kampala");
+    setCity("Kampala");
+    setTown("");
+    setSubCounty("");
+    setParish("");
+    setVillage("");
+  };
+
   const handleSubmit = async () => {
     if (!user || !profile) return;
     if (!step1Valid || !step2Valid || !step3Valid) return;
