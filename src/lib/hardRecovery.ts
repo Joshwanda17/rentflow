@@ -19,6 +19,8 @@ const ATTEMPT_KEY = "welile_recovery_attempts";
 const ATTEMPT_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 export const MAX_RECOVERY_ATTEMPTS = 3;
 
+import { logUpdateFailure } from "./updateTelemetry";
+
 interface AttemptRecord {
   count: number;
   first: number;
@@ -73,10 +75,13 @@ function recordAttempt(): void {
 
 /** Wipe SWs + every cache. Resolves even if individual steps fail. */
 export async function purgeCachesAndServiceWorkers(): Promise<void> {
+  let swCleared = false;
+  let cacheCleared = false;
   try {
     if ("serviceWorker" in navigator) {
       const regs = await navigator.serviceWorker.getRegistrations();
       await Promise.all(regs.map((r) => r.unregister().catch(() => {})));
+      swCleared = regs.length > 0;
     }
   } catch {
     // ignore
@@ -85,10 +90,16 @@ export async function purgeCachesAndServiceWorkers(): Promise<void> {
     if ("caches" in window) {
       const keys = await caches.keys();
       await Promise.all(keys.map((k) => caches.delete(k).catch(() => {})));
+      cacheCleared = keys.length > 0;
     }
   } catch {
     // ignore
   }
+  logUpdateFailure("caches_purged", {
+    sw_cleared: swCleared,
+    cache_cleared: cacheCleared,
+    reload_attempts: getRecoveryAttempts(),
+  });
 }
 
 /**
@@ -97,6 +108,10 @@ export async function purgeCachesAndServiceWorkers(): Promise<void> {
  */
 export async function hardRecover(): Promise<void> {
   recordAttempt();
+  logUpdateFailure("hard_recover", {
+    reload_attempts: getRecoveryAttempts(),
+    chunk_mismatch: true,
+  });
   await purgeCachesAndServiceWorkers();
 
   try {
