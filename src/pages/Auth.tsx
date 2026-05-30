@@ -132,6 +132,9 @@ export default function Auth() {
   const [otpLoginLoading, setOtpLoginLoading] = useState(false);
   const [otpLoginCountryCode, setOtpLoginCountryCode] = useState('256');
   const [otpResendCooldown, setOtpResendCooldown] = useState(0);
+  // Permanent (WhatsApp-style) login by default. When unchecked the session is
+  // ephemeral and OTP is required again after the browser is fully closed.
+  const [rememberThisDevice, setRememberThisDevice] = useState(true);
   const loginOtp = useOtpVerification();
 
   // WhatsApp deeplink
