@@ -113,12 +113,12 @@ export default function ProfileCompletionGate() {
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
-  // Address state
-  const [continent, setContinent] = useState("");
-  const [country, setCountry] = useState("");
-  const [region, setRegion] = useState("");
-  const [district, setDistrict] = useState("");
-  const [city, setCity] = useState("");
+  // Address state — defaults to Africa, Uganda, Kampala for the majority user base
+  const [continent, setContinent] = useState("Africa");
+  const [country, setCountry] = useState("Uganda");
+  const [region, setRegion] = useState("Central");
+  const [district, setDistrict] = useState("Kampala");
+  const [city, setCity] = useState("Kampala");
   const [town, setTown] = useState("");
   const [subCounty, setSubCounty] = useState("");
   const [parish, setParish] = useState("");
