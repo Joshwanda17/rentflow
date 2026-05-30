@@ -1138,6 +1138,17 @@ export function DirectCreditTool() {
                       <p className="text-muted-foreground">
                         No transaction ID is required for float transfers — just confirm to post the movement.
                       </p>
+                      <label className="flex items-start gap-2 rounded-md border border-border p-3 mt-2 cursor-pointer">
+                        <Checkbox
+                          checked={floatApproved}
+                          onCheckedChange={(v) => setFloatApproved(v === true)}
+                          disabled={mutation.isPending}
+                          className="mt-0.5"
+                        />
+                        <span className="text-foreground">
+                          I explicitly approve posting this float credit without a transaction ID.
+                        </span>
+                      </label>
                     </div>
                   </AlertDialogDescription>
                 </AlertDialogHeader>
@@ -1149,7 +1160,7 @@ export function DirectCreditTool() {
                       e.preventDefault();
                       mutation.mutate(undefined, { onSettled: () => setFloatConfirmOpen(false) });
                     }}
-                    disabled={mutation.isPending}
+                    disabled={mutation.isPending || !floatApproved}
                   >
                     {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                     Confirm transfer
