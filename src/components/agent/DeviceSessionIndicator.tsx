@@ -81,10 +81,10 @@ function DeviceRow({
       </div>
       {editing ? (
         <div className="flex shrink-0 items-center gap-1">
-          <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-success" title="Save name" onClick={save}>
+          <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-success" aria-label="Save device name" onClick={save}>
             <Check className="h-4 w-4" />
           </Button>
-          <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-muted-foreground" title="Cancel" onClick={cancel}>
+          <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-muted-foreground" aria-label="Cancel renaming" onClick={cancel}>
             <X className="h-4 w-4" />
           </Button>
         </div>
