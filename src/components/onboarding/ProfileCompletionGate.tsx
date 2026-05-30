@@ -170,6 +170,13 @@ export default function ProfileCompletionGate() {
   // effects so they don't wipe the values we're restoring.
   const seeding = useRef(false);
 
+  // Draft autosave — partial form input is persisted to localStorage per
+  // user so people can close the gate (it's optional) and resume later
+  // without losing anything they already typed.
+  const draftKey = user ? `welile:profile-draft:${user.id}` : null;
+  const draftRestored = useRef(false);
+  const [draftSavedAt, setDraftSavedAt] = useState<number | null>(null);
+
   const seedFromProfile = useCallback((p: ProfileRow) => {
     seeding.current = true;
     if (p.continent) setContinent(p.continent);
@@ -195,6 +202,101 @@ export default function ProfileCompletionGate() {
     if (!profile) return;
     seedFromProfile(profile);
   }, [profile?.id, seedFromProfile]);
+
+  // Restore a previously saved draft (once) on top of the DB-seeded values,
+  // so the user's most recent unsaved edits win when they come back.
+  useEffect(() => {
+    if (!draftKey || draftRestored.current || !profile) return;
+    let raw: string | null = null;
+    try {
+      raw = localStorage.getItem(draftKey);
+    } catch {
+      /* storage unavailable — nothing to restore */
+    }
+    if (!raw) {
+      draftRestored.current = true;
+      return;
+    }
+    try {
+      const d = JSON.parse(raw) as Record<string, unknown>;
+      seeding.current = true;
+      if (typeof d.continent === "string") setContinent(d.continent);
+      if (typeof d.country === "string") setCountry(d.country);
+      if (typeof d.region === "string") setRegion(d.region);
+      if (typeof d.district === "string") setDistrict(d.district);
+      if (typeof d.city === "string") setCity(d.city);
+      if (typeof d.town === "string") setTown(d.town);
+      if (typeof d.subCounty === "string") setSubCounty(d.subCounty);
+      if (typeof d.parish === "string") setParish(d.parish);
+      if (typeof d.village === "string") setVillage(d.village);
+      if (typeof d.persona === "string") setPersona(d.persona);
+      if (typeof d.occupation === "string") setOccupation(d.occupation);
+      if (typeof d.residenceLat === "number") setResidenceLat(d.residenceLat);
+      if (typeof d.residenceLng === "number") setResidenceLng(d.residenceLng);
+      if (d.step === 1 || d.step === 2 || d.step === 3) setStep(d.step);
+      if (typeof d.quickMode === "boolean") setQuickMode(d.quickMode);
+      if (typeof d.savedAt === "number") setDraftSavedAt(d.savedAt);
+      setTimeout(() => {
+        seeding.current = false;
+      }, 0);
+    } catch {
+      /* corrupt draft — ignore */
+    }
+    draftRestored.current = true;
+  }, [draftKey, profile]);
+
+  // Debounced autosave of the in-progress form to localStorage. Runs only
+  // after the initial restore so we never clobber a draft with defaults.
+  useEffect(() => {
+    if (!draftKey || !draftRestored.current) return;
+    const handle = setTimeout(() => {
+      try {
+        const savedAt = Date.now();
+        localStorage.setItem(
+          draftKey,
+          JSON.stringify({
+            continent,
+            country,
+            region,
+            district,
+            city,
+            town,
+            subCounty,
+            parish,
+            village,
+            persona,
+            occupation,
+            residenceLat,
+            residenceLng,
+            step,
+            quickMode,
+            savedAt,
+          }),
+        );
+        setDraftSavedAt(savedAt);
+      } catch {
+        /* storage full / unavailable — best effort */
+      }
+    }, 600);
+    return () => clearTimeout(handle);
+  }, [
+    draftKey,
+    continent,
+    country,
+    region,
+    district,
+    city,
+    town,
+    subCounty,
+    parish,
+    village,
+    persona,
+    occupation,
+    residenceLat,
+    residenceLng,
+    step,
+    quickMode,
+  ]);
 
   // Allow other parts of the app (e.g. Settings) to open this gate in
   // edit mode so a user can revise an already-complete profile.
@@ -408,6 +510,16 @@ export default function ProfileCompletionGate() {
       }
       void supabase.from("profile_completion_log").insert(logRows as any);
 
+      // The profile is saved — clear any locally stored draft.
+      if (draftKey) {
+        try {
+          localStorage.removeItem(draftKey);
+        } catch {
+          /* ignore */
+        }
+      }
+      setDraftSavedAt(null);
+
       toast.success("Profile updated", {
         description: editMode
           ? "Your profile details have been saved."
@@ -480,6 +592,13 @@ export default function ProfileCompletionGate() {
                 }`}
           </DialogDescription>
         </DialogHeader>
+
+        {!editMode && draftSavedAt != null && (
+          <div className="flex items-center gap-1.5 text-[11px] xs:text-xs text-muted-foreground">
+            <Check className="h-3.5 w-3.5 text-primary" />
+            <span>Draft saved — you can close and finish later.</span>
+          </div>
+        )}
 
         {quickMode && !editMode && (
           <div className="space-y-5 xs:space-y-6 sm:space-y-7 pt-1">
