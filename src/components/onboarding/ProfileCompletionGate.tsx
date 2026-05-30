@@ -602,10 +602,11 @@ export default function ProfileCompletionGate() {
       }}
     >
       <DialogContent
-        className="w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] sm:max-w-lg max-h-[92vh] overflow-y-auto p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] xs:p-4 sm:p-6 [&>button]:hidden"
+        className="w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] sm:max-w-lg max-h-[92vh] overflow-y-auto p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] xs:p-4 sm:p-6 [&>button:not([data-later-skip])]:hidden"
       >
         <button
           type="button"
+          data-later-skip
           onClick={() => {
             if (editMode) {
               closeEditor();
