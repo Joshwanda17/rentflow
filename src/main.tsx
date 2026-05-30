@@ -254,22 +254,22 @@ addEventListener('unhandledrejection', (e) => {
   }
 });
 
-// Service worker strategy:
-// - Preview: disable + unregister to avoid white screens from stale SW cache
-// - Live: register for offline support
+// Service worker cleanup:
+// The deployed app used to register /sw.js for PWA/offline support. iPhones can
+// keep that worker and its stale chunk cache alive across releases, trapping the
+// app on the "Updating…" screen. Stop registering new workers and unregister any
+// existing worker after this fresh shell loads. public/sw.js remains as a
+// kill-switch for devices that still have the old worker installed.
 
 if ('serviceWorker' in navigator) {
-  if (isPreviewHost) {
-    // Silently unregister SWs but NEVER force-reload — prevents blank page loops
+  const unregisterExistingWorkers = () => {
     navigator.serviceWorker.getRegistrations()
       .then(regs => Promise.all(regs.map(r => r.unregister())))
       .catch(() => {});
+  };
+  if ('requestIdleCallback' in window && !isPreviewHost) {
+    (window as any).requestIdleCallback(unregisterExistingWorkers, { timeout: 3000 });
   } else {
-    const register = () => navigator.serviceWorker.register('/sw.js').catch(() => {});
-    if ('requestIdleCallback' in window) {
-      (window as any).requestIdleCallback(register);
-    } else {
-      setTimeout(register, 1000);
-    }
+    setTimeout(unregisterExistingWorkers, isPreviewHost ? 0 : 1000);
   }
 }
