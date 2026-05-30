@@ -593,6 +593,13 @@ export default function ProfileCompletionGate() {
           </DialogDescription>
         </DialogHeader>
 
+        {!editMode && draftSavedAt != null && (
+          <div className="flex items-center gap-1.5 text-[11px] xs:text-xs text-muted-foreground">
+            <Check className="h-3.5 w-3.5 text-primary" />
+            <span>Draft saved — you can close and finish later.</span>
+          </div>
+        )}
+
         {quickMode && !editMode && (
           <div className="space-y-5 xs:space-y-6 sm:space-y-7 pt-1">
             {/* 1) Location — one tap, sensible Kampala default */}
