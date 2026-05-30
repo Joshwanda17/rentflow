@@ -132,12 +132,12 @@ export default function Auth() {
   const [otpLoginLoading, setOtpLoginLoading] = useState(false);
   const [otpLoginCountryCode, setOtpLoginCountryCode] = useState('256');
   const [otpResendCooldown, setOtpResendCooldown] = useState(0);
-  // Permanent (WhatsApp-style) login by default. When unchecked the session is
+  // Permanent login by default. When unchecked the session is
   // ephemeral and OTP is required again after the browser is fully closed.
   const [rememberThisDevice, setRememberThisDevice] = useState(true);
   const loginOtp = useOtpVerification();
 
-  // WhatsApp deeplink
+  // Agent deeplink
   const deepLinkPhone = searchParams.get('phone');
   const deepLinkToken = searchParams.get('token');
   const deepLinkAgent = searchParams.get('agent');
@@ -281,7 +281,7 @@ export default function Auth() {
           )}
         </div>
 
-        {/* WhatsApp deeplink banner */}
+        {/* Agent deeplink banner */}
         {deepLinkAgent && (
           <div className="mb-4 p-3 rounded-xl bg-accent/50 border border-accent flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
             <MessageCircle className="h-5 w-5 text-primary shrink-0" />
@@ -710,16 +710,16 @@ export default function Auth() {
                       )}
                     </Button>
 
-                    {/* Remember this device — permanent (WhatsApp-style) login */}
-                    <label className="flex items-start gap-3 cursor-pointer select-none rounded-xl border border-border/50 bg-card p-3.5 touch-manipulation">
+                    {/* Remember this device — permanent login */}
+                    <label className="flex items-start gap-2.5 cursor-pointer select-none touch-manipulation">
                       <Checkbox
                         checked={rememberThisDevice}
                         onCheckedChange={(checked) => setRememberThisDevice(!!checked)}
-                        className="h-5 w-5 mt-0.5"
+                        className="h-4 w-4 mt-0.5"
                       />
                       <span className="min-w-0">
-                        <span className="block text-sm font-semibold text-foreground">Keep me logged in on this device</span>
-                        <span className="block text-xs text-muted-foreground mt-0.5">Stay signed in like WhatsApp — you'll only need a code on a new phone or after you log out.</span>
+                        <span className="block text-xs font-medium text-foreground">Keep me logged in on this device</span>
+                        <span className="block text-[11px] text-muted-foreground mt-0.5">Stay signed in permanently — you'll only need a code on a new device or after you log out.</span>
                       </span>
                     </label>
 

@@ -1,7 +1,7 @@
 // Device-trust + session-permanence helpers.
 //
 // "Remember this device" controls whether a successful sign-in produces a
-// PERMANENT session (WhatsApp-style: stays logged in until the user taps Log
+// PERMANENT session (stays logged in until the user taps Log
 // out) or an EPHEMERAL one (dropped when the browser is fully closed, so an
 // OTP / password is required again next time).
 //
