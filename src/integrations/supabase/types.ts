@@ -9630,6 +9630,39 @@ export type Database = {
           },
         ]
       }
+      mobile_rollout_config: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          id: string
+          notes: string | null
+          rollout_percent: number
+          stage: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          notes?: string | null
+          rollout_percent?: number
+          stage?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          notes?: string | null
+          rollout_percent?: number
+          stage?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       money_requests: {
         Row: {
           amount: number

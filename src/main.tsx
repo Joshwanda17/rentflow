@@ -9,6 +9,7 @@ import {
   purgeCachesAndServiceWorkers,
 } from './lib/hardRecovery';
 import { logUpdateFailure } from './lib/updateTelemetry';
+import { refreshRolloutConfig, isRolloutEnabledForDevice } from './lib/rollout';
 
 const root = document.getElementById('root')!;
 const host = window.location.hostname;
@@ -16,6 +17,13 @@ const isPreviewHost =
   host.includes('id-preview--') ||
   host.includes('preview--') ||
   host.endsWith('.lovableproject.com');
+
+// Refresh the staged-rollout config as early as possible (fire-and-forget) so
+// the cohort decision below uses a fresh value. Falls back to the cached value
+// when offline or still in flight — never blocks startup.
+if (!isPreviewHost) {
+  void refreshRolloutConfig();
+}
 
 // Show branded loader immediately — inline SVG spinner, no network requests at all
 root.innerHTML = `<div style="min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f8fafc;gap:12px">
@@ -183,15 +191,26 @@ const loadApp = async () => {
         details: { message: String((err as any)?.message || err), recentlyReloaded },
       });
     }
+    // Staged rollout gate: only devices in the active canary/ramp cohort run
+    // the aggressive auto cache-bust recovery. Devices outside the cohort fall
+    // through to the manual recovery UI, so the fix is verified on a small
+    // percentage before full deployment.
+    const inRolloutCohort = isRolloutEnabledForDevice();
     // Stale-deploy recovery: purge caches/SWs and reload to a cache-busted URL
     // so iOS Safari fetches a fresh HTML shell. Stop once attempts are
     // exhausted to avoid an endless "Updating…" loop.
-    if (isChunkError && !recoveryExhausted()) {
+    if (isChunkError && inRolloutCohort && !recoveryExhausted()) {
       try {
         sessionStorage.setItem(reloadKey, String(Date.now()));
       } catch {}
       await hardRecover();
       return;
+    }
+    if (isChunkError && !inRolloutCohort) {
+      logUpdateFailure('chunk_error_detected', {
+        chunk_mismatch: true,
+        details: { rolloutCohort: false, message: 'outside rollout cohort — manual recovery UI' },
+      });
     }
     if (isChunkError && recoveryExhausted()) {
       logUpdateFailure('recovery_exhausted', { chunk_mismatch: true });
