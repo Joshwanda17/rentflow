@@ -10131,8 +10131,11 @@ export type Database = {
           created_at: string
           expires_at: string
           id: string
+          last_sent_at: string | null
           otp_code: string
           phone: string
+          send_count: number
+          send_window_start: string | null
           updated_at: string
           verified: boolean
           verified_at: string | null
@@ -10142,8 +10145,11 @@ export type Database = {
           created_at?: string
           expires_at: string
           id?: string
+          last_sent_at?: string | null
           otp_code: string
           phone: string
+          send_count?: number
+          send_window_start?: string | null
           updated_at?: string
           verified?: boolean
           verified_at?: string | null
@@ -10153,8 +10159,11 @@ export type Database = {
           created_at?: string
           expires_at?: string
           id?: string
+          last_sent_at?: string | null
           otp_code?: string
           phone?: string
+          send_count?: number
+          send_window_start?: string | null
           updated_at?: string
           verified?: boolean
           verified_at?: string | null
