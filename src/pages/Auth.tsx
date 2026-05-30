@@ -264,7 +264,7 @@ export default function Auth() {
           )}
           {isLoginView && (
             <p className="text-sm text-muted-foreground mt-0.5 animate-in fade-in duration-300">
-              Sign in with your phone number
+              Sign in with a one-time SMS code
             </p>
           )}
           {isSignUp && (
