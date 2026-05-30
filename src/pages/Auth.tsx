@@ -214,6 +214,7 @@ export default function Auth() {
         if (data.user_name) localStorage.setItem('welile_last_user_name', data.user_name);
         localStorage.setItem('welile_last_login_method', 'otp');
         localStorage.setItem('welile_had_session', 'true');
+        setDeviceTrust(rememberThisDevice);
         toast({ title: `Welcome back${data.user_name ? ', ' + data.user_name : ''}! 🎉`, description: 'Logging you in...' });
         window.location.href = data.verify_url;
       }
