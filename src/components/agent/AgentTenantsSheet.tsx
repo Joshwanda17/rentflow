@@ -327,7 +327,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   // Simple Mode — strips the page down to large photo-first tenant cards with
   // one big "Collect" + "Call" action each. Built for agents who don't like
   // reading, don't notice fine detail, and use cheap phones. Persisted.
-  const [simpleMode, setSimpleMode] = useState<boolean>(() => loadPrefs().simpleMode ?? false);
+  const [simpleMode, setSimpleMode] = useState<boolean>(() => loadPrefs().simpleMode ?? true);
   // Simple Mode language toggle (English ⇄ Luganda). Persisted.
   const [simpleLang, setSimpleLang] = useState<SimpleLang>(() => loadPrefs().simpleLang ?? 'en');
   // Simple Mode bulk collect — let an agent tick several tenants and record a
