@@ -701,6 +701,7 @@ export default function Diagnostics() {
 
         {/* Report (continued) */}
         <div className="rounded-xl border border-border bg-card p-4">
+          <h2 className="mb-3 text-sm font-semibold">Support report</h2>
           <p className="mb-3 text-xs text-muted-foreground">
             Generate a full diagnostic report you can paste into a support ticket or download as a .txt file.
           </p>
