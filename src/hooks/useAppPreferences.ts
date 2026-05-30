@@ -13,6 +13,8 @@ export interface AppPreferences {
   defaultRole: DefaultRolePreference;
   unlockAllRoles: boolean;
   disableAgentAutoDefault: boolean;
+  /** Which sign-in method the login screen opens with by default. */
+  preferredLoginMethod: 'otp' | 'password';
 }
 
 const DEFAULT_PREFERENCES: AppPreferences = {
@@ -24,6 +26,7 @@ const DEFAULT_PREFERENCES: AppPreferences = {
   defaultRole: 'auto',
   unlockAllRoles: false,
   disableAgentAutoDefault: false,
+  preferredLoginMethod: 'otp',
 };
 
 const STORAGE_KEY = 'welile_app_preferences';
