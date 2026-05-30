@@ -130,9 +130,12 @@ const loadApp = async () => {
 
     createRoot(root).render(<App />);
 
-    // App mounted successfully — reset the chunk-recovery attempt counter so a
-    // future genuine failure gets a fresh set of automatic retries.
-    clearRecoveryAttempts();
+    // App mounted successfully, but route-level lazy chunks may still be
+    // loading. Only reset the recovery counter after the app has remained
+    // stable for a while; otherwise iPhones with a stale shell can reload,
+    // mount App, clear the counter, fail the next route chunk, and loop forever
+    // on "Updating…" without ever reaching the manual recovery UI.
+    setTimeout(clearRecoveryAttempts, 45_000);
 
     // Preload Dashboard chunk only when the user is actually heading there.
     // Preloading on every route (e.g. /executive-hub) caused parallel chunk
@@ -254,22 +257,22 @@ addEventListener('unhandledrejection', (e) => {
   }
 });
 
-// Service worker strategy:
-// - Preview: disable + unregister to avoid white screens from stale SW cache
-// - Live: register for offline support
+// Service worker cleanup:
+// The deployed app used to register /sw.js for PWA/offline support. iPhones can
+// keep that worker and its stale chunk cache alive across releases, trapping the
+// app on the "Updating…" screen. Stop registering new workers and unregister any
+// existing worker after this fresh shell loads. public/sw.js remains as a
+// kill-switch for devices that still have the old worker installed.
 
 if ('serviceWorker' in navigator) {
-  if (isPreviewHost) {
-    // Silently unregister SWs but NEVER force-reload — prevents blank page loops
+  const unregisterExistingWorkers = () => {
     navigator.serviceWorker.getRegistrations()
       .then(regs => Promise.all(regs.map(r => r.unregister())))
       .catch(() => {});
+  };
+  if ('requestIdleCallback' in window && !isPreviewHost) {
+    (window as any).requestIdleCallback(unregisterExistingWorkers, { timeout: 3000 });
   } else {
-    const register = () => navigator.serviceWorker.register('/sw.js').catch(() => {});
-    if ('requestIdleCallback' in window) {
-      (window as any).requestIdleCallback(register);
-    } else {
-      setTimeout(register, 1000);
-    }
+    setTimeout(unregisterExistingWorkers, isPreviewHost ? 0 : 1000);
   }
 }

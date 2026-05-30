@@ -1,162 +1,41 @@
-// Welile Service Worker — Safari-Safe Version v3
-// Cache version is a fixed string. Using Date.now() here was a bug:
-// the SW source is evaluated on every fetch of /sw.js, so the byte-
-// string of the worker changed every load. iOS Safari treated that as
-// a brand-new service worker, ran install→activate→clients.claim() on
-// every visibility resume, and reclaimed the page — which looked to
-// agents like "the app refreshed mid-payment". Real cache busting
-// comes from Vite's content-hashed asset filenames; bump this constant
-// manually only when the SW logic itself needs to invalidate caches.
-const CACHE_VERSION = "v4-2026-05-29-force";
-const CACHE_NAME = `welile-core-v3-${CACHE_VERSION}`;
-const STATIC_CACHE = `welile-static-v3-${CACHE_VERSION}`;
-const OFFLINE_URL = "/offline.html";
+// Welile service-worker kill switch — 2026-05-30
+//
+// Older iPhone installs can be trapped by a previously registered worker that
+// serves a stale app shell/chunk set. This worker intentionally owns the same
+// path (/sw.js), deletes every Cache Storage bucket, navigates open tabs to a
+// cache-busted URL, then unregisters itself. Keep this file for at least one
+// release cycle so already-installed devices receive the cleanup.
 
-const PRECACHE_ASSETS = ["/offline.html", "/manifest.json", "/favicon.png", "/welile-logo.png"];
-
-// ================= INSTALL =================
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_ASSETS))
-  );
-  self.skipWaiting();
+  event.waitUntil(self.skipWaiting());
 });
 
-// ================= ACTIVATE =================
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((names) =>
-      Promise.all(
-        names
-          .filter((name) => name !== CACHE_NAME && name !== STATIC_CACHE)
-          .map((name) => caches.delete(name))
-      )
-    )
-  );
-  self.clients.claim();
-});
+    (async () => {
+      await self.clients.claim();
 
-// ================= MESSAGE =================
-self.addEventListener("message", (event) => {
-  if (event.data?.type === "CLEAR_API_CACHE" || event.data?.type === "SKIP_WAITING") {
-    // Clear all caches and skip waiting
-    caches.keys().then((names) => Promise.all(names.map((n) => caches.delete(n))));
-    self.skipWaiting();
-  }
-});
+      const names = await caches.keys();
+      await Promise.all(names.map((name) => caches.delete(name)));
 
-// ================= FETCH =================
-self.addEventListener("fetch", (event) => {
-  const { request } = event;
-  const url = new URL(request.url);
+      const clients = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
 
-  if (request.method !== "GET") return;
-  if (!url.protocol.startsWith("http")) return;
-
-  // ===================================================
-  // 1️⃣ BYPASS AUTH, OAUTH & SUPABASE COMPLETELY
-  // ===================================================
-  if (
-    url.pathname.startsWith("/~oauth") ||
-    url.searchParams.has("code") ||
-    url.searchParams.has("state") ||
-    url.pathname.includes("/auth") ||
-    url.hostname.includes("supabase.co") ||
-    url.hostname.includes("supabase.in") ||
-    url.hostname.includes("oauth.lovable.app")
-  ) {
-    return; // Let browser handle normally
-  }
-
-  // ===================================================
-  // 2️⃣ NAVIGATION — NETWORK ONLY WITH OFFLINE FALLBACK
-  //    Safari-safe: NEVER serve cached index.html with stale chunk refs
-  // ===================================================
-  if (request.mode === "navigate") {
-    // Public rent recorder MUST work even fully offline / on flaky networks.
-    if (url.pathname === "/record-rent" || url.pathname.startsWith("/record-rent")) {
-      event.respondWith(
-        fetch(request)
-          .then((res) => {
-            if (res.ok) {
-              const clone = res.clone();
-              caches.open(STATIC_CACHE).then((cache) => cache.put("/record-rent-shell", clone));
-            }
-            return res;
-          })
-          .catch(() =>
-            caches.match("/record-rent-shell").then(
-              (cached) =>
-                cached ||
-                caches.match(OFFLINE_URL).then((r) => r || new Response("Offline", { status: 503 }))
-            )
-          )
+      await Promise.all(
+        clients.map((client) => {
+          const url = new URL(client.url);
+          url.searchParams.set("sw-cleanup", Date.now().toString(36));
+          return client.navigate(url.toString());
+        })
       );
-      return;
-    }
 
-    event.respondWith(
-      fetch(request).catch(() =>
-        caches.match(OFFLINE_URL).then((res) => res || new Response("Offline", { status: 503 }))
-      )
-    );
-    return;
-  }
-
-  // ===================================================
-  // 3️⃣ HASHED STATIC ASSETS — CACHE FIRST (safe: hash = immutable)
-  //    Only cache files with content hashes in the filename
-  // ===================================================
-  if (
-    (request.destination === "script" ||
-      request.destination === "style" ||
-      request.destination === "font") &&
-    /\.[a-f0-9]{8,}\./i.test(url.pathname)
-  ) {
-    event.respondWith(
-      caches.match(request).then((cached) => {
-        if (cached) return cached;
-        return fetch(request).then((response) => {
-          if (response.ok) {
-            const clone = response.clone();
-            caches.open(STATIC_CACHE).then((cache) => cache.put(request, clone));
-          }
-          return response;
-        });
-      })
-    );
-    return;
-  }
-
-  // ===================================================
-  // 4️⃣ IMAGES — STALE WHILE REVALIDATE
-  // ===================================================
-  if (request.destination === "image") {
-    event.respondWith(
-      caches.match(request).then((cached) => {
-        const networkFetch = fetch(request)
-          .then((response) => {
-            if (response.ok) {
-              const clone = response.clone();
-              caches.open(STATIC_CACHE).then((cache) => cache.put(request, clone));
-            }
-            return response;
-          })
-          .catch(() => cached);
-        return cached || networkFetch;
-      })
-    );
-    return;
-  }
-
-  // ===================================================
-  // 5️⃣ API & EVERYTHING ELSE — NETWORK ONLY
-  // ===================================================
-  event.respondWith(
-    fetch(request).catch(() =>
-      caches.match(request).then((cached) =>
-        cached || new Response('Network error', { status: 503, statusText: 'Service Unavailable' })
-      )
-    )
+      await self.registration.unregister();
+    })()
   );
+});
+
+self.addEventListener("fetch", () => {
+  // Network-only by design. The browser handles every request normally.
 });
