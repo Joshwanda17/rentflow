@@ -31,7 +31,6 @@ function DeviceRow({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(session.device_label ?? '');
   const [error, setError] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   const save = () => {
     const trimmed = draft.trim();
