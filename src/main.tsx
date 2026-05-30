@@ -2,6 +2,12 @@
 // out of "remember this device", before Supabase/session-cache read any token.
 import './lib/ephemeralGuard';
 import { createRoot } from 'react-dom/client';
+import {
+  hardRecover,
+  recoveryExhausted,
+  clearRecoveryAttempts,
+  purgeCachesAndServiceWorkers,
+} from './lib/hardRecovery';
 
 const root = document.getElementById('root')!;
 const host = window.location.hostname;
@@ -124,6 +130,10 @@ const loadApp = async () => {
 
     createRoot(root).render(<App />);
 
+    // App mounted successfully — reset the chunk-recovery attempt counter so a
+    // future genuine failure gets a fresh set of automatic retries.
+    clearRecoveryAttempts();
+
     // Preload Dashboard chunk only when the user is actually heading there.
     // Preloading on every route (e.g. /executive-hub) caused parallel chunk
     // fetches that overwhelmed slow connections and tripped the error UI.
@@ -163,16 +173,14 @@ const loadApp = async () => {
     const reloadKey = '__welile_chunk_reload_at';
     const lastReload = Number(sessionStorage.getItem(reloadKey) || '0');
     const recentlyReloaded = Date.now() - lastReload < 30_000;
-    if (isChunkError && !recentlyReloaded) {
+    // Stale-deploy recovery: purge caches/SWs and reload to a cache-busted URL
+    // so iOS Safari fetches a fresh HTML shell. Stop once attempts are
+    // exhausted to avoid an endless "Updating…" loop.
+    if (isChunkError && !recentlyReloaded && !recoveryExhausted()) {
       try {
         sessionStorage.setItem(reloadKey, String(Date.now()));
-        if ('caches' in window) {
-          await caches.keys().then((keys) =>
-            Promise.all(keys.map((k) => caches.delete(k)))
-          ).catch(() => {});
-        }
       } catch {}
-      location.reload();
+      await hardRecover();
       return;
     }
     showErrorUI();
