@@ -314,70 +314,54 @@ export default function Auth() {
 
             {/* ===== SIGN IN VIEW ===== */}
             {isLoginView && loginMode === 'password' && (
-              <div className="space-y-3">
-                {/* Social sign-in — front and center */}
-                <div className="space-y-2.5">
-                  <GoogleSignInButton
-                    onClick={wrappedHandleGoogleSignIn}
-                    disabled={isGoogleLoading || isAppleLoading || isLoading}
-                    isLoading={isGoogleLoading}
-                    variant="prominent"
-                  />
-                  <AppleSignInButton
-                    onClick={handleAppleSignIn}
-                    disabled={isGoogleLoading || isAppleLoading || isLoading}
-                    isLoading={isAppleLoading}
-                  />
-                </div>
-
-                {/* Divider */}
-                <div className="relative flex items-center py-1">
-                  <div className="flex-1 border-t border-border/40" />
-                  <span className="px-3 text-xs text-muted-foreground">or use phone</span>
-                  <div className="flex-1 border-t border-border/40" />
-                </div>
-
-                {/* Phone + Password — compact */}
-                <form onSubmit={wrappedHandleSubmit} className="space-y-3">
-                  <div className="relative flex">
-                    <CountryCodeSelect value={countryCode} onChange={setCountryCode} />
-                    <div className="relative flex-1">
-                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        ref={phoneInputRef}
-                        type="tel"
-                        inputMode="tel"
-                        autoComplete="tel"
-                        value={phone}
-                        onChange={(e) => { setPhone(e.target.value); setLoginError(null); }}
-                        placeholder="700 123 456"
-                        className={cn("pl-10 h-12 text-base rounded-xl rounded-l-none", loginError && 'border-destructive')}
-                        style={{ fontSize: '16px' }}
-                        required
-                      />
+              <div className="space-y-4">
+                {/* Phone + Password — primary path (phone-first for African users) */}
+                <form onSubmit={wrappedHandleSubmit} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground px-1">Phone number</Label>
+                    <div className="relative flex">
+                      <CountryCodeSelect value={countryCode} onChange={setCountryCode} />
+                      <div className="relative flex-1">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                        <Input
+                          ref={phoneInputRef}
+                          type="tel"
+                          inputMode="tel"
+                          autoComplete="tel"
+                          value={phone}
+                          onChange={(e) => { setPhone(e.target.value); setLoginError(null); }}
+                          placeholder="700 123 456"
+                          className={cn("pl-11 h-14 text-base rounded-xl rounded-l-none", loginError && 'border-destructive')}
+                          style={{ fontSize: '16px' }}
+                          required
+                        />
+                      </div>
                     </div>
                   </div>
 
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      ref={passwordInputRef}
-                      type={showPassword ? "text" : "password"}
-                      autoComplete="current-password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Password"
-                      className="pl-10 h-12 text-base rounded-xl"
-                      style={{ fontSize: '16px' }}
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      {showPassword ? 'Hide' : 'Show'}
-                    </button>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground px-1">Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                      <Input
+                        ref={passwordInputRef}
+                        type={showPassword ? "text" : "password"}
+                        autoComplete="current-password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Your password"
+                        className="pl-11 pr-14 h-14 text-base rounded-xl"
+                        style={{ fontSize: '16px' }}
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {showPassword ? 'Hide' : 'Show'}
+                      </button>
+                    </div>
                   </div>
 
                   {loginError && (
@@ -425,7 +409,7 @@ export default function Auth() {
 
                   <Button
                     type="submit"
-                    className="w-full h-12 text-base rounded-xl font-semibold touch-manipulation active:scale-[0.98] transition-transform"
+                    className="w-full h-14 text-base rounded-xl font-semibold touch-manipulation active:scale-[0.98] transition-transform"
                     disabled={isLoading}
                     style={{ fontSize: '16px', WebkitTapHighlightColor: 'transparent' }}
                   >
@@ -437,6 +421,27 @@ export default function Auth() {
                     ) : 'Sign In'}
                   </Button>
                 </form>
+
+                {/* Divider — social sign-in as a secondary option */}
+                <div className="relative flex items-center py-1">
+                  <div className="flex-1 border-t border-border/40" />
+                  <span className="px-3 text-xs text-muted-foreground">or continue with</span>
+                  <div className="flex-1 border-t border-border/40" />
+                </div>
+
+                <div className="space-y-2.5">
+                  <GoogleSignInButton
+                    onClick={wrappedHandleGoogleSignIn}
+                    disabled={isGoogleLoading || isAppleLoading || isLoading}
+                    isLoading={isGoogleLoading}
+                    variant="standard"
+                  />
+                  <AppleSignInButton
+                    onClick={handleAppleSignIn}
+                    disabled={isGoogleLoading || isAppleLoading || isLoading}
+                    isLoading={isAppleLoading}
+                  />
+                </div>
 
                 {failedAttempts >= 2 && (
                   <Button
