@@ -10135,6 +10135,9 @@ export type Database = {
           otp_code: string
           phone: string
           send_count: number
+          send_status: string
+          send_status_at: string | null
+          send_status_reason: string | null
           send_window_start: string | null
           updated_at: string
           verified: boolean
@@ -10149,6 +10152,9 @@ export type Database = {
           otp_code: string
           phone: string
           send_count?: number
+          send_status?: string
+          send_status_at?: string | null
+          send_status_reason?: string | null
           send_window_start?: string | null
           updated_at?: string
           verified?: boolean
@@ -10163,6 +10169,9 @@ export type Database = {
           otp_code?: string
           phone?: string
           send_count?: number
+          send_status?: string
+          send_status_at?: string | null
+          send_status_reason?: string | null
           send_window_start?: string | null
           updated_at?: string
           verified?: boolean
