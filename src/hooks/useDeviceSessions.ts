@@ -7,6 +7,7 @@ const DEVICE_LABEL_KEY = 'welile_device_label';
 const ACTIVE_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 // Heartbeat interval — keep lean for scale
 const HEARTBEAT_MS = 2 * 60 * 1000; // 2 minutes
+const MAX_DEVICE_LABEL_LENGTH = 40;
 
 export interface DeviceSession {
   id: string;
@@ -125,7 +126,7 @@ export function useDeviceSessions(userId: string | undefined) {
     async (deviceId: string, label: string) => {
       if (!userId) return;
       const trimmed = label.trim();
-      if (!trimmed) return;
+      if (!trimmed || trimmed.length > MAX_DEVICE_LABEL_LENGTH) return;
       // If renaming the current device, persist locally so heartbeats keep the name.
       if (deviceId === deviceIdRef.current) {
         try {
