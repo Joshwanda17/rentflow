@@ -137,10 +137,16 @@ export function AgentCollectionsDrilldownDialog({
   open,
   onOpenChange,
   agentId,
+  expectedDaily = 0,
+  headroom = 0,
+  perTenantMax = 0,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   agentId: string;
+  expectedDaily?: number;
+  headroom?: number;
+  perTenantMax?: number;
 }) {
   // ----- Filters -----
   const [methodFilter, setMethodFilter] = useState<string>('all');
