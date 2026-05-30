@@ -54,6 +54,64 @@ interface SmsResult {
   reason?: string;
 }
 
+// Per-attempt network timeout for the gateway call. Keeps a single stuck
+// request from hanging the whole send. Each retry gets its own fresh timeout.
+const SMS_ATTEMPT_TIMEOUT_MS = 5000;
+// Number of attempts (1 initial + retries) when the gateway times out or errors.
+const SMS_MAX_ATTEMPTS = 3;
+// Base backoff between retries; grows exponentially (300ms, 600ms, 1200ms...).
+const SMS_BACKOFF_BASE_MS = 300;
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Single gateway attempt with a hard timeout via AbortController so a slow or
+ * stuck provider call can never block indefinitely.
+ */
+async function sendSMSAttempt(
+  baseUrl: string,
+  apiKey: string,
+  params: URLSearchParams,
+): Promise<SmsResult> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), SMS_ATTEMPT_TIMEOUT_MS);
+  try {
+    const response = await fetch(baseUrl, {
+      method: "POST",
+      headers: {
+        "apiKey": apiKey,
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Accept": "application/json",
+      },
+      body: params.toString(),
+      signal: controller.signal,
+    });
+
+    const data = await response.json();
+    console.log("[sms-otp] AT response:", JSON.stringify(data));
+
+    const recipients = data?.SMSMessageData?.Recipients;
+    if (recipients && recipients.length > 0) {
+      const status = recipients[0].statusCode;
+      // 101 = sent, 100 = queued (both mean the gateway accepted it)
+      if (status === 101 || status === 100) return { accepted: true };
+      // A definitive rejection from the gateway — retrying won't help.
+      return { accepted: false, reason: `status_${status}` };
+    }
+    return { accepted: false, reason: "no_recipients" };
+  } catch (error) {
+    const aborted = (error as Error)?.name === "AbortError";
+    console.error(`[sms-otp] SMS attempt ${aborted ? "timed out" : "failed"}:`, error);
+    return { accepted: false, reason: aborted ? "timeout" : "network_error" };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Reasons that are transient and worth retrying. Definitive gateway
+// rejections (e.g. status_xxx, no_recipients) are not retried.
+const RETRYABLE_REASONS = new Set(["timeout", "network_error"]);
+
 async function sendSMS(phone: string, message: string): Promise<SmsResult> {
   const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
   const username = Deno.env.get("AFRICASTALKING_USERNAME");
@@ -71,39 +129,30 @@ async function sendSMS(phone: string, message: string): Promise<SmsResult> {
 
   const formattedPhone = formatPhoneInternational(phone);
 
-  try {
-    const params = new URLSearchParams({
-      username,
-      to: formattedPhone,
-      message,
-      from: "WELILE",
-    });
+  const params = new URLSearchParams({
+    username,
+    to: formattedPhone,
+    message,
+    from: "WELILE",
+  });
 
-    const response = await fetch(baseUrl, {
-      method: "POST",
-      headers: {
-        "apiKey": apiKey,
-        "Content-Type": "application/x-www-form-urlencoded",
-        "Accept": "application/json",
-      },
-      body: params.toString(),
-    });
+  let last: SmsResult = { accepted: false, reason: "network_error" };
+  for (let attempt = 1; attempt <= SMS_MAX_ATTEMPTS; attempt++) {
+    last = await sendSMSAttempt(baseUrl, apiKey, params);
 
-    const data = await response.json();
-    console.log("[sms-otp] AT response:", JSON.stringify(data));
+    // Success or a definitive rejection — stop immediately.
+    if (last.accepted || !RETRYABLE_REASONS.has(last.reason ?? "")) return last;
 
-    const recipients = data?.SMSMessageData?.Recipients;
-    if (recipients && recipients.length > 0) {
-      const status = recipients[0].statusCode;
-      // 101 = sent, 100 = queued (both mean the gateway accepted it)
-      if (status === 101 || status === 100) return { accepted: true };
-      return { accepted: false, reason: `status_${status}` };
+    // Transient failure — back off (exponential) before the next attempt.
+    if (attempt < SMS_MAX_ATTEMPTS) {
+      const backoff = SMS_BACKOFF_BASE_MS * 2 ** (attempt - 1);
+      console.warn(
+        `[sms-otp] retry ${attempt}/${SMS_MAX_ATTEMPTS - 1} after ${last.reason} (backoff ${backoff}ms)`,
+      );
+      await sleep(backoff);
     }
-    return { accepted: false, reason: "no_recipients" };
-  } catch (error) {
-    console.error("[sms-otp] SMS send error:", error);
-    return { accepted: false, reason: "network_error" };
   }
+  return last;
 }
 
 Deno.serve(async (req) => {
