@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAgentCapacityMap, DAILY_ELIGIBILITY_THRESHOLD } from '@/hooks/useAgentCapacityMap';
 import { formatUGX } from '@/lib/rentCalculations';
-import { TrendingUp, TrendingDown, Minus, Layers, Target, CheckCircle2, Lock, Loader2, ChevronRight, Share2, Send, Download } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Layers, Target, CheckCircle2, Lock, Loader2, ChevronRight, Share2, Send, Download, ImageDown } from 'lucide-react';
 import { AgentCollectionsDrilldownDialog } from './AgentCollectionsDrilldownDialog';
 import { AgentCapacityShareCard } from './AgentCapacityShareCard';
 import { hapticTap } from '@/lib/haptics';
@@ -85,27 +85,27 @@ export function AgentCapacityBreakdownPanel() {
     setPreviewOpen(true);
   };
 
-  const generatePng = async () => {
+  const generatePng = async (pixelRatio = 2) => {
     if (!shareCardRef.current) throw new Error('No card ref');
     return toPng(shareCardRef.current, {
-      pixelRatio: 2,
+      pixelRatio,
       cacheBust: true,
       skipFonts: true,
     });
   };
 
-  const downloadPng = async () => {
+  const downloadPng = async (pixelRatio = 2) => {
     if (!shareCardRef.current || sharing) return;
     setSharing(true);
     try {
-      const dataUrl = await generatePng();
+      const dataUrl = await generatePng(pixelRatio);
       const link = document.createElement('a');
       link.href = dataUrl;
       link.download = `welile-capacity-${Date.now()}.png`;
       document.body.appendChild(link);
       link.click();
       link.remove();
-      toast.success('Image downloaded');
+      toast.success(pixelRatio > 2 ? 'HD image downloaded' : 'Image downloaded');
     } catch (err) {
       toast.error('Could not generate the image. Please try again.');
     } finally {
@@ -117,7 +117,7 @@ export function AgentCapacityBreakdownPanel() {
     if (!shareCardRef.current || sharing) return;
     setSharing(true);
     try {
-      const dataUrl = await generatePng();
+      const dataUrl = await generatePng(2);
       const res = await fetch(dataUrl);
       const blob = await res.blob();
       const file = new File([blob], `welile-capacity-${Date.now()}.png`, { type: 'image/png' });
@@ -315,12 +315,21 @@ export function AgentCapacityBreakdownPanel() {
               </button>
               <button
                 type="button"
-                onClick={downloadPng}
+                onClick={() => downloadPng(2)}
                 disabled={sharing}
                 className="w-full flex items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 py-3 text-sm font-bold text-foreground hover:bg-muted transition-colors disabled:opacity-60"
               >
                 {sharing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                 Download PNG
+              </button>
+              <button
+                type="button"
+                onClick={() => downloadPng(4)}
+                disabled={sharing}
+                className="w-full flex items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 py-3 text-sm font-bold text-foreground hover:bg-muted transition-colors disabled:opacity-60"
+              >
+                {sharing ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageDown className="h-4 w-4" />}
+                Download HD PNG
               </button>
             </div>
           </div>
