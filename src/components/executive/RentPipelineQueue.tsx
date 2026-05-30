@@ -227,6 +227,7 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
         const cloudValue = typeof data?.value === 'string' ? data.value : null;
         if (cloudValue) {
           setSelectedTenantId(cloudValue);
+          setTenantSyncStatus('synced');
           try {
             if (cloudValue === 'all') localStorage.removeItem('rentPipeline_selectedTenantId');
             else localStorage.setItem('rentPipeline_selectedTenantId', cloudValue);
