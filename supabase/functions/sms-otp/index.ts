@@ -5,21 +5,12 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// In-memory rate limiting for OTP sends
-const otpSendAttempts = new Map<string, { count: number; firstSent: number }>();
+// Durable, database-backed rate limiting for OTP sends.
+// These limits persist across page reloads and edge function cold starts,
+// so they cannot be bypassed by reloading the OTP screen.
 const MAX_SENDS_PER_HOUR = 5;
-
-function checkSendRateLimit(phone: string): boolean {
-  const now = Date.now();
-  const record = otpSendAttempts.get(phone);
-  if (!record || now - record.firstSent > 3600000) {
-    otpSendAttempts.set(phone, { count: 1, firstSent: now });
-    return true;
-  }
-  if (record.count >= MAX_SENDS_PER_HOUR) return false;
-  record.count++;
-  return true;
-}
+const RESEND_COOLDOWN_SECONDS = 60;
+const HOUR_MS = 3600000;
 
 function generateOTP(): string {
   const digits = "0123456789";
@@ -141,18 +132,62 @@ Deno.serve(async (req) => {
     const phoneKey = phone.slice(-9);
 
     if (action === "send") {
-      // Rate limit check
-      if (!checkSendRateLimit(phoneKey)) {
-        return new Response(JSON.stringify({ error: "Too many OTP requests. Please try again later." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+      const now = Date.now();
+
+      // Load existing record to enforce durable, DB-backed rate limits.
+      const { data: existing } = await adminClient
+        .from("otp_verifications")
+        .select("last_sent_at, send_count, send_window_start")
+        .eq("phone", phoneKey)
+        .maybeSingle();
+
+      // Cooldown: minimum time between consecutive sends (survives reloads).
+      if (existing?.last_sent_at) {
+        const elapsed = now - new Date(existing.last_sent_at).getTime();
+        const remaining = Math.ceil((RESEND_COOLDOWN_SECONDS * 1000 - elapsed) / 1000);
+        if (remaining > 0) {
+          return new Response(
+            JSON.stringify({
+              error: `Please wait ${remaining}s before requesting another code.`,
+              retry_after: remaining,
+            }),
+            {
+              status: 429,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            }
+          );
+        }
+      }
+
+      // Hourly cap: limit total sends within a rolling 1-hour window.
+      let windowStart = existing?.send_window_start
+        ? new Date(existing.send_window_start).getTime()
+        : 0;
+      let sendCount = existing?.send_count ?? 0;
+
+      if (!windowStart || now - windowStart > HOUR_MS) {
+        // Window expired (or first send) — reset.
+        windowStart = now;
+        sendCount = 0;
+      }
+
+      if (sendCount >= MAX_SENDS_PER_HOUR) {
+        const resetIn = Math.ceil((HOUR_MS - (now - windowStart)) / 60000);
+        return new Response(
+          JSON.stringify({
+            error: `Too many code requests. Please try again in about ${resetIn} minute(s).`,
+          }),
+          {
+            status: 429,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
       }
 
       const otp = generateOTP();
-      const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour expiry
+      const expiresAt = new Date(now + 60 * 60 * 1000).toISOString(); // 1 hour expiry
 
-      // Store OTP in database (upsert by phone)
+      // Store OTP and updated rate-limit counters (upsert by phone)
       const { error: upsertError } = await adminClient
         .from("otp_verifications")
         .upsert(
@@ -162,6 +197,9 @@ Deno.serve(async (req) => {
             expires_at: expiresAt,
             attempts: 0,
             verified: false,
+            last_sent_at: new Date(now).toISOString(),
+            send_count: sendCount + 1,
+            send_window_start: new Date(windowStart).toISOString(),
           },
           { onConflict: "phone" }
         );
