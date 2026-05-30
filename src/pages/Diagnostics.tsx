@@ -366,6 +366,52 @@ export default function Diagnostics() {
     URL.revokeObjectURL(url);
   };
 
+  const sendToSupport = async () => {
+    setSending(true);
+    setSendError(null);
+    setSendResult(null);
+    const report = generateReport();
+    reportRef.current = report;
+    try {
+      const { data, error } = await supabase.functions.invoke("submit-diagnostics-report", {
+        body: {
+          report,
+          origin: window.location.origin,
+          metadata: {
+            stale: shell?.stale ?? null,
+            attempts,
+            isIOS: env?.isIOS ?? null,
+            isStandalone: env?.isStandalone ?? null,
+            userAgent: env?.userAgent ?? null,
+          },
+        },
+      });
+      if (error) throw error;
+      if (!data?.supportLink) throw new Error("No support link returned");
+      setSendResult({ link: data.supportLink, emailQueued: !!data.emailQueued });
+    } catch (e: any) {
+      setSendError(e?.message || "Could not send report. Please try again.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const copyLink = async () => {
+    if (!sendResult?.link) return;
+    try {
+      await navigator.clipboard.writeText(sendResult.link);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = sendResult.link;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    }
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2000);
+  };
+
   const shellStatus: Status =
     shell?.stale === true ? "bad" : shell?.stale === false ? "ok" : "warn";
   const swStatus: Status = !sw?.supported
