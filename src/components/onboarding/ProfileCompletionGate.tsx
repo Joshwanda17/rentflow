@@ -588,7 +588,7 @@ export default function ProfileCompletionGate() {
 
             {isUganda ? (
               <>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 xs:grid-cols-2 gap-4 xs:gap-3">
                   <div className="space-y-1.5">
                     <Label>Region</Label>
                     <Input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="e.g. Central" maxLength={60} />
@@ -605,7 +605,7 @@ export default function ProfileCompletionGate() {
                     </Select>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 xs:grid-cols-2 gap-4 xs:gap-3">
                   <div className="space-y-1.5">
                     <Label>City</Label>
                     <CityCombobox countryIso={countryIso} value={city} onChange={setCity} />
@@ -615,7 +615,7 @@ export default function ProfileCompletionGate() {
                     <Input value={town} onChange={(e) => setTown(e.target.value)} placeholder="e.g. Ntinda" maxLength={60} />
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-4 xs:gap-3">
                   <div className="space-y-1.5">
                     <Label>Ward (Sub-county)</Label>
                     <Input value={subCounty} onChange={(e) => setSubCounty(e.target.value)} maxLength={60} />
@@ -632,7 +632,7 @@ export default function ProfileCompletionGate() {
               </>
             ) : (
               <>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 xs:grid-cols-2 gap-4 xs:gap-3">
                   <div className="space-y-1.5">
                     <Label>Region / State</Label>
                     <Input value={region} onChange={(e) => setRegion(e.target.value)} maxLength={60} />
@@ -642,7 +642,7 @@ export default function ProfileCompletionGate() {
                     <CityCombobox countryIso={countryIso} value={city} onChange={setCity} />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 xs:grid-cols-2 gap-4 xs:gap-3">
                   <div className="space-y-1.5">
                     <Label>District / County</Label>
                     <Input value={district} onChange={(e) => setDistrict(e.target.value)} maxLength={60} />
