@@ -19,6 +19,14 @@ export const BADGE_HEX: Record<BadgeTone, { bg: string; fg: string }> = {
   amber: { bg: 'rgba(245,158,11,0.18)', fg: '#fcd34d' },
 };
 
+/** Badge palette for the light (white-background) share card. */
+export const BADGE_HEX_LIGHT: Record<BadgeTone, { bg: string; fg: string }> = {
+  gold:  { bg: '#fef3c7', fg: '#92400e' },
+  green: { bg: '#d1fae5', fg: '#047857' },
+  blue:  { bg: '#dbeafe', fg: '#1d4ed8' },
+  amber: { bg: '#fef3c7', fg: '#b45309' },
+};
+
 /** Tailwind classes for the in-app (themed) badge chips. */
 export const BADGE_CLASS: Record<BadgeTone, string> = {
   gold:  'bg-amber-400/15 text-amber-600 dark:text-amber-300',
