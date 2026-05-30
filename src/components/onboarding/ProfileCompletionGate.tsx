@@ -481,23 +481,41 @@ export default function ProfileCompletionGate() {
                 Where you live
               </p>
               <div className="rounded-2xl border bg-card p-3 xs:p-3.5 sm:p-4 space-y-3">
-                <div className="flex items-center gap-2.5">
-                  <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <span className="text-[13px] xs:text-sm font-medium truncate min-w-0">
-                    {[town || village, city || district, country]
-                      .filter(Boolean)
-                      .join(", ")}
-                  </span>
-                  {residenceLat != null && (
-                    <span className="ml-auto inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary">
-                      <Check className="h-3.5 w-3.5" /> Pinned
-                    </span>
-                  )}
+                {/* Manual entry — type your area / neighbourhood */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="quick-location" className="text-[12px] xs:text-[13px] font-medium">
+                    Your area, village or neighbourhood
+                  </Label>
+                  <Input
+                    id="quick-location"
+                    value={town}
+                    onChange={(e) => setTown(e.target.value)}
+                    placeholder="e.g. Najjera, Wakiso"
+                    autoComplete="off"
+                    className="h-12 xs:h-14 rounded-xl text-[15px] xs:text-base"
+                  />
                 </div>
+                {/* Search around using Google Maps (opens in a new tab) */}
                 <Button
                   type="button"
                   variant="outline"
                   className="w-full gap-2 h-11 xs:h-12 rounded-xl text-[13px] xs:text-sm sm:text-base font-medium"
+                  onClick={() => {
+                    const query = [town, city || district, country].filter(Boolean).join(", ").trim();
+                    const url = query
+                      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`
+                      : `https://www.google.com/maps`;
+                    window.open(url, "_blank", "noopener,noreferrer");
+                  }}
+                >
+                  <Search className="h-4 w-4" />
+                  Search around on Google Maps
+                </Button>
+                {/* Optional GPS pin for accuracy */}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full gap-2 h-10 xs:h-11 rounded-xl text-[12px] xs:text-[13px] sm:text-sm font-medium text-muted-foreground"
                   onClick={handleUseMyLocation}
                   disabled={locating}
                 >
@@ -506,7 +524,8 @@ export default function ProfileCompletionGate() {
                   ) : (
                     <Navigation className="h-4 w-4" />
                   )}
-                  {residenceLat != null ? "Update my location" : "Use my current location"}
+                  {residenceLat != null ? "Location pinned — update" : "Pin my exact location (optional)"}
+                  {residenceLat != null && <Check className="h-3.5 w-3.5 text-primary" />}
                 </Button>
               </div>
             </div>
