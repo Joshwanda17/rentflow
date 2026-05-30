@@ -309,6 +309,45 @@ export default function Diagnostics() {
     loadTelemetry();
   }, [loadTelemetry]);
 
+  const loadRollout = useCallback(async () => {
+    setRolloutLoading(true);
+    try {
+      const fresh = await refreshRolloutConfig();
+      const cfg = fresh ?? getRolloutState().config;
+      setRollout(cfg);
+      setPercentDraft(cfg?.rollout_percent ?? 0);
+    } finally {
+      setRolloutLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadRollout();
+  }, [loadRollout]);
+
+  const saveRollout = useCallback(
+    async (patch: { rollout_percent?: number; stage?: string; enabled?: boolean }) => {
+      setRolloutSaving(true);
+      setRolloutError(null);
+      setRolloutSaved(false);
+      try {
+        const { error } = await supabase
+          .from("mobile_rollout_config")
+          .update(patch)
+          .eq("id", "current");
+        if (error) throw error;
+        await loadRollout();
+        setRolloutSaved(true);
+        setTimeout(() => setRolloutSaved(false), 2000);
+      } catch (e: any) {
+        setRolloutError(e?.message || "Could not save. Manager access is required.");
+      } finally {
+        setRolloutSaving(false);
+      }
+    },
+    [loadRollout]
+  );
+
   const onPurge = async () => {
     setBusy(true);
     await purgeCachesAndServiceWorkers();
