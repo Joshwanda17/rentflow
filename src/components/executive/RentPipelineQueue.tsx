@@ -21,8 +21,10 @@ import { format } from 'date-fns';
 import { AgentProximitySelector } from './AgentProximitySelector';
 import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
 
+// Per-user preference key for the CFO's selected tenant filter (cross-device).
+const TENANT_FILTER_PREF_KEY = 'rentPipeline.selectedTenantId';
+
 export type PipelineStage =
-  | 'pending'
   | 'pending'
   | 'agent_ops_approved'
   | 'tenant_ops_approved'
