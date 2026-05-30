@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { MonitorSmartphone, Smartphone, Laptop, LogOut, CheckCircle2, Pencil, Check, X } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
@@ -59,6 +59,7 @@ function DeviceRow({
               }}
               maxLength={40}
               placeholder="e.g. My Phone"
+              aria-label="Device name"
               className="h-8 text-sm"
             />
           </div>
@@ -80,10 +81,10 @@ function DeviceRow({
       </div>
       {editing ? (
         <div className="flex shrink-0 items-center gap-1">
-          <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-success" title="Save name" onClick={save}>
+          <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-success" aria-label="Save device name" onClick={save}>
             <Check className="h-4 w-4" />
           </Button>
-          <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-muted-foreground" title="Cancel" onClick={cancel}>
+          <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-muted-foreground" aria-label="Cancel renaming" onClick={cancel}>
             <X className="h-4 w-4" />
           </Button>
         </div>
@@ -93,7 +94,7 @@ function DeviceRow({
             size="sm"
             variant="ghost"
             className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-            title="Rename device"
+            aria-label="Rename device"
             onClick={() => {
               setDraft(session.device_label ?? '');
               setEditing(true);
@@ -106,7 +107,7 @@ function DeviceRow({
               size="sm"
               variant="ghost"
               className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
-              title="Sign out this device"
+              aria-label="Sign out this device"
               onClick={() => onSignOut(session.device_id)}
             >
               <LogOut className="h-4 w-4" />
@@ -120,10 +121,20 @@ function DeviceRow({
 
 export function DeviceSessionIndicator({ userId }: { userId: string | undefined }) {
   const { sessions, activeCount, isMultiDevice, loading, signOutDevice, renameDevice } = useDeviceSessions(userId);
+  const [announce, setAnnounce] = useState('');
 
   const sortedSessions = useMemo(
     () => [...sessions].sort((a, b) => Number(b.isCurrent) - Number(a.isCurrent)),
     [sessions],
+  );
+
+  const handleRename = useCallback(
+    (deviceId: string, label: string) => {
+      renameDevice(deviceId, label);
+      setAnnounce(`Device renamed to ${label}`);
+      window.setTimeout(() => setAnnounce(''), 1000);
+    },
+    [renameDevice],
   );
 
   if (loading && sessions.length === 0) return null;
@@ -133,6 +144,7 @@ export function DeviceSessionIndicator({ userId }: { userId: string | undefined 
       <PopoverTrigger asChild>
         <button
           type="button"
+          aria-label={`${activeCount} active ${activeCount === 1 ? 'device' : 'devices'}. Open session list.`}
           className={cn(
             'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
             isMultiDevice
@@ -140,30 +152,33 @@ export function DeviceSessionIndicator({ userId }: { userId: string | undefined 
               : 'border-border/50 bg-muted/50 text-muted-foreground',
           )}
         >
-          <MonitorSmartphone className="h-3.5 w-3.5" />
+          <MonitorSmartphone className="h-3.5 w-3.5" aria-hidden="true" />
           <span>{activeCount} {activeCount === 1 ? 'device' : 'devices'}</span>
-          {isMultiDevice && <span className="h-1.5 w-1.5 rounded-full bg-warning animate-pulse" />}
+          {isMultiDevice && <span className="h-1.5 w-1.5 rounded-full bg-warning animate-pulse" aria-hidden="true" />}
         </button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80 p-3">
+        <div aria-live="polite" aria-atomic="true" className="sr-only">
+          {announce}
+        </div>
         <div className="mb-2 flex items-center justify-between">
           <p className="text-sm font-semibold text-foreground">Active devices</p>
           <span className="text-xs text-muted-foreground">{activeCount} active</span>
         </div>
         {isMultiDevice ? (
           <div className="mb-2 flex items-start gap-2 rounded-lg bg-warning/10 px-2.5 py-2 text-xs text-warning">
-            <MonitorSmartphone className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <MonitorSmartphone className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             <span>Your account is signed in on {activeCount} devices right now.</span>
           </div>
         ) : (
           <div className="mb-2 flex items-start gap-2 rounded-lg bg-success/10 px-2.5 py-2 text-xs text-success">
-            <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             <span>Only this device is active.</span>
           </div>
         )}
         <div className="space-y-2 max-h-72 overflow-y-auto">
           {sortedSessions.map((s) => (
-            <DeviceRow key={s.id} session={s} onSignOut={signOutDevice} onRename={renameDevice} />
+            <DeviceRow key={s.id} session={s} onSignOut={signOutDevice} onRename={handleRename} />
           ))}
         </div>
       </PopoverContent>
