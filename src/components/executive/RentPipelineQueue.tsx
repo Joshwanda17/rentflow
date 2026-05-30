@@ -776,10 +776,24 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                           <Home className="h-3 w-3" />
                           {req.landlord_name}
                         </span>
-                        <span className="flex items-center gap-1 text-primary">
-                          <UserCheck className="h-3 w-3" />
-                          {req.assigned_agent_name || req.agent_name || 'No Agent'}
-                        </span>
+                        {(req.assigned_agent_id || req.agent_id) ? (
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => { e.stopPropagation(); setDrilldownAgentId(req.assigned_agent_id || req.agent_id); }}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); setDrilldownAgentId(req.assigned_agent_id || req.agent_id); } }}
+                            className="flex items-center gap-1 text-primary hover:underline cursor-pointer"
+                            title="Open agent profile"
+                          >
+                            <UserCheck className="h-3 w-3" />
+                            {req.assigned_agent_name || req.agent_name || 'No Agent'}
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 text-primary">
+                            <UserCheck className="h-3 w-3" />
+                            No Agent
+                          </span>
+                        )}
                         {req.request_city && (
                           <span className="flex items-center gap-1">
                             <MapPin className="h-3 w-3" />
