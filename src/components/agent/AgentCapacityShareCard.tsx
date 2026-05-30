@@ -11,6 +11,7 @@ interface ShareCardProps {
   remainingSlots: number;
   canPost: boolean;
   dateLabel: string;
+  preview?: boolean;
 }
 
 /**
