@@ -2,6 +2,7 @@
   "name": "Welile.com",
   "short_name": "Welile.com",
   "description": "Africa's leading rent facilitation platform. Access rent today, pay back over time.",
+  "id": "welile-pwa",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -13,6 +14,9 @@
   "dir": "ltr",
   "categories": ["finance", "business", "utilities"],
   "prefer_related_applications": false,
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
   "icons": [
     {
       "src": "/favicon-48.png",
@@ -58,5 +62,15 @@
       "url": "/dashboard?tab=bills",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
-  ]
+  ],
+  "share_target": {
+    "action": "/share",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
+  "related_applications": []
 }
