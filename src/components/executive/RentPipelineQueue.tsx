@@ -19,6 +19,7 @@ import { calculateRentRepayment } from '@/lib/rentCalculations';
 import { toast as sonnerToast } from 'sonner';
 import { format } from 'date-fns';
 import { AgentProximitySelector } from './AgentProximitySelector';
+import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
 
 export type PipelineStage =
   | 'pending'
@@ -191,6 +192,8 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
   const [landlordCallNotes, setLandlordCallNotes] = useState('');
   // COO bulk approval state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // Agent profile drilldown
+  const [drilldownAgentId, setDrilldownAgentId] = useState<string | null>(null);
 
   const startEditing = useCallback((field: string, currentValue: any) => {
     setEditingField(field);
@@ -773,10 +776,24 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                           <Home className="h-3 w-3" />
                           {req.landlord_name}
                         </span>
-                        <span className="flex items-center gap-1 text-primary">
-                          <UserCheck className="h-3 w-3" />
-                          {req.assigned_agent_name || req.agent_name || 'No Agent'}
-                        </span>
+                        {(req.assigned_agent_id || req.agent_id) ? (
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => { e.stopPropagation(); setDrilldownAgentId(req.assigned_agent_id || req.agent_id); }}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); setDrilldownAgentId(req.assigned_agent_id || req.agent_id); } }}
+                            className="flex items-center gap-1 text-primary hover:underline cursor-pointer"
+                            title="Open agent profile"
+                          >
+                            <UserCheck className="h-3 w-3" />
+                            {req.assigned_agent_name || req.agent_name || 'No Agent'}
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 text-primary">
+                            <UserCheck className="h-3 w-3" />
+                            No Agent
+                          </span>
+                        )}
                         {req.request_city && (
                           <span className="flex items-center gap-1">
                             <MapPin className="h-3 w-3" />
@@ -1235,6 +1252,12 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
           )}
         </SheetContent>
       </Sheet>
+      <UserDrilldownDrawer
+        open={!!drilldownAgentId}
+        onOpenChange={(v) => { if (!v) setDrilldownAgentId(null); }}
+        agentId={drilldownAgentId}
+        defaultTab="agent"
+      />
     </Card>
   );
 }
