@@ -57,7 +57,7 @@ export default function Auth() {
     isGoogleLoading, isAppleLoading,
     phoneInputRef, passwordInputRef,
     isDuplicate, isCheckingDuplicate, duplicateMessage,
-    otpSent, otpVerified, otpLoading, otpError, otpSendStatus,
+    otpSent, otpVerified, otpLoading, otpError, otpSendStatus, otpCooldownSeconds,
     sendOtp, verifyOtp, resetOtp: resetOtpState,
     resetStep, setResetStep,
     resetPhone, setResetPhone,
