@@ -143,17 +143,17 @@ export default function ProfileCompletionGate() {
   // fill the blanks.
   useEffect(() => {
     if (!profile) return;
-    setContinent(profile.continent ?? "");
-    setCountry(profile.country ?? "");
-    setRegion(profile.region ?? "");
-    setDistrict(profile.district ?? "");
-    setCity(profile.city ?? "");
-    setTown(profile.town ?? "");
-    setSubCounty(profile.sub_county ?? "");
-    setParish(profile.parish ?? "");
-    setVillage(profile.village ?? "");
-    setPersona(profile.primary_persona ?? "");
-    setOccupation(profile.occupation ?? "");
+    if (profile.continent) setContinent(profile.continent);
+    if (profile.country) setCountry(profile.country);
+    if (profile.region) setRegion(profile.region);
+    if (profile.district) setDistrict(profile.district);
+    if (profile.city) setCity(profile.city);
+    if (profile.town) setTown(profile.town);
+    if (profile.sub_county) setSubCounty(profile.sub_county);
+    if (profile.parish) setParish(profile.parish);
+    if (profile.village) setVillage(profile.village);
+    if (profile.primary_persona) setPersona(profile.primary_persona);
+    if (profile.occupation) setOccupation(profile.occupation);
   }, [profile?.id]);
 
   // Auto-derive continent from country selection if not yet set
