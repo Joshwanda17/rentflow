@@ -129,6 +129,7 @@ import { AgentVerificationOpportunitiesCard } from '@/components/agent/AgentVeri
 import { ShareRentRecorderCard } from '@/components/agent/ShareRentRecorderCard';
 import { TodayCollectionsCard } from '@/components/agent/TodayCollectionsCard';
 import { AgentPriorityGrid } from '@/components/agent/AgentPriorityGrid';
+import { AgentTenantInlineList } from '@/components/agent/AgentTenantInlineList';
 import { useIsFinancialAgent } from '@/hooks/useIsFinancialAgent';
 import { FinancialAgentSection } from '@/components/agent/FinancialAgentSection';
 import { PromissoryNoteDialog } from '@/components/agent/PromissoryNoteDialog';
@@ -736,49 +737,23 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           </div>
         )}
 
-        {/* === TENANTS TAB === People & properties */}
+        {/* === TENANTS TAB === Clean tenant list with big tap targets */}
         {activeTab === 'tenants' && (
-          <div className={cn("space-y-5", tabAnimClass)}>
-            {/* Prominent My Tenants CTA — replaces rent fee card (moved to All Menu → Earnings) */}
-            <button
-              onClick={() => { hapticTap(); setTenantsSheetOpen(true); }}
-              className="w-full flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/30 active:scale-[0.98] transition-all min-h-[68px] text-left touch-manipulation shadow-sm"
-              style={{ WebkitTapHighlightColor: 'transparent' }}
-            >
-              <div className="p-2.5 rounded-xl bg-primary/15 text-primary shrink-0">
-                <Users className="h-5 w-5" strokeWidth={2.2} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="font-bold text-sm text-foreground">My Tenants</div>
-                <div className="text-[11px] text-muted-foreground">View repayment schedules & collect rent</div>
-              </div>
-              <span className="text-sm font-bold text-primary">→</span>
-            </button>
-            <div className="grid grid-cols-2 gap-2.5">
-              {[
-                { icon: FileText, label: 'New Tenant', onClick: () => setRentRequestOpen(true) },
-              { icon: UserCog, label: 'Managed Users', onClick: () => setManagedUsersOpen(true) },
-                // 'Pay Rent' (AgentTopUpTenantDialog → agent-deposit) DEACTIVATED 2026-05-15:
-                // produced phantom repayments — record_rent_request_repayment commits before
-                // the agent_float_used_for_rent ledger leg is posted, so when the ledger leg
-                // fails the rent looks paid with no cash movement. Use Field Collect instead.
-                { icon: Home, label: 'List House', onClick: () => setListHouseOpen(true) },
-              ].map((a) => (
-                <button
-                  key={a.label}
-                  onClick={() => { hapticTap(); a.onClick(); }}
-                  className="flex items-center gap-3 p-3.5 rounded-2xl bg-card border border-border/60 active:scale-[0.97] transition-all min-h-[64px] text-left touch-manipulation"
-                  style={{ WebkitTapHighlightColor: 'transparent' }}
-                >
-                  <div className="p-2 rounded-xl bg-primary/10 text-primary shrink-0">
-                    <a.icon className="h-4.5 w-4.5" strokeWidth={2.2} />
-                  </div>
-                  <span className="font-semibold text-[13px] text-foreground truncate">{a.label}</span>
-                </button>
-              ))}
+          <div className={cn("space-y-4 pb-24", tabAnimClass)}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-foreground">My Tenants</h2>
+              <Button
+                onClick={() => { hapticTap(); setRentRequestOpen(true); }}
+                className="h-11 px-4 text-sm font-bold rounded-xl gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                <UserPlus className="h-4 w-4" />
+                Add Tenant
+              </Button>
             </div>
-            <VerificationChecklist userId={user.id} highlightRole="agent" compact />
-            <AgentActionInsights agentId={user.id} hideDailyRent />
+            <AgentTenantInlineList
+              onOpenTenantSheet={() => setTenantsSheetOpen(true)}
+              onAddTenant={() => setRentRequestOpen(true)}
+            />
           </div>
         )}
 
