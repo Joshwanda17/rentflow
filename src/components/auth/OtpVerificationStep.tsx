@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
-import { Loader2, CheckCircle2, RefreshCw, ShieldCheck } from 'lucide-react';
+import { Loader2, CheckCircle2, RefreshCw, ShieldCheck, AlertCircle } from 'lucide-react';
 
 interface OtpVerificationStepProps {
   phone: string;
@@ -9,6 +9,8 @@ interface OtpVerificationStepProps {
   otpVerified: boolean;
   otpLoading: boolean;
   otpError: string | null;
+  /** Gateway-acceptance status of the most recent send (optional). */
+  sendStatus?: 'idle' | 'pending' | 'accepted' | 'failed';
   onSendOtp: () => void;
   onVerifyOtp: (otp: string) => void;
   onResendOtp: () => void;
@@ -20,6 +22,7 @@ export function OtpVerificationStep({
   otpVerified,
   otpLoading,
   otpError,
+  sendStatus,
   onSendOtp,
   onVerifyOtp,
   onResendOtp,
@@ -89,6 +92,27 @@ export function OtpVerificationStep({
           Enter the 6-digit code sent to <span className="font-medium text-foreground">{phone}</span>
         </p>
       </div>
+
+      {sendStatus === 'pending' && (
+        <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          Confirming the code was accepted by the network…
+        </div>
+      )}
+
+      {sendStatus === 'accepted' && (
+        <div className="flex items-center justify-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400">
+          <CheckCircle2 className="h-3 w-3" />
+          Code accepted — it should arrive shortly.
+        </div>
+      )}
+
+      {sendStatus === 'failed' && !otpError && (
+        <div className="flex items-center justify-center gap-1.5 text-xs text-destructive">
+          <AlertCircle className="h-3 w-3" />
+          The network rejected the code. Try resending.
+        </div>
+      )}
 
       <div className="flex justify-center">
         <InputOTP maxLength={6} value={otp} onChange={handleOtpComplete}>

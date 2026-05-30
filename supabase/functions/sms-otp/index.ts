@@ -208,6 +208,9 @@ Deno.serve(async (req) => {
             last_sent_at: new Date(now).toISOString(),
             send_count: sendCount + 1,
             send_window_start: new Date(windowStart).toISOString(),
+            send_status: "pending",
+            send_status_reason: null,
+            send_status_at: new Date(now).toISOString(),
           },
           { onConflict: "phone" }
         );
@@ -237,6 +240,18 @@ Deno.serve(async (req) => {
         setTimeout(() => resolve(TIMED_OUT), ACCEPTANCE_TIMEOUT_MS),
       );
 
+      // Persist the gateway-acceptance outcome so the client can poll for it
+      // via the "status" action without ever waiting on carrier delivery.
+      const recordSendStatus = (result: SmsResult) =>
+        adminClient
+          .from("otp_verifications")
+          .update({
+            send_status: result.accepted ? "accepted" : "failed",
+            send_status_reason: result.reason ?? null,
+            send_status_at: new Date().toISOString(),
+          })
+          .eq("phone", phoneKey);
+
       const outcome = await Promise.race([smsPromise, timeoutPromise]);
 
       if (outcome === TIMED_OUT) {
@@ -244,11 +259,12 @@ Deno.serve(async (req) => {
         try {
           (globalThis as any).EdgeRuntime?.waitUntil?.(
             smsPromise
-              .then((r) =>
+              .then(async (r) => {
+                await recordSendStatus(r);
                 console.log(
                   `[sms-otp] late acceptance for ***${phoneKey.slice(-4)}: ${r.accepted ? "ok" : r.reason}`,
-                ),
-              )
+                );
+              })
               .catch((err) => console.error("[sms-otp] background SMS error:", err)),
           );
         } catch (_) {
@@ -261,6 +277,8 @@ Deno.serve(async (req) => {
       }
 
       // Gateway responded in time — report the real result.
+      await recordSendStatus(outcome);
+
       if (!outcome.accepted) {
         console.error(`[sms-otp] gateway rejected send to ***${phoneKey.slice(-4)}: ${outcome.reason}`);
         return new Response(
@@ -274,6 +292,25 @@ Deno.serve(async (req) => {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    if (action === "status") {
+      // Lightweight poll endpoint: reports whether the SMS gateway accepted the
+      // most recent send for this phone. Never reflects carrier delivery.
+      const { data: statusRow } = await adminClient
+        .from("otp_verifications")
+        .select("send_status, send_status_reason, send_status_at")
+        .eq("phone", phoneKey)
+        .maybeSingle();
+
+      return new Response(
+        JSON.stringify({
+          status: statusRow?.send_status ?? "unknown",
+          reason: statusRow?.send_status_reason ?? null,
+          updated_at: statusRow?.send_status_at ?? null,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     if (action === "verify") {
@@ -371,7 +408,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ error: "Invalid action. Use 'send', 'verify', or 'custom'." }), {
+    return new Response(JSON.stringify({ error: "Invalid action. Use 'send', 'status', 'verify', or 'custom'." }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
