@@ -129,6 +129,14 @@ export function DeviceSessionIndicator({ userId }: { userId: string | undefined 
 
   if (loading && sessions.length === 0) return null;
 
+  const [announce, setAnnounce] = useState('');
+
+  const handleRename = (deviceId: string, label: string) => {
+    renameDevice(deviceId, label);
+    setAnnounce(`Device renamed to ${label}`);
+    window.setTimeout(() => setAnnounce(''), 1000);
+  };
+
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -148,24 +156,27 @@ export function DeviceSessionIndicator({ userId }: { userId: string | undefined 
         </button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80 p-3">
+        <div aria-live="polite" aria-atomic="true" className="sr-only">
+          {announce}
+        </div>
         <div className="mb-2 flex items-center justify-between">
           <p className="text-sm font-semibold text-foreground">Active devices</p>
           <span className="text-xs text-muted-foreground">{activeCount} active</span>
         </div>
         {isMultiDevice ? (
           <div className="mb-2 flex items-start gap-2 rounded-lg bg-warning/10 px-2.5 py-2 text-xs text-warning">
-            <MonitorSmartphone className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <MonitorSmartphone className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             <span>Your account is signed in on {activeCount} devices right now.</span>
           </div>
         ) : (
           <div className="mb-2 flex items-start gap-2 rounded-lg bg-success/10 px-2.5 py-2 text-xs text-success">
-            <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             <span>Only this device is active.</span>
           </div>
         )}
         <div className="space-y-2 max-h-72 overflow-y-auto">
           {sortedSessions.map((s) => (
-            <DeviceRow key={s.id} session={s} onSignOut={signOutDevice} onRename={renameDevice} />
+            <DeviceRow key={s.id} session={s} onSignOut={signOutDevice} onRename={handleRename} />
           ))}
         </div>
       </PopoverContent>
