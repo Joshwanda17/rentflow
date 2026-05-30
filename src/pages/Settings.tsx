@@ -404,6 +404,25 @@ export default function Settings() {
                 {user && (
                   <LazySection name="ResidenceAddress"><ResidenceAddressForm userId={user.id} /></LazySection>
                 )}
+                <Card className="rounded-2xl">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Globe className="h-4 w-4 text-primary" /> Profile details
+                    </CardTitle>
+                    <CardDescription>
+                      Update your location, role, occupation, or referring agent.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Button
+                      variant="outline"
+                      className="w-full rounded-xl gap-2"
+                      onClick={() => window.dispatchEvent(new CustomEvent('open-profile-editor'))}
+                    >
+                      <User className="h-4 w-4" /> Edit profile details
+                    </Button>
+                  </CardContent>
+                </Card>
                 <LazySection name="Wallet"><WalletCard /></LazySection>
                 <LazySection name="ArchivedPdfs"><ArchivedPdfsCard /></LazySection>
               </div>
