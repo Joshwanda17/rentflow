@@ -170,6 +170,13 @@ export default function ProfileCompletionGate() {
   // effects so they don't wipe the values we're restoring.
   const seeding = useRef(false);
 
+  // Draft autosave — partial form input is persisted to localStorage per
+  // user so people can close the gate (it's optional) and resume later
+  // without losing anything they already typed.
+  const draftKey = user ? `welile:profile-draft:${user.id}` : null;
+  const draftRestored = useRef(false);
+  const [draftSavedAt, setDraftSavedAt] = useState<number | null>(null);
+
   const seedFromProfile = useCallback((p: ProfileRow) => {
     seeding.current = true;
     if (p.continent) setContinent(p.continent);
