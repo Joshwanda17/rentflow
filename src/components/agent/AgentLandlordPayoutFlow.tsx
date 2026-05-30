@@ -210,7 +210,7 @@ export function AgentLandlordPayoutFlow({ open, onOpenChange }: AgentLandlordPay
         landlord_phone: selectedRequest.landlord?.mobile_money_number || selectedRequest.landlord?.phone || '',
         landlord_name: selectedRequest.landlord?.name || 'Unknown',
         mobile_money_provider: provider,
-        transaction_id: transactionId.trim(),
+        transaction_id: transactionId.trim() || null,
         receipt_photo_urls: photoUrls,
         latitude: gps.lat,
         longitude: gps.lng,
