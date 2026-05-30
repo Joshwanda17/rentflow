@@ -195,7 +195,9 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
   // Agent profile drilldown
   const [drilldownAgentId, setDrilldownAgentId] = useState<string | null>(null);
   // Tenant selector — CFO picks which tenant's landlord to fund before approving
-  const [selectedTenantId, setSelectedTenantId] = useState<string>('all');
+  const [selectedTenantId, setSelectedTenantId] = useState<string>(() => {
+    try { return localStorage.getItem('rentPipeline_selectedTenantId') || 'all'; } catch { return 'all'; }
+  });
 
   const startEditing = useCallback((field: string, currentValue: any) => {
     setEditingField(field);
