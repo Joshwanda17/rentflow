@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Search, Phone, Users, UserPlus, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { getEffectiveRentRequestAmounts } from '@/lib/rentRequestAmounts';
+import { AgentDailyCapacityStrip } from '@/components/agent/AgentDailyCapacityStrip';
 
 interface Tenant {
   id: string;
@@ -139,6 +140,9 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
 
   return (
     <div className="space-y-4">
+      {/* Daily capacity — how am I doing today & can I still post rents */}
+      <AgentDailyCapacityStrip />
+
       {/* Search + Filters */}
       <div className="space-y-3">
         <div className="relative">
