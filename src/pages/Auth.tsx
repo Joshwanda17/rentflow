@@ -709,6 +709,19 @@ export default function Auth() {
                         </span>
                       )}
                     </Button>
+
+                    {/* Remember this device — permanent (WhatsApp-style) login */}
+                    <label className="flex items-start gap-3 cursor-pointer select-none rounded-xl border border-border/50 bg-card p-3.5 touch-manipulation">
+                      <Checkbox
+                        checked={rememberThisDevice}
+                        onCheckedChange={(checked) => setRememberThisDevice(!!checked)}
+                        className="h-5 w-5 mt-0.5"
+                      />
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold text-foreground">Keep me logged in on this device</span>
+                        <span className="block text-xs text-muted-foreground mt-0.5">Stay signed in like WhatsApp — you'll only need a code on a new phone or after you log out.</span>
+                      </span>
+                    </label>
                   </>
                 ) : (
                   <>
