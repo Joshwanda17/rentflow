@@ -527,8 +527,8 @@ export default function ProfileCompletionGate() {
                       aria-pressed={selected}
                       className={`group relative flex flex-col items-center justify-center gap-2 rounded-2xl border p-4 text-center transition-all duration-150 ${
                         selected
-                          ? "border-primary bg-primary/5 ring-1 ring-primary"
-                          : "border-border hover:border-foreground/20 hover:bg-muted/40"
+                          ? "border-primary bg-primary/5 dark:bg-primary/20 ring-1 ring-primary dark:ring-2"
+                          : "border-border dark:border-border/60 hover:border-foreground/20 hover:bg-muted/40 dark:hover:bg-muted/50"
                       }`}
                     >
                       {selected && (
