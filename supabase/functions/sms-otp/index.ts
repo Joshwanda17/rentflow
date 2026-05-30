@@ -5,21 +5,12 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// In-memory rate limiting for OTP sends
-const otpSendAttempts = new Map<string, { count: number; firstSent: number }>();
+// Durable, database-backed rate limiting for OTP sends.
+// These limits persist across page reloads and edge function cold starts,
+// so they cannot be bypassed by reloading the OTP screen.
 const MAX_SENDS_PER_HOUR = 5;
-
-function checkSendRateLimit(phone: string): boolean {
-  const now = Date.now();
-  const record = otpSendAttempts.get(phone);
-  if (!record || now - record.firstSent > 3600000) {
-    otpSendAttempts.set(phone, { count: 1, firstSent: now });
-    return true;
-  }
-  if (record.count >= MAX_SENDS_PER_HOUR) return false;
-  record.count++;
-  return true;
-}
+const RESEND_COOLDOWN_SECONDS = 60;
+const HOUR_MS = 3600000;
 
 function generateOTP(): string {
   const digits = "0123456789";
