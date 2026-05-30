@@ -155,6 +155,9 @@ export function AgentCapacityBreakdownPanel() {
         open={drilldownOpen}
         onOpenChange={setDrilldownOpen}
         agentId={user.id}
+        expectedDaily={cap.expected_daily}
+        headroom={cap.headroom}
+        perTenantMax={cap.per_tenant_max}
       />
     </div>
   );
