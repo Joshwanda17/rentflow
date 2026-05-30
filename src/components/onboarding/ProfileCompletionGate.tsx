@@ -144,9 +144,7 @@ export default function ProfileCompletionGate() {
   useEffect(() => {
     if (!profile) return;
     setContinent(profile.continent ?? "");
-    const known = COUNTRIES.find((c) => c.name === profile.country);
-    setCountry(known ? known.name : profile.country ? "Other" : "");
-    setCountryOther(known ? "" : profile.country ?? "");
+    setCountry(profile.country ?? "");
     setRegion(profile.region ?? "");
     setDistrict(profile.district ?? "");
     setCity(profile.city ?? "");
