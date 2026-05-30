@@ -3,15 +3,24 @@ import { Button } from '@/components/ui/button';
 import { Sparkles, History } from 'lucide-react';
 import { TenantOpsDashboard } from './TenantOpsDashboard';
 import { TenantOpsDashboardV2 } from './TenantOpsDashboardV2';
+import { AgentInactiveAlertBanner } from '@/components/ops/AgentInactiveAlertBanner';
+import { BehaviorDrawer } from '@/components/ops/BehaviorDrawer';
+import { supabase } from '@/integrations/supabase/client';
 
 const STORAGE_KEY = 'tenant-ops-view-mode';
 
 export function TenantOpsHub() {
   const [mode, setMode] = useState<'v2' | 'classic'>('v2');
+  const [opsUserId, setOpsUserId] = useState<string | null>(null);
+  const [behaviorTenantId, setBehaviorTenantId] = useState<string | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved === 'classic' || saved === 'v2') setMode(saved);
+  }, []);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setOpsUserId(data.user?.id ?? null));
   }, []);
 
   const setAndSave = (m: 'v2' | 'classic') => {
@@ -21,6 +30,8 @@ export function TenantOpsHub() {
 
   return (
     <div className="space-y-3">
+      <AgentInactiveAlertBanner opsUserId={opsUserId} onOpenBehavior={setBehaviorTenantId} />
+
       <div className="flex items-center justify-end gap-2">
         <Button
           variant={mode === 'v2' ? 'default' : 'outline'}
@@ -40,6 +51,11 @@ export function TenantOpsHub() {
         </Button>
       </div>
       {mode === 'v2' ? <TenantOpsDashboardV2 /> : <TenantOpsDashboard />}
+
+      <BehaviorDrawer
+        tenantId={behaviorTenantId}
+        onOpenChange={(open) => { if (!open) setBehaviorTenantId(null); }}
+      />
     </div>
   );
 }
