@@ -431,7 +431,7 @@ export default function ProfileCompletionGate() {
               </>
             )}
 
-            <div className="flex justify-end pt-2">
+            <div className="flex justify-between pt-2">
               <Button onClick={() => setStep(2)} disabled={!step1Valid}>
                 Continue
               </Button>
