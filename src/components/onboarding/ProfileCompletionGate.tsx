@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, MapPin, User as UserIcon, UserCheck, Lock, Search, X } from "lucide-react";
+import { Loader2, MapPin, RotateCcw, User as UserIcon, UserCheck, Lock, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
