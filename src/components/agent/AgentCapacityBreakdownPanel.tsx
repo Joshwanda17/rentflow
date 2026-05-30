@@ -80,9 +80,13 @@ export function AgentCapacityBreakdownPanel() {
     weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Africa/Kampala',
   });
 
-  const handleShare = async () => {
-    if (!shareCardRef.current || sharing) return;
+  const openPreview = () => {
     hapticTap();
+    setPreviewOpen(true);
+  };
+
+  const doShare = async () => {
+    if (!shareCardRef.current || sharing) return;
     setSharing(true);
     try {
       const dataUrl = await toPng(shareCardRef.current, {
@@ -112,6 +116,7 @@ export function AgentCapacityBreakdownPanel() {
         window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank');
         toast.success('Image saved — attach it to your WhatsApp message');
       }
+      setPreviewOpen(false);
     } catch (err) {
       if ((err as Error)?.name !== 'AbortError') {
         toast.error('Could not generate the image. Please try again.');
