@@ -134,6 +134,7 @@ export function DeviceSessionIndicator({ userId }: { userId: string | undefined 
       <PopoverTrigger asChild>
         <button
           type="button"
+          aria-label={`${activeCount} active ${activeCount === 1 ? 'device' : 'devices'}. Open session list.`}
           className={cn(
             'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
             isMultiDevice
@@ -141,9 +142,9 @@ export function DeviceSessionIndicator({ userId }: { userId: string | undefined 
               : 'border-border/50 bg-muted/50 text-muted-foreground',
           )}
         >
-          <MonitorSmartphone className="h-3.5 w-3.5" />
+          <MonitorSmartphone className="h-3.5 w-3.5" aria-hidden="true" />
           <span>{activeCount} {activeCount === 1 ? 'device' : 'devices'}</span>
-          {isMultiDevice && <span className="h-1.5 w-1.5 rounded-full bg-warning animate-pulse" />}
+          {isMultiDevice && <span className="h-1.5 w-1.5 rounded-full bg-warning animate-pulse" aria-hidden="true" />}
         </button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80 p-3">
