@@ -3,8 +3,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { isCriticalFlowActive } from '@/lib/criticalFlowGuard';
 
-declare const __CACHE_VERSION__: string;
-
 /**
  * Mobile PWA Cache Invalidation Hook - Works on iOS AND Android
  * 
@@ -108,50 +106,6 @@ export function useIOSCacheInvalidation() {
     }
   }, [queryClient]);
 
-  // Check for app version changes
-  const checkVersionMismatch = useCallback(() => {
-    try {
-      const storedCacheVersion = localStorage.getItem('ios_cache_version');
-      const currentCacheVersion = __CACHE_VERSION__;
-      
-      if (storedCacheVersion && storedCacheVersion !== currentCacheVersion) {
-        console.log('[iOS Cache] Version mismatch detected - clearing all caches');
-        
-        // Clear React Query cache
-        queryClient.clear();
-        
-        // Clear iOS-specific caches
-        if ('caches' in window) {
-          caches.keys().then(keys => {
-            keys.forEach(key => {
-              if (key.includes('api') || key.includes('supabase')) {
-                caches.delete(key);
-              }
-            });
-          });
-        }
-        
-        // Clear any stale sessionStorage data
-        const keysToPreserve = ['supabase.auth.token', 'auth_session', 'user_role'];
-        const allKeys = Object.keys(sessionStorage);
-        allKeys.forEach(key => {
-          if (!keysToPreserve.some(preserve => key.includes(preserve))) {
-            sessionStorage.removeItem(key);
-          }
-        });
-        
-        localStorage.setItem('ios_cache_version', currentCacheVersion);
-        return true;
-      }
-      
-      localStorage.setItem('ios_cache_version', currentCacheVersion);
-      return false;
-    } catch (e) {
-      console.error('[iOS Cache] Version check error:', e);
-      return false;
-    }
-  }, [queryClient]);
-
   // Force service worker update check
   const checkServiceWorkerUpdate = useCallback(async () => {
     if (!('serviceWorker' in navigator)) return;
@@ -212,22 +166,13 @@ export function useIOSCacheInvalidation() {
         return;
       }
 
-      // Check for version changes first
-      const versionChanged = checkVersionMismatch();
-      
-      // Only full invalidate + SW swap when the build itself changed.
-      // Plain "stale" resumes use the lighter refetch so an open wizard
-      // keeps its state.
-      if (versionChanged) {
-        console.log('[Mobile Cache] Build changed - full refresh');
-        await checkServiceWorkerUpdate();
-        await invalidateAllData(true);
-      } else if (timeSinceActive > STALE_THRESHOLD) {
+      // Version detection + update prompting is owned solely by
+      // useServiceWorkerUpdate now — this hook only keeps data fresh on
+      // resume so an open wizard keeps its state.
+      if (timeSinceActive > STALE_THRESHOLD) {
         console.log('[Mobile Cache] Data stale - quick refetch');
-        await quickRefresh();
-      } else {
-        await quickRefresh();
       }
+      await quickRefresh();
     };
 
     // Handle page show event (reliable for both iOS bfcache and Android)
@@ -271,16 +216,13 @@ export function useIOSCacheInvalidation() {
     window.addEventListener('focus', handleFocus);
     window.addEventListener('online', handleOnline);
 
-    // Initial version check
-    checkVersionMismatch();
-
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('pageshow', handlePageShow);
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('online', handleOnline);
     };
-  }, [queryClient, invalidateAllData, quickRefresh, checkVersionMismatch, checkServiceWorkerUpdate]);
+  }, [queryClient, invalidateAllData, quickRefresh, checkServiceWorkerUpdate]);
 
   // Periodic background refresh for mobile PWAs (every 24 hours — cost optimized)
   useEffect(() => {
