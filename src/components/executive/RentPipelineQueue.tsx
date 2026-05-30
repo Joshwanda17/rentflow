@@ -14,7 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { CheckCircle2, XCircle, Clock, MapPin, User, UserCheck, Home, Banknote, ArrowRight, Loader2, Search, MessageCircle, Phone, Pencil, Check, X, PhoneCall, ShieldCheck, AlertCircle, Image as ImageIcon, Camera } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, MapPin, User, UserCheck, Home, Banknote, ArrowRight, Loader2, Search, MessageCircle, Phone, Pencil, Check, X, PhoneCall, ShieldCheck, AlertCircle, Image as ImageIcon, Camera, Cloud, HardDrive } from 'lucide-react';
 import { calculateRentRepayment } from '@/lib/rentCalculations';
 import { toast as sonnerToast } from 'sonner';
 import { format } from 'date-fns';
@@ -206,6 +206,9 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
   // Guards the cloud-write effect so the initial localStorage value doesn't
   // overwrite a fresher cloud value before hydration completes.
   const hasTenantPrefHydratedRef = useRef(false);
+  // 'synced' | 'local' — tracks whether the current filter value is confirmed
+  // on the server (synced) or only in localStorage (local).
+  const [tenantSyncStatus, setTenantSyncStatus] = useState<'synced' | 'local'>('local');
 
   // Hydrate the selected tenant from the server so the filter follows the
   // CFO across devices/browsers, then mirror back into localStorage.
@@ -224,6 +227,7 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
         const cloudValue = typeof data?.value === 'string' ? data.value : null;
         if (cloudValue) {
           setSelectedTenantId(cloudValue);
+          setTenantSyncStatus('synced');
           try {
             if (cloudValue === 'all') localStorage.removeItem('rentPipeline_selectedTenantId');
             else localStorage.setItem('rentPipeline_selectedTenantId', cloudValue);
@@ -265,10 +269,13 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                 { onConflict: 'user_id,key' },
               );
         if (error) {
-          // Server unavailable → localStorage (written above) is the fallback.
+          setTenantSyncStatus('local');
           console.warn('[RentPipelineQueue] tenant pref cloud write failed, using localStorage', error);
+        } else {
+          setTenantSyncStatus('synced');
         }
       } catch (err) {
+        setTenantSyncStatus('local');
         console.warn('[RentPipelineQueue] tenant pref write failed, using localStorage', err);
       }
     })();
@@ -813,21 +820,34 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
             )}
           </div>
         )}
-        <div className="flex flex-col sm:flex-row gap-2 mt-2">
-          <Select value={selectedTenantId} onValueChange={setSelectedTenantId}>
-            <SelectTrigger className="h-9 text-sm sm:w-[260px]">
-              <User className="h-3.5 w-3.5 mr-1 text-muted-foreground shrink-0" />
-              <SelectValue placeholder="Choose a tenant to fund" />
-            </SelectTrigger>
-            <SelectContent className="max-h-[320px]">
-              <SelectItem value="all">All tenants ({tenantOptions.length})</SelectItem>
-              {tenantOptions.map(t => (
-                <SelectItem key={t.id} value={t.id}>
-                  <span className="truncate">{t.name} → {t.landlord_name}</span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="flex flex-col sm:flex-row gap-2 mt-2 items-start">
+          <div className="flex items-center gap-2">
+            <Select value={selectedTenantId} onValueChange={setSelectedTenantId}>
+              <SelectTrigger className="h-9 text-sm sm:w-[260px]">
+                <User className="h-3.5 w-3.5 mr-1 text-muted-foreground shrink-0" />
+                <SelectValue placeholder="Choose a tenant to fund" />
+              </SelectTrigger>
+              <SelectContent className="max-h-[320px]">
+                <SelectItem value="all">All tenants ({tenantOptions.length})</SelectItem>
+                {tenantOptions.map(t => (
+                  <SelectItem key={t.id} value={t.id}>
+                    <span className="truncate">{t.name} → {t.landlord_name}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {tenantSyncStatus === 'synced' ? (
+              <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+                <Cloud className="h-3 w-3" />
+                Synced to account
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+                <HardDrive className="h-3 w-3" />
+                Saved locally
+              </span>
+            )}
+          </div>
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
