@@ -133,6 +133,13 @@ export default function ProfileCompletionGate() {
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
+  // Quick setup is the easy, picture-first path shown by default to the
+  // mandatory gate. Users can switch to the detailed form via "More options".
+  const [quickMode, setQuickMode] = useState(true);
+  const [locating, setLocating] = useState(false);
+  const [residenceLat, setResidenceLat] = useState<number | null>(null);
+  const [residenceLng, setResidenceLng] = useState<number | null>(null);
+
   // Address state — defaults to Africa, Uganda, Kampala for the majority user base
   const [continent, setContinent] = useState("Africa");
   const [country, setCountry] = useState("Uganda");
@@ -196,6 +203,8 @@ export default function ProfileCompletionGate() {
       if (profile) seedFromProfile(profile);
       setStep(1);
       setDismissed(false);
+      // Editing from Settings → give the full detailed form, not quick mode.
+      setQuickMode(false);
       setEditMode(true);
     };
     window.addEventListener("open-profile-editor", handler);
@@ -302,6 +311,32 @@ export default function ProfileCompletionGate() {
     setVillage("");
   };
 
+  // One-tap GPS capture so users don't have to type any address detail.
+  const handleUseMyLocation = () => {
+    if (!("geolocation" in navigator)) {
+      toast.error("Location not available on this device");
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setResidenceLat(pos.coords.latitude);
+        setResidenceLng(pos.coords.longitude);
+        setLocating(false);
+        toast.success("Location captured", {
+          description: "We saved where you are now.",
+        });
+      },
+      () => {
+        setLocating(false);
+        toast.error("Couldn't get your location", {
+          description: "You can still finish — we'll use Kampala by default.",
+        });
+      },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  };
+
   const handleSubmit = async () => {
     if (!user || !profile) return;
     if (!step1Valid || !step2Valid || !step3Valid) return;
@@ -324,6 +359,10 @@ export default function ProfileCompletionGate() {
         primary_persona: persona,
         occupation: occupation.trim() || null,
       };
+      if (residenceLat != null && residenceLng != null) {
+        update.residence_lat = residenceLat;
+        update.residence_lng = residenceLng;
+      }
       if (referrerWillChange) {
         update.referrer_id = newReferrerId;
         update.referrer_override_at = new Date().toISOString();
