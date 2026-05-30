@@ -802,6 +802,17 @@ export default function ProfileCompletionGate() {
               </div>
             </div>
 
+            {!isUganda && (
+              <button
+                type="button"
+                onClick={handleResetLocation}
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary/10 px-3 py-2 text-[13px] font-medium text-primary transition-colors hover:bg-primary/15"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Not in {country}? Switch back to Uganda
+              </button>
+            )}
+
             {isUganda ? (
               <>
                 <div className="grid grid-cols-1 xs:grid-cols-2 gap-4 xs:gap-3">
