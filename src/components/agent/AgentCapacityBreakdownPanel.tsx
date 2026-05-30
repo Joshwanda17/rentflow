@@ -1,10 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAgentCapacityMap, DAILY_ELIGIBILITY_THRESHOLD } from '@/hooks/useAgentCapacityMap';
 import { formatUGX } from '@/lib/rentCalculations';
-import { TrendingUp, TrendingDown, Minus, Layers, Target, CheckCircle2, Lock, Loader2, ChevronRight } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Layers, Target, CheckCircle2, Lock, Loader2, ChevronRight, Share2 } from 'lucide-react';
 import { AgentCollectionsDrilldownDialog } from './AgentCollectionsDrilldownDialog';
+import { AgentCapacityShareCard } from './AgentCapacityShareCard';
 import { hapticTap } from '@/lib/haptics';
+import { toPng } from 'html-to-image';
+import { toast } from 'sonner';
 
 /**
  * Plain-English breakdown panel shown directly under "My Rent-Request Capacity".
@@ -20,6 +23,8 @@ export function AgentCapacityBreakdownPanel() {
   const { data, isLoading } = useAgentCapacityMap(ids);
   const cap = user?.id ? data?.get(user.id) : undefined;
   const [drilldownOpen, setDrilldownOpen] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const shareCardRef = useRef<HTMLDivElement>(null);
 
   if (!user?.id) return null;
 
@@ -58,11 +63,71 @@ export function AgentCapacityBreakdownPanel() {
   const threshold = Math.round(DAILY_ELIGIBILITY_THRESHOLD * 100);
   const unlockNeeded = Math.max(0, Math.round(cap.expected_daily * DAILY_ELIGIBILITY_THRESHOLD) - cap.paid_today);
 
+  const agentName = (user.user_metadata?.full_name as string)
+    || (user.user_metadata?.name as string)
+    || user.email?.split('@')[0]
+    || 'Agent';
+  const dateLabel = new Date().toLocaleDateString('en-GB', {
+    weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Africa/Kampala',
+  });
+
+  const handleShare = async () => {
+    if (!shareCardRef.current || sharing) return;
+    hapticTap();
+    setSharing(true);
+    try {
+      const dataUrl = await toPng(shareCardRef.current, {
+        pixelRatio: 2,
+        cacheBust: true,
+        skipFonts: true,
+      });
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      const file = new File([blob], `welile-capacity-${Date.now()}.png`, { type: 'image/png' });
+      const shareText = `My Welile rent-request capacity today: ${formatUGX(cap.paid_today)} of ${formatUGX(cap.expected_daily)} collected.`;
+
+      const canShareFiles = typeof navigator !== 'undefined'
+        && !!navigator.canShare
+        && navigator.canShare({ files: [file] });
+
+      if (canShareFiles) {
+        await navigator.share({ files: [file], text: shareText, title: 'Welile capacity' });
+      } else {
+        // Fallback: download the image, then open WhatsApp with the caption
+        const link = document.createElement('a');
+        link.href = dataUrl;
+        link.download = file.name;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank');
+        toast.success('Image saved — attach it to your WhatsApp message');
+      }
+    } catch (err) {
+      if ((err as Error)?.name !== 'AbortError') {
+        toast.error('Could not generate the image. Please try again.');
+      }
+    } finally {
+      setSharing(false);
+    }
+  };
+
   return (
     <div className="rounded-2xl border border-border bg-card p-4 space-y-4">
-      <div className="flex items-center gap-2">
-        <Layers className="h-4 w-4 text-primary" />
-        <h4 className="text-sm font-bold text-foreground">Why you can / can&apos;t allocate</h4>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Layers className="h-4 w-4 text-primary" />
+          <h4 className="text-sm font-bold text-foreground">Why you can / can&apos;t allocate</h4>
+        </div>
+        <button
+          type="button"
+          onClick={handleShare}
+          disabled={sharing}
+          className="flex items-center gap-1.5 rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 transition-colors disabled:opacity-60"
+        >
+          {sharing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Share2 className="h-3.5 w-3.5" />}
+          Share
+        </button>
       </div>
 
       {/* 1. Collected today vs target */}
@@ -158,6 +223,19 @@ export function AgentCapacityBreakdownPanel() {
         expectedDaily={cap.expected_daily}
         headroom={cap.headroom}
         perTenantMax={cap.per_tenant_max}
+      />
+
+      <AgentCapacityShareCard
+        ref={shareCardRef}
+        agentName={agentName}
+        paidToday={cap.paid_today}
+        expectedDaily={cap.expected_daily}
+        paidYesterday={cap.paid_yesterday}
+        perTenantMax={cap.per_tenant_max}
+        headroom={cap.headroom}
+        remainingSlots={remainingSlots}
+        canPost={canPost}
+        dateLabel={dateLabel}
       />
     </div>
   );
