@@ -19,6 +19,7 @@ import { calculateRentRepayment } from '@/lib/rentCalculations';
 import { toast as sonnerToast } from 'sonner';
 import { format } from 'date-fns';
 import { AgentProximitySelector } from './AgentProximitySelector';
+import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
 
 export type PipelineStage =
   | 'pending'
