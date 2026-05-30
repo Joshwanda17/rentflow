@@ -614,9 +614,9 @@ export default function ProfileCompletionGate() {
             dismissGate();
           }}
           aria-label={editMode ? "Close" : "Skip for now"}
-          className="absolute right-3 top-3 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="absolute right-3 top-3 rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <X className="h-4 w-4" />
+          {editMode ? <X className="h-4 w-4" /> : "Later"}
         </button>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
