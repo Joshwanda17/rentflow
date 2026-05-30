@@ -186,7 +186,7 @@ const loadApp = async () => {
     // Stale-deploy recovery: purge caches/SWs and reload to a cache-busted URL
     // so iOS Safari fetches a fresh HTML shell. Stop once attempts are
     // exhausted to avoid an endless "Updating…" loop.
-    if (isChunkError && !recentlyReloaded && !recoveryExhausted()) {
+    if (isChunkError && !recoveryExhausted()) {
       try {
         sessionStorage.setItem(reloadKey, String(Date.now()));
       } catch {}
@@ -218,7 +218,7 @@ function showErrorUI() {
   heading.style.cssText = 'font-size:18px;font-weight:600;color:#1f2937;margin:0';
 
   const msg = document.createElement('p');
-  msg.textContent = 'A newer version of Welile is ready. Tap below to load it.';
+    msg.textContent = 'Welile found an old iPhone cache. Tap below to clear it and load the latest app.';
   msg.style.cssText = 'font-size:14px;color:#6b7280;margin:0;max-width:280px';
 
   const btn = document.createElement('button');
@@ -229,7 +229,7 @@ function showErrorUI() {
     try {
       const url = new URL(window.location.href);
       url.searchParams.set('_v', Date.now().toString(36));
-      location.replace(url.toString());
+      window.location.replace(url.toString());
     } catch {
       location.reload();
     }
