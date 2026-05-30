@@ -85,27 +85,27 @@ export function AgentCapacityBreakdownPanel() {
     setPreviewOpen(true);
   };
 
-  const generatePng = async () => {
+  const generatePng = async (pixelRatio = 2) => {
     if (!shareCardRef.current) throw new Error('No card ref');
     return toPng(shareCardRef.current, {
-      pixelRatio: 2,
+      pixelRatio,
       cacheBust: true,
       skipFonts: true,
     });
   };
 
-  const downloadPng = async () => {
+  const downloadPng = async (pixelRatio = 2) => {
     if (!shareCardRef.current || sharing) return;
     setSharing(true);
     try {
-      const dataUrl = await generatePng();
+      const dataUrl = await generatePng(pixelRatio);
       const link = document.createElement('a');
       link.href = dataUrl;
       link.download = `welile-capacity-${Date.now()}.png`;
       document.body.appendChild(link);
       link.click();
       link.remove();
-      toast.success('Image downloaded');
+      toast.success(pixelRatio > 2 ? 'HD image downloaded' : 'Image downloaded');
     } catch (err) {
       toast.error('Could not generate the image. Please try again.');
     } finally {
