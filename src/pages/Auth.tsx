@@ -128,6 +128,7 @@ export default function Auth() {
   const [otpLoginStep, setOtpLoginStep] = useState<'phone' | 'code'>('phone');
   const [otpLoginLoading, setOtpLoginLoading] = useState(false);
   const [otpLoginCountryCode, setOtpLoginCountryCode] = useState('256');
+  const [otpResendCooldown, setOtpResendCooldown] = useState(0);
   const loginOtp = useOtpVerification();
 
   // WhatsApp deeplink
