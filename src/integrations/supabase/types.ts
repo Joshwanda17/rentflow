@@ -11445,6 +11445,24 @@ export type Database = {
           },
         ]
       }
+      profile_drafts: {
+        Row: {
+          draft: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          draft?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          draft?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profile_field_audit: {
         Row: {
           changed_by: string | null
