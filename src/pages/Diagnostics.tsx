@@ -598,6 +598,47 @@ export default function Diagnostics() {
               Download .txt
             </button>
           </div>
+
+          <button
+            onClick={sendToSupport}
+            disabled={sending}
+            className="mt-3 w-full inline-flex items-center justify-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow hover:opacity-90 disabled:opacity-50"
+          >
+            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            {sending ? "Sending to support…" : "Send report to support"}
+          </button>
+
+          {sendError && (
+            <p className="mt-2 text-xs text-destructive">{sendError}</p>
+          )}
+
+          {sendResult && (
+            <div className="mt-3 rounded-lg border border-border bg-muted/40 p-3">
+              <div className="mb-1 flex items-center gap-2 text-xs font-medium text-green-600 dark:text-green-400">
+                <CheckCircle2 className="h-4 w-4" />
+                {sendResult.emailQueued
+                  ? "Sent to support and one-time link created"
+                  : "One-time link created (email pending — share the link below)"}
+              </div>
+              <div className="mt-2 flex items-center gap-2">
+                <LinkIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                <a
+                  href={sendResult.link}
+                  className="flex-1 break-all font-mono text-[11px] text-primary underline"
+                >
+                  {sendResult.link}
+                </a>
+                <button
+                  onClick={copyLink}
+                  className="shrink-0 inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-[11px] font-medium hover:bg-muted/80"
+                >
+                  {linkCopied ? <CheckCircle2 className="h-3 w-3 text-green-500" /> : <ClipboardCopy className="h-3 w-3" />}
+                  {linkCopied ? "Copied" : "Copy"}
+                </button>
+              </div>
+              <p className="mt-2 text-[11px] text-muted-foreground">This link expires in 7 days.</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
