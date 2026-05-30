@@ -65,7 +65,7 @@ export function useAuthForm() {
 
   const { signUpWithoutRole, signIn, signInWithGoogle, signInWithApple, resetPassword, user, roles } = useAuth();
   const { isDuplicate, isChecking: isCheckingDuplicate, duplicateMessage } = usePhoneDuplicateCheck(phone, 400);
-  const { otpSent, otpVerified, otpLoading, otpError, sendStatus: otpSendStatus, sendOtp, verifyOtp, resetOtp: resetOtpState } = useOtpVerification();
+  const { otpSent, otpVerified, otpLoading, otpError, sendStatus: otpSendStatus, cooldownSeconds: otpCooldownSeconds, sendOtp, verifyOtp, resetOtp: resetOtpState } = useOtpVerification();
   const navigate = useNavigate();
   const { toast } = useToast();
 
