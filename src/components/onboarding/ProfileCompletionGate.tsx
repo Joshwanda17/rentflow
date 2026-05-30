@@ -550,7 +550,7 @@ export default function ProfileCompletionGate() {
       }
       void supabase.from("profile_completion_log").insert(logRows as any);
 
-      // The profile is saved — clear any locally stored draft.
+      // The profile is saved — clear the draft locally and on the server.
       if (draftKey) {
         try {
           localStorage.removeItem(draftKey);
@@ -558,6 +558,7 @@ export default function ProfileCompletionGate() {
           /* ignore */
         }
       }
+      void supabase.from("profile_drafts").delete().eq("user_id", user.id);
       setDraftSavedAt(null);
 
       toast.success("Profile updated", {
