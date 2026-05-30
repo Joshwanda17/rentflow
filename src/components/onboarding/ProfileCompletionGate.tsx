@@ -156,11 +156,39 @@ export default function ProfileCompletionGate() {
     if (profile.occupation) setOccupation(profile.occupation);
   }, [profile?.id]);
 
-  // Auto-derive continent from country selection if not yet set
+  // Auto-derive continent from country selection and cascade-clear
+  // dependent address fields so they never mismatch a previous city.
   useEffect(() => {
     const cont = continentForCountry(country);
     if (cont) setContinent(cont);
+
+    if (country === "Uganda") {
+      setRegion("Central");
+      setDistrict("Kampala");
+      setCity("Kampala");
+    } else {
+      setRegion("");
+      setDistrict("");
+      setCity("");
+    }
+    setTown("");
+    setSubCounty("");
+    setParish("");
+    setVillage("");
   }, [country]);
+
+  // When continent is changed manually, wipe all sub-fields so the user
+  // re-selects a matching country → city chain.
+  useEffect(() => {
+    setCountry("");
+    setRegion("");
+    setDistrict("");
+    setCity("");
+    setTown("");
+    setSubCounty("");
+    setParish("");
+    setVillage("");
+  }, [continent]);
 
   const isUganda = country === "Uganda";
   const resolvedCountry = country.trim();
