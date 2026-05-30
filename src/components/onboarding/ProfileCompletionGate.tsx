@@ -158,12 +158,12 @@ export default function ProfileCompletionGate() {
 
   // Auto-derive continent from country selection if not yet set
   useEffect(() => {
-    const known = COUNTRIES.find((c) => c.name === country);
-    if (known && known.continent) setContinent(known.continent);
+    const cont = continentForCountry(country);
+    if (cont) setContinent(cont);
   }, [country]);
 
   const isUganda = country === "Uganda";
-  const resolvedCountry = country === "Other" ? countryOther.trim() : country;
+  const resolvedCountry = country.trim();
 
   // Existing referrer (locked attribution) — show their name
   const { data: existingReferrer } = useQuery({
