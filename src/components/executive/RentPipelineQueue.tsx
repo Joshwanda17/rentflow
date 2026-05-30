@@ -845,11 +845,17 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
               <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
                 <Cloud className="h-3 w-3" />
                 Synced to account
+                {tenantSyncAt && (
+                  <span className="text-[9px] opacity-70">· {format(tenantSyncAt, 'HH:mm')}</span>
+                )}
               </span>
             ) : (
               <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
                 <HardDrive className="h-3 w-3" />
                 Saved locally
+                {tenantSyncAt && (
+                  <span className="text-[9px] opacity-70">· {format(tenantSyncAt, 'HH:mm')}</span>
+                )}
               </span>
             )}
           </div>
