@@ -636,8 +636,17 @@ export default function ProfileCompletionGate() {
 
         {!editMode && draftSavedAt != null && (
           <div className="flex items-center gap-1.5 text-[11px] xs:text-xs text-muted-foreground">
-            <Check className="h-3.5 w-3.5 text-primary" />
-            <span>Draft saved — you can close and finish later.</span>
+            {draftSyncing ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                <span>Saving draft…</span>
+              </>
+            ) : (
+              <>
+                <Check className="h-3.5 w-3.5 text-primary" />
+                <span>Draft saved — resume on any device.</span>
+              </>
+            )}
           </div>
         )}
 
