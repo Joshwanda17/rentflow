@@ -114,6 +114,7 @@ export function AgentCapacityBreakdownPanel() {
       toast.error('Could not generate the image. Please try again.');
     } finally {
       setSharing(false);
+      setPreviewOpen(false);
     }
   };
 
