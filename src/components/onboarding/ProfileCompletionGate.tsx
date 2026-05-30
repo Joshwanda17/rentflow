@@ -145,22 +145,48 @@ export default function ProfileCompletionGate() {
   // the next login/session as required by the Trust Mission.
   const [dismissed, setDismissed] = useState(false);
 
+  // While seeding from the DB we suppress the country/continent cascade
+  // effects so they don't wipe the values we're restoring.
+  const seeding = useRef(false);
+
+  const seedFromProfile = useCallback((p: ProfileRow) => {
+    seeding.current = true;
+    if (p.continent) setContinent(p.continent);
+    if (p.country) setCountry(p.country);
+    if (p.region) setRegion(p.region);
+    if (p.district) setDistrict(p.district);
+    if (p.city) setCity(p.city);
+    if (p.town) setTown(p.town);
+    if (p.sub_county) setSubCounty(p.sub_county);
+    if (p.parish) setParish(p.parish);
+    if (p.village) setVillage(p.village);
+    if (p.primary_persona) setPersona(p.primary_persona);
+    if (p.occupation) setOccupation(p.occupation);
+    // Re-enable cascades after the suppressed effects have run this tick.
+    setTimeout(() => {
+      seeding.current = false;
+    }, 0);
+  }, []);
+
   // Seed the form from whatever the profile already has, so users only
   // fill the blanks.
   useEffect(() => {
     if (!profile) return;
-    if (profile.continent) setContinent(profile.continent);
-    if (profile.country) setCountry(profile.country);
-    if (profile.region) setRegion(profile.region);
-    if (profile.district) setDistrict(profile.district);
-    if (profile.city) setCity(profile.city);
-    if (profile.town) setTown(profile.town);
-    if (profile.sub_county) setSubCounty(profile.sub_county);
-    if (profile.parish) setParish(profile.parish);
-    if (profile.village) setVillage(profile.village);
-    if (profile.primary_persona) setPersona(profile.primary_persona);
-    if (profile.occupation) setOccupation(profile.occupation);
-  }, [profile?.id]);
+    seedFromProfile(profile);
+  }, [profile?.id, seedFromProfile]);
+
+  // Allow other parts of the app (e.g. Settings) to open this gate in
+  // edit mode so a user can revise an already-complete profile.
+  useEffect(() => {
+    const handler = () => {
+      if (profile) seedFromProfile(profile);
+      setStep(1);
+      setDismissed(false);
+      setEditMode(true);
+    };
+    window.addEventListener("open-profile-editor", handler);
+    return () => window.removeEventListener("open-profile-editor", handler);
+  }, [profile, seedFromProfile]);
 
   // Auto-derive continent from country selection and cascade-clear
   // dependent address fields so they never mismatch a previous city.
