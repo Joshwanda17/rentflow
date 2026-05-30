@@ -35,6 +35,7 @@ import { TenantFieldCollectDialog } from './TenantFieldCollectDialog';
 import { AgentRequestPipelineView } from './AgentRequestPipelineView';
 import { MarkNotFundedDialog } from './MarkNotFundedDialog';
 import { AgentRentCapacitySelfCard } from './AgentRentCapacitySelfCard';
+import { AgentCapacityBreakdownPanel } from './AgentCapacityBreakdownPanel';
 import { useCreditAccessLimit, formatCreditAmount } from '@/hooks/useCreditAccessLimit';
 import { AgentAdvanceRequestForm } from './AgentAdvanceRequestForm';
 import { Sparkles, Zap, ArrowDownAZ, ListChecks, CheckSquare } from 'lucide-react';
