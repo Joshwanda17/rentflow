@@ -153,6 +153,12 @@ export async function signInWithApple() {
 export async function signOutUser(userId: string | undefined) {
   // Activity log insert stubbed for performance
   try { localStorage.removeItem('welile_remember_until'); } catch { /* non-critical */ }
+  // Drop "remember this device" markers so OTP is required on next sign-in.
+  try {
+    localStorage.removeItem('welile_trusted_device');
+    localStorage.removeItem('welile_ephemeral_session');
+    sessionStorage.removeItem('welile_session_active');
+  } catch { /* non-critical */ }
   await supabase.auth.signOut();
 }
 
