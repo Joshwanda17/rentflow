@@ -842,23 +842,32 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                 ))}
               </SelectContent>
             </Select>
-            {tenantSyncStatus === 'synced' ? (
-              <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
-                <Cloud className="h-3 w-3" />
-                Synced to account
-                {tenantSyncAt && (
-                  <span className="text-[9px] opacity-70">· {format(tenantSyncAt, 'HH:mm')}</span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                {tenantSyncStatus === 'synced' ? (
+                  <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground cursor-help">
+                    <Cloud className="h-3 w-3" />
+                    Synced to account
+                    {tenantSyncAt && (
+                      <span className="text-[9px] opacity-70">· {format(tenantSyncAt, 'HH:mm')}</span>
+                    )}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground cursor-help">
+                    <HardDrive className="h-3 w-3" />
+                    Saved locally
+                    {tenantSyncAt && (
+                      <span className="text-[9px] opacity-70">· {format(tenantSyncAt, 'HH:mm')}</span>
+                    )}
+                  </span>
                 )}
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
-                <HardDrive className="h-3 w-3" />
-                Saved locally
-                {tenantSyncAt && (
-                  <span className="text-[9px] opacity-70">· {format(tenantSyncAt, 'HH:mm')}</span>
-                )}
-              </span>
-            )}
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-[240px] text-xs">
+                {tenantSyncStatus === 'synced'
+                  ? `This tenant filter was saved to your account settings${tenantSyncAt ? ` at ${format(tenantSyncAt, 'MMM d, yyyy HH:mm')}` : ''}. It will follow you across devices and browsers.`
+                  : `This tenant filter is stored only in this browser's localStorage${tenantSyncAt ? ` at ${format(tenantSyncAt, 'MMM d, yyyy HH:mm')}` : ''}. It will not sync to other devices until you sign in.`}
+              </TooltipContent>
+            </Tooltip>
           </div>
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
