@@ -63,8 +63,8 @@ export function AgentCapacityBreakdownPanel() {
   const threshold = Math.round(DAILY_ELIGIBILITY_THRESHOLD * 100);
   const unlockNeeded = Math.max(0, Math.round(cap.expected_daily * DAILY_ELIGIBILITY_THRESHOLD) - cap.paid_today);
 
-  const agentName = (user.user_metadata?.full_name as string)
-    || (user.user_metadata?.name as string)
+  const agentName = (user.user_metadata as any)?.full_name
+    || (user.user_metadata as any)?.name
     || user.email?.split('@')[0]
     || 'Agent';
   const dateLabel = new Date().toLocaleDateString('en-GB', {
