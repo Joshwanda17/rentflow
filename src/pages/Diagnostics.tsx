@@ -177,7 +177,7 @@ async function readShell(): Promise<ShellInfo> {
   }
 }
 
-function StatusPill({ status, children }: { status: Status; children: React.ReactNode }) {
+function StatusPill({ status, children }: { status: Status; children: ReactNode }) {
   const map: Record<Status, { cls: string; Icon: typeof CheckCircle2 }> = {
     ok: { cls: "bg-green-500/15 text-green-600 dark:text-green-400", Icon: CheckCircle2 },
     warn: { cls: "bg-amber-500/15 text-amber-600 dark:text-amber-400", Icon: AlertTriangle },
@@ -200,7 +200,7 @@ function Section({
 }: {
   title: string;
   icon: typeof ServerCog;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
