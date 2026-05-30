@@ -117,7 +117,7 @@ export function AgentCapacityBreakdownPanel() {
     if (!shareCardRef.current || sharing) return;
     setSharing(true);
     try {
-      const dataUrl = await generatePng();
+      const dataUrl = await generatePng(2);
       const res = await fetch(dataUrl);
       const blob = await res.blob();
       const file = new File([blob], `welile-capacity-${Date.now()}.png`, { type: 'image/png' });
