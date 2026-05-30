@@ -676,6 +676,103 @@ export default function Diagnostics() {
           </button>
         </div>
 
+        {/* Staged mobile rollout */}
+        <Section title="Staged mobile rollout" icon={Rocket}>
+          <p className="mb-3 text-xs text-muted-foreground">
+            Controls what share of devices run the new iPhone update-recovery fix.
+            Start small (canary), confirm it in the telemetry below, then ramp up to
+            100% for full deployment — or pause to 0% instantly to roll back.
+          </p>
+
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <StatusPill status={!rollout?.enabled ? "info" : rollout.rollout_percent === 0 ? "warn" : rollout.rollout_percent >= 100 ? "ok" : "info"}>
+              {rolloutLoading
+                ? "Loading…"
+                : !rollout
+                ? "No config"
+                : !rollout.enabled
+                ? "Disabled"
+                : `${rollout.stage} • ${rollout.rollout_percent}%`}
+            </StatusPill>
+            <StatusPill status={getRolloutState().inCohort ? "ok" : "info"}>
+              <Users className="h-3.5 w-3.5" />
+              This device: bucket {deviceBucket} • {getRolloutState().inCohort ? "in cohort" : "not in cohort"}
+            </StatusPill>
+          </div>
+
+          {rollout?.notes && (
+            <p className="mb-3 rounded bg-muted/40 p-2 text-[11px] text-muted-foreground">
+              {rollout.notes}
+            </p>
+          )}
+
+          {!isManager ? (
+            <p className="text-xs text-muted-foreground/60">
+              Rollout controls are visible to managers only.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { label: "Pause (0%)", percent: 0, stage: "paused" },
+                  { label: "Canary 5%", percent: 5, stage: "canary" },
+                  { label: "Ramp 25%", percent: 25, stage: "ramp" },
+                  { label: "Ramp 50%", percent: 50, stage: "ramp" },
+                  { label: "Full 100%", percent: 100, stage: "full" },
+                ].map((p) => (
+                  <button
+                    key={p.label}
+                    onClick={() => saveRollout({ rollout_percent: p.percent, stage: p.stage, enabled: true })}
+                    disabled={rolloutSaving}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${
+                      rollout?.rollout_percent === p.percent
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted hover:bg-muted/80"
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+
+              <div>
+                <label className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Custom percentage</span>
+                  <span className="font-medium text-foreground">{percentDraft}%</span>
+                </label>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={percentDraft}
+                  onChange={(e) => setPercentDraft(Number(e.target.value))}
+                  className="w-full accent-primary"
+                />
+                <button
+                  onClick={() =>
+                    saveRollout({
+                      rollout_percent: percentDraft,
+                      stage: percentDraft === 0 ? "paused" : percentDraft >= 100 ? "full" : percentDraft <= 10 ? "canary" : "ramp",
+                      enabled: true,
+                    })
+                  }
+                  disabled={rolloutSaving || percentDraft === rollout?.rollout_percent}
+                  className="mt-2 inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-medium text-primary-foreground disabled:opacity-50"
+                >
+                  {rolloutSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Rocket className="h-3.5 w-3.5" />}
+                  Apply {percentDraft}%
+                </button>
+              </div>
+
+              {rolloutSaved && (
+                <p className="text-xs text-green-600 dark:text-green-400">Rollout updated.</p>
+              )}
+              {rolloutError && <p className="text-xs text-destructive">{rolloutError}</p>}
+            </div>
+          )}
+        </Section>
+
         {/* Update-failure telemetry (managers only — RLS returns rows only to them) */}
         <Section title="Update-failure telemetry" icon={Activity}>
           <div className="mb-3 flex items-center justify-between">
