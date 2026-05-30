@@ -115,7 +115,6 @@ export default function ProfileCompletionGate() {
   // Address state
   const [continent, setContinent] = useState("");
   const [country, setCountry] = useState("");
-  const [countryOther, setCountryOther] = useState("");
   const [region, setRegion] = useState("");
   const [district, setDistrict] = useState("");
   const [city, setCity] = useState("");
