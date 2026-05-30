@@ -30,14 +30,25 @@ function DeviceRow({
   const Icon = isPhone ? Smartphone : Laptop;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(session.device_label ?? '');
+  const [error, setError] = useState<string | null>(null);
 
   const save = () => {
     const trimmed = draft.trim();
-    if (trimmed && trimmed !== session.device_label) onRename(session.device_id, trimmed);
+    if (!trimmed) {
+      setError("Device name can't be empty");
+      return;
+    }
+    if (trimmed.length > 40) {
+      setError('Device name must be 40 characters or less');
+      return;
+    }
+    if (trimmed !== session.device_label) onRename(session.device_id, trimmed);
+    setError(null);
     setEditing(false);
   };
   const cancel = () => {
     setDraft(session.device_label ?? '');
+    setError(null);
     setEditing(false);
   };
 
