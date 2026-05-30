@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { User, Loader2, Receipt, CalendarClock, CalendarIcon, X, SlidersHorizontal } from 'lucide-react';
+import { User, Loader2, Receipt, CalendarClock, CalendarIcon, X, SlidersHorizontal, PiggyBank, Target, ArrowRight } from 'lucide-react';
 
 type CollectionRow = {
   id: string;
