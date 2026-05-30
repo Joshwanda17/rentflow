@@ -9,7 +9,7 @@ import { ThemeProvider } from "next-themes";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import ChunkErrorBoundary from "@/components/ChunkErrorBoundary";
 import { PullToRefresh } from "@/components/PullToRefresh";
-import { lazyWithRetry } from "@/lib/lazyWithRetry";
+import { lazyWithRetry, optionalLazyWithRetry } from "@/lib/lazyWithRetry";
 import { clearAndReload } from "@/lib/hardRecovery";
 // Route every page chunk through the concurrency-limited queue so slow
 // networks never see more than N parallel chunk requests at once.
@@ -40,15 +40,15 @@ const OfflineProvider = lazyWithRetry(() => import("@/contexts/OfflineContext").
 const FeatureFlagsProvider = lazyWithRetry(() => import("@/contexts/FeatureFlagsContext").then(m => ({ default: m.FeatureFlagsProvider })));
 
 // Lazy load optional UI components
-const Toaster = lazyWithRetry(() => import("@/components/ui/toaster").then(m => ({ default: m.Toaster })));
-const SonnerToaster = lazyWithRetry(() => import("@/components/ui/sonner").then(m => ({ default: m.Toaster })));
+const Toaster = optionalLazyWithRetry(() => import("@/components/ui/toaster").then(m => ({ default: m.Toaster })), "Toaster");
+const SonnerToaster = optionalLazyWithRetry(() => import("@/components/ui/sonner").then(m => ({ default: m.Toaster })), "SonnerToaster");
 import MaintenanceBanner from "@/components/MaintenanceBanner";
 import MaintenanceLockScreen from "@/components/MaintenanceLockScreen";
 
-const DeferredExtras = lazyWithRetry(() => import("@/components/DeferredExtras"));
-const FloatingToolbar = lazyWithRetry(() => import("@/components/FloatingToolbar"));
-const PWAInstallPrompt = lazyWithRetry(() => import("@/components/PWAInstallPrompt"));
-const AgentNavFAB = lazyWithRetry(() => import("@/components/agent/AgentNavFAB"));
+const DeferredExtras = optionalLazyWithRetry(() => import("@/components/DeferredExtras"), "DeferredExtras");
+const FloatingToolbar = optionalLazyWithRetry(() => import("@/components/FloatingToolbar"), "FloatingToolbar");
+const PWAInstallPrompt = optionalLazyWithRetry(() => import("@/components/PWAInstallPrompt"), "PWAInstallPrompt");
+const AgentNavFAB = optionalLazyWithRetry(() => import("@/components/agent/AgentNavFAB"), "AgentNavFAB");
 
 
 // Index is the entry router — must be eager for instant redirect
