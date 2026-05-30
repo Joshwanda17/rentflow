@@ -1,3 +1,6 @@
+// MUST be first: drops the stored session on a cold start when the user opted
+// out of "remember this device", before Supabase/session-cache read any token.
+import './lib/ephemeralGuard';
 import { createRoot } from 'react-dom/client';
 
 const root = document.getElementById('root')!;

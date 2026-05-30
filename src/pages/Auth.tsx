@@ -19,6 +19,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { useOtpVerification } from '@/hooks/useOtpVerification';
 import { getPreferredLoginMethod } from '@/hooks/useAppPreferences';
+import { setDeviceTrust } from '@/lib/deviceTrust';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -131,6 +132,9 @@ export default function Auth() {
   const [otpLoginLoading, setOtpLoginLoading] = useState(false);
   const [otpLoginCountryCode, setOtpLoginCountryCode] = useState('256');
   const [otpResendCooldown, setOtpResendCooldown] = useState(0);
+  // Permanent (WhatsApp-style) login by default. When unchecked the session is
+  // ephemeral and OTP is required again after the browser is fully closed.
+  const [rememberThisDevice, setRememberThisDevice] = useState(true);
   const loginOtp = useOtpVerification();
 
   // WhatsApp deeplink
@@ -210,6 +214,7 @@ export default function Auth() {
         if (data.user_name) localStorage.setItem('welile_last_user_name', data.user_name);
         localStorage.setItem('welile_last_login_method', 'otp');
         localStorage.setItem('welile_had_session', 'true');
+        setDeviceTrust(rememberThisDevice);
         toast({ title: `Welcome back${data.user_name ? ', ' + data.user_name : ''}! 🎉`, description: 'Logging you in...' });
         window.location.href = data.verify_url;
       }
@@ -224,6 +229,8 @@ export default function Auth() {
     await handleSubmit(e);
     if (!isSignUp && !isForgotPassword && !isForgotPhone) {
       localStorage.setItem('welile_last_login_method', 'password');
+      // Honour the same device-trust choice for password sign-ins.
+      setDeviceTrust(rememberMe);
     }
   };
 
@@ -702,6 +709,19 @@ export default function Auth() {
                         </span>
                       )}
                     </Button>
+
+                    {/* Remember this device — permanent (WhatsApp-style) login */}
+                    <label className="flex items-start gap-3 cursor-pointer select-none rounded-xl border border-border/50 bg-card p-3.5 touch-manipulation">
+                      <Checkbox
+                        checked={rememberThisDevice}
+                        onCheckedChange={(checked) => setRememberThisDevice(!!checked)}
+                        className="h-5 w-5 mt-0.5"
+                      />
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold text-foreground">Keep me logged in on this device</span>
+                        <span className="block text-xs text-muted-foreground mt-0.5">Stay signed in like WhatsApp — you'll only need a code on a new phone or after you log out.</span>
+                      </span>
+                    </label>
                   </>
                 ) : (
                   <>
