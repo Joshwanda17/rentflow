@@ -31,6 +31,7 @@ function DeviceRow({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(session.device_label ?? '');
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const save = () => {
     const trimmed = draft.trim();
@@ -42,7 +43,10 @@ function DeviceRow({
       setError('Device name must be 40 characters or less');
       return;
     }
-    if (trimmed !== session.device_label) onRename(session.device_id, trimmed);
+    if (trimmed !== session.device_label) {
+      setSaving(true);
+      onRename(session.device_id, trimmed);
+    }
     setError(null);
     setEditing(false);
   };
@@ -51,6 +55,21 @@ function DeviceRow({
     setError(null);
     setEditing(false);
   };
+
+  // Debounced auto-save: 700ms after typing stops
+  useEffect(() => {
+    if (!editing) return;
+    const trimmed = draft.trim();
+    if (!trimmed || trimmed.length > 40 || trimmed === session.device_label) return;
+
+    const id = window.setTimeout(() => {
+      setSaving(true);
+      onRename(session.device_id, trimmed);
+      setEditing(false);
+    }, 700);
+
+    return () => window.clearTimeout(id);
+  }, [draft, editing, session.device_id, session.device_label, onRename]);
 
   return (
     <div className="flex items-center gap-3 rounded-xl border border-border/50 bg-card px-3 py-2.5">
