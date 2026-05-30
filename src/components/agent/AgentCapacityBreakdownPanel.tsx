@@ -302,6 +302,8 @@ export function AgentCapacityBreakdownPanel() {
         remainingSlots={remainingSlots}
         canPost={canPost}
         dateLabel={dateLabel}
+        badges={badges}
+        tenantCount={cap.active_tenant_count}
       />
 
       {/* Preview before sharing */}
@@ -328,6 +330,8 @@ export function AgentCapacityBreakdownPanel() {
                 remainingSlots={remainingSlots}
                 canPost={canPost}
                 dateLabel={dateLabel}
+                badges={badges}
+                tenantCount={cap.active_tenant_count}
               />
             </div>
 
