@@ -1110,6 +1110,7 @@ export function DirectCreditTool() {
                 // Float (Operational Wallet) credits — e.g. Agent Float / Rent
                 // Disbursement — need no transaction ID, just an explicit confirm.
                 if (isCredit && recipientType === 'operational_wallet') {
+                  setFloatApproved(false);
                   setFloatConfirmOpen(true);
                   return;
                 }
