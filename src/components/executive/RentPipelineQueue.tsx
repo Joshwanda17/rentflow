@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { RentPipelineTracker } from './RentPipelineTracker';
 import { supabase } from '@/integrations/supabase/client';
@@ -195,7 +195,9 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
   // Agent profile drilldown
   const [drilldownAgentId, setDrilldownAgentId] = useState<string | null>(null);
   // Tenant selector — CFO picks which tenant's landlord to fund before approving
-  const [selectedTenantId, setSelectedTenantId] = useState<string>('all');
+  const [selectedTenantId, setSelectedTenantId] = useState<string>(() => {
+    try { return localStorage.getItem('rentPipeline_selectedTenantId') || 'all'; } catch { return 'all'; }
+  });
 
   const startEditing = useCallback((field: string, currentValue: any) => {
     setEditingField(field);
@@ -737,7 +739,7 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
           </div>
         )}
         <div className="flex flex-col sm:flex-row gap-2 mt-2">
-          <Select value={selectedTenantId} onValueChange={setSelectedTenantId}>
+          <Select value={selectedTenantId} onValueChange={v => { setSelectedTenantId(v); try { localStorage.setItem('rentPipeline_selectedTenantId', v); } catch {} }}>
             <SelectTrigger className="h-9 text-sm sm:w-[260px]">
               <User className="h-3.5 w-3.5 mr-1 text-muted-foreground shrink-0" />
               <SelectValue placeholder="Choose a tenant to fund" />
