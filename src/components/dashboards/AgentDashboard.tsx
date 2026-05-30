@@ -480,6 +480,11 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           <AgentNotificationBell userId={user.id} />
         </div>
 
+        {/* Active devices / multi-session indicator */}
+        <div className="flex justify-end -mt-2">
+          <DeviceSessionIndicator userId={user.id} />
+        </div>
+
         {/* Wallet Hero Card — always visible */}
         {wallet ? (
           <UnifiedWalletHeroCard
