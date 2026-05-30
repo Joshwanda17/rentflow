@@ -14716,6 +14716,48 @@ export type Database = {
         }
         Relationships: []
       }
+      tenant_inactive_reviews: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          rent_request_id: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          tenant_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          rent_request_id: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          rent_request_id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tenant_merchant_payments: {
         Row: {
           agent_id: string
@@ -18603,6 +18645,28 @@ export type Database = {
         Args: { p_landlord_id: string }
         Returns: undefined
       }
+      ops_acknowledge_inactivation: {
+        Args: { p_notes?: string; p_rent_request_id: string }
+        Returns: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          rent_request_id: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          tenant_id: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "tenant_inactive_reviews"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       ops_bulk_apply_capabilities: {
         Args: {
           _action: string
@@ -18650,11 +18714,15 @@ export type Database = {
       ops_recent_agent_inactivations: {
         Args: { p_limit?: number; p_since_hours?: number }
         Returns: {
+          acknowledged_at: string
           agent_id: string
           agent_name: string
           marked_at: string
           reason: string
           rent_request_id: string
+          review_notes: string
+          review_status: string
+          reviewer_name: string
           tenant_city: string
           tenant_id: string
           tenant_name: string
@@ -18687,6 +18755,28 @@ export type Database = {
       ops_resolve_agents_by_identifier: {
         Args: { _items: string[] }
         Returns: Json
+      }
+      ops_resolve_inactivation: {
+        Args: { p_notes: string; p_rent_request_id: string }
+        Returns: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          rent_request_id: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          tenant_id: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "tenant_inactive_reviews"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       ops_resolve_payment_edit: {
         Args: {
