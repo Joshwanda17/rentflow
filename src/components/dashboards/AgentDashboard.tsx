@@ -130,6 +130,7 @@ import { ShareRentRecorderCard } from '@/components/agent/ShareRentRecorderCard'
 import { TodayCollectionsCard } from '@/components/agent/TodayCollectionsCard';
 import { AgentPriorityGrid } from '@/components/agent/AgentPriorityGrid';
 import { AgentTenantInlineList } from '@/components/agent/AgentTenantInlineList';
+import { AgentCapacityShareInline } from '@/components/agent/AgentCapacityShareInline';
 import { useIsFinancialAgent } from '@/hooks/useIsFinancialAgent';
 import { FinancialAgentSection } from '@/components/agent/FinancialAgentSection';
 import { PromissoryNoteDialog } from '@/components/agent/PromissoryNoteDialog';
