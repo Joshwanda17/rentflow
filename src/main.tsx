@@ -191,15 +191,26 @@ const loadApp = async () => {
         details: { message: String((err as any)?.message || err), recentlyReloaded },
       });
     }
+    // Staged rollout gate: only devices in the active canary/ramp cohort run
+    // the aggressive auto cache-bust recovery. Devices outside the cohort fall
+    // through to the manual recovery UI, so the fix is verified on a small
+    // percentage before full deployment.
+    const inRolloutCohort = isRolloutEnabledForDevice();
     // Stale-deploy recovery: purge caches/SWs and reload to a cache-busted URL
     // so iOS Safari fetches a fresh HTML shell. Stop once attempts are
     // exhausted to avoid an endless "Updating…" loop.
-    if (isChunkError && !recoveryExhausted()) {
+    if (isChunkError && inRolloutCohort && !recoveryExhausted()) {
       try {
         sessionStorage.setItem(reloadKey, String(Date.now()));
       } catch {}
       await hardRecover();
       return;
+    }
+    if (isChunkError && !inRolloutCohort) {
+      logUpdateFailure('chunk_error_detected', {
+        chunk_mismatch: true,
+        details: { rolloutCohort: false, message: 'outside rollout cohort — manual recovery UI' },
+      });
     }
     if (isChunkError && recoveryExhausted()) {
       logUpdateFailure('recovery_exhausted', { chunk_mismatch: true });
