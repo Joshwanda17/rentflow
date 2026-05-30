@@ -130,9 +130,12 @@ const loadApp = async () => {
 
     createRoot(root).render(<App />);
 
-    // App mounted successfully — reset the chunk-recovery attempt counter so a
-    // future genuine failure gets a fresh set of automatic retries.
-    clearRecoveryAttempts();
+    // App mounted successfully, but route-level lazy chunks may still be
+    // loading. Only reset the recovery counter after the app has remained
+    // stable for a while; otherwise iPhones with a stale shell can reload,
+    // mount App, clear the counter, fail the next route chunk, and loop forever
+    // on "Updating…" without ever reaching the manual recovery UI.
+    setTimeout(clearRecoveryAttempts, 45_000);
 
     // Preload Dashboard chunk only when the user is actually heading there.
     // Preloading on every route (e.g. /executive-hub) caused parallel chunk
