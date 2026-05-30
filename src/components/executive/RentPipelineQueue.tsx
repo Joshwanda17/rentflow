@@ -849,7 +849,7 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                     <Cloud className="h-3 w-3" />
                     Synced to account
                     {tenantSyncAt && (
-                      <span className="text-[9px] opacity-70">· {tenantSyncAt.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })}</span>
+                      <span className="text-[9px] opacity-70">· {formatTenantSyncShort(tenantSyncAt)}</span>
                     )}
                   </span>
                 ) : (
@@ -857,15 +857,15 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                     <HardDrive className="h-3 w-3" />
                     Saved locally
                     {tenantSyncAt && (
-                      <span className="text-[9px] opacity-70">· {tenantSyncAt.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })}</span>
+                      <span className="text-[9px] opacity-70">· {formatTenantSyncShort(tenantSyncAt)}</span>
                     )}
                   </span>
                 )}
               </TooltipTrigger>
               <TooltipContent side="bottom" className="max-w-[240px] text-xs">
                 {tenantSyncStatus === 'synced'
-                  ? `This tenant filter was saved to your account settings${tenantSyncAt ? ` at ${tenantSyncAt.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'long' })}` : ''}. It will follow you across devices and browsers.`
-                  : `This tenant filter is stored only in this browser's localStorage${tenantSyncAt ? ` at ${tenantSyncAt.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'long' })}` : ''}. It will not sync to other devices until you sign in.`}
+                  ? `This tenant filter was saved to your account settings${tenantSyncAt ? ` at ${formatTenantSyncLong(tenantSyncAt)}` : ''}. It will follow you across devices and browsers.`
+                  : `This tenant filter is stored only in this browser's localStorage${tenantSyncAt ? ` at ${formatTenantSyncLong(tenantSyncAt)}` : ''}. It will not sync to other devices until you sign in.`}
               </TooltipContent>
             </Tooltip>
           </div>
