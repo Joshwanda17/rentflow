@@ -72,7 +72,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Only fetch roles if initializeAuth hasn't already done it
           if (!rolesFetched) {
             rolesFetched = true;
-            fetchUserRoles(session.user.id, role, setRolesWithRef, setRole);
+            // CRITICAL: defer out of the onAuthStateChange callback. Calling
+            // Supabase auth methods (fetchUserRoles → supabase.auth.getUser())
+            // synchronously inside this callback deadlocks the auth client,
+            // which freezes every later query. This path is what runs on a
+            // fresh/second device (no cached session), so without the defer
+            // the user stays logged in but no data ever loads.
+            const uid = session.user.id;
+            setTimeout(() => {
+              fetchUserRoles(uid, role, setRolesWithRef, setRole);
+            }, 0);
           }
 
         if (event === 'SIGNED_IN') {
