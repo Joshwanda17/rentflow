@@ -428,16 +428,27 @@ export default function ProfileCompletionGate() {
 
   if (!enabled || !open || (dismissed && !editMode)) return null;
 
-  // In edit mode the dialog is freely dismissable; the mandatory gate is not.
+  // Completing the profile is optional — the gate is freely dismissable in
+  // both edit mode and the prompted (incomplete-profile) mode. Dismissing
+  // does not persist, so the prompt can reappear next session.
   const closeEditor = () => setEditMode(false);
+  const dismissGate = () => {
+    setDismissed(true);
+    toast.message("We'll remind you next time", {
+      description: "Finish your profile to unlock the right agent and listings.",
+    });
+  };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o && editMode) closeEditor(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (o) return;
+        if (editMode) closeEditor();
+        else dismissGate();
+      }}
+    >
       <DialogContent
-        // Mandatory gate blocks all dismissal; edit mode allows it.
-        onPointerDownOutside={(e) => { if (!editMode) e.preventDefault(); }}
-        onEscapeKeyDown={(e) => { if (!editMode) e.preventDefault(); }}
-        onInteractOutside={(e) => { if (!editMode) e.preventDefault(); }}
         className="w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] sm:max-w-lg max-h-[92vh] overflow-y-auto p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] xs:p-4 sm:p-6 [&>button]:hidden"
       >
         <button
@@ -447,12 +458,9 @@ export default function ProfileCompletionGate() {
               closeEditor();
               return;
             }
-            setDismissed(true);
-            toast.message("We'll remind you next time", {
-              description: "Finish your profile to unlock the right agent and listings.",
-            });
+            dismissGate();
           }}
-          aria-label={editMode ? "Close" : "Close and remind me later"}
+          aria-label={editMode ? "Close" : "Skip for now"}
           className="absolute right-3 top-3 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <X className="h-4 w-4" />
