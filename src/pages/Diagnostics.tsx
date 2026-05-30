@@ -1,0 +1,440 @@
+import { useCallback, useEffect, useState } from "react";
+import {
+  RefreshCw,
+  Loader2,
+  CheckCircle2,
+  AlertTriangle,
+  XCircle,
+  Smartphone,
+  HardDrive,
+  Boxes,
+  ServerCog,
+} from "lucide-react";
+import {
+  hardRecover,
+  purgeCachesAndServiceWorkers,
+  getRecoveryAttempts,
+  MAX_RECOVERY_ATTEMPTS,
+} from "@/lib/hardRecovery";
+
+type Status = "ok" | "warn" | "bad" | "info";
+
+interface EnvInfo {
+  isIOS: boolean;
+  isSafari: boolean;
+  isStandalone: boolean;
+  inIframe: boolean;
+  isPreviewHost: boolean;
+  online: boolean;
+  userAgent: string;
+}
+
+interface SwInfo {
+  supported: boolean;
+  registrations: {
+    scope: string;
+    scriptURL: string | null;
+    active: string | null;
+    waiting: boolean;
+    installing: boolean;
+  }[];
+  controller: string | null;
+}
+
+interface CacheInfo {
+  supported: boolean;
+  caches: { name: string; entries: number }[];
+}
+
+interface ShellInfo {
+  loadedScripts: string[];
+  networkScripts: string[];
+  stale: boolean | null;
+  error: string | null;
+}
+
+function detectEnv(): EnvInfo {
+  const ua = navigator.userAgent || "";
+  const host = window.location.hostname;
+  let inIframe = false;
+  try {
+    inIframe = window.self !== window.top;
+  } catch {
+    inIframe = true;
+  }
+  return {
+    isIOS: /iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream,
+    isSafari: /^((?!chrome|android|crios|fxios).)*safari/i.test(ua),
+    isStandalone:
+      (window.navigator as any).standalone === true ||
+      window.matchMedia("(display-mode: standalone)").matches,
+    inIframe,
+    isPreviewHost:
+      host.includes("id-preview--") ||
+      host.includes("preview--") ||
+      host.endsWith(".lovableproject.com"),
+    online: navigator.onLine,
+    userAgent: ua,
+  };
+}
+
+async function readServiceWorkers(): Promise<SwInfo> {
+  if (!("serviceWorker" in navigator)) {
+    return { supported: false, registrations: [], controller: null };
+  }
+  try {
+    const regs = await navigator.serviceWorker.getRegistrations();
+    return {
+      supported: true,
+      controller: navigator.serviceWorker.controller?.scriptURL ?? null,
+      registrations: regs.map((r) => ({
+        scope: r.scope,
+        scriptURL: r.active?.scriptURL ?? r.installing?.scriptURL ?? null,
+        active: r.active?.state ?? null,
+        waiting: !!r.waiting,
+        installing: !!r.installing,
+      })),
+    };
+  } catch {
+    return { supported: true, registrations: [], controller: null };
+  }
+}
+
+async function readCaches(): Promise<CacheInfo> {
+  if (!("caches" in window)) return { supported: false, caches: [] };
+  try {
+    const keys = await caches.keys();
+    const detail = await Promise.all(
+      keys.map(async (name) => {
+        try {
+          const c = await caches.open(name);
+          const reqs = await c.keys();
+          return { name, entries: reqs.length };
+        } catch {
+          return { name, entries: -1 };
+        }
+      })
+    );
+    return { supported: true, caches: detail };
+  } catch {
+    return { supported: true, caches: [] };
+  }
+}
+
+// Extract hashed asset filenames (e.g. index-a1b2c3d4.js) from an HTML string.
+function extractAssetRefs(html: string): string[] {
+  const refs = new Set<string>();
+  const re = /\/assets\/[A-Za-z0-9._-]+\.(?:m?js|css)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html))) refs.add(m[0]);
+  return Array.from(refs).sort();
+}
+
+function loadedAssetRefs(): string[] {
+  const refs = new Set<string>();
+  document.querySelectorAll("script[src]").forEach((el) => {
+    const src = el.getAttribute("src") || "";
+    const idx = src.indexOf("/assets/");
+    if (idx >= 0) refs.add(src.slice(idx).split("?")[0]);
+  });
+  document.querySelectorAll('link[rel="stylesheet"][href]').forEach((el) => {
+    const href = el.getAttribute("href") || "";
+    const idx = href.indexOf("/assets/");
+    if (idx >= 0) refs.add(href.slice(idx).split("?")[0]);
+  });
+  return Array.from(refs).sort();
+}
+
+async function readShell(): Promise<ShellInfo> {
+  const loaded = loadedAssetRefs();
+  try {
+    // Force a fresh network fetch of the deployed index.html, bypassing caches.
+    const res = await fetch(`/index.html?_diag=${Date.now()}`, {
+      cache: "no-store",
+      headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
+    });
+    const html = await res.text();
+    const networkScripts = extractAssetRefs(html);
+
+    // The shell is "stale" if the entry module currently running is NOT
+    // referenced by the freshly-fetched index.html (i.e. a deploy rotated it).
+    const networkJs = networkScripts.filter((s) => /\.m?js$/.test(s));
+    const loadedJs = loaded.filter((s) => /\.m?js$/.test(s));
+    let stale: boolean | null = null;
+    if (networkJs.length && loadedJs.length) {
+      // Compare entry chunk presence — if none of the loaded entry scripts
+      // appear in the live index.html, the running shell is stale.
+      stale = !loadedJs.some((s) => networkJs.includes(s));
+    }
+    return { loadedScripts: loaded, networkScripts, stale, error: null };
+  } catch (e) {
+    return {
+      loadedScripts: loaded,
+      networkScripts: [],
+      stale: null,
+      error: String((e as any)?.message || e),
+    };
+  }
+}
+
+function StatusPill({ status, children }: { status: Status; children: React.ReactNode }) {
+  const map: Record<Status, { cls: string; Icon: typeof CheckCircle2 }> = {
+    ok: { cls: "bg-green-500/15 text-green-600 dark:text-green-400", Icon: CheckCircle2 },
+    warn: { cls: "bg-amber-500/15 text-amber-600 dark:text-amber-400", Icon: AlertTriangle },
+    bad: { cls: "bg-destructive/15 text-destructive", Icon: XCircle },
+    info: { cls: "bg-muted text-muted-foreground", Icon: CheckCircle2 },
+  };
+  const { cls, Icon } = map[status];
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${cls}`}>
+      <Icon className="h-3.5 w-3.5" />
+      {children}
+    </span>
+  );
+}
+
+function Section({
+  title,
+  icon: Icon,
+  children,
+}: {
+  title: string;
+  icon: typeof ServerCog;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
+      <div className="mb-3 flex items-center gap-2">
+        <Icon className="h-4 w-4 text-primary" />
+        <h2 className="text-sm font-semibold">{title}</h2>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+export default function Diagnostics() {
+  const [env, setEnv] = useState<EnvInfo | null>(null);
+  const [sw, setSw] = useState<SwInfo | null>(null);
+  const [cacheInfo, setCacheInfo] = useState<CacheInfo | null>(null);
+  const [shell, setShell] = useState<ShellInfo | null>(null);
+  const [attempts, setAttempts] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+
+  const run = useCallback(async () => {
+    setLoading(true);
+    setEnv(detectEnv());
+    setAttempts(getRecoveryAttempts());
+    const [swr, cr, sh] = await Promise.all([readServiceWorkers(), readCaches(), readShell()]);
+    setSw(swr);
+    setCacheInfo(cr);
+    setShell(sh);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    run();
+  }, [run]);
+
+  const onPurge = async () => {
+    setBusy(true);
+    await purgeCachesAndServiceWorkers();
+    await run();
+    setBusy(false);
+  };
+
+  const shellStatus: Status =
+    shell?.stale === true ? "bad" : shell?.stale === false ? "ok" : "warn";
+  const swStatus: Status = !sw?.supported
+    ? "info"
+    : sw.registrations.length === 0
+    ? "info"
+    : sw.registrations.some((r) => r.waiting)
+    ? "warn"
+    : "ok";
+  const cacheStatus: Status = !cacheInfo?.supported
+    ? "info"
+    : cacheInfo.caches.length === 0
+    ? "ok"
+    : "warn";
+
+  return (
+    <div className="min-h-screen bg-background px-4 py-6 text-foreground">
+      <div className="mx-auto max-w-2xl space-y-4">
+        <header className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold">App Diagnostics</h1>
+            <p className="text-sm text-muted-foreground">
+              Stale shell, chunk hashes & cache state
+            </p>
+          </div>
+          <button
+            onClick={run}
+            disabled={loading}
+            className="inline-flex items-center gap-2 rounded-full bg-muted px-4 py-2 text-sm font-medium hover:bg-muted/80 disabled:opacity-50"
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            Re-run
+          </button>
+        </header>
+
+        {/* Verdict */}
+        <div className="rounded-xl border border-border bg-card p-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-semibold">Verdict:</span>
+            {shell?.stale === true ? (
+              <StatusPill status="bad">Stale shell — old chunks referenced</StatusPill>
+            ) : shell?.stale === false ? (
+              <StatusPill status="ok">Shell is up to date</StatusPill>
+            ) : (
+              <StatusPill status="warn">Could not confirm shell freshness</StatusPill>
+            )}
+            {attempts > 0 && (
+              <StatusPill status={attempts >= MAX_RECOVERY_ATTEMPTS ? "bad" : "warn"}>
+                {attempts}/{MAX_RECOVERY_ATTEMPTS} recovery attempts
+              </StatusPill>
+            )}
+          </div>
+          {shell?.stale === true && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              The running HTML shell references chunk hashes that are no longer in
+              the live deploy. This is the classic iPhone "Updating…" loop cause.
+              Tap <strong>Hard reload</strong> below to fetch a fresh shell.
+            </p>
+          )}
+        </div>
+
+        {/* Environment */}
+        <Section title="Environment" icon={Smartphone}>
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+            <Row k="iOS device" v={env?.isIOS ? "Yes" : "No"} />
+            <Row k="Safari" v={env?.isSafari ? "Yes" : "No"} />
+            <Row k="Standalone (PWA)" v={env?.isStandalone ? "Yes" : "No"} />
+            <Row k="In iframe / preview" v={env?.inIframe || env?.isPreviewHost ? "Yes" : "No"} />
+            <Row k="Online" v={env?.online ? "Yes" : "No"} />
+          </dl>
+          {env?.userAgent && (
+            <p className="mt-3 break-words rounded bg-muted/40 p-2 font-mono text-[11px] text-muted-foreground">
+              {env.userAgent}
+            </p>
+          )}
+        </Section>
+
+        {/* Shell / chunk hashes */}
+        <Section title="Shell & chunk hashes" icon={Boxes}>
+          <div className="mb-2">
+            <StatusPill status={shellStatus}>
+              {shell?.stale === true
+                ? "Mismatch detected"
+                : shell?.stale === false
+                ? "Loaded shell matches live deploy"
+                : shell?.error
+                ? "Network check failed"
+                : "Unknown"}
+            </StatusPill>
+          </div>
+          {shell?.error && (
+            <p className="mb-2 text-xs text-destructive">Fetch error: {shell.error}</p>
+          )}
+          <Detail label="Currently loaded assets" items={shell?.loadedScripts ?? []} />
+          <Detail label="Live deploy references" items={shell?.networkScripts ?? []} />
+        </Section>
+
+        {/* Service worker */}
+        <Section title="Service worker" icon={ServerCog}>
+          <div className="mb-2">
+            <StatusPill status={swStatus}>
+              {!sw?.supported
+                ? "Not supported"
+                : sw.registrations.length === 0
+                ? "None registered"
+                : sw.registrations.some((r) => r.waiting)
+                ? "Update waiting"
+                : "Active"}
+            </StatusPill>
+          </div>
+          <dl className="grid grid-cols-1 gap-y-2 text-sm">
+            <Row k="Controller" v={sw?.controller ?? "none"} mono />
+            <Row k="Registrations" v={String(sw?.registrations.length ?? 0)} />
+          </dl>
+          {sw?.registrations.map((r, i) => (
+            <div key={i} className="mt-2 rounded bg-muted/40 p-2 text-[11px] font-mono text-muted-foreground">
+              <div>scope: {r.scope}</div>
+              <div>script: {r.scriptURL}</div>
+              <div>
+                state: {r.active ?? "—"}
+                {r.waiting ? " • waiting" : ""}
+                {r.installing ? " • installing" : ""}
+              </div>
+            </div>
+          ))}
+        </Section>
+
+        {/* Caches */}
+        <Section title="Cache storage" icon={HardDrive}>
+          <div className="mb-2">
+            <StatusPill status={cacheStatus}>
+              {!cacheInfo?.supported
+                ? "Not supported"
+                : cacheInfo.caches.length === 0
+                ? "Empty"
+                : `${cacheInfo.caches.length} cache(s)`}
+            </StatusPill>
+          </div>
+          {cacheInfo?.caches.map((c) => (
+            <div key={c.name} className="flex items-center justify-between border-b border-border/50 py-1.5 text-sm last:border-0">
+              <span className="break-all font-mono text-xs">{c.name}</span>
+              <span className="text-muted-foreground">{c.entries < 0 ? "?" : c.entries} entries</span>
+            </div>
+          ))}
+        </Section>
+
+        {/* Actions */}
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <button
+            onClick={() => hardRecover()}
+            className="flex-1 inline-flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-medium text-primary-foreground shadow-lg hover:opacity-90"
+          >
+            <RefreshCw className="h-4 w-4" /> Hard reload (bust cache)
+          </button>
+          <button
+            onClick={onPurge}
+            disabled={busy}
+            className="flex-1 inline-flex items-center justify-center gap-2 rounded-full bg-muted px-6 py-3 text-sm font-medium hover:bg-muted/80 disabled:opacity-50"
+          >
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <HardDrive className="h-4 w-4" />}
+            Clear caches & SW (no reload)
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Row({ k, v, mono }: { k: string; v: string; mono?: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <dt className="text-muted-foreground">{k}</dt>
+      <dd className={`text-right ${mono ? "break-all font-mono text-xs" : "font-medium"}`}>{v}</dd>
+    </div>
+  );
+}
+
+function Detail({ label, items }: { label: string; items: string[] }) {
+  return (
+    <details className="mt-2">
+      <summary className="cursor-pointer text-xs text-muted-foreground">
+        {label} ({items.length})
+      </summary>
+      <ul className="mt-1 space-y-0.5">
+        {items.length === 0 && <li className="text-xs text-muted-foreground/60">none found</li>}
+        {items.map((s) => (
+          <li key={s} className="break-all font-mono text-[11px] text-muted-foreground">
+            {s}
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
