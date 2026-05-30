@@ -42,10 +42,7 @@ function DeviceRow({
       setError('Device name must be 40 characters or less');
       return;
     }
-    if (trimmed !== session.device_label) {
-      setSaving(true);
-      onRename(session.device_id, trimmed);
-    }
+    if (trimmed !== session.device_label) onRename(session.device_id, trimmed);
     setError(null);
     setEditing(false);
   };
