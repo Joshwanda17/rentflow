@@ -47,13 +47,20 @@ function formatPhoneInternational(rawPhone: string): string {
   return "+" + digits;
 }
 
-async function sendSMS(phone: string, message: string): Promise<boolean> {
+interface SmsResult {
+  /** True when the gateway accepted the message for delivery (statusCode 101/100). */
+  accepted: boolean;
+  /** Short reason when not accepted, for logging/debugging. */
+  reason?: string;
+}
+
+async function sendSMS(phone: string, message: string): Promise<SmsResult> {
   const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
   const username = Deno.env.get("AFRICASTALKING_USERNAME");
 
   if (!apiKey || !username) {
     console.error("[sms-otp] Missing Africa's Talking credentials");
-    return false;
+    return { accepted: false, reason: "missing_credentials" };
   }
 
   // Determine base URL: sandbox vs production
@@ -88,13 +95,14 @@ async function sendSMS(phone: string, message: string): Promise<boolean> {
     const recipients = data?.SMSMessageData?.Recipients;
     if (recipients && recipients.length > 0) {
       const status = recipients[0].statusCode;
-      // 101 = sent, 100 = queued
-      return status === 101 || status === 100;
+      // 101 = sent, 100 = queued (both mean the gateway accepted it)
+      if (status === 101 || status === 100) return { accepted: true };
+      return { accepted: false, reason: `status_${status}` };
     }
-    return false;
+    return { accepted: false, reason: "no_recipients" };
   } catch (error) {
     console.error("[sms-otp] SMS send error:", error);
-    return false;
+    return { accepted: false, reason: "network_error" };
   }
 }
 
