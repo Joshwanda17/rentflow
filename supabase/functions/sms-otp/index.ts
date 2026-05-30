@@ -191,10 +191,11 @@ Deno.serve(async (req) => {
     if (action === "send") {
       const now = Date.now();
 
-      // Load existing record to enforce durable, DB-backed rate limits.
+      // Load existing record to enforce durable, DB-backed rate limits AND to
+      // decide whether we can REUSE a still-valid code (see below).
       const { data: existing } = await adminClient
         .from("otp_verifications")
-        .select("last_sent_at, send_count, send_window_start")
+        .select("last_sent_at, send_count, send_window_start, otp_code, expires_at, verified")
         .eq("phone", phoneKey)
         .maybeSingle();
 
@@ -241,8 +242,32 @@ Deno.serve(async (req) => {
         );
       }
 
-      const otp = generateOTP();
-      const expiresAt = new Date(now + 60 * 60 * 1000).toISOString(); // 1 hour expiry
+      // ---------------------------------------------------------------------
+      // CRITICAL FIX (recurring "Invalid code" loop):
+      // SMS in our markets is often delivered late and out of order. If every
+      // resend generated a NEW code and overwrote the previous one, a user who
+      // finally receives an earlier SMS would type a code that no longer
+      // matches the single stored value — failing forever no matter how
+      // carefully they type. To make every SMS the user holds for this number
+      // contain the SAME working code, we REUSE the existing code whenever it
+      // is still valid (unverified and unexpired) and only mint a fresh code
+      // when none is usable. Expiry is preserved so a code cannot be extended
+      // indefinitely by repeated resends.
+      // ---------------------------------------------------------------------
+      const existingCodeUsable =
+        !!existing?.otp_code &&
+        existing?.verified === false &&
+        !!existing?.expires_at &&
+        new Date(existing.expires_at).getTime() > now;
+
+      const otp = existingCodeUsable ? existing!.otp_code as string : generateOTP();
+      const expiresAt = existingCodeUsable
+        ? existing!.expires_at as string
+        : new Date(now + 60 * 60 * 1000).toISOString(); // 1 hour expiry
+
+      if (existingCodeUsable) {
+        console.log(`[sms-otp] reusing still-valid code for ***${phoneKey.slice(-4)}`);
+      }
 
       // Store OTP and updated rate-limit counters (upsert by phone)
       const { error: upsertError } = await adminClient
