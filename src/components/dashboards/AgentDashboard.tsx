@@ -129,7 +129,6 @@ import { AgentVerificationOpportunitiesCard } from '@/components/agent/AgentVeri
 import { ShareRentRecorderCard } from '@/components/agent/ShareRentRecorderCard';
 import { TodayCollectionsCard } from '@/components/agent/TodayCollectionsCard';
 import { AgentPriorityGrid } from '@/components/agent/AgentPriorityGrid';
-import { AgentListingPromoCard } from '@/components/agent/AgentListingPromoCard';
 import { useIsFinancialAgent } from '@/hooks/useIsFinancialAgent';
 import { FinancialAgentSection } from '@/components/agent/FinancialAgentSection';
 import { PromissoryNoteDialog } from '@/components/agent/PromissoryNoteDialog';
@@ -578,70 +577,26 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {activeTab === 'home' && (
           <div className={cn("space-y-4", tabAnimClass)}>
             {/*
-             * Agent shortcut: paste a bank reference / MoMo TID / merchant
-             * receipt number you grabbed in the field, and we resolve it
-             * to either your in-flight Operational Float deposit or the
-             * un-deposited collections it covers — then auto-build the
-             * per-tenant breakdown so you don't re-type anything.
+             * Minimalist home: priorities lead → today's total → urgent alerts →
+             * secondary shortcuts → single "Grow" button. Everything else
+             * (advances, lending, sub-agents, partners, etc.) lives behind the
+             * "Grow" button via AgentMenuDrawer so no functionality is lost.
              */}
-            <button
-              type="button"
-              onClick={() => { hapticTap(); setCollectFromRefOpen(true); }}
-              className="w-full flex items-center gap-3 p-3.5 rounded-2xl border border-primary/30 bg-primary/5 hover:bg-primary/10 active:scale-[0.98] transition-all touch-manipulation min-h-[64px] text-left"
-              style={{ WebkitTapHighlightColor: 'transparent' }}
-            >
-              <div className="p-2.5 rounded-xl bg-primary/15 text-primary shrink-0">
-                <FileText className="h-5 w-5" strokeWidth={2.2} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-bold text-foreground truncate">
-                  Collect from receipt / reference
-                </div>
-                <div className="text-[11px] text-muted-foreground truncate">
-                  Paste a TID or bank ref → auto-build the breakdown
-                </div>
-              </div>
-              <span className="text-base text-primary shrink-0">›</span>
-            </button>
 
-            {/*
-             * Minimalist home: 4 priority tiles → today's totals → urgent alerts only.
-             * Everything else (advances, lending, sub-agents, partners, etc.)
-             * lives behind the single "Grow" button, which opens the existing
-             * AgentMenuDrawer so no functionality is lost.
-             */}
-            <AgentListingPromoCard onClick={() => setListHouseOpen(true)} />
-
+            {/* 1) Priorities first — Wallet · Collect Rent · Add Tenant · List House */}
             <AgentPriorityGrid
               agentId={user.id}
+              withdrawable={realWithdrawableBalance}
+              onOpenWallet={() => { hapticTap(); setShowWallet(true); }}
               onOpenFieldCollect={() => setFieldCollectOpen(true)}
               onOpenNewTenant={() => setRentRequestOpen(true)}
               onOpenListHouse={() => setListHouseOpen(true)}
             />
 
-            {/* Live rating — today vs target + 7-day capacity tier */}
-            <AgentRatingCard agentId={user.id} />
-
-            {/* Quick access: agent's own listed houses */}
-            <button
-              type="button"
-              onClick={() => { hapticTap(); setMyListingsOpen(true); }}
-              aria-label="View my listed houses"
-              title="View my listed houses"
-              className="w-full flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl border border-border/60 bg-card hover:bg-accent/40 active:scale-[0.99] transition-all text-left touch-manipulation min-h-[44px] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-              style={{ WebkitTapHighlightColor: 'transparent' }}
-            >
-              <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                <Home className="h-4 w-4 text-muted-foreground" />
-                My listed houses
-              </span>
-              <span className="text-xs font-medium text-primary">View →</span>
-            </button>
-
-            {/* Today's collected total — single most useful at-a-glance number */}
+            {/* 2) Today's collected total — single most useful at-a-glance number */}
             <FieldCollectDailyTotals live />
 
-            {/* Urgent: duplicates that need reconciliation */}
+            {/* 3) Urgent: duplicates that need reconciliation */}
             {duplicateCount > 0 && (
               <button
                 type="button"
@@ -664,7 +619,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               </button>
             )}
 
-            {/* Urgent: merchant agents only — visible when assigned */}
+            {/* 3) Urgent: merchant agents only — visible when assigned */}
             {isCashoutAgent && (
               <button
                 onClick={() => { hapticTap(); setCashPayoutsOpen(true); }}
@@ -684,7 +639,43 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               </button>
             )}
 
-            {/* Single Grow button → reveals every other tool via the menu drawer */}
+            {/* 4) Live rating — today vs target + 7-day capacity tier */}
+            <AgentRatingCard agentId={user.id} />
+
+            {/* 5) Secondary shortcuts — collected receipt helper + my listed houses */}
+            <button
+              type="button"
+              onClick={() => { hapticTap(); setMyListingsOpen(true); }}
+              aria-label="View my listed houses"
+              title="View my listed houses"
+              className="w-full flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl border border-border/60 bg-card hover:bg-accent/40 active:scale-[0.99] transition-all text-left touch-manipulation min-h-[44px] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <Home className="h-4 w-4 text-muted-foreground" />
+                My listed houses
+              </span>
+              <span className="text-xs font-medium text-primary">View →</span>
+            </button>
+
+            {/*
+             * Collect from a receipt / reference: paste a MoMo TID or bank ref
+             * captured in the field and we auto-build the per-tenant breakdown.
+             */}
+            <button
+              type="button"
+              onClick={() => { hapticTap(); setCollectFromRefOpen(true); }}
+              className="w-full flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl border border-border/60 bg-card hover:bg-accent/40 active:scale-[0.99] transition-all text-left touch-manipulation min-h-[44px] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                Collect from a receipt
+              </span>
+              <span className="text-xs font-medium text-primary">Open →</span>
+            </button>
+
+            {/* 6) Single Grow button → reveals every other tool via the menu drawer */}
             <button
               onClick={handleOpenMenu}
               className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 active:scale-[0.98] transition-all touch-manipulation min-h-[56px]"

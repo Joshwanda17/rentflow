@@ -1,9 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowRight, CloudUpload, WifiOff, UserPlus, ShieldCheck, Wallet, Home as HomeIcon, Sparkles } from 'lucide-react';
-import { useTrustProfile } from '@/hooks/useTrustProfile';
+import { ArrowRight, CloudUpload, WifiOff, UserPlus, Wallet, HandCoins, Home as HomeIcon, Sparkles } from 'lucide-react';
 import { useProfile } from '@/hooks/useProfile';
-import { generateWelileAiId } from '@/lib/welileAiId';
 import { formatUGX } from '@/lib/rentCalculations';
 import { hapticTap } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
@@ -12,29 +9,28 @@ import { getEntries, getQueuedEntries } from '@/lib/fieldCollectStore';
 /**
  * Agent dashboard priority grid — 4 large, finger-friendly tiles.
  *
- * The four most important things an agent does or wants to see:
- *   1. Field Collect   — record cash today (live total)
- *   2. New Tenant      — start a rent request
- *   3. Welile Vouch    — guaranteed credit limit (live amount)
- *   4. Profile         — avatar shortcut to settings/profile
+ * The four priorities an ordinary agent should reach instantly, in plain words:
+ *   1. Wallet        — money I can withdraw (opens full wallet)
+ *   2. Collect Rent  — record cash collected today (live total)
+ *   3. Add Tenant    — start a rent request
+ *   4. List House    — register an empty house and earn a bonus
  *
  * Designed for low-end Android browsers: 1.5x icon size, ≥80px tap target,
- * minimal text, plain language. No data fetched if not needed (Vouch tile
- * only loads trust data, Field Collect uses local IndexedDB so it works offline).
+ * minimal text, plain language. Collect Rent uses local IndexedDB so it works offline.
  */
 
 interface Props {
   agentId: string;
+  /** Withdrawable balance (UGX) shown on the Wallet tile. */
+  withdrawable: number;
+  onOpenWallet: () => void;
   onOpenFieldCollect: () => void;
   onOpenNewTenant: () => void;
   onOpenListHouse: () => void;
 }
 
-export function AgentPriorityGrid({ agentId, onOpenFieldCollect, onOpenNewTenant, onOpenListHouse }: Props) {
-  const navigate = useNavigate();
+export function AgentPriorityGrid({ agentId, withdrawable, onOpenWallet, onOpenFieldCollect, onOpenNewTenant, onOpenListHouse }: Props) {
   useProfile(); // keep hook to preserve profile prefetch behaviour
-  const aiId = agentId ? generateWelileAiId(agentId) : undefined;
-  const { profile: trust } = useTrustProfile(aiId);
 
   // Field Collect live state (mirrors FieldCollectCard logic)
   const [collectedToday, setCollectedToday] = useState(0);
@@ -74,19 +70,27 @@ export function AgentPriorityGrid({ agentId, onOpenFieldCollect, onOpenNewTenant
     };
   }, [refresh]);
 
-  const vouch = trust?.trust?.borrowing_limit_ugx ?? 0;
-  const score = Math.round(trust?.trust?.score ?? 0);
   const fieldCollectActive = collectedToday > 0 || pendingCount > 0;
   const fieldCollectAttention = !online || pendingCount > 0;
 
   return (
     <div className="grid grid-cols-2 gap-2.5">
-      {/* 1. Field Collect — biggest daily action */}
+      {/* 1. Wallet — money I can withdraw */}
       <PriorityTile
-        onClick={() => { hapticTap(); onOpenFieldCollect(); }}
+        onClick={() => { hapticTap(); onOpenWallet(); }}
         icon={<Wallet className="h-6 w-6" strokeWidth={2.2} />}
         iconBg="bg-primary text-primary-foreground"
-        label="Field Collect"
+        label="Wallet"
+        valueLabel={formatUGX(withdrawable)}
+        sub="My money · tap to open"
+      />
+
+      {/* 2. Collect Rent — biggest daily action */}
+      <PriorityTile
+        onClick={() => { hapticTap(); onOpenFieldCollect(); }}
+        icon={<HandCoins className="h-6 w-6" strokeWidth={2.2} />}
+        iconBg="bg-[hsl(var(--chart-1))] text-white"
+        label="Collect Rent"
         valueLabel={fieldCollectActive ? formatUGX(collectedToday) : 'No cash yet'}
         sub={
           fieldCollectAttention
@@ -106,24 +110,14 @@ export function AgentPriorityGrid({ agentId, onOpenFieldCollect, onOpenNewTenant
         }
       />
 
-      {/* 2. New Tenant — rent request */}
+      {/* 3. Add Tenant — rent request */}
       <PriorityTile
         onClick={() => { hapticTap(); onOpenNewTenant(); }}
         icon={<UserPlus className="h-6 w-6" strokeWidth={2.2} />}
-        iconBg="bg-[hsl(var(--chart-1))] text-white"
-        label="New Tenant"
-        valueLabel="Add tenant"
-        sub="Start a rent request"
-      />
-
-      {/* 3. Welile Vouch — live guaranteed credit */}
-      <PriorityTile
-        onClick={() => { hapticTap(); aiId && navigate(`/profile/${aiId}`); }}
-        icon={<ShieldCheck className="h-6 w-6" strokeWidth={2.2} />}
         iconBg="bg-emerald-600 text-white"
-        label="Welile Vouch"
-        valueLabel={vouch > 0 ? formatUGX(vouch) : 'No limit yet'}
-        sub={vouch > 0 ? `Score ${score}` : 'Collect to unlock credit'}
+        label="Add Tenant"
+        valueLabel="New tenant"
+        sub="Start a rent request"
       />
 
       {/* 4. List House — open empty house listing flow */}
