@@ -1,5 +1,6 @@
 import { forwardRef } from 'react';
 import { formatUGX } from '@/lib/rentCalculations';
+import { type AgentBadge, BADGE_HEX } from '@/lib/agentBadges';
 
 interface ShareCardProps {
   agentName: string;
@@ -11,6 +12,8 @@ interface ShareCardProps {
   remainingSlots: number;
   canPost: boolean;
   dateLabel: string;
+  badges?: AgentBadge[];
+  tenantCount?: number;
   preview?: boolean;
 }
 
@@ -24,7 +27,7 @@ export const AgentCapacityShareCard = forwardRef<HTMLDivElement, ShareCardProps>
     const {
       agentName, paidToday, expectedDaily, paidYesterday,
       perTenantMax, headroom, remainingSlots, canPost, dateLabel,
-      preview = false,
+      badges = [], tenantCount, preview = false,
     } = props;
 
     const pct = expectedDaily > 0
@@ -65,6 +68,34 @@ export const AgentCapacityShareCard = forwardRef<HTMLDivElement, ShareCardProps>
         </div>
         <div style={{ fontSize: 20, fontWeight: 800, marginTop: 4, marginBottom: 20 }}>{agentName}</div>
 
+        {/* Honour badges summary */}
+        {badges.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
+            {badges.map((b) => {
+              const c = BADGE_HEX[b.tone];
+              return (
+                <span
+                  key={b.id}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    background: c.bg,
+                    color: c.fg,
+                    borderRadius: 999,
+                    padding: '6px 12px',
+                    fontSize: 12,
+                    fontWeight: 800,
+                  }}
+                >
+                  <span style={{ fontSize: 13 }}>{b.icon}</span>
+                  {b.label}
+                </span>
+              );
+            })}
+          </div>
+        )}
+
         {/* Collected today vs target */}
         <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 16, padding: 20, marginBottom: 16 }}>
           <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: '#9fd8c2' }}>
@@ -85,11 +116,22 @@ export const AgentCapacityShareCard = forwardRef<HTMLDivElement, ShareCardProps>
         {/* Two stat tiles */}
         <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
           <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 16, padding: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#9fd8c2' }}>Vs yesterday</div>
-            <div style={{ fontSize: 22, fontWeight: 800, marginTop: 4 }}>{formatUGX(paidYesterday)}</div>
-            <div style={{ fontSize: 12, fontWeight: 600, marginTop: 4, color: diff >= 0 ? '#6ee7b7' : '#fca5a5' }}>
-              {diff > 0 ? `+${formatUGX(diff)}` : diff < 0 ? `-${formatUGX(Math.abs(diff))}` : 'Same'} today
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#9fd8c2' }}>
+              {typeof tenantCount === 'number' ? 'Active tenants' : 'Vs yesterday'}
             </div>
+            {typeof tenantCount === 'number' ? (
+              <>
+                <div style={{ fontSize: 22, fontWeight: 800, marginTop: 4 }}>{tenantCount}</div>
+                <div style={{ fontSize: 12, fontWeight: 600, marginTop: 4, color: '#cfeee0' }}>houses on book</div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 22, fontWeight: 800, marginTop: 4 }}>{formatUGX(paidYesterday)}</div>
+                <div style={{ fontSize: 12, fontWeight: 600, marginTop: 4, color: diff >= 0 ? '#6ee7b7' : '#fca5a5' }}>
+                  {diff > 0 ? `+${formatUGX(diff)}` : diff < 0 ? `-${formatUGX(Math.abs(diff))}` : 'Same'} today
+                </div>
+              </>
+            )}
           </div>
           <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 16, padding: 16 }}>
             <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#9fd8c2' }}>Remaining slots</div>
