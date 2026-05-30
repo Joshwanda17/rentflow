@@ -567,8 +567,8 @@ export default function ProfileCompletionGate() {
         )}
 
         {(!quickMode || editMode) && step === 1 && (
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 xs:grid-cols-2 gap-4 xs:gap-3">
               <div className="space-y-1.5">
                 <Label>Continent</Label>
                 <Select value={continent} onValueChange={setContinent}>
