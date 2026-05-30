@@ -24,6 +24,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { roleToSlug } from '@/lib/roleRoutes';
+import { isIOS, checkServerVersion, isVersionStaleSync } from '@/lib/versionGate';
+import { clearAndReload } from '@/lib/hardRecovery';
 
 const VALID_SIGNUP_ROLES = ['tenant', 'agent', 'landlord', 'supporter'] as const;
 
