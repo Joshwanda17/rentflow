@@ -213,3 +213,16 @@ export function isAgentAutoDefaultDisabled(): boolean {
   } catch (e) {}
   return false;
 }
+
+// Standalone: which sign-in method the login screen should open with.
+// Defaults to OTP-first; password remains available as a backup.
+export function getPreferredLoginMethod(): 'otp' | 'password' {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const prefs = JSON.parse(stored);
+      return prefs.preferredLoginMethod === 'password' ? 'password' : 'otp';
+    }
+  } catch (e) {}
+  return 'otp';
+}
