@@ -315,12 +315,21 @@ export function AgentCapacityBreakdownPanel() {
               </button>
               <button
                 type="button"
-                onClick={downloadPng}
+                onClick={() => downloadPng(2)}
                 disabled={sharing}
                 className="w-full flex items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 py-3 text-sm font-bold text-foreground hover:bg-muted transition-colors disabled:opacity-60"
               >
                 {sharing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                 Download PNG
+              </button>
+              <button
+                type="button"
+                onClick={() => downloadPng(4)}
+                disabled={sharing}
+                className="w-full flex items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 py-3 text-sm font-bold text-foreground hover:bg-muted transition-colors disabled:opacity-60"
+              >
+                {sharing ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageDown className="h-4 w-4" />}
+                Download HD PNG
               </button>
             </div>
           </div>
