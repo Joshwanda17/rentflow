@@ -90,6 +90,7 @@ export function AgentCapacityShareInline() {
       toast.error('Could not generate the image. Please try again.');
     } finally {
       setBusy(false);
+      setOpen(false);
     }
   };
 
@@ -118,13 +119,13 @@ export function AgentCapacityShareInline() {
         window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank');
         toast.success('Image saved — attach it to your WhatsApp message');
       }
-      setOpen(false);
     } catch (err) {
       if ((err as Error)?.name !== 'AbortError') {
         toast.error('Could not generate the image. Please try again.');
       }
     } finally {
       setBusy(false);
+      setOpen(false);
     }
   };
 
