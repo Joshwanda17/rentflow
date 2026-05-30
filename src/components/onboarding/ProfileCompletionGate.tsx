@@ -432,6 +432,16 @@ export default function ProfileCompletionGate() {
             )}
 
             <div className="flex justify-between pt-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleResetLocation}
+                className="gap-1.5 text-muted-foreground hover:text-foreground"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Reset to Kampala
+              </Button>
               <Button onClick={() => setStep(2)} disabled={!step1Valid}>
                 Continue
               </Button>
