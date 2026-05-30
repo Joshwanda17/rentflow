@@ -997,6 +997,33 @@ export type Database = {
           },
         ]
       }
+      agent_capacity_targets: {
+        Row: {
+          created_at: string
+          id: string
+          target_type: string
+          target_value: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          target_type?: string
+          target_value?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          target_type?: string
+          target_value?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       agent_collection_streaks: {
         Row: {
           agent_id: string
