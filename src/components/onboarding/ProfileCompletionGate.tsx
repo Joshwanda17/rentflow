@@ -460,16 +460,100 @@ export default function ProfileCompletionGate() {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MapPin className="h-5 w-5 text-primary" />
-            {editMode ? "Edit your profile" : "Complete your profile"}
+            {editMode ? "Edit your profile" : quickMode ? "Quick setup" : "Complete your profile"}
           </DialogTitle>
           <DialogDescription>
-            Step {step} of 3 — {editMode
-              ? "update your location, role, or referring agent."
-              : "this takes about a minute and unlocks the right agent, listings, and reports for your area."}
+            {quickMode && !editMode
+              ? "Two taps. Tell us where you are and who you are — that's it."
+              : `Step ${step} of 3 — ${
+                  editMode
+                    ? "update your location, role, or referring agent."
+                    : "this takes about a minute and unlocks the right agent, listings, and reports for your area."
+                }`}
           </DialogDescription>
         </DialogHeader>
 
-        {step === 1 && (
+        {quickMode && !editMode && (
+          <div className="space-y-5">
+            {/* 1) Location — one tap, sensible Kampala default */}
+            <div className="space-y-2">
+              <p className="text-base font-semibold">Where do you live?</p>
+              <div className="rounded-xl border bg-muted/30 p-3 space-y-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <MapPin className="h-4 w-4 text-primary shrink-0" />
+                  <span className="font-medium">
+                    {[town || village, city || district, country]
+                      .filter(Boolean)
+                      .join(", ")}
+                  </span>
+                  {residenceLat != null && (
+                    <Check className="h-4 w-4 text-primary ml-auto" />
+                  )}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="w-full gap-2 h-12 text-base"
+                  onClick={handleUseMyLocation}
+                  disabled={locating}
+                >
+                  {locating ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Navigation className="h-5 w-5" />
+                  )}
+                  {residenceLat != null ? "Location saved — tap to update" : "Use my current location"}
+                </Button>
+              </div>
+            </div>
+
+            {/* 2) Role — big picture buttons */}
+            <div className="space-y-2">
+              <p className="text-base font-semibold">Who are you?</p>
+              <div className="grid grid-cols-2 gap-2">
+                {QUICK_PERSONAS.map((p) => {
+                  const selected = persona === p.value;
+                  return (
+                    <button
+                      key={p.value}
+                      type="button"
+                      onClick={() => setPersona(p.value)}
+                      className={`flex flex-col items-center justify-center gap-1 rounded-xl border-2 p-4 text-center transition-colors ${
+                        selected
+                          ? "border-primary bg-primary/10"
+                          : "border-border hover:bg-muted/50"
+                      }`}
+                    >
+                      <span className="text-3xl" aria-hidden>{p.emoji}</span>
+                      <span className="text-sm font-medium leading-tight">{p.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              size="lg"
+              className="w-full h-12 text-base"
+              onClick={handleSubmit}
+              disabled={submitting || !persona}
+            >
+              {submitting && <Loader2 className="h-5 w-5 animate-spin mr-2" />}
+              Finish
+            </Button>
+            <button
+              type="button"
+              onClick={() => setQuickMode(false)}
+              className="w-full text-center text-xs text-muted-foreground underline"
+            >
+              More options
+            </button>
+          </div>
+        )}
+
+        {(!quickMode || editMode) && step === 1 && (
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
