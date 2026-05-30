@@ -1056,6 +1056,7 @@ export default function Auth() {
                         otpVerified={otpVerified}
                         otpLoading={otpLoading}
                         otpError={otpError}
+                        sendStatus={otpSendStatus}
                         onSendOtp={() => {
                           const d = phone.replace(/\D/g, '');
                           const full = d.startsWith(countryCode) ? d : countryCode + (d.startsWith('0') ? d.slice(1) : d);
