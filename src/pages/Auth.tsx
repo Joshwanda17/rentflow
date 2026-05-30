@@ -149,6 +149,15 @@ export default function Auth() {
     }
   }, [deepLinkPhone, deepLinkToken]);
 
+  // Resend SMS cooldown timer
+  useEffect(() => {
+    if (otpResendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setOtpResendCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [otpResendCooldown]);
+
   const getFullOtpPhone = useCallback((phoneVal: string, codeVal: string) => {
     const cleanDigits = phoneVal.replace(/\D/g, '');
     return cleanDigits.startsWith(codeVal) ? cleanDigits : codeVal + (cleanDigits.startsWith('0') ? cleanDigits.slice(1) : cleanDigits);
