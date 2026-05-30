@@ -22,6 +22,8 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { UGANDA_DISTRICTS } from "@/lib/ugandaDistricts";
+import { CountryCombobox } from "@/components/ui/country-combobox";
+import { continentForCountry } from "@/lib/worldCountries";
 
 /**
  * Continents — used when the user is outside Uganda. Kept short and
@@ -35,31 +37,6 @@ const CONTINENTS = [
   "South America",
   "Oceania",
   "Antarctica",
-] as const;
-
-/**
- * Country list — Uganda first (cascading dropdowns kick in for it),
- * then a curated set of common countries; users elsewhere pick "Other"
- * and type their country name.
- */
-const COUNTRIES = [
-  { name: "Uganda", continent: "Africa" },
-  { name: "Kenya", continent: "Africa" },
-  { name: "Tanzania", continent: "Africa" },
-  { name: "Rwanda", continent: "Africa" },
-  { name: "Burundi", continent: "Africa" },
-  { name: "South Sudan", continent: "Africa" },
-  { name: "DR Congo", continent: "Africa" },
-  { name: "Ethiopia", continent: "Africa" },
-  { name: "Nigeria", continent: "Africa" },
-  { name: "South Africa", continent: "Africa" },
-  { name: "United Kingdom", continent: "Europe" },
-  { name: "United States", continent: "North America" },
-  { name: "Canada", continent: "North America" },
-  { name: "United Arab Emirates", continent: "Asia" },
-  { name: "India", continent: "Asia" },
-  { name: "China", continent: "Asia" },
-  { name: "Other", continent: "" },
 ] as const;
 
 const PERSONAS = [
