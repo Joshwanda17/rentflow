@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   RefreshCw,
   Loader2,
@@ -9,6 +9,8 @@ import {
   HardDrive,
   Boxes,
   ServerCog,
+  ClipboardCopy,
+  Download,
 } from "lucide-react";
 import {
   hardRecover,
