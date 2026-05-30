@@ -5,6 +5,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { TrendingUp, TrendingDown, Minus, Layers, Target, CheckCircle2, Lock, Loader2, ChevronRight, Share2, Send, Download, ImageDown } from 'lucide-react';
 import { AgentCollectionsDrilldownDialog } from './AgentCollectionsDrilldownDialog';
 import { AgentCapacityShareCard } from './AgentCapacityShareCard';
+import { deriveAgentBadges, BADGE_CLASS } from '@/lib/agentBadges';
 import { hapticTap } from '@/lib/haptics';
 import { toPng } from 'html-to-image';
 import { toast } from 'sonner';
@@ -71,6 +72,9 @@ export function AgentCapacityBreakdownPanel() {
 
   const threshold = Math.round(DAILY_ELIGIBILITY_THRESHOLD * 100);
   const unlockNeeded = Math.max(0, Math.round(cap.expected_daily * DAILY_ELIGIBILITY_THRESHOLD) - cap.paid_today);
+
+  // Honour badges derived live from the capacity snapshot (no extra queries).
+  const badges = deriveAgentBadges(cap);
 
   const agentName = (user.user_metadata as any)?.full_name
     || (user.user_metadata as any)?.name
