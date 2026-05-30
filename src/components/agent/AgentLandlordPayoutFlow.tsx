@@ -149,7 +149,6 @@ export function AgentLandlordPayoutFlow({ open, onOpenChange }: AgentLandlordPay
     mutationFn: async () => {
       if (!user || !selectedRequest || !gps) throw new Error('Missing data');
       if (photos.length === 0) throw new Error('Please add at least one receipt photo');
-      if (!transactionId.trim()) throw new Error('Please enter the transaction ID');
 
       const payoutAmount = selectedRequest.rent_amount;
 
@@ -211,7 +210,7 @@ export function AgentLandlordPayoutFlow({ open, onOpenChange }: AgentLandlordPay
         landlord_phone: selectedRequest.landlord?.mobile_money_number || selectedRequest.landlord?.phone || '',
         landlord_name: selectedRequest.landlord?.name || 'Unknown',
         mobile_money_provider: provider,
-        transaction_id: transactionId.trim(),
+        transaction_id: transactionId.trim() || null,
         receipt_photo_urls: photoUrls,
         latitude: gps.lat,
         longitude: gps.lng,
@@ -370,19 +369,20 @@ export function AgentLandlordPayoutFlow({ open, onOpenChange }: AgentLandlordPay
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs font-bold">Transaction ID (TID) *</Label>
+                <Label className="text-xs font-bold">Transaction ID (TID)</Label>
                 <Input
                   value={transactionId}
                   onChange={e => setTransactionId(e.target.value)}
-                  placeholder="Enter the MoMo transaction ID"
+                  placeholder="Not required for float payouts"
                   className="font-mono"
+                  disabled
                 />
-                <p className="text-[10px] text-muted-foreground">Enter the exact TID from the MoMo confirmation message</p>
+                <p className="text-[10px] text-muted-foreground">No transaction ID is required when paying the landlord from float.</p>
               </div>
 
               <Button
                 className="w-full"
-                disabled={!provider || !transactionId.trim()}
+                disabled={!provider}
                 onClick={() => setStep('receipt')}
               >
                 <ArrowRight className="h-4 w-4 mr-2" />
