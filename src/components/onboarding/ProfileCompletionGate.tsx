@@ -674,6 +674,22 @@ export default function ProfileCompletionGate() {
               </>
             )}
 
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full gap-2"
+              onClick={() => {
+                const query = [town, city, district, country].filter(Boolean).join(", ").trim();
+                const url = query
+                  ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`
+                  : `https://www.google.com/maps`;
+                window.open(url, "_blank", "noopener,noreferrer");
+              }}
+            >
+              <Search className="h-4 w-4" />
+              Search around on Google Maps
+            </Button>
+
             <div className="flex justify-between pt-2">
               <Button
                 type="button"
