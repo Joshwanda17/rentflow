@@ -2,12 +2,19 @@ import { useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAgentCapacityMap, DAILY_ELIGIBILITY_THRESHOLD } from '@/hooks/useAgentCapacityMap';
 import { formatUGX } from '@/lib/rentCalculations';
-import { TrendingUp, TrendingDown, Minus, Layers, Target, CheckCircle2, Lock, Loader2, ChevronRight, Share2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Layers, Target, CheckCircle2, Lock, Loader2, ChevronRight, Share2, Send } from 'lucide-react';
 import { AgentCollectionsDrilldownDialog } from './AgentCollectionsDrilldownDialog';
 import { AgentCapacityShareCard } from './AgentCapacityShareCard';
 import { hapticTap } from '@/lib/haptics';
 import { toPng } from 'html-to-image';
 import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 
 /**
  * Plain-English breakdown panel shown directly under "My Rent-Request Capacity".
@@ -23,8 +30,10 @@ export function AgentCapacityBreakdownPanel() {
   const { data, isLoading } = useAgentCapacityMap(ids);
   const cap = user?.id ? data?.get(user.id) : undefined;
   const [drilldownOpen, setDrilldownOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [sharing, setSharing] = useState(false);
   const shareCardRef = useRef<HTMLDivElement>(null);
+  const previewCardRef = useRef<HTMLDivElement>(null);
 
   if (!user?.id) return null;
 
@@ -71,9 +80,13 @@ export function AgentCapacityBreakdownPanel() {
     weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Africa/Kampala',
   });
 
-  const handleShare = async () => {
-    if (!shareCardRef.current || sharing) return;
+  const openPreview = () => {
     hapticTap();
+    setPreviewOpen(true);
+  };
+
+  const doShare = async () => {
+    if (!shareCardRef.current || sharing) return;
     setSharing(true);
     try {
       const dataUrl = await toPng(shareCardRef.current, {
@@ -103,6 +116,7 @@ export function AgentCapacityBreakdownPanel() {
         window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank');
         toast.success('Image saved — attach it to your WhatsApp message');
       }
+      setPreviewOpen(false);
     } catch (err) {
       if ((err as Error)?.name !== 'AbortError') {
         toast.error('Could not generate the image. Please try again.');
@@ -121,7 +135,7 @@ export function AgentCapacityBreakdownPanel() {
         </div>
         <button
           type="button"
-          onClick={handleShare}
+          onClick={openPreview}
           disabled={sharing}
           className="flex items-center gap-1.5 rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 transition-colors disabled:opacity-60"
         >
@@ -237,6 +251,46 @@ export function AgentCapacityBreakdownPanel() {
         canPost={canPost}
         dateLabel={dateLabel}
       />
+
+      {/* Preview before sharing */}
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-w-sm p-0 overflow-hidden">
+          <DialogHeader className="p-5 pb-0 text-left">
+            <DialogTitle>Preview your share card</DialogTitle>
+            <DialogDescription>
+              Make sure everything looks right before sending to WhatsApp.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="px-5 pb-5 space-y-4">
+            <div className="rounded-xl overflow-hidden border border-border shadow-sm">
+              <AgentCapacityShareCard
+                ref={previewCardRef}
+                preview
+                agentName={agentName}
+                paidToday={cap.paid_today}
+                expectedDaily={cap.expected_daily}
+                paidYesterday={cap.paid_yesterday}
+                perTenantMax={cap.per_tenant_max}
+                headroom={cap.headroom}
+                remainingSlots={remainingSlots}
+                canPost={canPost}
+                dateLabel={dateLabel}
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={doShare}
+              disabled={sharing}
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-700 transition-colors disabled:opacity-60"
+            >
+              {sharing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              {sharing ? 'Generating…' : 'Send to WhatsApp'}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

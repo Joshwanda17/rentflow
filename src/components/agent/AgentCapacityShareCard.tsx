@@ -11,6 +11,7 @@ interface ShareCardProps {
   remainingSlots: number;
   canPost: boolean;
   dateLabel: string;
+  preview?: boolean;
 }
 
 /**
@@ -23,6 +24,7 @@ export const AgentCapacityShareCard = forwardRef<HTMLDivElement, ShareCardProps>
     const {
       agentName, paidToday, expectedDaily, paidYesterday,
       perTenantMax, headroom, remainingSlots, canPost, dateLabel,
+      preview = false,
     } = props;
 
     const pct = expectedDaily > 0
@@ -36,8 +38,8 @@ export const AgentCapacityShareCard = forwardRef<HTMLDivElement, ShareCardProps>
       <div
         ref={ref}
         style={{
-          position: 'fixed',
-          left: '-9999px',
+          position: preview ? 'relative' : 'fixed',
+          left: preview ? 'auto' : '-9999px',
           top: 0,
           width: 540,
           padding: 32,
