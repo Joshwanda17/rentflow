@@ -613,10 +613,10 @@ export default function ProfileCompletionGate() {
             }
             dismissGate();
           }}
-          aria-label={editMode ? "Close" : "Skip for now"}
-          className="absolute right-2 top-2 sm:right-3 sm:top-3 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground shadow-sm hover:bg-primary/90 hover:shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-95 transition-all"
+          aria-label={editMode ? "Close editor" : "Skip profile completion for later"}
+          className="absolute right-2 top-2 sm:right-3 sm:top-3 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground shadow-sm hover:bg-primary/90 hover:shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-95 transition-all"
         >
-          {editMode ? <X className="h-4 w-4" /> : "Later"}
+          {editMode ? <X className="h-4 w-4" aria-hidden="true" /> : "Later"}
         </button>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
