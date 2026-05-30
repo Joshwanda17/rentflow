@@ -238,28 +238,38 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
     return () => { cancelled = true; };
   }, [user?.id]);
 
-  // Push every selection to the cloud (best-effort). Default 'all' = no row.
+  // Persist every selection. localStorage is ALWAYS written first so the filter
+  // survives even when the server settings are unreachable (offline, signed out,
+  // RLS/permission error). The cloud write is best-effort on top of that.
   useEffect(() => {
-    if (!user?.id) return;
     if (!hasTenantPrefHydratedRef.current) return;
+    // 1) Local fallback — guaranteed to run regardless of server availability.
+    try {
+      if (selectedTenantId === 'all') localStorage.removeItem('rentPipeline_selectedTenantId');
+      else localStorage.setItem('rentPipeline_selectedTenantId', selectedTenantId);
+    } catch { /* noop */ }
+    // 2) Cloud sync — only when we have an authenticated user.
+    if (!user?.id) return;
     (async () => {
       try {
-        if (selectedTenantId === 'all') {
-          await supabase
-            .from('user_ui_preferences')
-            .delete()
-            .eq('user_id', user.id)
-            .eq('key', TENANT_FILTER_PREF_KEY);
-        } else {
-          await supabase
-            .from('user_ui_preferences')
-            .upsert(
-              { user_id: user.id, key: TENANT_FILTER_PREF_KEY, value: selectedTenantId },
-              { onConflict: 'user_id,key' },
-            );
+        const { error } = selectedTenantId === 'all'
+          ? await supabase
+              .from('user_ui_preferences')
+              .delete()
+              .eq('user_id', user.id)
+              .eq('key', TENANT_FILTER_PREF_KEY)
+          : await supabase
+              .from('user_ui_preferences')
+              .upsert(
+                { user_id: user.id, key: TENANT_FILTER_PREF_KEY, value: selectedTenantId },
+                { onConflict: 'user_id,key' },
+              );
+        if (error) {
+          // Server unavailable → localStorage (written above) is the fallback.
+          console.warn('[RentPipelineQueue] tenant pref cloud write failed, using localStorage', error);
         }
       } catch (err) {
-        console.warn('[RentPipelineQueue] tenant pref write failed', err);
+        console.warn('[RentPipelineQueue] tenant pref write failed, using localStorage', err);
       }
     })();
   }, [selectedTenantId, user?.id]);
@@ -804,7 +814,7 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
           </div>
         )}
         <div className="flex flex-col sm:flex-row gap-2 mt-2">
-          <Select value={selectedTenantId} onValueChange={v => { setSelectedTenantId(v); try { localStorage.setItem('rentPipeline_selectedTenantId', v); } catch {} }}>
+          <Select value={selectedTenantId} onValueChange={setSelectedTenantId}>
             <SelectTrigger className="h-9 text-sm sm:w-[260px]">
               <User className="h-3.5 w-3.5 mr-1 text-muted-foreground shrink-0" />
               <SelectValue placeholder="Choose a tenant to fund" />
