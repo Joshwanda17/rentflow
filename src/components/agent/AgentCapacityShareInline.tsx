@@ -24,6 +24,7 @@ export function AgentCapacityShareInline() {
   const [busy, setBusy] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
+  const [cardH, setCardH] = useState(0);
   const CARD_W = 540;
 
   // Scale the fixed-width branded card down to fit the column on mobile.
@@ -33,10 +34,12 @@ export function AgentCapacityShareInline() {
     const update = () => {
       const w = el.clientWidth;
       setScale(w > 0 ? Math.min(1, w / CARD_W) : 1);
+      if (cardRef.current) setCardH(cardRef.current.offsetHeight);
     };
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
+    if (cardRef.current) ro.observe(cardRef.current);
     return () => ro.disconnect();
   }, [cap]);
 
@@ -127,14 +130,16 @@ export function AgentCapacityShareInline() {
 
   return (
     <div className="rounded-2xl border border-border bg-card p-3 space-y-3">
-      <div ref={wrapRef} className="rounded-xl overflow-hidden border border-border shadow-sm">
-        <div style={{ height: `${CARD_W * scale * 0}px` }} className="hidden" />
+      <div
+        ref={wrapRef}
+        className="rounded-xl overflow-hidden border border-border shadow-sm"
+        style={{ height: cardH > 0 ? cardH * scale : undefined }}
+      >
         <div
           style={{
             width: CARD_W,
             transform: `scale(${scale})`,
             transformOrigin: 'top left',
-            marginBottom: scale < 1 ? -(1 - scale) * 100 + '%' : undefined,
           }}
         >
           <AgentCapacityShareCard
