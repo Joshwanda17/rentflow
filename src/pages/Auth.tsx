@@ -790,7 +790,7 @@ export default function Auth() {
                     onClick={() => setLoginMode('password')}
                     className="w-full text-sm text-muted-foreground hover:text-primary text-center py-2 flex items-center justify-center gap-1"
                   >
-                    <ArrowLeft className="h-4 w-4" /> Back to password login
+                    Prefer a password? <span className="font-medium">Sign in with password</span>
                   </button>
                 </div>
               </div>
