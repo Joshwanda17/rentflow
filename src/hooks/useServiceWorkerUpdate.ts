@@ -4,6 +4,11 @@ declare const __CACHE_VERSION__: string;
 
 const CACHE_NAME = 'welile-v11';
 
+// Persist dismissal for the duration of the session, keyed to the cache
+// version. Once the user dismisses, we won't re-prompt on focus/resume — only
+// a genuinely new __CACHE_VERSION__ release clears this.
+const DISMISS_KEY = 'welile_update_dismissed_version';
+
 // Pre-cache app shell assets for offline launch — runs ONLY on first install
 async function precacheAppShell() {
   if (!("caches" in window)) return;
@@ -33,7 +38,13 @@ export function useServiceWorkerUpdate() {
   const isReloading = useRef(false);
   const hasCheckedOnMount = useRef(false);
   const [updateReady, setUpdateReady] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissed, setDismissed] = useState(() => {
+    try {
+      return sessionStorage.getItem(DISMISS_KEY) === __CACHE_VERSION__;
+    } catch {
+      return false;
+    }
+  });
   const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
 
   const flagUpdateReady = useCallback(() => {
@@ -42,6 +53,11 @@ export function useServiceWorkerUpdate() {
 
   const dismiss = useCallback(() => {
     setDismissed(true);
+    try {
+      sessionStorage.setItem(DISMISS_KEY, __CACHE_VERSION__);
+    } catch {
+      /* ignore storage failures */
+    }
   }, []);
 
   const applyUpdate = useCallback(() => {
