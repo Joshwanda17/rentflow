@@ -7,7 +7,6 @@ import {
   hardRecover,
   recoveryExhausted,
   clearRecoveryAttempts,
-  purgeCachesAndServiceWorkers,
 } from './lib/hardRecovery';
 import { logUpdateFailure } from './lib/updateTelemetry';
 import { refreshRolloutConfig, isRolloutEnabledForDevice } from './lib/rollout';
