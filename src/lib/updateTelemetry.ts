@@ -22,6 +22,7 @@ export type UpdateFailureEvent =
   | "caches_purged"
   | "recovery_exhausted"
   | "error_ui_shown"
+  | "ios_version_gate"
   | "manual_reload";
 
 function getSessionId(): string {

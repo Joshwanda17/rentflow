@@ -10,6 +10,7 @@ import {
 } from './lib/hardRecovery';
 import { logUpdateFailure } from './lib/updateTelemetry';
 import { refreshRolloutConfig, isRolloutEnabledForDevice } from './lib/rollout';
+import { checkServerVersion, isVersionStaleSync } from './lib/versionGate';
 
 const root = document.getElementById('root')!;
 const host = window.location.hostname;
@@ -23,6 +24,13 @@ const isPreviewHost =
 // when offline or still in flight — never blocks startup.
 if (!isPreviewHost) {
   void refreshRolloutConfig();
+}
+
+// Kick off the hard iOS version check as early as possible (fire-and-forget) so
+// the recovery path below can make a definitive "is this device stale?" decision
+// instead of cycling the generic recovery screen forever.
+if (!isPreviewHost) {
+  void checkServerVersion();
 }
 
 // Show branded loader immediately — inline SVG spinner, no network requests at all
@@ -198,6 +206,24 @@ const loadApp = async () => {
     // percentage before full deployment.
     const emergencyIOSRecovery = isIOSDevice;
     const inRolloutCohort = emergencyIOSRecovery || isRolloutEnabledForDevice();
+    // HARD iOS VERSION GATE: a stale iPhone must not keep cycling the recovery
+    // screen. When this device is provably running an outdated bundle, replace
+    // the recovery loop with a definitive "Update Required" gate that forces a
+    // clean refresh onto the current build. We confirm staleness against the
+    // network (no-store) before gating so we never trap an up-to-date device.
+    if (isChunkError && isIOSDevice) {
+      const version = isVersionStaleSync()
+        ? { stale: true }
+        : await checkServerVersion();
+      if (version.stale) {
+        logUpdateFailure('ios_version_gate', {
+          chunk_mismatch: true,
+          details: { reason: 'stale bundle — hard update gate shown' },
+        });
+        showUpdateRequiredUI();
+        return;
+      }
+    }
     // Stale-deploy recovery: purge caches/SWs and reload to a cache-busted URL
     // so iOS Safari fetches a fresh HTML shell. Stop once attempts are
     // exhausted to avoid an endless "Updating…" loop.
@@ -248,6 +274,44 @@ function showErrorUI() {
     await clearAndReload('manual_reload');
   };
   btn.style.cssText = 'padding:12px 24px;background:#7c3aed;color:white;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;min-height:44px';
+
+  container.append(logo, heading, msg, btn);
+  root.appendChild(container);
+}
+
+// Hard iOS "Update Required" gate. Shown INSTEAD of the cycling recovery screen
+// when a device is provably running an outdated bundle. There is no auto-reload
+// loop here — the user must explicitly update, which performs a full cache/SW
+// purge and a cache-busted reload onto the current build.
+function showUpdateRequiredUI() {
+  logUpdateFailure('ios_version_gate', { details: { ui: 'update_required_gate' } });
+  root.textContent = '';
+  const container = document.createElement('div');
+  container.style.cssText = 'min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f8fafc;gap:16px;padding:24px;text-align:center';
+
+  const logo = document.createElement('img');
+  logo.src = '/welile-logo.png';
+  logo.alt = 'Welile';
+  logo.width = 56;
+  logo.height = 56;
+  logo.style.borderRadius = '14px';
+
+  const heading = document.createElement('h2');
+  heading.textContent = 'Update Required';
+  heading.style.cssText = 'font-size:20px;font-weight:700;color:#1f2937;margin:0';
+
+  const msg = document.createElement('p');
+  msg.textContent = 'A newer version of Welile is available. Update now to continue and to receive your verification code.';
+  msg.style.cssText = 'font-size:14px;color:#6b7280;margin:0;max-width:300px;line-height:1.5';
+
+  const btn = document.createElement('button');
+  btn.textContent = 'Update Now';
+  btn.onclick = async () => {
+    btn.disabled = true;
+    btn.textContent = 'Updating…';
+    await clearAndReload('manual_reload');
+  };
+  btn.style.cssText = 'padding:14px 28px;background:#7c3aed;color:white;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;min-height:48px';
 
   container.append(logo, heading, msg, btn);
   root.appendChild(container);
