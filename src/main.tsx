@@ -9,9 +9,17 @@ import {
   purgeCachesAndServiceWorkers,
 } from './lib/hardRecovery';
 import { logUpdateFailure } from './lib/updateTelemetry';
+import { refreshRolloutConfig, isRolloutEnabledForDevice } from './lib/rollout';
 
 const root = document.getElementById('root')!;
 const host = window.location.hostname;
+
+// Refresh the staged-rollout config as early as possible (fire-and-forget) so
+// the cohort decision below uses a fresh value. Falls back to the cached value
+// when offline or still in flight — never blocks startup.
+if (!isPreviewHost) {
+  void refreshRolloutConfig();
+}
 const isPreviewHost =
   host.includes('id-preview--') ||
   host.includes('preview--') ||
