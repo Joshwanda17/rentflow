@@ -2,6 +2,12 @@
 // out of "remember this device", before Supabase/session-cache read any token.
 import './lib/ephemeralGuard';
 import { createRoot } from 'react-dom/client';
+import {
+  hardRecover,
+  recoveryExhausted,
+  clearRecoveryAttempts,
+  purgeCachesAndServiceWorkers,
+} from './lib/hardRecovery';
 
 const root = document.getElementById('root')!;
 const host = window.location.hostname;
@@ -124,6 +130,10 @@ const loadApp = async () => {
 
     createRoot(root).render(<App />);
 
+    // App mounted successfully — reset the chunk-recovery attempt counter so a
+    // future genuine failure gets a fresh set of automatic retries.
+    clearRecoveryAttempts();
+
     // Preload Dashboard chunk only when the user is actually heading there.
     // Preloading on every route (e.g. /executive-hub) caused parallel chunk
     // fetches that overwhelmed slow connections and tripped the error UI.
@@ -163,16 +173,14 @@ const loadApp = async () => {
     const reloadKey = '__welile_chunk_reload_at';
     const lastReload = Number(sessionStorage.getItem(reloadKey) || '0');
     const recentlyReloaded = Date.now() - lastReload < 30_000;
-    if (isChunkError && !recentlyReloaded) {
+    // Stale-deploy recovery: purge caches/SWs and reload to a cache-busted URL
+    // so iOS Safari fetches a fresh HTML shell. Stop once attempts are
+    // exhausted to avoid an endless "Updating…" loop.
+    if (isChunkError && !recentlyReloaded && !recoveryExhausted()) {
       try {
         sessionStorage.setItem(reloadKey, String(Date.now()));
-        if ('caches' in window) {
-          await caches.keys().then((keys) =>
-            Promise.all(keys.map((k) => caches.delete(k)))
-          ).catch(() => {});
-        }
       } catch {}
-      location.reload();
+      await hardRecover();
       return;
     }
     showErrorUI();
@@ -202,17 +210,14 @@ function showErrorUI() {
   const btn = document.createElement('button');
   btn.textContent = 'Reload App';
   btn.onclick = async () => {
+    await purgeCachesAndServiceWorkers();
     try {
-      if ('caches' in window) {
-        const keys = await caches.keys();
-        await Promise.all(keys.map((k) => caches.delete(k)));
-      }
-      if ('serviceWorker' in navigator) {
-        const regs = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(regs.map((r) => r.unregister()));
-      }
-    } catch {}
-    location.reload();
+      const url = new URL(window.location.href);
+      url.searchParams.set('_v', Date.now().toString(36));
+      location.replace(url.toString());
+    } catch {
+      location.reload();
+    }
   };
   btn.style.cssText = 'padding:12px 24px;background:#7c3aed;color:white;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;min-height:44px';
 
