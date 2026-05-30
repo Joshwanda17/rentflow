@@ -152,34 +152,34 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-3">
           <button
             onClick={() => setActiveFilter('all')}
-            className={`py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+            className={`py-4 rounded-2xl text-base font-bold transition-all flex items-center justify-center gap-2 ${
               activeFilter === 'all'
                 ? 'bg-background shadow-sm text-foreground border-2 border-primary/30'
                 : 'text-muted-foreground bg-muted/50'
             }`}
-            style={{ touchAction: 'manipulation', minHeight: '52px' }}
+            style={{ touchAction: 'manipulation', minHeight: '64px' }}
           >
-            <Users className="h-4 w-4" />
+            <Users className="h-5 w-5" />
             All
-            <span className="text-xs font-mono px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground">
+            <span className="text-sm font-mono px-2 py-0.5 rounded-md bg-muted text-muted-foreground">
               {tenants.length}
             </span>
           </button>
           <button
             onClick={() => setActiveFilter('owing')}
-            className={`py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+            className={`py-4 rounded-2xl text-base font-bold transition-all flex items-center justify-center gap-2 ${
               activeFilter === 'owing'
                 ? 'bg-rose-50 shadow-sm text-rose-700 border-2 border-rose-300'
                 : 'text-muted-foreground bg-muted/50'
             }`}
-            style={{ touchAction: 'manipulation', minHeight: '52px' }}
+            style={{ touchAction: 'manipulation', minHeight: '64px' }}
           >
-            <AlertCircle className="h-4 w-4" />
+            <AlertCircle className="h-5 w-5" />
             Owing
-            <span className="text-xs font-mono px-1.5 py-0.5 rounded-md bg-rose-100 text-rose-700">
+            <span className="text-sm font-mono px-2 py-0.5 rounded-md bg-rose-100 text-rose-700">
               {owingCount}
             </span>
           </button>
