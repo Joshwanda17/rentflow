@@ -474,44 +474,49 @@ export default function ProfileCompletionGate() {
         </DialogHeader>
 
         {quickMode && !editMode && (
-          <div className="space-y-5">
+          <div className="space-y-7 pt-1">
             {/* 1) Location — one tap, sensible Kampala default */}
-            <div className="space-y-2">
-              <p className="text-base font-semibold">Where do you live?</p>
-              <div className="rounded-xl border bg-muted/30 p-3 space-y-2">
-                <div className="flex items-center gap-2 text-sm">
-                  <MapPin className="h-4 w-4 text-primary shrink-0" />
-                  <span className="font-medium">
+            <div className="space-y-3">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Where you live
+              </p>
+              <div className="rounded-2xl border bg-card p-4 space-y-3">
+                <div className="flex items-center gap-2.5">
+                  <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className="text-sm font-medium truncate">
                     {[town || village, city || district, country]
                       .filter(Boolean)
                       .join(", ")}
                   </span>
                   {residenceLat != null && (
-                    <Check className="h-4 w-4 text-primary ml-auto" />
+                    <span className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-primary">
+                      <Check className="h-3.5 w-3.5" /> Pinned
+                    </span>
                   )}
                 </div>
                 <Button
                   type="button"
                   variant="outline"
-                  size="lg"
-                  className="w-full gap-2 h-12 text-base"
+                  className="w-full gap-2 h-11 rounded-xl text-sm font-medium"
                   onClick={handleUseMyLocation}
                   disabled={locating}
                 >
                   {locating ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <Navigation className="h-5 w-5" />
+                    <Navigation className="h-4 w-4" />
                   )}
-                  {residenceLat != null ? "Location saved — tap to update" : "Use my current location"}
+                  {residenceLat != null ? "Update my location" : "Use my current location"}
                 </Button>
               </div>
             </div>
 
-            {/* 2) Role — big picture buttons */}
-            <div className="space-y-2">
-              <p className="text-base font-semibold">Who are you?</p>
-              <div className="grid grid-cols-2 gap-2">
+            {/* 2) Role — clean picture buttons */}
+            <div className="space-y-3">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Who you are
+              </p>
+              <div className="grid grid-cols-2 gap-2.5">
                 {QUICK_PERSONAS.map((p) => {
                   const selected = persona === p.value;
                   return (
@@ -519,13 +524,19 @@ export default function ProfileCompletionGate() {
                       key={p.value}
                       type="button"
                       onClick={() => setPersona(p.value)}
-                      className={`flex flex-col items-center justify-center gap-1 rounded-xl border-2 p-4 text-center transition-colors ${
+                      aria-pressed={selected}
+                      className={`group relative flex flex-col items-center justify-center gap-2 rounded-2xl border p-4 text-center transition-all duration-150 ${
                         selected
-                          ? "border-primary bg-primary/10"
-                          : "border-border hover:bg-muted/50"
+                          ? "border-primary bg-primary/5 ring-1 ring-primary"
+                          : "border-border hover:border-foreground/20 hover:bg-muted/40"
                       }`}
                     >
-                      <span className="text-3xl" aria-hidden>{p.emoji}</span>
+                      {selected && (
+                        <span className="absolute right-2 top-2 inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                          <Check className="h-2.5 w-2.5" />
+                        </span>
+                      )}
+                      <span className="text-2xl" aria-hidden>{p.emoji}</span>
                       <span className="text-sm font-medium leading-tight">{p.label}</span>
                     </button>
                   );
@@ -533,23 +544,25 @@ export default function ProfileCompletionGate() {
               </div>
             </div>
 
-            <Button
-              type="button"
-              size="lg"
-              className="w-full h-12 text-base"
-              onClick={handleSubmit}
-              disabled={submitting || !persona}
-            >
-              {submitting && <Loader2 className="h-5 w-5 animate-spin mr-2" />}
-              Finish
-            </Button>
-            <button
-              type="button"
-              onClick={() => setQuickMode(false)}
-              className="w-full text-center text-xs text-muted-foreground underline"
-            >
-              More options
-            </button>
+            <div className="space-y-3 pt-1">
+              <Button
+                type="button"
+                size="lg"
+                className="w-full h-12 rounded-xl text-base font-semibold"
+                onClick={handleSubmit}
+                disabled={submitting || !persona}
+              >
+                {submitting && <Loader2 className="h-5 w-5 animate-spin mr-2" />}
+                Finish
+              </Button>
+              <button
+                type="button"
+                onClick={() => setQuickMode(false)}
+                className="w-full text-center text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                More options
+              </button>
+            </div>
           </div>
         )}
 
