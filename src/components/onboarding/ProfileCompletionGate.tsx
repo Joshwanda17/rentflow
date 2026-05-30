@@ -163,6 +163,7 @@ export default function ProfileCompletionGate() {
 
   const isUganda = country === "Uganda";
   const resolvedCountry = country.trim();
+  const countryIso = isoForCountry(country);
 
   // Existing referrer (locked attribution) — show their name
   const { data: existingReferrer } = useQuery({
