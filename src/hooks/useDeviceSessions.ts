@@ -7,6 +7,7 @@ const DEVICE_LABEL_KEY = 'welile_device_label';
 const ACTIVE_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 // Heartbeat interval — keep lean for scale
 const HEARTBEAT_MS = 2 * 60 * 1000; // 2 minutes
+const MAX_DEVICE_LABEL_LENGTH = 40;
 
 export interface DeviceSession {
   id: string;
