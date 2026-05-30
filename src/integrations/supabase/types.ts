@@ -18301,6 +18301,15 @@ export type Database = {
           visibility: string
         }[]
       }
+      get_tenant_ops_recipients: {
+        Args: { p_email_only?: boolean }
+        Returns: {
+          email: string
+          full_name: string
+          roles: string[]
+          user_id: string
+        }[]
+      }
       get_tenants_at_leaf:
         | {
             Args: {
