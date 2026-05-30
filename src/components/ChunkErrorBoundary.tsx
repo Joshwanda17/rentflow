@@ -246,7 +246,7 @@ class ChunkErrorBoundary extends Component<Props, State> {
             </div>
             <div className="flex flex-col sm:flex-row gap-3 w-full">
               <button
-                onClick={() => window.location.reload()}
+                onClick={() => void clearAndReload("manual_reload")}
                 className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground font-medium shadow-lg hover:opacity-90 transition-opacity"
               >
                 <RefreshCw className="w-4 h-4" />
