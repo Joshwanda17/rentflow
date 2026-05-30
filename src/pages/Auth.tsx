@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { ArrowLeft, Mail, Lock, User, Phone, Loader2, MessageCircle, AlertCircle, LogIn, Smartphone, ArrowRight, Key } from 'lucide-react';
 import { CountryCodeSelect } from '@/components/auth/CountryCodeSelect';
 import WelileLogo from '@/components/WelileLogo';
@@ -464,14 +465,35 @@ export default function Auth() {
                   </Button>
                 )}
 
-                {/* Alternative login methods — subtle links */}
-                <div className="flex items-center justify-center gap-4 pt-2">
-                  <button type="button" onClick={() => setLoginMode('email')} className="text-sm text-muted-foreground hover:text-primary transition-colors py-1">
-                    Use email instead
+                {/* Alternative login methods */}
+                <div className="pt-2 space-y-2">
+                  {/* Prominent SMS code login card */}
+                  <button
+                    type="button"
+                    onClick={() => setLoginMode('otp')}
+                    className={cn(
+                      "w-full flex items-center gap-4 p-4 rounded-xl text-left transition-all duration-150",
+                      "bg-card border border-border/60 shadow-sm",
+                      "hover:shadow-md hover:border-primary/30 active:scale-[0.98]",
+                      "touch-manipulation"
+                    )}
+                  >
+                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                      <Smartphone className="h-6 w-6 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-foreground text-sm">Log in with SMS code</p>
+                      <p className="text-xs text-muted-foreground">Get a one-time code sent to your phone — no password needed</p>
+                    </div>
+                    <ArrowRight className="h-5 w-5 text-muted-foreground/40 shrink-0" />
                   </button>
-                  <span className="text-border">•</span>
-                  <button type="button" onClick={() => setLoginMode('otp')} className="text-sm text-muted-foreground hover:text-primary transition-colors py-1">
-                    SMS code login
+
+                  <button
+                    type="button"
+                    onClick={() => setLoginMode('email')}
+                    className="w-full text-sm text-muted-foreground hover:text-primary transition-colors py-1 text-center"
+                  >
+                    Use email & password instead
                   </button>
                 </div>
               </div>
@@ -607,13 +629,34 @@ export default function Auth() {
 
             {/* ===== OTP LOGIN ===== */}
             {isLoginView && loginMode === 'otp' && (
-              <div className="space-y-3 animate-in fade-in duration-200">
+              <div className="space-y-4 animate-in fade-in duration-200">
+                {/* Step indicator */}
+                <div className="flex items-center gap-3 mb-1">
+                  <div className={cn(
+                    "h-9 w-9 rounded-full flex items-center justify-center text-sm font-bold transition-colors shrink-0",
+                    otpLoginStep === 'phone' ? "bg-primary text-primary-foreground" : "bg-primary/20 text-primary"
+                  )}>
+                    1
+                  </div>
+                  <div className={cn("flex-1 h-1 rounded-full", otpLoginStep === 'code' ? "bg-primary/40" : "bg-muted")} />
+                  <div className={cn(
+                    "h-9 w-9 rounded-full flex items-center justify-center text-sm font-bold transition-colors shrink-0",
+                    otpLoginStep === 'code' ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                  )}>
+                    2
+                  </div>
+                </div>
+
                 {otpLoginStep === 'phone' ? (
                   <>
+                    <div>
+                      <p className="text-base font-semibold text-foreground">Enter your phone number</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">We will send you a 6-digit code</p>
+                    </div>
                     <div className="relative flex">
-                      <CountryCodeSelect value={otpLoginCountryCode} onChange={setOtpLoginCountryCode} />
+                      <CountryCodeSelect value={otpLoginCountryCode} onChange={setOtpLoginCountryCode} triggerClassName="h-16 text-lg" />
                       <div className="relative flex-1">
-                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 h-6 w-6 text-muted-foreground" />
                         <Input
                           type="tel"
                           inputMode="tel"
@@ -621,7 +664,7 @@ export default function Auth() {
                           value={otpLoginPhone}
                           onChange={(e) => setOtpLoginPhone(e.target.value)}
                           placeholder="700 123 456"
-                          className="pl-10 h-12 text-base rounded-xl rounded-l-none"
+                          className="pl-12 h-16 text-lg rounded-xl rounded-l-none"
                           style={{ fontSize: '16px' }}
                           autoFocus
                         />
@@ -631,56 +674,109 @@ export default function Auth() {
                       type="button"
                       onClick={handleSendOtpForLogin}
                       disabled={otpLoginLoading || otpLoginPhone.replace(/\D/g, '').length < 7}
-                      className="w-full h-12 text-base rounded-xl font-semibold touch-manipulation active:scale-[0.98]"
-                      style={{ fontSize: '16px' }}
+                      className="w-full h-16 text-lg rounded-xl font-bold shadow-md touch-manipulation active:scale-[0.98] transition-transform"
+                      style={{ fontSize: '16px', WebkitTapHighlightColor: 'transparent' }}
                     >
-                      {otpLoginLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Send SMS Code'}
+                      {otpLoginLoading ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                          <span className="text-sm font-medium">Sending code…</span>
+                        </span>
+                      ) : (
+                        <span className="flex items-center justify-center gap-2">
+                          <MessageCircle className="h-5 w-5" />
+                          Send SMS Code
+                        </span>
+                      )}
                     </Button>
                   </>
                 ) : (
                   <>
-                    <Input
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={6}
-                      value={otpLoginCode}
-                      onChange={(e) => setOtpLoginCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                      placeholder="000000"
-                      className="h-14 text-center text-2xl tracking-[0.5em] rounded-xl font-mono"
-                      style={{ fontSize: '24px' }}
-                      autoFocus
-                    />
-                    <p className="text-xs text-muted-foreground text-center">Code sent to +{otpLoginCountryCode} {otpLoginPhone}</p>
+                    <div>
+                      <p className="text-base font-semibold text-foreground">Enter the 6-digit code</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        Sent to <span className="font-medium text-foreground">+{otpLoginCountryCode} {otpLoginPhone}</span>
+                      </p>
+                    </div>
+
+                    <div className="flex justify-center py-1">
+                      <InputOTP
+                        maxLength={6}
+                        value={otpLoginCode}
+                        onChange={(value) => {
+                          setOtpLoginCode(value);
+                          if (value.length === 6) {
+                            handleOtpLogin(otpLoginPhone, value);
+                          }
+                        }}
+                      >
+                        <InputOTPGroup>
+                          <InputOTPSlot index={0} className="h-14 w-12 text-lg" />
+                          <InputOTPSlot index={1} className="h-14 w-12 text-lg" />
+                          <InputOTPSlot index={2} className="h-14 w-12 text-lg" />
+                          <InputOTPSlot index={3} className="h-14 w-12 text-lg" />
+                          <InputOTPSlot index={4} className="h-14 w-12 text-lg" />
+                          <InputOTPSlot index={5} className="h-14 w-12 text-lg" />
+                        </InputOTPGroup>
+                      </InputOTP>
+                    </div>
+
+                    {otpLoginLoading && (
+                      <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Verifying code…
+                      </div>
+                    )}
+
                     <Button
                       type="button"
                       onClick={() => handleOtpLogin()}
                       disabled={otpLoginLoading || otpLoginCode.length !== 6}
-                      className="w-full h-12 text-base rounded-xl font-semibold touch-manipulation active:scale-[0.98]"
-                      style={{ fontSize: '16px' }}
+                      className="w-full h-16 text-lg rounded-xl font-bold shadow-md touch-manipulation active:scale-[0.98] transition-transform"
+                      style={{ fontSize: '16px', WebkitTapHighlightColor: 'transparent' }}
                     >
-                      {otpLoginLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Verify & Log In'}
+                      {otpLoginLoading ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                          <span className="text-sm font-medium">Verifying…</span>
+                        </span>
+                      ) : (
+                        <span className="flex items-center justify-center gap-2">
+                          <LogIn className="h-5 w-5" />
+                          Verify & Log In
+                        </span>
+                      )}
                     </Button>
-                    <div className="flex items-center justify-between">
-                      <button type="button" onClick={() => { setOtpLoginStep('phone'); setOtpLoginCode(''); }} className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1">
-                        <ArrowLeft className="h-3 w-3" /> Change number
+
+                    <div className="flex items-center justify-between pt-1">
+                      <button
+                        type="button"
+                        onClick={() => { setOtpLoginStep('phone'); setOtpLoginCode(''); }}
+                        className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1 py-1"
+                      >
+                        <ArrowLeft className="h-4 w-4" /> Change number
                       </button>
-                      <button type="button" onClick={handleSendOtpForLogin} disabled={otpLoginLoading} className="text-xs text-primary hover:underline">
+                      <button
+                        type="button"
+                        onClick={handleSendOtpForLogin}
+                        disabled={otpLoginLoading}
+                        className="text-sm text-primary hover:underline py-1 font-medium"
+                      >
                         Resend code
                       </button>
                     </div>
                   </>
                 )}
 
-                <GoogleSignInButton
-                  onClick={wrappedHandleGoogleSignIn}
-                  disabled={isGoogleLoading || isAppleLoading || isLoading}
-                  isLoading={isGoogleLoading}
-                  variant="standard"
-                />
-
-                <button type="button" onClick={() => setLoginMode('password')} className="w-full text-xs text-muted-foreground hover:text-primary text-center pt-1">
-                  ← Back to phone login
-                </button>
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setLoginMode('password')}
+                    className="w-full text-sm text-muted-foreground hover:text-primary text-center py-2 flex items-center justify-center gap-1"
+                  >
+                    <ArrowLeft className="h-4 w-4" /> Back to password login
+                  </button>
+                </div>
               </div>
             )}
 
