@@ -3,8 +3,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { isCriticalFlowActive } from '@/lib/criticalFlowGuard';
 
-declare const __CACHE_VERSION__: string;
-
 /**
  * Mobile PWA Cache Invalidation Hook - Works on iOS AND Android
  * 
