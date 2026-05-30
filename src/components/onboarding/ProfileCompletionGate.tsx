@@ -345,28 +345,9 @@ export default function ProfileCompletionGate() {
               </div>
               <div className="space-y-1.5">
                 <Label>Country <span className="text-destructive">*</span></Label>
-                <Select value={country} onValueChange={setCountry}>
-                  <SelectTrigger><SelectValue placeholder="Select country" /></SelectTrigger>
-                  <SelectContent>
-                    {COUNTRIES.map((c) => (
-                      <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <CountryCombobox value={country} onChange={setCountry} />
               </div>
             </div>
-
-            {country === "Other" && (
-              <div className="space-y-1.5">
-                <Label>Country name</Label>
-                <Input
-                  value={countryOther}
-                  onChange={(e) => setCountryOther(e.target.value)}
-                  placeholder="Type your country"
-                  maxLength={60}
-                />
-              </div>
-            )}
 
             {isUganda ? (
               <>
