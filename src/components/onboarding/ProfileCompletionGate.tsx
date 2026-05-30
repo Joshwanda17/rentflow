@@ -528,7 +528,7 @@ export default function ProfileCompletionGate() {
                       className={`group relative flex min-h-[80px] xs:min-h-[88px] flex-col items-center justify-center gap-1.5 sm:gap-2 rounded-2xl border p-2.5 xs:p-3 sm:p-4 text-center transition-all duration-150 ${
                         selected
                           ? "border-primary bg-primary/5 dark:bg-primary/20 ring-1 ring-primary dark:ring-2"
-                          : "border-border dark:border-border/60 hover:border-foreground/20 hover:bg-muted/40 dark:hover:bg-muted/50"
+                      : "border-border dark:border-border/60 hover:border-foreground/20 hover:bg-muted/40 dark:hover:bg-muted/50"
                       }`}
                     >
                       {selected && (
