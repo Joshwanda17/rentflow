@@ -261,6 +261,16 @@ export default function Diagnostics() {
   const [telemetry, setTelemetry] = useState<TelemetryRow[] | null>(null);
   const [telemetryLoading, setTelemetryLoading] = useState(false);
 
+  const { roles } = useAuth();
+  const isManager = roles.includes("manager");
+  const [rollout, setRollout] = useState<RolloutConfig | null>(null);
+  const [rolloutLoading, setRolloutLoading] = useState(false);
+  const [rolloutSaving, setRolloutSaving] = useState(false);
+  const [rolloutError, setRolloutError] = useState<string | null>(null);
+  const [rolloutSaved, setRolloutSaved] = useState(false);
+  const [percentDraft, setPercentDraft] = useState(0);
+  const deviceBucket = getDeviceBucket();
+
   const run = useCallback(async () => {
     setLoading(true);
     setEnv(detectEnv());
