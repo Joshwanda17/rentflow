@@ -169,6 +169,24 @@ export default function Auth() {
     return () => clearInterval(timer);
   }, [otpResendCooldown]);
 
+  // On iOS, verify the running bundle is current before the user can request a
+  // code. A stale bundle is the root cause of the "wrong code" loop, so we block
+  // upfront and force a refresh rather than minting codes the device can't use.
+  useEffect(() => {
+    if (!isIOS()) return;
+    if (isVersionStaleSync()) {
+      setOtpVersionBlocked(true);
+      return;
+    }
+    let active = true;
+    checkServerVersion().then((state) => {
+      if (active && state.stale) setOtpVersionBlocked(true);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const getFullOtpPhone = useCallback((phoneVal: string, codeVal: string) => {
     const cleanDigits = phoneVal.replace(/\D/g, '');
     return cleanDigits.startsWith(codeVal) ? cleanDigits : codeVal + (cleanDigits.startsWith('0') ? cleanDigits.slice(1) : cleanDigits);
