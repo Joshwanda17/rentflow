@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -53,6 +53,42 @@ export function useAgentInactivations(opsUserId?: string | null) {
   }, [opsUserId, q]);
 
   return q;
+}
+
+/**
+ * Acknowledge / resolve actions for the inactive-tenant banner.
+ * Acknowledge marks a flag as reviewed; resolve closes it out (notes required)
+ * and removes it from the banner.
+ */
+export function useInactivationReview() {
+  const qc = useQueryClient();
+
+  const refresh = () =>
+    qc.invalidateQueries({ queryKey: ['ops-agent-inactivations'] });
+
+  const acknowledge = useMutation({
+    mutationFn: async ({ rentRequestId, notes }: { rentRequestId: string; notes?: string }) => {
+      const { error } = await supabase.rpc('ops_acknowledge_inactivation', {
+        p_rent_request_id: rentRequestId,
+        p_notes: notes?.trim() || null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: refresh,
+  });
+
+  const resolve = useMutation({
+    mutationFn: async ({ rentRequestId, notes }: { rentRequestId: string; notes: string }) => {
+      const { error } = await supabase.rpc('ops_resolve_inactivation', {
+        p_rent_request_id: rentRequestId,
+        p_notes: notes.trim(),
+      });
+      if (error) throw error;
+    },
+    onSuccess: refresh,
+  });
+
+  return { acknowledge, resolve };
 }
 
 export default useAgentInactivations;
