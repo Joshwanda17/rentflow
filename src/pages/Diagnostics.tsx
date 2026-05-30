@@ -522,6 +522,30 @@ export default function Diagnostics() {
             Clear caches & SW (no reload)
           </button>
         </div>
+
+        {/* Report */}
+        <div className="rounded-xl border border-border bg-card p-4">
+          <h2 className="mb-3 text-sm font-semibold">Support report</h2>
+          <p className="mb-3 text-xs text-muted-foreground">
+            Generate a full diagnostic report you can paste into a support ticket or download as a .txt file.
+          </p>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <button
+              onClick={copyReport}
+              className="flex-1 inline-flex items-center justify-center gap-2 rounded-full bg-muted px-5 py-2.5 text-sm font-medium hover:bg-muted/80"
+            >
+              {copied ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <ClipboardCopy className="h-4 w-4" />}
+              {copied ? "Copied!" : "Copy to clipboard"}
+            </button>
+            <button
+              onClick={downloadReport}
+              className="flex-1 inline-flex items-center justify-center gap-2 rounded-full bg-muted px-5 py-2.5 text-sm font-medium hover:bg-muted/80"
+            >
+              <Download className="h-4 w-4" />
+              Download .txt
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
