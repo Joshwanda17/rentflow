@@ -516,7 +516,7 @@ export default function ProfileCompletionGate() {
               <p className="text-[11px] xs:text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Who you are
               </p>
-              <div className="grid grid-cols-2 gap-2 xs:gap-2.5 sm:gap-3">
+              <div className="grid grid-cols-2 gap-3 xs:gap-3 sm:gap-3.5">
                 {QUICK_PERSONAS.map((p) => {
                   const selected = persona === p.value;
                   return (
