@@ -32,6 +32,14 @@ function getImportConcurrency(): number {
 
 let active = 0;
 const queue: Array<() => void> = [];
+const EmptyComponent = (() => null) as ComponentType<any>;
+
+function hasValidDefault<T extends ComponentType<any>>(
+  mod: { default?: T | null } | null | undefined,
+): mod is { default: T } {
+  const candidate = mod?.default;
+  return typeof candidate === "function" || typeof candidate === "object";
+}
 
 function next() {
   if (active >= getImportConcurrency()) return;
@@ -75,7 +83,11 @@ export function lazyWithRetry<T extends ComponentType<any>>(
     let lastErr: unknown;
     for (let i = 0; i <= retries; i++) {
       try {
-        return await queuedImport(factory);
+        const mod = await queuedImport(factory);
+        if (!hasValidDefault(mod)) {
+          throw new Error("Invalid lazy module: missing React default export");
+        }
+        return mod;
       } catch (e) {
         lastErr = e;
         // Linear backoff: 400ms, 800ms
@@ -83,5 +95,36 @@ export function lazyWithRetry<T extends ComponentType<any>>(
       }
     }
     throw lastErr;
+  });
+}
+
+/**
+ * Optional shell UI (install prompt, floating tools, toasters) must never trap
+ * iPhone users on a full-screen recovery page. If one optional chunk resolves
+ * badly on Safari, log it and render nothing so the core app can continue.
+ */
+export function optionalLazyWithRetry<T extends ComponentType<any>>(
+  factory: () => Promise<{ default?: T | null }>,
+  label: string,
+  retries = 2,
+) {
+  return lazy(async () => {
+    try {
+      let lastErr: unknown;
+      for (let i = 0; i <= retries; i++) {
+        try {
+          const mod = await queuedImport(factory);
+          if (hasValidDefault(mod)) return mod;
+          throw new Error(`Optional lazy module ${label} has no React default export`);
+        } catch (e) {
+          lastErr = e;
+          await new Promise((r) => setTimeout(r, 400 * (i + 1)));
+        }
+      }
+      throw lastErr;
+    } catch (error) {
+      console.warn(`[optionalLazyWithRetry] ${label} disabled:`, error);
+      return { default: EmptyComponent as T };
+    }
   });
 }
