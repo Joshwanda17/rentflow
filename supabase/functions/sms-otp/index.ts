@@ -294,6 +294,25 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (action === "status") {
+      // Lightweight poll endpoint: reports whether the SMS gateway accepted the
+      // most recent send for this phone. Never reflects carrier delivery.
+      const { data: statusRow } = await adminClient
+        .from("otp_verifications")
+        .select("send_status, send_status_reason, send_status_at")
+        .eq("phone", phoneKey)
+        .maybeSingle();
+
+      return new Response(
+        JSON.stringify({
+          status: statusRow?.send_status ?? "unknown",
+          reason: statusRow?.send_status_reason ?? null,
+          updated_at: statusRow?.send_status_at ?? null,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     if (action === "verify") {
       const otpCode = (body.otp as string || "").trim();
       if (!otpCode || otpCode.length !== 6) {
