@@ -210,17 +210,14 @@ function showErrorUI() {
   const btn = document.createElement('button');
   btn.textContent = 'Reload App';
   btn.onclick = async () => {
+    await purgeCachesAndServiceWorkers();
     try {
-      if ('caches' in window) {
-        const keys = await caches.keys();
-        await Promise.all(keys.map((k) => caches.delete(k)));
-      }
-      if ('serviceWorker' in navigator) {
-        const regs = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(regs.map((r) => r.unregister()));
-      }
-    } catch {}
-    location.reload();
+      const url = new URL(window.location.href);
+      url.searchParams.set('_v', Date.now().toString(36));
+      location.replace(url.toString());
+    } catch {
+      location.reload();
+    }
   };
   btn.style.cssText = 'padding:12px 24px;background:#7c3aed;color:white;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;min-height:44px';
 
