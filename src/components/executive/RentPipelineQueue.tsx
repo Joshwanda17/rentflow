@@ -209,6 +209,9 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
   // 'synced' | 'local' — tracks whether the current filter value is confirmed
   // on the server (synced) or only in localStorage (local).
   const [tenantSyncStatus, setTenantSyncStatus] = useState<'synced' | 'local'>('local');
+  // Timestamp of the last save (local or cloud) so the CFO knows how fresh the
+  // persisted filter value is.
+  const [tenantSyncAt, setTenantSyncAt] = useState<Date | null>(null);
 
   // Hydrate the selected tenant from the server so the filter follows the
   // CFO across devices/browsers, then mirror back into localStorage.
@@ -228,6 +231,7 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
         if (cloudValue) {
           setSelectedTenantId(cloudValue);
           setTenantSyncStatus('synced');
+          setTenantSyncAt(new Date());
           try {
             if (cloudValue === 'all') localStorage.removeItem('rentPipeline_selectedTenantId');
             else localStorage.setItem('rentPipeline_selectedTenantId', cloudValue);
@@ -252,6 +256,7 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
       if (selectedTenantId === 'all') localStorage.removeItem('rentPipeline_selectedTenantId');
       else localStorage.setItem('rentPipeline_selectedTenantId', selectedTenantId);
     } catch { /* noop */ }
+    setTenantSyncAt(new Date());
     // 2) Cloud sync — only when we have an authenticated user.
     if (!user?.id) return;
     (async () => {
@@ -840,11 +845,17 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
               <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
                 <Cloud className="h-3 w-3" />
                 Synced to account
+                {tenantSyncAt && (
+                  <span className="text-[9px] opacity-70">· {format(tenantSyncAt, 'HH:mm')}</span>
+                )}
               </span>
             ) : (
               <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
                 <HardDrive className="h-3 w-3" />
                 Saved locally
+                {tenantSyncAt && (
+                  <span className="text-[9px] opacity-70">· {format(tenantSyncAt, 'HH:mm')}</span>
+                )}
               </span>
             )}
           </div>
