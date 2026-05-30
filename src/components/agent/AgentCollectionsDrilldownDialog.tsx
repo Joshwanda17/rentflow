@@ -368,13 +368,16 @@ export function AgentCollectionsDrilldownDialog({
             </div>
             <ScrollArea className="max-h-[55vh]">
               <div className="p-4">
-                <TabsContent value="today" className="mt-0">
+                <TabsContent value="today" className="mt-0 space-y-3">
+                  <SummaryBar total={todayTotal} expectedDaily={expectedDaily} headroom={headroom} perTenantMax={perTenantMax} label="Today" />
                   <CollectionList groups={groupByTenant(todayRows, nameById)} />
                 </TabsContent>
-                <TabsContent value="yesterday" className="mt-0">
+                <TabsContent value="yesterday" className="mt-0 space-y-3">
+                  <SummaryBar total={yesterdayTotal} expectedDaily={expectedDaily} headroom={headroom} perTenantMax={perTenantMax} label="Yesterday" />
                   <CollectionList groups={groupByTenant(yesterdayRows, nameById)} />
                 </TabsContent>
-                <TabsContent value="range" className="mt-0">
+                <TabsContent value="range" className="mt-0 space-y-3">
+                  <SummaryBar total={rangeTotal} expectedDaily={expectedDaily} headroom={headroom} perTenantMax={perTenantMax} label="Range" />
                   <CollectionList groups={groupByTenant(filteredRows, nameById)} />
                 </TabsContent>
               </div>
