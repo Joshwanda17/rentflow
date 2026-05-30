@@ -206,6 +206,9 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
   // Guards the cloud-write effect so the initial localStorage value doesn't
   // overwrite a fresher cloud value before hydration completes.
   const hasTenantPrefHydratedRef = useRef(false);
+  // 'synced' | 'local' — tracks whether the current filter value is confirmed
+  // on the server (synced) or only in localStorage (local).
+  const [tenantSyncStatus, setTenantSyncStatus] = useState<'synced' | 'local'>('local');
 
   // Hydrate the selected tenant from the server so the filter follows the
   // CFO across devices/browsers, then mirror back into localStorage.
