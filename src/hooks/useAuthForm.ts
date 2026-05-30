@@ -823,7 +823,7 @@ export function useAuthForm() {
     // Duplicate check
     isDuplicate, isCheckingDuplicate, duplicateMessage,
     // OTP
-    otpSent, otpVerified, otpLoading, otpError,
+    otpSent, otpVerified, otpLoading, otpError, otpSendStatus,
     sendOtp, verifyOtp, resetOtp: resetOtpState,
     // SMS password reset
     resetStep, setResetStep,
