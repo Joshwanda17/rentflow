@@ -673,10 +673,10 @@ export default function Auth() {
                       <p className="text-base font-semibold text-foreground">Enter your phone number</p>
                       <p className="text-sm text-muted-foreground mt-0.5">We will send you a 6-digit code</p>
                     </div>
-                    <div className="relative flex">
-                      <CountryCodeSelect value={otpLoginCountryCode} onChange={setOtpLoginCountryCode} triggerClassName="h-16 text-lg" />
-                      <div className="relative flex-1">
-                        <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 h-6 w-6 text-muted-foreground" />
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-6 w-6 text-muted-foreground shrink-0" />
+                      <div className="relative flex flex-1">
+                        <CountryCodeSelect value={otpLoginCountryCode} onChange={setOtpLoginCountryCode} triggerClassName="h-16 text-lg" />
                         <Input
                           type="tel"
                           inputMode="tel"
@@ -684,7 +684,7 @@ export default function Auth() {
                           value={otpLoginPhone}
                           onChange={(e) => setOtpLoginPhone(e.target.value)}
                           placeholder="700 123 456"
-                          className="pl-12 h-16 text-lg rounded-xl rounded-l-none"
+                          className="flex-1 h-16 text-lg rounded-xl rounded-l-none"
                           style={{ fontSize: '16px' }}
                           autoFocus
                         />
