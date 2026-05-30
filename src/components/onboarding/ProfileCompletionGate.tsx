@@ -373,26 +373,33 @@ export default function ProfileCompletionGate() {
     }
   };
 
-  if (!enabled || !open || dismissed) return null;
+  if (!enabled || !open || (dismissed && !editMode)) return null;
+
+  // In edit mode the dialog is freely dismissable; the mandatory gate is not.
+  const closeEditor = () => setEditMode(false);
 
   return (
-    <Dialog open={open}>
+    <Dialog open={open} onOpenChange={(o) => { if (!o && editMode) closeEditor(); }}>
       <DialogContent
-        // Block all dismissal channels — this gate is mandatory.
-        onPointerDownOutside={(e) => e.preventDefault()}
-        onEscapeKeyDown={(e) => e.preventDefault()}
-        onInteractOutside={(e) => e.preventDefault()}
+        // Mandatory gate blocks all dismissal; edit mode allows it.
+        onPointerDownOutside={(e) => { if (!editMode) e.preventDefault(); }}
+        onEscapeKeyDown={(e) => { if (!editMode) e.preventDefault(); }}
+        onInteractOutside={(e) => { if (!editMode) e.preventDefault(); }}
         className="sm:max-w-lg max-h-[90vh] overflow-y-auto [&>button]:hidden"
       >
         <button
           type="button"
           onClick={() => {
+            if (editMode) {
+              closeEditor();
+              return;
+            }
             setDismissed(true);
             toast.message("We'll remind you next time", {
               description: "Finish your profile to unlock the right agent and listings.",
             });
           }}
-          aria-label="Close and remind me later"
+          aria-label={editMode ? "Close" : "Close and remind me later"}
           className="absolute right-3 top-3 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <X className="h-4 w-4" />
@@ -400,11 +407,12 @@ export default function ProfileCompletionGate() {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MapPin className="h-5 w-5 text-primary" />
-            Complete your profile
+            {editMode ? "Edit your profile" : "Complete your profile"}
           </DialogTitle>
           <DialogDescription>
-            Step {step} of 3 — this takes about a minute and unlocks the
-            right agent, listings, and reports for your area.
+            Step {step} of 3 — {editMode
+              ? "update your location, role, or referring agent."
+              : "this takes about a minute and unlocks the right agent, listings, and reports for your area."}
           </DialogDescription>
         </DialogHeader>
 
