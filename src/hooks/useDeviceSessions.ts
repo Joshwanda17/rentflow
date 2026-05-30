@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 const DEVICE_ID_KEY = 'welile_device_id';
+const DEVICE_LABEL_KEY = 'welile_device_label';
 // A device is considered "active" if seen within this window
 const ACTIVE_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 // Heartbeat interval — keep lean for scale
@@ -33,6 +34,13 @@ function getDeviceId(): string {
 
 /** Best-effort human-friendly device label from the user agent. */
 function getDeviceLabel(): string {
+  // A user-chosen name always wins over the auto-detected one.
+  try {
+    const custom = localStorage.getItem(DEVICE_LABEL_KEY);
+    if (custom && custom.trim()) return custom.trim();
+  } catch {
+    /* ignore */
+  }
   const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
   let os = 'Unknown device';
   if (/Android/i.test(ua)) os = 'Android';
