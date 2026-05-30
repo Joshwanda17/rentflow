@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAgentCapacityMap, DAILY_ELIGIBILITY_THRESHOLD } from '@/hooks/useAgentCapacityMap';
 import { formatUGX } from '@/lib/rentCalculations';
-import { TrendingUp, TrendingDown, Minus, Layers, Target, CheckCircle2, Lock, Loader2, ChevronRight, Share2, Send } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Layers, Target, CheckCircle2, Lock, Loader2, ChevronRight, Share2, Send, Download } from 'lucide-react';
 import { AgentCollectionsDrilldownDialog } from './AgentCollectionsDrilldownDialog';
 import { AgentCapacityShareCard } from './AgentCapacityShareCard';
 import { hapticTap } from '@/lib/haptics';
@@ -85,15 +85,39 @@ export function AgentCapacityBreakdownPanel() {
     setPreviewOpen(true);
   };
 
+  const generatePng = async () => {
+    if (!shareCardRef.current) throw new Error('No card ref');
+    return toPng(shareCardRef.current, {
+      pixelRatio: 2,
+      cacheBust: true,
+      skipFonts: true,
+    });
+  };
+
+  const downloadPng = async () => {
+    if (!shareCardRef.current || sharing) return;
+    setSharing(true);
+    try {
+      const dataUrl = await generatePng();
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = `welile-capacity-${Date.now()}.png`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success('Image downloaded');
+    } catch (err) {
+      toast.error('Could not generate the image. Please try again.');
+    } finally {
+      setSharing(false);
+    }
+  };
+
   const doShare = async () => {
     if (!shareCardRef.current || sharing) return;
     setSharing(true);
     try {
-      const dataUrl = await toPng(shareCardRef.current, {
-        pixelRatio: 2,
-        cacheBust: true,
-        skipFonts: true,
-      });
+      const dataUrl = await generatePng();
       const res = await fetch(dataUrl);
       const blob = await res.blob();
       const file = new File([blob], `welile-capacity-${Date.now()}.png`, { type: 'image/png' });
@@ -279,15 +303,26 @@ export function AgentCapacityBreakdownPanel() {
               />
             </div>
 
-            <button
-              type="button"
-              onClick={doShare}
-              disabled={sharing}
-              className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-700 transition-colors disabled:opacity-60"
-            >
-              {sharing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              {sharing ? 'Generating…' : 'Send to WhatsApp'}
-            </button>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={doShare}
+                disabled={sharing}
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-700 transition-colors disabled:opacity-60"
+              >
+                {sharing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                {sharing ? 'Generating…' : 'Send to WhatsApp'}
+              </button>
+              <button
+                type="button"
+                onClick={downloadPng}
+                disabled={sharing}
+                className="w-full flex items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 py-3 text-sm font-bold text-foreground hover:bg-muted transition-colors disabled:opacity-60"
+              >
+                {sharing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                Download PNG
+              </button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
