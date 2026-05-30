@@ -12,6 +12,10 @@ export interface AgentInactivationRow {
   agent_name: string | null;
   reason: string | null;
   marked_at: string;
+  review_status: 'open' | 'acknowledged' | 'resolved' | string;
+  review_notes: string | null;
+  acknowledged_at: string | null;
+  reviewer_name: string | null;
 }
 
 /**
