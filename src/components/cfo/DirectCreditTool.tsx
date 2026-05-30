@@ -21,6 +21,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { UserSearchPicker } from './UserSearchPicker';
+import { Checkbox } from '@/components/ui/checkbox';
 import { TreasuryImpactBanner } from './TreasuryImpactBanner';
 import { RecipientRoutingWarningBanner } from './RecipientRoutingWarningBanner';
 import { RentDisbursementQueue } from './RentDisbursementQueue';
@@ -325,6 +326,7 @@ export function DirectCreditTool() {
   // Float (Operational Wallet) sends require an explicit confirmation step —
   // no transaction ID is collected, the CFO simply confirms the float movement.
   const [floatConfirmOpen, setFloatConfirmOpen] = useState(false);
+  const [floatApproved, setFloatApproved] = useState(false);
 
   // ── Expense-Only Withdrawal state ──────────────────────────────────
   // Used when operation === 'withdraw'. Captures HOW the company is
@@ -1108,6 +1110,7 @@ export function DirectCreditTool() {
                 // Float (Operational Wallet) credits — e.g. Agent Float / Rent
                 // Disbursement — need no transaction ID, just an explicit confirm.
                 if (isCredit && recipientType === 'operational_wallet') {
+                  setFloatApproved(false);
                   setFloatConfirmOpen(true);
                   return;
                 }
@@ -1135,6 +1138,17 @@ export function DirectCreditTool() {
                       <p className="text-muted-foreground">
                         No transaction ID is required for float transfers — just confirm to post the movement.
                       </p>
+                      <label className="flex items-start gap-2 rounded-md border border-border p-3 mt-2 cursor-pointer">
+                        <Checkbox
+                          checked={floatApproved}
+                          onCheckedChange={(v) => setFloatApproved(v === true)}
+                          disabled={mutation.isPending}
+                          className="mt-0.5"
+                        />
+                        <span className="text-foreground">
+                          I explicitly approve posting this float credit without a transaction ID.
+                        </span>
+                      </label>
                     </div>
                   </AlertDialogDescription>
                 </AlertDialogHeader>
@@ -1146,7 +1160,7 @@ export function DirectCreditTool() {
                       e.preventDefault();
                       mutation.mutate(undefined, { onSettled: () => setFloatConfirmOpen(false) });
                     }}
-                    disabled={mutation.isPending}
+                    disabled={mutation.isPending || !floatApproved}
                   >
                     {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                     Confirm transfer
