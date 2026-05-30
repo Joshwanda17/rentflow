@@ -464,14 +464,35 @@ export default function Auth() {
                   </Button>
                 )}
 
-                {/* Alternative login methods — subtle links */}
-                <div className="flex items-center justify-center gap-4 pt-2">
-                  <button type="button" onClick={() => setLoginMode('email')} className="text-sm text-muted-foreground hover:text-primary transition-colors py-1">
-                    Use email instead
+                {/* Alternative login methods */}
+                <div className="pt-2 space-y-2">
+                  {/* Prominent SMS code login card */}
+                  <button
+                    type="button"
+                    onClick={() => setLoginMode('otp')}
+                    className={cn(
+                      "w-full flex items-center gap-4 p-4 rounded-xl text-left transition-all duration-150",
+                      "bg-card border border-border/60 shadow-sm",
+                      "hover:shadow-md hover:border-primary/30 active:scale-[0.98]",
+                      "touch-manipulation"
+                    )}
+                  >
+                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                      <Smartphone className="h-6 w-6 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-foreground text-sm">Log in with SMS code</p>
+                      <p className="text-xs text-muted-foreground">Get a one-time code sent to your phone — no password needed</p>
+                    </div>
+                    <ArrowRight className="h-5 w-5 text-muted-foreground/40 shrink-0" />
                   </button>
-                  <span className="text-border">•</span>
-                  <button type="button" onClick={() => setLoginMode('otp')} className="text-sm text-muted-foreground hover:text-primary transition-colors py-1">
-                    SMS code login
+
+                  <button
+                    type="button"
+                    onClick={() => setLoginMode('email')}
+                    className="w-full text-sm text-muted-foreground hover:text-primary transition-colors py-1 text-center"
+                  >
+                    Use email & password instead
                   </button>
                 </div>
               </div>
