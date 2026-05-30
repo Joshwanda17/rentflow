@@ -373,11 +373,13 @@ export function AgentLandlordPayoutFlow({ open, onOpenChange }: AgentLandlordPay
                 <Input
                   value={transactionId}
                   onChange={e => setTransactionId(e.target.value)}
-                  placeholder="Not required for float payouts"
+                  placeholder="Auto-filled — not required"
                   className="font-mono"
                   disabled
                 />
-                <p className="text-[10px] text-muted-foreground">No transaction ID is required when paying the landlord from float.</p>
+                <p className="text-[10px] text-muted-foreground">
+                  Not needed — this payment is drawn directly from your landlord float (operational wallet), not from a fresh Mobile Money send. The float was already funded and verified when it was transferred to you.
+                </p>
               </div>
 
               <Button
