@@ -326,6 +326,7 @@ export function DirectCreditTool() {
   // Float (Operational Wallet) sends require an explicit confirmation step —
   // no transaction ID is collected, the CFO simply confirms the float movement.
   const [floatConfirmOpen, setFloatConfirmOpen] = useState(false);
+  const [floatApproved, setFloatApproved] = useState(false);
 
   // ── Expense-Only Withdrawal state ──────────────────────────────────
   // Used when operation === 'withdraw'. Captures HOW the company is
