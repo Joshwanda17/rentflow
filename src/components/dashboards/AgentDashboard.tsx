@@ -751,6 +751,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 Add Tenant
               </Button>
             </div>
+            <AgentCapacityShareInline />
             <AgentTenantInlineList
               onOpenTenantSheet={() => setTenantsSheetOpen(true)}
               onAddTenant={() => setRentRequestOpen(true)}
