@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useRef, useState } from "react";
 
-declare const __BUILD_TIME__: number;
+declare const __CACHE_VERSION__: string;
 
 const CACHE_NAME = 'welile-v11';
 
@@ -168,15 +168,15 @@ export function useServiceWorkerUpdate() {
     window.addEventListener("online", onOnline);
 
     // Check for version mismatch on load (for cross-tab/device updates)
-    const storedBuildTime = localStorage.getItem("welile_build_time");
-    const currentBuildTime = String(__BUILD_TIME__);
+    const storedCacheVersion = localStorage.getItem("welile_cache_version");
+    const currentCacheVersion = __CACHE_VERSION__;
     
-    if (storedBuildTime && storedBuildTime !== currentBuildTime) {
-      console.log('[SW Update] Build time mismatch detected — prompting user.');
-      localStorage.setItem("welile_build_time", currentBuildTime);
+    if (storedCacheVersion && storedCacheVersion !== currentCacheVersion) {
+      console.log('[SW Update] Cache version mismatch detected — prompting user.');
+      localStorage.setItem("welile_cache_version", currentCacheVersion);
       flagUpdateReady();
     } else {
-      localStorage.setItem("welile_build_time", currentBuildTime);
+      localStorage.setItem("welile_cache_version", currentCacheVersion);
     }
 
     return () => {

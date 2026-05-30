@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { isCriticalFlowActive } from '@/lib/criticalFlowGuard';
 
-declare const __BUILD_TIME__: number;
+declare const __CACHE_VERSION__: string;
 
 /**
  * Mobile PWA Cache Invalidation Hook - Works on iOS AND Android
@@ -111,10 +111,10 @@ export function useIOSCacheInvalidation() {
   // Check for app version changes
   const checkVersionMismatch = useCallback(() => {
     try {
-      const storedBuildTime = localStorage.getItem('ios_build_time');
-      const currentBuildTime = String(__BUILD_TIME__);
+      const storedCacheVersion = localStorage.getItem('ios_cache_version');
+      const currentCacheVersion = __CACHE_VERSION__;
       
-      if (storedBuildTime && storedBuildTime !== currentBuildTime) {
+      if (storedCacheVersion && storedCacheVersion !== currentCacheVersion) {
         console.log('[iOS Cache] Version mismatch detected - clearing all caches');
         
         // Clear React Query cache
@@ -140,11 +140,11 @@ export function useIOSCacheInvalidation() {
           }
         });
         
-        localStorage.setItem('ios_build_time', currentBuildTime);
+        localStorage.setItem('ios_cache_version', currentCacheVersion);
         return true;
       }
       
-      localStorage.setItem('ios_build_time', currentBuildTime);
+      localStorage.setItem('ios_cache_version', currentCacheVersion);
       return false;
     } catch (e) {
       console.error('[iOS Cache] Version check error:', e);
