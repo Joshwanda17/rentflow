@@ -121,7 +121,7 @@ export function useProfile() {
 
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, full_name, email, phone, avatar_url, verified, is_frozen, frozen_reason, territory, is_seller, seller_application_status')
+      .select(PROFILE_COLUMNS)
       .eq('id', user.id)
       .maybeSingle();
 
@@ -133,6 +133,15 @@ export function useProfile() {
       await cacheProfile(data);
     }
   }, [user]);
+
+  // Re-hydrate the system-wide profile from the server when the device
+  // reconnects — covers device switches and resuming after an offline gap.
+  useEffect(() => {
+    if (!user) return;
+    const onOnline = () => { refreshProfile(); };
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, [user, refreshProfile]);
 
   return { profile, loading, refreshProfile, isOfflineData };
 }
