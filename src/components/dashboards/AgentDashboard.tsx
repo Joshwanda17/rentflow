@@ -614,6 +614,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
             <AgentPriorityGrid
               agentId={user.id}
+              withdrawable={realWithdrawableBalance}
+              onOpenWallet={() => { hapticTap(); setShowWallet(true); }}
               onOpenFieldCollect={() => setFieldCollectOpen(true)}
               onOpenNewTenant={() => setRentRequestOpen(true)}
               onOpenListHouse={() => setListHouseOpen(true)}

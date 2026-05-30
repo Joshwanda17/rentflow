@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { ArrowRight, CloudUpload, WifiOff, UserPlus, Wallet, Home as HomeIcon, Sparkles } from 'lucide-react';
+import { ArrowRight, CloudUpload, WifiOff, UserPlus, Wallet, HandCoins, Home as HomeIcon, Sparkles } from 'lucide-react';
 import { useProfile } from '@/hooks/useProfile';
 import { formatUGX } from '@/lib/rentCalculations';
 import { hapticTap } from '@/lib/haptics';
