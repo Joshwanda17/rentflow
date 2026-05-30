@@ -149,7 +149,6 @@ export function AgentLandlordPayoutFlow({ open, onOpenChange }: AgentLandlordPay
     mutationFn: async () => {
       if (!user || !selectedRequest || !gps) throw new Error('Missing data');
       if (photos.length === 0) throw new Error('Please add at least one receipt photo');
-      if (!transactionId.trim()) throw new Error('Please enter the transaction ID');
 
       const payoutAmount = selectedRequest.rent_amount;
 
