@@ -22,6 +22,8 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { UGANDA_DISTRICTS } from "@/lib/ugandaDistricts";
+import { CountryCombobox } from "@/components/ui/country-combobox";
+import { continentForCountry } from "@/lib/worldCountries";
 
 /**
  * Continents — used when the user is outside Uganda. Kept short and
@@ -35,31 +37,6 @@ const CONTINENTS = [
   "South America",
   "Oceania",
   "Antarctica",
-] as const;
-
-/**
- * Country list — Uganda first (cascading dropdowns kick in for it),
- * then a curated set of common countries; users elsewhere pick "Other"
- * and type their country name.
- */
-const COUNTRIES = [
-  { name: "Uganda", continent: "Africa" },
-  { name: "Kenya", continent: "Africa" },
-  { name: "Tanzania", continent: "Africa" },
-  { name: "Rwanda", continent: "Africa" },
-  { name: "Burundi", continent: "Africa" },
-  { name: "South Sudan", continent: "Africa" },
-  { name: "DR Congo", continent: "Africa" },
-  { name: "Ethiopia", continent: "Africa" },
-  { name: "Nigeria", continent: "Africa" },
-  { name: "South Africa", continent: "Africa" },
-  { name: "United Kingdom", continent: "Europe" },
-  { name: "United States", continent: "North America" },
-  { name: "Canada", continent: "North America" },
-  { name: "United Arab Emirates", continent: "Asia" },
-  { name: "India", continent: "Asia" },
-  { name: "China", continent: "Asia" },
-  { name: "Other", continent: "" },
 ] as const;
 
 const PERSONAS = [
@@ -138,7 +115,6 @@ export default function ProfileCompletionGate() {
   // Address state
   const [continent, setContinent] = useState("");
   const [country, setCountry] = useState("");
-  const [countryOther, setCountryOther] = useState("");
   const [region, setRegion] = useState("");
   const [district, setDistrict] = useState("");
   const [city, setCity] = useState("");
@@ -167,9 +143,7 @@ export default function ProfileCompletionGate() {
   useEffect(() => {
     if (!profile) return;
     setContinent(profile.continent ?? "");
-    const known = COUNTRIES.find((c) => c.name === profile.country);
-    setCountry(known ? known.name : profile.country ? "Other" : "");
-    setCountryOther(known ? "" : profile.country ?? "");
+    setCountry(profile.country ?? "");
     setRegion(profile.region ?? "");
     setDistrict(profile.district ?? "");
     setCity(profile.city ?? "");
@@ -183,12 +157,12 @@ export default function ProfileCompletionGate() {
 
   // Auto-derive continent from country selection if not yet set
   useEffect(() => {
-    const known = COUNTRIES.find((c) => c.name === country);
-    if (known && known.continent) setContinent(known.continent);
+    const cont = continentForCountry(country);
+    if (cont) setContinent(cont);
   }, [country]);
 
   const isUganda = country === "Uganda";
-  const resolvedCountry = country === "Other" ? countryOther.trim() : country;
+  const resolvedCountry = country.trim();
 
   // Existing referrer (locked attribution) — show their name
   const { data: existingReferrer } = useQuery({
@@ -370,28 +344,9 @@ export default function ProfileCompletionGate() {
               </div>
               <div className="space-y-1.5">
                 <Label>Country <span className="text-destructive">*</span></Label>
-                <Select value={country} onValueChange={setCountry}>
-                  <SelectTrigger><SelectValue placeholder="Select country" /></SelectTrigger>
-                  <SelectContent>
-                    {COUNTRIES.map((c) => (
-                      <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <CountryCombobox value={country} onChange={setCountry} />
               </div>
             </div>
-
-            {country === "Other" && (
-              <div className="space-y-1.5">
-                <Label>Country name</Label>
-                <Input
-                  value={countryOther}
-                  onChange={(e) => setCountryOther(e.target.value)}
-                  placeholder="Type your country"
-                  maxLength={60}
-                />
-              </div>
-            )}
 
             {isUganda ? (
               <>
