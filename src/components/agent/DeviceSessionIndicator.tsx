@@ -59,7 +59,6 @@ function DeviceRow({
     if (!trimmed || trimmed.length > 40 || trimmed === session.device_label) return;
 
     const id = window.setTimeout(() => {
-      setSaving(true);
       onRename(session.device_id, trimmed);
       setEditing(false);
     }, 700);
