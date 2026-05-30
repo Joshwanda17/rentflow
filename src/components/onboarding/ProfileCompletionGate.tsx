@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, MapPin, RotateCcw, User as UserIcon, UserCheck, Lock, Search, X } from "lucide-react";
+import { Loader2, MapPin, RotateCcw, User as UserIcon, UserCheck, Lock, Search, X, Navigation, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,6 +48,20 @@ const PERSONAS = [
   { value: "partner", label: "Partner — I run an investing institution" },
   { value: "staff", label: "Welile staff" },
   { value: "other", label: "Other" },
+] as const;
+
+/**
+ * Picture-first role choices for the Quick setup screen. Designed for
+ * smartphone users who don't want to read long labels — big emoji + a
+ * two/three-word caption, tapped not typed.
+ */
+const QUICK_PERSONAS = [
+  { value: "tenant", emoji: "🏠", label: "I rent a home" },
+  { value: "landlord", emoji: "🔑", label: "I own a house" },
+  { value: "funder", emoji: "💰", label: "I fund rent" },
+  { value: "agent", emoji: "🚶", label: "I collect rent" },
+  { value: "partner", emoji: "🏢", label: "Institution" },
+  { value: "other", emoji: "👤", label: "Other" },
 ] as const;
 
 type ProfileRow = {
