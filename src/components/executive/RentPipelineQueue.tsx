@@ -192,6 +192,8 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
   const [landlordCallNotes, setLandlordCallNotes] = useState('');
   // COO bulk approval state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // Agent profile drilldown
+  const [drilldownAgentId, setDrilldownAgentId] = useState<string | null>(null);
 
   const startEditing = useCallback((field: string, currentValue: any) => {
     setEditingField(field);
