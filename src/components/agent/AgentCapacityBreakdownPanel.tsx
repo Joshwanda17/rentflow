@@ -1,8 +1,10 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAgentCapacityMap, DAILY_ELIGIBILITY_THRESHOLD } from '@/hooks/useAgentCapacityMap';
 import { formatUGX } from '@/lib/rentCalculations';
-import { TrendingUp, TrendingDown, Minus, Layers, Target, CheckCircle2, Lock, Loader2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Layers, Target, CheckCircle2, Lock, Loader2, ChevronRight } from 'lucide-react';
+import { AgentCollectionsDrilldownDialog } from './AgentCollectionsDrilldownDialog';
+import { hapticTap } from '@/lib/haptics';
 
 /**
  * Plain-English breakdown panel shown directly under "My Rent-Request Capacity".
@@ -17,6 +19,7 @@ export function AgentCapacityBreakdownPanel() {
   const ids = useMemo(() => (user?.id ? [user.id] : []), [user?.id]);
   const { data, isLoading } = useAgentCapacityMap(ids);
   const cap = user?.id ? data?.get(user.id) : undefined;
+  const [drilldownOpen, setDrilldownOpen] = useState(false);
 
   if (!user?.id) return null;
 
@@ -63,10 +66,19 @@ export function AgentCapacityBreakdownPanel() {
       </div>
 
       {/* 1. Collected today vs target */}
-      <div className="rounded-xl border border-border bg-background/70 p-3">
-        <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">
-          <Target className="h-4 w-4 text-primary" />
-          Collected today vs target
+      <button
+        type="button"
+        onClick={() => { hapticTap(); setDrilldownOpen(true); }}
+        className="w-full text-left rounded-xl border border-border bg-background/70 p-3 hover:bg-muted/50 transition-colors"
+      >
+        <div className="flex items-center justify-between gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <Target className="h-4 w-4 text-primary" />
+            Collected today vs target
+          </span>
+          <span className="flex items-center gap-0.5 text-primary normal-case tracking-normal font-semibold">
+            View tenants <ChevronRight className="h-3.5 w-3.5" />
+          </span>
         </div>
         <div className="mt-1 text-base font-extrabold tabular-nums text-foreground">
           {formatUGX(cap.paid_today)}
@@ -79,12 +91,19 @@ export function AgentCapacityBreakdownPanel() {
           {todayPct}% of today&apos;s target
           {remainingUGX > 0 && <> · <strong className="text-foreground">{formatUGX(remainingUGX)}</strong> still to go</>}
         </p>
-      </div>
+      </button>
 
       {/* 2. Yesterday comparison + 3. Remaining slots */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="rounded-xl border border-border bg-background/70 p-3">
-          <div className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Vs yesterday</div>
+        <button
+          type="button"
+          onClick={() => { hapticTap(); setDrilldownOpen(true); }}
+          className="w-full text-left rounded-xl border border-border bg-background/70 p-3 hover:bg-muted/50 transition-colors"
+        >
+          <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wide text-muted-foreground">
+            <span>Vs yesterday</span>
+            <ChevronRight className="h-3.5 w-3.5 text-primary" />
+          </div>
           <div className="mt-1 text-base font-extrabold tabular-nums text-foreground">
             {formatUGX(cap.paid_yesterday)}
           </div>
@@ -92,7 +111,7 @@ export function AgentCapacityBreakdownPanel() {
             <TrendIcon className="h-4 w-4 shrink-0" />
             <span>{trendLabel}</span>
           </div>
-        </div>
+        </button>
         <div className="rounded-xl border border-border bg-background/70 p-3">
           <div className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Remaining slots</div>
           <div className="mt-1 text-base font-extrabold tabular-nums text-foreground">
@@ -131,6 +150,12 @@ export function AgentCapacityBreakdownPanel() {
           </>
         )}
       </div>
+
+      <AgentCollectionsDrilldownDialog
+        open={drilldownOpen}
+        onOpenChange={setDrilldownOpen}
+        agentId={user.id}
+      />
     </div>
   );
 }
