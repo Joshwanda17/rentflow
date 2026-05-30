@@ -16985,6 +16985,10 @@ export type Database = {
         Args: { p_collection_id: string; p_reason: string }
         Returns: Json
       }
+      agent_set_own_contact_email: {
+        Args: { p_email: string }
+        Returns: string
+      }
       agent_set_rent_payment_status: {
         Args: { p_reason: string; p_rent_request_id: string; p_status: string }
         Returns: {
