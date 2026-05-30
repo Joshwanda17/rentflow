@@ -86,6 +86,7 @@ const ManagerAccess = lazy(() => import('./pages/ManagerAccess'));
 const BecomeSupporter = lazy(() => import('./pages/BecomeSupporter'));
 const DepositsManagement = lazy(() => import('./pages/DepositsManagement'));
 const Install = lazy(() => import('./pages/Install'));
+const Diagnostics = lazy(() => import('./pages/Diagnostics'));
 const ActivateSupporter = lazy(() => import('./pages/ActivateSupporter'));
 // Chat feature removed
 const AgentRegistrations = lazy(() => import('./pages/AgentRegistrations'));
@@ -358,6 +359,7 @@ function AppRoutes() {
           <Route path="/vendor-portal" element={<VendorPortal />} />
           <Route path="/deposits-management" element={<DepositsManagement />} />
           <Route path="/install" element={<Install />} />
+          <Route path="/diagnostics" element={<Diagnostics />} />
           <Route path="/activate-supporter" element={<ActivateSupporter />} />
           {/* Chat feature removed */}
           <Route path="/agent-registrations" element={<AgentRegistrations />} />
