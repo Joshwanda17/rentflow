@@ -94,7 +94,7 @@ function DeviceRow({
             size="sm"
             variant="ghost"
             className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-            title="Rename device"
+            aria-label="Rename device"
             onClick={() => {
               setDraft(session.device_label ?? '');
               setEditing(true);
@@ -107,7 +107,7 @@ function DeviceRow({
               size="sm"
               variant="ghost"
               className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
-              title="Sign out this device"
+              aria-label="Sign out this device"
               onClick={() => onSignOut(session.device_id)}
             >
               <LogOut className="h-4 w-4" />
