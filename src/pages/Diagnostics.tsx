@@ -223,6 +223,8 @@ export default function Diagnostics() {
   const [attempts, setAttempts] = useState(0);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const reportRef = useRef<string>("");
 
   const run = useCallback(async () => {
     setLoading(true);
