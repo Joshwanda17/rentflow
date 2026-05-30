@@ -674,7 +674,7 @@ export default function ProfileCompletionGate() {
         )}
 
         {step === 2 && (
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div className="space-y-1.5">
               <Label className="flex items-center gap-1.5">
                 <UserIcon className="h-4 w-4" />
@@ -711,7 +711,7 @@ export default function ProfileCompletionGate() {
         )}
 
         {step === 3 && (
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div className="rounded-xl border bg-muted/30 p-3 space-y-1.5">
               <p className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                 <Lock className="h-3.5 w-3.5" /> Agent on file
