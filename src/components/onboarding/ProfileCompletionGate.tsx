@@ -664,7 +664,7 @@ export default function ProfileCompletionGate() {
               </Button>
               <Button onClick={handleSubmit} disabled={submitting || !step3Valid}>
                 {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                Save & continue
+                {editMode ? "Save changes" : "Save & continue"}
               </Button>
             </div>
           </div>
