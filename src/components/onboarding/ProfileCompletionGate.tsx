@@ -312,7 +312,7 @@ export default function ProfileCompletionGate() {
       void supabase
         .from("profile_drafts")
         .upsert(
-          { user_id: user.id, draft: payload as unknown as Record<string, unknown> },
+          { user_id: user.id, draft: payload as any },
           { onConflict: "user_id" },
         )
         .then(() => setDraftSyncing(false), () => setDraftSyncing(false));
