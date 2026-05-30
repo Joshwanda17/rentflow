@@ -739,7 +739,7 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
           </div>
         )}
         <div className="flex flex-col sm:flex-row gap-2 mt-2">
-          <Select value={selectedTenantId} onValueChange={setSelectedTenantId}>
+          <Select value={selectedTenantId} onValueChange={v => { setSelectedTenantId(v); try { localStorage.setItem('rentPipeline_selectedTenantId', v); } catch {} }}>
             <SelectTrigger className="h-9 text-sm sm:w-[260px]">
               <User className="h-3.5 w-3.5 mr-1 text-muted-foreground shrink-0" />
               <SelectValue placeholder="Choose a tenant to fund" />
