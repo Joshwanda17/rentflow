@@ -152,34 +152,34 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-3">
           <button
             onClick={() => setActiveFilter('all')}
-            className={`py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+            className={`py-4 rounded-2xl text-base font-bold transition-all flex items-center justify-center gap-2 ${
               activeFilter === 'all'
                 ? 'bg-background shadow-sm text-foreground border-2 border-primary/30'
                 : 'text-muted-foreground bg-muted/50'
             }`}
-            style={{ touchAction: 'manipulation', minHeight: '52px' }}
+            style={{ touchAction: 'manipulation', minHeight: '64px' }}
           >
-            <Users className="h-4 w-4" />
+            <Users className="h-5 w-5" />
             All
-            <span className="text-xs font-mono px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground">
+            <span className="text-sm font-mono px-2 py-0.5 rounded-md bg-muted text-muted-foreground">
               {tenants.length}
             </span>
           </button>
           <button
             onClick={() => setActiveFilter('owing')}
-            className={`py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+            className={`py-4 rounded-2xl text-base font-bold transition-all flex items-center justify-center gap-2 ${
               activeFilter === 'owing'
                 ? 'bg-rose-50 shadow-sm text-rose-700 border-2 border-rose-300'
                 : 'text-muted-foreground bg-muted/50'
             }`}
-            style={{ touchAction: 'manipulation', minHeight: '52px' }}
+            style={{ touchAction: 'manipulation', minHeight: '64px' }}
           >
-            <AlertCircle className="h-4 w-4" />
+            <AlertCircle className="h-5 w-5" />
             Owing
-            <span className="text-xs font-mono px-1.5 py-0.5 rounded-md bg-rose-100 text-rose-700">
+            <span className="text-sm font-mono px-2 py-0.5 rounded-md bg-rose-100 text-rose-700">
               {owingCount}
             </span>
           </button>
@@ -187,23 +187,23 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
       </div>
 
       {/* Tenant List */}
-      <div className="space-y-3">
+      <div className="space-y-4">
         {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         ) : processed.length === 0 ? (
-          <div className="text-center py-12 space-y-4">
-            <Users className="h-12 w-12 mx-auto text-muted-foreground/30" />
-            <p className="text-sm text-muted-foreground">
+          <div className="text-center py-16 space-y-5">
+            <Users className="h-16 w-16 mx-auto text-muted-foreground/30" />
+            <p className="text-base text-muted-foreground">
               {search ? `No results for "${search}"` : activeFilter === 'owing' ? 'No tenants owing' : 'No tenants yet'}
             </p>
             {!search && (
               <Button
                 onClick={onAddTenant}
-                className="h-12 px-6 text-base font-bold rounded-2xl gap-2"
+                className="h-14 px-8 text-lg font-bold rounded-2xl gap-2"
               >
-                <UserPlus className="h-5 w-5" />
+                <UserPlus className="h-6 w-6" />
                 Add Tenant
               </Button>
             )}
@@ -217,32 +217,32 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
               <button
                 key={tenant.id}
                 onClick={onOpenTenantSheet}
-                className="w-full flex items-center gap-4 p-4 rounded-2xl bg-card border border-border/60 active:scale-[0.98] transition-all text-left touch-manipulation shadow-sm hover:shadow-md"
-                style={{ touchAction: 'manipulation', minHeight: '80px' }}
+                className="w-full flex items-center gap-5 p-5 rounded-3xl bg-card border-2 border-border/60 active:scale-[0.97] transition-all text-left touch-manipulation shadow-sm hover:shadow-md"
+                style={{ touchAction: 'manipulation', minHeight: '104px' }}
               >
                 <div
-                  className={`w-14 h-14 rounded-full flex items-center justify-center shrink-0 text-xl font-bold ${
+                  className={`w-16 h-16 rounded-full flex items-center justify-center shrink-0 text-2xl font-bold ${
                     hasDebt ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
                   }`}
                 >
                   {initial}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-base truncate">
+                  <p className="font-bold text-lg truncate">
                     {tenant.full_name?.trim() || 'Tenant'}
                   </p>
                   {tenant.phone && (
-                    <p className="text-sm text-muted-foreground flex items-center gap-1 truncate mt-0.5">
-                      <Phone className="h-3.5 w-3.5 shrink-0" />
+                    <p className="text-base text-muted-foreground flex items-center gap-1.5 truncate mt-1">
+                      <Phone className="h-4 w-4 shrink-0" />
                       {tenant.phone}
                     </p>
                   )}
                 </div>
                 <div className="text-right shrink-0">
-                  <p className={`text-xs font-bold uppercase tracking-wide ${hasDebt ? 'text-rose-600' : 'text-emerald-600'}`}>
+                  <p className={`text-sm font-bold uppercase tracking-wide ${hasDebt ? 'text-rose-600' : 'text-emerald-600'}`}>
                     {hasDebt ? 'Owing' : 'Paid up'}
                   </p>
-                  <p className={`font-bold font-mono text-lg ${hasDebt ? 'text-rose-600' : 'text-emerald-600'}`}>
+                  <p className={`font-bold font-mono text-xl ${hasDebt ? 'text-rose-600' : 'text-emerald-600'}`}>
                     {hasDebt ? formatUGX(balance) : 'UGX 0'}
                   </p>
                 </div>
