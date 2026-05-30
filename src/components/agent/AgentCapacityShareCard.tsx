@@ -55,7 +55,7 @@ export const AgentCapacityShareCard = forwardRef<HTMLDivElement, ShareCardProps>
             crossOrigin="anonymous"
             style={{ height: 40, width: 'auto', objectFit: 'contain' }}
           />
-          <span style={{ fontSize: 13, color: '#9fbe0c'.replace('#9fbe0c', '#cfeee0'), fontWeight: 600 }}>{dateLabel}</span>
+          <span style={{ fontSize: 13, color: '#cfeee0', fontWeight: 600 }}>{dateLabel}</span>
         </div>
 
         <div style={{ fontSize: 13, fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase', color: '#7dd3b0' }}>
