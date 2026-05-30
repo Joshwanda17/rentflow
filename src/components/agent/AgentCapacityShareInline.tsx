@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState, useLayoutEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAgentCapacityMap } from '@/hooks/useAgentCapacityMap';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -22,6 +22,23 @@ export function AgentCapacityShareInline() {
   const cap = user?.id ? data?.get(user.id) : undefined;
   const cardRef = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  const CARD_W = 540;
+
+  // Scale the fixed-width branded card down to fit the column on mobile.
+  useLayoutEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const update = () => {
+      const w = el.clientWidth;
+      setScale(w > 0 ? Math.min(1, w / CARD_W) : 1);
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [cap]);
 
   if (!user?.id) return null;
 
@@ -110,22 +127,32 @@ export function AgentCapacityShareInline() {
 
   return (
     <div className="rounded-2xl border border-border bg-card p-3 space-y-3">
-      <div className="rounded-xl overflow-hidden border border-border shadow-sm">
-        <AgentCapacityShareCard
-          ref={cardRef}
-          preview
-          agentName={agentName}
-          paidToday={cap.paid_today}
-          expectedDaily={cap.expected_daily}
-          paidYesterday={cap.paid_yesterday}
-          perTenantMax={cap.per_tenant_max}
-          headroom={cap.headroom}
-          remainingSlots={remainingSlots}
-          canPost={canPost}
-          dateLabel={dateLabel}
-          badges={badges}
-          tenantCount={cap.active_tenant_count}
-        />
+      <div ref={wrapRef} className="rounded-xl overflow-hidden border border-border shadow-sm">
+        <div style={{ height: `${CARD_W * scale * 0}px` }} className="hidden" />
+        <div
+          style={{
+            width: CARD_W,
+            transform: `scale(${scale})`,
+            transformOrigin: 'top left',
+            marginBottom: scale < 1 ? -(1 - scale) * 100 + '%' : undefined,
+          }}
+        >
+          <AgentCapacityShareCard
+            ref={cardRef}
+            preview
+            agentName={agentName}
+            paidToday={cap.paid_today}
+            expectedDaily={cap.expected_daily}
+            paidYesterday={cap.paid_yesterday}
+            perTenantMax={cap.per_tenant_max}
+            headroom={cap.headroom}
+            remainingSlots={remainingSlots}
+            canPost={canPost}
+            dateLabel={dateLabel}
+            badges={badges}
+            tenantCount={cap.active_tenant_count}
+          />
+        </div>
       </div>
       <div className="grid grid-cols-2 gap-2">
         <button
