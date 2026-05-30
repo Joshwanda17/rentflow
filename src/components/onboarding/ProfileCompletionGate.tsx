@@ -480,12 +480,53 @@ export default function ProfileCompletionGate() {
     }
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setResidenceLat(pos.coords.latitude);
-        setResidenceLng(pos.coords.longitude);
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setResidenceLat(lat);
+        setResidenceLng(lng);
+        // Reverse-geocode the pin into a readable place name (keyless OSM service).
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=14&addressdetails=1`,
+            { headers: { Accept: "application/json" } },
+          );
+          if (res.ok) {
+            const data = await res.json();
+            const a = data?.address ?? {};
+            // Most-specific area for the "town" field.
+            const area =
+              a.neighbourhood ||
+              a.suburb ||
+              a.village ||
+              a.hamlet ||
+              a.town ||
+              a.city_district ||
+              a.city ||
+              a.county ||
+              "";
+            const cityName = a.city || a.town || a.municipality || "";
+            const districtName = a.county || a.state_district || a.region || "";
+            if (area) setTown(area);
+            if (cityName) setCity(cityName);
+            if (isUganda && districtName) {
+              const matched = UGANDA_DISTRICTS.find(
+                (d) => d.toLowerCase() === districtName.replace(/ district$/i, "").toLowerCase(),
+              );
+              if (matched) setDistrict(matched);
+            }
+            setLocating(false);
+            toast.success("Location captured", {
+              description: area ? `We saved ${area}.` : "We saved where you are now.",
+            });
+            return;
+          }
+        } catch {
+          /* reverse geocoding is best-effort */
+        }
         setLocating(false);
         toast.success("Location captured", {
-          description: "We saved where you are now.",
+          description: "We saved your exact spot.",
         });
       },
       () => {
