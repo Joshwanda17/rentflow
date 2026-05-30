@@ -451,6 +451,25 @@ export default function ProfileCompletionGate() {
     setSubCounty("");
     setParish("");
     setVillage("");
+    // Return to the simple, one-field flow and forget any stale saved
+    // draft (e.g. an old "France/Paris" selection) so it can't be
+    // restored again on the next visit.
+    setQuickMode(true);
+    setDraftSavedAt(null);
+    draftRestored.current = true;
+    if (draftKey) {
+      try {
+        localStorage.removeItem(draftKey);
+      } catch {
+        /* ignore */
+      }
+    }
+    if (user) {
+      void supabase.from("profile_drafts").delete().eq("user_id", user.id);
+    }
+    toast.success("Reset to Uganda", {
+      description: "Just type your area or village below.",
+    });
   };
 
   // One-tap GPS capture so users don't have to type any address detail.
