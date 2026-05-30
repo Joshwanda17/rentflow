@@ -108,50 +108,6 @@ export function useIOSCacheInvalidation() {
     }
   }, [queryClient]);
 
-  // Check for app version changes
-  const checkVersionMismatch = useCallback(() => {
-    try {
-      const storedCacheVersion = localStorage.getItem('ios_cache_version');
-      const currentCacheVersion = __CACHE_VERSION__;
-      
-      if (storedCacheVersion && storedCacheVersion !== currentCacheVersion) {
-        console.log('[iOS Cache] Version mismatch detected - clearing all caches');
-        
-        // Clear React Query cache
-        queryClient.clear();
-        
-        // Clear iOS-specific caches
-        if ('caches' in window) {
-          caches.keys().then(keys => {
-            keys.forEach(key => {
-              if (key.includes('api') || key.includes('supabase')) {
-                caches.delete(key);
-              }
-            });
-          });
-        }
-        
-        // Clear any stale sessionStorage data
-        const keysToPreserve = ['supabase.auth.token', 'auth_session', 'user_role'];
-        const allKeys = Object.keys(sessionStorage);
-        allKeys.forEach(key => {
-          if (!keysToPreserve.some(preserve => key.includes(preserve))) {
-            sessionStorage.removeItem(key);
-          }
-        });
-        
-        localStorage.setItem('ios_cache_version', currentCacheVersion);
-        return true;
-      }
-      
-      localStorage.setItem('ios_cache_version', currentCacheVersion);
-      return false;
-    } catch (e) {
-      console.error('[iOS Cache] Version check error:', e);
-      return false;
-    }
-  }, [queryClient]);
-
   // Force service worker update check
   const checkServiceWorkerUpdate = useCallback(async () => {
     if (!('serviceWorker' in navigator)) return;
