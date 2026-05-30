@@ -18638,6 +18638,20 @@ export type Database = {
           trust_tier: string
         }[]
       }
+      ops_recent_agent_inactivations: {
+        Args: { p_limit?: number; p_since_hours?: number }
+        Returns: {
+          agent_id: string
+          agent_name: string
+          marked_at: string
+          reason: string
+          rent_request_id: string
+          tenant_city: string
+          tenant_id: string
+          tenant_name: string
+          tenant_phone: string
+        }[]
+      }
       ops_record_payment_edit: {
         Args: {
           p_edit_type: string
