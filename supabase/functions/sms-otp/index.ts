@@ -47,13 +47,20 @@ function formatPhoneInternational(rawPhone: string): string {
   return "+" + digits;
 }
 
-async function sendSMS(phone: string, message: string): Promise<boolean> {
+interface SmsResult {
+  /** True when the gateway accepted the message for delivery (statusCode 101/100). */
+  accepted: boolean;
+  /** Short reason when not accepted, for logging/debugging. */
+  reason?: string;
+}
+
+async function sendSMS(phone: string, message: string): Promise<SmsResult> {
   const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
   const username = Deno.env.get("AFRICASTALKING_USERNAME");
 
   if (!apiKey || !username) {
     console.error("[sms-otp] Missing Africa's Talking credentials");
-    return false;
+    return { accepted: false, reason: "missing_credentials" };
   }
 
   // Determine base URL: sandbox vs production
@@ -88,13 +95,14 @@ async function sendSMS(phone: string, message: string): Promise<boolean> {
     const recipients = data?.SMSMessageData?.Recipients;
     if (recipients && recipients.length > 0) {
       const status = recipients[0].statusCode;
-      // 101 = sent, 100 = queued
-      return status === 101 || status === 100;
+      // 101 = sent, 100 = queued (both mean the gateway accepted it)
+      if (status === 101 || status === 100) return { accepted: true };
+      return { accepted: false, reason: `status_${status}` };
     }
-    return false;
+    return { accepted: false, reason: "no_recipients" };
   } catch (error) {
     console.error("[sms-otp] SMS send error:", error);
-    return false;
+    return { accepted: false, reason: "network_error" };
   }
 }
 
@@ -212,28 +220,56 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Dispatch the SMS in the background so the client doesn't wait on the
-      // Africa's Talking gateway round-trip. The OTP is already persisted above,
-      // so verification works the moment the code arrives on the user's phone.
+      // The OTP is already persisted above. We now wait *briefly* for the
+      // gateway to ACCEPT the message (statusCode 101/100) so the button can
+      // show real success/failure. Acceptance is fast and is NOT the same as
+      // carrier delivery — we never wait for delivery. If the gateway is
+      // unusually slow, we stop waiting, return optimistically, and let the
+      // send finish in the background.
       const message = `Your Welile verification code is: ${otp}. It expires in 1 hour. Do not share this code.`;
-      const smsTask = sendSMS(phone, message)
-        .then((sent) => {
-          if (sent) {
-            console.log(`[sms-otp] OTP sent to ***${phoneKey.slice(-4)}`);
-          } else {
-            console.error(`[sms-otp] SMS gateway rejected send to ***${phoneKey.slice(-4)}`);
-          }
-        })
-        .catch((err) => console.error("[sms-otp] background SMS error:", err));
 
-      // Keep the function alive until the background send settles.
-      try {
-        (globalThis as any).EdgeRuntime?.waitUntil?.(smsTask);
-      } catch (_) {
-        // EdgeRuntime not available — fall back to awaiting inline.
-        await smsTask;
+      // Max time we'll block the client on gateway acceptance.
+      const ACCEPTANCE_TIMEOUT_MS = 4000;
+      const TIMED_OUT = Symbol("timed_out");
+
+      const smsPromise = sendSMS(phone, message);
+      const timeoutPromise = new Promise<typeof TIMED_OUT>((resolve) =>
+        setTimeout(() => resolve(TIMED_OUT), ACCEPTANCE_TIMEOUT_MS),
+      );
+
+      const outcome = await Promise.race([smsPromise, timeoutPromise]);
+
+      if (outcome === TIMED_OUT) {
+        // Gateway slow — keep finishing in the background, respond optimistically.
+        try {
+          (globalThis as any).EdgeRuntime?.waitUntil?.(
+            smsPromise
+              .then((r) =>
+                console.log(
+                  `[sms-otp] late acceptance for ***${phoneKey.slice(-4)}: ${r.accepted ? "ok" : r.reason}`,
+                ),
+              )
+              .catch((err) => console.error("[sms-otp] background SMS error:", err)),
+          );
+        } catch (_) {
+          // EdgeRuntime not available — nothing else to do.
+        }
+        return new Response(
+          JSON.stringify({ success: true, pending: true, message: "Code is being sent" }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
       }
 
+      // Gateway responded in time — report the real result.
+      if (!outcome.accepted) {
+        console.error(`[sms-otp] gateway rejected send to ***${phoneKey.slice(-4)}: ${outcome.reason}`);
+        return new Response(
+          JSON.stringify({ error: "Failed to send SMS. Please try again." }),
+          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      console.log(`[sms-otp] OTP accepted for ***${phoneKey.slice(-4)}`);
       return new Response(JSON.stringify({ success: true, message: "OTP sent successfully" }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -323,7 +359,7 @@ Deno.serve(async (req) => {
         });
       }
       const sent = await sendSMS(phone, message);
-      if (!sent) {
+      if (!sent.accepted) {
         return new Response(JSON.stringify({ error: "Failed to send SMS" }), {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
