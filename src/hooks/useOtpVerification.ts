@@ -9,6 +9,11 @@ export type OtpSendStatus = 'idle' | 'pending' | 'accepted' | 'failed';
 const POLL_INTERVAL_MS = 2000;
 const POLL_MAX_ATTEMPTS = 15;
 
+// Default client-side cooldown between sends. Mirrors the backend
+// RESEND_COOLDOWN_SECONDS so the UI and server stay in agreement even before
+// the server has a chance to reject an early resend.
+const DEFAULT_COOLDOWN_SECONDS = 60;
+
 export function useOtpVerification() {
   const [otpSent, setOtpSent] = useState(false);
   const [otpVerified, setOtpVerified] = useState(false);
@@ -16,15 +21,42 @@ export function useOtpVerification() {
   const [otpError, setOtpError] = useState<string | null>(null);
   const [verifiedPhone, setVerifiedPhone] = useState<string | null>(null);
   const [sendStatus, setSendStatus] = useState<OtpSendStatus>('idle');
+  // Seconds remaining before another send is allowed. Owned here (not in the
+  // UI) so the countdown survives re-renders and stays synced to the backend.
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
 
   // Token used to cancel an in-flight polling loop (on resend / reset / unmount).
   const pollTokenRef = useRef(0);
+  // Absolute timestamp (ms) when the cooldown ends; drives the 1s ticker.
+  const cooldownUntilRef = useRef(0);
+  const cooldownTimerRef = useRef<ReturnType<typeof setInterval>>();
 
   useEffect(() => {
     // Cancel any polling when the component unmounts.
     return () => {
       pollTokenRef.current += 1;
+      if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
     };
+  }, []);
+
+  // Start (or extend) the resend cooldown for the given number of seconds.
+  // A self-correcting interval recomputes from an absolute end time so it stays
+  // accurate even if the tab is backgrounded.
+  const startCooldown = useCallback((seconds: number) => {
+    const safe = Math.max(0, Math.ceil(seconds));
+    if (safe <= 0) return;
+    cooldownUntilRef.current = Date.now() + safe * 1000;
+    setCooldownSeconds(safe);
+    if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
+    cooldownTimerRef.current = setInterval(() => {
+      const remaining = Math.ceil((cooldownUntilRef.current - Date.now()) / 1000);
+      if (remaining <= 0) {
+        setCooldownSeconds(0);
+        if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
+      } else {
+        setCooldownSeconds(remaining);
+      }
+    }, 1000);
   }, []);
 
   const pollSendStatus = useCallback(async (phone: string) => {
@@ -58,6 +90,9 @@ export function useOtpVerification() {
   }, []);
 
   const sendOtp = useCallback(async (phone: string) => {
+    // Hard guard: never fire an overlapping send while a cooldown is active or
+    // another request is in flight. Keeps duplicate SMS sends from being queued.
+    if (cooldownSeconds > 0 || otpLoading) return false;
     setOtpLoading(true);
     setOtpError(null);
     setSendStatus('idle');
@@ -68,21 +103,33 @@ export function useOtpVerification() {
         body: { action: 'send', phone: cleanPhoneNumber(phone) },
       });
       if (error) {
-        // Try to extract error message from response context
-        const errMsg = error?.context ? 
-          await error.context.json().then((r: any) => r.error).catch(() => error.message) 
-          : error.message;
+        // Parse the response body once so we can recover both the message and
+        // the backend-supplied retry window for 429 (cooldown / hourly cap).
+        let payload: any = null;
+        if (error?.context) {
+          payload = await error.context.json().catch(() => null);
+        }
+        const errMsg = payload?.error || error.message;
+        // If the backend reports a cooldown window, sync our countdown to it so
+        // the messaging is accurate (e.g. after a page reload).
+        if (typeof payload?.retry_after === 'number') {
+          startCooldown(payload.retry_after);
+        }
         setOtpError(errMsg || 'Failed to send OTP');
         setSendStatus('failed');
         return false;
       }
       if (data?.error) {
+        if (typeof data?.retry_after === 'number') startCooldown(data.retry_after);
         setOtpError(data.error);
         setSendStatus('failed');
         return false;
       }
       setOtpSent(true);
       setVerifiedPhone(cleanPhoneNumber(phone));
+      // Only start the cooldown on a confirmed accepted send so transient
+      // failures don't needlessly lock the user out for a full minute.
+      startCooldown(DEFAULT_COOLDOWN_SECONDS);
       if (data?.pending) {
         // Gateway acceptance not yet confirmed — poll for it.
         setSendStatus('pending');
@@ -98,7 +145,7 @@ export function useOtpVerification() {
     } finally {
       setOtpLoading(false);
     }
-  }, [pollSendStatus]);
+  }, [pollSendStatus, startCooldown, cooldownSeconds, otpLoading]);
 
   const verifyOtp = useCallback(async (phone: string, otp: string) => {
     setOtpLoading(true);
@@ -135,6 +182,9 @@ export function useOtpVerification() {
     setVerifiedPhone(null);
     setSendStatus('idle');
     pollTokenRef.current += 1;
+    setCooldownSeconds(0);
+    cooldownUntilRef.current = 0;
+    if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
   }, []);
 
   return {
@@ -144,6 +194,7 @@ export function useOtpVerification() {
     otpError,
     verifiedPhone,
     sendStatus,
+    cooldownSeconds,
     sendOtp,
     verifyOtp,
     resetOtp,
