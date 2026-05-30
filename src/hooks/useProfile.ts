@@ -15,7 +15,26 @@ interface Profile {
   territory?: string | null;
   is_seller?: boolean;
   seller_application_status?: string | null;
+  // System-wide saved profile data captured during onboarding/profile
+  // completion. Loaded automatically on every login / device switch so the
+  // user's location, role, and occupation follow them everywhere.
+  address_complete?: boolean | null;
+  continent?: string | null;
+  country?: string | null;
+  region?: string | null;
+  district?: string | null;
+  city?: string | null;
+  town?: string | null;
+  sub_county?: string | null;
+  parish?: string | null;
+  village?: string | null;
+  primary_persona?: string | null;
+  occupation?: string | null;
 }
+
+// Single source of truth for the columns we hydrate everywhere.
+const PROFILE_COLUMNS =
+  'id, full_name, email, phone, avatar_url, verified, is_frozen, frozen_reason, territory, is_seller, seller_application_status, address_complete, continent, country, region, district, city, town, sub_county, parish, village, primary_persona, occupation';
 // Module-level cache to deduplicate across component instances
 let profileCache: { data: Profile; userId: string; timestamp: number } | null = null;
 const PROFILE_CACHE_TTL = 60_000; // 1 minute
@@ -69,7 +88,7 @@ export function useProfile() {
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('id, full_name, email, phone, avatar_url, verified, is_frozen, frozen_reason, territory, is_seller, seller_application_status')
+          .select(PROFILE_COLUMNS)
           .eq('id', user.id)
           .maybeSingle();
 
@@ -102,7 +121,7 @@ export function useProfile() {
 
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, full_name, email, phone, avatar_url, verified, is_frozen, frozen_reason, territory, is_seller, seller_application_status')
+      .select(PROFILE_COLUMNS)
       .eq('id', user.id)
       .maybeSingle();
 
@@ -114,6 +133,15 @@ export function useProfile() {
       await cacheProfile(data);
     }
   }, [user]);
+
+  // Re-hydrate the system-wide profile from the server when the device
+  // reconnects — covers device switches and resuming after an offline gap.
+  useEffect(() => {
+    if (!user) return;
+    const onOnline = () => { refreshProfile(); };
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, [user, refreshProfile]);
 
   return { profile, loading, refreshProfile, isOfflineData };
 }
