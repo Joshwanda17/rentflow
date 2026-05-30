@@ -2,9 +2,9 @@ import React, { Component, ReactNode } from "react";
 import { RefreshCw, Loader2, Home } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
+  clearAndReload,
   hardRecover,
   recoveryExhausted,
-  purgeCachesAndServiceWorkers,
 } from "@/lib/hardRecovery";
 
 interface Props {
@@ -148,10 +148,7 @@ class ChunkErrorBoundary extends Component<Props, State> {
     } catch {
       // ignore
     }
-    await purgeCachesAndServiceWorkers();
-    const url = new URL(window.location.href);
-    url.searchParams.set("_v", Date.now().toString(36));
-    window.location.replace(url.toString());
+    await clearAndReload("manual_reload");
   };
 
   handleGoHome = () => {
@@ -176,8 +173,8 @@ class ChunkErrorBoundary extends Component<Props, State> {
               <div className="space-y-2">
                 <h1 className="text-xl font-semibold">Let's clear the cache</h1>
                 <p className="text-muted-foreground text-sm">
-                  The app is having trouble loading the latest version. Tap below
-                  to clear cached data and reload — this usually fixes it on iPhone.
+                  The app found an old installed version. Tap below to clear the
+                  old app files and load the latest Welile version.
                 </p>
               </div>
               <button
@@ -188,7 +185,7 @@ class ChunkErrorBoundary extends Component<Props, State> {
                 {this.state.isRetrying ? (
                   <><Loader2 className="w-4 h-4 animate-spin" /> Clearing...</>
                 ) : (
-                  <><RefreshCw className="w-4 h-4" /> Clear cache & reload</>
+                  <><RefreshCw className="w-4 h-4" /> Clear old app & reload</>
                 )}
               </button>
               <p className="text-xs text-muted-foreground/60">
@@ -249,7 +246,7 @@ class ChunkErrorBoundary extends Component<Props, State> {
             </div>
             <div className="flex flex-col sm:flex-row gap-3 w-full">
               <button
-                onClick={() => window.location.reload()}
+                onClick={() => void clearAndReload("manual_reload")}
                 className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground font-medium shadow-lg hover:opacity-90 transition-opacity"
               >
                 <RefreshCw className="w-4 h-4" />

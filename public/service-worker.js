@@ -1,11 +1,8 @@
 // Welile service-worker kill switch — 2026-05-30
 //
-// Older iPhone installs can be trapped by a previously registered worker that
-// serves a stale app shell/chunk set. This worker intentionally owns the same
-// path (/sw.js; /service-worker.js has the same kill-switch), deletes every
-// Cache Storage bucket, navigates open tabs to a cache-busted URL, then
-// unregisters itself. Keep this file for at least one release cycle so
-// already-installed devices receive the cleanup.
+// Some older builds may have registered /service-worker.js instead of /sw.js.
+// Keep this network-only cleanup worker in place for at least one release cycle
+// so every installed iOS/Android PWA path can remove stale app-shell caches.
 
 self.addEventListener("install", (event) => {
   event.waitUntil(self.skipWaiting());

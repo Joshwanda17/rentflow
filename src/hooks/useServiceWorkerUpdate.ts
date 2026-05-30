@@ -1,4 +1,5 @@
 import { useEffect, useCallback, useState } from "react";
+import { clearAndReload } from "@/lib/hardRecovery";
 
 declare const __CACHE_VERSION__: string;
 
@@ -30,14 +31,7 @@ export function useServiceWorkerUpdate() {
   }, []);
 
   const applyUpdate = useCallback(() => {
-    if ("caches" in window) {
-      caches.keys().then((keys) => {
-        Promise.all(keys.map((k) => caches.delete(k)));
-      });
-    }
-    const url = new URL(window.location.href);
-    url.searchParams.set('_v', Date.now().toString(36));
-    window.location.replace(url.toString());
+    void clearAndReload("manual_reload");
   }, []);
 
   useEffect(() => {

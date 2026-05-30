@@ -19,7 +19,7 @@ const ATTEMPT_KEY = "welile_recovery_attempts";
 const ATTEMPT_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 export const MAX_RECOVERY_ATTEMPTS = 3;
 
-import { logUpdateFailure } from "./updateTelemetry";
+import { logUpdateFailure, type UpdateFailureEvent } from "./updateTelemetry";
 
 interface AttemptRecord {
   count: number;
@@ -77,9 +77,12 @@ function recordAttempt(): void {
 export async function purgeCachesAndServiceWorkers(): Promise<void> {
   let swCleared = false;
   let cacheCleared = false;
+  let serviceWorkerCount = 0;
+  let cacheNames: string[] = [];
   try {
     if ("serviceWorker" in navigator) {
       const regs = await navigator.serviceWorker.getRegistrations();
+      serviceWorkerCount = regs.length;
       await Promise.all(regs.map((r) => r.unregister().catch(() => {})));
       swCleared = regs.length > 0;
     }
@@ -89,6 +92,7 @@ export async function purgeCachesAndServiceWorkers(): Promise<void> {
   try {
     if ("caches" in window) {
       const keys = await caches.keys();
+      cacheNames = keys;
       await Promise.all(keys.map((k) => caches.delete(k).catch(() => {})));
       cacheCleared = keys.length > 0;
     }
@@ -99,7 +103,32 @@ export async function purgeCachesAndServiceWorkers(): Promise<void> {
     sw_cleared: swCleared,
     cache_cleared: cacheCleared,
     reload_attempts: getRecoveryAttempts(),
+    details: {
+      serviceWorkerCount,
+      cacheCount: cacheNames.length,
+      cacheNames,
+    },
   });
+}
+
+export function reloadWithCacheBust(): void {
+  try {
+    const url = new URL(window.location.href);
+    // Cache-bust the document fetch. Use a stable param name so repeated
+    // recoveries replace (not stack) the value.
+    url.searchParams.set("_v", Date.now().toString(36));
+    window.location.replace(url.toString());
+  } catch {
+    window.location.reload();
+  }
+}
+
+export async function clearAndReload(
+  event: UpdateFailureEvent = "manual_reload"
+): Promise<void> {
+  logUpdateFailure(event, { reload_attempts: getRecoveryAttempts() });
+  await purgeCachesAndServiceWorkers();
+  reloadWithCacheBust();
 }
 
 /**
@@ -113,14 +142,5 @@ export async function hardRecover(): Promise<void> {
     chunk_mismatch: true,
   });
   await purgeCachesAndServiceWorkers();
-
-  try {
-    const url = new URL(window.location.href);
-    // Cache-bust the document fetch. Use a stable param name so repeated
-    // recoveries replace (not stack) the value.
-    url.searchParams.set("_v", Date.now().toString(36));
-    window.location.replace(url.toString());
-  } catch {
-    window.location.reload();
-  }
+  reloadWithCacheBust();
 }

@@ -10,6 +10,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import ChunkErrorBoundary from "@/components/ChunkErrorBoundary";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
+import { clearAndReload } from "@/lib/hardRecovery";
 // Route every page chunk through the concurrency-limited queue so slow
 // networks never see more than N parallel chunk requests at once.
 const lazy = lazyWithRetry;
@@ -252,7 +253,7 @@ const PageLoader = memo(() => {
       <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       {showRetry && (
         <button
-          onClick={() => { sessionStorage.removeItem('chunk_retry'); location.reload(); }}
+          onClick={() => { sessionStorage.removeItem('chunk_retry'); void clearAndReload('manual_reload'); }}
           className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm"
           style={{ minHeight: '44px' }}
         >
@@ -274,22 +275,7 @@ function AppRoutes() {
   );
 
   const handlePullRefresh = async () => {
-    try {
-      // Clear all caches
-      if ('caches' in window) {
-        const keys = await caches.keys();
-        await Promise.all(keys.map(k => caches.delete(k)));
-      }
-      // Unregister service workers so fresh content loads
-      if ('serviceWorker' in navigator) {
-        const regs = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(regs.map(r => r.unregister()));
-      }
-    } catch {
-      // ignore cache errors
-    }
-    // Hard reload to pick up new assets
-    window.location.reload();
+    await clearAndReload('manual_reload');
   };
 
   return (
