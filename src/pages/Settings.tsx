@@ -424,6 +424,9 @@ export default function Settings() {
                     </Button>
                   </CardContent>
                 </Card>
+                {user && (
+                  <LazySection name="ProfileChangeHistory"><ProfileChangeHistory userId={user.id} /></LazySection>
+                )}
                 <LazySection name="Wallet"><WalletCard /></LazySection>
                 <LazySection name="ArchivedPdfs"><ArchivedPdfsCard /></LazySection>
               </div>
