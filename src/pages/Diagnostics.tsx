@@ -13,6 +13,7 @@ import {
   Download,
   Send,
   LinkIcon,
+  Activity,
 } from "lucide-react";
 import {
   hardRecover,
@@ -56,6 +57,22 @@ interface ShellInfo {
   networkScripts: string[];
   stale: boolean | null;
   error: string | null;
+}
+
+interface TelemetryRow {
+  id: string;
+  created_at: string;
+  event_type: string;
+  chunk_mismatch: boolean | null;
+  reload_attempts: number | null;
+  sw_cleared: boolean | null;
+  cache_cleared: boolean | null;
+  is_ios: boolean | null;
+  is_safari: boolean | null;
+  is_standalone: boolean | null;
+  ios_version: string | null;
+  safari_version: string | null;
+  user_agent: string | null;
 }
 
 function detectEnv(): EnvInfo {
