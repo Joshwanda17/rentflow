@@ -408,7 +408,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ error: "Invalid action. Use 'send', 'verify', or 'custom'." }), {
+    return new Response(JSON.stringify({ error: "Invalid action. Use 'send', 'status', 'verify', or 'custom'." }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
