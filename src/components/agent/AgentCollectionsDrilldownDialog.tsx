@@ -456,14 +456,17 @@ export function AgentCollectionsDrilldownDialog({
               <div className="p-4">
                 <TabsContent value="today" className="mt-0 space-y-3">
                   <SummaryBar total={todayTotal} expectedDaily={expectedDaily} headroom={headroom} perTenantMax={perTenantMax} label="Today" />
+                  <MethodSummary rows={todayRows} />
                   <CollectionList groups={groupByTenant(todayRows, nameById)} />
                 </TabsContent>
                 <TabsContent value="yesterday" className="mt-0 space-y-3">
                   <SummaryBar total={yesterdayTotal} expectedDaily={expectedDaily} headroom={headroom} perTenantMax={perTenantMax} label="Yesterday" />
+                  <MethodSummary rows={yesterdayRows} />
                   <CollectionList groups={groupByTenant(yesterdayRows, nameById)} />
                 </TabsContent>
                 <TabsContent value="range" className="mt-0 space-y-3">
                   <SummaryBar total={rangeTotal} expectedDaily={expectedDaily} headroom={headroom} perTenantMax={perTenantMax} label="Range" />
+                  <MethodSummary rows={filteredRows} />
                   <CollectionList groups={groupByTenant(filteredRows, nameById)} />
                 </TabsContent>
               </div>
