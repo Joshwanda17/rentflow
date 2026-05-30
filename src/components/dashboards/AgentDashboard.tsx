@@ -131,6 +131,7 @@ import { TodayCollectionsCard } from '@/components/agent/TodayCollectionsCard';
 import { AgentPriorityGrid } from '@/components/agent/AgentPriorityGrid';
 import { AgentTenantInlineList } from '@/components/agent/AgentTenantInlineList';
 import { AgentCapacityShareInline } from '@/components/agent/AgentCapacityShareInline';
+import { AgentDailyCardEmailPrompt } from '@/components/agent/AgentDailyCardEmailPrompt';
 import { useIsFinancialAgent } from '@/hooks/useIsFinancialAgent';
 import { FinancialAgentSection } from '@/components/agent/FinancialAgentSection';
 import { PromissoryNoteDialog } from '@/components/agent/PromissoryNoteDialog';
@@ -751,6 +752,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 Add Tenant
               </Button>
             </div>
+            <AgentDailyCardEmailPrompt />
             <AgentCapacityShareInline />
             <AgentTenantInlineList
               onOpenTenantSheet={() => setTenantsSheetOpen(true)}
