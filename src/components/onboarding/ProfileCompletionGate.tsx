@@ -516,7 +516,7 @@ export default function ProfileCompletionGate() {
               <p className="text-[11px] xs:text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Who you are
               </p>
-              <div className="grid grid-cols-2 gap-2 xs:gap-2.5 sm:gap-3">
+              <div className="grid grid-cols-2 gap-3 xs:gap-3 sm:gap-3.5">
                 {QUICK_PERSONAS.map((p) => {
                   const selected = persona === p.value;
                   return (
@@ -525,10 +525,10 @@ export default function ProfileCompletionGate() {
                       type="button"
                       onClick={() => setPersona(p.value)}
                       aria-pressed={selected}
-                      className={`group relative flex min-h-[80px] xs:min-h-[88px] flex-col items-center justify-center gap-1.5 sm:gap-2 rounded-2xl border p-2.5 xs:p-3 sm:p-4 text-center transition-all duration-150 ${
+                      className={`group relative flex min-h-[80px] xs:min-h-[88px] flex-col items-center justify-center gap-1.5 sm:gap-2 rounded-2xl border p-3 xs:p-3.5 sm:p-4 text-center transition-all duration-150 ${
                         selected
                           ? "border-primary bg-primary/5 dark:bg-primary/20 ring-1 ring-primary dark:ring-2"
-                          : "border-border dark:border-border/60 hover:border-foreground/20 hover:bg-muted/40 dark:hover:bg-muted/50"
+                      : "border-border dark:border-border/60 hover:border-foreground/20 hover:bg-muted/40 dark:hover:bg-muted/50"
                       }`}
                     >
                       {selected && (
@@ -567,8 +567,8 @@ export default function ProfileCompletionGate() {
         )}
 
         {(!quickMode || editMode) && step === 1 && (
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 xs:grid-cols-2 gap-4 xs:gap-3">
               <div className="space-y-1.5">
                 <Label>Continent</Label>
                 <Select value={continent} onValueChange={setContinent}>
@@ -588,7 +588,7 @@ export default function ProfileCompletionGate() {
 
             {isUganda ? (
               <>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 xs:grid-cols-2 gap-4 xs:gap-3">
                   <div className="space-y-1.5">
                     <Label>Region</Label>
                     <Input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="e.g. Central" maxLength={60} />
@@ -605,7 +605,7 @@ export default function ProfileCompletionGate() {
                     </Select>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 xs:grid-cols-2 gap-4 xs:gap-3">
                   <div className="space-y-1.5">
                     <Label>City</Label>
                     <CityCombobox countryIso={countryIso} value={city} onChange={setCity} />
@@ -615,7 +615,7 @@ export default function ProfileCompletionGate() {
                     <Input value={town} onChange={(e) => setTown(e.target.value)} placeholder="e.g. Ntinda" maxLength={60} />
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-4 xs:gap-3">
                   <div className="space-y-1.5">
                     <Label>Ward (Sub-county)</Label>
                     <Input value={subCounty} onChange={(e) => setSubCounty(e.target.value)} maxLength={60} />
@@ -632,7 +632,7 @@ export default function ProfileCompletionGate() {
               </>
             ) : (
               <>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 xs:grid-cols-2 gap-4 xs:gap-3">
                   <div className="space-y-1.5">
                     <Label>Region / State</Label>
                     <Input value={region} onChange={(e) => setRegion(e.target.value)} maxLength={60} />
@@ -642,7 +642,7 @@ export default function ProfileCompletionGate() {
                     <CityCombobox countryIso={countryIso} value={city} onChange={setCity} />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 xs:grid-cols-2 gap-4 xs:gap-3">
                   <div className="space-y-1.5">
                     <Label>District / County</Label>
                     <Input value={district} onChange={(e) => setDistrict(e.target.value)} maxLength={60} />
@@ -674,7 +674,7 @@ export default function ProfileCompletionGate() {
         )}
 
         {step === 2 && (
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div className="space-y-1.5">
               <Label className="flex items-center gap-1.5">
                 <UserIcon className="h-4 w-4" />
@@ -711,7 +711,7 @@ export default function ProfileCompletionGate() {
         )}
 
         {step === 3 && (
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div className="rounded-xl border bg-muted/30 p-3 space-y-1.5">
               <p className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                 <Lock className="h-3.5 w-3.5" /> Agent on file
