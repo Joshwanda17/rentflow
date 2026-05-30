@@ -762,7 +762,7 @@ export default function Auth() {
                     <div className="flex items-center justify-between pt-1">
                       <button
                         type="button"
-                        onClick={() => { setOtpLoginStep('phone'); setOtpLoginCode(''); }}
+                        onClick={() => { setOtpLoginStep('phone'); setOtpLoginCode(''); setOtpResendCooldown(0); }}
                         className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1 py-1"
                       >
                         <ArrowLeft className="h-4 w-4" /> Change number
@@ -770,10 +770,15 @@ export default function Auth() {
                       <button
                         type="button"
                         onClick={handleSendOtpForLogin}
-                        disabled={otpLoginLoading}
-                        className="text-sm text-primary hover:underline py-1 font-medium"
+                        disabled={otpLoginLoading || otpResendCooldown > 0}
+                        className={cn(
+                          "text-sm py-1 font-medium transition-colors",
+                          otpResendCooldown > 0
+                            ? "text-muted-foreground cursor-not-allowed"
+                            : "text-primary hover:underline"
+                        )}
                       >
-                        Resend code
+                        {otpResendCooldown > 0 ? `Resend in ${otpResendCooldown}s` : 'Resend code'}
                       </button>
                     </div>
                   </>
