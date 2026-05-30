@@ -121,6 +121,29 @@ export function useDeviceSessions(userId: string | undefined) {
     [userId, refresh],
   );
 
+  const renameDevice = useCallback(
+    async (deviceId: string, label: string) => {
+      if (!userId) return;
+      const trimmed = label.trim();
+      if (!trimmed) return;
+      // If renaming the current device, persist locally so heartbeats keep the name.
+      if (deviceId === deviceIdRef.current) {
+        try {
+          localStorage.setItem(DEVICE_LABEL_KEY, trimmed);
+        } catch {
+          /* ignore */
+        }
+      }
+      await supabase
+        .from('user_device_sessions')
+        .update({ device_label: trimmed })
+        .eq('user_id', userId)
+        .eq('device_id', deviceId);
+      await refresh();
+    },
+    [userId, refresh],
+  );
+
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
@@ -147,5 +170,6 @@ export function useDeviceSessions(userId: string | undefined) {
     currentDeviceId: deviceIdRef.current,
     refresh,
     signOutDevice,
+    renameDevice,
   };
 }
