@@ -229,6 +229,8 @@ export default function Auth() {
     await handleSubmit(e);
     if (!isSignUp && !isForgotPassword && !isForgotPhone) {
       localStorage.setItem('welile_last_login_method', 'password');
+      // Honour the same device-trust choice for password sign-ins.
+      setDeviceTrust(rememberMe);
     }
   };
 
