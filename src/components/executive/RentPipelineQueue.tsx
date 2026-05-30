@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { RentPipelineTracker } from './RentPipelineTracker';
 import { supabase } from '@/integrations/supabase/client';
