@@ -120,8 +120,8 @@ export default function Auth() {
     }
   }, [authLoading, user, authRoles, navigate]);
 
-  // Login mode: 'password' (phone+pw), 'email', 'otp'
-  const [loginMode, setLoginMode] = useState<'password' | 'otp' | 'email'>('password');
+  // Login mode: 'otp' is the primary path; 'password' (phone+pw) and 'email' are backups
+  const [loginMode, setLoginMode] = useState<'password' | 'otp' | 'email'>('otp');
   const [emailLoginAddress, setEmailLoginAddress] = useState('');
   const [otpLoginPhone, setOtpLoginPhone] = useState('');
   const [otpLoginCode, setOtpLoginCode] = useState('');
@@ -264,7 +264,7 @@ export default function Auth() {
           )}
           {isLoginView && (
             <p className="text-sm text-muted-foreground mt-0.5 animate-in fade-in duration-300">
-              Sign in with your phone number
+              Sign in with a one-time SMS code
             </p>
           )}
           {isSignUp && (
@@ -790,7 +790,7 @@ export default function Auth() {
                     onClick={() => setLoginMode('password')}
                     className="w-full text-sm text-muted-foreground hover:text-primary text-center py-2 flex items-center justify-center gap-1"
                   >
-                    <ArrowLeft className="h-4 w-4" /> Back to password login
+                    Prefer a password? <span className="font-medium">Sign in with password</span>
                   </button>
                 </div>
               </div>
