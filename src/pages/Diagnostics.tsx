@@ -227,6 +227,10 @@ export default function Diagnostics() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [sendResult, setSendResult] = useState<{ link: string; emailQueued: boolean } | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
   const reportRef = useRef<string>("");
 
   const run = useCallback(async () => {
