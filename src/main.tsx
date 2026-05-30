@@ -8,6 +8,7 @@ import {
   clearRecoveryAttempts,
   purgeCachesAndServiceWorkers,
 } from './lib/hardRecovery';
+import { logUpdateFailure } from './lib/updateTelemetry';
 
 const root = document.getElementById('root')!;
 const host = window.location.hostname;
@@ -176,6 +177,12 @@ const loadApp = async () => {
     const reloadKey = '__welile_chunk_reload_at';
     const lastReload = Number(sessionStorage.getItem(reloadKey) || '0');
     const recentlyReloaded = Date.now() - lastReload < 30_000;
+    if (isChunkError) {
+      logUpdateFailure('chunk_error_detected', {
+        chunk_mismatch: true,
+        details: { message: String((err as any)?.message || err), recentlyReloaded },
+      });
+    }
     // Stale-deploy recovery: purge caches/SWs and reload to a cache-busted URL
     // so iOS Safari fetches a fresh HTML shell. Stop once attempts are
     // exhausted to avoid an endless "Updating…" loop.
@@ -186,11 +193,15 @@ const loadApp = async () => {
       await hardRecover();
       return;
     }
+    if (isChunkError && recoveryExhausted()) {
+      logUpdateFailure('recovery_exhausted', { chunk_mismatch: true });
+    }
     showErrorUI();
   }
 };
 
 function showErrorUI() {
+  logUpdateFailure('error_ui_shown');
   root.textContent = '';
   const container = document.createElement('div');
   container.style.cssText = 'min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f8fafc;gap:16px;padding:24px;text-align:center';
@@ -213,6 +224,7 @@ function showErrorUI() {
   const btn = document.createElement('button');
   btn.textContent = 'Reload App';
   btn.onclick = async () => {
+    logUpdateFailure('manual_reload');
     await purgeCachesAndServiceWorkers();
     try {
       const url = new URL(window.location.href);
