@@ -467,13 +467,26 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
   });
 
   const rows = requests || [];
-  const filtered = search
-    ? rows.filter(r =>
-        r.tenant_name.toLowerCase().includes(search.toLowerCase()) ||
-        r.landlord_name.toLowerCase().includes(search.toLowerCase()) ||
-        r.agent_name.toLowerCase().includes(search.toLowerCase())
-      )
-    : rows;
+
+  // Unique tenants in the queue, for the "choose a tenant" selector.
+  const tenantOptions = Array.from(
+    new Map(
+      rows.map(r => [r.tenant_id, { id: r.tenant_id, name: r.tenant_name, landlord_name: r.landlord_name }]),
+    ).values(),
+  ).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+  const filtered = rows.filter(r => {
+    if (selectedTenantId !== 'all' && r.tenant_id !== selectedTenantId) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      return (
+        r.tenant_name.toLowerCase().includes(q) ||
+        r.landlord_name.toLowerCase().includes(q) ||
+        r.agent_name.toLowerCase().includes(q)
+      );
+    }
+    return true;
+  });
 
   const handleApprove = async () => {
     if (!selectedRequest || !user) return;
