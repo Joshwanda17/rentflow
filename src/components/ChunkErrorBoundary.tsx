@@ -19,8 +19,6 @@ interface State {
   errorMessage: string;
 }
 
-const AUTO_RETRY_KEY = "welile_chunk_auto_retry_at";
-
 function classifyChunkError(error: Error): boolean {
   const msg = (error?.message || "").toLowerCase();
   const name = (error?.name || "").toLowerCase();
@@ -123,19 +121,9 @@ class ChunkErrorBoundary extends Component<Props, State> {
         this.setState({ exhausted: true });
         return;
       }
-      try {
-        const last = Number(sessionStorage.getItem(AUTO_RETRY_KEY) || "0");
-        const now = Date.now();
-        // Only auto-retry if we haven't tried in the last 60s (prevents reload loops)
-        if (now - last > 60_000) {
-          sessionStorage.setItem(AUTO_RETRY_KEY, String(now));
-          setTimeout(() => {
-            this.handleRetry();
-          }, 1500);
-        }
-      } catch {
-        // sessionStorage blocked — skip auto-retry, user can tap button
-      }
+      setTimeout(() => {
+        this.handleRetry();
+      }, 800);
     }
   }
 
@@ -156,17 +144,19 @@ class ChunkErrorBoundary extends Component<Props, State> {
   handleForceClear = async () => {
     this.setState({ isRetrying: true });
     try {
-      localStorage.removeItem(AUTO_RETRY_KEY);
+      sessionStorage.removeItem("__welile_chunk_reload_at");
     } catch {
       // ignore
     }
     await purgeCachesAndServiceWorkers();
-    window.location.replace(window.location.pathname);
+    const url = new URL(window.location.href);
+    url.searchParams.set("_v", Date.now().toString(36));
+    window.location.replace(url.toString());
   };
 
   handleGoHome = () => {
     try {
-      sessionStorage.removeItem(AUTO_RETRY_KEY);
+      sessionStorage.removeItem("__welile_chunk_reload_at");
     } catch {
       // ignore
     }
@@ -220,9 +210,9 @@ class ChunkErrorBoundary extends Component<Props, State> {
                 <Loader2 className="absolute inset-0 m-auto w-8 h-8 text-primary animate-spin" />
               </div>
               <div className="space-y-2">
-                <h1 className="text-xl font-semibold">Updating...</h1>
+                <h1 className="text-xl font-semibold">Clearing old iPhone cache...</h1>
                 <p className="text-muted-foreground text-sm">
-                  A newer version is available. Please wait while we refresh the app.
+                  Welile is removing the stale version and loading the latest app.
                 </p>
               </div>
               <button
@@ -233,11 +223,11 @@ class ChunkErrorBoundary extends Component<Props, State> {
                 {this.state.isRetrying ? (
                   <><Loader2 className="w-4 h-4 animate-spin" /> Refreshing...</>
                 ) : (
-                  <><RefreshCw className="w-4 h-4" /> Retry Now</>
+                  <><RefreshCw className="w-4 h-4" /> Clear & Reload Now</>
                 )}
               </button>
               <p className="text-xs text-muted-foreground/60">
-                If this keeps happening, try clearing your browser cache.
+                If this repeats, close Safari completely and reopen welilereceipts.com.
               </p>
             </div>
           </div>
