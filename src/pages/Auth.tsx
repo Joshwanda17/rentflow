@@ -738,7 +738,7 @@ export default function Auth() {
                     <div>
                       <p className="text-base font-semibold text-foreground">Enter the 6-digit code</p>
                       <p className="text-sm text-muted-foreground mt-0.5">
-                        Sent to <span className="font-medium text-foreground">+{otpLoginCountryCode} {otpLoginPhone}</span>
+                        Sent to <span className="font-medium text-foreground">+{getFullOtpPhone(otpLoginPhone, otpLoginCountryCode)}</span>
                       </p>
                     </div>
 
