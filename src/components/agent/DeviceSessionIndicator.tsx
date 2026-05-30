@@ -59,6 +59,7 @@ function DeviceRow({
               }}
               maxLength={40}
               placeholder="e.g. My Phone"
+              aria-label="Device name"
               className="h-8 text-sm"
             />
           </div>
