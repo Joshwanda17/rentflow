@@ -128,6 +128,10 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
     return list;
   }, [tenants, search, activeFilter, tenantBalances]);
 
+  const activeCount = useMemo(
+    () => tenants.filter((t) => activeTenantIds.has(t.id)).length,
+    [tenants, activeTenantIds]
+  );
   const owingCount = useMemo(
     () => tenants.filter((t) => (tenantBalances[t.id] || 0) > 0).length,
     [tenants, tenantBalances]
