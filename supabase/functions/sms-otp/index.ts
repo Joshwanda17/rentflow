@@ -240,6 +240,18 @@ Deno.serve(async (req) => {
         setTimeout(() => resolve(TIMED_OUT), ACCEPTANCE_TIMEOUT_MS),
       );
 
+      // Persist the gateway-acceptance outcome so the client can poll for it
+      // via the "status" action without ever waiting on carrier delivery.
+      const recordSendStatus = (result: SmsResult) =>
+        adminClient
+          .from("otp_verifications")
+          .update({
+            send_status: result.accepted ? "accepted" : "failed",
+            send_status_reason: result.reason ?? null,
+            send_status_at: new Date().toISOString(),
+          })
+          .eq("phone", phoneKey);
+
       const outcome = await Promise.race([smsPromise, timeoutPromise]);
 
       if (outcome === TIMED_OUT) {
@@ -247,11 +259,12 @@ Deno.serve(async (req) => {
         try {
           (globalThis as any).EdgeRuntime?.waitUntil?.(
             smsPromise
-              .then((r) =>
+              .then(async (r) => {
+                await recordSendStatus(r);
                 console.log(
                   `[sms-otp] late acceptance for ***${phoneKey.slice(-4)}: ${r.accepted ? "ok" : r.reason}`,
-                ),
-              )
+                );
+              })
               .catch((err) => console.error("[sms-otp] background SMS error:", err)),
           );
         } catch (_) {
@@ -264,6 +277,8 @@ Deno.serve(async (req) => {
       }
 
       // Gateway responded in time — report the real result.
+      await recordSendStatus(outcome);
+
       if (!outcome.accepted) {
         console.error(`[sms-otp] gateway rejected send to ***${phoneKey.slice(-4)}: ${outcome.reason}`);
         return new Response(
