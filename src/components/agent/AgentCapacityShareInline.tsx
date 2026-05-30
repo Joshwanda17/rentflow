@@ -90,6 +90,7 @@ export function AgentCapacityShareInline() {
       toast.error('Could not generate the image. Please try again.');
     } finally {
       setBusy(false);
+      setOpen(false);
     }
   };
 
