@@ -111,15 +111,10 @@ export function useIOSCacheInvalidation() {
     if (!('serviceWorker' in navigator)) return;
     
     try {
-      const registration = await navigator.serviceWorker.ready;
-      await registration.update();
-      
-      if (registration.waiting) {
-        console.log('[iOS Cache] New service worker waiting - activating');
-        registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-      }
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.map((registration) => registration.unregister()));
     } catch (error) {
-      console.warn('[iOS Cache] Service worker update check failed:', error);
+      console.warn('[iOS Cache] Service worker cleanup failed:', error);
     }
   }, []);
 
