@@ -33,6 +33,8 @@ function DeviceRow({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  const debouncedSaveRef = useRef<number | null>(null);
+
   const save = () => {
     const trimmed = draft.trim();
     if (!trimmed) {
