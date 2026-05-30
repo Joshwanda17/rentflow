@@ -251,6 +251,46 @@ export function AgentCapacityBreakdownPanel() {
         canPost={canPost}
         dateLabel={dateLabel}
       />
+
+      {/* Preview before sharing */}
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-w-sm p-0 overflow-hidden">
+          <DialogHeader className="p-5 pb-0 text-left">
+            <DialogTitle>Preview your share card</DialogTitle>
+            <DialogDescription>
+              Make sure everything looks right before sending to WhatsApp.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="px-5 pb-5 space-y-4">
+            <div className="rounded-xl overflow-hidden border border-border shadow-sm">
+              <AgentCapacityShareCard
+                ref={previewCardRef}
+                preview
+                agentName={agentName}
+                paidToday={cap.paid_today}
+                expectedDaily={cap.expected_daily}
+                paidYesterday={cap.paid_yesterday}
+                perTenantMax={cap.per_tenant_max}
+                headroom={cap.headroom}
+                remainingSlots={remainingSlots}
+                canPost={canPost}
+                dateLabel={dateLabel}
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={doShare}
+              disabled={sharing}
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-700 transition-colors disabled:opacity-60"
+            >
+              {sharing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              {sharing ? 'Generating…' : 'Send to WhatsApp'}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
