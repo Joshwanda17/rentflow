@@ -35,6 +35,7 @@ import { TenantFieldCollectDialog } from './TenantFieldCollectDialog';
 import { AgentRequestPipelineView } from './AgentRequestPipelineView';
 import { MarkNotFundedDialog } from './MarkNotFundedDialog';
 import { AgentRentCapacitySelfCard } from './AgentRentCapacitySelfCard';
+import { AgentCapacityBreakdownPanel } from './AgentCapacityBreakdownPanel';
 import { useCreditAccessLimit, formatCreditAmount } from '@/hooks/useCreditAccessLimit';
 import { AgentAdvanceRequestForm } from './AgentAdvanceRequestForm';
 import { Sparkles, Zap, ArrowDownAZ, ListChecks, CheckSquare } from 'lucide-react';
@@ -1579,6 +1580,10 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           {/* Rent capacity + Today/Week paid vs expected */}
           <div className="pt-1">
             <AgentRentCapacitySelfCard />
+          </div>
+          {/* Breakdown of today vs target, yesterday & remaining slots */}
+          <div className="pt-2">
+            <AgentCapacityBreakdownPanel />
           </div>
           {/* Quick search — pinned at the top of the sheet so agents can
               jump straight to a tenant without scrolling past stats. */}

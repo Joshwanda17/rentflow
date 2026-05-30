@@ -44,6 +44,9 @@ const ShareCardThemeSettings = lazy(() => import('@/components/agent/ShareCardTh
 const AgentRentCapacitySelfCard = lazy(() =>
   import('@/components/agent/AgentRentCapacitySelfCard').then((m) => ({ default: m.AgentRentCapacitySelfCard })),
 );
+const AgentCapacityBreakdownPanel = lazy(() =>
+  import('@/components/agent/AgentCapacityBreakdownPanel').then((m) => ({ default: m.AgentCapacityBreakdownPanel })),
+);
 const ArchivedPdfsCard = lazy(() =>
   import('@/components/settings/ArchivedPdfsCard').then((m) => ({ default: m.ArchivedPdfsCard })),
 );
@@ -482,6 +485,9 @@ export default function Settings() {
                 {roles.includes('landlord') && <LazySection name="MyTenants"><MyTenantsSection /></LazySection>}
                 {roles.includes('agent') && (
                   <LazySection name="AgentRentCapacity"><AgentRentCapacitySelfCard /></LazySection>
+                )}
+                {roles.includes('agent') && (
+                  <LazySection name="AgentCapacityBreakdown"><AgentCapacityBreakdownPanel /></LazySection>
                 )}
               </div>
             )}
