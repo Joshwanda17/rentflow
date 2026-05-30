@@ -256,6 +256,7 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
       if (selectedTenantId === 'all') localStorage.removeItem('rentPipeline_selectedTenantId');
       else localStorage.setItem('rentPipeline_selectedTenantId', selectedTenantId);
     } catch { /* noop */ }
+    setTenantSyncAt(new Date());
     // 2) Cloud sync — only when we have an authenticated user.
     if (!user?.id) return;
     (async () => {
