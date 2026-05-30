@@ -194,6 +194,8 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   // Agent profile drilldown
   const [drilldownAgentId, setDrilldownAgentId] = useState<string | null>(null);
+  // Tenant selector — CFO picks which tenant's landlord to fund before approving
+  const [selectedTenantId, setSelectedTenantId] = useState<string>('all');
 
   const startEditing = useCallback((field: string, currentValue: any) => {
     setEditingField(field);
@@ -465,13 +467,26 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
   });
 
   const rows = requests || [];
-  const filtered = search
-    ? rows.filter(r =>
-        r.tenant_name.toLowerCase().includes(search.toLowerCase()) ||
-        r.landlord_name.toLowerCase().includes(search.toLowerCase()) ||
-        r.agent_name.toLowerCase().includes(search.toLowerCase())
-      )
-    : rows;
+
+  // Unique tenants in the queue, for the "choose a tenant" selector.
+  const tenantOptions = Array.from(
+    new Map(
+      rows.map(r => [r.tenant_id, { id: r.tenant_id, name: r.tenant_name, landlord_name: r.landlord_name }]),
+    ).values(),
+  ).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+  const filtered = rows.filter(r => {
+    if (selectedTenantId !== 'all' && r.tenant_id !== selectedTenantId) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      return (
+        r.tenant_name.toLowerCase().includes(q) ||
+        r.landlord_name.toLowerCase().includes(q) ||
+        r.agent_name.toLowerCase().includes(q)
+      );
+    }
+    return true;
+  });
 
   const handleApprove = async () => {
     if (!selectedRequest || !user) return;
@@ -721,14 +736,30 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
             )}
           </div>
         )}
-        <div className="relative mt-2">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search tenant, landlord, agent..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="pl-9 h-9 text-sm"
-          />
+        <div className="flex flex-col sm:flex-row gap-2 mt-2">
+          <Select value={selectedTenantId} onValueChange={setSelectedTenantId}>
+            <SelectTrigger className="h-9 text-sm sm:w-[260px]">
+              <User className="h-3.5 w-3.5 mr-1 text-muted-foreground shrink-0" />
+              <SelectValue placeholder="Choose a tenant to fund" />
+            </SelectTrigger>
+            <SelectContent className="max-h-[320px]">
+              <SelectItem value="all">All tenants ({tenantOptions.length})</SelectItem>
+              {tenantOptions.map(t => (
+                <SelectItem key={t.id} value={t.id}>
+                  <span className="truncate">{t.name} → {t.landlord_name}</span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search tenant, landlord, agent..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="pl-9 h-9 text-sm"
+            />
+          </div>
         </div>
       </CardHeader>
       <CardContent className="p-0">
