@@ -15192,6 +15192,63 @@ export type Database = {
         }
         Relationships: []
       }
+      update_failure_events: {
+        Row: {
+          cache_cleared: boolean | null
+          chunk_mismatch: boolean | null
+          created_at: string
+          details: Json
+          event_type: string
+          id: string
+          ios_version: string | null
+          is_ios: boolean | null
+          is_safari: boolean | null
+          is_standalone: boolean | null
+          reload_attempts: number | null
+          safari_version: string | null
+          session_id: string | null
+          sw_cleared: boolean | null
+          url: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          cache_cleared?: boolean | null
+          chunk_mismatch?: boolean | null
+          created_at?: string
+          details?: Json
+          event_type: string
+          id?: string
+          ios_version?: string | null
+          is_ios?: boolean | null
+          is_safari?: boolean | null
+          is_standalone?: boolean | null
+          reload_attempts?: number | null
+          safari_version?: string | null
+          session_id?: string | null
+          sw_cleared?: boolean | null
+          url?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          cache_cleared?: boolean | null
+          chunk_mismatch?: boolean | null
+          created_at?: string
+          details?: Json
+          event_type?: string
+          id?: string
+          ios_version?: string | null
+          is_ios?: boolean | null
+          is_safari?: boolean | null
+          is_standalone?: boolean | null
+          reload_attempts?: number | null
+          safari_version?: string | null
+          session_id?: string | null
+          sw_cleared?: boolean | null
+          url?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       user_activity_log: {
         Row: {
           activity_type: string
