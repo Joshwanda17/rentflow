@@ -30,8 +30,10 @@ export function AgentCapacityBreakdownPanel() {
   const { data, isLoading } = useAgentCapacityMap(ids);
   const cap = user?.id ? data?.get(user.id) : undefined;
   const [drilldownOpen, setDrilldownOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [sharing, setSharing] = useState(false);
   const shareCardRef = useRef<HTMLDivElement>(null);
+  const previewCardRef = useRef<HTMLDivElement>(null);
 
   if (!user?.id) return null;
 
