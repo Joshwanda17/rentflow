@@ -303,15 +303,26 @@ export function AgentCapacityBreakdownPanel() {
               />
             </div>
 
-            <button
-              type="button"
-              onClick={doShare}
-              disabled={sharing}
-              className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-700 transition-colors disabled:opacity-60"
-            >
-              {sharing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              {sharing ? 'Generating…' : 'Send to WhatsApp'}
-            </button>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={doShare}
+                disabled={sharing}
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-700 transition-colors disabled:opacity-60"
+              >
+                {sharing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                {sharing ? 'Generating…' : 'Send to WhatsApp'}
+              </button>
+              <button
+                type="button"
+                onClick={downloadPng}
+                disabled={sharing}
+                className="w-full flex items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 py-3 text-sm font-bold text-foreground hover:bg-muted transition-colors disabled:opacity-60"
+              >
+                {sharing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                Download PNG
+              </button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
