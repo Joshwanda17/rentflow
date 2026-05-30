@@ -10,6 +10,7 @@ import {
 } from './lib/hardRecovery';
 import { logUpdateFailure } from './lib/updateTelemetry';
 import { refreshRolloutConfig, isRolloutEnabledForDevice } from './lib/rollout';
+import { checkServerVersion, isVersionStaleSync } from './lib/versionGate';
 
 const root = document.getElementById('root')!;
 const host = window.location.hostname;
@@ -23,6 +24,13 @@ const isPreviewHost =
 // when offline or still in flight — never blocks startup.
 if (!isPreviewHost) {
   void refreshRolloutConfig();
+}
+
+// Kick off the hard iOS version check as early as possible (fire-and-forget) so
+// the recovery path below can make a definitive "is this device stale?" decision
+// instead of cycling the generic recovery screen forever.
+if (!isPreviewHost) {
+  void checkServerVersion();
 }
 
 // Show branded loader immediately — inline SVG spinner, no network requests at all
