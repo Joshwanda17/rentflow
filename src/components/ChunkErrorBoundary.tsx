@@ -175,6 +175,41 @@ class ChunkErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
+      // Chunk error, but auto-recovery exhausted — stop looping, show manual UI
+      if (this.state.isChunkError && this.state.exhausted) {
+        return (
+          <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-background text-foreground p-6">
+            <div className="flex flex-col items-center gap-6 max-w-sm text-center">
+              <div className="w-16 h-16 rounded-full bg-primary/15 flex items-center justify-center">
+                <RefreshCw className="w-7 h-7 text-primary" />
+              </div>
+              <div className="space-y-2">
+                <h1 className="text-xl font-semibold">Let's clear the cache</h1>
+                <p className="text-muted-foreground text-sm">
+                  The app is having trouble loading the latest version. Tap below
+                  to clear cached data and reload — this usually fixes it on iPhone.
+                </p>
+              </div>
+              <button
+                onClick={this.handleForceClear}
+                disabled={this.state.isRetrying}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground font-medium shadow-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {this.state.isRetrying ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Clearing...</>
+                ) : (
+                  <><RefreshCw className="w-4 h-4" /> Clear cache & reload</>
+                )}
+              </button>
+              <p className="text-xs text-muted-foreground/60">
+                Still stuck? Close the tab completely and reopen welilereceipts.com,
+                or remove the app from your Home Screen and add it again.
+              </p>
+            </div>
+          </div>
+        );
+      }
+
       // Chunk error — auto-recovering "Updating" UI
       if (this.state.isChunkError) {
         return (
