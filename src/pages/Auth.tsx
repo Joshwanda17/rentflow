@@ -193,6 +193,17 @@ export default function Auth() {
   }, []);
 
   const handleSendOtpForLogin = async () => {
+    // Hard iOS version gate: never request a code on a stale bundle — the code
+    // would be unusable and trap the user in the "invalid code" loop.
+    if (isIOS()) {
+      const stale = isVersionStaleSync()
+        ? true
+        : (await checkServerVersion()).stale;
+      if (stale) {
+        setOtpVersionBlocked(true);
+        return;
+      }
+    }
     const fullNum = getFullOtpPhone(otpLoginPhone, otpLoginCountryCode);
     if (fullNum.length < 10) {
       toast({ title: 'Error', description: 'Please enter a valid phone number', variant: 'destructive' });
