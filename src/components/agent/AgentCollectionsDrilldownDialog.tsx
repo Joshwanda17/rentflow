@@ -1,7 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
 import {
   Dialog,
   DialogContent,
@@ -11,7 +13,18 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { User, Loader2, Receipt, CalendarClock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { User, Loader2, Receipt, CalendarClock, CalendarIcon, X, SlidersHorizontal } from 'lucide-react';
 
 type CollectionRow = {
   id: string;
@@ -71,7 +84,7 @@ function CollectionList({ groups }: { groups: TenantGroup[] }) {
   if (groups.length === 0) {
     return (
       <div className="py-10 text-center text-sm text-muted-foreground">
-        No collections recorded for this day.
+        No collections match these filters.
       </div>
     );
   }
@@ -129,14 +142,20 @@ export function AgentCollectionsDrilldownDialog({
   onOpenChange: (open: boolean) => void;
   agentId: string;
 }) {
+  // ----- Filters -----
+  const [methodFilter, setMethodFilter] = useState<string>('all');
+  const [minAmount, setMinAmount] = useState<string>('');
+  const [fromDate, setFromDate] = useState<Date | undefined>();
+  const [toDate, setToDate] = useState<Date | undefined>();
+
   const { data, isLoading } = useQuery({
     queryKey: ['agent-collections-drilldown', agentId],
     enabled: open && !!agentId,
     staleTime: 15_000,
     queryFn: async () => {
-      // Fetch the last ~3 days so both Kampala calendar days are fully covered,
-      // then bucket precisely by Kampala date to match the eligibility view.
-      const sinceISO = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+      // Fetch a 31-day window so date-range filtering has data to work with,
+      // then bucket today/yesterday precisely by Kampala date.
+      const sinceISO = new Date(Date.now() - 31 * 24 * 60 * 60 * 1000).toISOString();
       const { data: rows, error } = await supabase
         .from('agent_collections')
         .select('id, tenant_id, amount, created_at, payment_method')
@@ -145,20 +164,9 @@ export function AgentCollectionsDrilldownDialog({
         .order('created_at', { ascending: false });
       if (error) throw error;
 
-      const now = new Date();
-      const todayStr = kampalaDate(now);
-      const yesterdayStr = kampalaDate(new Date(now.getTime() - 24 * 60 * 60 * 1000));
-
-      const today: CollectionRow[] = [];
-      const yesterday: CollectionRow[] = [];
-      (rows || []).forEach((r: any) => {
-        const d = kampalaDate(new Date(r.created_at));
-        if (d === todayStr) today.push(r);
-        else if (d === yesterdayStr) yesterday.push(r);
-      });
-
+      const allRows = (rows || []) as CollectionRow[];
       const tenantIds = Array.from(
-        new Set([...today, ...yesterday].map((r) => r.tenant_id).filter(Boolean)),
+        new Set(allRows.map((r) => r.tenant_id).filter(Boolean)),
       ) as string[];
       const nameById = new Map<string, string>();
       if (tenantIds.length > 0) {
@@ -171,17 +179,63 @@ export function AgentCollectionsDrilldownDialog({
         });
       }
 
-      return {
-        today: groupByTenant(today, nameById),
-        yesterday: groupByTenant(yesterday, nameById),
-        todayTotal: today.reduce((s, r) => s + (Number(r.amount) || 0), 0),
-        yesterdayTotal: yesterday.reduce((s, r) => s + (Number(r.amount) || 0), 0),
-      };
+      return { rows: allRows, nameById };
     },
   });
 
-  const todayTotal = data?.todayTotal ?? 0;
-  const yesterdayTotal = data?.yesterdayTotal ?? 0;
+  const now = new Date();
+  const todayStr = kampalaDate(now);
+  const yesterdayStr = kampalaDate(new Date(now.getTime() - 24 * 60 * 60 * 1000));
+
+  // Distinct payment methods available across the loaded window.
+  const methods = useMemo(() => {
+    const set = new Set<string>();
+    (data?.rows ?? []).forEach((r) => { if (r.payment_method) set.add(r.payment_method); });
+    return Array.from(set).sort();
+  }, [data?.rows]);
+
+  // Apply method + amount + date-range filters to the raw rows.
+  const filteredRows = useMemo(() => {
+    const min = Number(minAmount) || 0;
+    const fromStr = fromDate ? kampalaDate(fromDate) : null;
+    const toStr = toDate ? kampalaDate(toDate) : null;
+    return (data?.rows ?? []).filter((r) => {
+      if (methodFilter !== 'all' && r.payment_method !== methodFilter) return false;
+      if (min > 0 && (Number(r.amount) || 0) < min) return false;
+      if (fromStr || toStr) {
+        const d = kampalaDate(new Date(r.created_at));
+        if (fromStr && d < fromStr) return false;
+        if (toStr && d > toStr) return false;
+      }
+      return true;
+    });
+  }, [data?.rows, methodFilter, minAmount, fromDate, toDate]);
+
+  const nameById = data?.nameById ?? new Map<string, string>();
+
+  const todayRows = useMemo(
+    () => filteredRows.filter((r) => kampalaDate(new Date(r.created_at)) === todayStr),
+    [filteredRows, todayStr],
+  );
+  const yesterdayRows = useMemo(
+    () => filteredRows.filter((r) => kampalaDate(new Date(r.created_at)) === yesterdayStr),
+    [filteredRows, yesterdayStr],
+  );
+
+  const sum = (rows: CollectionRow[]) => rows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  const todayTotal = sum(todayRows);
+  const yesterdayTotal = sum(yesterdayRows);
+  const rangeTotal = sum(filteredRows);
+
+  const hasFilters = methodFilter !== 'all' || !!minAmount || !!fromDate || !!toDate;
+  const clearFilters = () => {
+    setMethodFilter('all');
+    setMinAmount('');
+    setFromDate(undefined);
+    setToDate(undefined);
+  };
+
+  const dateDisabled = (d: Date) => d > now;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -203,23 +257,119 @@ export function AgentCollectionsDrilldownDialog({
           </div>
         ) : (
           <Tabs defaultValue="today" className="w-full">
+            {/* Filter bar */}
+            <div className="px-4 pt-3 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                  <SlidersHorizontal className="h-3.5 w-3.5" /> Filters
+                </span>
+                {hasFilters && (
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                  >
+                    <X className="h-3.5 w-3.5" /> Clear
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={cn('h-9 justify-start font-normal', !fromDate && 'text-muted-foreground')}
+                    >
+                      <CalendarIcon className="h-3.5 w-3.5" />
+                      {fromDate ? format(fromDate, 'd MMM') : 'From'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={fromDate}
+                      onSelect={setFromDate}
+                      disabled={dateDisabled}
+                      initialFocus
+                      className={cn('p-3 pointer-events-auto')}
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={cn('h-9 justify-start font-normal', !toDate && 'text-muted-foreground')}
+                    >
+                      <CalendarIcon className="h-3.5 w-3.5" />
+                      {toDate ? format(toDate, 'd MMM') : 'To'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={toDate}
+                      onSelect={setToDate}
+                      disabled={dateDisabled}
+                      initialFocus
+                      className={cn('p-3 pointer-events-auto')}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <Select value={methodFilter} onValueChange={setMethodFilter}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Method" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All methods</SelectItem>
+                    {methods.map((m) => (
+                      <SelectItem key={m} value={m}>
+                        {m.replace(/_/g, ' ')}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  placeholder="Min amount"
+                  value={minAmount}
+                  onChange={(e) => setMinAmount(e.target.value)}
+                  className="h-9"
+                />
+              </div>
+            </div>
+
             <div className="px-4 pt-3">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="today">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="today" className="text-xs">
                   Today · {formatUGX(todayTotal)}
                 </TabsTrigger>
-                <TabsTrigger value="yesterday">
+                <TabsTrigger value="yesterday" className="text-xs">
                   Yesterday · {formatUGX(yesterdayTotal)}
+                </TabsTrigger>
+                <TabsTrigger value="range" className="text-xs">
+                  Range · {formatUGX(rangeTotal)}
                 </TabsTrigger>
               </TabsList>
             </div>
-            <ScrollArea className="max-h-[60vh]">
+            <ScrollArea className="max-h-[55vh]">
               <div className="p-4">
                 <TabsContent value="today" className="mt-0">
-                  <CollectionList groups={data?.today ?? []} />
+                  <CollectionList groups={groupByTenant(todayRows, nameById)} />
                 </TabsContent>
                 <TabsContent value="yesterday" className="mt-0">
-                  <CollectionList groups={data?.yesterday ?? []} />
+                  <CollectionList groups={groupByTenant(yesterdayRows, nameById)} />
+                </TabsContent>
+                <TabsContent value="range" className="mt-0">
+                  <CollectionList groups={groupByTenant(filteredRows, nameById)} />
                 </TabsContent>
               </div>
             </ScrollArea>
