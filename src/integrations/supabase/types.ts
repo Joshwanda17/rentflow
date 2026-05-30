@@ -15054,6 +15054,36 @@ export type Database = {
         }
         Relationships: []
       }
+      user_device_sessions: {
+        Row: {
+          created_at: string
+          device_id: string
+          device_label: string | null
+          id: string
+          last_seen_at: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          device_id: string
+          device_label?: string | null
+          id?: string
+          last_seen_at?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          device_id?: string
+          device_label?: string | null
+          id?: string
+          last_seen_at?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_loan_repayments: {
         Row: {
           amount: number

@@ -87,6 +87,7 @@ import { FloatPayoutStatusTracker } from '@/components/agent/FloatPayoutStatusTr
 import { FloatTransactionHistory } from '@/components/agent/FloatTransactionHistory';
 import { VerificationOpportunitiesButton } from '@/components/agent/VerificationOpportunitiesButton';
 import { AgentNotificationBell } from '@/components/agent/AgentNotificationBell';
+import { DeviceSessionIndicator } from '@/components/agent/DeviceSessionIndicator';
 import { CreditVerificationButton } from '@/components/agent/CreditVerificationButton';
 import { AgentMyRentRequestsSheet } from '@/components/agent/AgentMyRentRequestsSheet';
 import { AgentTenantsSheet } from '@/components/agent/AgentTenantsSheet';
@@ -477,6 +478,11 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           </div>
           <AiIdButton variant="compact" />
           <AgentNotificationBell userId={user.id} />
+        </div>
+
+        {/* Active devices / multi-session indicator */}
+        <div className="flex justify-end -mt-2">
+          <DeviceSessionIndicator userId={user.id} />
         </div>
 
         {/* Wallet Hero Card — always visible */}
