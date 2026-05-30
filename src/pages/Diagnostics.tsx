@@ -618,12 +618,6 @@ export default function Diagnostics() {
           </button>
         </div>
 
-        {/* Report */}
-        <div className="rounded-xl border border-border bg-card p-4">
-          <h2 className="mb-3 text-sm font-semibold">Support report</h2>
-
-        </div>
-
         {/* Update-failure telemetry (managers only — RLS returns rows only to them) */}
         <Section title="Update-failure telemetry" icon={Activity}>
           <div className="mb-3 flex items-center justify-between">
