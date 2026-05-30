@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
@@ -108,8 +108,14 @@ export default function ProfileCompletionGate() {
     },
   });
 
-  // The dialog opens automatically and CANNOT be dismissed by the user.
-  const open = !!profile && profile.address_complete === false;
+  // Edit mode is triggered manually (e.g. from Settings) so users can
+  // revise an already-complete profile without the mandatory gate.
+  const [editMode, setEditMode] = useState(false);
+
+  // The gate opens automatically when the profile is incomplete (mandatory,
+  // non-dismissable) OR when the user explicitly opens the editor.
+  const mandatory = !!profile && profile.address_complete === false;
+  const open = mandatory || editMode;
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
@@ -139,26 +145,53 @@ export default function ProfileCompletionGate() {
   // the next login/session as required by the Trust Mission.
   const [dismissed, setDismissed] = useState(false);
 
+  // While seeding from the DB we suppress the country/continent cascade
+  // effects so they don't wipe the values we're restoring.
+  const seeding = useRef(false);
+
+  const seedFromProfile = useCallback((p: ProfileRow) => {
+    seeding.current = true;
+    if (p.continent) setContinent(p.continent);
+    if (p.country) setCountry(p.country);
+    if (p.region) setRegion(p.region);
+    if (p.district) setDistrict(p.district);
+    if (p.city) setCity(p.city);
+    if (p.town) setTown(p.town);
+    if (p.sub_county) setSubCounty(p.sub_county);
+    if (p.parish) setParish(p.parish);
+    if (p.village) setVillage(p.village);
+    if (p.primary_persona) setPersona(p.primary_persona);
+    if (p.occupation) setOccupation(p.occupation);
+    // Re-enable cascades after the suppressed effects have run this tick.
+    setTimeout(() => {
+      seeding.current = false;
+    }, 0);
+  }, []);
+
   // Seed the form from whatever the profile already has, so users only
   // fill the blanks.
   useEffect(() => {
     if (!profile) return;
-    if (profile.continent) setContinent(profile.continent);
-    if (profile.country) setCountry(profile.country);
-    if (profile.region) setRegion(profile.region);
-    if (profile.district) setDistrict(profile.district);
-    if (profile.city) setCity(profile.city);
-    if (profile.town) setTown(profile.town);
-    if (profile.sub_county) setSubCounty(profile.sub_county);
-    if (profile.parish) setParish(profile.parish);
-    if (profile.village) setVillage(profile.village);
-    if (profile.primary_persona) setPersona(profile.primary_persona);
-    if (profile.occupation) setOccupation(profile.occupation);
-  }, [profile?.id]);
+    seedFromProfile(profile);
+  }, [profile?.id, seedFromProfile]);
+
+  // Allow other parts of the app (e.g. Settings) to open this gate in
+  // edit mode so a user can revise an already-complete profile.
+  useEffect(() => {
+    const handler = () => {
+      if (profile) seedFromProfile(profile);
+      setStep(1);
+      setDismissed(false);
+      setEditMode(true);
+    };
+    window.addEventListener("open-profile-editor", handler);
+    return () => window.removeEventListener("open-profile-editor", handler);
+  }, [profile, seedFromProfile]);
 
   // Auto-derive continent from country selection and cascade-clear
   // dependent address fields so they never mismatch a previous city.
   useEffect(() => {
+    if (seeding.current) return;
     const cont = continentForCountry(country);
     if (cont) setContinent(cont);
 
@@ -180,6 +213,7 @@ export default function ProfileCompletionGate() {
   // When continent is changed manually, wipe all sub-fields so the user
   // re-selects a matching country → city chain.
   useEffect(() => {
+    if (seeding.current) return;
     setCountry("");
     setRegion("");
     setDistrict("");
@@ -322,10 +356,13 @@ export default function ProfileCompletionGate() {
       void supabase.from("profile_completion_log").insert(logRows as any);
 
       toast.success("Profile updated", {
-        description: "Thanks — this helps us route the right agent to you.",
+        description: editMode
+          ? "Your profile details have been saved."
+          : "Thanks — this helps us route the right agent to you.",
       });
       await refetch();
       queryClient.invalidateQueries({ queryKey: ["profile-completion-gate"] });
+      if (editMode) setEditMode(false);
     } catch (e: any) {
       console.error("[ProfileCompletionGate] save failed", e);
       toast.error("Couldn't save your profile", {
@@ -336,26 +373,33 @@ export default function ProfileCompletionGate() {
     }
   };
 
-  if (!enabled || !open || dismissed) return null;
+  if (!enabled || !open || (dismissed && !editMode)) return null;
+
+  // In edit mode the dialog is freely dismissable; the mandatory gate is not.
+  const closeEditor = () => setEditMode(false);
 
   return (
-    <Dialog open={open}>
+    <Dialog open={open} onOpenChange={(o) => { if (!o && editMode) closeEditor(); }}>
       <DialogContent
-        // Block all dismissal channels — this gate is mandatory.
-        onPointerDownOutside={(e) => e.preventDefault()}
-        onEscapeKeyDown={(e) => e.preventDefault()}
-        onInteractOutside={(e) => e.preventDefault()}
+        // Mandatory gate blocks all dismissal; edit mode allows it.
+        onPointerDownOutside={(e) => { if (!editMode) e.preventDefault(); }}
+        onEscapeKeyDown={(e) => { if (!editMode) e.preventDefault(); }}
+        onInteractOutside={(e) => { if (!editMode) e.preventDefault(); }}
         className="sm:max-w-lg max-h-[90vh] overflow-y-auto [&>button]:hidden"
       >
         <button
           type="button"
           onClick={() => {
+            if (editMode) {
+              closeEditor();
+              return;
+            }
             setDismissed(true);
             toast.message("We'll remind you next time", {
               description: "Finish your profile to unlock the right agent and listings.",
             });
           }}
-          aria-label="Close and remind me later"
+          aria-label={editMode ? "Close" : "Close and remind me later"}
           className="absolute right-3 top-3 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <X className="h-4 w-4" />
@@ -363,11 +407,12 @@ export default function ProfileCompletionGate() {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MapPin className="h-5 w-5 text-primary" />
-            Complete your profile
+            {editMode ? "Edit your profile" : "Complete your profile"}
           </DialogTitle>
           <DialogDescription>
-            Step {step} of 3 — this takes about a minute and unlocks the
-            right agent, listings, and reports for your area.
+            Step {step} of 3 — {editMode
+              ? "update your location, role, or referring agent."
+              : "this takes about a minute and unlocks the right agent, listings, and reports for your area."}
           </DialogDescription>
         </DialogHeader>
 
@@ -619,7 +664,7 @@ export default function ProfileCompletionGate() {
               </Button>
               <Button onClick={handleSubmit} disabled={submitting || !step3Valid}>
                 {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                Save & continue
+                {editMode ? "Save changes" : "Save & continue"}
               </Button>
             </div>
           </div>
