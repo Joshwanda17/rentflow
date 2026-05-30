@@ -170,12 +170,39 @@ export default function ProfileCompletionGate() {
   // effects so they don't wipe the values we're restoring.
   const seeding = useRef(false);
 
-  // Draft autosave — partial form input is persisted to localStorage per
-  // user so people can close the gate (it's optional) and resume later
-  // without losing anything they already typed.
+  // Draft autosave — partial form input is synced to the server (table
+  // `profile_drafts`) so people can close the gate (it's optional) and
+  // resume on ANY device or browser. localStorage is kept as an offline
+  // fallback when the network is unavailable.
   const draftKey = user ? `welile:profile-draft:${user.id}` : null;
   const draftRestored = useRef(false);
   const [draftSavedAt, setDraftSavedAt] = useState<number | null>(null);
+  const [draftSyncing, setDraftSyncing] = useState(false);
+
+  // Apply a saved draft object on top of the current (DB-seeded) form
+  // state. Cascades are suppressed so restored values aren't wiped.
+  const applyDraft = useCallback((d: Record<string, unknown>) => {
+    seeding.current = true;
+    if (typeof d.continent === "string") setContinent(d.continent);
+    if (typeof d.country === "string") setCountry(d.country);
+    if (typeof d.region === "string") setRegion(d.region);
+    if (typeof d.district === "string") setDistrict(d.district);
+    if (typeof d.city === "string") setCity(d.city);
+    if (typeof d.town === "string") setTown(d.town);
+    if (typeof d.subCounty === "string") setSubCounty(d.subCounty);
+    if (typeof d.parish === "string") setParish(d.parish);
+    if (typeof d.village === "string") setVillage(d.village);
+    if (typeof d.persona === "string") setPersona(d.persona);
+    if (typeof d.occupation === "string") setOccupation(d.occupation);
+    if (typeof d.residenceLat === "number") setResidenceLat(d.residenceLat);
+    if (typeof d.residenceLng === "number") setResidenceLng(d.residenceLng);
+    if (d.step === 1 || d.step === 2 || d.step === 3) setStep(d.step);
+    if (typeof d.quickMode === "boolean") setQuickMode(d.quickMode);
+    if (typeof d.savedAt === "number") setDraftSavedAt(d.savedAt);
+    setTimeout(() => {
+      seeding.current = false;
+    }, 0);
+  }, []);
 
   const seedFromProfile = useCallback((p: ProfileRow) => {
     seeding.current = true;
@@ -203,83 +230,96 @@ export default function ProfileCompletionGate() {
     seedFromProfile(profile);
   }, [profile?.id, seedFromProfile]);
 
-  // Restore a previously saved draft (once) on top of the DB-seeded values,
-  // so the user's most recent unsaved edits win when they come back.
+  // Restore a previously saved draft (once) on top of the DB-seeded
+  // values. We prefer the server copy (cross-device) and fall back to the
+  // local cache when offline. The most recent of the two wins.
   useEffect(() => {
-    if (!draftKey || draftRestored.current || !profile) return;
-    let raw: string | null = null;
-    try {
-      raw = localStorage.getItem(draftKey);
-    } catch {
-      /* storage unavailable — nothing to restore */
-    }
-    if (!raw) {
-      draftRestored.current = true;
-      return;
-    }
-    try {
-      const d = JSON.parse(raw) as Record<string, unknown>;
-      seeding.current = true;
-      if (typeof d.continent === "string") setContinent(d.continent);
-      if (typeof d.country === "string") setCountry(d.country);
-      if (typeof d.region === "string") setRegion(d.region);
-      if (typeof d.district === "string") setDistrict(d.district);
-      if (typeof d.city === "string") setCity(d.city);
-      if (typeof d.town === "string") setTown(d.town);
-      if (typeof d.subCounty === "string") setSubCounty(d.subCounty);
-      if (typeof d.parish === "string") setParish(d.parish);
-      if (typeof d.village === "string") setVillage(d.village);
-      if (typeof d.persona === "string") setPersona(d.persona);
-      if (typeof d.occupation === "string") setOccupation(d.occupation);
-      if (typeof d.residenceLat === "number") setResidenceLat(d.residenceLat);
-      if (typeof d.residenceLng === "number") setResidenceLng(d.residenceLng);
-      if (d.step === 1 || d.step === 2 || d.step === 3) setStep(d.step);
-      if (typeof d.quickMode === "boolean") setQuickMode(d.quickMode);
-      if (typeof d.savedAt === "number") setDraftSavedAt(d.savedAt);
-      setTimeout(() => {
-        seeding.current = false;
-      }, 0);
-    } catch {
-      /* corrupt draft — ignore */
-    }
+    if (!user || !draftKey || draftRestored.current || !profile) return;
     draftRestored.current = true;
-  }, [draftKey, profile]);
 
-  // Debounced autosave of the in-progress form to localStorage. Runs only
+    let cancelled = false;
+
+    const readLocal = (): Record<string, unknown> | null => {
+      try {
+        const raw = localStorage.getItem(draftKey);
+        return raw ? (JSON.parse(raw) as Record<string, unknown>) : null;
+      } catch {
+        return null;
+      }
+    };
+
+    (async () => {
+      const local = readLocal();
+      let server: Record<string, unknown> | null = null;
+      try {
+        const { data } = await supabase
+          .from("profile_drafts")
+          .select("draft")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (data?.draft && typeof data.draft === "object") {
+          server = data.draft as Record<string, unknown>;
+        }
+      } catch {
+        /* offline — local fallback only */
+      }
+      if (cancelled) return;
+
+      // Choose whichever draft was saved most recently.
+      const localAt = typeof local?.savedAt === "number" ? local.savedAt : 0;
+      const serverAt = typeof server?.savedAt === "number" ? server.savedAt : 0;
+      const chosen = serverAt >= localAt ? server ?? local : local ?? server;
+      if (chosen) applyDraft(chosen);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, draftKey, profile, applyDraft]);
+
+  // Debounced autosave of the in-progress form to BOTH the server (for
+  // cross-device resume) and localStorage (offline fallback). Runs only
   // after the initial restore so we never clobber a draft with defaults.
   useEffect(() => {
-    if (!draftKey || !draftRestored.current) return;
+    if (!user || !draftKey || !draftRestored.current) return;
     const handle = setTimeout(() => {
+      const savedAt = Date.now();
+      const payload = {
+        continent,
+        country,
+        region,
+        district,
+        city,
+        town,
+        subCounty,
+        parish,
+        village,
+        persona,
+        occupation,
+        residenceLat,
+        residenceLng,
+        step,
+        quickMode,
+        savedAt,
+      };
       try {
-        const savedAt = Date.now();
-        localStorage.setItem(
-          draftKey,
-          JSON.stringify({
-            continent,
-            country,
-            region,
-            district,
-            city,
-            town,
-            subCounty,
-            parish,
-            village,
-            persona,
-            occupation,
-            residenceLat,
-            residenceLng,
-            step,
-            quickMode,
-            savedAt,
-          }),
-        );
-        setDraftSavedAt(savedAt);
+        localStorage.setItem(draftKey, JSON.stringify(payload));
       } catch {
         /* storage full / unavailable — best effort */
       }
-    }, 600);
+      setDraftSavedAt(savedAt);
+      setDraftSyncing(true);
+      void supabase
+        .from("profile_drafts")
+        .upsert(
+          { user_id: user.id, draft: payload as unknown as Record<string, unknown> },
+          { onConflict: "user_id" },
+        )
+        .then(() => setDraftSyncing(false), () => setDraftSyncing(false));
+    }, 800);
     return () => clearTimeout(handle);
   }, [
+    user,
     draftKey,
     continent,
     country,
