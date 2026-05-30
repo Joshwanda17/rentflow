@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, MapPin, RotateCcw, User as UserIcon, UserCheck, Lock, Search, X } from "lucide-react";
+import { Loader2, MapPin, RotateCcw, User as UserIcon, UserCheck, Lock, Search, X, Navigation, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,6 +48,20 @@ const PERSONAS = [
   { value: "partner", label: "Partner — I run an investing institution" },
   { value: "staff", label: "Welile staff" },
   { value: "other", label: "Other" },
+] as const;
+
+/**
+ * Picture-first role choices for the Quick setup screen. Designed for
+ * smartphone users who don't want to read long labels — big emoji + a
+ * two/three-word caption, tapped not typed.
+ */
+const QUICK_PERSONAS = [
+  { value: "tenant", emoji: "🏠", label: "I rent a home" },
+  { value: "landlord", emoji: "🔑", label: "I own a house" },
+  { value: "funder", emoji: "💰", label: "I fund rent" },
+  { value: "agent", emoji: "🚶", label: "I collect rent" },
+  { value: "partner", emoji: "🏢", label: "Institution" },
+  { value: "other", emoji: "👤", label: "Other" },
 ] as const;
 
 type ProfileRow = {
@@ -119,6 +133,13 @@ export default function ProfileCompletionGate() {
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
+  // Quick setup is the easy, picture-first path shown by default to the
+  // mandatory gate. Users can switch to the detailed form via "More options".
+  const [quickMode, setQuickMode] = useState(true);
+  const [locating, setLocating] = useState(false);
+  const [residenceLat, setResidenceLat] = useState<number | null>(null);
+  const [residenceLng, setResidenceLng] = useState<number | null>(null);
+
   // Address state — defaults to Africa, Uganda, Kampala for the majority user base
   const [continent, setContinent] = useState("Africa");
   const [country, setCountry] = useState("Uganda");
@@ -182,6 +203,8 @@ export default function ProfileCompletionGate() {
       if (profile) seedFromProfile(profile);
       setStep(1);
       setDismissed(false);
+      // Editing from Settings → give the full detailed form, not quick mode.
+      setQuickMode(false);
       setEditMode(true);
     };
     window.addEventListener("open-profile-editor", handler);
@@ -288,6 +311,32 @@ export default function ProfileCompletionGate() {
     setVillage("");
   };
 
+  // One-tap GPS capture so users don't have to type any address detail.
+  const handleUseMyLocation = () => {
+    if (!("geolocation" in navigator)) {
+      toast.error("Location not available on this device");
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setResidenceLat(pos.coords.latitude);
+        setResidenceLng(pos.coords.longitude);
+        setLocating(false);
+        toast.success("Location captured", {
+          description: "We saved where you are now.",
+        });
+      },
+      () => {
+        setLocating(false);
+        toast.error("Couldn't get your location", {
+          description: "You can still finish — we'll use Kampala by default.",
+        });
+      },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  };
+
   const handleSubmit = async () => {
     if (!user || !profile) return;
     if (!step1Valid || !step2Valid || !step3Valid) return;
@@ -310,6 +359,10 @@ export default function ProfileCompletionGate() {
         primary_persona: persona,
         occupation: occupation.trim() || null,
       };
+      if (residenceLat != null && residenceLng != null) {
+        update.residence_lat = residenceLat;
+        update.residence_lng = residenceLng;
+      }
       if (referrerWillChange) {
         update.referrer_id = newReferrerId;
         update.referrer_override_at = new Date().toISOString();
@@ -407,16 +460,100 @@ export default function ProfileCompletionGate() {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MapPin className="h-5 w-5 text-primary" />
-            {editMode ? "Edit your profile" : "Complete your profile"}
+            {editMode ? "Edit your profile" : quickMode ? "Quick setup" : "Complete your profile"}
           </DialogTitle>
           <DialogDescription>
-            Step {step} of 3 — {editMode
-              ? "update your location, role, or referring agent."
-              : "this takes about a minute and unlocks the right agent, listings, and reports for your area."}
+            {quickMode && !editMode
+              ? "Two taps. Tell us where you are and who you are — that's it."
+              : `Step ${step} of 3 — ${
+                  editMode
+                    ? "update your location, role, or referring agent."
+                    : "this takes about a minute and unlocks the right agent, listings, and reports for your area."
+                }`}
           </DialogDescription>
         </DialogHeader>
 
-        {step === 1 && (
+        {quickMode && !editMode && (
+          <div className="space-y-5">
+            {/* 1) Location — one tap, sensible Kampala default */}
+            <div className="space-y-2">
+              <p className="text-base font-semibold">Where do you live?</p>
+              <div className="rounded-xl border bg-muted/30 p-3 space-y-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <MapPin className="h-4 w-4 text-primary shrink-0" />
+                  <span className="font-medium">
+                    {[town || village, city || district, country]
+                      .filter(Boolean)
+                      .join(", ")}
+                  </span>
+                  {residenceLat != null && (
+                    <Check className="h-4 w-4 text-primary ml-auto" />
+                  )}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="w-full gap-2 h-12 text-base"
+                  onClick={handleUseMyLocation}
+                  disabled={locating}
+                >
+                  {locating ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Navigation className="h-5 w-5" />
+                  )}
+                  {residenceLat != null ? "Location saved — tap to update" : "Use my current location"}
+                </Button>
+              </div>
+            </div>
+
+            {/* 2) Role — big picture buttons */}
+            <div className="space-y-2">
+              <p className="text-base font-semibold">Who are you?</p>
+              <div className="grid grid-cols-2 gap-2">
+                {QUICK_PERSONAS.map((p) => {
+                  const selected = persona === p.value;
+                  return (
+                    <button
+                      key={p.value}
+                      type="button"
+                      onClick={() => setPersona(p.value)}
+                      className={`flex flex-col items-center justify-center gap-1 rounded-xl border-2 p-4 text-center transition-colors ${
+                        selected
+                          ? "border-primary bg-primary/10"
+                          : "border-border hover:bg-muted/50"
+                      }`}
+                    >
+                      <span className="text-3xl" aria-hidden>{p.emoji}</span>
+                      <span className="text-sm font-medium leading-tight">{p.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              size="lg"
+              className="w-full h-12 text-base"
+              onClick={handleSubmit}
+              disabled={submitting || !persona}
+            >
+              {submitting && <Loader2 className="h-5 w-5 animate-spin mr-2" />}
+              Finish
+            </Button>
+            <button
+              type="button"
+              onClick={() => setQuickMode(false)}
+              className="w-full text-center text-xs text-muted-foreground underline"
+            >
+              More options
+            </button>
+          </div>
+        )}
+
+        {(!quickMode || editMode) && step === 1 && (
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
