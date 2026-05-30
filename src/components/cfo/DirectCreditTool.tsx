@@ -21,6 +21,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { UserSearchPicker } from './UserSearchPicker';
+import { Checkbox } from '@/components/ui/checkbox';
 import { TreasuryImpactBanner } from './TreasuryImpactBanner';
 import { RecipientRoutingWarningBanner } from './RecipientRoutingWarningBanner';
 import { RentDisbursementQueue } from './RentDisbursementQueue';
