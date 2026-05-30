@@ -8,7 +8,7 @@ import { componentTagger } from "lovable-tagger";
 export default defineConfig(({ mode }) => ({
   define: {
     __APP_VERSION__: JSON.stringify('2026-05-29-force-update'),
-    __BUILD_TIME__: JSON.stringify(Date.now()),
+    __CACHE_VERSION__: JSON.stringify('2026-05-29-force-update'),
   },
   server: {
     host: "::",
