@@ -249,6 +249,8 @@ export default function Diagnostics() {
   const [sendResult, setSendResult] = useState<{ link: string; emailQueued: boolean } | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
   const reportRef = useRef<string>("");
+  const [telemetry, setTelemetry] = useState<TelemetryRow[] | null>(null);
+  const [telemetryLoading, setTelemetryLoading] = useState(false);
 
   const run = useCallback(async () => {
     setLoading(true);
@@ -264,6 +266,29 @@ export default function Diagnostics() {
   useEffect(() => {
     run();
   }, [run]);
+
+  const loadTelemetry = useCallback(async () => {
+    setTelemetryLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("update_failure_events")
+        .select(
+          "id,created_at,event_type,chunk_mismatch,reload_attempts,sw_cleared,cache_cleared,is_ios,is_safari,is_standalone,ios_version,safari_version,user_agent"
+        )
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      setTelemetry((data as TelemetryRow[]) ?? []);
+    } catch {
+      setTelemetry([]);
+    } finally {
+      setTelemetryLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadTelemetry();
+  }, [loadTelemetry]);
 
   const onPurge = async () => {
     setBusy(true);
