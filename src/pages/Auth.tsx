@@ -19,6 +19,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { useOtpVerification } from '@/hooks/useOtpVerification';
 import { getPreferredLoginMethod } from '@/hooks/useAppPreferences';
+import { setDeviceTrust } from '@/lib/deviceTrust';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
