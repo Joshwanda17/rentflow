@@ -59,11 +59,14 @@ function DeviceRow({
       </div>
       <div className="min-w-0 flex-1">
         {editing ? (
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-col gap-1">
             <Input
               autoFocus
               value={draft}
-              onChange={(e) => setDraft(e.target.value)}
+              onChange={(e) => {
+                setDraft(e.target.value);
+                if (error) setError(null);
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') save();
                 if (e.key === 'Escape') cancel();
@@ -71,8 +74,12 @@ function DeviceRow({
               maxLength={40}
               placeholder="e.g. My Phone"
               aria-label="Device name"
+              aria-invalid={!!error}
               className="h-8 text-sm"
             />
+            {error && (
+              <p className="text-xs text-destructive leading-none">{error}</p>
+            )}
           </div>
         ) : (
           <>
