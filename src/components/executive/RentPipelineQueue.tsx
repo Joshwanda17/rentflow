@@ -231,6 +231,7 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
         if (cloudValue) {
           setSelectedTenantId(cloudValue);
           setTenantSyncStatus('synced');
+          setTenantSyncAt(new Date());
           try {
             if (cloudValue === 'all') localStorage.removeItem('rentPipeline_selectedTenantId');
             else localStorage.setItem('rentPipeline_selectedTenantId', cloudValue);
