@@ -206,6 +206,24 @@ const loadApp = async () => {
     // percentage before full deployment.
     const emergencyIOSRecovery = isIOSDevice;
     const inRolloutCohort = emergencyIOSRecovery || isRolloutEnabledForDevice();
+    // HARD iOS VERSION GATE: a stale iPhone must not keep cycling the recovery
+    // screen. When this device is provably running an outdated bundle, replace
+    // the recovery loop with a definitive "Update Required" gate that forces a
+    // clean refresh onto the current build. We confirm staleness against the
+    // network (no-store) before gating so we never trap an up-to-date device.
+    if (isChunkError && isIOSDevice) {
+      const version = isVersionStaleSync()
+        ? { stale: true }
+        : await checkServerVersion();
+      if (version.stale) {
+        logUpdateFailure('ios_version_gate', {
+          chunk_mismatch: true,
+          details: { reason: 'stale bundle — hard update gate shown' },
+        });
+        showUpdateRequiredUI();
+        return;
+      }
+    }
     // Stale-deploy recovery: purge caches/SWs and reload to a cache-busted URL
     // so iOS Safari fetches a fresh HTML shell. Stop once attempts are
     // exhausted to avoid an endless "Updating…" loop.
