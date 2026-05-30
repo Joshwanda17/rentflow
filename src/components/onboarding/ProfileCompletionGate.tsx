@@ -263,6 +263,7 @@ export default function ProfileCompletionGate() {
       const newReferrerId = referrerOverride ?? profile.referrer_id;
 
       const update: Record<string, unknown> = {
+        address_complete: true,
         continent: continent || null,
         country: resolvedCountry,
         region: region.trim() || null,
