@@ -23,7 +23,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { UGANDA_DISTRICTS } from "@/lib/ugandaDistricts";
 import { CountryCombobox } from "@/components/ui/country-combobox";
-import { continentForCountry } from "@/lib/worldCountries";
+import { CityCombobox } from "@/components/ui/city-combobox";
+import { continentForCountry, isoForCountry } from "@/lib/worldCountries";
 
 /**
  * Continents — used when the user is outside Uganda. Kept short and
@@ -163,6 +164,7 @@ export default function ProfileCompletionGate() {
 
   const isUganda = country === "Uganda";
   const resolvedCountry = country.trim();
+  const countryIso = isoForCountry(country);
 
   // Existing referrer (locked attribution) — show their name
   const { data: existingReferrer } = useQuery({
@@ -370,7 +372,7 @@ export default function ProfileCompletionGate() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label>City</Label>
-                    <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. Kampala" maxLength={60} />
+                    <CityCombobox countryIso={countryIso} value={city} onChange={setCity} />
                   </div>
                   <div className="space-y-1.5">
                     <Label>Town</Label>
@@ -401,7 +403,7 @@ export default function ProfileCompletionGate() {
                   </div>
                   <div className="space-y-1.5">
                     <Label>City</Label>
-                    <Input value={city} onChange={(e) => setCity(e.target.value)} maxLength={60} />
+                    <CityCombobox countryIso={countryIso} value={city} onChange={setCity} />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
