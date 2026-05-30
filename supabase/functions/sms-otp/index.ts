@@ -359,7 +359,7 @@ Deno.serve(async (req) => {
         });
       }
       const sent = await sendSMS(phone, message);
-      if (!sent) {
+      if (!sent.accepted) {
         return new Response(JSON.stringify({ error: "Failed to send SMS" }), {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
