@@ -736,14 +736,30 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
             )}
           </div>
         )}
-        <div className="relative mt-2">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search tenant, landlord, agent..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="pl-9 h-9 text-sm"
-          />
+        <div className="flex flex-col sm:flex-row gap-2 mt-2">
+          <Select value={selectedTenantId} onValueChange={setSelectedTenantId}>
+            <SelectTrigger className="h-9 text-sm sm:w-[260px]">
+              <User className="h-3.5 w-3.5 mr-1 text-muted-foreground shrink-0" />
+              <SelectValue placeholder="Choose a tenant to fund" />
+            </SelectTrigger>
+            <SelectContent className="max-h-[320px]">
+              <SelectItem value="all">All tenants ({tenantOptions.length})</SelectItem>
+              {tenantOptions.map(t => (
+                <SelectItem key={t.id} value={t.id}>
+                  <span className="truncate">{t.name} → {t.landlord_name}</span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search tenant, landlord, agent..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="pl-9 h-9 text-sm"
+            />
+          </div>
         </div>
       </CardHeader>
       <CardContent className="p-0">
