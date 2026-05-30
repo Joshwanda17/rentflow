@@ -121,21 +121,23 @@ function DeviceRow({
 
 export function DeviceSessionIndicator({ userId }: { userId: string | undefined }) {
   const { sessions, activeCount, isMultiDevice, loading, signOutDevice, renameDevice } = useDeviceSessions(userId);
+  const [announce, setAnnounce] = useState('');
 
   const sortedSessions = useMemo(
     () => [...sessions].sort((a, b) => Number(b.isCurrent) - Number(a.isCurrent)),
     [sessions],
   );
 
+  const handleRename = useCallback(
+    (deviceId: string, label: string) => {
+      renameDevice(deviceId, label);
+      setAnnounce(`Device renamed to ${label}`);
+      window.setTimeout(() => setAnnounce(''), 1000);
+    },
+    [renameDevice],
+  );
+
   if (loading && sessions.length === 0) return null;
-
-  const [announce, setAnnounce] = useState('');
-
-  const handleRename = (deviceId: string, label: string) => {
-    renameDevice(deviceId, label);
-    setAnnounce(`Device renamed to ${label}`);
-    window.setTimeout(() => setAnnounce(''), 1000);
-  };
 
   return (
     <Popover>
