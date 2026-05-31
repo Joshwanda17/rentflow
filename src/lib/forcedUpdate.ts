@@ -150,7 +150,7 @@ function renderBlockingOverlay(): void {
       btn.onclick = () => {
         btn.disabled = true;
         btn.textContent = "Updating…";
-        void clearAndReload("manual_reload");
+        void purgeThenReload();
       };
     }
   } catch {
@@ -172,7 +172,7 @@ export function triggerForcedUpdate(reason: string): void {
   renderBlockingOverlay();
   // Auto-fire the update so the user never has to hunt for the button.
   setTimeout(() => {
-    void clearAndReload("manual_reload");
+    void purgeThenReload();
   }, AUTO_TRIGGER_DELAY_MS);
 }
 
