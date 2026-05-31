@@ -65,7 +65,7 @@ export function LandlordAutocompleteInput({
         }
         const { data, error } = await supabase
           .from('landlords')
-          .select('id, name, phone, property_address')
+          .select('id, name, phone, property_address, district, town_council, county, village, house_category, monthly_rent, latitude, longitude')
           .or(orParts.join(','))
           .order('name', { ascending: true })
           .limit(8);
