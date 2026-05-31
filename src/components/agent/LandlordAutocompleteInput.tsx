@@ -23,15 +23,18 @@ interface LandlordAutocompleteInputProps {
  * (name, phone, property address) via `onSelect` so the agent re-uses the
  * registered landlord instead of re-keying — and a duplicate is never created.
  */
-export function LandlordAutocompleteInput({
-  field,
-  value,
-  onChange,
-  onSelect,
-  placeholder,
-  className,
-  maxLength,
-}: LandlordAutocompleteInputProps) {
+export const LandlordAutocompleteInput = forwardRef<HTMLInputElement, LandlordAutocompleteInputProps>(function LandlordAutocompleteInput(
+  {
+    field,
+    value,
+    onChange,
+    onSelect,
+    placeholder,
+    className,
+    maxLength,
+  }: LandlordAutocompleteInputProps,
+  ref: Ref<HTMLInputElement>
+) {
   const [focused, setFocused] = useState(false);
   const [debounced, setDebounced] = useState('');
   const [results, setResults] = useState<LandlordOption[]>([]);
