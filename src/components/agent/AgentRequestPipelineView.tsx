@@ -558,31 +558,47 @@ export function AgentRequestPipelineView() {
           </Select>
         </div>
 
-        {activeFiltersCount > 0 && (
-          <div className="flex items-center justify-between">
-            <p className="text-[11px] text-muted-foreground">
-              Showing {tab === 'submitted' ? submittedRows.length : tab === 'approved' ? approvedRows.length : filteredRejected.length} result{(
-                (tab === 'submitted' ? submittedRows.length : tab === 'approved' ? approvedRows.length : filteredRejected.length) !== 1 ? 's' : ''
-              )}
-            </p>
+        <div className="flex items-center justify-between">
+          <p className="text-[11px] text-muted-foreground">
+            {activeFiltersCount > 0
+              ? `Showing ${tab === 'submitted' ? submittedRows.length : tab === 'approved' ? approvedRows.length : filteredRejected.length} result${(
+                  (tab === 'submitted' ? submittedRows.length : tab === 'approved' ? approvedRows.length : filteredRejected.length) !== 1 ? 's' : ''
+                )}`
+              : `${tab === 'submitted' ? submittedRows.length : tab === 'approved' ? approvedRows.length : filteredRejected.length} record${(
+                  (tab === 'submitted' ? submittedRows.length : tab === 'approved' ? approvedRows.length : filteredRejected.length) !== 1 ? 's' : ''
+                )}`}
+          </p>
+          <div className="flex items-center gap-1">
+            {activeFiltersCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSearchQuery('');
+                  setStatusFilter('all');
+                  setDateFilter('all');
+                  setSubmittedPage(0);
+                  setApprovedPage(0);
+                  setRejectedPage(0);
+                }}
+                className="h-7 text-[11px] gap-1 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3 w-3" />
+                Clear all
+              </Button>
+            )}
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
-              onClick={() => {
-                setSearchQuery('');
-                setStatusFilter('all');
-                setDateFilter('all');
-                setSubmittedPage(0);
-                setApprovedPage(0);
-                setRejectedPage(0);
-              }}
-              className="h-7 text-[11px] gap-1 text-muted-foreground hover:text-foreground"
+              onClick={exportToCSV}
+              disabled={rowsToExport.length === 0}
+              className="h-7 text-[11px] gap-1.5 font-semibold border-primary/30 text-primary hover:bg-primary/10"
             >
-              <X className="h-3 w-3" />
-              Clear all
+              <FileSpreadsheet className="h-3.5 w-3.5" />
+              CSV
             </Button>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Submitted */}
