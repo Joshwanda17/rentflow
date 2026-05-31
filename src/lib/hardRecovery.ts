@@ -123,12 +123,17 @@ export function reloadWithCacheBust(): void {
   }
 }
 
+// IMPORTANT: clearAndReload must NOT call clearRecoveryAttempts(). Doing so
+// reset the attempt counter on every (auto or tapped) reload, which let an
+// iPhone serving a 404-ing route chunk cycle hard_recover 1→2→3 → manual_reload
+// (counter reset) → 1→2→3 → … forever, so the exhaustion cap never tripped and
+// the terminal recovery UI never showed. The ONLY legitimate reset is the
+// "app stayed mounted for 45s" timer in main.tsx — a true sign we recovered.
 export async function clearAndReload(
   event: UpdateFailureEvent = "manual_reload"
 ): Promise<void> {
   logUpdateFailure(event, { reload_attempts: getRecoveryAttempts() });
   await purgeCachesAndServiceWorkers();
-  clearRecoveryAttempts();
   reloadWithCacheBust();
 }
 
