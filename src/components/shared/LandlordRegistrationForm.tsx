@@ -666,6 +666,29 @@ export default function LandlordRegistrationForm({
             </div>
           )}
 
+          {/* Next-step cue — once the essentials are filled, point the agent
+              straight at the Register button so they always know what to do. */}
+          {(() => {
+            const nameOk = landlordName.trim().length >= 2 && !errors.landlordName;
+            const phoneOk =
+              /^\d{9,10}$/.test(cleanPhoneNumber(landlordPhone)) && !errors.landlordPhone;
+            const lcOk = !minimal || (lc1Name.trim().length >= 2 && /^\d{9,10}$/.test(cleanPhoneNumber(lc1Phone)));
+            const ready = nameOk && phoneOk && lcOk && !loading;
+            if (!ready) return null;
+            return (
+              <motion.div
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-center gap-2 p-2.5 rounded-lg bg-primary/10 border border-primary/20"
+              >
+                <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                <p className="text-xs font-medium text-foreground">
+                  All set — tap <span className="font-semibold text-primary">Register Landlord</span> below to finish.
+                </p>
+              </motion.div>
+            );
+          })()}
+
           {/* Submit — placed right after the essentials so it's always one tap away */}
           <Button
             type="submit"
@@ -679,6 +702,14 @@ export default function LandlordRegistrationForm({
               <><Building2 className="h-5 w-5" /> Register Landlord</>
             )}
           </Button>
+
+          {/* Step hint shown before the essentials are complete so a first-time
+              agent always understands the single next action. */}
+          {!loading && !(landlordName.trim().length >= 2 && /^\d{9,10}$/.test(cleanPhoneNumber(landlordPhone))) && (
+            <p className="text-[11px] text-center text-muted-foreground">
+              Step 1: enter the landlord's name &amp; phone, then tap Register Landlord.
+            </p>
+          )}
 
           {/* Inline stepped progress so the agent always sees forward motion */}
           {loading && progressMsg && (
