@@ -627,7 +627,7 @@ export default function LandlordRegistrationForm({
               onClick={() => {
                 hapticTap();
                 onClose();
-                window.dispatchEvent(new CustomEvent('open-submissions', { detail: { tab: 'landlords' } }));
+                window.dispatchEvent(new CustomEvent('open-submissions', { detail: { tab: 'landlords', recordId: registeredLandlordId } }));
               }}
               className="w-full h-12 gap-2 touch-manipulation select-none transition-transform active:scale-[0.98]"
             >
