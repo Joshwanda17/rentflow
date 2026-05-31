@@ -46,7 +46,6 @@ import {
   Filter,
   X,
   FileSpreadsheet,
-  Download,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, isToday, isThisWeek, isThisMonth } from 'date-fns';
