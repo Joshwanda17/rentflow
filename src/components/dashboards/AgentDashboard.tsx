@@ -810,11 +810,41 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               className="sticky z-10 -mx-4 px-3 sm:px-4 pb-2.5 bg-background/95 backdrop-blur-md border-b border-border/40 max-h-[42vh] sm:max-h-[55vh] overflow-y-auto overscroll-contain"
               style={{ top: 'calc(4.5rem + env(safe-area-inset-top, 0px))' }}
             >
-              <h3 className="sticky top-0 z-10 -mx-3 sm:-mx-4 px-3 sm:px-4 py-2 bg-background/95 backdrop-blur-md text-[11px] sm:text-sm font-bold uppercase tracking-wide text-muted-foreground">
-                Submissions
-              </h3>
+              <div className="sticky top-0 z-10 -mx-3 sm:-mx-4 px-3 sm:px-4 py-2 bg-background/95 backdrop-blur-md space-y-2">
+                <h3 className="text-[11px] sm:text-sm font-bold uppercase tracking-wide text-muted-foreground">
+                  Submissions
+                </h3>
+                <div className="flex gap-1.5">
+                  {[
+                    { key: 'submitted' as PipelineTab, label: 'Submitted', icon: Send, count: submittedCount, tone: 'bg-amber-500 text-white' },
+                    { key: 'approved' as PipelineTab, label: 'Approved', icon: CheckCircle2, count: approvedCount, tone: 'bg-emerald-600 text-white' },
+                    { key: 'rejected' as PipelineTab, label: 'Rejected', icon: XCircle, count: rejectedCount, tone: 'bg-destructive text-destructive-foreground' },
+                  ].map((t) => {
+                    const Icon = t.icon;
+                    const active = pipelineTab === t.key;
+                    return (
+                      <button
+                        key={t.key}
+                        onClick={() => setPipelineTab(t.key)}
+                        className={`flex-1 flex items-center justify-center gap-1.5 px-1 py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold transition-all ${
+                          active ? t.tone + ' shadow-sm' : 'bg-muted/50 text-muted-foreground'
+                        }`}
+                        style={{ touchAction: 'manipulation', minHeight: '36px' }}
+                      >
+                        <Icon className="h-3 w-3 shrink-0" />
+                        <span>{t.label}</span>
+                        <span className={`min-w-[16px] h-[16px] px-1 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                          active ? 'bg-background/25' : 'bg-background/60'
+                        }`}>
+                          {countsLoading ? '·' : t.count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <div className="mt-1">
-                <AgentRequestPipelineView initialTab="submitted" />
+                <AgentRequestPipelineView initialTab="submitted" activeTab={pipelineTab} onTabChange={setPipelineTab} />
               </div>
             </div>
             <h3 className="text-[11px] sm:text-sm font-bold uppercase tracking-wide text-muted-foreground">My Tenants</h3>
