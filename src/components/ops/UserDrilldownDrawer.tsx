@@ -1048,21 +1048,24 @@ function RentBalanceEditor({
   canEdit: boolean;
   onSaved: () => void;
 }) {
-  const [editing, setEditing] = useState(false);
+  const [mode, setMode] = useState<'view' | 'rent' | 'balance'>('view');
   const [rentAmount, setRentAmount] = useState<string>(String(activeRr.rent_amount ?? ''));
+  const [newBalance, setNewBalance] = useState<string>(String(Math.max(0, balance)));
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
 
   const cancel = () => {
-    setEditing(false);
+    setMode('view');
     setRentAmount(String(activeRr.rent_amount ?? ''));
+    setNewBalance(String(Math.max(0, balance)));
     setReason('');
   };
 
   const save = async () => {
-    const amt = Number(rentAmount);
-    if (!Number.isFinite(amt) || amt <= 0) {
-      toast.error('Enter a valid rent amount');
+    const isBalance = mode === 'balance';
+    const amt = Number(isBalance ? newBalance : rentAmount);
+    if (!Number.isFinite(amt) || (isBalance ? amt < 0 : amt <= 0)) {
+      toast.error(isBalance ? 'Enter a valid balance (0 or more)' : 'Enter a valid rent amount');
       return;
     }
     if (reason.trim().length < 10) {
@@ -1072,14 +1075,14 @@ function RentBalanceEditor({
     setSaving(true);
     try {
       const { error } = await supabase.rpc('ops_record_payment_edit', {
-        p_edit_type: 'rent_amount',
+        p_edit_type: isBalance ? 'outstanding_balance' : 'rent_amount',
         p_target_id: activeRr.id,
         p_new_amount: amt,
         p_reason: reason.trim(),
       } as any);
       if (error) throw error;
-      toast.success('Rent updated — agent notified to agree');
-      setEditing(false);
+      toast.success(isBalance ? 'Outstanding balance updated' : 'Rent updated — agent notified to agree');
+      setMode('view');
       setReason('');
       onSaved();
     } catch (e: any) {
@@ -1089,7 +1092,7 @@ function RentBalanceEditor({
     }
   };
 
-  if (!editing) {
+  if (mode === 'view') {
     return (
       <>
         <div className="grid grid-cols-2 gap-2 text-xs">
@@ -1110,20 +1113,68 @@ function RentBalanceEditor({
             <p className="font-semibold text-amber-700">{fmtUGX(balance)}</p>
           </div>
         </div>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
           <Badge variant="outline" className="text-[10px]">{activeRr.status}</Badge>
           {canEdit && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-xs gap-1"
-              onClick={() => setEditing(true)}
-            >
-              <Pencil className="h-3 w-3" /> Edit rent
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs gap-1"
+                onClick={() => setMode('rent')}
+              >
+                <Pencil className="h-3 w-3" /> Edit rent
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs gap-1"
+                onClick={() => { setNewBalance(String(Math.max(0, balance))); setMode('balance'); }}
+              >
+                <Wallet className="h-3 w-3" /> Adjust balance
+              </Button>
+            </div>
           )}
         </div>
       </>
+    );
+  }
+
+  if (mode === 'balance') {
+    return (
+      <div className="space-y-2">
+        <div className="space-y-1">
+          <Label className="text-xs">New outstanding balance (UGX)</Label>
+          <Input
+            type="number"
+            min={0}
+            value={newBalance}
+            onChange={(e) => setNewBalance(e.target.value)}
+            className="h-8 text-sm"
+          />
+          <p className="text-[10px] text-muted-foreground">
+            Currently {fmtUGX(balance)} owing. Set to 0 to mark fully paid — the amount repaid is recalculated automatically.
+          </p>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Reason (min 10 chars)</Label>
+          <Textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            rows={2}
+            className="text-sm"
+            placeholder="Why is the outstanding balance being changed?"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Button size="sm" onClick={save} disabled={saving} className="h-7 px-3 text-xs">
+            {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Save'}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={cancel} disabled={saving} className="h-7 px-3 text-xs">
+            Cancel
+          </Button>
+        </div>
+      </div>
     );
   }
 
