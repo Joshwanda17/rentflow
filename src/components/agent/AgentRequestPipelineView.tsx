@@ -61,11 +61,11 @@ import { useAgentRejectedRequests } from '@/hooks/useAgentRejectedRequests';
 import { AgentEditRentRequestDialog } from './AgentEditRentRequestDialog';
 import type { AgentRejectedRequest } from '@/hooks/useAgentRejectedRequests';
 
-type PipelineTab = 'submitted' | 'approved' | 'rejected' | 'landlords';
+export type PipelineTab = 'submitted' | 'approved' | 'rejected' | 'landlords';
 
 const PAGE_SIZE = 10;
 
-const SUBMITTED_STATUSES = [
+export const SUBMITTED_STATUSES = [
   'pending',
   'tenant_ops_approved',
   'agent_verified',
@@ -74,7 +74,7 @@ const SUBMITTED_STATUSES = [
   'coo_approved',
 ];
 
-const APPROVED_STATUSES = ['funded', 'disbursed'];
+export const APPROVED_STATUSES = ['funded', 'disbursed'];
 
 const STAGE_LABEL: Record<string, string> = {
   pending: 'Agent Ops review',
@@ -404,9 +404,21 @@ function RowCard({
 export function AgentRequestPipelineView({
   initialTab,
   highlightId,
-}: { initialTab?: PipelineTab; highlightId?: string | null } = {}) {
+  activeTab,
+  onTabChange,
+}: {
+  initialTab?: PipelineTab;
+  highlightId?: string | null;
+  activeTab?: PipelineTab;
+  onTabChange?: (tab: PipelineTab) => void;
+} = {}) {
   const queryClient = useQueryClient();
-  const [tab, setTab] = useState<PipelineTab>(initialTab ?? 'submitted');
+  const [internalTab, setInternalTab] = useState<PipelineTab>(initialTab ?? 'submitted');
+  const tab = activeTab ?? internalTab;
+  const setTab = (t: PipelineTab) => {
+    if (onTabChange) onTabChange(t);
+    setInternalTab(t);
+  };
   const [submittedPage, setSubmittedPage] = useState(0);
   const [approvedPage, setApprovedPage] = useState(0);
   const [rejectedPage, setRejectedPage] = useState(0);
