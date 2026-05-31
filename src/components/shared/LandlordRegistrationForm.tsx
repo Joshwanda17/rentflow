@@ -1054,10 +1054,10 @@ export default function LandlordRegistrationForm({
           {step === 2 && !success && (
           <>
             {(() => {
-              const nameErr = validateField('landlordName', landlordName);
-              const phoneErr = validateField('landlordPhone', landlordPhone);
-              const lc1NameErr = minimal ? validateField('lc1Name', lc1Name) : '';
-              const lc1PhoneErr = minimal ? validateField('lc1Phone', lc1Phone) : '';
+              const nameErr = computeFieldError('landlordName', landlordName);
+              const phoneErr = computeFieldError('landlordPhone', landlordPhone);
+              const lc1NameErr = minimal ? computeFieldError('lc1Name', lc1Name) : '';
+              const lc1PhoneErr = minimal ? computeFieldError('lc1Phone', lc1Phone) : '';
               const anyErr = nameErr || phoneErr || lc1NameErr || lc1PhoneErr;
               if (!anyErr) return null;
               return (
