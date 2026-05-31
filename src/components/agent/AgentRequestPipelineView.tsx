@@ -763,6 +763,7 @@ export function AgentRequestPipelineView() {
                   key={r.id}
                   className="border-2 border-destructive/40 bg-destructive/5 overflow-hidden"
                 >
+                  <StatusStrip status="rejected" label={`Rejected at ${r.stage_label}`} />
                   <CardContent className="p-3 space-y-2">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
