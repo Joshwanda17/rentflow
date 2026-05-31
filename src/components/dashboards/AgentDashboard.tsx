@@ -92,7 +92,8 @@ import { DeviceSessionIndicator } from '@/components/agent/DeviceSessionIndicato
 import { CreditVerificationButton } from '@/components/agent/CreditVerificationButton';
 import { AgentMyRentRequestsSheet } from '@/components/agent/AgentMyRentRequestsSheet';
 import { AgentTenantsSheet } from '@/components/agent/AgentTenantsSheet';
-import { AgentRequestPipelineView } from '@/components/agent/AgentRequestPipelineView';
+import { AgentRequestPipelineView, type PipelineTab } from '@/components/agent/AgentRequestPipelineView';
+import { useAgentPipelineCounts } from '@/hooks/useAgentPipelineCounts';
 import { AgentManagedUsersSheet } from '@/components/agent/AgentManagedUsersSheet';
 import { FieldCollectDialog } from '@/components/agent/FieldCollectDialog';
 
