@@ -194,8 +194,6 @@ export default function LandlordRegistrationForm({
         { name: 'lc1Name', value: lc1Name },
         { name: 'lc1Phone', value: lc1Phone }
       );
-    } else {
-      fieldsToValidate.push({ name: 'propertyAddress', value: propertyAddress });
     }
 
     const newErrors: Record<string, string> = {};
@@ -205,6 +203,18 @@ export default function LandlordRegistrationForm({
     }
 
     if (Object.keys(newErrors).length > 0) {
+      // Reveal the optional section if the only problem hides there, then
+      // jump straight to the first broken field so the button never feels dead.
+      const firstError = Object.keys(newErrors)[0];
+      if (!['landlordName', 'landlordPhone', 'lc1Name', 'lc1Phone'].includes(firstError)) {
+        setShowMore(true);
+      }
+      hapticWarning();
+      requestAnimationFrame(() => {
+        document
+          .querySelector(`[data-field="${firstError}"]`)
+          ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
       toastFn({
         title: 'Please fix the errors',
         description: 'Some required fields are missing or invalid.',
