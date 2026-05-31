@@ -1779,6 +1779,36 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
 
             {showMoreFilters && (
               <div className="grid grid-cols-2 gap-2 pt-1">
+                {/* Lifecycle stage chips — advanced filter, tucked away so the
+                    main view only shows Owing / Paid up / All. */}
+                <div className="col-span-2">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1.5">Stage</p>
+                  <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                    {lifecycleTabs.map((tab) => {
+                      const active = lifecycleFilter === tab.key;
+                      return (
+                        <button
+                          key={tab.key}
+                          onClick={() => setLifecycleFilter(tab.key)}
+                          className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                            active
+                              ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                              : 'bg-muted/40 text-muted-foreground border-border hover:bg-muted'
+                          }`}
+                          style={{ touchAction: 'manipulation', minHeight: '32px' }}
+                          aria-pressed={active}
+                        >
+                          <span>{tab.label}</span>
+                          {typeof tab.count === 'number' && (
+                            <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-md ${
+                              active ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-background text-foreground/70'
+                            }`}>{tab.count}</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
                 <Select value={riskFilter} onValueChange={(v) => setRiskFilter(v as RiskFilter)}>
               <SelectTrigger className="w-[140px] h-10 rounded-xl border-2 border-solid border-purple-600">
                 <div className="text-left">
