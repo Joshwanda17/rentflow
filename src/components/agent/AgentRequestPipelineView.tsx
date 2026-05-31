@@ -642,7 +642,7 @@ export function AgentRequestPipelineView({
             <Input
               type="text"
               inputMode="search"
-              placeholder="Search by name"
+              placeholder="Search by name or phone"
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
