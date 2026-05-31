@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { Loader2, Search, Phone, PhoneCall, FileDown, MessageCircle, Users, RefreshCw, Banknote, MapPin, Home, User, TrendingUp, ArrowLeft, Shield, ArrowUp, ArrowDown, ArrowUpDown, Wallet, DollarSign, AlertCircle, CheckCircle2, CreditCard, Eye, Building2, SlidersHorizontal, Plus, Check, ChevronsUpDown, Map as MapIcon, Navigation, List, X, CalendarClock } from 'lucide-react';
+import { Loader2, Search, Phone, PhoneCall, FileDown, MessageCircle, Users, RefreshCw, Banknote, MapPin, Home, User, TrendingUp, ArrowLeft, Shield, ArrowUp, ArrowDown, ArrowUpDown, Wallet, DollarSign, AlertCircle, CheckCircle2, CreditCard, Eye, Building2, SlidersHorizontal, Plus, Check, ChevronsUpDown, Map as MapIcon, Navigation, List, X, CalendarClock, Star } from 'lucide-react';
 import { PropertyMapView } from './PropertyMapView';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
@@ -168,6 +168,46 @@ function loadPrefs(): SheetPrefs {
     return parsed && typeof parsed === 'object' ? parsed : {};
   } catch {
     return {};
+  }
+}
+
+// ───── Saved filter presets ─────
+// Agents can snapshot their usual Owing/Paid up/All + search + sort setup and
+// jump back to it in one tap. Persisted separately from the live prefs.
+const PRESETS_KEY = 'agent-tenants-sheet:presets:v1';
+
+interface SheetPreset {
+  id: string;
+  name: string;
+  search: string;
+  activeFilter: FilterTab;
+  lifecycleFilter: LifecycleFilter;
+  riskFilter: RiskFilter;
+  propertyFilter: string;
+  sortKey: SortKey;
+  sortDir: SortDir;
+  recentCollectionFilter: RecentCollectionFilter;
+  groupByProperty: boolean;
+}
+
+function loadPresets(): SheetPreset[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(PRESETS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as SheetPreset[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function savePresets(presets: SheetPreset[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(PRESETS_KEY, JSON.stringify(presets));
+  } catch {
+    /* ignore quota / serialization errors */
   }
 }
 
@@ -359,6 +399,60 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
   );
   const [showBalanceBreakdown, setShowBalanceBreakdown] = useState(false);
   const tenantListRef = useRef<HTMLDivElement>(null);
+
+  // ───── Saved filter presets ─────
+  const [presets, setPresets] = useState<SheetPreset[]>(() => loadPresets());
+  const [savePresetOpen, setSavePresetOpen] = useState(false);
+  const [presetName, setPresetName] = useState('');
+
+  const applyPreset = useCallback((p: SheetPreset) => {
+    setSearch(p.search ?? '');
+    setActiveFilter(p.activeFilter ?? 'owing');
+    setLifecycleFilter(p.lifecycleFilter ?? 'any');
+    setRiskFilter(p.riskFilter ?? 'all');
+    setPropertyFilter(p.propertyFilter ?? 'all');
+    setSortKey(p.sortKey ?? 'balance');
+    setSortDir(p.sortDir ?? 'desc');
+    setRecentCollectionFilter(p.recentCollectionFilter ?? 'all');
+    setGroupByProperty(!!p.groupByProperty);
+    sonnerToast.success(`Showing "${p.name}"`);
+  }, []);
+
+  const handleSavePreset = useCallback(() => {
+    const name = presetName.trim();
+    if (!name) return;
+    const snapshot: SheetPreset = {
+      id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+      name,
+      search,
+      activeFilter,
+      lifecycleFilter,
+      riskFilter,
+      propertyFilter,
+      sortKey,
+      sortDir,
+      recentCollectionFilter,
+      groupByProperty,
+    };
+    setPresets(prev => {
+      // Replace an existing preset with the same (case-insensitive) name so
+      // re-saving "My usual" just updates it instead of duplicating.
+      const next = [...prev.filter(p => p.name.toLowerCase() !== name.toLowerCase()), snapshot];
+      savePresets(next);
+      return next;
+    });
+    setPresetName('');
+    setSavePresetOpen(false);
+    sonnerToast.success(`Saved "${name}"`);
+  }, [presetName, search, activeFilter, lifecycleFilter, riskFilter, propertyFilter, sortKey, sortDir, recentCollectionFilter, groupByProperty]);
+
+  const deletePreset = useCallback((id: string) => {
+    setPresets(prev => {
+      const next = prev.filter(p => p.id !== id);
+      savePresets(next);
+      return next;
+    });
+  }, []);
 
   // Push a property to the front of the MRU list and persist (deduped, capped).
   const recordRecentProperty = useCallback((address: string) => {
@@ -1701,6 +1795,74 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
               (The duplicate search box that used to sit here was removed —
               two identical search inputs confused agents.) */}
           <div className="space-y-2">
+            {/* Saved presets — one-tap return to a usual Owing/Paid up/All +
+                search + sort setup. */}
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+              <span className="shrink-0 inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground pr-0.5">
+                <Star className="h-3 w-3" /> Saved
+              </span>
+              {presets.length === 0 && (
+                <span className="shrink-0 text-[11px] text-muted-foreground italic">
+                  No saved views yet
+                </span>
+              )}
+              {presets.map((p) => (
+                <span
+                  key={p.id}
+                  className="shrink-0 inline-flex items-center rounded-full border border-border bg-muted/40 text-foreground/80 hover:bg-muted transition-colors"
+                >
+                  <button
+                    onClick={() => applyPreset(p)}
+                    className="pl-3 pr-1.5 py-1.5 text-xs font-semibold"
+                    style={{ touchAction: 'manipulation', minHeight: '32px' }}
+                  >
+                    {p.name}
+                  </button>
+                  <button
+                    onClick={() => deletePreset(p.id)}
+                    className="pr-2 pl-0.5 py-1.5 text-muted-foreground hover:text-destructive"
+                    aria-label={`Delete ${p.name}`}
+                    style={{ touchAction: 'manipulation' }}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+              <Popover open={savePresetOpen} onOpenChange={(o) => { setSavePresetOpen(o); if (!o) setPresetName(''); }}>
+                <PopoverTrigger asChild>
+                  <button
+                    className="shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-dashed border-primary/50 text-primary text-xs font-semibold hover:bg-primary/5 transition-colors"
+                    style={{ touchAction: 'manipulation', minHeight: '32px' }}
+                  >
+                    <Plus className="h-3 w-3" /> Save current
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[min(88vw,280px)] p-3" align="end">
+                  <p className="text-xs font-semibold text-foreground mb-1">Save this view</p>
+                  <p className="text-[11px] text-muted-foreground mb-2 leading-snug">
+                    Stores your current filter, search and sort so you can return in one tap.
+                  </p>
+                  <Input
+                    value={presetName}
+                    onChange={(e) => setPresetName(e.target.value)}
+                    placeholder="e.g. My usual"
+                    className="h-9 text-sm"
+                    style={{ fontSize: '16px' }}
+                    autoFocus
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleSavePreset(); }}
+                  />
+                  <div className="flex justify-end gap-2 mt-2">
+                    <Button variant="ghost" size="sm" onClick={() => { setSavePresetOpen(false); setPresetName(''); }}>
+                      Cancel
+                    </Button>
+                    <Button size="sm" onClick={handleSavePreset} disabled={!presetName.trim()}>
+                      Save
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+
             {/* Big tap-friendly status chips — the main filter most agents need */}
             <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-muted/50">
               {filterTabs.map((tab) => {
