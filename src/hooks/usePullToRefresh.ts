@@ -51,7 +51,16 @@ export function usePullToRefresh({
     touchOnInteractive.current = false;
     dragConfirmed.current = false;
 
-    const scrollTop = (e.currentTarget as HTMLElement).scrollTop;
+    // Determine "at top" from the actual page scroll position, not the wrapper's
+    // scrollTop. The PullToRefresh wrapper grows with content and never scrolls
+    // internally, so its scrollTop is always 0 — which made every downward drag
+    // (anywhere on the page) hijack native scrolling. Read the real document
+    // scroll offset instead.
+    const scrollTop =
+      window.scrollY ??
+      document.scrollingElement?.scrollTop ??
+      document.documentElement.scrollTop ??
+      0;
     isAtTop.current = scrollTop <= 0;
 
     if (isAtTop.current && !state.isRefreshing) {
