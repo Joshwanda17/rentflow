@@ -839,6 +839,58 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     ? (parseInt(outstandingBalance.replace(/,/g, '')) || 0)
     : (parseInt(rentAmount.replace(/,/g, '')) || 0);
   
+  // ===== Auto-capture the request as soon as tenant name + amount exist =====
+  // The agent no longer has to hunt for an unresponsive submit button to know
+  // their work is safe: a debounced server draft is written automatically and a
+  // visible "Captured ✓" badge confirms it. They keep filling the other parts
+  // meanwhile, and every change keeps the same draft up to date.
+  useEffect(() => {
+    if (!open || success) return;
+    if (!user?.id) return;
+    if (!isOnline) return;
+    if (!tenantName.trim() || amount <= 0) return;
+    const handle = setTimeout(async () => {
+      setAutoDraftStatus('saving');
+      try {
+        const base = {
+          agent_id: user.id,
+          tenant_name: tenantName.trim(),
+          tenant_phone: tenantPhone.replace(/\s/g, '') || '',
+          rent_amount: amount,
+          required_per_tenant_max: amount,
+          payload: buildDraftPayload(),
+          status: 'pending' as const,
+        };
+        if (autoDraftId) {
+          const { error } = await supabase
+            .from('rent_request_drafts' as any)
+            .update(base)
+            .eq('id', autoDraftId);
+          if (error) throw error;
+        } else {
+          const { data, error } = await supabase
+            .from('rent_request_drafts' as any)
+            .insert(base)
+            .select('id')
+            .single();
+          if (error) throw error;
+          if ((data as any)?.id) setAutoDraftId((data as any).id as string);
+        }
+        setAutoDraftStatus('saved');
+      } catch {
+        setAutoDraftStatus('error');
+      }
+    }, 1200);
+    return () => clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    open, success, user?.id, isOnline, autoDraftId,
+    tenantName, tenantPhone, amount, rentAmount, outstandingBalance,
+    duration, repaymentPeriod, landlordName, landlordPhone, propertyAddress,
+    lc1Name, lc1Phone, lc1Village, propertyCity, propertyDistrict,
+    houseCategory, landlordPayoutDay,
+  ]);
+
   // Calculate fees based on income type
   const calculateFees = () => {
     if (!incomeType) return null;
