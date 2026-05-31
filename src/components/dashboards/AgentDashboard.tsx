@@ -56,6 +56,7 @@ import { AgentDashboardSkeleton } from '@/components/skeletons/DashboardSkeleton
 import { WalletHeroSkeleton } from '@/components/skeletons/SectionSkeletons';
 
 import { hapticTap } from '@/lib/haptics';
+import { clearAndReload } from '@/lib/hardRecovery';
 import { AgentAgreementBanner } from '@/components/agent/agreement';
 import { AgentPaymentEditAlert } from '@/components/agent/AgentPaymentEditAlert';
 import { VerificationChecklist } from '@/components/shared/VerificationChecklist';
