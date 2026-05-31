@@ -378,8 +378,8 @@ export default function LandlordRegistrationForm({
               <Button
                 type="button"
                 variant="outline"
-                className="w-full gap-2"
-                onClick={() => setShowListHouse(true)}
+                className="w-full h-12 gap-2 touch-manipulation select-none transition-transform active:scale-[0.98]"
+                onClick={() => { hapticTap(); setShowListHouse(true); }}
               >
                 <Home className="h-4 w-4" />
                 List a house for this landlord
