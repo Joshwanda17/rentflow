@@ -61,6 +61,8 @@ export default function LandlordRegistrationForm({
   // Inline stepped progress message shown while saving so the agent always
   // sees forward motion, even on a weak connection.
   const [progressMsg, setProgressMsg] = useState('');
+  // Inline error state when the submission itself fails (network, DB, etc.)
+  const [submitError, setSubmitError] = useState('');
   const [showListHouse, setShowListHouse] = useState(false);
   const [activationLink, setActivationLink] = useState('');
   const [locationCaptured, setLocationCaptured] = useState(false);
@@ -104,6 +106,8 @@ export default function LandlordRegistrationForm({
       return next;
     });
   };
+
+  const clearSubmitError = () => setSubmitError('');
 
   // Core fields
   const [landlordName, setLandlordName] = useState('');
@@ -338,11 +342,13 @@ export default function LandlordRegistrationForm({
       toastFn({ title: 'Landlord Registered!', description: 'Share the activation link.' });
       onSuccess?.();
     } catch (err: any) {
+      const msg = err?.message || 'Something went wrong while saving. Please try again.';
+      setSubmitError(msg);
+      hapticWarning();
       toastFn({
         title: 'Registration Failed',
-        description: err.message,
+        description: msg,
         variant: 'destructive',
-        action: { label: 'Retry', onClick: () => handleSubmit() },
       });
     } finally {
       setLoading(false);
@@ -459,7 +465,7 @@ export default function LandlordRegistrationForm({
             </Label>
             <Input
               value={landlordName}
-              onChange={(e) => { setLandlordName(e.target.value); clearError('landlordName'); }}
+              onChange={(e) => { setLandlordName(e.target.value); clearError('landlordName'); clearSubmitError(); }}
               onBlur={(e) => validateField('landlordName', e.target.value)}
               placeholder="e.g. John Bosco Ssentamu — as on National ID"
               className={`h-10 ${errors.landlordName ? 'border-destructive focus-visible:ring-destructive' : ''}`}
@@ -481,7 +487,7 @@ export default function LandlordRegistrationForm({
               type="tel"
               inputMode="tel"
               value={landlordPhone}
-              onChange={(e) => { setLandlordPhone(formatUgandaPhone(e.target.value)); clearError('landlordPhone'); }}
+              onChange={(e) => { setLandlordPhone(formatUgandaPhone(e.target.value)); clearError('landlordPhone'); clearSubmitError(); }}
               onBlur={(e) => validateField('landlordPhone', cleanPhoneNumber(e.target.value))}
               placeholder="07XX XXX XXX — 10 digits"
               className={`h-10 ${errors.landlordPhone ? 'border-destructive focus-visible:ring-destructive' : ''}`}
@@ -564,6 +570,35 @@ export default function LandlordRegistrationForm({
               <Loader2 className="h-4 w-4 animate-spin" /> {progressMsg}
             </p>
           )}
+
+          {/* Inline error banner — stays on screen so agents on weak networks always know what happened */}
+          <AnimatePresence>
+            {submitError && !loading && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                className="p-3.5 rounded-xl bg-destructive/10 border border-destructive/30 space-y-2"
+              >
+                <div className="flex items-start gap-2.5">
+                  <div className="mt-0.5 p-1 rounded-full bg-destructive/20">
+                    <XCircle className="h-4 w-4 text-destructive" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-destructive">Could not save</p>
+                    <p className="text-xs text-destructive/80 mt-0.5">{submitError}</p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  onClick={() => { hapticTap(); clearSubmitError(); handleSubmit(); }}
+                  className="w-full h-12 text-sm font-semibold gap-2 touch-manipulation select-none transition-transform active:scale-[0.98]"
+                >
+                  <RefreshCw className="h-4 w-4" /> Try Again
+                </Button>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Toggle to reveal the optional property / payout details */}
           {!minimal && (
