@@ -509,6 +509,23 @@ export function AgentRequestPipelineView({
           ? filteredRejected
           : [];
 
+  // Once the targeted record renders, scroll to it and clear the ring after a
+  // few seconds so the highlight is a one-time visual cue.
+  useEffect(() => {
+    if (!activeHighlight) return;
+    const t = setTimeout(() => {
+      const el = containerRef.current?.querySelector(
+        `[data-row-id="${activeHighlight}"]`,
+      ) as HTMLElement | null;
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 150);
+    const clear = setTimeout(() => setActiveHighlight(null), 4000);
+    return () => {
+      clearTimeout(t);
+      clearTimeout(clear);
+    };
+  }, [activeHighlight, submittedRows, approvedRows, landlordRows, tab]);
+
   const exportToCSV = () => {
     if (rowsToExport.length === 0) {
       toast.error('No records to export');
