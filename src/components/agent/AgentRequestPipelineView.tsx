@@ -474,6 +474,18 @@ export function AgentRequestPipelineView({ initialTab }: { initialTab?: Pipeline
     [filteredRejected, rejectedPage],
   );
 
+  const landlordRows = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return (landlordsQuery.data ?? []).filter((l) => {
+      if (!q) return true;
+      return (
+        (l.name ?? '').toLowerCase().includes(q) ||
+        (l.phone ?? '').toLowerCase().includes(q) ||
+        (l.property_address ?? '').toLowerCase().includes(q)
+      );
+    });
+  }, [landlordsQuery.data, searchQuery]);
+
   const rowsToExport = tab === 'submitted' ? submittedRows : tab === 'approved' ? approvedRows : filteredRejected;
 
   const exportToCSV = () => {
