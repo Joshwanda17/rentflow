@@ -95,6 +95,7 @@ const STAGE_ICON: Record<string, typeof Eye> = {
   coo_approved: FileCheck,
   funded: Wallet,
   disbursed: HandCoins,
+  rejected: XCircle,
 };
 
 const STAGE_STRIP: Record<string, { bg: string; text: string; iconBg: string }> = {
