@@ -594,7 +594,7 @@ export function AgentRequestPipelineView({
   return (
     <div className="space-y-3" ref={containerRef}>
       {/* Tab strip */}
-      <div className="flex gap-2">
+      <div className="flex gap-1.5">
         {tabs.map((t) => {
           const Icon = t.icon;
           const active = tab === t.key;
@@ -602,20 +602,22 @@ export function AgentRequestPipelineView({
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+              className={`flex-1 flex flex-col items-center justify-center gap-1 px-1 py-2 rounded-xl text-[11px] sm:text-sm font-semibold transition-all ${
                 active ? t.tone + ' shadow-sm' : 'bg-muted/50 text-muted-foreground'
               }`}
-              style={{ touchAction: 'manipulation', minHeight: '44px' }}
+              style={{ touchAction: 'manipulation', minHeight: '52px' }}
             >
-              <Icon className="h-3.5 w-3.5" />
-              {t.label}
-              <span
-                className={`min-w-[20px] h-[20px] rounded-full flex items-center justify-center text-[11px] font-bold ${
-                  active ? 'bg-background/25' : 'bg-background/60'
-                }`}
-              >
-                {t.count}
-              </span>
+              <div className="flex items-center gap-1">
+                <Icon className="h-3.5 w-3.5 shrink-0" />
+                <span
+                  className={`min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                    active ? 'bg-background/25' : 'bg-background/60'
+                  }`}
+                >
+                  {t.count}
+                </span>
+              </div>
+              <span className="leading-none">{t.label}</span>
             </button>
           );
         })}
@@ -969,37 +971,47 @@ export function AgentRequestPipelineView({
                   activeHighlight === l.id ? 'ring-2 ring-primary ring-offset-2 ring-offset-background animate-pulse' : ''
                 }`}
               >
-                <CardContent className="p-3 space-y-1.5">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <Landmark className="h-4 w-4 text-indigo-600 shrink-0" />
-                        <span className="font-semibold truncate text-sm">{l.name || 'Unnamed landlord'}</span>
-                      </div>
-                      <div className="text-[11px] text-muted-foreground space-y-0.5">
-                        {l.phone && (
-                          <div className="flex items-center gap-1.5">
-                            <Phone className="h-3 w-3" />
-                            <span className="truncate">{l.phone}</span>
-                          </div>
-                        )}
-                        {l.property_address && (
-                          <div className="flex items-center gap-1.5">
-                            <MapPin className="h-3 w-3" />
-                            <span className="truncate">{l.property_address}</span>
-                          </div>
-                        )}
-                        <div className="flex items-center gap-1.5">
-                          <Calendar className="h-3 w-3" />
-                          <span>Registered {format(new Date(l.created_at), 'MMM d, yyyy')}</span>
-                        </div>
-                      </div>
+                <CardContent className="p-4 space-y-3">
+                  {/* Name + status: status sits on its own row on phones so the
+                      name never gets squeezed or truncated awkwardly. */}
+                  <div className="flex items-start gap-2.5">
+                    <div className="flex items-center justify-center h-9 w-9 rounded-full bg-indigo-500/15 shrink-0">
+                      <Landmark className="h-5 w-5 text-indigo-600" />
                     </div>
-                    <Badge
-                      className={`text-[10px] shrink-0 ${l.verified ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-white'}`}
-                    >
-                      {l.verified ? 'Verified' : 'Pending verification'}
-                    </Badge>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-base leading-snug break-words">
+                        {l.name || 'Unnamed landlord'}
+                      </p>
+                      <Badge
+                        className={`mt-1 text-[11px] ${l.verified ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-white'}`}
+                      >
+                        {l.verified ? 'Verified' : 'Pending verification'}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {/* Details: full-width rows, generous spacing, tap-to-call. */}
+                  <div className="space-y-2.5 text-sm">
+                    {l.phone && (
+                      <a
+                        href={`tel:${l.phone}`}
+                        className="flex items-center gap-2.5 text-foreground active:opacity-70"
+                        style={{ touchAction: 'manipulation' }}
+                      >
+                        <Phone className="h-4 w-4 text-indigo-600 shrink-0" />
+                        <span className="font-medium underline-offset-2">{l.phone}</span>
+                      </a>
+                    )}
+                    {l.property_address && (
+                      <div className="flex items-start gap-2.5 text-muted-foreground">
+                        <MapPin className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
+                        <span className="break-words">{l.property_address}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2.5 text-muted-foreground">
+                      <Calendar className="h-4 w-4 text-indigo-600 shrink-0" />
+                      <span>Registered {format(new Date(l.created_at), 'MMM d, yyyy')}</span>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
