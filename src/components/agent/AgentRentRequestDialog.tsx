@@ -39,7 +39,8 @@ import {
   Copy,
   MessageCircle,
   Home,
-  AlertTriangle
+  AlertTriangle,
+  Phone
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatUGX, calculateRentRepayment } from '@/lib/rentCalculations';
