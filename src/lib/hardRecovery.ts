@@ -241,22 +241,24 @@ export function reloadWithCacheBust(): void {
 // "app stayed mounted for 45s" timer in main.tsx — a true sign we recovered.
 export async function clearAndReload(
   event: UpdateFailureEvent = "manual_reload"
-): Promise<void> {
+): Promise<PurgeResult> {
   logUpdateFailure(event, { reload_attempts: getRecoveryAttempts() });
-  await purgeCachesAndServiceWorkers();
+  const result = await purgeCachesAndServiceWorkers();
   reloadWithCacheBust();
+  return result;
 }
 
 /**
  * Full hard recovery: record the attempt, purge caches/SWs, then reload to a
  * cache-busted URL so iOS Safari fetches a fresh HTML shell from the network.
  */
-export async function hardRecover(): Promise<void> {
+export async function hardRecover(): Promise<PurgeResult> {
   recordAttempt();
   logUpdateFailure("hard_recover", {
     reload_attempts: getRecoveryAttempts(),
     chunk_mismatch: true,
   });
-  await purgeCachesAndServiceWorkers();
+  const result = await purgeCachesAndServiceWorkers();
   reloadWithCacheBust();
+  return result;
 }
