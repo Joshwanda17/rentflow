@@ -1031,10 +1031,12 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             // Reset so normal "My tenants" opens default to the tenants view.
             setSubmissionsView(undefined);
             setSubmissionsTab(undefined);
+            setSubmissionsHighlightId(undefined);
           }
         }}
         initialView={submissionsView}
         initialPipelineTab={submissionsTab}
+        initialHighlightId={submissionsHighlightId}
       />
       <FieldCollectDialog open={fieldCollectOpen} onOpenChange={setFieldCollectOpen} />
       
