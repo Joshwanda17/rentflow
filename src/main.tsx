@@ -11,6 +11,7 @@ import {
 import { logUpdateFailure } from './lib/updateTelemetry';
 import { refreshRolloutConfig, isRolloutEnabledForDevice } from './lib/rollout';
 import { checkServerVersion, isVersionStaleSync } from './lib/versionGate';
+import { installIOSFreshnessWatch } from './lib/iosFreshness';
 
 const root = document.getElementById('root')!;
 const host = window.location.hostname;
@@ -31,6 +32,13 @@ if (!isPreviewHost) {
 // instead of cycling the generic recovery screen forever.
 if (!isPreviewHost) {
   void checkServerVersion();
+}
+
+// Proactively catch iPhones returning from background / bfcache onto a stale
+// app shell, and refresh them BEFORE they hit a missing-chunk retry splash.
+// iOS-only and no-op in preview/iframe.
+if (!isPreviewHost && !isInIframe) {
+  installIOSFreshnessWatch();
 }
 
 // Show branded loader immediately — inline SVG spinner, no network requests at all
