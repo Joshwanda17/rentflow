@@ -460,11 +460,17 @@ export default function LandlordRegistrationForm({
             </Label>
             <Input
               value={landlordName}
-              onChange={(e) => setLandlordName(e.target.value)}
+              onChange={(e) => { setLandlordName(e.target.value); clearError('landlordName'); }}
+              onBlur={(e) => validateField('landlordName', e.target.value)}
               placeholder="Full name as on National ID"
-              className="h-10"
+              className={`h-10 ${errors.landlordName ? 'border-destructive focus-visible:ring-destructive' : ''}`}
               required
             />
+            {errors.landlordName && (
+              <p className="text-[11px] text-destructive flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" /> {errors.landlordName}
+              </p>
+            )}
           </div>
 
           {/* Phone Number */}
@@ -474,11 +480,17 @@ export default function LandlordRegistrationForm({
             </Label>
             <Input
               value={landlordPhone}
-              onChange={(e) => setLandlordPhone(e.target.value)}
+              onChange={(e) => { setLandlordPhone(e.target.value); clearError('landlordPhone'); }}
+              onBlur={(e) => validateField('landlordPhone', e.target.value)}
               placeholder="0700000000"
-              className="h-10"
+              className={`h-10 ${errors.landlordPhone ? 'border-destructive focus-visible:ring-destructive' : ''}`}
               required
             />
+            {errors.landlordPhone && (
+              <p className="text-[11px] text-destructive flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" /> {errors.landlordPhone}
+              </p>
+            )}
           </div>
 
           {/* Minimal-mode LC1 fields (Outstanding Balance flow) */}
