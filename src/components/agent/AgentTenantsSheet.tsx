@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { Loader2, Search, Phone, PhoneCall, FileDown, MessageCircle, Users, RefreshCw, Banknote, MapPin, Home, User, TrendingUp, ArrowLeft, Shield, ArrowUp, ArrowDown, ArrowUpDown, Wallet, DollarSign, AlertCircle, CheckCircle2, CreditCard, Eye, Building2, SlidersHorizontal, Plus, Check, ChevronsUpDown, Map as MapIcon, Navigation, List, X, CalendarClock, Star } from 'lucide-react';
+import { Loader2, Search, Phone, PhoneCall, FileDown, MessageCircle, Users, RefreshCw, Banknote, MapPin, Home, User, TrendingUp, ArrowLeft, Shield, ArrowUp, ArrowDown, ArrowUpDown, Wallet, DollarSign, AlertCircle, CheckCircle2, CreditCard, Eye, Building2, SlidersHorizontal, Plus, Check, ChevronsUpDown, Map as MapIcon, Navigation, List, X, CalendarClock, Star, RotateCcw } from 'lucide-react';
 import { Settings } from 'lucide-react';
 import { PropertyMapView } from './PropertyMapView';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -453,6 +453,26 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
       savePresets(next);
       return next;
     });
+  }, []);
+
+  const handleResetDefaults = useCallback(() => {
+    setSearch('');
+    setActiveFilter('owing');
+    setLifecycleFilter('any');
+    setRiskFilter('all');
+    setPropertyFilter('all');
+    setSortKey('balance');
+    setSortDir('desc');
+    setRecentCollectionFilter('all');
+    setGroupByProperty(false);
+    setSimpleMode(true);
+    setSimpleLang('en');
+    setExpandedTenantId(null);
+    exitBulkSelect();
+    try {
+      window.localStorage.removeItem(PREFS_KEY);
+    } catch { /* ignore */ }
+    sonnerToast.success('Reset to defaults');
   }, []);
 
   // Push a property to the front of the MRU list and persist (deduped, capped).
@@ -1522,6 +1542,16 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
                           </div>
                         </div>
                       )}
+                      <div className="pt-1 border-t border-border/60">
+                        <button
+                          onClick={handleResetDefaults}
+                          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                          style={{ touchAction: 'manipulation', minHeight: '40px' }}
+                        >
+                          <RotateCcw className="h-4 w-4" />
+                          Reset to defaults
+                        </button>
+                      </div>
                     </PopoverContent>
                   </Popover>
                 )}
