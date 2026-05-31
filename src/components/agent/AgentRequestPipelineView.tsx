@@ -46,6 +46,12 @@ import {
   Filter,
   X,
   FileSpreadsheet,
+  AlertCircle,
+  Eye,
+  FileCheck,
+  Landmark,
+  Wallet,
+  HandCoins,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, isToday, isThisWeek, isThisMonth } from 'date-fns';
