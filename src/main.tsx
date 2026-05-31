@@ -11,6 +11,7 @@ import {
 import { logUpdateFailure } from './lib/updateTelemetry';
 import { refreshRolloutConfig, isRolloutEnabledForDevice } from './lib/rollout';
 import { checkServerVersion, isVersionStaleSync } from './lib/versionGate';
+import { installIOSFreshnessWatch } from './lib/iosFreshness';
 
 const root = document.getElementById('root')!;
 const host = window.location.hostname;
@@ -73,6 +74,13 @@ if (isPreviewHost || isInIframe) {
   navigator.serviceWorker?.getRegistrations().then((regs) => {
     regs.forEach((r) => r.unregister());
   });
+}
+
+// Proactively catch iPhones returning from background / bfcache onto a stale
+// app shell, and refresh them BEFORE they hit a missing-chunk retry splash.
+// iOS-only and no-op in preview/iframe.
+if (!isPreviewHost && !isInIframe) {
+  installIOSFreshnessWatch();
 }
 
 // Clear app caches in background — never blocks startup, never touches auth
