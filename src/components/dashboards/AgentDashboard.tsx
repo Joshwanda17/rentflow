@@ -263,6 +263,24 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     window.addEventListener('open-submissions', handler);
     return () => window.removeEventListener('open-submissions', handler);
   }, []);
+  // Deep-link support: opening /dashboard/agent?submission=<id>&type=tenant|landlord
+  // jumps straight to that record in the submissions sheet, so the copyable
+  // link an agent shares after registering actually lands on the record.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const recordId = params.get('submission');
+    if (!recordId) return;
+    const type = params.get('type');
+    setSubmissionsView('pipeline');
+    setSubmissionsTab(type === 'landlord' ? 'landlords' : 'submitted');
+    setSubmissionsHighlightId(recordId);
+    setTenantsSheetOpen(true);
+    // Strip the params so a refresh / back doesn't re-trigger the sheet.
+    params.delete('submission');
+    params.delete('type');
+    const qs = params.toString();
+    window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
+  }, []);
   const [fieldCollectOpen, setFieldCollectOpen] = useState(false);
   const [reconcileOpen, setReconcileOpen] = useState(false);
   const [duplicateCount, setDuplicateCount] = useState(0);
