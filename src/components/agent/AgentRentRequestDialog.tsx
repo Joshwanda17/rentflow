@@ -382,6 +382,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [outstandingDaysRemaining, setOutstandingDaysRemaining] = useState('');
   const [showRegisterLandlord, setShowRegisterLandlord] = useState(false);
   const [landlordPickerKey, setLandlordPickerKey] = useState(0);
+  const [showLinkedBanner, setShowLinkedBanner] = useState(false);
+  const linkedBannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // One-tap auto-fill: when the agent picks a matched landlord from the
   // autocomplete dropdown, pull every saved detail we have on file into the
