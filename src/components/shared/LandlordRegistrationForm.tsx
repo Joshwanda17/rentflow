@@ -1028,6 +1028,115 @@ export default function LandlordRegistrationForm({
           </div>
           </div>
           )}
+          </>
+          )}
+
+          {/* ===== Step 2: Confirmation ===== */}
+          {step === 2 && !success && (
+          <>
+            <div className="space-y-2 p-3 rounded-xl border bg-muted/30">
+              <p className="text-xs font-semibold text-foreground">Confirm the details</p>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                  <User className="h-3 w-3" /> Name
+                </span>
+                <span className="text-xs font-medium text-foreground text-right truncate">{landlordName}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                  <Phone className="h-3 w-3" /> Phone
+                </span>
+                <span className="text-xs font-medium text-foreground text-right">{landlordPhone}</span>
+              </div>
+              {minimal && (
+                <>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                      <ShieldCheck className="h-3 w-3" /> LC1 Name
+                    </span>
+                    <span className="text-xs font-medium text-foreground text-right truncate">{lc1Name}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                      <Phone className="h-3 w-3" /> LC1 Phone
+                    </span>
+                    <span className="text-xs font-medium text-foreground text-right">{lc1Phone}</span>
+                  </div>
+                </>
+              )}
+              {propertyAddress.trim() && (
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                    <MapPin className="h-3 w-3" /> Address
+                  </span>
+                  <span className="text-xs font-medium text-foreground text-right truncate">{propertyAddress}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Register — final submit on the confirmation step */}
+            <Button
+              type="submit"
+              onClick={() => hapticTap()}
+              className="w-full h-14 text-base font-semibold gap-2 touch-manipulation select-none transition-transform active:scale-[0.98] disabled:opacity-70"
+              disabled={loading}
+            >
+              {loading ? (
+                <><Loader2 className="h-5 w-5 animate-spin" /> Registering...</>
+              ) : (
+                <><Building2 className="h-5 w-5" /> Register Landlord</>
+              )}
+            </Button>
+
+            {/* Back to edit the entered details */}
+            {!loading && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => { hapticTap(); setStep(1); }}
+                className="w-full h-11 gap-2 text-xs text-muted-foreground touch-manipulation select-none"
+              >
+                <ChevronUp className="h-4 w-4 rotate-90" /> Back to edit
+              </Button>
+            )}
+
+            {/* Inline stepped progress so the agent always sees forward motion */}
+            {loading && progressMsg && (
+              <p className="flex items-center justify-center gap-2 text-sm font-medium text-primary animate-pulse">
+                <Loader2 className="h-4 w-4 animate-spin" /> {progressMsg}
+              </p>
+            )}
+
+            {/* Inline error banner — stays on screen so agents on weak networks always know what happened */}
+            <AnimatePresence>
+              {submitError && !loading && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  className="p-3.5 rounded-xl bg-destructive/10 border border-destructive/30 space-y-2"
+                >
+                  <div className="flex items-start gap-2.5">
+                    <div className="mt-0.5 p-1 rounded-full bg-destructive/20">
+                      <XCircle className="h-4 w-4 text-destructive" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-destructive">Could not save</p>
+                      <p className="text-xs text-destructive/80 mt-0.5">{submitError}</p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={() => { hapticTap(); clearSubmitError(); handleSubmit(); }}
+                    className="w-full h-12 text-sm font-semibold gap-2 touch-manipulation select-none transition-transform active:scale-[0.98]"
+                  >
+                    <RefreshCw className="h-4 w-4" /> Try Again
+                  </Button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </>
+          )}
         </motion.form>
       )}
     </AnimatePresence>
