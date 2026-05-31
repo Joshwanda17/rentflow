@@ -836,6 +836,7 @@ export function AgentRequestPipelineView({
                   tone="emerald"
                   stageLabel={STAGE_LABEL[r.status] ?? 'Approved'}
                   onClick={() => setDetailRow(r)}
+                  highlighted={activeHighlight === r.id}
                   rightSlot={
                     <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-emerald-500/20">
                       <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1">
