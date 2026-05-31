@@ -583,11 +583,17 @@ export default function LandlordRegistrationForm({
             </Label>
             <Input
               value={propertyAddress}
-              onChange={(e) => setPropertyAddress(e.target.value)}
+              onChange={(e) => { setPropertyAddress(e.target.value); clearError('propertyAddress'); }}
+              onBlur={(e) => validateField('propertyAddress', e.target.value)}
               placeholder="e.g., Kabalagala, Block 5, Plot 12"
-              className="h-10"
+              className={`h-10 ${errors.propertyAddress ? 'border-destructive focus-visible:ring-destructive' : ''}`}
               required
             />
+            {errors.propertyAddress && (
+              <p className="text-[11px] text-destructive flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" /> {errors.propertyAddress}
+              </p>
+            )}
           </div>
           )}
 
