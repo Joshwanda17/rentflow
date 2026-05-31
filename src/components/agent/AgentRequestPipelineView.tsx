@@ -391,7 +391,10 @@ function RowCard({
   );
 }
 
-export function AgentRequestPipelineView({ initialTab }: { initialTab?: PipelineTab } = {}) {
+export function AgentRequestPipelineView({
+  initialTab,
+  highlightId,
+}: { initialTab?: PipelineTab; highlightId?: string | null } = {}) {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<PipelineTab>(initialTab ?? 'submitted');
   const [submittedPage, setSubmittedPage] = useState(0);
@@ -399,6 +402,14 @@ export function AgentRequestPipelineView({ initialTab }: { initialTab?: Pipeline
   const [rejectedPage, setRejectedPage] = useState(0);
   const [editing, setEditing] = useState<AgentRejectedRequest | null>(null);
   const [detailRow, setDetailRow] = useState<PipelineRow | null>(null);
+
+  // When opening straight to a freshly submitted record, scroll it into view
+  // and flash a highlight ring so the agent sees exactly what they just added.
+  const [activeHighlight, setActiveHighlight] = useState<string | null>(highlightId ?? null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    setActiveHighlight(highlightId ?? null);
+  }, [highlightId]);
 
   // Search & filter state
   const [searchQuery, setSearchQuery] = useState('');
