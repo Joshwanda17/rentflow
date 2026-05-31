@@ -297,6 +297,32 @@ export function useAgentCapacityMap(agentIds: string[]) {
         });
       });
 
+      // ----- Weekly Good-Standing unlock: count "Good"+ days last week -----
+      // Pull the last 7 days of saved daily eligibility history for every
+      // agent and count DISTINCT days rated "Good" or "Very Good" (green).
+      // Two or more such days unlocks unlimited posting for the week.
+      const goodDaysByAgent = new Map<string, number>();
+      {
+        const weekAgoDay = new Date(Date.now() - 7 * 86_400_000)
+          .toISOString().slice(0, 10);
+        const { data: histRows, error: histErr } = await (supabase as any)
+          .from('agent_daily_eligibility_history')
+          .select('agent_id, day, rating')
+          .in('agent_id', agentIds)
+          .gte('day', weekAgoDay);
+        if (histErr) {
+          console.error('[useAgentCapacityMap] eligibility history failed', histErr);
+        }
+        const seen = new Map<string, Set<string>>(); // agent → distinct good days
+        (histRows || []).forEach((r: any) => {
+          if (r.rating !== 'Good' && r.rating !== 'Very Good') return;
+          let s = seen.get(r.agent_id);
+          if (!s) { s = new Set(); seen.set(r.agent_id, s); }
+          s.add(r.day);
+        });
+        seen.forEach((days, agent) => goodDaysByAgent.set(agent, days.size));
+      }
+
       // 1) Active rent_requests drive both exposure AND expected daily collections
       const { data: active } = await supabase
         .from('rent_requests')
