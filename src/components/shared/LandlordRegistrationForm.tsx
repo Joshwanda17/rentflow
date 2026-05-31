@@ -61,6 +61,8 @@ export default function LandlordRegistrationForm({
   // Inline stepped progress message shown while saving so the agent always
   // sees forward motion, even on a weak connection.
   const [progressMsg, setProgressMsg] = useState('');
+  // Inline error state when the submission itself fails (network, DB, etc.)
+  const [submitError, setSubmitError] = useState('');
   const [showListHouse, setShowListHouse] = useState(false);
   const [activationLink, setActivationLink] = useState('');
   const [locationCaptured, setLocationCaptured] = useState(false);
