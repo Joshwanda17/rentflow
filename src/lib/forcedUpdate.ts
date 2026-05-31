@@ -63,18 +63,34 @@ export function isForcingUpdate(): boolean {
  */
 async function purgeThenReload(): Promise<void> {
   let result: PurgeResult;
+  pushUpdateDebug("forced: purgeThenReload start", {
+    reload_attempts: getRecoveryAttempts(),
+  });
   try {
     result = await purgeCachesAndServiceWorkers();
   } catch (err) {
+    pushUpdateDebug("forced: purge threw", {
+      error: err instanceof Error ? err.message : String(err),
+    });
     showPurgeErrors([
       err instanceof Error ? err.message : "Unexpected error while clearing data",
     ]);
+    renderDebugPanel();
     return;
   }
   if (result.errors.length > 0) {
+    pushUpdateDebug("forced: purge reported errors", {
+      errors: result.errors,
+    });
     showPurgeErrors(result.errors);
+    renderDebugPanel();
     return;
   }
+  pushUpdateDebug("forced: purge ok, reloading", {
+    swUnregistered: result.swUnregistered,
+    cachesDeleted: result.cachesDeleted,
+    swReregistered: result.swReregistered,
+  });
   reloadWithCacheBust();
 }
 
