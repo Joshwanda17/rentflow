@@ -256,6 +256,48 @@ export async function purgeCachesAndServiceWorkers(): Promise<PurgeResult> {
     },
   });
 
+  // iPhone-focused success/failure beacon. We treat the kill-switch + cache
+  // purge as SUCCESSFUL only when every enumerated service worker was either
+  // unregistered or the kill-switch worker re-registered, AND no cache survived
+  // the delete passes with no per-step errors. This lets us measure, per iOS
+  // device, whether the rescue actually worked or the phone is still stale.
+  const killSwitchOk = serviceWorkerCount === 0 || (swUnregistered > 0 && swReregistered);
+  const cachePurgeOk = survivingCaches.length === 0;
+  const purgeSucceeded = killSwitchOk && cachePurgeOk && errors.length === 0;
+  const reloadAttempts = getRecoveryAttempts();
+  logUpdateFailure(
+    purgeSucceeded ? "killswitch_purge_succeeded" : "killswitch_purge_failed",
+    {
+      sw_cleared: swUnregistered > 0,
+      cache_cleared: cachesDeleted > 0,
+      reload_attempts: reloadAttempts,
+      details: {
+        killSwitchOk,
+        cachePurgeOk,
+        purgeSucceeded,
+        serviceWorkerCount,
+        swUnregistered,
+        swReregistered,
+        cacheCount: initialCacheNames.length,
+        cachesDeleted,
+        survivingCaches,
+        errorCount: errors.length,
+        errors,
+        reloadAttempts,
+      },
+    }
+  );
+  pushUpdateDebug(
+    purgeSucceeded ? "purge: SUCCESS" : "purge: FAILED",
+    {
+      killSwitchOk,
+      cachePurgeOk,
+      survivingCaches,
+      errorCount: errors.length,
+      reloadAttempts,
+    }
+  );
+
   return {
     swUnregistered,
     cachesDeleted,
