@@ -489,9 +489,11 @@ export default function LandlordRegistrationForm({
               <Phone className="h-3 w-3" /> Phone Number *
             </Label>
             <Input
+              type="tel"
+              inputMode="tel"
               value={landlordPhone}
-              onChange={(e) => { setLandlordPhone(e.target.value); clearError('landlordPhone'); }}
-              onBlur={(e) => validateField('landlordPhone', e.target.value)}
+              onChange={(e) => { setLandlordPhone(formatUgandaPhone(e.target.value)); clearError('landlordPhone'); }}
+              onBlur={(e) => validateField('landlordPhone', cleanPhoneNumber(e.target.value))}
               placeholder="07XX XXX XXX — 10 digits"
               className={`h-10 ${errors.landlordPhone ? 'border-destructive focus-visible:ring-destructive' : ''}`}
               required
