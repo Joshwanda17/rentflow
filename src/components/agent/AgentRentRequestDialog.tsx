@@ -310,6 +310,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [savingDraft, setSavingDraft] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  // Auto-capture: the moment tenant name + rent amount exist, the request is
+  // persisted as a server draft so the agent gets instant confirmation it was
+  // captured and can keep filling the rest without fear of losing it.
+  const [autoDraftId, setAutoDraftId] = useState<string | null>(null);
+  const [autoDraftStatus, setAutoDraftStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   // Live network status — used to keep the draft safe and warn the agent
   // before they try to submit on a dropped connection.
   const [isOnline, setIsOnline] = useState<boolean>(typeof navigator !== 'undefined' ? navigator.onLine : true);
@@ -821,6 +826,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setActivationLink(null);
     setStep('type');
     setDetailStep(0);
+    setAutoDraftId(null);
+    setAutoDraftStatus('idle');
   };
 
   const handleOpenChange = (newOpen: boolean) => {
@@ -834,6 +841,58 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     ? (parseInt(outstandingBalance.replace(/,/g, '')) || 0)
     : (parseInt(rentAmount.replace(/,/g, '')) || 0);
   
+  // ===== Auto-capture the request as soon as tenant name + amount exist =====
+  // The agent no longer has to hunt for an unresponsive submit button to know
+  // their work is safe: a debounced server draft is written automatically and a
+  // visible "Captured ✓" badge confirms it. They keep filling the other parts
+  // meanwhile, and every change keeps the same draft up to date.
+  useEffect(() => {
+    if (!open || success) return;
+    if (!user?.id) return;
+    if (!isOnline) return;
+    if (!tenantName.trim() || amount <= 0) return;
+    const handle = setTimeout(async () => {
+      setAutoDraftStatus('saving');
+      try {
+        const base = {
+          agent_id: user.id,
+          tenant_name: tenantName.trim(),
+          tenant_phone: tenantPhone.replace(/\s/g, '') || '',
+          rent_amount: amount,
+          required_per_tenant_max: amount,
+          payload: buildDraftPayload(),
+          status: 'pending' as const,
+        };
+        if (autoDraftId) {
+          const { error } = await supabase
+            .from('rent_request_drafts' as any)
+            .update(base)
+            .eq('id', autoDraftId);
+          if (error) throw error;
+        } else {
+          const { data, error } = await supabase
+            .from('rent_request_drafts' as any)
+            .insert(base)
+            .select('id')
+            .single();
+          if (error) throw error;
+          if ((data as any)?.id) setAutoDraftId((data as any).id as string);
+        }
+        setAutoDraftStatus('saved');
+      } catch {
+        setAutoDraftStatus('error');
+      }
+    }, 1200);
+    return () => clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    open, success, user?.id, isOnline, autoDraftId,
+    tenantName, tenantPhone, amount, rentAmount, outstandingBalance,
+    duration, repaymentPeriod, landlordName, landlordPhone, propertyAddress,
+    lc1Name, lc1Phone, lc1Village, propertyCity, propertyDistrict,
+    houseCategory, landlordPayoutDay,
+  ]);
+
   // Calculate fees based on income type
   const calculateFees = () => {
     if (!incomeType) return null;
@@ -1250,6 +1309,18 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         }
       }
 
+      // Resolve the auto-captured draft (if any) so it doesn't linger as pending.
+      if (autoDraftId && rentReq?.id) {
+        try {
+          await supabase
+            .from('rent_request_drafts' as any)
+            .update({ status: 'submitted', submitted_rent_request_id: rentReq.id })
+            .eq('id', autoDraftId);
+        } catch (e) {
+          console.warn('Failed to mark auto-draft submitted', e);
+        }
+      }
+
       // Upload house photos if any
       if (housePhotos.length > 0 && rentReq?.id) {
         const photoUrls = await uploadHousePhotos(rentReq.id);
@@ -1553,6 +1624,38 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
               {/* Agent rent exposure capacity (100M UGX cap) */}
               {(incomeType === 'outstanding' || detailStep === 0) && (
                 <AgentCapacityBanner agentId={user?.id} />
+              )}
+
+              {/* Auto-capture status — confirms the request is saved the moment
+                  tenant name + amount exist, so the agent never has to wonder
+                  whether their submit went through. */}
+              {tenantName.trim() && amount > 0 && (
+                <div
+                  className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold ${
+                    autoDraftStatus === 'error'
+                      ? 'border-destructive/40 bg-destructive/10 text-destructive'
+                      : autoDraftStatus === 'saved'
+                      ? 'border-success/40 bg-success/10 text-success'
+                      : 'border-primary/30 bg-primary/10 text-primary'
+                  }`}
+                >
+                  {autoDraftStatus === 'saving' || autoDraftStatus === 'idle' ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
+                      <span>Capturing this request…</span>
+                    </>
+                  ) : autoDraftStatus === 'saved' ? (
+                    <>
+                      <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+                      <span>Captured ✓ — your request is saved. Keep adding the other details below.</span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                      <span>Couldn&apos;t auto-save yet — check your connection. Your typed progress is still kept.</span>
+                    </>
+                  )}
+                </div>
               )}
 
 
