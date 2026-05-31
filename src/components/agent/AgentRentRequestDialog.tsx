@@ -1309,6 +1309,18 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         }
       }
 
+      // Resolve the auto-captured draft (if any) so it doesn't linger as pending.
+      if (autoDraftId && rentReq?.id) {
+        try {
+          await supabase
+            .from('rent_request_drafts' as any)
+            .update({ status: 'submitted', submitted_rent_request_id: rentReq.id })
+            .eq('id', autoDraftId);
+        } catch (e) {
+          console.warn('Failed to mark auto-draft submitted', e);
+        }
+      }
+
       // Upload house photos if any
       if (housePhotos.length > 0 && rentReq?.id) {
         const photoUrls = await uploadHousePhotos(rentReq.id);
