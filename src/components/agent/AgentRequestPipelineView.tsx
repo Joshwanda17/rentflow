@@ -302,6 +302,11 @@ export function AgentRequestPipelineView() {
   const [editing, setEditing] = useState<AgentRejectedRequest | null>(null);
   const [detailRow, setDetailRow] = useState<PipelineRow | null>(null);
 
+  // Search & filter state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [dateFilter, setDateFilter] = useState<string>('all');
+
   const submitted = usePipelineRequests(
     SUBMITTED_STATUSES,
     submittedPage,
@@ -316,9 +321,60 @@ export function AgentRequestPipelineView() {
   );
   const rejectedQuery = useAgentRejectedRequests();
   const rejectedAll = rejectedQuery.data ?? [];
+
+  // Client-side filtering helpers
+  const filterBySearch = (row: PipelineRow | AgentRejectedRequest) => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return true;
+    const tenant = (row as any).tenant_name ?? '';
+    const landlord = (row as any).landlord_name ?? '';
+    return tenant.toLowerCase().includes(q) || landlord.toLowerCase().includes(q);
+  };
+
+  const filterByStatus = (row: PipelineRow) => {
+    if (statusFilter === 'all') return true;
+    return row.status === statusFilter;
+  };
+
+  const filterByDate = (row: PipelineRow) => {
+    if (dateFilter === 'all') return true;
+    const d = new Date(row.created_at);
+    if (dateFilter === 'today') return isToday(d);
+    if (dateFilter === 'week') return isThisWeek(d);
+    if (dateFilter === 'month') return isThisMonth(d);
+    return true;
+  };
+
+  const activeFiltersCount =
+    (searchQuery.trim() ? 1 : 0) +
+    (statusFilter !== 'all' ? 1 : 0) +
+    (dateFilter !== 'all' ? 1 : 0);
+
+  const submittedRows = useMemo(
+    () =>
+      (submitted.data?.rows ?? [])
+        .filter(filterBySearch)
+        .filter(filterByStatus)
+        .filter(filterByDate),
+    [submitted.data?.rows, searchQuery, statusFilter, dateFilter],
+  );
+
+  const approvedRows = useMemo(
+    () =>
+      (approved.data?.rows ?? [])
+        .filter(filterBySearch)
+        .filter(filterByStatus)
+        .filter(filterByDate),
+    [approved.data?.rows, searchQuery, statusFilter, dateFilter],
+  );
+
+  const filteredRejected = useMemo(
+    () => rejectedAll.filter(filterBySearch),
+    [rejectedAll, searchQuery],
+  );
   const rejectedPaged = useMemo(
-    () => rejectedAll.slice(rejectedPage * PAGE_SIZE, rejectedPage * PAGE_SIZE + PAGE_SIZE),
-    [rejectedAll, rejectedPage],
+    () => filteredRejected.slice(rejectedPage * PAGE_SIZE, rejectedPage * PAGE_SIZE + PAGE_SIZE),
+    [filteredRejected, rejectedPage],
   );
 
   const tabs: { key: PipelineTab; label: string; icon: typeof Send; count: number; tone: string }[] = [
