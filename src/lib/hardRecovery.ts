@@ -261,6 +261,10 @@ export async function clearAndReload(
   event: UpdateFailureEvent = "manual_reload"
 ): Promise<PurgeResult> {
   logUpdateFailure(event, { reload_attempts: getRecoveryAttempts() });
+  pushUpdateDebug("clearAndReload", {
+    event,
+    reload_attempts: getRecoveryAttempts(),
+  });
   const result = await purgeCachesAndServiceWorkers();
   reloadWithCacheBust();
   return result;
@@ -276,6 +280,7 @@ export async function hardRecover(): Promise<PurgeResult> {
     reload_attempts: getRecoveryAttempts(),
     chunk_mismatch: true,
   });
+  pushUpdateDebug("hardRecover", { reload_attempts: getRecoveryAttempts() });
   const result = await purgeCachesAndServiceWorkers();
   reloadWithCacheBust();
   return result;
