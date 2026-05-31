@@ -269,7 +269,7 @@ PageLoader.displayName = 'PageLoader';
 // Global banner - lazy loaded
 function AppRoutes() {
   const location = useLocation();
-  const PTR_DISABLED_PREFIXES = ['/auth', '/welcome', '/funder-onboarding', '/executive-hub'];
+  const PTR_DISABLED_PREFIXES = ['/', '/index', '/auth', '/welcome', '/funder-onboarding', '/executive-hub'];
   const disablePullToRefresh = PTR_DISABLED_PREFIXES.some(
     (p) => location.pathname === p || location.pathname.startsWith(p + '/'),
   );
@@ -278,8 +278,8 @@ function AppRoutes() {
     await clearAndReload('manual_reload');
   };
 
-  return (
-    <PullToRefresh onRefresh={handlePullRefresh} className="min-h-screen" disabled={disablePullToRefresh}>
+  const routeContent = (
+    <div className="min-h-screen" data-pull-to-refresh={disablePullToRefresh ? 'disabled' : undefined}>
       <div>
       <Suspense fallback={<PageLoader />}>
         <Routes>
@@ -447,6 +447,14 @@ function AppRoutes() {
         </Routes>
       </Suspense>
       </div>
+    </div>
+  );
+
+  if (disablePullToRefresh) return routeContent;
+
+  return (
+    <PullToRefresh onRefresh={handlePullRefresh} className="min-h-screen">
+      {routeContent}
     </PullToRefresh>
   );
 }
