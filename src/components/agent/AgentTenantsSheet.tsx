@@ -76,6 +76,10 @@ interface TenantRentRequest {
 interface AgentTenantsSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Which view to land on when the sheet opens. Defaults to 'tenants'. */
+  initialView?: 'tenants' | 'pipeline';
+  /** When opening directly into the pipeline, which sub-tab to show. */
+  initialPipelineTab?: 'submitted' | 'approved' | 'rejected' | 'landlords';
 }
 
 type FilterTab = 'owing' | 'paid-up' | 'all';
