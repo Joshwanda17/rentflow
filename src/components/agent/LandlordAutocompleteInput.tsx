@@ -128,7 +128,7 @@ export function LandlordAutocompleteInput({
                 className="w-full flex items-center gap-3 px-3 py-3 text-left border-b last:border-b-0 hover:bg-accent active:bg-accent transition-colors"
               >
                 <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                  <Building2 className="h-4.5 w-4.5 text-primary" />
+                  <Building2 className="h-5 w-5 text-primary" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold truncate">{l.name}</p>
