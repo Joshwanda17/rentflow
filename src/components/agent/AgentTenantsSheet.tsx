@@ -80,6 +80,8 @@ interface AgentTenantsSheetProps {
   initialView?: 'tenants' | 'pipeline';
   /** When opening directly into the pipeline, which sub-tab to show. */
   initialPipelineTab?: 'submitted' | 'approved' | 'rejected' | 'landlords';
+  /** Record id to scroll to and highlight when opening into the pipeline. */
+  initialHighlightId?: string | null;
 }
 
 type FilterTab = 'owing' | 'paid-up' | 'all';
