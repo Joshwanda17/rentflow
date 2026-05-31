@@ -2171,68 +2171,121 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
               <Separator />
 
-              {/* ===== 4. LANDLORD DETAILS ===== */}
-              <div className="space-y-3">
-                <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-                  <Building2 className="h-3 w-3" />
-                  Landlord Details
-                </h4>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label >Name *</Label>
-                    <LandlordAutocompleteInput
-                      field="name"
-                      value={landlordName}
-                      onChange={setLandlordName}
-                      onSelect={applySelectedLandlord}
-                      placeholder="Landlord name"
-                    />
+              {/* ===== 4. LANDLORD — search-first, big & clear ===== */}
+              <div className="space-y-4">
+                {/* Friendly section title — large, no jargon */}
+                <div className="flex items-center gap-2">
+                  <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <Building2 className="h-5 w-5 text-primary" />
                   </div>
-                  <div className="space-y-1">
-                    <Label >Phone *</Label>
-                    <LandlordAutocompleteInput
-                      field="phone"
-                      value={landlordPhone}
-                      onChange={(v) => setLandlordPhone(formatPhoneInput(v))}
-                      onSelect={applySelectedLandlord}
-                      placeholder="0700 123 456"
-                      className={`h-10 ${hasFieldError('landlord phone') ? 'border-destructive border-2' : ''}`}
-                      maxLength={12}
-                    />
-                    {landlordPhone.replace(/\s/g, '').length >= 10 && !isValidUgPhone(landlordPhone.replace(/\s/g, '')) && (
-                      <p className="text-[10px] text-destructive">Invalid Ugandan phone number</p>
-                    )}
-                    {landlordPhone.replace(/\s/g, '').length >= 10 &&
-                      tenantPhone.replace(/\s/g, '').length >= 10 &&
-                      landlordPhone.replace(/\s/g, '') === tenantPhone.replace(/\s/g, '') && (
-                        <p className="text-[10px] text-destructive">Cannot be the same as Tenant phone</p>
-                      )}
+                  <div>
+                    <h4 className="text-base font-bold text-foreground leading-tight">Who owns the house?</h4>
+                    <p className="text-xs text-muted-foreground leading-tight">Find the landlord, or add a new one</p>
                   </div>
                 </div>
-                <AnimatePresence>
-                  {showLinkedBanner && selectedLandlord && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -4 }}
-                      className="flex items-center gap-2 p-2 rounded-lg bg-success/10 border border-success/30"
+
+                {/* Bonus — always visible, simple words */}
+                <div className="rounded-2xl border border-success/30 bg-success/10 p-3 flex items-center gap-3">
+                  <div className="h-11 w-11 rounded-full bg-success/20 flex items-center justify-center text-2xl shrink-0">💰</div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-extrabold text-success leading-tight">Earn UGX 5,000</p>
+                    <p className="text-[11px] text-success/90 leading-snug">
+                      Add a new landlord and list their house. Paid when a tenant moves in.
+                    </p>
+                  </div>
+                </div>
+
+                {selectedLandlord ? (
+                  /* ── Landlord linked: one calm confirmation card ── */
+                  <div className="rounded-2xl border-2 border-success/40 bg-success/5 p-3">
+                    <div className="flex items-start gap-3">
+                      <CheckCircle2 className="h-6 w-6 text-success shrink-0 mt-0.5" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-base font-bold text-foreground truncate">{selectedLandlord.name}</p>
+                        <p className="text-sm text-muted-foreground flex items-center gap-1 truncate">
+                          <Phone className="h-3.5 w-3.5 shrink-0" /> {landlordPhone || selectedLandlord.phone}
+                        </p>
+                        <p className="text-xs text-success font-medium mt-1">✓ Already in the system — details filled in for you</p>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full h-11 mt-3 gap-2 rounded-xl"
+                      onClick={() => {
+                        setSelectedLandlord(null);
+                        setShowLinkedBanner(false);
+                        setLandlordName('');
+                        setLandlordPhone('');
+                      }}
                     >
-                      <CheckCircle2 className="h-4 w-4 text-success flex-shrink-0" />
-                      <p className="text-xs text-success font-medium">
-                        Landlord <span className="font-semibold">{selectedLandlord.name}</span> linked — details auto-filled
-                      </p>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-                <div className="space-y-1">
-                  <Label className="flex items-center gap-1">
-                    <MapPin className="h-3 w-3" /> Property Address *
+                      Change landlord
+                    </Button>
+                  </div>
+                ) : (
+                  /* ── Search or type a new landlord ── */
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-semibold">Landlord name</Label>
+                      <LandlordAutocompleteInput
+                        field="name"
+                        value={landlordName}
+                        onChange={setLandlordName}
+                        onSelect={applySelectedLandlord}
+                        placeholder="Type name to search…"
+                        className="h-12 text-base"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-semibold">Landlord phone</Label>
+                      <LandlordAutocompleteInput
+                        field="phone"
+                        value={landlordPhone}
+                        onChange={(v) => setLandlordPhone(formatPhoneInput(v))}
+                        onSelect={applySelectedLandlord}
+                        placeholder="0700 123 456"
+                        className={`h-12 text-base ${hasFieldError('landlord phone') ? 'border-destructive border-2' : ''}`}
+                        maxLength={12}
+                      />
+                      {landlordPhone.replace(/\s/g, '').length >= 10 && !isValidUgPhone(landlordPhone.replace(/\s/g, '')) && (
+                        <p className="text-xs text-destructive">Check the phone number — use 0700 123 456</p>
+                      )}
+                      {landlordPhone.replace(/\s/g, '').length >= 10 &&
+                        tenantPhone.replace(/\s/g, '').length >= 10 &&
+                        landlordPhone.replace(/\s/g, '') === tenantPhone.replace(/\s/g, '') && (
+                          <p className="text-xs text-destructive">Must be different from the tenant's phone</p>
+                        )}
+                    </div>
+
+                    {/* Gentle nudge so the agent knows tapping a match fills everything */}
+                    <p className="text-xs text-muted-foreground leading-snug px-0.5">
+                      💡 If the landlord shows up while typing, tap them — their address fills in automatically.
+                    </p>
+
+                    {/* Big "add a new landlord" action */}
+                    <button
+                      type="button"
+                      onClick={() => setShowRegisterLandlord(true)}
+                      className="w-full flex items-center gap-3 rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 p-3 text-left active:scale-[0.99] transition-transform"
+                    >
+                      <div className="h-10 w-10 rounded-full bg-primary/15 flex items-center justify-center text-xl shrink-0">＋</div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-primary leading-tight">Add a new landlord</p>
+                        <p className="text-[11px] text-muted-foreground leading-snug">Not in the system? Register them and earn UGX 5,000</p>
+                      </div>
+                    </button>
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-semibold flex items-center gap-1">
+                    <MapPin className="h-4 w-4 text-primary" /> Where is the house?
                   </Label>
                   <Input
                     value={propertyAddress}
                     onChange={(e) => setPropertyAddress(e.target.value)}
-                    placeholder="Full property address"
-                   
+                    placeholder="Village, road or area"
+                    className="h-12 text-base"
                     required
                   />
                 </div>
