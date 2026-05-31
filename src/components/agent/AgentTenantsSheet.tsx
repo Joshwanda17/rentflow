@@ -1199,7 +1199,7 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
               <div className="w-[72px]" />
             </div>
             <div className="flex-1 overflow-y-auto px-4 py-3">
-              <AgentRequestPipelineView />
+              <AgentRequestPipelineView initialTab={initialPipelineTab} />
             </div>
           </div>
         ) : (
