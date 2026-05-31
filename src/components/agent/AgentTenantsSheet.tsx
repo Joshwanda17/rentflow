@@ -1542,6 +1542,16 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
                           </div>
                         </div>
                       )}
+                      <div className="pt-1 border-t border-border/60">
+                        <button
+                          onClick={handleResetDefaults}
+                          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                          style={{ touchAction: 'manipulation', minHeight: '40px' }}
+                        >
+                          <RotateCcw className="h-4 w-4" />
+                          Reset to defaults
+                        </button>
+                      </div>
                     </PopoverContent>
                   </Popover>
                 )}
