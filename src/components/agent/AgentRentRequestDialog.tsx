@@ -408,6 +408,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       setGpsLocation({ lat: Number(l.latitude), lng: Number(l.longitude), accuracy: 0 });
     }
     setSelectedLandlord(l);
+    setShowLinkedBanner(true);
+    if (linkedBannerTimer.current) clearTimeout(linkedBannerTimer.current);
+    linkedBannerTimer.current = setTimeout(() => setShowLinkedBanner(false), 6000);
     toast.success(`Linked landlord ${l.name}`, {
       description: 'Saved address and details filled in automatically.',
     });
