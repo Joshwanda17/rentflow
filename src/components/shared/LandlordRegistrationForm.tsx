@@ -223,16 +223,13 @@ export default function LandlordRegistrationForm({
       return;
     }
 
-    if (!minimal && !tempPassword) {
-      toastFn({ title: 'Missing Password', description: 'Generate a temporary password.', variant: 'destructive' });
-      return;
-    }
-
     // Make sure we always have a password to seed the activation invite.
+    // It's auto-generated silently so an ordinary agent never has to think
+    // about it — they only ever type a name and phone.
     const passwordToUse = tempPassword || generateTempPassword();
-    // landlords.property_address is NOT NULL — in minimal mode, fall back
-    // to a placeholder that ops can update later.
-    const addressToUse = propertyAddress.trim() || (minimal ? 'To be confirmed' : '');
+    // landlords.property_address is NOT NULL — when no address is given, fall
+    // back to a placeholder that ops can update later.
+    const addressToUse = propertyAddress.trim() || 'To be confirmed';
 
     setLoading(true);
 
