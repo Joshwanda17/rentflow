@@ -1799,6 +1799,23 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       className="h-12 text-lg font-bold border-2 border-primary/30 focus:border-primary rounded-xl"
                       required
                     />
+                    {amount > 0 && (
+                      <p className="text-xs font-semibold">
+                        {amount > perTenantMax ? (
+                          <span className="text-amber-600 dark:text-amber-400">
+                            You are <span className="font-extrabold">{formatUGX(amount - perTenantMax)}</span> over your <span className="font-extrabold">{formatUGX(perTenantMax)}</span> posting cap.
+                          </span>
+                        ) : amount === perTenantMax ? (
+                          <span className="text-success">
+                            You are exactly at your <span className="font-extrabold">{formatUGX(perTenantMax)}</span> posting cap.
+                          </span>
+                        ) : (
+                          <span className="text-success">
+                            You are <span className="font-extrabold">{formatUGX(perTenantMax - amount)}</span> under your <span className="font-extrabold">{formatUGX(perTenantMax)}</span> posting cap.
+                          </span>
+                        )}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-1">
                     <Label className="font-semibold text-primary/80">
