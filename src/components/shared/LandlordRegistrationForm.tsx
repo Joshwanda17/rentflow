@@ -507,11 +507,17 @@ export default function LandlordRegistrationForm({
                   </Label>
                   <Input
                     value={lc1Name}
-                    onChange={(e) => setLc1Name(e.target.value)}
+                    onChange={(e) => { setLc1Name(e.target.value); clearError('lc1Name'); }}
+                    onBlur={(e) => validateField('lc1Name', e.target.value)}
                     placeholder="Chairperson full name"
-                    className="h-10"
+                    className={`h-10 ${errors.lc1Name ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                     required
                   />
+                  {errors.lc1Name && (
+                    <p className="text-[11px] text-destructive flex items-center gap-1">
+                      <AlertTriangle className="h-3 w-3" /> {errors.lc1Name}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs font-semibold flex items-center gap-1.5">
@@ -519,11 +525,17 @@ export default function LandlordRegistrationForm({
                   </Label>
                   <Input
                     value={lc1Phone}
-                    onChange={(e) => setLc1Phone(e.target.value)}
+                    onChange={(e) => { setLc1Phone(e.target.value); clearError('lc1Phone'); }}
+                    onBlur={(e) => validateField('lc1Phone', e.target.value)}
                     placeholder="0700000000"
-                    className="h-10"
+                    className={`h-10 ${errors.lc1Phone ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                     required
                   />
+                  {errors.lc1Phone && (
+                    <p className="text-[11px] text-destructive flex items-center gap-1">
+                      <AlertTriangle className="h-3 w-3" /> {errors.lc1Phone}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
