@@ -1163,6 +1163,24 @@ function RequestDetailDrawer({
 }) {
   const dailyRepay =
     row && row.duration_days > 0 ? Math.round(row.total_repayment / row.duration_days) : 0;
+  const history = useQuery({
+    queryKey: ['agent-request-history', row?.id],
+    enabled: !!row?.id,
+    queryFn: async (): Promise<{
+      events: { id: string; event_type: string; metadata: any; created_at: string }[];
+      repayments: { id: string; amount: number; created_at: string }[];
+    }> => {
+      const { data, error } = await supabase.rpc('get_agent_request_history', {
+        p_request_id: row!.id,
+      });
+      if (error) throw error;
+      const d = (data ?? {}) as any;
+      return {
+        events: Array.isArray(d.events) ? d.events : [],
+        repayments: Array.isArray(d.repayments) ? d.repayments : [],
+      };
+    },
+  });
   return (
     <Drawer open={!!row} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DrawerContent>
@@ -1237,6 +1255,68 @@ function RequestDetailDrawer({
                     />
                   )}
                 </div>
+              </div>
+
+              {/* Status history */}
+              <div className="rounded-xl border bg-muted/30 px-3.5 py-3">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-2">
+                  Status history
+                </p>
+                {history.isLoading ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                  </div>
+                ) : (history.data?.events.length ?? 0) === 0 ? (
+                  <p className="text-xs text-muted-foreground py-1">No status changes recorded yet.</p>
+                ) : (
+                  <ol className="relative space-y-3 pl-4 before:absolute before:left-[5px] before:top-1.5 before:bottom-1.5 before:w-px before:bg-border">
+                    {history.data!.events.map((ev) => (
+                      <li key={ev.id} className="relative">
+                        <span className="absolute -left-4 top-1 h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-background" />
+                        <p className="text-xs font-semibold text-foreground">
+                          {EVENT_LABEL[ev.event_type] ?? ev.event_type.replace(/[._]/g, ' ')}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {format(new Date(ev.created_at), 'MMM d, yyyy · h:mm a')}
+                        </p>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </div>
+
+              {/* Transaction history */}
+              <div className="rounded-xl border bg-muted/30 px-3.5 py-3">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-2">
+                  Transaction history
+                </p>
+                {history.isLoading ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                  </div>
+                ) : (history.data?.repayments.length ?? 0) === 0 ? (
+                  <p className="text-xs text-muted-foreground py-1">No repayments recorded yet.</p>
+                ) : (
+                  <div className="divide-y divide-border/60">
+                    {history.data!.repayments.map((tx) => (
+                      <div key={tx.id} className="flex items-center justify-between gap-2 py-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="flex items-center justify-center h-7 w-7 rounded-full bg-emerald-500/10 shrink-0">
+                            <Banknote className="h-3.5 w-3.5 text-emerald-600" />
+                          </div>
+                          <span className="text-[11px] text-muted-foreground truncate">
+                            {format(new Date(tx.created_at), 'MMM d, yyyy · h:mm a')}
+                          </span>
+                        </div>
+                        <span className="text-sm font-bold tabular-nums text-emerald-600 shrink-0">
+                          +{formatUGX(tx.amount)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
