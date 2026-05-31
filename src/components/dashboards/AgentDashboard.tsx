@@ -801,13 +801,17 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             <AgentDailyCardEmailPrompt />
             <AgentCapacityShareInline />
             <div
-              className="sticky z-10 -mx-4 px-4 pt-2 pb-3 bg-background/95 backdrop-blur-md border-b border-border/40 space-y-3 max-h-[55vh] overflow-y-auto"
+              className="sticky z-10 -mx-4 px-3 sm:px-4 pb-2.5 bg-background/95 backdrop-blur-md border-b border-border/40 max-h-[42vh] sm:max-h-[55vh] overflow-y-auto overscroll-contain"
               style={{ top: 'calc(4.5rem + env(safe-area-inset-top, 0px))' }}
             >
-              <h3 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">Submissions</h3>
-              <AgentRequestPipelineView initialTab="submitted" />
+              <h3 className="sticky top-0 z-10 -mx-3 sm:-mx-4 px-3 sm:px-4 py-2 bg-background/95 backdrop-blur-md text-[11px] sm:text-sm font-bold uppercase tracking-wide text-muted-foreground">
+                Submissions
+              </h3>
+              <div className="mt-1">
+                <AgentRequestPipelineView initialTab="submitted" />
+              </div>
             </div>
-            <h3 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">My Tenants</h3>
+            <h3 className="text-[11px] sm:text-sm font-bold uppercase tracking-wide text-muted-foreground">My Tenants</h3>
             <AgentTenantInlineList
               onOpenTenantSheet={() => setTenantsSheetOpen(true)}
               onAddTenant={() => setRentRequestOpen(true)}
