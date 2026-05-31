@@ -17,7 +17,7 @@ import {
 import {
   Building2, Phone, MapPin, Loader2, CheckCircle2,
   Navigation, AlertTriangle, Share2, Eye, EyeOff,
-  RefreshCw, Copy, User, Hash, Zap, Droplets,
+  RefreshCw, Copy, User, Hash, Zap, Droplets, ListChecks,
   Wallet, ShieldCheck, XCircle, Home, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { ListEmptyHouseDialog } from '@/components/agent/ListEmptyHouseDialog';
