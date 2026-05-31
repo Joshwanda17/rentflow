@@ -387,6 +387,7 @@ export default function LandlordRegistrationForm({
         }));
         setSubmitError('A landlord with this phone number already exists.');
         hapticWarning();
+        setStep(1);
         focusField('landlordPhone');
         toastFn({ title: 'Already Exists', description: 'A landlord with this phone number already exists.', variant: 'destructive' });
         setLoading(false);
