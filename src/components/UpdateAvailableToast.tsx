@@ -23,10 +23,10 @@ export default function UpdateAvailableToast() {
     if (toastIdRef.current !== null) return;
 
     toastIdRef.current = toast("New version available", {
-      description: "Reload to get the latest fixes.",
+      description: "A new build is ready. Refresh to get the latest fixes.",
       duration: Infinity,
       action: {
-        label: "Update now",
+        label: "Refresh to latest version",
         onClick: () => applyUpdate(),
       },
       cancel: {
