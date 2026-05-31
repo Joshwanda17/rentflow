@@ -1551,54 +1551,9 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
 
           {view === 'tenants' && (
           <>
-          {/* Simple / Detailed view switch — Simple Mode is the easy, photo-first
-              list for agents who don't like reading. */}
-          <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-muted/50">
-            <button
-              onClick={() => setSimpleMode(true)}
-              className={`py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
-                simpleMode ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'
-              }`}
-              style={{ touchAction: 'manipulation', minHeight: '44px' }}
-              aria-pressed={simpleMode}
-            >
-              <Sparkles className="h-4 w-4" />
-              Simple
-            </button>
-            <button
-              onClick={() => { setSimpleMode(false); exitBulkSelect(); }}
-              className={`py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
-                !simpleMode ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'
-              }`}
-              style={{ touchAction: 'manipulation', minHeight: '44px' }}
-              aria-pressed={!simpleMode}
-            >
-              <SlidersHorizontal className="h-4 w-4" />
-              Detailed
-            </button>
-          </div>
-
           {/* Simple Mode search — one big, obvious box, nothing else. */}
           {simpleMode && (
             <>
-              {/* ── Language toggle: English ⇄ Luganda ── */}
-              <div className="flex justify-end">
-                <div className="inline-flex rounded-full bg-muted/50 p-1">
-                  {(['en', 'lg'] as SimpleLang[]).map((lng) => (
-                    <button
-                      key={lng}
-                      onClick={() => setSimpleLang(lng)}
-                      aria-pressed={simpleLang === lng}
-                      className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
-                        simpleLang === lng ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'
-                      }`}
-                      style={{ minHeight: '36px' }}
-                    >
-                      {lng === 'en' ? 'English' : 'Luganda'}
-                    </button>
-                  ))}
-                </div>
-              </div>
               {/* ── Simple Summary: total to collect vs total paid ── */}
               {(() => {
                 let totalToCollect = 0;
