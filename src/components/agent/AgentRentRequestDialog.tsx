@@ -2367,6 +2367,42 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 </div>
               )}
 
+              {/* Tier cap explainer — shown when the typed amount exceeds the
+                  agent's per-tenant posting cap so they understand exactly why
+                  the request can't be submitted right now. */}
+              {amount > perTenantMax && (
+                <div className="p-4 rounded-2xl bg-amber-500/10 border-2 border-amber-500/40 space-y-2 scroll-mt-4">
+                  <p className="text-base font-extrabold text-amber-700 dark:text-amber-400 flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 flex-shrink-0" />
+                    Over your current posting cap
+                  </p>
+                  <div className="text-sm font-semibold text-foreground space-y-1">
+                    <p>
+                      Your tier:{' '}
+                      <span className="font-extrabold">{myCap?.tier ?? 'Starter'}</span>
+                      {typeof myCap?.response_rate === 'number' && (
+                        <span className="font-normal text-muted-foreground">
+                          {' '}(7-day response rate {Math.round((myCap.response_rate ?? 0) * 100)}%)
+                        </span>
+                      )}
+                    </p>
+                    <p>
+                      Cap per tenant:{' '}
+                      <span className="font-extrabold">{formatUGX(perTenantMax)}</span>
+                    </p>
+                    <p>
+                      You entered:{' '}
+                      <span className="font-extrabold">{formatUGX(amount)}</span>
+                    </p>
+                  </div>
+                  <p className="text-xs text-amber-700/90 dark:text-amber-400/90">
+                    {perTenantMax <= 0
+                      ? 'New rent requests are blocked at your current tier. Raise your 7-day collection responsiveness to unlock posting.'
+                      : `Requests above ${formatUGX(perTenantMax)} can't be submitted yet — you can save this for later, or raise your 7-day collection responsiveness to unlock a higher cap (40% → UGX 3,000,000, 70% → UGX 6,000,000).`}
+                  </p>
+                </div>
+              )}
+
               {/* Wizard navigation */}
               <div className="flex gap-3 pt-2">
                 <Button
