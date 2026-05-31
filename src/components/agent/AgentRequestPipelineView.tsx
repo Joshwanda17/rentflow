@@ -472,36 +472,59 @@ export function AgentRequestPipelineView() {
 
       {/* Search & Filter bar */}
       <div className="space-y-2">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-          <Input
-            type="text"
-            placeholder="Search tenant or landlord name"
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setSubmittedPage(0);
-              setApprovedPage(0);
-              setRejectedPage(0);
-            }}
-            className="pl-9 pr-9 h-11 text-sm"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => {
-                setSearchQuery('');
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Input
+              type="text"
+              inputMode="search"
+              placeholder="Search by name"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
                 setSubmittedPage(0);
                 setApprovedPage(0);
                 setRejectedPage(0);
               }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              aria-label="Clear search"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
+              className="pl-9 pr-9 h-12 text-base"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => {
+                  setSearchQuery('');
+                  setSubmittedPage(0);
+                  setApprovedPage(0);
+                  setRejectedPage(0);
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label="Clear search"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowFilters((v) => !v)}
+            aria-expanded={showFilters}
+            className={`relative flex items-center gap-1.5 px-3.5 rounded-md border text-sm font-semibold transition-colors ${
+              showFilters || activeFiltersCount > 0
+                ? 'border-primary/40 bg-primary/10 text-primary'
+                : 'border-input bg-background text-muted-foreground'
+            }`}
+            style={{ touchAction: 'manipulation', minHeight: '48px' }}
+          >
+            <Filter className="h-4 w-4" />
+            Filter
+            {activeFiltersCount > 0 && (
+              <span className="ml-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+                {activeFiltersCount}
+              </span>
+            )}
+          </button>
         </div>
 
+        {showFilters && (
         <div className="flex gap-2">
           {tab !== 'rejected' && (
             <Select
@@ -512,7 +535,7 @@ export function AgentRequestPipelineView() {
                 setApprovedPage(0);
               }}
             >
-              <SelectTrigger className="h-10 text-xs flex-1">
+              <SelectTrigger className="h-11 text-sm flex-1">
                 <Filter className="h-3.5 w-3.5 mr-1.5 text-muted-foreground shrink-0" />
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
@@ -545,7 +568,7 @@ export function AgentRequestPipelineView() {
               setRejectedPage(0);
             }}
           >
-            <SelectTrigger className={`h-10 text-xs ${tab === 'rejected' ? 'flex-1' : 'flex-1'}`}>
+            <SelectTrigger className="h-11 text-sm flex-1">
               <Calendar className="h-3.5 w-3.5 mr-1.5 text-muted-foreground shrink-0" />
               <SelectValue placeholder="Date" />
             </SelectTrigger>
@@ -557,6 +580,7 @@ export function AgentRequestPipelineView() {
             </SelectContent>
           </Select>
         </div>
+        )}
 
         <div className="flex items-center justify-between">
           <p className="text-[11px] text-muted-foreground">
