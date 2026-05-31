@@ -12,6 +12,12 @@ import { logUpdateFailure } from './lib/updateTelemetry';
 import { refreshRolloutConfig, isRolloutEnabledForDevice } from './lib/rollout';
 import { checkServerVersion, isVersionStaleSync } from './lib/versionGate';
 import { installIOSFreshnessWatch } from './lib/iosFreshness';
+import {
+  installForcedUpdateWatch,
+  triggerForcedUpdate,
+  isForcingUpdate,
+} from './lib/forcedUpdate';
+import { isForceUpdateSync } from './lib/versionGate';
 
 const root = document.getElementById('root')!;
 const host = window.location.hostname;
@@ -81,6 +87,13 @@ if (isPreviewHost || isInIframe) {
 // iOS-only and no-op in preview/iframe.
 if (!isPreviewHost && !isInIframe) {
   installIOSFreshnessWatch();
+}
+
+// Cross-platform, server-controlled forced-update gate. Runs everywhere (not
+// just iOS): when version.json demands a blocking update, it paints an
+// un-dismissible overlay and auto-fires the update flow. Off in preview/iframe.
+if (!isPreviewHost && !isInIframe) {
+  installForcedUpdateWatch();
 }
 
 // Clear app caches in background — never blocks startup, never touches auth
@@ -262,6 +275,12 @@ const loadApp = async () => {
 };
 
 function showErrorUI() {
+  // If the server already demands a blocking forced update, show that instead
+  // of the soft "Update Available" screen — the old build must not keep running.
+  if (isForcingUpdate() || isForceUpdateSync()) {
+    triggerForcedUpdate('error_ui');
+    return;
+  }
   logUpdateFailure('error_ui_shown');
   root.textContent = '';
   const container = document.createElement('div');
