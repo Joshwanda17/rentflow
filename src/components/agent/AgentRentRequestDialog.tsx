@@ -300,7 +300,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const capIds = useMemo(() => (user?.id ? [user.id] : []), [user?.id]);
   const { data: capMap } = useAgentCapacityMap(capIds);
   const myCap = user?.id ? capMap?.get(user.id) : undefined;
-  const perTenantMax = myCap?.per_tenant_max ?? 500_000;
+  // Weekly Good-Standing unlock: an agent rated "Good" (green) on 2+ days last
+  // week may post any new rent request, for any amount — no cap, no daily block.
+  const unlimitedPosting = !!myCap?.unlimited_posting;
+  const goodDaysLastWeek = myCap?.good_days_last_week ?? 0;
+  const perTenantMax = unlimitedPosting
+    ? Number.MAX_SAFE_INTEGER
+    : (myCap?.per_tenant_max ?? 500_000);
   const [savingDraft, setSavingDraft] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
