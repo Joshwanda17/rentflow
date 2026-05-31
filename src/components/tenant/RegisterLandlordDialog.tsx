@@ -1,6 +1,3 @@
-import { useState } from 'react';
-import { useToast } from '@/hooks/use-toast';
-import { useCaptureLocation } from '@/hooks/useCaptureLocation';
 import {
   Dialog,
   DialogContent,
@@ -9,6 +6,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Building2 } from 'lucide-react';
+import { toast } from 'sonner';
 import LandlordRegistrationForm from '@/components/shared/LandlordRegistrationForm';
 
 interface RegisterLandlordDialogProps {
