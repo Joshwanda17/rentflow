@@ -2284,6 +2284,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <div className="space-y-1.5">
                       <Label className="text-sm font-semibold">Landlord name</Label>
                       <LandlordAutocompleteInput
+                        ref={landlordNameInputRef}
                         field="name"
                         value={landlordName}
                         onChange={setLandlordName}
