@@ -71,6 +71,9 @@ export default function LandlordRegistrationForm({
 
   // Inline validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
+  // Pre-save duplicate-phone check state (runs on blur, before submit)
+  const [checkingPhone, setCheckingPhone] = useState(false);
+  const [phoneVerified, setPhoneVerified] = useState(false);
 
   const validateField = (name: string, value: string) => {
     const trimmed = value.trim();
@@ -108,6 +111,44 @@ export default function LandlordRegistrationForm({
   };
 
   const clearSubmitError = () => setSubmitError('');
+
+  // Pre-save check: verify the landlord phone isn't already registered BEFORE
+  // the agent taps Register, surfacing the exact field error inline.
+  // Returns true when the number is free to use.
+  const checkPhoneAvailable = async (rawValue: string): Promise<boolean> => {
+    const formatError = validateField('landlordPhone', cleanPhoneNumber(rawValue));
+    if (formatError) {
+      setPhoneVerified(false);
+      return false;
+    }
+    const phoneClean = cleanPhoneNumber(rawValue);
+    setCheckingPhone(true);
+    setPhoneVerified(false);
+    try {
+      const { data, error } = await supabase
+        .from('landlords')
+        .select('id')
+        .eq('phone', phoneClean)
+        .maybeSingle();
+      if (error) {
+        // Network/DB hiccup — don't block; the submit-time check is the backstop.
+        return true;
+      }
+      if (data) {
+        setErrors((prev) => ({
+          ...prev,
+          landlordPhone:
+            'This phone is already registered. Enter a different number, or this landlord may already be in the system.',
+        }));
+        setPhoneVerified(false);
+        return false;
+      }
+      setPhoneVerified(true);
+      return true;
+    } finally {
+      setCheckingPhone(false);
+    }
+  };
 
   // Scroll to and focus the input inside a given [data-field] wrapper so the
   // agent is taken straight to the field that needs their attention.
@@ -237,6 +278,22 @@ export default function LandlordRegistrationForm({
         variant: 'destructive',
       });
       return;
+    }
+
+    // Pre-save duplicate check: if the phone hasn't already been verified as
+    // free, run the check now and surface the exact field error before saving.
+    if (!phoneVerified) {
+      const available = await checkPhoneAvailable(landlordPhone);
+      if (!available) {
+        hapticWarning();
+        focusField('landlordPhone');
+        toastFn({
+          title: 'Check the phone number',
+          description: 'This phone is already registered or invalid.',
+          variant: 'destructive',
+        });
+        return;
+      }
     }
 
     // Make sure we always have a password to seed the activation invite.
@@ -536,15 +593,25 @@ export default function LandlordRegistrationForm({
               type="tel"
               inputMode="tel"
               value={landlordPhone}
-              onChange={(e) => { setLandlordPhone(formatUgandaPhone(e.target.value)); clearError('landlordPhone'); clearSubmitError(); }}
-              onBlur={(e) => validateField('landlordPhone', cleanPhoneNumber(e.target.value))}
+              onChange={(e) => { setLandlordPhone(formatUgandaPhone(e.target.value)); clearError('landlordPhone'); clearSubmitError(); setPhoneVerified(false); }}
+              onBlur={(e) => { void checkPhoneAvailable(e.target.value); }}
               placeholder="07XX XXX XXX — 10 digits"
               className={`h-10 ${errors.landlordPhone ? 'border-destructive focus-visible:ring-destructive' : ''}`}
               required
             />
-            {errors.landlordPhone && (
+            {checkingPhone && (
+              <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                <Loader2 className="h-3 w-3 animate-spin" /> Checking if this number is already registered…
+              </p>
+            )}
+            {!checkingPhone && errors.landlordPhone && (
               <p className="text-[11px] text-destructive flex items-center gap-1">
                 <AlertTriangle className="h-3 w-3" /> {errors.landlordPhone}
+              </p>
+            )}
+            {!checkingPhone && !errors.landlordPhone && phoneVerified && (
+              <p className="text-[11px] text-emerald-600 flex items-center gap-1">
+                <CheckCircle2 className="h-3 w-3" /> Number is available
               </p>
             )}
           </div>
