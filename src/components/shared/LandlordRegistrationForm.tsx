@@ -235,12 +235,14 @@ export default function LandlordRegistrationForm({
     const addressToUse = propertyAddress.trim() || 'To be confirmed';
 
     setLoading(true);
+    setProgressMsg('Saving details…');
 
     const landlordPhoneClean = cleanPhoneNumber(landlordPhone);
     const lc1PhoneClean = cleanPhoneNumber(lc1Phone);
     const momoNumberClean = cleanPhoneNumber(momoNumber);
 
     try {
+      setProgressMsg('Checking the phone number…');
       const { data: existing } = await supabase
         .from('landlords')
         .select('id')
@@ -250,6 +252,7 @@ export default function LandlordRegistrationForm({
       if (existing) {
         toastFn({ title: 'Already Exists', description: 'A landlord with this phone number already exists.', variant: 'destructive' });
         setLoading(false);
+        setProgressMsg('');
         return;
       }
 
@@ -274,6 +277,7 @@ export default function LandlordRegistrationForm({
         insertData.tenant_id = user.id;
       }
 
+      setProgressMsg('Saving the landlord…');
       const { data: newLandlord, error } = await supabase.from('landlords').insert(insertData as any).select('id').single();
       if (error) throw error;
 
@@ -293,6 +297,7 @@ export default function LandlordRegistrationForm({
 
       // Credit 5,000 UGX registration bonus to the registering user's wallet
       try {
+        setProgressMsg('Adding your bonus…');
         const { data: bonusResult, error: bonusError } = await supabase.functions.invoke('credit-landlord-registration-bonus', {
           body: { landlord_id: newLandlord.id },
         });
@@ -306,6 +311,7 @@ export default function LandlordRegistrationForm({
       }
 
       // Create activation invite
+      setProgressMsg('Almost done…');
       const placeholderEmail = `${landlordPhone.trim().replace(/[^0-9]/g, '')}@welile.user`;
       const { data: invite } = await supabase
         .from('supporter_invites')
@@ -340,6 +346,7 @@ export default function LandlordRegistrationForm({
       });
     } finally {
       setLoading(false);
+      setProgressMsg('');
     }
   };
 
