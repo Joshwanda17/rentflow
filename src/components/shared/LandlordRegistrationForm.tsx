@@ -628,6 +628,8 @@ export default function LandlordRegistrationForm({
             </div>
           </div>
 
+          {step === 1 && (
+          <>
           {/* Friendly, low-pressure intro for first-time / casual agents */}
           {!minimal && (
             <p className="text-xs text-muted-foreground leading-relaxed">
