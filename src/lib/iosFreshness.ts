@@ -39,6 +39,15 @@ let lastCheckAt = 0;
 // iOS when the keyboard opens or the app multitasks) can't spam `/version.json`.
 const MIN_CHECK_INTERVAL_MS = 60_000;
 
+// While the app is open and foregrounded, proactively re-check the deployed
+// version on a timer. Without this, an iPhone that loaded an OLD build and then
+// stays open (never backgrounds) is NEVER pulled onto the new build until it
+// happens to request a now-missing chunk and falls into the recovery loop.
+// Polling lets us reach far-away devices we can't touch physically: the next
+// deploy auto-updates them cleanly, on their own, with no tap and no 404 trap.
+const FOREGROUND_POLL_INTERVAL_MS = 5 * 60_000; // 5 minutes
+let pollTimer: ReturnType<typeof setInterval> | null = null;
+
 async function checkAndRecoverIfStale(reason: string): Promise<void> {
   if (recovering) return;
   if (Date.now() - lastCheckAt < MIN_CHECK_INTERVAL_MS) return;
@@ -59,6 +68,23 @@ async function checkAndRecoverIfStale(reason: string): Promise<void> {
   });
   // Clean cache/SW purge + cache-busted reload onto the current build.
   await clearAndReload("manual_reload");
+}
+
+// Start/stop the foreground poll based on tab visibility so we never burn
+// battery or hit the network while the app is backgrounded.
+function startForegroundPoll(): void {
+  if (pollTimer !== null) return;
+  pollTimer = setInterval(() => {
+    if (document.visibilityState === "visible") {
+      void checkAndRecoverIfStale("foreground_poll");
+    }
+  }, FOREGROUND_POLL_INTERVAL_MS);
+}
+
+function stopForegroundPoll(): void {
+  if (pollTimer === null) return;
+  clearInterval(pollTimer);
+  pollTimer = null;
 }
 
 /**
@@ -88,8 +114,16 @@ export function installIOSFreshnessWatch(): void {
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") {
         void checkAndRecoverIfStale("visible");
+        startForegroundPoll();
+      } else {
+        stopForegroundPoll();
       }
     });
+
+    // Begin polling immediately when the app is already in the foreground.
+    if (document.visibilityState === "visible") {
+      startForegroundPoll();
+    }
   } catch {
     /* freshness checks must never break the app */
   }
