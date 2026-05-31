@@ -584,15 +584,15 @@ export function AgentRequestPipelineView() {
         <div className="space-y-2">
           {approved.isLoading ? (
             <Skeleton className="h-28 w-full rounded-xl" />
-          ) : !approved.data || approved.data.rows.length === 0 ? (
+          ) : approvedRows.length === 0 ? (
             <EmptyState
               icon={CheckCircle2}
-              title="Nothing ready to pay"
-              subtitle="Approved requests awaiting tenant repayment will appear here."
+              title={activeFiltersCount > 0 ? 'No matches found' : 'Nothing ready to pay'}
+              subtitle={activeFiltersCount > 0 ? 'Try adjusting your search or filters.' : 'Approved requests awaiting tenant repayment will appear here.'}
             />
           ) : (
             <>
-              {approved.data.rows.map((r) => (
+              {approvedRows.map((r) => (
                 <RowCard
                   key={r.id}
                   row={r}
@@ -617,7 +617,7 @@ export function AgentRequestPipelineView() {
               ))}
               <Pager
                 page={approvedPage}
-                total={approved.data.total}
+                total={approvedRows.length}
                 onPage={setApprovedPage}
                 loading={approved.isFetching}
               />
