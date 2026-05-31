@@ -24,6 +24,7 @@ import {
   Shield,
   Navigation,
   TrendingUp,
+  Link2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
