@@ -1,5 +1,6 @@
 import { useEffect, useCallback, useState } from "react";
 import { clearAndReload } from "@/lib/hardRecovery";
+import { checkServerVersion } from "@/lib/versionGate";
 
 declare const __CACHE_VERSION__: string;
 
@@ -7,6 +8,11 @@ declare const __CACHE_VERSION__: string;
 // version. Once the user dismisses, we won't re-prompt on focus/resume — only
 // a genuinely new __CACHE_VERSION__ release clears this.
 const DISMISS_KEY = 'welile_update_dismissed_version';
+
+// How often to actively poll the deployed `/version.json` while the app is
+// open and visible. Keeps the "new build available" prompt timely without
+// hammering the network.
+const POLL_INTERVAL_MS = 60_000;
 
 export function useServiceWorkerUpdate() {
   const [updateReady, setUpdateReady] = useState(false);
@@ -46,6 +52,41 @@ export function useServiceWorkerUpdate() {
     } else {
       localStorage.setItem("welile_cache_version", currentCacheVersion);
     }
+  }, [flagUpdateReady]);
+
+  // Actively detect freshly deployed builds by comparing the running bundle
+  // against the network `/version.json` (served `no-store`). Runs on mount,
+  // on a light interval, and whenever the app returns to the foreground —
+  // so an agent who leaves the app open still gets prompted to refresh.
+  useEffect(() => {
+    let cancelled = false;
+
+    const check = async () => {
+      try {
+        const state = await checkServerVersion();
+        if (!cancelled && state.stale) {
+          flagUpdateReady();
+        }
+      } catch {
+        /* network/version failures must never surface to the user */
+      }
+    };
+
+    void check();
+    const interval = window.setInterval(check, POLL_INTERVAL_MS);
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void check();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
   }, [flagUpdateReady]);
 
   return {
