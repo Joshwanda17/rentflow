@@ -2435,19 +2435,83 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       </p>
                     </div>
 
-                    <p
-                      className={`text-xs ${
+                    {/* Plain-language explanation anyone can understand */}
+                    <div
+                      className={`text-xs leading-relaxed space-y-2 ${
                         overCap
                           ? 'text-amber-700/90 dark:text-amber-400/90'
                           : 'text-success/90'
                       }`}
                     >
-                      {overCap
-                        ? perTenantMax <= 0
-                          ? 'New rent requests are blocked at your current tier. Raise your 7-day collection responsiveness to unlock posting.'
-                          : `Requests above ${formatUGX(perTenantMax)} can't be submitted yet — save this for later, or raise your 7-day collection responsiveness to unlock a higher cap (40% → UGX 3,000,000, 70% → UGX 6,000,000).`
-                        : 'This amount passes your cap check and can be submitted.'}
-                    </p>
+                      {overCap ? (
+                        perTenantMax <= 0 ? (
+                          <>
+                            <p className="font-bold">Right now you can't post any new rent request.</p>
+                            <p>
+                              This is because very few of your tenants have been paying
+                              over the last 7 days. The system watches how often your
+                              tenants pay — not how much — and yours is currently too low.
+                            </p>
+                            <p>
+                              <span className="font-bold">What to do:</span> visit your
+                              tenants and get at least a few of them to pay something
+                              (even a small amount) each day. As more of them start
+                              paying, your posting will open up again.
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="font-bold">
+                              The amount you typed is bigger than what you are allowed to post per tenant.
+                            </p>
+                            <p>
+                              You are on the <span className="font-bold">{myCap?.tier}</span> level.
+                              At this level, the most you can post for one tenant is{' '}
+                              <span className="font-bold">{formatUGX(perTenantMax)}</span>.
+                              You typed <span className="font-bold">{formatUGX(amount)}</span>,
+                              which is <span className="font-bold">{formatUGX(amount - perTenantMax)}</span>{' '}
+                              over the limit, so the system cannot accept it yet.
+                            </p>
+                            <p>
+                              <span className="font-bold">Why this happens:</span> your level
+                              depends on how many of your tenants pay something during the
+                              last 7 days. The more of them pay regularly, the higher your
+                              level and the bigger the amount you are allowed to post.
+                            </p>
+                            <p>
+                              <span className="font-bold">Your two options now:</span>
+                            </p>
+                            <ul className="list-disc pl-4 space-y-1">
+                              <li>
+                                Lower this request to <span className="font-bold">{formatUGX(perTenantMax)}</span>{' '}
+                                or less and post it today, or
+                              </li>
+                              <li>
+                                Save it for later and keep collecting from your tenants so
+                                your level goes up.
+                              </li>
+                            </ul>
+                            <p>
+                              <span className="font-bold">How to unlock bigger amounts:</span>{' '}
+                              get tenants paying on 4 out of every 10 days to reach{' '}
+                              <span className="font-bold">UGX 3,000,000</span> per tenant, or
+                              7 out of 10 days to reach <span className="font-bold">UGX 6,000,000</span> per tenant.
+                            </p>
+                          </>
+                        )
+                      ) : (
+                        <>
+                          <p className="font-bold">Good — this amount is fine to post.</p>
+                          <p>
+                            You are on the <span className="font-bold">{myCap?.tier}</span> level,
+                            which lets you post up to{' '}
+                            <span className="font-bold">{formatUGX(perTenantMax)}</span> for one tenant.
+                            The <span className="font-bold">{formatUGX(amount)}</span> you typed is
+                            within that limit, so you can go ahead and submit this request.
+                          </p>
+                        </>
+                      )}
+                    </div>
                   </div>
                 );
               })()}
