@@ -241,6 +241,64 @@ export default function LandlordRegistrationForm({
     setNwscMeter(''); setUedclMeter('');
     setTempPassword(''); setShowPassword(false);
     setSuccess(false); setActivationLink(''); setLocationCaptured(false);
+    setStep(1);
+  };
+
+  // Step 1 → Step 2: validate the essentials and confirm the phone is available
+  // before advancing to the confirmation step.
+  const handleNext = async () => {
+    if (!user) return;
+
+    const fieldsToValidate: { name: string; value: string }[] = [
+      { name: 'landlordName', value: landlordName },
+      { name: 'landlordPhone', value: landlordPhone },
+    ];
+    if (minimal) {
+      fieldsToValidate.push(
+        { name: 'lc1Name', value: lc1Name },
+        { name: 'lc1Phone', value: lc1Phone }
+      );
+    }
+
+    const newErrors: Record<string, string> = {};
+    for (const { name, value } of fieldsToValidate) {
+      const msg = validateField(name, value);
+      if (msg) newErrors[name] = msg;
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      const firstError = Object.keys(newErrors)[0];
+      if (!['landlordName', 'landlordPhone', 'lc1Name', 'lc1Phone'].includes(firstError)) {
+        setShowMore(true);
+      }
+      hapticWarning();
+      focusField(firstError);
+      toastFn({
+        title: 'Please fix the errors',
+        description: 'Some required fields are missing or invalid.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Confirm the phone number is free before advancing to Step 2.
+    if (!phoneVerified) {
+      const available = await checkPhoneAvailable(landlordPhone);
+      if (!available) {
+        hapticWarning();
+        focusField('landlordPhone');
+        toastFn({
+          title: 'Check the phone number',
+          description: 'This phone is already registered or invalid.',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
+    hapticTap();
+    setSubmitError('');
+    setStep(2);
   };
 
   const handleSubmit = async (e?: React.FormEvent) => {
