@@ -408,6 +408,16 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     });
   }, [LL_MODE_KEY]);
 
+  const clearLandlordSearch = useCallback(() => {
+    setLandlordName('');
+    setLandlordPhone('');
+    setSelectedLandlord(null);
+    setShowLinkedBanner(false);
+    requestAnimationFrame(() => {
+      landlordNameInputRef.current?.focus();
+    });
+  }, []);
+
   // One-tap auto-fill: when the agent picks a matched landlord from the
   // autocomplete dropdown, pull every saved detail we have on file into the
   // rent request form so they never re-key the address, location, or house
