@@ -1757,27 +1757,11 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
             </div>
           </div>
 
-          {/* Search — always visible, big and obvious */}
+          {/* Filters — single search lives in the sticky bar above, so this
+              block only carries the primary status chips + advanced toggles.
+              (The duplicate search box that used to sit here was removed —
+              two identical search inputs confused agents.) */}
           <div className="space-y-2">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by name or phone…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-10 h-12 rounded-xl bg-muted/40 border-2 border-solid border-purple-600 focus-visible:ring-1 focus-visible:ring-primary/30 text-base"
-                style={{ fontSize: '16px' }}
-                aria-label="Search tenants"
-              />
-              {search && (
-                <button
-                  onClick={() => setSearch('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-base p-1"
-                  aria-label="Clear search"
-                >✕</button>
-              )}
-            </div>
-
             {/* Big tap-friendly status chips — the main filter most agents need */}
             <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-muted/50">
               {filterTabs.map((tab) => {
