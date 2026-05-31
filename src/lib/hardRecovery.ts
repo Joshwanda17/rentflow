@@ -43,9 +43,27 @@ export interface PurgeResult {
   errors: string[];
 }
 
-/** Path of the static kill-switch service worker we re-register after a purge. */
-const KILL_SWITCH_SW = "/sw.js";
+/** Static kill-switch workers kept for every path older builds may have used. */
+const KILL_SWITCH_SW_PATHS = ["/sw.js", "/service-worker.js"];
 const CACHE_DELETE_PASSES = 3;
+
+async function waitForWorkerActivation(reg: ServiceWorkerRegistration): Promise<void> {
+  const worker = reg.installing || reg.waiting || reg.active;
+  if (!worker || worker.state === "activated") return;
+  await new Promise<void>((resolve) => {
+    const timeout = setTimeout(resolve, 3000);
+    worker.addEventListener(
+      "statechange",
+      () => {
+        if (worker.state === "activated") {
+          clearTimeout(timeout);
+          resolve();
+        }
+      },
+      { once: false }
+    );
+  });
+}
 
 function describeError(prefix: string, err: unknown): string {
   const msg =
@@ -196,12 +214,20 @@ export async function purgeCachesAndServiceWorkers(): Promise<PurgeResult> {
     survivingCaches,
   });
 
-  // 3) Re-register the static kill-switch worker so the very next load runs the
-  //    network-only cleanup worker (claims clients, deletes caches, then self-
-  //    unregisters). Best-effort: failure here must not block the reload.
+  // 3) Re-register/update every known kill-switch worker path so the very next
+  //    navigation is network-only even if an old install used /service-worker.js
+  //    instead of /sw.js. Best-effort: failure here must not block the reload.
   try {
     if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
-      await navigator.serviceWorker.register(KILL_SWITCH_SW, { scope: "/" });
+      for (const path of KILL_SWITCH_SW_PATHS) {
+        const reg = await navigator.serviceWorker.register(path, { scope: "/" });
+        try {
+          await reg.update();
+        } catch {
+          /* Safari may reject update() while activation is pending */
+        }
+        await waitForWorkerActivation(reg);
+      }
       swReregistered = true;
     }
   } catch (err) {

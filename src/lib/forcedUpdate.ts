@@ -84,6 +84,11 @@ async function purgeThenReload(): Promise<void> {
     });
     showPurgeErrors(result.errors);
     renderDebugPanel();
+    // Do not trap users on the diagnostics screen forever. iOS may report a
+    // non-fatal cache/SW failure even after enough cleanup has completed for the
+    // next navigation to fetch the fresh app shell. Surface the errors briefly,
+    // then continue the rescue reload automatically.
+    setTimeout(reloadWithCacheBust, 2200);
     return;
   }
   pushUpdateDebug("forced: purge ok, reloading", {

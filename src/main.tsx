@@ -240,7 +240,7 @@ const loadApp = async () => {
           chunk_mismatch: true,
           details: { reason: 'stale bundle — hard update gate shown' },
         });
-        showUpdateRequiredUI();
+        triggerForcedUpdate('stale_chunk_error');
         return;
       }
     }
@@ -262,11 +262,10 @@ const loadApp = async () => {
     }
     if (isChunkError && recoveryExhausted()) {
       logUpdateFailure('recovery_exhausted', { chunk_mismatch: true });
-      // Terminal state: 3 hard-recovery attempts have failed. Show the
-      // definitive "Update Required" gate WITHOUT auto-reloading — the user
-      // must explicitly update, and crucially the attempt counter is NOT reset
-      // so we never bounce back to attempt 1 and re-enter the recovery loop.
-      showUpdateRequiredUI();
+      // Terminal state: 3 hard-recovery attempts have failed. Hand off to the
+      // server-controlled forced-update gate, which runs the hardened SW rescue
+      // path automatically instead of leaving iPhone users hunting for a button.
+      triggerForcedUpdate('recovery_exhausted');
       return;
     }
     showErrorUI();
