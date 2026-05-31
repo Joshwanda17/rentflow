@@ -465,7 +465,7 @@ export default function LandlordRegistrationForm({
             </Label>
             <Input
               value={landlordName}
-              onChange={(e) => { setLandlordName(e.target.value); clearError('landlordName'); }}
+              onChange={(e) => { setLandlordName(e.target.value); clearError('landlordName'); clearSubmitError(); }}
               onBlur={(e) => validateField('landlordName', e.target.value)}
               placeholder="e.g. John Bosco Ssentamu — as on National ID"
               className={`h-10 ${errors.landlordName ? 'border-destructive focus-visible:ring-destructive' : ''}`}
