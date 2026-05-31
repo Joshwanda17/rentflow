@@ -21,11 +21,16 @@
 //   { "version": "…", "min": "2026-05-15-x" }     → force builds below the floor
 // ============================================================================
 
-import { clearAndReload } from "./hardRecovery";
+import {
+  purgeCachesAndServiceWorkers,
+  reloadWithCacheBust,
+  type PurgeResult,
+} from "./hardRecovery";
 import { checkServerVersion, isForceUpdateSync } from "./versionGate";
 import { logUpdateFailure } from "./updateTelemetry";
 
 const OVERLAY_ID = "welile-forced-update";
+const ERROR_ID = `${OVERLAY_ID}-error`;
 // How long the blocking screen is shown before the update auto-fires. Short
 // enough that the user isn't left waiting, long enough to read the message.
 const AUTO_TRIGGER_DELAY_MS = 1800;
@@ -42,6 +47,75 @@ let pollTimer: ReturnType<typeof setInterval> | null = null;
 /** True once a forced update is in progress — other recovery paths should defer. */
 export function isForcingUpdate(): boolean {
   return forcing;
+}
+
+/**
+ * Purge caches + service workers, then reload — surfacing any purge failures on
+ * the blocking overlay instead of silently reloading onto a still-stale shell.
+ * When the purge fully succeeds we reload immediately; when it reports errors we
+ * keep the screen up, show what went wrong, and let the user retry / hard-quit.
+ */
+async function purgeThenReload(): Promise<void> {
+  let result: PurgeResult;
+  try {
+    result = await purgeCachesAndServiceWorkers();
+  } catch (err) {
+    showPurgeErrors([
+      err instanceof Error ? err.message : "Unexpected error while clearing data",
+    ]);
+    return;
+  }
+  if (result.errors.length > 0) {
+    showPurgeErrors(result.errors);
+    return;
+  }
+  reloadWithCacheBust();
+}
+
+/** Render purge failures inside the overlay and reset the button for a retry. */
+function showPurgeErrors(errors: string[]): void {
+  try {
+    const overlay = document.getElementById(OVERLAY_ID);
+    if (!overlay) return;
+    let box = document.getElementById(ERROR_ID);
+    if (!box) {
+      box = document.createElement("div");
+      box.id = ERROR_ID;
+      box.style.cssText =
+        "max-width:320px;width:100%;margin-top:4px;padding:12px 14px;border-radius:10px;" +
+        "background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.35);" +
+        "color:#b91c1c;font-size:12.5px;line-height:1.5;text-align:left";
+      const btn = document.getElementById(`${OVERLAY_ID}-btn`);
+      if (btn && btn.parentElement === overlay) {
+        overlay.insertBefore(box, btn);
+      } else {
+        overlay.appendChild(box);
+      }
+    }
+    const items = errors
+      .map((e) => `<li style="margin:0 0 2px">${escapeHtml(e)}</li>`)
+      .join("");
+    box.innerHTML =
+      `<strong style="display:block;margin-bottom:6px;color:#991b1b">We couldn't fully clear old app data</strong>` +
+      `<ul style="margin:0;padding-left:18px">${items}</ul>` +
+      `<p style="margin:8px 0 0;color:#7f1d1d">Tap “Try again”. If it keeps failing, fully close the app and reopen it.</p>`;
+
+    const btn = document.getElementById(`${OVERLAY_ID}-btn`) as HTMLButtonElement | null;
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Try again";
+    }
+  } catch {
+    /* overlay must never throw */
+  }
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 function renderBlockingOverlay(): void {
@@ -76,7 +150,7 @@ function renderBlockingOverlay(): void {
       btn.onclick = () => {
         btn.disabled = true;
         btn.textContent = "Updating…";
-        void clearAndReload("manual_reload");
+        void purgeThenReload();
       };
     }
   } catch {
@@ -98,7 +172,7 @@ export function triggerForcedUpdate(reason: string): void {
   renderBlockingOverlay();
   // Auto-fire the update so the user never has to hunt for the button.
   setTimeout(() => {
-    void clearAndReload("manual_reload");
+    void purgeThenReload();
   }, AUTO_TRIGGER_DELAY_MS);
 }
 
