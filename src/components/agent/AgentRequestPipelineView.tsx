@@ -6,6 +6,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Drawer,
   DrawerContent,
@@ -34,8 +42,11 @@ import {
   ChevronRight as ChevronRightIcon,
   Hash,
   Clock,
+  Search,
+  Filter,
+  X,
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, isToday, isThisWeek, isThisMonth } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useAgentRejectedRequests } from '@/hooks/useAgentRejectedRequests';
 import { AgentEditRentRequestDialog } from './AgentEditRentRequestDialog';
