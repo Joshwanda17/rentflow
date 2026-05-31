@@ -184,18 +184,9 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
       });
       return;
     }
-    if (!houseCategory) {
-      toast.error('Pick a house category', {
-        description: 'Select the property type so the reviewer can verify the rent band.',
-      });
-      return;
-    }
-    if (!preferredLanguage) {
-      toast.error('Pick a preferred language', {
-        description: 'Choose the tenant\'s preferred language for SMS and calls.',
-      });
-      return;
-    }
+    // House category & preferred language are OPTIONAL on the backend RPC
+    // (both COALESCE to null). Do not block resubmit when they are blank —
+    // that was silently trapping users on a field scrolled off-screen.
     if (isOutstanding) {
       const obNum = outstandingBalance ? Number(outstandingBalance) : 0;
       if (!outstandingBalance.trim() || obNum <= 0) {
