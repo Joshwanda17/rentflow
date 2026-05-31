@@ -431,6 +431,121 @@ export function AgentRequestPipelineView() {
         })}
       </div>
 
+      {/* Search & Filter bar */}
+      <div className="space-y-2">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input
+            type="text"
+            placeholder="Search tenant or landlord name"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setSubmittedPage(0);
+              setApprovedPage(0);
+              setRejectedPage(0);
+            }}
+            className="pl-9 pr-9 h-11 text-sm"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => {
+                setSearchQuery('');
+                setSubmittedPage(0);
+                setApprovedPage(0);
+                setRejectedPage(0);
+              }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              aria-label="Clear search"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+
+        <div className="flex gap-2">
+          {tab !== 'rejected' && (
+            <Select
+              value={statusFilter}
+              onValueChange={(v) => {
+                setStatusFilter(v);
+                setSubmittedPage(0);
+                setApprovedPage(0);
+              }}
+            >
+              <SelectTrigger className="h-10 text-xs flex-1">
+                <Filter className="h-3.5 w-3.5 mr-1.5 text-muted-foreground shrink-0" />
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                {tab === 'submitted' ? (
+                  <>
+                    <SelectItem value="pending">Agent Ops review</SelectItem>
+                    <SelectItem value="tenant_ops_approved">Tenant Ops review</SelectItem>
+                    <SelectItem value="agent_verified">Tenant Ops review</SelectItem>
+                    <SelectItem value="agent_ops_approved">Landlord Ops review</SelectItem>
+                    <SelectItem value="landlord_ops_approved">COO review</SelectItem>
+                    <SelectItem value="coo_approved">CFO funding</SelectItem>
+                  </>
+                ) : (
+                  <>
+                    <SelectItem value="funded">Funded — awaiting disbursal</SelectItem>
+                    <SelectItem value="disbursed">Disbursed — ready to collect</SelectItem>
+                  </>
+                )}
+              </SelectContent>
+            </Select>
+          )}
+          <Select
+            value={dateFilter}
+            onValueChange={(v) => {
+              setDateFilter(v);
+              setSubmittedPage(0);
+              setApprovedPage(0);
+              setRejectedPage(0);
+            }}
+          >
+            <SelectTrigger className={`h-10 text-xs ${tab === 'rejected' ? 'flex-1' : 'flex-1'}`}>
+              <Calendar className="h-3.5 w-3.5 mr-1.5 text-muted-foreground shrink-0" />
+              <SelectValue placeholder="Date" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All time</SelectItem>
+              <SelectItem value="today">Today</SelectItem>
+              <SelectItem value="week">This week</SelectItem>
+              <SelectItem value="month">This month</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {activeFiltersCount > 0 && (
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] text-muted-foreground">
+              Showing {tab === 'submitted' ? submittedRows.length : tab === 'approved' ? approvedRows.length : filteredRejected.length} result{(
+                (tab === 'submitted' ? submittedRows.length : tab === 'approved' ? approvedRows.length : filteredRejected.length) !== 1 ? 's' : ''
+              )}
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSearchQuery('');
+                setStatusFilter('all');
+                setDateFilter('all');
+                setSubmittedPage(0);
+                setApprovedPage(0);
+                setRejectedPage(0);
+              }}
+              className="h-7 text-[11px] gap-1 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-3 w-3" />
+              Clear all
+            </Button>
+          </div>
+        )}
+      </div>
+
       {/* Submitted */}
       {tab === 'submitted' && (
         <div className="space-y-2">
