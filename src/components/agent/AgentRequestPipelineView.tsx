@@ -414,6 +414,7 @@ export function AgentRequestPipelineView({
   // Search & filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [landlordStatusFilter, setLandlordStatusFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
 
@@ -459,6 +460,7 @@ export function AgentRequestPipelineView({
   const activeFiltersCount =
     (searchQuery.trim() ? 1 : 0) +
     (statusFilter !== 'all' ? 1 : 0) +
+    (landlordStatusFilter !== 'all' ? 1 : 0) +
     (dateFilter !== 'all' ? 1 : 0);
 
   const submittedRows = useMemo(
@@ -491,12 +493,16 @@ export function AgentRequestPipelineView({
   const landlordRows = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return (landlordsQuery.data ?? []).filter((l) => {
-      if (!q) return true;
-      return (
-        (l.name ?? '').toLowerCase().includes(q) ||
-        (l.phone ?? '').toLowerCase().includes(q) ||
-        (l.property_address ?? '').toLowerCase().includes(q)
-      );
+      if (q) {
+        const matchesSearch =
+          (l.name ?? '').toLowerCase().includes(q) ||
+          (l.phone ?? '').toLowerCase().includes(q) ||
+          (l.property_address ?? '').toLowerCase().includes(q);
+        if (!matchesSearch) return false;
+      }
+      if (landlordStatusFilter === 'pending') return !l.verified;
+      if (landlordStatusFilter === 'verified') return l.verified === true;
+      return true;
     });
   }, [landlordsQuery.data, searchQuery]);
 
@@ -712,6 +718,24 @@ export function AgentRequestPipelineView({
               </SelectContent>
             </Select>
           )}
+          {tab === 'landlords' && (
+            <Select
+              value={landlordStatusFilter}
+              onValueChange={(v) => {
+                setLandlordStatusFilter(v);
+              }}
+            >
+              <SelectTrigger className="h-11 text-sm flex-1">
+                <Filter className="h-3.5 w-3.5 mr-1.5 text-muted-foreground shrink-0" />
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="pending">Pending verification</SelectItem>
+                <SelectItem value="verified">Verified</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
           <Select
             value={dateFilter}
             onValueChange={(v) => {
@@ -759,6 +783,7 @@ export function AgentRequestPipelineView({
                 onClick={() => {
                   setSearchQuery('');
                   setStatusFilter('all');
+                  setLandlordStatusFilter('all');
                   setDateFilter('all');
                   setSubmittedPage(0);
                   setApprovedPage(0);
