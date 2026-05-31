@@ -650,11 +650,16 @@ export default function LandlordRegistrationForm({
           )}
 
           {/* Submit */}
-          <Button type="submit" className="w-full h-11 text-sm gap-2" disabled={loading}>
+          <Button
+            type="submit"
+            onClick={() => hapticTap()}
+            className="w-full h-14 text-base font-semibold gap-2 touch-manipulation select-none transition-transform active:scale-[0.98] disabled:opacity-70"
+            disabled={loading}
+          >
             {loading ? (
-              <><Loader2 className="h-4 w-4 animate-spin" /> Registering...</>
+              <><Loader2 className="h-5 w-5 animate-spin" /> Registering...</>
             ) : (
-              <><Building2 className="h-4 w-4" /> Register Landlord</>
+              <><Building2 className="h-5 w-5" /> Register Landlord</>
             )}
           </Button>
         </motion.form>
