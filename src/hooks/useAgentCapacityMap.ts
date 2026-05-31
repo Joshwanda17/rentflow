@@ -326,7 +326,7 @@ export function useAgentCapacityMap(agentIds: string[]) {
       // 1) Active rent_requests drive both exposure AND expected daily collections
       const { data: active } = await supabase
         .from('rent_requests')
-        .select('id, agent_id, tenant_id, total_repayment, amount_repaid, daily_repayment')
+        .select('id, agent_id, tenant_id, total_repayment, amount_repaid, daily_repayment, status')
         .in('agent_id', agentIds)
         .in('status', ACTIVE_RENT_STATUSES);
 
@@ -363,10 +363,18 @@ export function useAgentCapacityMap(agentIds: string[]) {
         const owed = Math.max((Number(r.total_repayment) || 0) - (Number(r.amount_repaid) || 0), 0);
         const prev = exposure.get(r.agent_id) || { used: 0, count: 0 };
         exposure.set(r.agent_id, { used: prev.used + owed, count: prev.count + 1 });
-        expectedDaily.set(
-          r.agent_id,
-          (expectedDaily.get(r.agent_id) || 0) + (Number(r.daily_repayment) || 0),
-        );
+        // Daily TARGET mirrors v_agent_daily_eligibility: a tenant only counts
+        // once the CFO has funded the landlord float (status 'funded'/'repaying')
+        // AND they still owe rent (balance > 0). This fallback only runs if the
+        // server eligibility RPC failed.
+        const fundedAndOwing =
+          (r.status === 'funded' || r.status === 'repaying') && owed > 0;
+        if (fundedAndOwing) {
+          expectedDaily.set(
+            r.agent_id,
+            (expectedDaily.get(r.agent_id) || 0) + (Number(r.daily_repayment) || 0),
+          );
+        }
         activeIdToAgent.set(r.id, r.agent_id);
         if (r.tenant_id) {
           activeIdToTenant.set(r.id, r.tenant_id);
