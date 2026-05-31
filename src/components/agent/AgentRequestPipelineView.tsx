@@ -783,6 +783,7 @@ export function AgentRequestPipelineView({
                 onClick={() => {
                   setSearchQuery('');
                   setStatusFilter('all');
+                  setLandlordStatusFilter('all');
                   setDateFilter('all');
                   setSubmittedPage(0);
                   setApprovedPage(0);
