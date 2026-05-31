@@ -490,6 +490,7 @@ export default function LandlordRegistrationForm({
           ...prev,
           lc1Phone: 'This LC1 phone is already registered. Enter a different number.',
         }));
+        setStep(1);
         focusField('lc1Phone');
       } else if (isDuplicate) {
         setErrors((prev) => ({
@@ -497,18 +498,21 @@ export default function LandlordRegistrationForm({
           landlordPhone:
             'This phone is already registered. Enter a different number, or this landlord may already be in the system.',
         }));
+        setStep(1);
         focusField('landlordPhone');
       } else if (lower.includes('phone')) {
         setErrors((prev) => ({
           ...prev,
           landlordPhone: 'Check the phone number — it should be 10 digits like 07XX XXX XXX.',
         }));
+        setStep(1);
         focusField('landlordPhone');
       } else if (lower.includes('name')) {
         setErrors((prev) => ({
           ...prev,
           landlordName: "Check the landlord's name — use their full name as on the National ID.",
         }));
+        setStep(1);
         focusField('landlordName');
       }
       toastFn({
