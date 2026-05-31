@@ -300,7 +300,7 @@ export default function LandlordRegistrationForm({
         .insert({
           created_by: user.id,
           full_name: landlordName.trim(),
-          phone: landlordPhone.trim(),
+          phone: landlordPhoneClean,
           email: placeholderEmail,
           temp_password: passwordToUse,
           role: 'landlord',
