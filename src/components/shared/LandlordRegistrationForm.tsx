@@ -21,7 +21,7 @@ import {
   Wallet, ShieldCheck, XCircle, Home,
 } from 'lucide-react';
 import { ListEmptyHouseDialog } from '@/components/agent/ListEmptyHouseDialog';
-import { hapticTap } from '@/lib/haptics';
+import { hapticTap, hapticWarning } from '@/lib/haptics';
 
 const HOUSE_CATEGORIES = [
   'Single Room', 'Double Room', 'Bedsitter', 'One Bedroom',
