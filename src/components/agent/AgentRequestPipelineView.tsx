@@ -404,9 +404,21 @@ function RowCard({
 export function AgentRequestPipelineView({
   initialTab,
   highlightId,
-}: { initialTab?: PipelineTab; highlightId?: string | null } = {}) {
+  activeTab,
+  onTabChange,
+}: {
+  initialTab?: PipelineTab;
+  highlightId?: string | null;
+  activeTab?: PipelineTab;
+  onTabChange?: (tab: PipelineTab) => void;
+} = {}) {
   const queryClient = useQueryClient();
-  const [tab, setTab] = useState<PipelineTab>(initialTab ?? 'submitted');
+  const [internalTab, setInternalTab] = useState<PipelineTab>(initialTab ?? 'submitted');
+  const tab = activeTab ?? internalTab;
+  const setTab = (t: PipelineTab) => {
+    if (onTabChange) onTabChange(t);
+    setInternalTab(t);
+  };
   const [submittedPage, setSubmittedPage] = useState(0);
   const [approvedPage, setApprovedPage] = useState(0);
   const [rejectedPage, setRejectedPage] = useState(0);
