@@ -28,7 +28,7 @@ import {
 } from "./hardRecovery";
 import { checkServerVersion, CURRENT_APP_VERSION, getVersionGateState, isForceUpdateSync } from "./versionGate";
 import { logUpdateFailure } from "./updateTelemetry";
-import { getRecoveryAttempts } from "./hardRecovery";
+import { getRecoveryAttempts, MAX_RECOVERY_ATTEMPTS } from "./hardRecovery";
 import {
   pushUpdateDebug,
   formatUpdateDebugLog,
