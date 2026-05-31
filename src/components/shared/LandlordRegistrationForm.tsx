@@ -67,6 +67,8 @@ export default function LandlordRegistrationForm({
   const [submitError, setSubmitError] = useState('');
   const [showListHouse, setShowListHouse] = useState(false);
   const [activationLink, setActivationLink] = useState('');
+  // Id of the landlord just created, used to deep-link to its record.
+  const [registeredLandlordId, setRegisteredLandlordId] = useState<string | null>(null);
   const [locationCaptured, setLocationCaptured] = useState(false);
   // Optional details are tucked away so the core flow is just Name + Phone.
   const [showMore, setShowMore] = useState(false);
