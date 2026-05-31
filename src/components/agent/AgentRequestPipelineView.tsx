@@ -475,8 +475,13 @@ export function AgentRequestPipelineView({
       (submitted.data?.rows ?? [])
         .filter(filterBySearch)
         .filter(filterByStatus)
-        .filter(filterByDate),
-    [submitted.data?.rows, searchQuery, statusFilter, dateFilter],
+        .filter(filterByDate)
+        .sort((a, b) => {
+          const da = new Date(a.created_at).getTime();
+          const db = new Date(b.created_at).getTime();
+          return tenantSort === 'newest' ? db - da : da - db;
+        }),
+    [submitted.data?.rows, searchQuery, statusFilter, dateFilter, tenantSort],
   );
 
   const approvedRows = useMemo(
