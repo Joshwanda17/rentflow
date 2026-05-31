@@ -486,7 +486,14 @@ export function AgentRequestPipelineView({ initialTab }: { initialTab?: Pipeline
     });
   }, [landlordsQuery.data, searchQuery]);
 
-  const rowsToExport = tab === 'submitted' ? submittedRows : tab === 'approved' ? approvedRows : filteredRejected;
+  const rowsToExport =
+    tab === 'submitted'
+      ? submittedRows
+      : tab === 'approved'
+        ? approvedRows
+        : tab === 'rejected'
+          ? filteredRejected
+          : [];
 
   const exportToCSV = () => {
     if (rowsToExport.length === 0) {
