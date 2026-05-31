@@ -42,7 +42,8 @@ import {
   AlertTriangle,
   Phone,
   Search,
-  UserPlus
+  UserPlus,
+  X
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatUGX, calculateRentRepayment } from '@/lib/rentCalculations';
