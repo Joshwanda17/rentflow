@@ -254,6 +254,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [submissionsView, setSubmissionsView] = useState<'tenants' | 'pipeline' | undefined>(undefined);
   const [submissionsTab, setSubmissionsTab] = useState<'submitted' | 'approved' | 'rejected' | 'landlords' | undefined>(undefined);
   const [submissionsHighlightId, setSubmissionsHighlightId] = useState<string | undefined>(undefined);
+  const [pipelineTab, setPipelineTab] = useState<PipelineTab>('submitted');
+  const { submittedCount, approvedCount, rejectedCount, isLoading: countsLoading } = useAgentPipelineCounts();
   useEffect(() => {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail as { tab?: 'submitted' | 'approved' | 'rejected' | 'landlords'; recordId?: string } | undefined;
