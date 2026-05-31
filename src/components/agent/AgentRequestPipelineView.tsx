@@ -187,11 +187,13 @@ function RowCard({
   tone,
   stageLabel,
   rightSlot,
+  onClick,
 }: {
   row: PipelineRow;
   tone: 'amber' | 'emerald' | 'destructive';
   stageLabel: string;
   rightSlot?: React.ReactNode;
+  onClick?: () => void;
 }) {
   const toneClass =
     tone === 'amber'
@@ -202,7 +204,25 @@ function RowCard({
   const badgeVariant: 'secondary' | 'default' | 'destructive' =
     tone === 'destructive' ? 'destructive' : tone === 'emerald' ? 'default' : 'secondary';
   return (
-    <Card className={`border-2 overflow-hidden ${toneClass}`}>
+    <Card
+      className={`border-2 overflow-hidden ${toneClass} ${
+        onClick ? 'cursor-pointer transition-shadow hover:shadow-md active:scale-[0.99]' : ''
+      }`}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+      style={onClick ? { touchAction: 'manipulation' } : undefined}
+    >
       <CardContent className="p-3 space-y-2">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
@@ -243,12 +263,20 @@ function RowCard({
               </div>
             </div>
           </div>
-          <div className="text-right shrink-0">
-            <p className="text-sm font-bold tabular-nums">{formatUGX(row.rent_amount)}</p>
-            <p className="text-[10px] text-muted-foreground">{row.duration_days} days</p>
+          <div className="flex items-center gap-1 shrink-0">
+            <div className="text-right">
+              <p className="text-sm font-bold tabular-nums">{formatUGX(row.rent_amount)}</p>
+              <p className="text-[10px] text-muted-foreground">{row.duration_days} days</p>
+            </div>
+            {onClick && <ChevronRightIcon className="h-4 w-4 text-muted-foreground/60" />}
           </div>
         </div>
         {rightSlot}
+        {onClick && (
+          <p className="text-[10px] text-muted-foreground/70 text-center pt-0.5">
+            Tap to view full details
+          </p>
+        )}
       </CardContent>
     </Card>
   );
