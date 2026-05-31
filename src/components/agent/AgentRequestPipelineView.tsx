@@ -52,6 +52,7 @@ import {
   Landmark,
   Wallet,
   HandCoins,
+  ArrowUpDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, isToday, isThisWeek, isThisMonth } from 'date-fns';
@@ -416,6 +417,7 @@ export function AgentRequestPipelineView({
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [landlordStatusFilter, setLandlordStatusFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('all');
+  const [tenantSort, setTenantSort] = useState<'newest' | 'oldest'>('newest');
   const [showFilters, setShowFilters] = useState(false);
 
   const submitted = usePipelineRequests(
@@ -473,8 +475,13 @@ export function AgentRequestPipelineView({
       (submitted.data?.rows ?? [])
         .filter(filterBySearch)
         .filter(filterByStatus)
-        .filter(filterByDate),
-    [submitted.data?.rows, searchQuery, statusFilter, dateFilter],
+        .filter(filterByDate)
+        .sort((a, b) => {
+          const da = new Date(a.created_at).getTime();
+          const db = new Date(b.created_at).getTime();
+          return tenantSort === 'newest' ? db - da : da - db;
+        }),
+    [submitted.data?.rows, searchQuery, statusFilter, dateFilter, tenantSort],
   );
 
   const approvedRows = useMemo(
@@ -735,6 +742,24 @@ export function AgentRequestPipelineView({
                 </Button>
               )}
             </div>
+          )}
+          {tab === 'submitted' && (
+            <Select
+              value={tenantSort}
+              onValueChange={(v: 'newest' | 'oldest') => {
+                setTenantSort(v);
+                setSubmittedPage(0);
+              }}
+            >
+              <SelectTrigger className="h-11 text-sm flex-1">
+                <ArrowUpDown className="h-3.5 w-3.5 mr-1.5 text-muted-foreground shrink-0" />
+                <SelectValue placeholder="Sort" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">Newest first</SelectItem>
+                <SelectItem value="oldest">Oldest first</SelectItem>
+              </SelectContent>
+            </Select>
           )}
           {tab === 'landlords' && (
             <div className="flex items-center gap-2 flex-1">
