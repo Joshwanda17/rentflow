@@ -1626,6 +1626,38 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 <AgentCapacityBanner agentId={user?.id} />
               )}
 
+              {/* Auto-capture status — confirms the request is saved the moment
+                  tenant name + amount exist, so the agent never has to wonder
+                  whether their submit went through. */}
+              {tenantName.trim() && amount > 0 && (
+                <div
+                  className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold ${
+                    autoDraftStatus === 'error'
+                      ? 'border-destructive/40 bg-destructive/10 text-destructive'
+                      : autoDraftStatus === 'saved'
+                      ? 'border-success/40 bg-success/10 text-success'
+                      : 'border-primary/30 bg-primary/10 text-primary'
+                  }`}
+                >
+                  {autoDraftStatus === 'saving' || autoDraftStatus === 'idle' ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
+                      <span>Capturing this request…</span>
+                    </>
+                  ) : autoDraftStatus === 'saved' ? (
+                    <>
+                      <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+                      <span>Captured ✓ — your request is saved. Keep adding the other details below.</span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                      <span>Couldn&apos;t auto-save yet — check your connection. Your typed progress is still kept.</span>
+                    </>
+                  )}
+                </div>
+              )}
+
 
               {/* ===== 1. RENT DETAILS — PRIMARY SECTION ===== */}
               {incomeType === 'outstanding' ? (
