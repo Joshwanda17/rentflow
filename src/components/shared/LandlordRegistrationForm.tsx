@@ -18,10 +18,10 @@ import {
   Building2, Phone, MapPin, Loader2, CheckCircle2,
   Navigation, AlertTriangle, Share2, Eye, EyeOff,
   RefreshCw, Copy, User, Hash, Zap, Droplets,
-  Wallet, ShieldCheck, XCircle, Home,
+  Wallet, ShieldCheck, XCircle, Home, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { ListEmptyHouseDialog } from '@/components/agent/ListEmptyHouseDialog';
-import { hapticTap } from '@/lib/haptics';
+import { hapticTap, hapticWarning } from '@/lib/haptics';
 
 const HOUSE_CATEGORIES = [
   'Single Room', 'Double Room', 'Bedsitter', 'One Bedroom',
@@ -61,6 +61,8 @@ export default function LandlordRegistrationForm({
   const [showListHouse, setShowListHouse] = useState(false);
   const [activationLink, setActivationLink] = useState('');
   const [locationCaptured, setLocationCaptured] = useState(false);
+  // Optional details are tucked away so the core flow is just Name + Phone.
+  const [showMore, setShowMore] = useState(false);
 
   // Inline validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -77,8 +79,8 @@ export default function LandlordRegistrationForm({
       else if (!/^\d{9,10}$/.test(trimmed.replace(/\D/g, ''))) msg = 'Enter a valid phone number';
     }
     if (name === 'propertyAddress') {
-      if (!trimmed) msg = 'Property address is required';
-      else if (trimmed.length < 5) msg = 'Address is too short';
+      // Address is optional now — only validate when something was typed.
+      if (trimmed && trimmed.length < 5) msg = 'Address is too short';
     }
     if (name === 'lc1Name') {
       if (!trimmed) msg = 'LC1 name is required';
@@ -192,8 +194,6 @@ export default function LandlordRegistrationForm({
         { name: 'lc1Name', value: lc1Name },
         { name: 'lc1Phone', value: lc1Phone }
       );
-    } else {
-      fieldsToValidate.push({ name: 'propertyAddress', value: propertyAddress });
     }
 
     const newErrors: Record<string, string> = {};
@@ -203,6 +203,18 @@ export default function LandlordRegistrationForm({
     }
 
     if (Object.keys(newErrors).length > 0) {
+      // Reveal the optional section if the only problem hides there, then
+      // jump straight to the first broken field so the button never feels dead.
+      const firstError = Object.keys(newErrors)[0];
+      if (!['landlordName', 'landlordPhone', 'lc1Name', 'lc1Phone'].includes(firstError)) {
+        setShowMore(true);
+      }
+      hapticWarning();
+      requestAnimationFrame(() => {
+        document
+          .querySelector(`[data-field="${firstError}"]`)
+          ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
       toastFn({
         title: 'Please fix the errors',
         description: 'Some required fields are missing or invalid.',
@@ -211,16 +223,13 @@ export default function LandlordRegistrationForm({
       return;
     }
 
-    if (!minimal && !tempPassword) {
-      toastFn({ title: 'Missing Password', description: 'Generate a temporary password.', variant: 'destructive' });
-      return;
-    }
-
     // Make sure we always have a password to seed the activation invite.
+    // It's auto-generated silently so an ordinary agent never has to think
+    // about it — they only ever type a name and phone.
     const passwordToUse = tempPassword || generateTempPassword();
-    // landlords.property_address is NOT NULL — in minimal mode, fall back
-    // to a placeholder that ops can update later.
-    const addressToUse = propertyAddress.trim() || (minimal ? 'To be confirmed' : '');
+    // landlords.property_address is NOT NULL — when no address is given, fall
+    // back to a placeholder that ops can update later.
+    const addressToUse = propertyAddress.trim() || 'To be confirmed';
 
     setLoading(true);
 
@@ -424,51 +433,17 @@ export default function LandlordRegistrationForm({
           onSubmit={handleSubmit}
           className="space-y-3"
         >
-          {/* List-a-house shortcut — a landlord needs a verified house before
-              they can be used on a rent request. Agent earns UGX 5,000 total. */}
-          {registeredByRole === 'agent' && (
-            <div className="p-3 rounded-lg border border-primary/30 bg-primary/5 space-y-2">
-              <p className="text-xs text-muted-foreground">
-                A landlord needs at least one <span className="font-medium text-foreground">verified house</span> before
-                you can post a rent request for them.
-              </p>
-              <p className="text-xs text-muted-foreground">
-                List a house and earn <span className="font-semibold text-foreground">UGX 5,000</span> when Landlord Ops
-                verifies it — <span className="font-semibold text-foreground">UGX 1,000 now</span>,{' '}
-                <span className="font-semibold text-foreground">UGX 4,000 on verification</span>, straight to your withdrawable wallet.
-              </p>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full h-12 gap-2 touch-manipulation select-none transition-transform active:scale-[0.98]"
-                onClick={() => { hapticTap(); setShowListHouse(true); }}
-              >
-                <Home className="h-4 w-4" />
-                List a house for this landlord
-              </Button>
-            </div>
-          )}
-
-          {/* Qualification Score Bar */}
+          {/* Friendly, low-pressure intro for first-time / casual agents */}
           {!minimal && (
-          <div className="p-2.5 rounded-lg bg-muted/50 border">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-medium text-muted-foreground">Qualification Score</span>
-              <span className={`text-xs font-bold ${qualificationScore >= 80 ? 'text-success' : qualificationScore >= 50 ? 'text-warning' : 'text-destructive'}`}>
-                {qualificationScore}%
-              </span>
-            </div>
-            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all duration-500 ${qualificationScore >= 80 ? 'bg-success' : qualificationScore >= 50 ? 'bg-warning' : 'bg-destructive'}`}
-                style={{ width: `${qualificationScore}%` }}
-              />
-            </div>
-          </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Just the landlord's <span className="font-semibold text-foreground">name</span> and{' '}
+              <span className="font-semibold text-foreground">phone</span> registers them. Everything else is optional —
+              you can add it later.
+            </p>
           )}
 
           {/* Landlord Name */}
-          <div className="space-y-1">
+          <div data-field="landlordName" className="space-y-1">
             <Label className="text-xs font-semibold flex items-center gap-1.5">
               <User className="h-3 w-3" /> Landlord Name *
             </Label>
@@ -488,7 +463,7 @@ export default function LandlordRegistrationForm({
           </div>
 
           {/* Phone Number */}
-          <div className="space-y-1">
+          <div data-field="landlordPhone" className="space-y-1">
             <Label className="text-xs font-semibold flex items-center gap-1.5">
               <Phone className="h-3 w-3" /> Phone Number *
             </Label>
@@ -517,7 +492,7 @@ export default function LandlordRegistrationForm({
                 <span className="text-xs font-semibold">LC1 Chairperson</span>
               </div>
               <div className="space-y-2">
-                <div className="space-y-1">
+                <div data-field="lc1Name" className="space-y-1">
                   <Label className="text-xs font-semibold flex items-center gap-1.5">
                     <User className="h-3 w-3" /> LC1 Name *
                   </Label>
@@ -535,7 +510,7 @@ export default function LandlordRegistrationForm({
                     </p>
                   )}
                 </div>
-                <div className="space-y-1">
+                <div data-field="lc1Phone" className="space-y-1">
                   <Label className="text-xs font-semibold flex items-center gap-1.5">
                     <Phone className="h-3 w-3" /> LC1 Phone *
                   </Label>
@@ -559,8 +534,78 @@ export default function LandlordRegistrationForm({
             </div>
           )}
 
-          {/* Number of Rentals & Category in row */}
+          {/* Submit — placed right after the essentials so it's always one tap away */}
+          <Button
+            type="submit"
+            onClick={() => hapticTap()}
+            className="w-full h-14 text-base font-semibold gap-2 touch-manipulation select-none transition-transform active:scale-[0.98] disabled:opacity-70"
+            disabled={loading}
+          >
+            {loading ? (
+              <><Loader2 className="h-5 w-5 animate-spin" /> Registering...</>
+            ) : (
+              <><Building2 className="h-5 w-5" /> Register Landlord</>
+            )}
+          </Button>
+
+          {/* Toggle to reveal the optional property / payout details */}
           {!minimal && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => { hapticTap(); setShowMore((s) => !s); }}
+              className="w-full h-11 gap-2 text-xs text-muted-foreground touch-manipulation select-none"
+            >
+              {showMore ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              {showMore ? 'Hide extra details' : 'Add property & payout details (optional)'}
+            </Button>
+          )}
+
+          {/* ===== Optional collapsible section ===== */}
+          {!minimal && showMore && (
+          <div className="space-y-3 pt-1">
+          {/* List-a-house shortcut — a landlord needs a verified house before
+              they can be used on a rent request. Agent earns UGX 5,000 total. */}
+          {registeredByRole === 'agent' && (
+            <div className="p-3 rounded-lg border border-primary/30 bg-primary/5 space-y-2">
+              <p className="text-xs text-muted-foreground">
+                A landlord needs at least one <span className="font-medium text-foreground">verified house</span> before
+                you can post a rent request for them.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                List a house and earn <span className="font-semibold text-foreground">UGX 5,000</span> when Landlord Ops
+                verifies it — <span className="font-semibold text-foreground">UGX 1,000 now</span>,{' '}
+                <span className="font-semibold text-foreground">UGX 4,000 on verification</span>, straight to your withdrawable wallet.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full h-12 gap-2 touch-manipulation select-none transition-transform active:scale-[0.98]"
+                onClick={() => { hapticTap(); setShowListHouse(true); }}
+              >
+                <Home className="h-4 w-4" />
+                List a house for this landlord
+              </Button>
+            </div>
+          )}
+
+          {/* Qualification Score Bar */}
+          <div className="p-2.5 rounded-lg bg-muted/50 border">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-medium text-muted-foreground">Qualification Score</span>
+              <span className={`text-xs font-bold ${qualificationScore >= 80 ? 'text-success' : qualificationScore >= 50 ? 'text-warning' : 'text-destructive'}`}>
+                {qualificationScore}%
+              </span>
+            </div>
+            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${qualificationScore >= 80 ? 'bg-success' : qualificationScore >= 50 ? 'bg-warning' : 'bg-destructive'}`}
+                style={{ width: `${qualificationScore}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Number of Rentals & Category in row */}
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
               <Label className="text-xs font-semibold flex items-center gap-1.5">
@@ -591,13 +636,12 @@ export default function LandlordRegistrationForm({
               </Select>
             </div>
           </div>
-          )}
 
           {/* Property Address */}
-          {!minimal && (
-          <div className="space-y-1">
+          <div data-field="propertyAddress" className="space-y-1">
             <Label className="text-xs font-semibold flex items-center gap-1.5">
-              <MapPin className="h-3 w-3" /> Property Address *
+              <MapPin className="h-3 w-3" /> Property Address
+              <span className="text-[10px] font-normal text-muted-foreground">(optional)</span>
             </Label>
             <Input
               value={propertyAddress}
@@ -605,7 +649,6 @@ export default function LandlordRegistrationForm({
               onBlur={(e) => validateField('propertyAddress', e.target.value)}
               placeholder="e.g., Kabalagala, Block 5, Plot 12"
               className={`h-10 ${errors.propertyAddress ? 'border-destructive focus-visible:ring-destructive' : ''}`}
-              required
             />
             {errors.propertyAddress && (
               <p className="text-[11px] text-destructive flex items-center gap-1">
@@ -613,10 +656,8 @@ export default function LandlordRegistrationForm({
               </p>
             )}
           </div>
-          )}
 
           {/* GPS Location */}
-          {!minimal && (
           <div className={`flex items-center justify-between p-2.5 rounded-lg border ${
             locationCaptured ? 'bg-success/10 border-success/30'
               : locationError ? 'bg-destructive/10 border-destructive/30'
@@ -658,10 +699,8 @@ export default function LandlordRegistrationForm({
               {locationCaptured ? 'Refresh' : 'Capture'}
             </Button>
           </div>
-          )}
 
           {/* Mobile Money Section */}
-          {!minimal && (
           <div className="space-y-2 p-2.5 rounded-lg border bg-muted/30">
             <div className="flex items-center gap-1.5">
               <Wallet className="h-3 w-3 text-primary" />
@@ -696,10 +735,8 @@ export default function LandlordRegistrationForm({
               </div>
             </div>
           </div>
-          )}
 
           {/* Utility Meters */}
-          {!minimal && (
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
               <Label className="text-xs font-semibold flex items-center gap-1.5">
@@ -726,10 +763,8 @@ export default function LandlordRegistrationForm({
               />
             </div>
           </div>
-          )}
 
           {/* Temporary Password */}
-          {!minimal && (
           <div className="space-y-1">
             <div className="flex items-center justify-between">
               <Label className="text-xs font-semibold">Temporary Password</Label>
@@ -753,21 +788,8 @@ export default function LandlordRegistrationForm({
               </Button>
             </div>
           </div>
+          </div>
           )}
-
-          {/* Submit */}
-          <Button
-            type="submit"
-            onClick={() => hapticTap()}
-            className="w-full h-14 text-base font-semibold gap-2 touch-manipulation select-none transition-transform active:scale-[0.98] disabled:opacity-70"
-            disabled={loading}
-          >
-            {loading ? (
-              <><Loader2 className="h-5 w-5 animate-spin" /> Registering...</>
-            ) : (
-              <><Building2 className="h-5 w-5" /> Register Landlord</>
-            )}
-          </Button>
         </motion.form>
       )}
     </AnimatePresence>
