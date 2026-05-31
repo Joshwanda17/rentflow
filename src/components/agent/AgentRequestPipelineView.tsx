@@ -686,37 +686,50 @@ export function AgentRequestPipelineView({
         {showFilters && (
         <div className="flex gap-2">
           {(tab === 'submitted' || tab === 'approved') && (
-            <Select
-              value={statusFilter}
-              onValueChange={(v) => {
-                setStatusFilter(v);
-                setSubmittedPage(0);
-                setApprovedPage(0);
-              }}
-            >
-              <SelectTrigger className="h-11 text-sm flex-1">
-                <Filter className="h-3.5 w-3.5 mr-1.5 text-muted-foreground shrink-0" />
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
-                {tab === 'submitted' ? (
-                  <>
-                    <SelectItem value="pending">Agent Ops review</SelectItem>
-                    <SelectItem value="tenant_ops_approved">Tenant Ops review</SelectItem>
-                    <SelectItem value="agent_verified">Tenant Ops review</SelectItem>
-                    <SelectItem value="agent_ops_approved">Landlord Ops review</SelectItem>
-                    <SelectItem value="landlord_ops_approved">COO review</SelectItem>
-                    <SelectItem value="coo_approved">CFO funding</SelectItem>
-                  </>
-                ) : (
-                  <>
-                    <SelectItem value="funded">Funded — awaiting disbursal</SelectItem>
-                    <SelectItem value="disbursed">Disbursed — ready to collect</SelectItem>
-                  </>
-                )}
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2 flex-1">
+              <Select
+                value={statusFilter}
+                onValueChange={(v) => {
+                  setStatusFilter(v);
+                  setSubmittedPage(0);
+                  setApprovedPage(0);
+                }}
+              >
+                <SelectTrigger className="h-11 text-sm flex-1">
+                  <Filter className="h-3.5 w-3.5 mr-1.5 text-muted-foreground shrink-0" />
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  {tab === 'submitted' ? (
+                    <>
+                      <SelectItem value="pending">Agent Ops review</SelectItem>
+                      <SelectItem value="tenant_ops_approved">Tenant Ops review</SelectItem>
+                      <SelectItem value="agent_verified">Tenant Ops review</SelectItem>
+                      <SelectItem value="agent_ops_approved">Landlord Ops review</SelectItem>
+                      <SelectItem value="landlord_ops_approved">COO review</SelectItem>
+                      <SelectItem value="coo_approved">CFO funding</SelectItem>
+                    </>
+                  ) : (
+                    <>
+                      <SelectItem value="funded">Funded — awaiting disbursal</SelectItem>
+                      <SelectItem value="disbursed">Disbursed — ready to collect</SelectItem>
+                    </>
+                  )}
+                </SelectContent>
+              </Select>
+              {statusFilter !== 'all' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setStatusFilter('all')}
+                  className="h-11 px-3 shrink-0 gap-1.5 text-xs font-semibold border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  Reset
+                </Button>
+              )}
+            </div>
           )}
           {tab === 'landlords' && (
             <div className="flex items-center gap-2 flex-1">
