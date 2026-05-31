@@ -40,7 +40,9 @@ import {
   MessageCircle,
   Home,
   AlertTriangle,
-  Phone
+  Phone,
+  Search,
+  UserPlus
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatUGX, calculateRentRepayment } from '@/lib/rentCalculations';
