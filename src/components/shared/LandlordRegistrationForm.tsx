@@ -605,6 +605,13 @@ export default function LandlordRegistrationForm({
           )}
 
           <Button
+            onClick={() => { hapticTap(); resetForm(); }}
+            className="w-full h-14 text-base font-semibold gap-2 touch-manipulation select-none transition-transform active:scale-[0.98]"
+          >
+            <Building2 className="h-5 w-5" /> Register Another Landlord
+          </Button>
+
+          <Button
             variant="outline"
             onClick={() => { hapticTap(); onClose(); }}
             className="w-full h-12 touch-manipulation select-none transition-transform active:scale-[0.98]"
