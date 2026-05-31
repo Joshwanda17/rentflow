@@ -280,6 +280,22 @@ export default function LandlordRegistrationForm({
       return;
     }
 
+    // Pre-save duplicate check: if the phone hasn't already been verified as
+    // free, run the check now and surface the exact field error before saving.
+    if (!phoneVerified) {
+      const available = await checkPhoneAvailable(landlordPhone);
+      if (!available) {
+        hapticWarning();
+        focusField('landlordPhone');
+        toastFn({
+          title: 'Check the phone number',
+          description: 'This phone is already registered or invalid.',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
     // Make sure we always have a password to seed the activation invite.
     // It's auto-generated silently so an ordinary agent never has to think
     // about it — they only ever type a name and phone.
