@@ -903,6 +903,59 @@ export function AgentRequestPipelineView({ initialTab }: { initialTab?: Pipeline
         </div>
       )}
 
+      {/* Landlords (standalone registrations) */}
+      {tab === 'landlords' && (
+        <div className="space-y-2">
+          {landlordsQuery.isLoading ? (
+            <Skeleton className="h-24 w-full rounded-xl" />
+          ) : landlordRows.length === 0 ? (
+            <EmptyState
+              icon={Landmark}
+              title={activeFiltersCount > 0 ? 'No matches found' : 'No landlords yet'}
+              subtitle={activeFiltersCount > 0 ? 'Try adjusting your search.' : 'Landlords you register will appear here right away.'}
+            />
+          ) : (
+            landlordRows.map((l) => (
+              <Card key={l.id} className="border-2 border-indigo-500/30 bg-indigo-500/5 overflow-hidden">
+                <CardContent className="p-3 space-y-1.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <Landmark className="h-4 w-4 text-indigo-600 shrink-0" />
+                        <span className="font-semibold truncate text-sm">{l.name || 'Unnamed landlord'}</span>
+                      </div>
+                      <div className="text-[11px] text-muted-foreground space-y-0.5">
+                        {l.phone && (
+                          <div className="flex items-center gap-1.5">
+                            <Phone className="h-3 w-3" />
+                            <span className="truncate">{l.phone}</span>
+                          </div>
+                        )}
+                        {l.property_address && (
+                          <div className="flex items-center gap-1.5">
+                            <MapPin className="h-3 w-3" />
+                            <span className="truncate">{l.property_address}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1.5">
+                          <Calendar className="h-3 w-3" />
+                          <span>Registered {format(new Date(l.created_at), 'MMM d, yyyy')}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <Badge
+                      className={`text-[10px] shrink-0 ${l.verified ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-white'}`}
+                    >
+                      {l.verified ? 'Verified' : 'Pending verification'}
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+      )}
+
       <AgentEditRentRequestDialog
         request={editing}
         open={!!editing}
