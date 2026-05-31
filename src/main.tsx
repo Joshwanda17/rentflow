@@ -76,6 +76,13 @@ if (isPreviewHost || isInIframe) {
   });
 }
 
+// Proactively catch iPhones returning from background / bfcache onto a stale
+// app shell, and refresh them BEFORE they hit a missing-chunk retry splash.
+// iOS-only and no-op in preview/iframe.
+if (!isPreviewHost && !isInIframe) {
+  installIOSFreshnessWatch();
+}
+
 // Clear app caches in background — never blocks startup, never touches auth
 const clearAppCaches = () => {
   try {
