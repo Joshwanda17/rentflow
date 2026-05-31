@@ -428,6 +428,7 @@ export default function LandlordRegistrationForm({
       setProgressMsg('Saving the landlord…');
       const { data: newLandlord, error } = await supabase.from('landlords').insert(insertData as any).select('id').single();
       if (error) throw error;
+      setRegisteredLandlordId(newLandlord?.id ?? null);
 
       // Persist LC1 chairperson when collected (minimal/outstanding flow).
       if (minimal && lc1Name.trim() && lc1PhoneClean) {
