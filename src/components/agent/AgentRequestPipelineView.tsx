@@ -414,6 +414,7 @@ export function AgentRequestPipelineView({
   // Search & filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [landlordStatusFilter, setLandlordStatusFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
 
