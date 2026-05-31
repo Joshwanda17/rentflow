@@ -541,7 +541,141 @@ export function AgentRequestPipelineView() {
           setTab('submitted');
         }}
       />
+
+      <RequestDetailDrawer
+        row={detailRow}
+        stageLabel={detailRow ? STAGE_LABEL[detailRow.status] ?? 'In review' : ''}
+        onClose={() => setDetailRow(null)}
+      />
     </div>
+  );
+}
+
+function DetailRow({
+  icon: Icon,
+  label,
+  value,
+  emphasis,
+}: {
+  icon: typeof User;
+  label: string;
+  value: string;
+  emphasis?: boolean;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-3 py-2.5">
+      <span className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
+        <Icon className="h-3.5 w-3.5" />
+        {label}
+      </span>
+      <span
+        className={`text-right break-words ${
+          emphasis ? 'text-sm font-bold tabular-nums text-foreground' : 'text-sm font-medium text-foreground'
+        }`}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function RequestDetailDrawer({
+  row,
+  stageLabel,
+  onClose,
+}: {
+  row: PipelineRow | null;
+  stageLabel: string;
+  onClose: () => void;
+}) {
+  const dailyRepay =
+    row && row.duration_days > 0 ? Math.round(row.total_repayment / row.duration_days) : 0;
+  return (
+    <Drawer open={!!row} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DrawerContent>
+        {row && (
+          <div className="mx-auto w-full max-w-md">
+            <DrawerHeader className="text-left">
+              <div className="flex items-center justify-between gap-2">
+                <DrawerTitle className="text-base">Request details</DrawerTitle>
+                <Badge variant="secondary" className="text-[10px]">{stageLabel}</Badge>
+              </div>
+              <DrawerDescription>
+                Submitted {format(new Date(row.created_at), 'MMM d, yyyy · h:mm a')}
+              </DrawerDescription>
+            </DrawerHeader>
+
+            <div className="px-4 pb-2 space-y-3 max-h-[60vh] overflow-y-auto">
+              {/* Tenant */}
+              <div className="rounded-xl border bg-muted/30 px-3.5">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground pt-3">
+                  Tenant
+                </p>
+                <div className="divide-y divide-border/60">
+                  <DetailRow icon={User} label="Name" value={row.tenant_name || 'Unknown tenant'} />
+                  {row.tenant_phone && (
+                    <DetailRow icon={Phone} label="Phone" value={row.tenant_phone} />
+                  )}
+                </div>
+              </div>
+
+              {/* Landlord */}
+              <div className="rounded-xl border bg-muted/30 px-3.5">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground pt-3">
+                  Landlord
+                </p>
+                <div className="divide-y divide-border/60">
+                  <DetailRow
+                    icon={Building}
+                    label="Name"
+                    value={row.landlord_name || 'Not provided'}
+                  />
+                  {row.landlord_address && (
+                    <DetailRow icon={MapPin} label="Property" value={row.landlord_address} />
+                  )}
+                </div>
+              </div>
+
+              {/* Amounts */}
+              <div className="rounded-xl border bg-muted/30 px-3.5">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground pt-3">
+                  Amounts
+                </p>
+                <div className="divide-y divide-border/60">
+                  <DetailRow icon={Banknote} label="Rent amount" value={formatUGX(row.rent_amount)} emphasis />
+                  <DetailRow icon={Banknote} label="Total to repay" value={formatUGX(row.total_repayment)} emphasis />
+                  <DetailRow icon={Banknote} label="Daily repayment" value={formatUGX(dailyRepay)} />
+                  {row.amount_repaid > 0 && (
+                    <DetailRow icon={Banknote} label="Repaid so far" value={formatUGX(row.amount_repaid)} />
+                  )}
+                  <DetailRow icon={Clock} label="Duration" value={`${row.duration_days} days`} />
+                </div>
+              </div>
+
+              {/* Reference */}
+              <div className="rounded-xl border bg-muted/30 px-3.5">
+                <div className="divide-y divide-border/60">
+                  <DetailRow icon={Hash} label="Reference" value={row.id.slice(0, 8).toUpperCase()} />
+                  {(row.resubmission_count ?? 0) > 0 && (
+                    <DetailRow
+                      icon={RefreshCw}
+                      label="Resubmissions"
+                      value={`×${row.resubmission_count}`}
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <DrawerFooter>
+              <DrawerClose asChild>
+                <Button variant="outline" className="w-full">Close</Button>
+              </DrawerClose>
+            </DrawerFooter>
+          </div>
+        )}
+      </DrawerContent>
+    </Drawer>
   );
 }
 
