@@ -1021,7 +1021,19 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <FloatTransactionHistory open={floatHistoryOpen} onOpenChange={setFloatHistoryOpen} />
       <CreditVerificationButton />
       <AgentMyRentRequestsSheet open={myRentRequestsOpen} onOpenChange={setMyRentRequestsOpen} />
-      <AgentTenantsSheet open={tenantsSheetOpen} onOpenChange={setTenantsSheetOpen} />
+      <AgentTenantsSheet
+        open={tenantsSheetOpen}
+        onOpenChange={(o) => {
+          setTenantsSheetOpen(o);
+          if (!o) {
+            // Reset so normal "My tenants" opens default to the tenants view.
+            setSubmissionsView(undefined);
+            setSubmissionsTab(undefined);
+          }
+        }}
+        initialView={submissionsView}
+        initialPipelineTab={submissionsTab}
+      />
       <FieldCollectDialog open={fieldCollectOpen} onOpenChange={setFieldCollectOpen} />
       
       <FieldCollectReconciliationSheet open={reconcileOpen} onOpenChange={setReconcileOpen} />
