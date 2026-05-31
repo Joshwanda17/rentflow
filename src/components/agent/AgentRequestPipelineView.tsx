@@ -289,6 +289,7 @@ export function AgentRequestPipelineView() {
   const [approvedPage, setApprovedPage] = useState(0);
   const [rejectedPage, setRejectedPage] = useState(0);
   const [editing, setEditing] = useState<AgentRejectedRequest | null>(null);
+  const [detailRow, setDetailRow] = useState<PipelineRow | null>(null);
 
   const submitted = usePipelineRequests(
     SUBMITTED_STATUSES,
@@ -382,6 +383,7 @@ export function AgentRequestPipelineView() {
                   row={r}
                   tone="amber"
                   stageLabel={STAGE_LABEL[r.status] ?? 'In review'}
+                  onClick={() => setDetailRow(r)}
                 />
               ))}
               <Pager
@@ -414,6 +416,7 @@ export function AgentRequestPipelineView() {
                   row={r}
                   tone="emerald"
                   stageLabel={STAGE_LABEL[r.status] ?? 'Approved'}
+                  onClick={() => setDetailRow(r)}
                   rightSlot={
                     <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-emerald-500/20">
                       <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1">
