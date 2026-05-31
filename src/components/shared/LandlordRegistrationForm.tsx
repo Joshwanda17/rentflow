@@ -109,6 +109,19 @@ export default function LandlordRegistrationForm({
 
   const clearSubmitError = () => setSubmitError('');
 
+  // Scroll to and focus the input inside a given [data-field] wrapper so the
+  // agent is taken straight to the field that needs their attention.
+  const focusField = (name: string) => {
+    requestAnimationFrame(() => {
+      const wrapper = document.querySelector(`[data-field="${name}"]`);
+      wrapper?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const input = wrapper?.querySelector(
+        'input, textarea, select'
+      ) as HTMLElement | null;
+      input?.focus();
+    });
+  };
+
   // Core fields
   const [landlordName, setLandlordName] = useState('');
   const [landlordPhone, setLandlordPhone] = useState('');
@@ -217,11 +230,7 @@ export default function LandlordRegistrationForm({
         setShowMore(true);
       }
       hapticWarning();
-      requestAnimationFrame(() => {
-        document
-          .querySelector(`[data-field="${firstError}"]`)
-          ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      });
+      focusField(firstError);
       toastFn({
         title: 'Please fix the errors',
         description: 'Some required fields are missing or invalid.',
@@ -254,6 +263,10 @@ export default function LandlordRegistrationForm({
         .maybeSingle();
 
       if (existing) {
+        setErrors((prev) => ({ ...prev, landlordPhone: 'This phone is already registered' }));
+        setSubmitError('A landlord with this phone number already exists.');
+        hapticWarning();
+        focusField('landlordPhone');
         toastFn({ title: 'Already Exists', description: 'A landlord with this phone number already exists.', variant: 'destructive' });
         setLoading(false);
         setProgressMsg('');
@@ -345,6 +358,17 @@ export default function LandlordRegistrationForm({
       const msg = err?.message || 'Something went wrong while saving. Please try again.';
       setSubmitError(msg);
       hapticWarning();
+      // If the failure points at a specific field, take the agent straight to
+      // it (entered values stay intact). Otherwise the Try Again banner shows.
+      const lower = msg.toLowerCase();
+      if (err?.code === '23505' || lower.includes('duplicate') || lower.includes('already')) {
+        setErrors((prev) => ({ ...prev, landlordPhone: 'This phone is already registered' }));
+        focusField('landlordPhone');
+      } else if (lower.includes('phone')) {
+        focusField('landlordPhone');
+      } else if (lower.includes('name')) {
+        focusField('landlordName');
+      }
       toastFn({
         title: 'Registration Failed',
         description: msg,
