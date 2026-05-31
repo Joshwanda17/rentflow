@@ -71,6 +71,9 @@ export default function LandlordRegistrationForm({
 
   // Inline validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
+  // Pre-save duplicate-phone check state (runs on blur, before submit)
+  const [checkingPhone, setCheckingPhone] = useState(false);
+  const [phoneVerified, setPhoneVerified] = useState(false);
 
   const validateField = (name: string, value: string) => {
     const trimmed = value.trim();
@@ -108,6 +111,44 @@ export default function LandlordRegistrationForm({
   };
 
   const clearSubmitError = () => setSubmitError('');
+
+  // Pre-save check: verify the landlord phone isn't already registered BEFORE
+  // the agent taps Register, surfacing the exact field error inline.
+  // Returns true when the number is free to use.
+  const checkPhoneAvailable = async (rawValue: string): Promise<boolean> => {
+    const formatError = validateField('landlordPhone', cleanPhoneNumber(rawValue));
+    if (formatError) {
+      setPhoneVerified(false);
+      return false;
+    }
+    const phoneClean = cleanPhoneNumber(rawValue);
+    setCheckingPhone(true);
+    setPhoneVerified(false);
+    try {
+      const { data, error } = await supabase
+        .from('landlords')
+        .select('id')
+        .eq('phone', phoneClean)
+        .maybeSingle();
+      if (error) {
+        // Network/DB hiccup — don't block; the submit-time check is the backstop.
+        return true;
+      }
+      if (data) {
+        setErrors((prev) => ({
+          ...prev,
+          landlordPhone:
+            'This phone is already registered. Enter a different number, or this landlord may already be in the system.',
+        }));
+        setPhoneVerified(false);
+        return false;
+      }
+      setPhoneVerified(true);
+      return true;
+    } finally {
+      setCheckingPhone(false);
+    }
+  };
 
   // Scroll to and focus the input inside a given [data-field] wrapper so the
   // agent is taken straight to the field that needs their attention.
