@@ -26,7 +26,7 @@ import {
   reloadWithCacheBust,
   type PurgeResult,
 } from "./hardRecovery";
-import { checkServerVersion, isForceUpdateSync } from "./versionGate";
+import { checkServerVersion, CURRENT_APP_VERSION, getVersionGateState, isForceUpdateSync } from "./versionGate";
 import { logUpdateFailure } from "./updateTelemetry";
 
 const OVERLAY_ID = "welile-forced-update";
@@ -164,6 +164,11 @@ function renderBlockingOverlay(): void {
  */
 export function triggerForcedUpdate(reason: string): void {
   if (forcing) return;
+  const cached = getVersionGateState();
+  if (cached?.current && cached.current !== CURRENT_APP_VERSION) {
+    reloadWithCacheBust();
+    return;
+  }
   forcing = true;
   logUpdateFailure("ios_version_gate", {
     chunk_mismatch: true,

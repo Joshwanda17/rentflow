@@ -7,8 +7,8 @@ import { componentTagger } from "lovable-tagger";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   define: {
-    __APP_VERSION__: JSON.stringify('2026-05-30-ios-version-gate'),
-    __CACHE_VERSION__: JSON.stringify('2026-05-30-ios-version-gate'),
+    __APP_VERSION__: JSON.stringify('2026-05-31-forced-update-loop-fix'),
+    __CACHE_VERSION__: JSON.stringify('2026-05-31-forced-update-loop-fix'),
   },
   server: {
     host: "::",
