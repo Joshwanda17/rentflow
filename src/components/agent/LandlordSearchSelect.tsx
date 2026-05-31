@@ -15,6 +15,15 @@ export interface LandlordOption {
   name: string;
   phone: string;
   property_address: string | null;
+  /** Extended saved details, used to auto-fill the rent request form. */
+  district?: string | null;
+  town_council?: string | null;
+  county?: string | null;
+  village?: string | null;
+  house_category?: string | null;
+  monthly_rent?: number | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 interface LandlordSearchSelectProps {
