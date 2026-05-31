@@ -7,6 +7,15 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerClose,
+} from '@/components/ui/drawer';
+import {
   Loader2,
   ChevronLeft,
   ChevronRight,
@@ -20,6 +29,11 @@ import {
   Banknote,
   Pencil,
   RefreshCw,
+  Phone,
+  MapPin,
+  ChevronRight as ChevronRightIcon,
+  Hash,
+  Clock,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
