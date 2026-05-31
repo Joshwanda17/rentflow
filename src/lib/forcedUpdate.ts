@@ -37,6 +37,7 @@ import {
 const OVERLAY_ID = "welile-forced-update";
 const ERROR_ID = `${OVERLAY_ID}-error`;
 const DEBUG_ID = `${OVERLAY_ID}-debug`;
+const INSTR_ID = `${OVERLAY_ID}-instructions`;
 // How long the blocking screen is shown before the update auto-fires. Short
 // enough that the user isn't left waiting, long enough to read the message.
 const AUTO_TRIGGER_DELAY_MS = 1800;
