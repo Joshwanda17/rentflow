@@ -1807,7 +1807,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     />
                     {amount > 0 && (
                       <p className="text-xs font-semibold">
-                        {amount > perTenantMax ? (
+                        {unlimitedPosting ? (
+                          <span className="text-success">
+                            ✅ Unlimited posting unlocked — you can post <span className="font-extrabold">any amount</span> this week.
+                          </span>
+                        ) : amount > perTenantMax ? (
                           <span className="text-amber-600 dark:text-amber-400">
                             You are <span className="font-extrabold">{formatUGX(amount - perTenantMax)}</span> over your <span className="font-extrabold">{formatUGX(perTenantMax)}</span> posting cap.
                           </span>
