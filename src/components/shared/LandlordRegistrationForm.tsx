@@ -558,6 +558,13 @@ export default function LandlordRegistrationForm({
             )}
           </Button>
 
+          {/* Inline stepped progress so the agent always sees forward motion */}
+          {loading && progressMsg && (
+            <p className="flex items-center justify-center gap-2 text-sm font-medium text-primary animate-pulse">
+              <Loader2 className="h-4 w-4 animate-spin" /> {progressMsg}
+            </p>
+          )}
+
           {/* Toggle to reveal the optional property / payout details */}
           {!minimal && (
             <Button
