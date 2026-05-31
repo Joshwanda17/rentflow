@@ -62,7 +62,21 @@ function readCache(): VersionGateState | null {
   try {
     const raw = localStorage.getItem(CACHE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as VersionGateState;
+    const cached = JSON.parse(raw) as VersionGateState;
+    // A cached "force update" directive belongs only to the bundle version that
+    // wrote it. After the phone successfully loads the newer bundle, the old
+    // localStorage record may still say `{ force: true }`; trusting that stale
+    // record on startup causes iPhones to purge/reload forever before the fresh
+    // network check has a chance to clear it.
+    if (cached.current && cached.current !== CURRENT_APP_VERSION) {
+      try {
+        localStorage.removeItem(CACHE_KEY);
+      } catch {
+        /* ignore */
+      }
+      return null;
+    }
+    return cached;
   } catch {
     return null;
   }
