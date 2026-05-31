@@ -86,6 +86,18 @@ const STAGE_LABEL: Record<string, string> = {
   disbursed: 'Disbursed — ready to collect',
 };
 
+const STAGE_NEXT: Record<string, string> = {
+  pending: 'Next: Tenant Ops review',
+  agent_verified: 'Next: Landlord Ops review',
+  agent_ops_approved: 'Next: Landlord Ops review',
+  tenant_ops_approved: 'Next: COO review',
+  landlord_ops_approved: 'Next: CFO funding',
+  coo_approved: 'Next: Funds sent to landlord',
+  funded: 'Next: Tenant starts repayments',
+  disbursed: 'Next: Collect rent from tenant',
+  rejected: 'Next: Edit & resubmit',
+};
+
 const STAGE_ICON: Record<string, typeof Eye> = {
   pending: Eye,
   agent_ops_approved: FileCheck,
