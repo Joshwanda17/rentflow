@@ -230,11 +230,7 @@ export default function LandlordRegistrationForm({
         setShowMore(true);
       }
       hapticWarning();
-      requestAnimationFrame(() => {
-        document
-          .querySelector(`[data-field="${firstError}"]`)
-          ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      });
+      focusField(firstError);
       toastFn({
         title: 'Please fix the errors',
         description: 'Some required fields are missing or invalid.',
