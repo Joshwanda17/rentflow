@@ -382,6 +382,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [outstandingDaysRemaining, setOutstandingDaysRemaining] = useState('');
   const [showRegisterLandlord, setShowRegisterLandlord] = useState(false);
   const [landlordPickerKey, setLandlordPickerKey] = useState(0);
+  const [showLinkedBanner, setShowLinkedBanner] = useState(false);
+  const linkedBannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // One-tap auto-fill: when the agent picks a matched landlord from the
   // autocomplete dropdown, pull every saved detail we have on file into the
@@ -406,6 +408,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       setGpsLocation({ lat: Number(l.latitude), lng: Number(l.longitude), accuracy: 0 });
     }
     setSelectedLandlord(l);
+    setShowLinkedBanner(true);
+    if (linkedBannerTimer.current) clearTimeout(linkedBannerTimer.current);
+    linkedBannerTimer.current = setTimeout(() => setShowLinkedBanner(false), 6000);
     toast.success(`Linked landlord ${l.name}`, {
       description: 'Saved address and details filled in automatically.',
     });
@@ -2204,6 +2209,21 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       )}
                   </div>
                 </div>
+                <AnimatePresence>
+                  {showLinkedBanner && selectedLandlord && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      className="flex items-center gap-2 p-2 rounded-lg bg-success/10 border border-success/30"
+                    >
+                      <CheckCircle2 className="h-4 w-4 text-success flex-shrink-0" />
+                      <p className="text-xs text-success font-medium">
+                        Landlord <span className="font-semibold">{selectedLandlord.name}</span> linked — details auto-filled
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
                 <div className="space-y-1">
                   <Label className="flex items-center gap-1">
                     <MapPin className="h-3 w-3" /> Property Address *
