@@ -46,6 +46,12 @@ import {
   Filter,
   X,
   FileSpreadsheet,
+  AlertCircle,
+  Eye,
+  FileCheck,
+  Landmark,
+  Wallet,
+  HandCoins,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, isToday, isThisWeek, isThisMonth } from 'date-fns';
@@ -78,6 +84,30 @@ const STAGE_LABEL: Record<string, string> = {
   coo_approved: 'CFO funding',
   funded: 'Funded — awaiting disbursal',
   disbursed: 'Disbursed — ready to collect',
+};
+
+const STAGE_ICON: Record<string, typeof Eye> = {
+  pending: Eye,
+  agent_ops_approved: FileCheck,
+  agent_verified: FileCheck,
+  tenant_ops_approved: User,
+  landlord_ops_approved: Landmark,
+  coo_approved: FileCheck,
+  funded: Wallet,
+  disbursed: HandCoins,
+  rejected: XCircle,
+};
+
+const STAGE_STRIP: Record<string, { bg: string; text: string; iconBg: string }> = {
+  pending: { bg: 'bg-amber-500', text: 'text-white', iconBg: 'bg-white/20' },
+  agent_ops_approved: { bg: 'bg-sky-500', text: 'text-white', iconBg: 'bg-white/20' },
+  agent_verified: { bg: 'bg-sky-500', text: 'text-white', iconBg: 'bg-white/20' },
+  tenant_ops_approved: { bg: 'bg-indigo-500', text: 'text-white', iconBg: 'bg-white/20' },
+  landlord_ops_approved: { bg: 'bg-violet-500', text: 'text-white', iconBg: 'bg-white/20' },
+  coo_approved: { bg: 'bg-teal-500', text: 'text-white', iconBg: 'bg-white/20' },
+  funded: { bg: 'bg-emerald-500', text: 'text-white', iconBg: 'bg-white/20' },
+  disbursed: { bg: 'bg-emerald-600', text: 'text-white', iconBg: 'bg-white/20' },
+  rejected: { bg: 'bg-destructive', text: 'text-destructive-foreground', iconBg: 'bg-white/20' },
 };
 
 interface PipelineRow {
@@ -195,6 +225,19 @@ function Pager({
   );
 }
 
+function StatusStrip({ status, label }: { status: string; label: string }) {
+  const strip = STAGE_STRIP[status] ?? { bg: 'bg-muted', text: 'text-muted-foreground', iconBg: 'bg-foreground/10' };
+  const Icon = STAGE_ICON[status] ?? Eye;
+  return (
+    <div className={`flex items-center gap-2 px-3 py-1.5 ${strip.bg} ${strip.text}`}>
+      <div className={`flex items-center justify-center h-6 w-6 rounded-full ${strip.iconBg}`}>
+        <Icon className="h-3.5 w-3.5" />
+      </div>
+      <span className="text-xs font-bold tracking-wide">{label}</span>
+    </div>
+  );
+}
+
 function RowCard({
   row,
   tone,
@@ -214,8 +257,6 @@ function RowCard({
       : tone === 'emerald'
         ? 'border-emerald-500/40 bg-emerald-500/5'
         : 'border-destructive/40 bg-destructive/5';
-  const badgeVariant: 'secondary' | 'default' | 'destructive' =
-    tone === 'destructive' ? 'destructive' : tone === 'emerald' ? 'default' : 'secondary';
   return (
     <Card
       className={`border-2 overflow-hidden ${toneClass} ${
@@ -236,15 +277,13 @@ function RowCard({
       }
       style={onClick ? { touchAction: 'manipulation' } : undefined}
     >
+      <StatusStrip status={row.status} label={stageLabel} />
       <CardContent className="p-3 space-y-2">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 mb-0.5">
               <User className="h-4 w-4 text-primary shrink-0" />
               <span className="font-semibold truncate text-sm">{row.tenant_name}</span>
-              <Badge variant={badgeVariant} className="text-[10px]">
-                {stageLabel}
-              </Badge>
               {(row.resubmission_count ?? 0) > 0 && (
                 <Badge
                   variant="outline"
@@ -724,6 +763,7 @@ export function AgentRequestPipelineView() {
                   key={r.id}
                   className="border-2 border-destructive/40 bg-destructive/5 overflow-hidden"
                 >
+                  <StatusStrip status="rejected" label={`Rejected at ${r.stage_label}`} />
                   <CardContent className="p-3 space-y-2">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
