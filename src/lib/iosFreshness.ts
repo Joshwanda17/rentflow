@@ -30,6 +30,7 @@
 import { checkServerVersion, isIOS } from "./versionGate";
 import { clearAndReload } from "./hardRecovery";
 import { logUpdateFailure } from "./updateTelemetry";
+import { isForcingUpdate, triggerForcedUpdate } from "./forcedUpdate";
 
 let installed = false;
 let recovering = false;
@@ -50,11 +51,21 @@ let pollTimer: ReturnType<typeof setInterval> | null = null;
 
 async function checkAndRecoverIfStale(reason: string): Promise<void> {
   if (recovering) return;
+  // A server-mandated forced update takes precedence and owns the UI; never
+  // double-trigger a reload underneath it.
+  if (isForcingUpdate()) return;
   if (Date.now() - lastCheckAt < MIN_CHECK_INTERVAL_MS) return;
   lastCheckAt = Date.now();
 
   const state = await checkServerVersion();
   if (!state.stale) return;
+
+  // If the server demands a blocking forced update, hand off to the forced gate
+  // (visible overlay + auto-update) instead of the silent soft reload.
+  if (state.force) {
+    triggerForcedUpdate(`ios_${reason}`);
+    return;
+  }
 
   recovering = true;
   logUpdateFailure("ios_version_gate", {

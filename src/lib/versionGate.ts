@@ -35,6 +35,12 @@ export interface VersionGateState {
   current: string;
   /** True when the running bundle is older than the deployed build. */
   stale: boolean;
+  /**
+   * True when the server demands a BLOCKING, forced update for this stale
+   * device (the old build must not be allowed to keep running). Driven by the
+   * `force` / `min` directives in version.json — see checkServerVersion.
+   */
+  force: boolean;
   /** epoch ms of the last successful/last check. */
   checkedAt: number;
 }
@@ -78,6 +84,15 @@ export function isVersionStaleSync(): boolean {
   return readCache()?.stale ?? false;
 }
 
+/**
+ * Synchronous, non-blocking read of whether the server demands a BLOCKING
+ * forced update for this device. Safe on the earliest startup path. Used to
+ * block an old build before it ever imports a now-missing chunk.
+ */
+export function isForceUpdateSync(): boolean {
+  return readCache()?.force ?? false;
+}
+
 /** The last cached gate state (or null) — for diagnostics UI. */
 export function getVersionGateState(): VersionGateState | null {
   return readCache();
@@ -96,22 +111,47 @@ export async function checkServerVersion(): Promise<VersionGateState> {
       headers: { Accept: "application/json" },
     });
     if (!res.ok) throw new Error(`version.json ${res.status}`);
-    const data = (await res.json()) as { version?: string };
+    const data = (await res.json()) as {
+      version?: string;
+      /** When false, a mismatch is a SOFT update (silent reload, no block). */
+      force?: boolean;
+      /** Minimum supported build; running builds below it are forced. */
+      min?: string;
+    };
     const server = data?.version ? String(data.version) : null;
+    const min = data?.min ? String(data.min) : null;
     // Only flag stale when we have BOTH values and they differ. A missing or
     // unreadable server value must never block the app.
-    const stale = !!server && current !== "dev" && server !== current;
+    let stale = !!server && current !== "dev" && server !== current;
+    // Explicit minimum-supported-version gate. Date-prefixed version strings
+    // (`YYYY-MM-DD-…`) sort lexicographically, so a plain string compare is a
+    // safe "is this build older than the floor?" test.
+    if (!stale && min && current !== "dev" && current < min) {
+      stale = true;
+    }
+    // The server controls whether a stale device is hard-blocked. `force`
+    // defaults to true (block + auto-update) so a deploy forces every older
+    // build off; ship `"force": false` in version.json to downgrade to a
+    // silent soft reload instead.
+    const force = stale && data?.force !== false;
     const state: VersionGateState = {
       server,
       current,
       stale,
+      force,
       checkedAt: Date.now(),
     };
     writeCache(state);
     return state;
   } catch {
     return (
-      readCache() ?? { server: null, current, stale: false, checkedAt: Date.now() }
+      readCache() ?? {
+        server: null,
+        current,
+        stale: false,
+        force: false,
+        checkedAt: Date.now(),
+      }
     );
   }
 }
