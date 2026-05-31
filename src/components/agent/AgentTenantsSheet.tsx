@@ -253,10 +253,15 @@ function Highlight({ text, query }: { text?: string | null; query: string }) {
   );
 }
 
-export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps) {
+export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipelineTab }: AgentTenantsSheetProps) {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [view, setView] = useState<'tenants' | 'pipeline'>('tenants');
+  const [view, setView] = useState<'tenants' | 'pipeline'>(initialView ?? 'tenants');
+  // When the sheet is (re)opened with a requested initial view (e.g. straight
+  // to "Submissions" after registering a landlord), honour it each time.
+  useEffect(() => {
+    if (open && initialView) setView(initialView);
+  }, [open, initialView]);
   const [applyAdvanceOpen, setApplyAdvanceOpen] = useState(false);
   const { limit: advanceLimit, loading: advanceLoading } = useCreditAccessLimit(user?.id);
   const allocatedTotal = Math.max(0, Math.round((advanceLimit.bonusFromAgentAllocations || 0) / 2));
