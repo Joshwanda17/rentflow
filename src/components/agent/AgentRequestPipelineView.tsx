@@ -439,8 +439,13 @@ export function AgentRequestPipelineView({
     const q = searchQuery.trim().toLowerCase();
     if (!q) return true;
     const tenant = (row as any).tenant_name ?? '';
+    const tenantPhone = (row as any).tenant_phone ?? '';
     const landlord = (row as any).landlord_name ?? '';
-    return tenant.toLowerCase().includes(q) || landlord.toLowerCase().includes(q);
+    return (
+      tenant.toLowerCase().includes(q) ||
+      tenantPhone.toLowerCase().includes(q) ||
+      landlord.toLowerCase().includes(q)
+    );
   };
 
   const filterByStatus = (row: PipelineRow) => {
@@ -637,7 +642,7 @@ export function AgentRequestPipelineView({
             <Input
               type="text"
               inputMode="search"
-              placeholder="Search by name"
+              placeholder="Search by name or phone"
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
