@@ -388,9 +388,9 @@ function RowCard({
   );
 }
 
-export function AgentRequestPipelineView() {
+export function AgentRequestPipelineView({ initialTab }: { initialTab?: PipelineTab } = {}) {
   const queryClient = useQueryClient();
-  const [tab, setTab] = useState<PipelineTab>('submitted');
+  const [tab, setTab] = useState<PipelineTab>(initialTab ?? 'submitted');
   const [submittedPage, setSubmittedPage] = useState(0);
   const [approvedPage, setApprovedPage] = useState(0);
   const [rejectedPage, setRejectedPage] = useState(0);
