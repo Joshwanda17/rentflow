@@ -308,6 +308,7 @@ export function AgentRequestPipelineView() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('all');
+  const [showFilters, setShowFilters] = useState(false);
 
   const submitted = usePipelineRequests(
     SUBMITTED_STATUSES,
