@@ -255,7 +255,7 @@ function Highlight({ text, query }: { text?: string | null; query: string }) {
   );
 }
 
-export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipelineTab }: AgentTenantsSheetProps) {
+export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipelineTab, initialHighlightId }: AgentTenantsSheetProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [view, setView] = useState<'tenants' | 'pipeline'>(initialView ?? 'tenants');
