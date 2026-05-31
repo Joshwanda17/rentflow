@@ -58,6 +58,8 @@ export default function LandlordRegistrationForm({
   const { location, loading: locationLoading, error: locationError, captureLocation } = useCaptureLocation();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  // Two-step flow: Step 1 = enter name & phone, Step 2 = confirm & register.
+  const [step, setStep] = useState<1 | 2>(1);
   // Inline stepped progress message shown while saving so the agent always
   // sees forward motion, even on a weak connection.
   const [progressMsg, setProgressMsg] = useState('');
@@ -239,6 +241,64 @@ export default function LandlordRegistrationForm({
     setNwscMeter(''); setUedclMeter('');
     setTempPassword(''); setShowPassword(false);
     setSuccess(false); setActivationLink(''); setLocationCaptured(false);
+    setStep(1);
+  };
+
+  // Step 1 → Step 2: validate the essentials and confirm the phone is available
+  // before advancing to the confirmation step.
+  const handleNext = async () => {
+    if (!user) return;
+
+    const fieldsToValidate: { name: string; value: string }[] = [
+      { name: 'landlordName', value: landlordName },
+      { name: 'landlordPhone', value: landlordPhone },
+    ];
+    if (minimal) {
+      fieldsToValidate.push(
+        { name: 'lc1Name', value: lc1Name },
+        { name: 'lc1Phone', value: lc1Phone }
+      );
+    }
+
+    const newErrors: Record<string, string> = {};
+    for (const { name, value } of fieldsToValidate) {
+      const msg = validateField(name, value);
+      if (msg) newErrors[name] = msg;
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      const firstError = Object.keys(newErrors)[0];
+      if (!['landlordName', 'landlordPhone', 'lc1Name', 'lc1Phone'].includes(firstError)) {
+        setShowMore(true);
+      }
+      hapticWarning();
+      focusField(firstError);
+      toastFn({
+        title: 'Please fix the errors',
+        description: 'Some required fields are missing or invalid.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Confirm the phone number is free before advancing to Step 2.
+    if (!phoneVerified) {
+      const available = await checkPhoneAvailable(landlordPhone);
+      if (!available) {
+        hapticWarning();
+        focusField('landlordPhone');
+        toastFn({
+          title: 'Check the phone number',
+          description: 'This phone is already registered or invalid.',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
+    hapticTap();
+    setSubmitError('');
+    setStep(2);
   };
 
   const handleSubmit = async (e?: React.FormEvent) => {
@@ -327,6 +387,7 @@ export default function LandlordRegistrationForm({
         }));
         setSubmitError('A landlord with this phone number already exists.');
         hapticWarning();
+        setStep(1);
         focusField('landlordPhone');
         toastFn({ title: 'Already Exists', description: 'A landlord with this phone number already exists.', variant: 'destructive' });
         setLoading(false);
@@ -430,6 +491,7 @@ export default function LandlordRegistrationForm({
           ...prev,
           lc1Phone: 'This LC1 phone is already registered. Enter a different number.',
         }));
+        setStep(1);
         focusField('lc1Phone');
       } else if (isDuplicate) {
         setErrors((prev) => ({
@@ -437,18 +499,21 @@ export default function LandlordRegistrationForm({
           landlordPhone:
             'This phone is already registered. Enter a different number, or this landlord may already be in the system.',
         }));
+        setStep(1);
         focusField('landlordPhone');
       } else if (lower.includes('phone')) {
         setErrors((prev) => ({
           ...prev,
           landlordPhone: 'Check the phone number — it should be 10 digits like 07XX XXX XXX.',
         }));
+        setStep(1);
         focusField('landlordPhone');
       } else if (lower.includes('name')) {
         setErrors((prev) => ({
           ...prev,
           landlordName: "Check the landlord's name — use their full name as on the National ID.",
         }));
+        setStep(1);
         focusField('landlordName');
       }
       toastFn({
@@ -557,17 +622,19 @@ export default function LandlordRegistrationForm({
         >
           {/* Step-by-step progress indicator */}
           <div className="flex items-center gap-2">
-            <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-semibold transition-colors ${!success ? 'bg-primary/15 text-primary border border-primary/25' : 'bg-muted text-muted-foreground border border-muted'}`}>
-              <span className={`flex items-center justify-center w-4 h-4 rounded-full text-[9px] ${!success ? 'bg-primary text-primary-foreground' : 'bg-muted-foreground/20 text-muted-foreground'}`}>1</span>
+            <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-semibold transition-colors ${step === 1 && !success ? 'bg-primary/15 text-primary border border-primary/25' : 'bg-muted text-muted-foreground border border-muted'}`}>
+              <span className={`flex items-center justify-center w-4 h-4 rounded-full text-[9px] ${step === 1 && !success ? 'bg-primary text-primary-foreground' : 'bg-muted-foreground/20 text-muted-foreground'}`}>1</span>
               Name &amp; Phone
             </div>
             <div className="flex-1 h-px bg-border" />
-            <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-semibold transition-colors ${success ? 'bg-success/15 text-success border border-success/25' : 'bg-muted text-muted-foreground border border-muted'}`}>
-              <span className={`flex items-center justify-center w-4 h-4 rounded-full text-[9px] ${success ? 'bg-success text-white' : 'bg-muted-foreground/20 text-muted-foreground'}`}>2</span>
+            <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-semibold transition-colors ${step === 2 || success ? (success ? 'bg-success/15 text-success border border-success/25' : 'bg-primary/15 text-primary border border-primary/25') : 'bg-muted text-muted-foreground border border-muted'}`}>
+              <span className={`flex items-center justify-center w-4 h-4 rounded-full text-[9px] ${step === 2 || success ? (success ? 'bg-success text-white' : 'bg-primary text-primary-foreground') : 'bg-muted-foreground/20 text-muted-foreground'}`}>2</span>
               Confirmation
             </div>
           </div>
 
+          {step === 1 && (
+          <>
           {/* Friendly, low-pressure intro for first-time / casual agents */}
           {!minimal && (
             <p className="text-xs text-muted-foreground leading-relaxed">
@@ -696,69 +763,33 @@ export default function LandlordRegistrationForm({
               >
                 <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
                 <p className="text-xs font-medium text-foreground">
-                  All set — tap <span className="font-semibold text-primary">Register Landlord</span> below to finish.
+                  All set — tap <span className="font-semibold text-primary">Next</span> to review &amp; confirm.
                 </p>
               </motion.div>
             );
           })()}
 
-          {/* Submit — placed right after the essentials so it's always one tap away */}
+          {/* Next — advance to the confirmation step once essentials are valid */}
           <Button
-            type="submit"
-            onClick={() => hapticTap()}
+            type="button"
+            onClick={handleNext}
             className="w-full h-14 text-base font-semibold gap-2 touch-manipulation select-none transition-transform active:scale-[0.98] disabled:opacity-70"
-            disabled={loading}
+            disabled={loading || checkingPhone}
           >
-            {loading ? (
-              <><Loader2 className="h-5 w-5 animate-spin" /> Registering...</>
+            {checkingPhone ? (
+              <><Loader2 className="h-5 w-5 animate-spin" /> Checking number…</>
             ) : (
-              <><Building2 className="h-5 w-5" /> Register Landlord</>
+              <><CheckCircle2 className="h-5 w-5" /> Next</>
             )}
           </Button>
 
           {/* Step hint shown before the essentials are complete so a first-time
               agent always understands the single next action. */}
-          {!loading && !(landlordName.trim().length >= 2 && /^\d{9,10}$/.test(cleanPhoneNumber(landlordPhone))) && (
+          {!(landlordName.trim().length >= 2 && /^\d{9,10}$/.test(cleanPhoneNumber(landlordPhone))) && (
             <p className="text-[11px] text-center text-muted-foreground">
-              Step 1: enter the landlord's name &amp; phone, then tap Register Landlord.
+              Step 1: enter the landlord's name &amp; phone, then tap Next.
             </p>
           )}
-
-          {/* Inline stepped progress so the agent always sees forward motion */}
-          {loading && progressMsg && (
-            <p className="flex items-center justify-center gap-2 text-sm font-medium text-primary animate-pulse">
-              <Loader2 className="h-4 w-4 animate-spin" /> {progressMsg}
-            </p>
-          )}
-
-          {/* Inline error banner — stays on screen so agents on weak networks always know what happened */}
-          <AnimatePresence>
-            {submitError && !loading && (
-              <motion.div
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                className="p-3.5 rounded-xl bg-destructive/10 border border-destructive/30 space-y-2"
-              >
-                <div className="flex items-start gap-2.5">
-                  <div className="mt-0.5 p-1 rounded-full bg-destructive/20">
-                    <XCircle className="h-4 w-4 text-destructive" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-destructive">Could not save</p>
-                    <p className="text-xs text-destructive/80 mt-0.5">{submitError}</p>
-                  </div>
-                </div>
-                <Button
-                  type="button"
-                  onClick={() => { hapticTap(); clearSubmitError(); handleSubmit(); }}
-                  className="w-full h-12 text-sm font-semibold gap-2 touch-manipulation select-none transition-transform active:scale-[0.98]"
-                >
-                  <RefreshCw className="h-4 w-4" /> Try Again
-                </Button>
-              </motion.div>
-            )}
-          </AnimatePresence>
 
           {/* Toggle to reveal the optional property / payout details */}
           {!minimal && (
@@ -1001,6 +1032,115 @@ export default function LandlordRegistrationForm({
             </div>
           </div>
           </div>
+          )}
+          </>
+          )}
+
+          {/* ===== Step 2: Confirmation ===== */}
+          {step === 2 && !success && (
+          <>
+            <div className="space-y-2 p-3 rounded-xl border bg-muted/30">
+              <p className="text-xs font-semibold text-foreground">Confirm the details</p>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                  <User className="h-3 w-3" /> Name
+                </span>
+                <span className="text-xs font-medium text-foreground text-right truncate">{landlordName}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                  <Phone className="h-3 w-3" /> Phone
+                </span>
+                <span className="text-xs font-medium text-foreground text-right">{landlordPhone}</span>
+              </div>
+              {minimal && (
+                <>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                      <ShieldCheck className="h-3 w-3" /> LC1 Name
+                    </span>
+                    <span className="text-xs font-medium text-foreground text-right truncate">{lc1Name}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                      <Phone className="h-3 w-3" /> LC1 Phone
+                    </span>
+                    <span className="text-xs font-medium text-foreground text-right">{lc1Phone}</span>
+                  </div>
+                </>
+              )}
+              {propertyAddress.trim() && (
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                    <MapPin className="h-3 w-3" /> Address
+                  </span>
+                  <span className="text-xs font-medium text-foreground text-right truncate">{propertyAddress}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Register — final submit on the confirmation step */}
+            <Button
+              type="submit"
+              onClick={() => hapticTap()}
+              className="w-full h-14 text-base font-semibold gap-2 touch-manipulation select-none transition-transform active:scale-[0.98] disabled:opacity-70"
+              disabled={loading}
+            >
+              {loading ? (
+                <><Loader2 className="h-5 w-5 animate-spin" /> Registering...</>
+              ) : (
+                <><Building2 className="h-5 w-5" /> Register Landlord</>
+              )}
+            </Button>
+
+            {/* Back to edit the entered details */}
+            {!loading && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => { hapticTap(); setStep(1); }}
+                className="w-full h-11 gap-2 text-xs text-muted-foreground touch-manipulation select-none"
+              >
+                <ChevronUp className="h-4 w-4 rotate-90" /> Back to edit
+              </Button>
+            )}
+
+            {/* Inline stepped progress so the agent always sees forward motion */}
+            {loading && progressMsg && (
+              <p className="flex items-center justify-center gap-2 text-sm font-medium text-primary animate-pulse">
+                <Loader2 className="h-4 w-4 animate-spin" /> {progressMsg}
+              </p>
+            )}
+
+            {/* Inline error banner — stays on screen so agents on weak networks always know what happened */}
+            <AnimatePresence>
+              {submitError && !loading && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  className="p-3.5 rounded-xl bg-destructive/10 border border-destructive/30 space-y-2"
+                >
+                  <div className="flex items-start gap-2.5">
+                    <div className="mt-0.5 p-1 rounded-full bg-destructive/20">
+                      <XCircle className="h-4 w-4 text-destructive" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-destructive">Could not save</p>
+                      <p className="text-xs text-destructive/80 mt-0.5">{submitError}</p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={() => { hapticTap(); clearSubmitError(); handleSubmit(); }}
+                    className="w-full h-12 text-sm font-semibold gap-2 touch-manipulation select-none transition-transform active:scale-[0.98]"
+                  >
+                    <RefreshCw className="h-4 w-4" /> Try Again
+                  </Button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </>
           )}
         </motion.form>
       )}
