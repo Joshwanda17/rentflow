@@ -223,6 +223,19 @@ function Pager({
   );
 }
 
+function StatusStrip({ status, label }: { status: string; label: string }) {
+  const strip = STAGE_STRIP[status] ?? { bg: 'bg-muted', text: 'text-muted-foreground', iconBg: 'bg-foreground/10' };
+  const Icon = STAGE_ICON[status] ?? Eye;
+  return (
+    <div className={`flex items-center gap-2 px-3 py-1.5 ${strip.bg} ${strip.text}`}>
+      <div className={`flex items-center justify-center h-6 w-6 rounded-full ${strip.iconBg}`}>
+        <Icon className="h-3.5 w-3.5" />
+      </div>
+      <span className="text-xs font-bold tracking-wide">{label}</span>
+    </div>
+  );
+}
+
 function RowCard({
   row,
   tone,
@@ -242,8 +255,6 @@ function RowCard({
       : tone === 'emerald'
         ? 'border-emerald-500/40 bg-emerald-500/5'
         : 'border-destructive/40 bg-destructive/5';
-  const badgeVariant: 'secondary' | 'default' | 'destructive' =
-    tone === 'destructive' ? 'destructive' : tone === 'emerald' ? 'default' : 'secondary';
   return (
     <Card
       className={`border-2 overflow-hidden ${toneClass} ${
@@ -264,15 +275,13 @@ function RowCard({
       }
       style={onClick ? { touchAction: 'manipulation' } : undefined}
     >
+      <StatusStrip status={row.status} label={stageLabel} />
       <CardContent className="p-3 space-y-2">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 mb-0.5">
               <User className="h-4 w-4 text-primary shrink-0" />
               <span className="font-semibold truncate text-sm">{row.tenant_name}</span>
-              <Badge variant={badgeVariant} className="text-[10px]">
-                {stageLabel}
-              </Badge>
               {(row.resubmission_count ?? 0) > 0 && (
                 <Badge
                   variant="outline"
