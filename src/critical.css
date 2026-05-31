@@ -114,7 +114,7 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     transition: background-color 200ms ease-out, color 200ms ease-out;
-    overscroll-behavior: none;
+    overscroll-behavior-y: contain;
     overflow-y: auto;
     min-height: 100dvh;
   }

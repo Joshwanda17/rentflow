@@ -1,42 +1,32 @@
-I found enough evidence to prepare the PDF diagnosis before applying another patch.
+## Goal
 
-Key findings to document in the PDF:
+Let the page (body) scroll natively on Android/mobile without the global overscroll suppression fighting it — while keeping every inner scroll container (modals, sheets, lists) behaving exactly as before.
 
-1. The current `/index` page is not the welcome page.
-   - `App.tsx` has a route for `/`, but not `/index`.
-   - `/index` is being caught by the generic `/:code` short-link route, then `TrackedRedirect.tsx` returns the 404 page when `index` is not a valid short link.
-   - That explains the 404 screenshot and makes `/index` a misleading test route.
+## Why this is safe (addressing the concern)
 
-2. Pull-to-refresh is probably not the active cause on the welcome/auth entry pages anymore.
-   - `App.tsx` bypasses the `<PullToRefresh>` wrapper entirely for `/`, `/index`, `/auth`, and `/welcome`.
-   - So if `/welcome` and `/auth` still feel locked, the root cause is outside the PullToRefresh hook.
+`overscroll-behavior` does **not** make an element scrollable or unscrollable. Scrollability comes from `overflow-y` + content height. `overscroll-behavior` only controls scroll-chaining and the bounce/pull-to-refresh effect.
 
-3. The likely real scroll-lock source is global/mobile scroll CSS, not the hook.
-   - `index.html` sets `body { overscroll-behavior-y: contain; -webkit-overflow-scrolling: touch }`.
-   - `src/critical.css` later sets `body { overscroll-behavior: none; overflow-y: auto; min-height: 100dvh; }`.
-   - This globally suppresses browser overscroll/bounce behavior on every page. In Android Chrome/PWA/iframe contexts, that can make edge scrolling feel stuck, especially when combined with full-screen/min-height layouts.
+Inner sections keep their own containment rules and are untouched:
+- `.ios-fixed-scroll` → `overscroll-behavior: contain` (index.css:386)
+- `.ios-momentum-scroll` → `overscroll-behavior-y: contain` (index.css:419)
+- modal/sheet rule → `overscroll-behavior: contain` (index.css:876)
 
-4. The Auth page has a second layout-specific scroll risk.
-   - `Auth.tsx` uses `min-h-screen flex items-center justify-center p-4` for the whole page.
-   - When the auth form becomes taller than the mobile viewport, centered flex layouts can place overflow above/below the viewport and make the page feel unscrollable or partially unreachable.
+None of these depend on the body rule, so relaxing the body rule cannot break them. There is no `auto-scroll: none` property anywhere — that does not exist in CSS.
 
-5. The Welcome page is scrollable in desktop/mobile browser simulation after using programmatic scroll, but the full-page CSS still remains unsafe for real Android touch scrolling.
-   - The screenshot after scroll shows the Welcome page moved, so the DOM can scroll.
-   - The problem is likely touch/overscroll behavior on real mobile/PWA/preview, not missing content height.
+## Changes
 
-Plan for the PDF:
+1. **`src/critical.css` (line ~117)** — on `body`, change `overscroll-behavior: none` to `overscroll-behavior-y: contain`. This stops only the page-bounce/refresh chaining while leaving normal vertical scrolling fully native. Keep `overflow-y: auto` and `min-height: 100dvh`.
 
-- Generate a concise PDF report with:
-  - The real cause ranking: global overscroll CSS first, Auth flex-centering second, `/index` routing confusion third.
-  - Code references and line numbers.
-  - Why previous PullToRefresh patches did not solve it.
-  - The safest solution proposal, without applying it yet.
-- Visually QA every PDF page by converting it to images and inspecting for clipping/overlap before delivering it.
+2. **`index.html` (line 88)** — leave `overscroll-behavior-y: contain` as-is (it already matches the relaxed rule), so the two app-shell declarations agree instead of conflicting.
 
-Proposed solution after the PDF is approved:
+3. **`src/index.css` (line ~439)** — keep the `html.ios-standalone body { overscroll-behavior-y: none }` rule. This only applies inside an installed iOS PWA to stop rubber-banding, and it is scoped, so it does not affect normal Android/browser scrolling.
 
-- Remove global scroll suppression from `body`/`html` and keep native document scrolling as the default.
-- Limit overscroll containment only to true internal scroll containers/modals/sheets, not the app shell.
-- Change Auth root layout from centered full-screen flex to a natural document-flow layout like `min-h-dvh overflow-y-auto py-safe px-4`, with centered content only when it fits.
-- Add a real `/index` redirect to `/welcome` or stop using `/index` as a test route.
-- Then verify on `/welcome`, `/auth`, `/`, and `/index` with mobile viewport diagnostics and scroll-height checks.
+## Verification
+
+- Load `/welcome` and `/auth` at 390x844 mobile viewport and confirm the page scrolls top-to-bottom with touch.
+- Open a modal/bottom sheet and confirm inner scrolling still contains (no background scroll bleed).
+- Confirm no new CSS parse errors in the build output.
+
+## Technical notes
+
+This is a frontend/CSS-only change. No business logic, routing, or PullToRefresh hook changes are part of this plan — those entry routes already bypass the PullToRefresh wrapper.
