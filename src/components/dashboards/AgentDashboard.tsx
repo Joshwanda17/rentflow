@@ -29,6 +29,9 @@ import {
   Building2,
   Briefcase,
   UserCog,
+  Send,
+  CheckCircle2,
+  XCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AppRole } from '@/hooks/useAuth';
