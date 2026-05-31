@@ -99,6 +99,15 @@ const STAGE_NEXT: Record<string, string> = {
   rejected: 'Next: Edit & resubmit',
 };
 
+const EVENT_LABEL: Record<string, string> = {
+  rent_request_created: 'Submitted for review',
+  'rent_request.returned_for_correction': 'Returned for correction',
+  'rent_request.resubmitted_by_agent': 'Resubmitted by agent',
+  rent_request_force_approved: 'Force approved',
+  rent_request_funded: 'Funded',
+  rent_request_disbursed: 'Disbursed',
+};
+
 const STAGE_ICON: Record<string, typeof Eye> = {
   pending: Eye,
   agent_ops_approved: FileCheck,
