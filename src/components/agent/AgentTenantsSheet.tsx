@@ -1634,60 +1634,10 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
                 </p>
               )}
             </div>
-            {/* Lifecycle quick filters — narrow the list by rent-request
-                stage. Independent of the Owing / Paid-up / All tabs below. */}
-            <div className="mt-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-              {lifecycleTabs.map((tab) => {
-                const active = lifecycleFilter === tab.key;
-                return (
-                  <button
-                    key={tab.key}
-                    onClick={() => setLifecycleFilter(tab.key)}
-                    className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
-                      active
-                        ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                        : 'bg-muted/40 text-muted-foreground border-border hover:bg-muted'
-                    }`}
-                    style={{ touchAction: 'manipulation', minHeight: '32px' }}
-                    aria-pressed={active}
-                  >
-                    <span>{tab.label}</span>
-                    {typeof tab.count === 'number' && (
-                      <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-md ${
-                        active ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-background text-foreground/70'
-                      }`}>{tab.count}</span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-            {/* Quick-sort chips — change ordering without opening "More
-                filters". The active chip mirrors the (sortKey, sortDir)
-                pair so the dropdown below stays in sync. */}
-            <div className="mt-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-              <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground pr-1">
-                Sort
-              </span>
-              {quickSorts.map((s) => {
-                const active = sortKey === s.key && sortDir === s.dir;
-                return (
-                  <button
-                    key={`${s.key}-${s.dir}`}
-                    onClick={() => { setSortKey(s.key); setSortDir(s.dir); }}
-                    className={`shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
-                      active
-                        ? 'bg-foreground text-background border-foreground shadow-sm'
-                        : 'bg-muted/40 text-muted-foreground border-border hover:bg-muted'
-                    }`}
-                    style={{ touchAction: 'manipulation', minHeight: '32px' }}
-                    aria-pressed={active}
-                  >
-                    {active && (s.dir === 'desc' ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />)}
-                    <span>{s.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+            {/* Lifecycle quick filters and sort chips moved into "More
+                filters" below — the sticky bar now carries just the single
+                search so an ordinary agent isn't faced with two stacked
+                filter rows. */}
           </div>
 
           {/* ───── Today's Collection Status ───── */}
