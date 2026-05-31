@@ -92,6 +92,7 @@ export const LandlordAutocompleteInput = forwardRef<HTMLInputElement, LandlordAu
   return (
     <div className="relative">
       <Input
+        ref={ref}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onFocus={() => setFocused(true)}
