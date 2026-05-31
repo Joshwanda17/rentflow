@@ -455,6 +455,26 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
     });
   }, []);
 
+  const handleResetDefaults = useCallback(() => {
+    setSearch('');
+    setActiveFilter('owing');
+    setLifecycleFilter('any');
+    setRiskFilter('all');
+    setPropertyFilter('all');
+    setSortKey('balance');
+    setSortDir('desc');
+    setRecentCollectionFilter('all');
+    setGroupByProperty(false);
+    setSimpleMode(true);
+    setSimpleLang('en');
+    setExpandedTenantId(null);
+    exitBulkSelect();
+    try {
+      window.localStorage.removeItem(PREFS_KEY);
+    } catch { /* ignore */ }
+    sonnerToast.success('Reset to defaults');
+  }, []);
+
   // Push a property to the front of the MRU list and persist (deduped, capped).
   const recordRecentProperty = useCallback((address: string) => {
     if (!address || address === 'all') return;
