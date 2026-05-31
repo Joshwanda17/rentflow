@@ -247,6 +247,20 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [businessAdvanceOpen, setBusinessAdvanceOpen] = useState(false);
   const { event: commissionEvent, dismiss: dismissCommission } = useBusinessAdvanceCommissionListener();
   const [tenantsSheetOpen, setTenantsSheetOpen] = useState(false);
+  // When opening the submissions sheet via the global "open-submissions" event
+  // (fired from registration success screens), remember which view/tab to land on.
+  const [submissionsView, setSubmissionsView] = useState<'tenants' | 'pipeline' | undefined>(undefined);
+  const [submissionsTab, setSubmissionsTab] = useState<'submitted' | 'approved' | 'rejected' | 'landlords' | undefined>(undefined);
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { tab?: 'submitted' | 'approved' | 'rejected' | 'landlords' } | undefined;
+      setSubmissionsView('pipeline');
+      setSubmissionsTab(detail?.tab ?? 'submitted');
+      setTenantsSheetOpen(true);
+    };
+    window.addEventListener('open-submissions', handler);
+    return () => window.removeEventListener('open-submissions', handler);
+  }, []);
   const [fieldCollectOpen, setFieldCollectOpen] = useState(false);
   const [reconcileOpen, setReconcileOpen] = useState(false);
   const [duplicateCount, setDuplicateCount] = useState(0);
