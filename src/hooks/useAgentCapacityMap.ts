@@ -38,6 +38,19 @@ export const NEW_AGENT_TENANT_THRESHOLD = 10;
 export const NEW_AGENT_RENT_CAP_UGX = 2_000_000;
 
 /**
+ * Weekly "Good Standing" unlock:
+ *   If, looking at the last 7 days of saved daily eligibility history, an
+ *   agent was rated "Good" (green) or better on at least
+ *   GOOD_DAYS_UNLOCK_THRESHOLD distinct days, they earn UNLIMITED posting for
+ *   the current week: they may post any new rent request, for any amount,
+ *   with no per-tenant cap and no daily block. This rewards agents who proved
+ *   strong collection behaviour last week. Applies to EVERY agent.
+ */
+export const GOOD_DAYS_UNLOCK_THRESHOLD = 2;
+/** Sentinel per-tenant max used to represent "no cap" (unlimited posting). */
+export const UNLIMITED_PER_TENANT_MAX = Number.MAX_SAFE_INTEGER;
+
+/**
  * Daily rating tiers based on the BEST of yesterday's and today's
  * collection ratios (paid / expected_daily). 20% is the unblock line
  * and is explicitly the start of "Good". Using the best of the two
