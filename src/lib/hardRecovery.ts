@@ -109,42 +109,116 @@ function recordAttempt(): void {
   }
 }
 
-/** Wipe SWs + every cache. Resolves even if individual steps fail. */
-export async function purgeCachesAndServiceWorkers(): Promise<void> {
-  let swCleared = false;
-  let cacheCleared = false;
+/**
+ * Wipe every service worker + cache, then re-register the static kill-switch
+ * worker so subsequent loads keep cleaning up. Resolves even if individual
+ * steps fail, returning a structured {@link PurgeResult} so callers can surface
+ * any failures. Hardened for cross-browser quirks:
+ *   • iOS Safari / standalone WebView sometimes leaves a cache "deleted" but
+ *     still listed — we retry deletion across multiple passes.
+ *   • Some registrations reject `unregister()` transiently — failures are
+ *     captured per registration, not swallowed wholesale.
+ *   • Chrome may keep a controlling worker; re-registering the kill switch
+ *     guarantees a worker that claims clients and clears caches next load.
+ */
+export async function purgeCachesAndServiceWorkers(): Promise<PurgeResult> {
+  const errors: string[] = [];
+  let swUnregistered = 0;
+  let cachesDeleted = 0;
+  let swReregistered = false;
+  let survivingCaches: string[] = [];
   let serviceWorkerCount = 0;
-  let cacheNames: string[] = [];
+  let initialCacheNames: string[] = [];
+
+  // 1) Unregister all service workers (capture per-registration failures).
   try {
-    if ("serviceWorker" in navigator) {
+    if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
       const regs = await navigator.serviceWorker.getRegistrations();
       serviceWorkerCount = regs.length;
-      await Promise.all(regs.map((r) => r.unregister().catch(() => {})));
-      swCleared = regs.length > 0;
+      await Promise.all(
+        regs.map(async (r) => {
+          try {
+            const ok = await r.unregister();
+            if (ok) swUnregistered += 1;
+            else errors.push("Service worker did not unregister");
+          } catch (err) {
+            errors.push(describeError("Service worker unregister failed", err));
+          }
+        })
+      );
     }
-  } catch {
-    // ignore
+  } catch (err) {
+    errors.push(describeError("Could not enumerate service workers", err));
   }
+
+  // 2) Delete every Cache Storage bucket, retrying buckets that survive.
   try {
-    if ("caches" in window) {
-      const keys = await caches.keys();
-      cacheNames = keys;
-      await Promise.all(keys.map((k) => caches.delete(k).catch(() => {})));
-      cacheCleared = keys.length > 0;
+    if (typeof caches !== "undefined") {
+      initialCacheNames = await caches.keys();
+      let remaining = [...initialCacheNames];
+      for (let pass = 0; pass < CACHE_DELETE_PASSES && remaining.length; pass++) {
+        await Promise.all(
+          remaining.map(async (k) => {
+            try {
+              await caches.delete(k);
+            } catch (err) {
+              errors.push(describeError(`Cache "${k}" delete failed`, err));
+            }
+          })
+        );
+        // Re-read so we only retry buckets that genuinely survived.
+        try {
+          remaining = await caches.keys();
+        } catch (err) {
+          errors.push(describeError("Could not re-list caches", err));
+          break;
+        }
+      }
+      survivingCaches = remaining;
+      cachesDeleted = Math.max(0, initialCacheNames.length - survivingCaches.length);
+      if (survivingCaches.length) {
+        errors.push(`Some caches could not be cleared: ${survivingCaches.join(", ")}`);
+      }
     }
-  } catch {
-    // ignore
+  } catch (err) {
+    errors.push(describeError("Could not enumerate caches", err));
   }
+
+  // 3) Re-register the static kill-switch worker so the very next load runs the
+  //    network-only cleanup worker (claims clients, deletes caches, then self-
+  //    unregisters). Best-effort: failure here must not block the reload.
+  try {
+    if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+      await navigator.serviceWorker.register(KILL_SWITCH_SW, { scope: "/" });
+      swReregistered = true;
+    }
+  } catch (err) {
+    errors.push(describeError("Kill-switch re-register failed", err));
+  }
+
   logUpdateFailure("caches_purged", {
-    sw_cleared: swCleared,
-    cache_cleared: cacheCleared,
+    sw_cleared: swUnregistered > 0,
+    cache_cleared: cachesDeleted > 0,
     reload_attempts: getRecoveryAttempts(),
     details: {
       serviceWorkerCount,
-      cacheCount: cacheNames.length,
-      cacheNames,
+      swUnregistered,
+      swReregistered,
+      cacheCount: initialCacheNames.length,
+      cachesDeleted,
+      cacheNames: initialCacheNames,
+      survivingCaches,
+      errors,
     },
   });
+
+  return {
+    swUnregistered,
+    cachesDeleted,
+    swReregistered,
+    survivingCaches,
+    errors,
+  };
 }
 
 export function reloadWithCacheBust(): void {
