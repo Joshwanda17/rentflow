@@ -388,6 +388,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [landlordPickerKey, setLandlordPickerKey] = useState(0);
   const [showLinkedBanner, setShowLinkedBanner] = useState(false);
   const linkedBannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [confirmClearLandlord, setConfirmClearLandlord] = useState(false);
   const LL_MODE_KEY = `welile:rentReq:landlordMode:${user?.id || 'anon'}`;
   const [landlordMode, setLandlordModeState] = useState<'search' | 'register'>(() => {
     try { return (sessionStorage.getItem(LL_MODE_KEY) as 'search' | 'register') || 'search'; }
