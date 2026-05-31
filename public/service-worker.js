@@ -1,39 +1,65 @@
-// Welile service-worker kill switch — 2026-05-30
+// Welile service-worker kill switch — 2026-05-31 iPhone rescue
 //
-// Some older builds may have registered /service-worker.js instead of /sw.js.
-// Keep this network-only cleanup worker in place for at least one release cycle
-// so every installed iOS/Android PWA path can remove stale app-shell caches.
+// Same cleanup worker as /sw.js for older installs that registered this path.
+
+const RESCUE_PARAM = "welile-sw-rescue";
+
+async function deleteAllCaches() {
+  try {
+    const names = await caches.keys();
+    await Promise.all(names.map((name) => caches.delete(name)));
+  } catch {
+    // Never let cleanup failure keep the old worker alive.
+  }
+}
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(self.skipWaiting());
+  event.waitUntil((async () => {
+    await deleteAllCaches();
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    (async () => {
-      await self.clients.claim();
+  event.waitUntil((async () => {
+    await self.clients.claim();
+    await deleteAllCaches();
 
-      const names = await caches.keys();
-      await Promise.all(names.map((name) => caches.delete(name)));
+    const clients = await self.clients.matchAll({
+      type: "window",
+      includeUncontrolled: true,
+    });
 
-      const clients = await self.clients.matchAll({
-        type: "window",
-        includeUncontrolled: true,
-      });
+    await Promise.all(clients.map((client) => {
+      try {
+        const url = new URL(client.url);
+        url.searchParams.set(RESCUE_PARAM, Date.now().toString(36));
+        return client.navigate(url.toString());
+      } catch {
+        return Promise.resolve();
+      }
+    }));
 
-      await Promise.all(
-        clients.map((client) => {
-          const url = new URL(client.url);
-          url.searchParams.set("sw-cleanup", Date.now().toString(36));
-          return client.navigate(url.toString());
-        })
-      );
-
-      await self.registration.unregister();
-    })()
-  );
+    await new Promise((resolve) => setTimeout(resolve, 15000));
+    await self.registration.unregister();
+  })());
 });
 
-self.addEventListener("fetch", () => {
-  // Network-only by design. The browser handles every request normally.
+self.addEventListener("fetch", (event) => {
+  const request = event.request;
+  if (request.mode === "navigate") {
+    event.respondWith((async () => {
+      await deleteAllCaches();
+      const url = new URL(request.url);
+      url.searchParams.set(RESCUE_PARAM, Date.now().toString(36));
+      return fetch(url.toString(), {
+        cache: "reload",
+        credentials: "include",
+        headers: { "Cache-Control": "no-cache" },
+      });
+    })());
+    return;
+  }
+
+  event.respondWith(fetch(request, { cache: "reload" }));
 });
