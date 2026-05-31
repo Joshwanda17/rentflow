@@ -2259,7 +2259,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         setShowLinkedBanner(false);
                         setLandlordName('');
                         setLandlordPhone('');
-                        setLandlordMode('search');
+                        // Keep the agent's preferred search/add mode instead of forcing search.
                       }}
                     >
                       Change landlord
