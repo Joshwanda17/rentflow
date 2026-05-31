@@ -310,6 +310,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [savingDraft, setSavingDraft] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  // Auto-capture: the moment tenant name + rent amount exist, the request is
+  // persisted as a server draft so the agent gets instant confirmation it was
+  // captured and can keep filling the rest without fear of losing it.
+  const [autoDraftId, setAutoDraftId] = useState<string | null>(null);
+  const [autoDraftStatus, setAutoDraftStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   // Live network status — used to keep the draft safe and warn the agent
   // before they try to submit on a dropped connection.
   const [isOnline, setIsOnline] = useState<boolean>(typeof navigator !== 'undefined' ? navigator.onLine : true);
