@@ -34,13 +34,6 @@ if (!isPreviewHost) {
   void checkServerVersion();
 }
 
-// Proactively catch iPhones returning from background / bfcache onto a stale
-// app shell, and refresh them BEFORE they hit a missing-chunk retry splash.
-// iOS-only and no-op in preview/iframe.
-if (!isPreviewHost && !isInIframe) {
-  installIOSFreshnessWatch();
-}
-
 // Show branded loader immediately — inline SVG spinner, no network requests at all
 root.innerHTML = `<div style="min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f8fafc;gap:12px">
   <div style="width:20px;height:20px;border:2px solid #7c3aed;border-top-color:transparent;border-radius:50%;animation:s .6s linear infinite"></div>
