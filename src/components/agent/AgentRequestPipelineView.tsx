@@ -718,6 +718,24 @@ export function AgentRequestPipelineView({
               </SelectContent>
             </Select>
           )}
+          {tab === 'landlords' && (
+            <Select
+              value={landlordStatusFilter}
+              onValueChange={(v) => {
+                setLandlordStatusFilter(v);
+              }}
+            >
+              <SelectTrigger className="h-11 text-sm flex-1">
+                <Filter className="h-3.5 w-3.5 mr-1.5 text-muted-foreground shrink-0" />
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="pending">Pending verification</SelectItem>
+                <SelectItem value="verified">Verified</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
           <Select
             value={dateFilter}
             onValueChange={(v) => {
