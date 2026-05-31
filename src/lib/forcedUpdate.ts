@@ -231,6 +231,7 @@ function renderBlockingOverlay(): void {
         void purgeThenReload();
       };
     }
+    renderDebugPanel();
   } catch {
     /* overlay must never throw */
   }
@@ -243,7 +244,19 @@ function renderBlockingOverlay(): void {
 export function triggerForcedUpdate(reason: string): void {
   if (forcing) return;
   const cached = getVersionGateState();
+  pushUpdateDebug("forced: triggerForcedUpdate", {
+    reason,
+    forced: cached?.force ?? null,
+    current: CURRENT_APP_VERSION,
+    server: cached?.server ?? null,
+    stale: cached?.stale ?? null,
+    reload_attempts: getRecoveryAttempts(),
+  });
   if (cached?.current && cached.current !== CURRENT_APP_VERSION) {
+    pushUpdateDebug("forced: cached version mismatch → immediate reload", {
+      cachedCurrent: cached.current,
+      current: CURRENT_APP_VERSION,
+    });
     reloadWithCacheBust();
     return;
   }
