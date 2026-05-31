@@ -621,6 +621,35 @@ export default function LandlordRegistrationForm({
             <Building2 className="h-5 w-5" /> Register Another Landlord
           </Button>
 
+          {registeredByRole === 'agent' && registeredLandlordId && (() => {
+            const recordLink = `${window.location.origin}/dashboard/agent?submission=${registeredLandlordId}&type=landlord`;
+            return (
+              <div className="rounded-lg border bg-muted/40 p-2.5 text-left space-y-2">
+                <p className="text-[11px] font-semibold text-muted-foreground">Direct link to this landlord</p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 truncate text-[11px] text-foreground/80">{recordLink}</code>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-8 gap-1.5 shrink-0"
+                    onClick={async () => {
+                      hapticTap();
+                      try {
+                        await navigator.clipboard.writeText(recordLink);
+                        toastFn({ title: 'Link copied', description: 'Opens straight to this landlord record.' });
+                      } catch {
+                        toastFn({ title: 'Could not copy link', variant: 'destructive' });
+                      }
+                    }}
+                  >
+                    <Copy className="h-3.5 w-3.5" /> Copy
+                  </Button>
+                </div>
+              </div>
+            );
+          })()}
+
           {registeredByRole === 'agent' && (
             <Button
               variant="secondary"
