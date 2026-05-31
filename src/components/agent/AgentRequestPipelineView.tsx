@@ -704,13 +704,19 @@ export function AgentRequestPipelineView({ initialTab }: { initialTab?: Pipeline
 
         <div className="flex items-center justify-between">
           <p className="text-[11px] text-muted-foreground">
-            {activeFiltersCount > 0
-              ? `Showing ${tab === 'submitted' ? submittedRows.length : tab === 'approved' ? approvedRows.length : filteredRejected.length} result${(
-                  (tab === 'submitted' ? submittedRows.length : tab === 'approved' ? approvedRows.length : filteredRejected.length) !== 1 ? 's' : ''
-                )}`
-              : `${tab === 'submitted' ? submittedRows.length : tab === 'approved' ? approvedRows.length : filteredRejected.length} record${(
-                  (tab === 'submitted' ? submittedRows.length : tab === 'approved' ? approvedRows.length : filteredRejected.length) !== 1 ? 's' : ''
-                )}`}
+            {(() => {
+              const n =
+                tab === 'submitted'
+                  ? submittedRows.length
+                  : tab === 'approved'
+                    ? approvedRows.length
+                    : tab === 'landlords'
+                      ? landlordRows.length
+                      : filteredRejected.length;
+              return activeFiltersCount > 0
+                ? `Showing ${n} result${n !== 1 ? 's' : ''}`
+                : `${n} record${n !== 1 ? 's' : ''}`;
+            })()}
           </p>
           <div className="flex items-center gap-1">
             {activeFiltersCount > 0 && (
