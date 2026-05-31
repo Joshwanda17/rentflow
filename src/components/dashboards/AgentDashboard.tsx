@@ -92,6 +92,7 @@ import { DeviceSessionIndicator } from '@/components/agent/DeviceSessionIndicato
 import { CreditVerificationButton } from '@/components/agent/CreditVerificationButton';
 import { AgentMyRentRequestsSheet } from '@/components/agent/AgentMyRentRequestsSheet';
 import { AgentTenantsSheet } from '@/components/agent/AgentTenantsSheet';
+import { AgentRequestPipelineView } from '@/components/agent/AgentRequestPipelineView';
 import { AgentManagedUsersSheet } from '@/components/agent/AgentManagedUsersSheet';
 import { FieldCollectDialog } from '@/components/agent/FieldCollectDialog';
 
@@ -799,6 +800,11 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             </div>
             <AgentDailyCardEmailPrompt />
             <AgentCapacityShareInline />
+            <div className="space-y-3">
+              <h3 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">Submissions</h3>
+              <AgentRequestPipelineView initialTab="submitted" />
+            </div>
+            <h3 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">My Tenants</h3>
             <AgentTenantInlineList
               onOpenTenantSheet={() => setTenantsSheetOpen(true)}
               onAddTenant={() => setRentRequestOpen(true)}

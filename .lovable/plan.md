@@ -1,32 +1,37 @@
 ## Goal
+On the agent **Tenants** tab ("My Tenants"), show the **Submissions** pipeline stacked directly above the existing tenant list — no toggle, both visible by scrolling.
 
-Let the page (body) scroll natively on Android/mobile without the global overscroll suppression fighting it — while keeping every inner scroll container (modals, sheets, lists) behaving exactly as before.
+## Current behavior
+- `src/components/dashboards/AgentDashboard.tsx` → `activeTab === 'tenants'` renders: header ("My Tenants" + Add Tenant), `AgentDailyCardEmailPrompt`, `AgentCapacityShareInline`, then `AgentTenantInlineList`.
+- The Submissions pipeline (`AgentRequestPipelineView`: submitted / approved / rejected / landlords) currently only opens inside the full-screen `AgentTenantsSheet`.
 
-## Why this is safe (addressing the concern)
+## Changes (frontend only)
 
-`overscroll-behavior` does **not** make an element scrollable or unscrollable. Scrollability comes from `overflow-y` + content height. `overscroll-behavior` only controls scroll-chaining and the bounce/pull-to-refresh effect.
+In `src/components/dashboards/AgentDashboard.tsx`, inside the `activeTab === 'tenants'` block:
 
-Inner sections keep their own containment rules and are untouched:
-- `.ios-fixed-scroll` → `overscroll-behavior: contain` (index.css:386)
-- `.ios-momentum-scroll` → `overscroll-behavior-y: contain` (index.css:419)
-- modal/sheet rule → `overscroll-behavior: contain` (index.css:876)
+1. Add a **"Submissions"** section directly under the header (above `AgentTenantInlineList`):
+   - A small section heading ("Submissions") so the two areas read as distinct.
+   - Render `<AgentRequestPipelineView initialTab="submitted" />` inline.
+2. Keep the existing **"My Tenants"** list below it (add a matching "My Tenants" sub-heading above `AgentTenantInlineList` so the stacked layout is clearly labelled).
+3. Import `AgentRequestPipelineView` from `@/components/agent/AgentRequestPipelineView` at the top of the file.
 
-None of these depend on the body rule, so relaxing the body rule cannot break them. There is no `auto-scroll: none` property anywhere — that does not exist in CSS.
+The existing `AgentTenantsSheet` (and its pipeline view, deep-link events, highlight handling) stays untouched as a fallback / detail surface.
 
-## Changes
-
-1. **`src/critical.css` (line ~117)** — on `body`, change `overscroll-behavior: none` to `overscroll-behavior-y: contain`. This stops only the page-bounce/refresh chaining while leaving normal vertical scrolling fully native. Keep `overflow-y: auto` and `min-height: 100dvh`.
-
-2. **`index.html` (line 88)** — leave `overscroll-behavior-y: contain` as-is (it already matches the relaxed rule), so the two app-shell declarations agree instead of conflicting.
-
-3. **`src/index.css` (line ~439)** — keep the `html.ios-standalone body { overscroll-behavior-y: none }` rule. This only applies inside an installed iOS PWA to stop rubber-banding, and it is scoped, so it does not affect normal Android/browser scrolling.
-
-## Verification
-
-- Load `/welcome` and `/auth` at 390x844 mobile viewport and confirm the page scrolls top-to-bottom with touch.
-- Open a modal/bottom sheet and confirm inner scrolling still contains (no background scroll bleed).
-- Confirm no new CSS parse errors in the build output.
+```text
+Tenants tab
+├─ Header: "My Tenants"  [Add Tenant]
+├─ AgentDailyCardEmailPrompt
+├─ AgentCapacityShareInline
+├─ "Submissions"  ← new heading
+│   └─ AgentRequestPipelineView (submitted/approved/rejected/landlords)
+└─ "My Tenants"   ← new sub-heading
+    └─ AgentTenantInlineList
+```
 
 ## Technical notes
+- `AgentRequestPipelineView` is self-contained (fetches its own data via React Query, has its own search/sort/tabs and detail drawer), so it embeds cleanly with no new props or backend work.
+- Pure presentation/layout change in one file plus one import — no business logic, RPC, or schema changes.
 
-This is a frontend/CSS-only change. No business logic, routing, or PullToRefresh hook changes are part of this plan — those entry routes already bypass the PullToRefresh wrapper.
+## Verification
+- Build/typecheck passes.
+- On the Tenants tab, the Submissions pipeline appears first, the tenant list below; both scroll within the tab.
