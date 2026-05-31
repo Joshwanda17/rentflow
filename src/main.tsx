@@ -16,6 +16,7 @@ import {
   installForcedUpdateWatch,
   triggerForcedUpdate,
   isForcingUpdate,
+  clearForcedAutoReloads,
 } from './lib/forcedUpdate';
 
 const root = document.getElementById('root')!;
@@ -173,7 +174,12 @@ const loadApp = async () => {
     // stable for a while; otherwise iPhones with a stale shell can reload,
     // mount App, clear the counter, fail the next route chunk, and loop forever
     // on "Updating…" without ever reaching the manual recovery UI.
-    setTimeout(clearRecoveryAttempts, 45_000);
+    setTimeout(() => {
+      clearRecoveryAttempts();
+      // Same stability gate clears the forced-update auto-reload budget so a
+      // genuinely-recovered device starts fresh next time it goes stale.
+      clearForcedAutoReloads();
+    }, 45_000);
 
     // Preload Dashboard chunk only when the user is actually heading there.
     // Preloading on every route (e.g. /executive-hub) caused parallel chunk
