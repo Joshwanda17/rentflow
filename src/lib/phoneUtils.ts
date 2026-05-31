@@ -300,3 +300,16 @@ export function isValidUgandanPhoneNumber(phone: string): {
 } {
   return isValidPhoneNumberGlobal(phone);
 }
+
+/**
+ * Format raw digits into the Uganda 10-digit display mask: 07XX XXX XXX.
+ * Strips non-digits, caps at 10 digits, then inserts spaces after 4th and 7th digits.
+ * Returns empty string for empty input.
+ */
+export function formatUgandaPhone(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 10);
+  if (digits.length === 0) return '';
+  if (digits.length <= 4) return digits;
+  if (digits.length <= 7) return `${digits.slice(0, 4)} ${digits.slice(4)}`;
+  return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`;
+}
