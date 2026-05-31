@@ -65,7 +65,7 @@ export type PipelineTab = 'submitted' | 'approved' | 'rejected' | 'landlords';
 
 const PAGE_SIZE = 10;
 
-const SUBMITTED_STATUSES = [
+export const SUBMITTED_STATUSES = [
   'pending',
   'tenant_ops_approved',
   'agent_verified',
@@ -74,7 +74,7 @@ const SUBMITTED_STATUSES = [
   'coo_approved',
 ];
 
-const APPROVED_STATUSES = ['funded', 'disbursed'];
+export const APPROVED_STATUSES = ['funded', 'disbursed'];
 
 const STAGE_LABEL: Record<string, string> = {
   pending: 'Agent Ops review',
