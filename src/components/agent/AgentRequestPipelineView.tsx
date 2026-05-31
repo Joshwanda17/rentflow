@@ -962,7 +962,13 @@ export function AgentRequestPipelineView({
             />
           ) : (
             landlordRows.map((l) => (
-              <Card key={l.id} className="border-2 border-indigo-500/30 bg-indigo-500/5 overflow-hidden">
+              <Card
+                key={l.id}
+                data-row-id={l.id}
+                className={`border-2 border-indigo-500/30 bg-indigo-500/5 overflow-hidden ${
+                  activeHighlight === l.id ? 'ring-2 ring-primary ring-offset-2 ring-offset-background animate-pulse' : ''
+                }`}
+              >
                 <CardContent className="p-3 space-y-1.5">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
