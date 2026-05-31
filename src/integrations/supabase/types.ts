@@ -17969,6 +17969,10 @@ export type Database = {
         Args: { p_agent_id: string; p_tenant_id: string }
         Returns: Json
       }
+      get_agent_request_history: {
+        Args: { p_request_id: string }
+        Returns: Json
+      }
       get_agent_reversible_allocations: {
         Args: { p_agent_id: string; p_rent_request_id: string }
         Returns: {
