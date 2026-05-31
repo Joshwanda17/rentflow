@@ -2199,6 +2199,36 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </div>
                 </div>
 
+                {/* ── Big toggle: Search vs Add ── */}
+                {!selectedLandlord && (
+                  <div className="rounded-2xl border-2 border-muted bg-muted/30 p-1.5 flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setLandlordMode('search')}
+                      className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold transition-all active:scale-[0.98] ${
+                        landlordMode === 'search'
+                          ? 'bg-background shadow-sm text-foreground border border-border'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <Search className="h-4 w-4" />
+                      Search existing
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLandlordMode('register')}
+                      className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold transition-all active:scale-[0.98] ${
+                        landlordMode === 'register'
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <UserPlus className="h-4 w-4" />
+                      Add new
+                    </button>
+                  </div>
+                )}
+
                 {selectedLandlord ? (
                   /* ── Landlord linked: one calm confirmation card ── */
                   <div className="rounded-2xl border-2 border-success/40 bg-success/5 p-3">
@@ -2221,13 +2251,14 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         setShowLinkedBanner(false);
                         setLandlordName('');
                         setLandlordPhone('');
+                        setLandlordMode('search');
                       }}
                     >
                       Change landlord
                     </Button>
                   </div>
-                ) : (
-                  /* ── Search or type a new landlord ── */
+                ) : landlordMode === 'search' ? (
+                  /* ── Search existing landlord ── */
                   <div className="space-y-3">
                     <div className="space-y-1.5">
                       <Label className="text-sm font-semibold">Landlord name</Label>
@@ -2257,28 +2288,32 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       {landlordPhone.replace(/\s/g, '').length >= 10 &&
                         tenantPhone.replace(/\s/g, '').length >= 10 &&
                         landlordPhone.replace(/\s/g, '') === tenantPhone.replace(/\s/g, '') && (
-                          <p className="text-xs text-destructive">Must be different from the tenant's phone</p>
-                        )}
+                        <p className="text-xs text-destructive">Must be different from the tenant's phone</p>
+                      )}
                     </div>
 
                     {/* Gentle nudge so the agent knows tapping a match fills everything */}
                     <p className="text-xs text-muted-foreground leading-snug px-0.5">
                       💡 If the landlord shows up while typing, tap them — their address fills in automatically.
                     </p>
-
-                    {/* Big "add a new landlord" action */}
-                    <button
-                      type="button"
-                      onClick={() => setShowRegisterLandlord(true)}
-                      className="w-full flex items-center gap-3 rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 p-3 text-left active:scale-[0.99] transition-transform"
-                    >
-                      <div className="h-10 w-10 rounded-full bg-primary/15 flex items-center justify-center text-xl shrink-0">＋</div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-bold text-primary leading-tight">Add a new landlord</p>
-                        <p className="text-[11px] text-muted-foreground leading-snug">Not in the system? Register them and earn UGX 5,000</p>
-                      </div>
-                    </button>
                   </div>
+                ) : (
+                  /* ── Add new landlord ── */
+                  <button
+                    type="button"
+                    onClick={() => setShowRegisterLandlord(true)}
+                    className="w-full flex items-center gap-3 rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 p-4 text-left active:scale-[0.99] transition-transform"
+                  >
+                    <div className="h-12 w-12 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+                      <UserPlus className="h-6 w-6 text-primary" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-base font-bold text-primary leading-tight">Register a new landlord</p>
+                      <p className="text-xs text-muted-foreground leading-snug">
+                        Not in the system yet? Tap here to register them and earn UGX 5,000 when a tenant moves in.
+                      </p>
+                    </div>
+                  </button>
                 )}
 
                 <div className="space-y-1.5">
