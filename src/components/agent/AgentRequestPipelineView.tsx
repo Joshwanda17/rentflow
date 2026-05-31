@@ -86,6 +86,18 @@ const STAGE_LABEL: Record<string, string> = {
   disbursed: 'Disbursed — ready to collect',
 };
 
+const STAGE_NEXT: Record<string, string> = {
+  pending: 'Next: Tenant Ops review',
+  agent_verified: 'Next: Landlord Ops review',
+  agent_ops_approved: 'Next: Landlord Ops review',
+  tenant_ops_approved: 'Next: COO review',
+  landlord_ops_approved: 'Next: CFO funding',
+  coo_approved: 'Next: Funds sent to landlord',
+  funded: 'Next: Tenant starts repayments',
+  disbursed: 'Next: Collect rent from tenant',
+  rejected: 'Next: Edit & resubmit',
+};
+
 const STAGE_ICON: Record<string, typeof Eye> = {
   pending: Eye,
   agent_ops_approved: FileCheck,
@@ -228,12 +240,20 @@ function Pager({
 function StatusStrip({ status, label }: { status: string; label: string }) {
   const strip = STAGE_STRIP[status] ?? { bg: 'bg-muted', text: 'text-muted-foreground', iconBg: 'bg-foreground/10' };
   const Icon = STAGE_ICON[status] ?? Eye;
+  const next = STAGE_NEXT[status];
   return (
-    <div className={`flex items-center gap-2 px-3 py-1.5 ${strip.bg} ${strip.text}`}>
-      <div className={`flex items-center justify-center h-6 w-6 rounded-full ${strip.iconBg}`}>
-        <Icon className="h-3.5 w-3.5" />
+    <div className={`${strip.bg} ${strip.text}`}>
+      <div className="flex items-center gap-2 px-3 py-1.5">
+        <div className={`flex items-center justify-center h-6 w-6 rounded-full ${strip.iconBg}`}>
+          <Icon className="h-3.5 w-3.5" />
+        </div>
+        <span className="text-xs font-bold tracking-wide">{label}</span>
       </div>
-      <span className="text-xs font-bold tracking-wide">{label}</span>
+      {next && (
+        <div className="px-3 pb-1.5 pt-0">
+          <span className="text-[10px] font-medium opacity-90">{next}</span>
+        </div>
+      )}
     </div>
   );
 }
