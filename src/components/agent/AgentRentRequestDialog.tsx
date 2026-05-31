@@ -18,6 +18,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -389,6 +399,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [showLinkedBanner, setShowLinkedBanner] = useState(false);
   const linkedBannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [confirmClearLandlord, setConfirmClearLandlord] = useState(false);
+  const [confirmCloseDialog, setConfirmCloseDialog] = useState(false);
   const LL_MODE_KEY = `welile:rentReq:landlordMode:${user?.id || 'anon'}`;
   const [landlordMode, setLandlordModeState] = useState<'search' | 'register'>(() => {
     try { return (sessionStorage.getItem(LL_MODE_KEY) as 'search' | 'register') || 'search'; }
@@ -900,9 +911,20 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
+      // Guard against accidentally losing landlord inputs the agent has typed.
+      if (landlordName.trim() || landlordPhone.trim()) {
+        setConfirmCloseDialog(true);
+        return;
+      }
       resetForm();
     }
     onOpenChange(newOpen);
+  };
+
+  const confirmCloseAndReset = () => {
+    setConfirmCloseDialog(false);
+    resetForm();
+    onOpenChange(false);
   };
 
   const amount = incomeType === 'outstanding' 
@@ -3019,6 +3041,25 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           toast.success('Landlord registered. Search to select them now.');
         }}
       />
+      <AlertDialog open={confirmCloseDialog} onOpenChange={setConfirmCloseDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard landlord details?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You've entered landlord information. Closing now will clear it. Are you sure you want to discard your current inputs?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep editing</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmCloseAndReset}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Discard &amp; close
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
