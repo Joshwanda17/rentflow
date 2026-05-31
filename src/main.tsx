@@ -10,14 +10,13 @@ import {
 } from './lib/hardRecovery';
 import { logUpdateFailure } from './lib/updateTelemetry';
 import { refreshRolloutConfig, isRolloutEnabledForDevice } from './lib/rollout';
-import { checkServerVersion, isVersionStaleSync } from './lib/versionGate';
+import { checkServerVersion, isVersionStaleSync, isForceUpdateSync } from './lib/versionGate';
 import { installIOSFreshnessWatch } from './lib/iosFreshness';
 import {
   installForcedUpdateWatch,
   triggerForcedUpdate,
   isForcingUpdate,
 } from './lib/forcedUpdate';
-import { isForceUpdateSync } from './lib/versionGate';
 
 const root = document.getElementById('root')!;
 const host = window.location.hostname;
