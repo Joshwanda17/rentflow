@@ -341,6 +341,136 @@ function renderBlockingOverlay(manual: boolean): void {
  * explicit user-gesture call-to-action. Used after the automatic reload budget
  * is spent and the device is still serving the stale shell.
  */
+type DeviceKind = "ios_inapp" | "ios_safari" | "ios_standalone" | "other";
+
+/**
+ * Best-effort detection of the exact browser context so we can show the right
+ * recovery steps. The trapped-iPhone complaints are dominated by IN-APP
+ * browsers (WhatsApp/Facebook/Gmail WKWebViews) whose document cache won't
+ * revalidate and which have NO address bar — those users must reopen the link
+ * in real Safari. Standalone (home-screen) installs and real Safari need a
+ * "clear website data" step instead.
+ */
+function detectDeviceKind(): DeviceKind {
+  try {
+    const ua = navigator.userAgent || "";
+    const isIOS =
+      (/iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream) ||
+      (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+    if (!isIOS) return "other";
+    const standalone =
+      (navigator as any).standalone === true ||
+      window.matchMedia?.("(display-mode: standalone)").matches === true;
+    if (standalone) return "ios_standalone";
+    // Real iOS Safari includes "Version/<n>" AND "Safari" in the UA. In-app
+    // WKWebViews (WhatsApp/FB/Instagram/Gmail/etc.) omit the "Version/" token
+    // or carry an explicit app token.
+    const inAppToken =
+      /(FBAN|FBAV|Instagram|Line|Twitter|MicroMessenger|GSA|WhatsApp|Snapchat|TikTok)/i.test(
+        ua,
+      );
+    const looksLikeSafari = /Safari/i.test(ua) && /Version\//i.test(ua);
+    if (inAppToken || !looksLikeSafari) return "ios_inapp";
+    return "ios_safari";
+  } catch {
+    return "other";
+  }
+}
+
+/** Ordered recovery steps tailored to the detected browser context. */
+function recoverySteps(kind: DeviceKind): { title: string; steps: string[] } {
+  switch (kind) {
+    case "ios_inapp":
+      return {
+        title: "You're in an in-app browser — open Welile in Safari",
+        steps: [
+          "Tap the ••• or share icon in the corner of this window.",
+          'Choose “Open in Safari” (or “Open in Browser”).',
+          "Welile will load the latest version in Safari.",
+          "Tip: bookmark or add Welile to your Home Screen so this doesn't happen again.",
+        ],
+      };
+    case "ios_standalone":
+      return {
+        title: "Clear Welile's saved data",
+        steps: [
+          "Open the iPhone Settings app.",
+          "Scroll down and tap Safari.",
+          "Tap “Clear History and Website Data”, then confirm.",
+          "Delete the Welile icon from your Home Screen, then re-add it from Safari.",
+        ],
+      };
+    case "ios_safari":
+      return {
+        title: "Clear Welile's website data in Safari",
+        steps: [
+          "Open the iPhone Settings app.",
+          "Scroll down and tap Safari.",
+          "Tap “Advanced” → “Website Data”.",
+          'Search “welile”, swipe left to Delete, then reopen welilereceipts.com.',
+        ],
+      };
+    default:
+      return {
+        title: "Clear your browser cache",
+        steps: [
+          "Open your browser settings.",
+          "Clear cached files / website data for welilereceipts.com.",
+          "Reopen welilereceipts.com in a fresh tab.",
+        ],
+      };
+  }
+}
+
+/**
+ * Render the step-by-step "Open in Safari / Clear website data" recovery block
+ * onto the blocking overlay. Shown only in the terminal manual state, because
+ * by then we know a programmatic reload cannot rescue this device — the user
+ * must act. Device-aware so in-app-browser users get the (very different)
+ * "open in Safari" path and Safari users get the "clear website data" path.
+ */
+function renderRecoveryInstructions(): void {
+  try {
+    const overlay = document.getElementById(OVERLAY_ID);
+    if (!overlay) return;
+    if (document.getElementById(INSTR_ID)) return;
+
+    const kind = detectDeviceKind();
+    const { title, steps } = recoverySteps(kind);
+    pushUpdateDebug("forced: recovery instructions shown", { kind });
+
+    const box = document.createElement("div");
+    box.id = INSTR_ID;
+    box.style.cssText =
+      "max-width:340px;width:100%;margin-top:4px;padding:14px 16px;border-radius:12px;text-align:left;" +
+      "background:rgba(124,58,237,0.06);border:1px solid rgba(124,58,237,0.22);color:#1f2937";
+
+    const items = steps
+      .map(
+        (s) =>
+          `<li style="margin:0 0 8px;padding-left:4px;line-height:1.45">${escapeHtml(
+            s,
+          )}</li>`,
+      )
+      .join("");
+    box.innerHTML =
+      `<strong style="display:block;margin-bottom:10px;font-size:13.5px;color:#5b21b6">${escapeHtml(
+        title,
+      )}</strong>` +
+      `<ol style="margin:0;padding-left:20px;font-size:13px">${items}</ol>`;
+
+    // Insert below the action button so the button stays the primary action.
+    const btn = document.getElementById(`${OVERLAY_ID}-btn`);
+    if (btn && btn.parentElement === overlay && btn.nextSibling) {
+      overlay.insertBefore(box, btn.nextSibling);
+    } else {
+      overlay.appendChild(box);
+    }
+  } catch {
+    /* recovery instructions must never break the overlay */
+  }
+}
+
 function applyManualOverlayState(): void {
   try {
     const spin = document.getElementById(`${OVERLAY_ID}-spin`);
