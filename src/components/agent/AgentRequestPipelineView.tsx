@@ -45,7 +45,9 @@ import {
   Search,
   Filter,
   X,
+  FileSpreadsheet,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { format, isToday, isThisWeek, isThisMonth } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useAgentRejectedRequests } from '@/hooks/useAgentRejectedRequests';
@@ -377,6 +379,42 @@ export function AgentRequestPipelineView() {
     [filteredRejected, rejectedPage],
   );
 
+  const rowsToExport = tab === 'submitted' ? submittedRows : tab === 'approved' ? approvedRows : filteredRejected;
+
+  const exportToCSV = () => {
+    if (rowsToExport.length === 0) {
+      toast.error('No records to export');
+      return;
+    }
+    const escape = (val: string | number | null | undefined) => {
+      const s = val == null ? '' : String(val);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const header = ['Tenant Name', 'Tenant Phone', 'Landlord Name', 'Property Address', 'Status', 'Rent Amount (UGX)', 'Duration (Days)', 'Submitted Date'];
+    const rows = rowsToExport.map((r: any) => [
+      escape(r.tenant_name),
+      escape(r.tenant_phone),
+      escape(r.landlord_name),
+      escape(r.landlord_address),
+      escape(STAGE_LABEL[r.status] ?? r.status),
+      escape(r.rent_amount),
+      escape(r.duration_days),
+      escape(format(new Date(r.created_at), 'yyyy-MM-dd')),
+    ]);
+    const csv = [header.join(','), ...rows.map((row) => row.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const tabLabel = tab === 'submitted' ? 'submitted' : tab === 'approved' ? 'ready-to-pay' : 'rejected';
+    link.download = `rent-requests-${tabLabel}-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${rowsToExport.length} record${rowsToExport.length === 1 ? '' : 's'} as CSV`);
+  };
+
   const tabs: { key: PipelineTab; label: string; icon: typeof Send; count: number; tone: string }[] = [
     {
       key: 'submitted',
@@ -519,31 +557,47 @@ export function AgentRequestPipelineView() {
           </Select>
         </div>
 
-        {activeFiltersCount > 0 && (
-          <div className="flex items-center justify-between">
-            <p className="text-[11px] text-muted-foreground">
-              Showing {tab === 'submitted' ? submittedRows.length : tab === 'approved' ? approvedRows.length : filteredRejected.length} result{(
-                (tab === 'submitted' ? submittedRows.length : tab === 'approved' ? approvedRows.length : filteredRejected.length) !== 1 ? 's' : ''
-              )}
-            </p>
+        <div className="flex items-center justify-between">
+          <p className="text-[11px] text-muted-foreground">
+            {activeFiltersCount > 0
+              ? `Showing ${tab === 'submitted' ? submittedRows.length : tab === 'approved' ? approvedRows.length : filteredRejected.length} result${(
+                  (tab === 'submitted' ? submittedRows.length : tab === 'approved' ? approvedRows.length : filteredRejected.length) !== 1 ? 's' : ''
+                )}`
+              : `${tab === 'submitted' ? submittedRows.length : tab === 'approved' ? approvedRows.length : filteredRejected.length} record${(
+                  (tab === 'submitted' ? submittedRows.length : tab === 'approved' ? approvedRows.length : filteredRejected.length) !== 1 ? 's' : ''
+                )}`}
+          </p>
+          <div className="flex items-center gap-1">
+            {activeFiltersCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSearchQuery('');
+                  setStatusFilter('all');
+                  setDateFilter('all');
+                  setSubmittedPage(0);
+                  setApprovedPage(0);
+                  setRejectedPage(0);
+                }}
+                className="h-7 text-[11px] gap-1 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3 w-3" />
+                Clear all
+              </Button>
+            )}
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
-              onClick={() => {
-                setSearchQuery('');
-                setStatusFilter('all');
-                setDateFilter('all');
-                setSubmittedPage(0);
-                setApprovedPage(0);
-                setRejectedPage(0);
-              }}
-              className="h-7 text-[11px] gap-1 text-muted-foreground hover:text-foreground"
+              onClick={exportToCSV}
+              disabled={rowsToExport.length === 0}
+              className="h-7 text-[11px] gap-1.5 font-semibold border-primary/30 text-primary hover:bg-primary/10"
             >
-              <X className="h-3 w-3" />
-              Clear all
+              <FileSpreadsheet className="h-3.5 w-3.5" />
+              CSV
             </Button>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Submitted */}
