@@ -802,6 +802,7 @@ export function AgentRequestPipelineView({
                   tone="amber"
                   stageLabel={STAGE_LABEL[r.status] ?? 'In review'}
                   onClick={() => setDetailRow(r)}
+                  highlighted={activeHighlight === r.id}
                 />
               ))}
               <Pager
