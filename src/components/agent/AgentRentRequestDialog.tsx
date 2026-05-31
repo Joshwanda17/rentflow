@@ -1432,8 +1432,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
       hapticSuccess();
       setSuccess(true);
-      // Submitted successfully — clear the saved draft progress.
+      // Submitted successfully — clear the saved draft progress and landlord mode preference.
       try { localStorage.removeItem(draftStorageKey); } catch { /* ignore */ }
+      try { sessionStorage.removeItem(LL_MODE_KEY); } catch { /* ignore */ }
       toast.success(incomeType === 'outstanding' ? 'Tenant registered with outstanding balance!' : 'Rent request posted successfully!');
       onSuccess?.();
     } catch (error: any) {
