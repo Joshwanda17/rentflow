@@ -6,6 +6,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Drawer,
   DrawerContent,
@@ -34,8 +42,11 @@ import {
   ChevronRight as ChevronRightIcon,
   Hash,
   Clock,
+  Search,
+  Filter,
+  X,
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, isToday, isThisWeek, isThisMonth } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useAgentRejectedRequests } from '@/hooks/useAgentRejectedRequests';
 import { AgentEditRentRequestDialog } from './AgentEditRentRequestDialog';
@@ -291,6 +302,11 @@ export function AgentRequestPipelineView() {
   const [editing, setEditing] = useState<AgentRejectedRequest | null>(null);
   const [detailRow, setDetailRow] = useState<PipelineRow | null>(null);
 
+  // Search & filter state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [dateFilter, setDateFilter] = useState<string>('all');
+
   const submitted = usePipelineRequests(
     SUBMITTED_STATUSES,
     submittedPage,
@@ -305,9 +321,60 @@ export function AgentRequestPipelineView() {
   );
   const rejectedQuery = useAgentRejectedRequests();
   const rejectedAll = rejectedQuery.data ?? [];
+
+  // Client-side filtering helpers
+  const filterBySearch = (row: PipelineRow | AgentRejectedRequest) => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return true;
+    const tenant = (row as any).tenant_name ?? '';
+    const landlord = (row as any).landlord_name ?? '';
+    return tenant.toLowerCase().includes(q) || landlord.toLowerCase().includes(q);
+  };
+
+  const filterByStatus = (row: PipelineRow) => {
+    if (statusFilter === 'all') return true;
+    return row.status === statusFilter;
+  };
+
+  const filterByDate = (row: PipelineRow) => {
+    if (dateFilter === 'all') return true;
+    const d = new Date(row.created_at);
+    if (dateFilter === 'today') return isToday(d);
+    if (dateFilter === 'week') return isThisWeek(d);
+    if (dateFilter === 'month') return isThisMonth(d);
+    return true;
+  };
+
+  const activeFiltersCount =
+    (searchQuery.trim() ? 1 : 0) +
+    (statusFilter !== 'all' ? 1 : 0) +
+    (dateFilter !== 'all' ? 1 : 0);
+
+  const submittedRows = useMemo(
+    () =>
+      (submitted.data?.rows ?? [])
+        .filter(filterBySearch)
+        .filter(filterByStatus)
+        .filter(filterByDate),
+    [submitted.data?.rows, searchQuery, statusFilter, dateFilter],
+  );
+
+  const approvedRows = useMemo(
+    () =>
+      (approved.data?.rows ?? [])
+        .filter(filterBySearch)
+        .filter(filterByStatus)
+        .filter(filterByDate),
+    [approved.data?.rows, searchQuery, statusFilter, dateFilter],
+  );
+
+  const filteredRejected = useMemo(
+    () => rejectedAll.filter(filterBySearch),
+    [rejectedAll, searchQuery],
+  );
   const rejectedPaged = useMemo(
-    () => rejectedAll.slice(rejectedPage * PAGE_SIZE, rejectedPage * PAGE_SIZE + PAGE_SIZE),
-    [rejectedAll, rejectedPage],
+    () => filteredRejected.slice(rejectedPage * PAGE_SIZE, rejectedPage * PAGE_SIZE + PAGE_SIZE),
+    [filteredRejected, rejectedPage],
   );
 
   const tabs: { key: PipelineTab; label: string; icon: typeof Send; count: number; tone: string }[] = [
@@ -315,21 +382,21 @@ export function AgentRequestPipelineView() {
       key: 'submitted',
       label: 'Submitted',
       icon: Send,
-      count: submitted.data?.total ?? 0,
+      count: submittedRows.length,
       tone: 'bg-amber-500 text-white',
     },
     {
       key: 'approved',
       label: 'Ready to pay',
       icon: CheckCircle2,
-      count: approved.data?.total ?? 0,
+      count: approvedRows.length,
       tone: 'bg-emerald-600 text-white',
     },
     {
       key: 'rejected',
       label: 'Rejected',
       icon: XCircle,
-      count: rejectedAll.length,
+      count: filteredRejected.length,
       tone: 'bg-destructive text-destructive-foreground',
     },
   ];
@@ -364,20 +431,135 @@ export function AgentRequestPipelineView() {
         })}
       </div>
 
+      {/* Search & Filter bar */}
+      <div className="space-y-2">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input
+            type="text"
+            placeholder="Search tenant or landlord name"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setSubmittedPage(0);
+              setApprovedPage(0);
+              setRejectedPage(0);
+            }}
+            className="pl-9 pr-9 h-11 text-sm"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => {
+                setSearchQuery('');
+                setSubmittedPage(0);
+                setApprovedPage(0);
+                setRejectedPage(0);
+              }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              aria-label="Clear search"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+
+        <div className="flex gap-2">
+          {tab !== 'rejected' && (
+            <Select
+              value={statusFilter}
+              onValueChange={(v) => {
+                setStatusFilter(v);
+                setSubmittedPage(0);
+                setApprovedPage(0);
+              }}
+            >
+              <SelectTrigger className="h-10 text-xs flex-1">
+                <Filter className="h-3.5 w-3.5 mr-1.5 text-muted-foreground shrink-0" />
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                {tab === 'submitted' ? (
+                  <>
+                    <SelectItem value="pending">Agent Ops review</SelectItem>
+                    <SelectItem value="tenant_ops_approved">Tenant Ops review</SelectItem>
+                    <SelectItem value="agent_verified">Tenant Ops review</SelectItem>
+                    <SelectItem value="agent_ops_approved">Landlord Ops review</SelectItem>
+                    <SelectItem value="landlord_ops_approved">COO review</SelectItem>
+                    <SelectItem value="coo_approved">CFO funding</SelectItem>
+                  </>
+                ) : (
+                  <>
+                    <SelectItem value="funded">Funded — awaiting disbursal</SelectItem>
+                    <SelectItem value="disbursed">Disbursed — ready to collect</SelectItem>
+                  </>
+                )}
+              </SelectContent>
+            </Select>
+          )}
+          <Select
+            value={dateFilter}
+            onValueChange={(v) => {
+              setDateFilter(v);
+              setSubmittedPage(0);
+              setApprovedPage(0);
+              setRejectedPage(0);
+            }}
+          >
+            <SelectTrigger className={`h-10 text-xs ${tab === 'rejected' ? 'flex-1' : 'flex-1'}`}>
+              <Calendar className="h-3.5 w-3.5 mr-1.5 text-muted-foreground shrink-0" />
+              <SelectValue placeholder="Date" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All time</SelectItem>
+              <SelectItem value="today">Today</SelectItem>
+              <SelectItem value="week">This week</SelectItem>
+              <SelectItem value="month">This month</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {activeFiltersCount > 0 && (
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] text-muted-foreground">
+              Showing {tab === 'submitted' ? submittedRows.length : tab === 'approved' ? approvedRows.length : filteredRejected.length} result{(
+                (tab === 'submitted' ? submittedRows.length : tab === 'approved' ? approvedRows.length : filteredRejected.length) !== 1 ? 's' : ''
+              )}
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSearchQuery('');
+                setStatusFilter('all');
+                setDateFilter('all');
+                setSubmittedPage(0);
+                setApprovedPage(0);
+                setRejectedPage(0);
+              }}
+              className="h-7 text-[11px] gap-1 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-3 w-3" />
+              Clear all
+            </Button>
+          </div>
+        )}
+      </div>
+
       {/* Submitted */}
       {tab === 'submitted' && (
         <div className="space-y-2">
           {submitted.isLoading ? (
             <Skeleton className="h-28 w-full rounded-xl" />
-          ) : !submitted.data || submitted.data.rows.length === 0 ? (
+          ) : submittedRows.length === 0 ? (
             <EmptyState
               icon={Send}
-              title="Nothing submitted yet"
-              subtitle="Rent requests waiting on review will appear here."
+              title={activeFiltersCount > 0 ? 'No matches found' : 'Nothing submitted yet'}
+              subtitle={activeFiltersCount > 0 ? 'Try adjusting your search or filters.' : 'Rent requests waiting on review will appear here.'}
             />
           ) : (
             <>
-              {submitted.data.rows.map((r) => (
+              {submittedRows.map((r) => (
                 <RowCard
                   key={r.id}
                   row={r}
@@ -388,7 +570,7 @@ export function AgentRequestPipelineView() {
               ))}
               <Pager
                 page={submittedPage}
-                total={submitted.data.total}
+                total={submittedRows.length}
                 onPage={setSubmittedPage}
                 loading={submitted.isFetching}
               />
@@ -402,15 +584,15 @@ export function AgentRequestPipelineView() {
         <div className="space-y-2">
           {approved.isLoading ? (
             <Skeleton className="h-28 w-full rounded-xl" />
-          ) : !approved.data || approved.data.rows.length === 0 ? (
+          ) : approvedRows.length === 0 ? (
             <EmptyState
               icon={CheckCircle2}
-              title="Nothing ready to pay"
-              subtitle="Approved requests awaiting tenant repayment will appear here."
+              title={activeFiltersCount > 0 ? 'No matches found' : 'Nothing ready to pay'}
+              subtitle={activeFiltersCount > 0 ? 'Try adjusting your search or filters.' : 'Approved requests awaiting tenant repayment will appear here.'}
             />
           ) : (
             <>
-              {approved.data.rows.map((r) => (
+              {approvedRows.map((r) => (
                 <RowCard
                   key={r.id}
                   row={r}
@@ -435,7 +617,7 @@ export function AgentRequestPipelineView() {
               ))}
               <Pager
                 page={approvedPage}
-                total={approved.data.total}
+                total={approvedRows.length}
                 onPage={setApprovedPage}
                 loading={approved.isFetching}
               />
@@ -449,11 +631,11 @@ export function AgentRequestPipelineView() {
         <div className="space-y-2">
           {rejectedQuery.isLoading ? (
             <Skeleton className="h-28 w-full rounded-xl" />
-          ) : rejectedAll.length === 0 ? (
+          ) : filteredRejected.length === 0 ? (
             <EmptyState
               icon={XCircle}
-              title="No rejections"
-              subtitle="When a request is rejected, the reviewer's reason will show here."
+              title={activeFiltersCount > 0 ? 'No matches found' : 'No rejections'}
+              subtitle={activeFiltersCount > 0 ? 'Try adjusting your search or filters.' : "When a request is rejected, the reviewer's reason will show here."}
             />
           ) : (
             <>
