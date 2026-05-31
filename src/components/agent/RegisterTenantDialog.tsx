@@ -321,10 +321,10 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                   className="gap-2"
                   onClick={() => {
                     handleOpenChange(false);
-                    window.dispatchEvent(new CustomEvent('open-submissions', { detail: { tab: 'submitted' } }));
+                    window.dispatchEvent(new CustomEvent('open-submissions', { detail: { tab: 'submitted', recordId: createdRentRequestId } }));
                   }}
                 >
-                  <CheckCircle2 className="h-4 w-4" /> View my submissions
+                  <CheckCircle2 className="h-4 w-4" /> View my submission
                 </Button>
                 <Button variant="outline" onClick={() => handleOpenChange(false)}>Done</Button>
               </div>

@@ -251,11 +251,13 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   // (fired from registration success screens), remember which view/tab to land on.
   const [submissionsView, setSubmissionsView] = useState<'tenants' | 'pipeline' | undefined>(undefined);
   const [submissionsTab, setSubmissionsTab] = useState<'submitted' | 'approved' | 'rejected' | 'landlords' | undefined>(undefined);
+  const [submissionsHighlightId, setSubmissionsHighlightId] = useState<string | undefined>(undefined);
   useEffect(() => {
     const handler = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { tab?: 'submitted' | 'approved' | 'rejected' | 'landlords' } | undefined;
+      const detail = (e as CustomEvent).detail as { tab?: 'submitted' | 'approved' | 'rejected' | 'landlords'; recordId?: string } | undefined;
       setSubmissionsView('pipeline');
       setSubmissionsTab(detail?.tab ?? 'submitted');
+      setSubmissionsHighlightId(detail?.recordId ?? undefined);
       setTenantsSheetOpen(true);
     };
     window.addEventListener('open-submissions', handler);
@@ -1029,10 +1031,12 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             // Reset so normal "My tenants" opens default to the tenants view.
             setSubmissionsView(undefined);
             setSubmissionsTab(undefined);
+            setSubmissionsHighlightId(undefined);
           }
         }}
         initialView={submissionsView}
         initialPipelineTab={submissionsTab}
+        initialHighlightId={submissionsHighlightId}
       />
       <FieldCollectDialog open={fieldCollectOpen} onOpenChange={setFieldCollectOpen} />
       

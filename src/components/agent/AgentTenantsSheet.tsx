@@ -80,6 +80,8 @@ interface AgentTenantsSheetProps {
   initialView?: 'tenants' | 'pipeline';
   /** When opening directly into the pipeline, which sub-tab to show. */
   initialPipelineTab?: 'submitted' | 'approved' | 'rejected' | 'landlords';
+  /** Record id to scroll to and highlight when opening into the pipeline. */
+  initialHighlightId?: string | null;
 }
 
 type FilterTab = 'owing' | 'paid-up' | 'all';
@@ -253,7 +255,7 @@ function Highlight({ text, query }: { text?: string | null; query: string }) {
   );
 }
 
-export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipelineTab }: AgentTenantsSheetProps) {
+export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipelineTab, initialHighlightId }: AgentTenantsSheetProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [view, setView] = useState<'tenants' | 'pipeline'>(initialView ?? 'tenants');
@@ -1199,7 +1201,7 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
               <div className="w-[72px]" />
             </div>
             <div className="flex-1 overflow-y-auto px-4 py-3">
-              <AgentRequestPipelineView initialTab={initialPipelineTab} />
+              <AgentRequestPipelineView initialTab={initialPipelineTab} highlightId={initialHighlightId} />
             </div>
           </div>
         ) : (

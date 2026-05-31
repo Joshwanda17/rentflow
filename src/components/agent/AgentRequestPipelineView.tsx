@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -297,12 +297,14 @@ function RowCard({
   stageLabel,
   rightSlot,
   onClick,
+  highlighted,
 }: {
   row: PipelineRow;
   tone: 'amber' | 'emerald' | 'destructive';
   stageLabel: string;
   rightSlot?: React.ReactNode;
   onClick?: () => void;
+  highlighted?: boolean;
 }) {
   const toneClass =
     tone === 'amber'
@@ -312,9 +314,10 @@ function RowCard({
         : 'border-destructive/40 bg-destructive/5';
   return (
     <Card
+      data-row-id={row.id}
       className={`border-2 overflow-hidden ${toneClass} ${
         onClick ? 'cursor-pointer transition-shadow hover:shadow-md active:scale-[0.99]' : ''
-      }`}
+      } ${highlighted ? 'ring-2 ring-primary ring-offset-2 ring-offset-background animate-pulse' : ''}`}
       onClick={onClick}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
@@ -388,7 +391,10 @@ function RowCard({
   );
 }
 
-export function AgentRequestPipelineView({ initialTab }: { initialTab?: PipelineTab } = {}) {
+export function AgentRequestPipelineView({
+  initialTab,
+  highlightId,
+}: { initialTab?: PipelineTab; highlightId?: string | null } = {}) {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<PipelineTab>(initialTab ?? 'submitted');
   const [submittedPage, setSubmittedPage] = useState(0);
@@ -396,6 +402,14 @@ export function AgentRequestPipelineView({ initialTab }: { initialTab?: Pipeline
   const [rejectedPage, setRejectedPage] = useState(0);
   const [editing, setEditing] = useState<AgentRejectedRequest | null>(null);
   const [detailRow, setDetailRow] = useState<PipelineRow | null>(null);
+
+  // When opening straight to a freshly submitted record, scroll it into view
+  // and flash a highlight ring so the agent sees exactly what they just added.
+  const [activeHighlight, setActiveHighlight] = useState<string | null>(highlightId ?? null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    setActiveHighlight(highlightId ?? null);
+  }, [highlightId]);
 
   // Search & filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -495,6 +509,23 @@ export function AgentRequestPipelineView({ initialTab }: { initialTab?: Pipeline
           ? filteredRejected
           : [];
 
+  // Once the targeted record renders, scroll to it and clear the ring after a
+  // few seconds so the highlight is a one-time visual cue.
+  useEffect(() => {
+    if (!activeHighlight) return;
+    const t = setTimeout(() => {
+      const el = containerRef.current?.querySelector(
+        `[data-row-id="${activeHighlight}"]`,
+      ) as HTMLElement | null;
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 150);
+    const clear = setTimeout(() => setActiveHighlight(null), 4000);
+    return () => {
+      clearTimeout(t);
+      clearTimeout(clear);
+    };
+  }, [activeHighlight, submittedRows, approvedRows, landlordRows, tab]);
+
   const exportToCSV = () => {
     if (rowsToExport.length === 0) {
       toast.error('No records to export');
@@ -561,7 +592,7 @@ export function AgentRequestPipelineView({ initialTab }: { initialTab?: Pipeline
   ];
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" ref={containerRef}>
       {/* Tab strip */}
       <div className="flex gap-2">
         {tabs.map((t) => {
@@ -771,6 +802,7 @@ export function AgentRequestPipelineView({ initialTab }: { initialTab?: Pipeline
                   tone="amber"
                   stageLabel={STAGE_LABEL[r.status] ?? 'In review'}
                   onClick={() => setDetailRow(r)}
+                  highlighted={activeHighlight === r.id}
                 />
               ))}
               <Pager
@@ -804,6 +836,7 @@ export function AgentRequestPipelineView({ initialTab }: { initialTab?: Pipeline
                   tone="emerald"
                   stageLabel={STAGE_LABEL[r.status] ?? 'Approved'}
                   onClick={() => setDetailRow(r)}
+                  highlighted={activeHighlight === r.id}
                   rightSlot={
                     <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-emerald-500/20">
                       <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1">
@@ -929,7 +962,13 @@ export function AgentRequestPipelineView({ initialTab }: { initialTab?: Pipeline
             />
           ) : (
             landlordRows.map((l) => (
-              <Card key={l.id} className="border-2 border-indigo-500/30 bg-indigo-500/5 overflow-hidden">
+              <Card
+                key={l.id}
+                data-row-id={l.id}
+                className={`border-2 border-indigo-500/30 bg-indigo-500/5 overflow-hidden ${
+                  activeHighlight === l.id ? 'ring-2 ring-primary ring-offset-2 ring-offset-background animate-pulse' : ''
+                }`}
+              >
                 <CardContent className="p-3 space-y-1.5">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">

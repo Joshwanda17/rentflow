@@ -67,6 +67,8 @@ export default function LandlordRegistrationForm({
   const [submitError, setSubmitError] = useState('');
   const [showListHouse, setShowListHouse] = useState(false);
   const [activationLink, setActivationLink] = useState('');
+  // Id of the landlord just created, used to deep-link to its record.
+  const [registeredLandlordId, setRegisteredLandlordId] = useState<string | null>(null);
   const [locationCaptured, setLocationCaptured] = useState(false);
   // Optional details are tucked away so the core flow is just Name + Phone.
   const [showMore, setShowMore] = useState(false);
@@ -247,7 +249,7 @@ export default function LandlordRegistrationForm({
     setMomoName(''); setMomoNumber('');
     setNwscMeter(''); setUedclMeter('');
     setTempPassword(''); setShowPassword(false);
-    setSuccess(false); setActivationLink(''); setLocationCaptured(false);
+    setSuccess(false); setActivationLink(''); setRegisteredLandlordId(null); setLocationCaptured(false);
     setStep(1);
   };
 
@@ -426,6 +428,7 @@ export default function LandlordRegistrationForm({
       setProgressMsg('Saving the landlord…');
       const { data: newLandlord, error } = await supabase.from('landlords').insert(insertData as any).select('id').single();
       if (error) throw error;
+      setRegisteredLandlordId(newLandlord?.id ?? null);
 
       // Persist LC1 chairperson when collected (minimal/outstanding flow).
       if (minimal && lc1Name.trim() && lc1PhoneClean) {
@@ -624,7 +627,7 @@ export default function LandlordRegistrationForm({
               onClick={() => {
                 hapticTap();
                 onClose();
-                window.dispatchEvent(new CustomEvent('open-submissions', { detail: { tab: 'landlords' } }));
+                window.dispatchEvent(new CustomEvent('open-submissions', { detail: { tab: 'landlords', recordId: registeredLandlordId } }));
               }}
               className="w-full h-12 gap-2 touch-manipulation select-none transition-transform active:scale-[0.98]"
             >
