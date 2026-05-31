@@ -61,6 +61,44 @@ export default function LandlordRegistrationForm({
   const [activationLink, setActivationLink] = useState('');
   const [locationCaptured, setLocationCaptured] = useState(false);
 
+  // Inline validation errors
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const validateField = (name: string, value: string) => {
+    const trimmed = value.trim();
+    let msg = '';
+    if (name === 'landlordName') {
+      if (!trimmed) msg = 'Landlord name is required';
+      else if (trimmed.length < 2) msg = 'Name must be at least 2 characters';
+    }
+    if (name === 'landlordPhone') {
+      if (!trimmed) msg = 'Phone number is required';
+      else if (!/^\d{9,10}$/.test(trimmed.replace(/\D/g, ''))) msg = 'Enter a valid phone number';
+    }
+    if (name === 'propertyAddress') {
+      if (!trimmed) msg = 'Property address is required';
+      else if (trimmed.length < 5) msg = 'Address is too short';
+    }
+    if (name === 'lc1Name') {
+      if (!trimmed) msg = 'LC1 name is required';
+      else if (trimmed.length < 2) msg = 'Name must be at least 2 characters';
+    }
+    if (name === 'lc1Phone') {
+      if (!trimmed) msg = 'LC1 phone is required';
+      else if (!/^\d{9,10}$/.test(trimmed.replace(/\D/g, ''))) msg = 'Enter a valid phone number';
+    }
+    setErrors((prev) => ({ ...prev, [name]: msg }));
+    return msg;
+  };
+
+  const clearError = (name: string) => {
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
+  };
+
   // Core fields
   const [landlordName, setLandlordName] = useState('');
   const [landlordPhone, setLandlordPhone] = useState('');
@@ -143,29 +181,38 @@ export default function LandlordRegistrationForm({
     e?.preventDefault();
     if (!user) return;
 
+    // Inline validate every required field before submit
+    const fieldsToValidate: { name: string; value: string }[] = [
+      { name: 'landlordName', value: landlordName },
+      { name: 'landlordPhone', value: landlordPhone },
+    ];
     if (minimal) {
-      if (
-        !landlordName.trim() ||
-        !landlordPhone.trim() ||
-        !lc1Name.trim() ||
-        !lc1Phone.trim()
-      ) {
-        toastFn({
-          title: 'Missing Fields',
-          description: 'Landlord name & phone, plus LC1 name & phone, are required.',
-          variant: 'destructive',
-        });
-        return;
-      }
+      fieldsToValidate.push(
+        { name: 'lc1Name', value: lc1Name },
+        { name: 'lc1Phone', value: lc1Phone }
+      );
     } else {
-      if (!landlordName.trim() || !landlordPhone.trim() || !propertyAddress.trim()) {
-        toastFn({ title: 'Missing Fields', description: 'Name, phone and address are required.', variant: 'destructive' });
-        return;
-      }
-      if (!tempPassword) {
-        toastFn({ title: 'Missing Password', description: 'Generate a temporary password.', variant: 'destructive' });
-        return;
-      }
+      fieldsToValidate.push({ name: 'propertyAddress', value: propertyAddress });
+    }
+
+    const newErrors: Record<string, string> = {};
+    for (const { name, value } of fieldsToValidate) {
+      const msg = validateField(name, value);
+      if (msg) newErrors[name] = msg;
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      toastFn({
+        title: 'Please fix the errors',
+        description: 'Some required fields are missing or invalid.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!minimal && !tempPassword) {
+      toastFn({ title: 'Missing Password', description: 'Generate a temporary password.', variant: 'destructive' });
+      return;
     }
 
     // Make sure we always have a password to seed the activation invite.
@@ -422,11 +469,17 @@ export default function LandlordRegistrationForm({
             </Label>
             <Input
               value={landlordName}
-              onChange={(e) => setLandlordName(e.target.value)}
+              onChange={(e) => { setLandlordName(e.target.value); clearError('landlordName'); }}
+              onBlur={(e) => validateField('landlordName', e.target.value)}
               placeholder="Full name as on National ID"
-              className="h-10"
+              className={`h-10 ${errors.landlordName ? 'border-destructive focus-visible:ring-destructive' : ''}`}
               required
             />
+            {errors.landlordName && (
+              <p className="text-[11px] text-destructive flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" /> {errors.landlordName}
+              </p>
+            )}
           </div>
 
           {/* Phone Number */}
@@ -436,11 +489,17 @@ export default function LandlordRegistrationForm({
             </Label>
             <Input
               value={landlordPhone}
-              onChange={(e) => setLandlordPhone(e.target.value)}
+              onChange={(e) => { setLandlordPhone(e.target.value); clearError('landlordPhone'); }}
+              onBlur={(e) => validateField('landlordPhone', e.target.value)}
               placeholder="0700000000"
-              className="h-10"
+              className={`h-10 ${errors.landlordPhone ? 'border-destructive focus-visible:ring-destructive' : ''}`}
               required
             />
+            {errors.landlordPhone && (
+              <p className="text-[11px] text-destructive flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" /> {errors.landlordPhone}
+              </p>
+            )}
           </div>
 
           {/* Minimal-mode LC1 fields (Outstanding Balance flow) */}
@@ -457,11 +516,17 @@ export default function LandlordRegistrationForm({
                   </Label>
                   <Input
                     value={lc1Name}
-                    onChange={(e) => setLc1Name(e.target.value)}
+                    onChange={(e) => { setLc1Name(e.target.value); clearError('lc1Name'); }}
+                    onBlur={(e) => validateField('lc1Name', e.target.value)}
                     placeholder="Chairperson full name"
-                    className="h-10"
+                    className={`h-10 ${errors.lc1Name ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                     required
                   />
+                  {errors.lc1Name && (
+                    <p className="text-[11px] text-destructive flex items-center gap-1">
+                      <AlertTriangle className="h-3 w-3" /> {errors.lc1Name}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs font-semibold flex items-center gap-1.5">
@@ -469,11 +534,17 @@ export default function LandlordRegistrationForm({
                   </Label>
                   <Input
                     value={lc1Phone}
-                    onChange={(e) => setLc1Phone(e.target.value)}
+                    onChange={(e) => { setLc1Phone(e.target.value); clearError('lc1Phone'); }}
+                    onBlur={(e) => validateField('lc1Phone', e.target.value)}
                     placeholder="0700000000"
-                    className="h-10"
+                    className={`h-10 ${errors.lc1Phone ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                     required
                   />
+                  {errors.lc1Phone && (
+                    <p className="text-[11px] text-destructive flex items-center gap-1">
+                      <AlertTriangle className="h-3 w-3" /> {errors.lc1Phone}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -521,11 +592,17 @@ export default function LandlordRegistrationForm({
             </Label>
             <Input
               value={propertyAddress}
-              onChange={(e) => setPropertyAddress(e.target.value)}
+              onChange={(e) => { setPropertyAddress(e.target.value); clearError('propertyAddress'); }}
+              onBlur={(e) => validateField('propertyAddress', e.target.value)}
               placeholder="e.g., Kabalagala, Block 5, Plot 12"
-              className="h-10"
+              className={`h-10 ${errors.propertyAddress ? 'border-destructive focus-visible:ring-destructive' : ''}`}
               required
             />
+            {errors.propertyAddress && (
+              <p className="text-[11px] text-destructive flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" /> {errors.propertyAddress}
+              </p>
+            )}
           </div>
           )}
 
