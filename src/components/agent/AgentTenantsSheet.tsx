@@ -1795,6 +1795,74 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
               (The duplicate search box that used to sit here was removed —
               two identical search inputs confused agents.) */}
           <div className="space-y-2">
+            {/* Saved presets — one-tap return to a usual Owing/Paid up/All +
+                search + sort setup. */}
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+              <span className="shrink-0 inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground pr-0.5">
+                <Star className="h-3 w-3" /> Saved
+              </span>
+              {presets.length === 0 && (
+                <span className="shrink-0 text-[11px] text-muted-foreground italic">
+                  No saved views yet
+                </span>
+              )}
+              {presets.map((p) => (
+                <span
+                  key={p.id}
+                  className="shrink-0 inline-flex items-center rounded-full border border-border bg-muted/40 text-foreground/80 hover:bg-muted transition-colors"
+                >
+                  <button
+                    onClick={() => applyPreset(p)}
+                    className="pl-3 pr-1.5 py-1.5 text-xs font-semibold"
+                    style={{ touchAction: 'manipulation', minHeight: '32px' }}
+                  >
+                    {p.name}
+                  </button>
+                  <button
+                    onClick={() => deletePreset(p.id)}
+                    className="pr-2 pl-0.5 py-1.5 text-muted-foreground hover:text-destructive"
+                    aria-label={`Delete ${p.name}`}
+                    style={{ touchAction: 'manipulation' }}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+              <Popover open={savePresetOpen} onOpenChange={(o) => { setSavePresetOpen(o); if (!o) setPresetName(''); }}>
+                <PopoverTrigger asChild>
+                  <button
+                    className="shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-dashed border-primary/50 text-primary text-xs font-semibold hover:bg-primary/5 transition-colors"
+                    style={{ touchAction: 'manipulation', minHeight: '32px' }}
+                  >
+                    <Plus className="h-3 w-3" /> Save current
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[min(88vw,280px)] p-3" align="end">
+                  <p className="text-xs font-semibold text-foreground mb-1">Save this view</p>
+                  <p className="text-[11px] text-muted-foreground mb-2 leading-snug">
+                    Stores your current filter, search and sort so you can return in one tap.
+                  </p>
+                  <Input
+                    value={presetName}
+                    onChange={(e) => setPresetName(e.target.value)}
+                    placeholder="e.g. My usual"
+                    className="h-9 text-sm"
+                    style={{ fontSize: '16px' }}
+                    autoFocus
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleSavePreset(); }}
+                  />
+                  <div className="flex justify-end gap-2 mt-2">
+                    <Button variant="ghost" size="sm" onClick={() => { setSavePresetOpen(false); setPresetName(''); }}>
+                      Cancel
+                    </Button>
+                    <Button size="sm" onClick={handleSavePreset} disabled={!presetName.trim()}>
+                      Save
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+
             {/* Big tap-friendly status chips — the main filter most agents need */}
             <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-muted/50">
               {filterTabs.map((tab) => {
