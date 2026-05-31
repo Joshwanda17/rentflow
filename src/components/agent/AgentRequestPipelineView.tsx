@@ -493,12 +493,16 @@ export function AgentRequestPipelineView({
   const landlordRows = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return (landlordsQuery.data ?? []).filter((l) => {
-      if (!q) return true;
-      return (
-        (l.name ?? '').toLowerCase().includes(q) ||
-        (l.phone ?? '').toLowerCase().includes(q) ||
-        (l.property_address ?? '').toLowerCase().includes(q)
-      );
+      if (q) {
+        const matchesSearch =
+          (l.name ?? '').toLowerCase().includes(q) ||
+          (l.phone ?? '').toLowerCase().includes(q) ||
+          (l.property_address ?? '').toLowerCase().includes(q);
+        if (!matchesSearch) return false;
+      }
+      if (landlordStatusFilter === 'pending') return !l.verified;
+      if (landlordStatusFilter === 'verified') return l.verified === true;
+      return true;
     });
   }, [landlordsQuery.data, searchQuery]);
 
