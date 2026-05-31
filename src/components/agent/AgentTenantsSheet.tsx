@@ -400,6 +400,60 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
   const [showBalanceBreakdown, setShowBalanceBreakdown] = useState(false);
   const tenantListRef = useRef<HTMLDivElement>(null);
 
+  // ───── Saved filter presets ─────
+  const [presets, setPresets] = useState<SheetPreset[]>(() => loadPresets());
+  const [savePresetOpen, setSavePresetOpen] = useState(false);
+  const [presetName, setPresetName] = useState('');
+
+  const applyPreset = useCallback((p: SheetPreset) => {
+    setSearch(p.search ?? '');
+    setActiveFilter(p.activeFilter ?? 'owing');
+    setLifecycleFilter(p.lifecycleFilter ?? 'any');
+    setRiskFilter(p.riskFilter ?? 'all');
+    setPropertyFilter(p.propertyFilter ?? 'all');
+    setSortKey(p.sortKey ?? 'balance');
+    setSortDir(p.sortDir ?? 'desc');
+    setRecentCollectionFilter(p.recentCollectionFilter ?? 'all');
+    setGroupByProperty(!!p.groupByProperty);
+    sonnerToast.success(`Showing "${p.name}"`);
+  }, []);
+
+  const handleSavePreset = useCallback(() => {
+    const name = presetName.trim();
+    if (!name) return;
+    const snapshot: SheetPreset = {
+      id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+      name,
+      search,
+      activeFilter,
+      lifecycleFilter,
+      riskFilter,
+      propertyFilter,
+      sortKey,
+      sortDir,
+      recentCollectionFilter,
+      groupByProperty,
+    };
+    setPresets(prev => {
+      // Replace an existing preset with the same (case-insensitive) name so
+      // re-saving "My usual" just updates it instead of duplicating.
+      const next = [...prev.filter(p => p.name.toLowerCase() !== name.toLowerCase()), snapshot];
+      savePresets(next);
+      return next;
+    });
+    setPresetName('');
+    setSavePresetOpen(false);
+    sonnerToast.success(`Saved "${name}"`);
+  }, [presetName, search, activeFilter, lifecycleFilter, riskFilter, propertyFilter, sortKey, sortDir, recentCollectionFilter, groupByProperty]);
+
+  const deletePreset = useCallback((id: string) => {
+    setPresets(prev => {
+      const next = prev.filter(p => p.id !== id);
+      savePresets(next);
+      return next;
+    });
+  }, []);
+
   // Push a property to the front of the MRU list and persist (deduped, capped).
   const recordRecentProperty = useCallback((address: string) => {
     if (!address || address === 'all') return;
