@@ -171,6 +171,46 @@ function loadPrefs(): SheetPrefs {
   }
 }
 
+// ───── Saved filter presets ─────
+// Agents can snapshot their usual Owing/Paid up/All + search + sort setup and
+// jump back to it in one tap. Persisted separately from the live prefs.
+const PRESETS_KEY = 'agent-tenants-sheet:presets:v1';
+
+interface SheetPreset {
+  id: string;
+  name: string;
+  search: string;
+  activeFilter: FilterTab;
+  lifecycleFilter: LifecycleFilter;
+  riskFilter: RiskFilter;
+  propertyFilter: string;
+  sortKey: SortKey;
+  sortDir: SortDir;
+  recentCollectionFilter: RecentCollectionFilter;
+  groupByProperty: boolean;
+}
+
+function loadPresets(): SheetPreset[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(PRESETS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as SheetPreset[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function savePresets(presets: SheetPreset[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(PRESETS_KEY, JSON.stringify(presets));
+  } catch {
+    /* ignore quota / serialization errors */
+  }
+}
+
 const RISK_ORDER: Record<'good' | 'standard' | 'caution' | 'new', number> = {
   caution: 0,
   standard: 1,
