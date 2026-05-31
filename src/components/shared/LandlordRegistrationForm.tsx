@@ -1046,6 +1046,28 @@ export default function LandlordRegistrationForm({
           {/* ===== Step 2: Confirmation ===== */}
           {step === 2 && !success && (
           <>
+            {(() => {
+              const nameErr = validateField('landlordName', landlordName);
+              const phoneErr = validateField('landlordPhone', landlordPhone);
+              const lc1NameErr = minimal ? validateField('lc1Name', lc1Name) : '';
+              const lc1PhoneErr = minimal ? validateField('lc1Phone', lc1Phone) : '';
+              const anyErr = nameErr || phoneErr || lc1NameErr || lc1PhoneErr;
+              if (!anyErr) return null;
+              return (
+                <motion.div
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-start gap-2 p-2.5 rounded-lg bg-warning/10 border border-warning/30"
+                >
+                  <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+                  <p className="text-[11px] font-medium text-foreground">
+                    Some details need fixing before you can register. Tap{' '}
+                    <span className="font-semibold">Back to edit</span> to correct the highlighted fields.
+                  </p>
+                </motion.div>
+              );
+            })()}
+
             <div className="space-y-2 p-3 rounded-xl border bg-muted/30">
               <p className="text-xs font-semibold text-foreground">Confirm the details</p>
               <div className="flex items-center justify-between gap-3">
@@ -1054,12 +1076,30 @@ export default function LandlordRegistrationForm({
                 </span>
                 <span className="text-xs font-medium text-foreground text-right truncate">{landlordName}</span>
               </div>
+              {errors.landlordName ? (
+                <p className="text-[11px] text-destructive flex items-center justify-end gap-1">
+                  <AlertTriangle className="h-3 w-3" /> {errors.landlordName}
+                </p>
+              ) : (
+                <p className="text-[11px] text-emerald-600 flex items-center justify-end gap-1">
+                  <CheckCircle2 className="h-3 w-3" /> Name looks good
+                </p>
+              )}
               <div className="flex items-center justify-between gap-3">
                 <span className="text-[11px] text-muted-foreground flex items-center gap-1.5">
                   <Phone className="h-3 w-3" /> Phone
                 </span>
                 <span className="text-xs font-medium text-foreground text-right">{landlordPhone}</span>
               </div>
+              {errors.landlordPhone ? (
+                <p className="text-[11px] text-destructive flex items-center justify-end gap-1">
+                  <AlertTriangle className="h-3 w-3" /> {errors.landlordPhone}
+                </p>
+              ) : (
+                <p className="text-[11px] text-emerald-600 flex items-center justify-end gap-1">
+                  <CheckCircle2 className="h-3 w-3" /> {phoneVerified ? 'Number is available' : 'Phone looks good'}
+                </p>
+              )}
               {minimal && (
                 <>
                   <div className="flex items-center justify-between gap-3">
@@ -1068,12 +1108,30 @@ export default function LandlordRegistrationForm({
                     </span>
                     <span className="text-xs font-medium text-foreground text-right truncate">{lc1Name}</span>
                   </div>
+                  {errors.lc1Name ? (
+                    <p className="text-[11px] text-destructive flex items-center justify-end gap-1">
+                      <AlertTriangle className="h-3 w-3" /> {errors.lc1Name}
+                    </p>
+                  ) : (
+                    <p className="text-[11px] text-emerald-600 flex items-center justify-end gap-1">
+                      <CheckCircle2 className="h-3 w-3" /> LC1 name looks good
+                    </p>
+                  )}
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-[11px] text-muted-foreground flex items-center gap-1.5">
                       <Phone className="h-3 w-3" /> LC1 Phone
                     </span>
                     <span className="text-xs font-medium text-foreground text-right">{lc1Phone}</span>
                   </div>
+                  {errors.lc1Phone ? (
+                    <p className="text-[11px] text-destructive flex items-center justify-end gap-1">
+                      <AlertTriangle className="h-3 w-3" /> {errors.lc1Phone}
+                    </p>
+                  ) : (
+                    <p className="text-[11px] text-emerald-600 flex items-center justify-end gap-1">
+                      <CheckCircle2 className="h-3 w-3" /> LC1 phone looks good
+                    </p>
+                  )}
                 </>
               )}
               {propertyAddress.trim() && (
