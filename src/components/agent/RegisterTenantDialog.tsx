@@ -315,7 +315,19 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                 <p>✅ Commission is automatically sent to your wallet</p>
                 <p>✅ Tenant appears on the landlord's dashboard with your name</p>
               </div>
-              <Button onClick={() => handleOpenChange(false)}>Done</Button>
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant="secondary"
+                  className="gap-2"
+                  onClick={() => {
+                    handleOpenChange(false);
+                    window.dispatchEvent(new CustomEvent('open-submissions', { detail: { tab: 'submitted' } }));
+                  }}
+                >
+                  <CheckCircle2 className="h-4 w-4" /> View my submissions
+                </Button>
+                <Button variant="outline" onClick={() => handleOpenChange(false)}>Done</Button>
+              </div>
             </motion.div>
           ) : (
             <motion.form
