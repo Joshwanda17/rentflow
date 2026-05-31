@@ -42,7 +42,8 @@ import {
   AlertTriangle,
   Phone,
   Search,
-  UserPlus
+  UserPlus,
+  X
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatUGX, calculateRentRepayment } from '@/lib/rentCalculations';
@@ -406,6 +407,16 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       }
     });
   }, [LL_MODE_KEY]);
+
+  const clearLandlordSearch = useCallback(() => {
+    setLandlordName('');
+    setLandlordPhone('');
+    setSelectedLandlord(null);
+    setShowLinkedBanner(false);
+    requestAnimationFrame(() => {
+      landlordNameInputRef.current?.focus();
+    });
+  }, []);
 
   // One-tap auto-fill: when the agent picks a matched landlord from the
   // autocomplete dropdown, pull every saved detail we have on file into the
@@ -2310,9 +2321,21 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       {landlordPhone.replace(/\s/g, '').length >= 10 &&
                         tenantPhone.replace(/\s/g, '').length >= 10 &&
                         landlordPhone.replace(/\s/g, '') === tenantPhone.replace(/\s/g, '') && (
-                        <p className="text-xs text-destructive">Must be different from the tenant's phone</p>
+                      <p className="text-xs text-destructive">Must be different from the tenant's phone</p>
                       )}
                     </div>
+
+                    {/* One-tap clear so the agent can reset and try another landlord without scrolling */}
+                    {(landlordName.trim() || landlordPhone.trim()) && (
+                      <button
+                        type="button"
+                        onClick={clearLandlordSearch}
+                        className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl border border-destructive/30 bg-destructive/5 text-destructive text-sm font-bold active:scale-[0.98] transition-transform"
+                      >
+                        <X className="h-4 w-4" />
+                        Clear search
+                      </button>
+                    )}
 
                     {/* Gentle nudge so the agent knows tapping a match fills everything */}
                     <p className="text-xs text-muted-foreground leading-snug px-0.5">
