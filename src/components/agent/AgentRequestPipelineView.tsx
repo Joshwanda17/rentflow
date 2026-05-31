@@ -86,6 +86,28 @@ const STAGE_LABEL: Record<string, string> = {
   disbursed: 'Disbursed — ready to collect',
 };
 
+const STAGE_ICON: Record<string, typeof Eye> = {
+  pending: Eye,
+  agent_ops_approved: FileCheck,
+  agent_verified: FileCheck,
+  tenant_ops_approved: User,
+  landlord_ops_approved: Landmark,
+  coo_approved: FileCheck,
+  funded: Wallet,
+  disbursed: HandCoins,
+};
+
+const STAGE_STRIP: Record<string, { bg: string; text: string; iconBg: string }> = {
+  pending: { bg: 'bg-amber-500', text: 'text-white', iconBg: 'bg-white/20' },
+  agent_ops_approved: { bg: 'bg-sky-500', text: 'text-white', iconBg: 'bg-white/20' },
+  agent_verified: { bg: 'bg-sky-500', text: 'text-white', iconBg: 'bg-white/20' },
+  tenant_ops_approved: { bg: 'bg-indigo-500', text: 'text-white', iconBg: 'bg-white/20' },
+  landlord_ops_approved: { bg: 'bg-violet-500', text: 'text-white', iconBg: 'bg-white/20' },
+  coo_approved: { bg: 'bg-teal-500', text: 'text-white', iconBg: 'bg-white/20' },
+  funded: { bg: 'bg-emerald-500', text: 'text-white', iconBg: 'bg-white/20' },
+  disbursed: { bg: 'bg-emerald-600', text: 'text-white', iconBg: 'bg-white/20' },
+};
+
 interface PipelineRow {
   id: string;
   rent_amount: number;
