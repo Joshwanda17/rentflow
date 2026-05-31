@@ -3041,6 +3041,25 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           toast.success('Landlord registered. Search to select them now.');
         }}
       />
+      <AlertDialog open={confirmCloseDialog} onOpenChange={setConfirmCloseDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard landlord details?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You've entered landlord information. Closing now will clear it. Are you sure you want to discard your current inputs?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep editing</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmCloseAndReset}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Discard &amp; close
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
