@@ -577,15 +577,25 @@ export default function LandlordRegistrationForm({
               type="tel"
               inputMode="tel"
               value={landlordPhone}
-              onChange={(e) => { setLandlordPhone(formatUgandaPhone(e.target.value)); clearError('landlordPhone'); clearSubmitError(); }}
-              onBlur={(e) => validateField('landlordPhone', cleanPhoneNumber(e.target.value))}
+              onChange={(e) => { setLandlordPhone(formatUgandaPhone(e.target.value)); clearError('landlordPhone'); clearSubmitError(); setPhoneVerified(false); }}
+              onBlur={(e) => { void checkPhoneAvailable(e.target.value); }}
               placeholder="07XX XXX XXX — 10 digits"
               className={`h-10 ${errors.landlordPhone ? 'border-destructive focus-visible:ring-destructive' : ''}`}
               required
             />
-            {errors.landlordPhone && (
+            {checkingPhone && (
+              <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                <Loader2 className="h-3 w-3 animate-spin" /> Checking if this number is already registered…
+              </p>
+            )}
+            {!checkingPhone && errors.landlordPhone && (
               <p className="text-[11px] text-destructive flex items-center gap-1">
                 <AlertTriangle className="h-3 w-3" /> {errors.landlordPhone}
+              </p>
+            )}
+            {!checkingPhone && !errors.landlordPhone && phoneVerified && (
+              <p className="text-[11px] text-emerald-600 flex items-center gap-1">
+                <CheckCircle2 className="h-3 w-3" /> Number is available
               </p>
             )}
           </div>
