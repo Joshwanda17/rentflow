@@ -631,11 +631,11 @@ export function AgentRequestPipelineView() {
         <div className="space-y-2">
           {rejectedQuery.isLoading ? (
             <Skeleton className="h-28 w-full rounded-xl" />
-          ) : rejectedAll.length === 0 ? (
+          ) : filteredRejected.length === 0 ? (
             <EmptyState
               icon={XCircle}
-              title="No rejections"
-              subtitle="When a request is rejected, the reviewer's reason will show here."
+              title={activeFiltersCount > 0 ? 'No matches found' : 'No rejections'}
+              subtitle={activeFiltersCount > 0 ? 'Try adjusting your search or filters.' : "When a request is rejected, the reviewer's reason will show here."}
             />
           ) : (
             <>
