@@ -107,6 +107,8 @@ export default function LandlordRegistrationForm({
     });
   };
 
+  const clearSubmitError = () => setSubmitError('');
+
   // Core fields
   const [landlordName, setLandlordName] = useState('');
   const [landlordPhone, setLandlordPhone] = useState('');
