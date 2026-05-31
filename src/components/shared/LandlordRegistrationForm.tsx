@@ -263,6 +263,10 @@ export default function LandlordRegistrationForm({
         .maybeSingle();
 
       if (existing) {
+        setErrors((prev) => ({ ...prev, landlordPhone: 'This phone is already registered' }));
+        setSubmitError('A landlord with this phone number already exists.');
+        hapticWarning();
+        focusField('landlordPhone');
         toastFn({ title: 'Already Exists', description: 'A landlord with this phone number already exists.', variant: 'destructive' });
         setLoading(false);
         setProgressMsg('');
