@@ -974,7 +974,7 @@ export function AgentRequestPipelineView({
                       name never gets squeezed or truncated awkwardly. */}
                   <div className="flex items-start gap-2.5">
                     <div className="flex items-center justify-center h-9 w-9 rounded-full bg-indigo-500/15 shrink-0">
-                      <Landmark className="h-4.5 w-4.5 text-indigo-600" />
+                      <Landmark className="h-5 w-5 text-indigo-600" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold text-base leading-snug break-words">
