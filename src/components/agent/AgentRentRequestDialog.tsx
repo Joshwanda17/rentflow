@@ -911,9 +911,20 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
+      // Guard against accidentally losing landlord inputs the agent has typed.
+      if (landlordName.trim() || landlordPhone.trim()) {
+        setConfirmCloseDialog(true);
+        return;
+      }
       resetForm();
     }
     onOpenChange(newOpen);
+  };
+
+  const confirmCloseAndReset = () => {
+    setConfirmCloseDialog(false);
+    resetForm();
+    onOpenChange(false);
   };
 
   const amount = incomeType === 'outstanding' 
