@@ -551,15 +551,15 @@ export function AgentRequestPipelineView() {
         <div className="space-y-2">
           {submitted.isLoading ? (
             <Skeleton className="h-28 w-full rounded-xl" />
-          ) : !submitted.data || submitted.data.rows.length === 0 ? (
+          ) : submittedRows.length === 0 ? (
             <EmptyState
               icon={Send}
-              title="Nothing submitted yet"
-              subtitle="Rent requests waiting on review will appear here."
+              title={activeFiltersCount > 0 ? 'No matches found' : 'Nothing submitted yet'}
+              subtitle={activeFiltersCount > 0 ? 'Try adjusting your search or filters.' : 'Rent requests waiting on review will appear here.'}
             />
           ) : (
             <>
-              {submitted.data.rows.map((r) => (
+              {submittedRows.map((r) => (
                 <RowCard
                   key={r.id}
                   row={r}
@@ -570,7 +570,7 @@ export function AgentRequestPipelineView() {
               ))}
               <Pager
                 page={submittedPage}
-                total={submitted.data.total}
+                total={submittedRows.length}
                 onPage={setSubmittedPage}
                 loading={submitted.isFetching}
               />
