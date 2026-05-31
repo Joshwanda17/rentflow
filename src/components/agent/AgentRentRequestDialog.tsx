@@ -2549,6 +2549,36 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           </li>
                         </ol>
                       </div>
+
+                      {/* How to unlock — step-by-step checklist */}
+                      <div className="mt-3 pt-3 border-t border-dashed border-current/20 space-y-2">
+                        <p className="font-bold text-[11px] uppercase tracking-wide opacity-70">
+                          How to unlock a bigger posting cap
+                        </p>
+                        <ol className="list-decimal pl-4 space-y-1.5 text-xs">
+                          <li>
+                            <span className="font-bold">Visit your tenants and collect rent</span> — even small amounts count.
+                            You should see your <strong>Today&apos;s collection %</strong> go up on the agent home screen.
+                          </li>
+                          <li>
+                            <span className="font-bold">Keep collecting for a few days</span>. Your daily rating improves when tenants pay on more days.
+                            You will see your tier label change from <strong>{myCap?.tier ?? 'Starter'}</strong> upward.
+                          </li>
+                          <li>
+                            <span className="font-bold">Reach Fair (4 out of 10 days)</span> and your cap will jump to{' '}
+                            <span className="font-bold">{formatUGX(3_000_000)}</span> per tenant.
+                            The breakdown panel will show <strong>Fair</strong> and the new limit.
+                          </li>
+                          <li>
+                            <span className="font-bold">Reach Positive (7 out of 10 days)</span> and your cap will jump to{' '}
+                            <span className="font-bold">{formatUGX(6_000_000)}</span> per tenant.
+                            The breakdown panel will show <strong>Positive</strong> and the new limit.
+                          </li>
+                        </ol>
+                        <p className="text-[11px] opacity-70">
+                          Each time your tier goes up, come back to this screen and the cap shown above will update automatically.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 );
