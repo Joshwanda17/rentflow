@@ -20,6 +20,7 @@ const ATTEMPT_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 export const MAX_RECOVERY_ATTEMPTS = 3;
 
 import { logUpdateFailure, type UpdateFailureEvent } from "./updateTelemetry";
+import { pushUpdateDebug } from "./updateDebugLog";
 
 interface AttemptRecord {
   count: number;
@@ -130,6 +131,8 @@ export async function purgeCachesAndServiceWorkers(): Promise<PurgeResult> {
   let serviceWorkerCount = 0;
   let initialCacheNames: string[] = [];
 
+  pushUpdateDebug("purge: start", { reload_attempts: getRecoveryAttempts() });
+
   // 1) Unregister all service workers (capture per-registration failures).
   try {
     if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
@@ -150,6 +153,10 @@ export async function purgeCachesAndServiceWorkers(): Promise<PurgeResult> {
   } catch (err) {
     errors.push(describeError("Could not enumerate service workers", err));
   }
+  pushUpdateDebug("purge: service workers", {
+    serviceWorkerCount,
+    swUnregistered,
+  });
 
   // 2) Delete every Cache Storage bucket, retrying buckets that survive.
   try {
@@ -183,6 +190,11 @@ export async function purgeCachesAndServiceWorkers(): Promise<PurgeResult> {
   } catch (err) {
     errors.push(describeError("Could not enumerate caches", err));
   }
+  pushUpdateDebug("purge: caches", {
+    cacheCount: initialCacheNames.length,
+    cachesDeleted,
+    survivingCaches,
+  });
 
   // 3) Re-register the static kill-switch worker so the very next load runs the
   //    network-only cleanup worker (claims clients, deletes caches, then self-
@@ -195,6 +207,12 @@ export async function purgeCachesAndServiceWorkers(): Promise<PurgeResult> {
   } catch (err) {
     errors.push(describeError("Kill-switch re-register failed", err));
   }
+
+  pushUpdateDebug("purge: done", {
+    swReregistered,
+    errorCount: errors.length,
+    errors,
+  });
 
   logUpdateFailure("caches_purged", {
     sw_cleared: swUnregistered > 0,
