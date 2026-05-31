@@ -106,6 +106,7 @@ const STAGE_STRIP: Record<string, { bg: string; text: string; iconBg: string }> 
   coo_approved: { bg: 'bg-teal-500', text: 'text-white', iconBg: 'bg-white/20' },
   funded: { bg: 'bg-emerald-500', text: 'text-white', iconBg: 'bg-white/20' },
   disbursed: { bg: 'bg-emerald-600', text: 'text-white', iconBg: 'bg-white/20' },
+  rejected: { bg: 'bg-destructive', text: 'text-destructive-foreground', iconBg: 'bg-white/20' },
 };
 
 interface PipelineRow {
