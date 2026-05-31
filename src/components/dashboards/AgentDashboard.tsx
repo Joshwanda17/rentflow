@@ -800,7 +800,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             </div>
             <AgentDailyCardEmailPrompt />
             <AgentCapacityShareInline />
-            <div className="space-y-3">
+            <div
+              className="sticky z-10 -mx-4 px-4 pt-2 pb-3 bg-background/95 backdrop-blur-md border-b border-border/40 space-y-3 max-h-[55vh] overflow-y-auto"
+              style={{ top: 'calc(4.5rem + env(safe-area-inset-top, 0px))' }}
+            >
               <h3 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">Submissions</h3>
               <AgentRequestPipelineView initialTab="submitted" />
             </div>
