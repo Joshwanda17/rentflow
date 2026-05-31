@@ -297,12 +297,14 @@ function RowCard({
   stageLabel,
   rightSlot,
   onClick,
+  highlighted,
 }: {
   row: PipelineRow;
   tone: 'amber' | 'emerald' | 'destructive';
   stageLabel: string;
   rightSlot?: React.ReactNode;
   onClick?: () => void;
+  highlighted?: boolean;
 }) {
   const toneClass =
     tone === 'amber'
@@ -312,9 +314,10 @@ function RowCard({
         : 'border-destructive/40 bg-destructive/5';
   return (
     <Card
+      data-row-id={row.id}
       className={`border-2 overflow-hidden ${toneClass} ${
         onClick ? 'cursor-pointer transition-shadow hover:shadow-md active:scale-[0.99]' : ''
-      }`}
+      } ${highlighted ? 'ring-2 ring-primary ring-offset-2 ring-offset-background animate-pulse' : ''}`}
       onClick={onClick}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
