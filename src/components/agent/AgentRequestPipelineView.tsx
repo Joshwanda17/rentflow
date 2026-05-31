@@ -286,9 +286,10 @@ function RowCard({
         </div>
         {rightSlot}
         {onClick && (
-          <p className="text-[10px] text-muted-foreground/70 text-center pt-0.5">
-            Tap to view full details
-          </p>
+          <div className="flex items-center justify-center gap-1.5 mt-1 py-1.5 rounded-lg bg-foreground/5 text-xs font-semibold text-foreground/70">
+            Tap to view details
+            <ChevronRightIcon className="h-3.5 w-3.5" />
+          </div>
         )}
       </CardContent>
     </Card>
