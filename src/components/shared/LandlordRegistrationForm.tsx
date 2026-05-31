@@ -263,7 +263,11 @@ export default function LandlordRegistrationForm({
         .maybeSingle();
 
       if (existing) {
-        setErrors((prev) => ({ ...prev, landlordPhone: 'This phone is already registered' }));
+        setErrors((prev) => ({
+          ...prev,
+          landlordPhone:
+            'This phone is already registered. Enter a different number, or this landlord may already be in the system.',
+        }));
         setSubmitError('A landlord with this phone number already exists.');
         hapticWarning();
         focusField('landlordPhone');
