@@ -471,7 +471,7 @@ export default function LandlordRegistrationForm({
               value={landlordName}
               onChange={(e) => { setLandlordName(e.target.value); clearError('landlordName'); }}
               onBlur={(e) => validateField('landlordName', e.target.value)}
-              placeholder="Full name as on National ID"
+              placeholder="e.g. John Bosco Ssentamu — as on National ID"
               className={`h-10 ${errors.landlordName ? 'border-destructive focus-visible:ring-destructive' : ''}`}
               required
             />
@@ -518,7 +518,7 @@ export default function LandlordRegistrationForm({
                     value={lc1Name}
                     onChange={(e) => { setLc1Name(e.target.value); clearError('lc1Name'); }}
                     onBlur={(e) => validateField('lc1Name', e.target.value)}
-                    placeholder="Chairperson full name"
+                    placeholder="e.g. Grace Nakato Ssebunya — LC1 Chairperson"
                     className={`h-10 ${errors.lc1Name ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                     required
                   />
