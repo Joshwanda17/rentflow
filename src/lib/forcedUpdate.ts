@@ -140,6 +140,62 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
+/**
+ * Render (or refresh) the collapsible debug panel on the blocking overlay so an
+ * iPhone user can read — and copy — the full update-flow trail: forced flag +
+ * versions, purge attempts, and reload count. Survives reloads via
+ * sessionStorage so the history isn't lost between cycles.
+ */
+function renderDebugPanel(): void {
+  try {
+    const overlay = document.getElementById(OVERLAY_ID);
+    if (!overlay) return;
+
+    const cached = getVersionGateState();
+    const header =
+      `current=${CURRENT_APP_VERSION}\n` +
+      `server=${cached?.server ?? "unknown"}\n` +
+      `forced=${cached?.force ?? "unknown"}  stale=${cached?.stale ?? "unknown"}\n` +
+      `reloadCount=${getRecoveryAttempts()}\n` +
+      `ua=${navigator.userAgent}`;
+    const text = `${header}\n\n${formatUpdateDebugLog()}`;
+
+    let box = document.getElementById(DEBUG_ID);
+    if (!box) {
+      box = document.createElement("details");
+      box.id = DEBUG_ID;
+      box.style.cssText =
+        "max-width:340px;width:100%;margin-top:8px;text-align:left;font-size:11px;color:#475569";
+      box.innerHTML =
+        `<summary style="cursor:pointer;font-size:12px;color:#7c3aed;font-weight:600;list-style:none">Show troubleshooting details</summary>` +
+        `<pre id="${DEBUG_ID}-pre" style="margin:8px 0 0;padding:10px;max-height:200px;overflow:auto;white-space:pre-wrap;word-break:break-word;background:rgba(15,23,42,0.05);border:1px solid rgba(15,23,42,0.12);border-radius:8px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;line-height:1.45"></pre>` +
+        `<button id="${DEBUG_ID}-copy" type="button" style="margin-top:6px;padding:8px 14px;background:#e2e8f0;color:#1f2937;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">Copy details</button>`;
+      overlay.appendChild(box);
+      const copyBtn = document.getElementById(`${DEBUG_ID}-copy`);
+      if (copyBtn) {
+        copyBtn.addEventListener("click", () => {
+          const pre = document.getElementById(`${DEBUG_ID}-pre`);
+          const payload = pre?.textContent ?? "";
+          try {
+            void navigator.clipboard?.writeText(payload);
+            copyBtn.textContent = "Copied!";
+            setTimeout(() => {
+              copyBtn.textContent = "Copy details";
+            }, 1500);
+          } catch {
+            /* ignore clipboard failures */
+          }
+        });
+      }
+    }
+
+    const pre = document.getElementById(`${DEBUG_ID}-pre`);
+    if (pre) pre.textContent = text;
+  } catch {
+    /* debug panel must never break the overlay */
+  }
+}
+
 function renderBlockingOverlay(): void {
   try {
     if (document.getElementById(OVERLAY_ID)) return;
