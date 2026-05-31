@@ -617,13 +617,13 @@ export default function LandlordRegistrationForm({
         >
           {/* Step-by-step progress indicator */}
           <div className="flex items-center gap-2">
-            <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-semibold transition-colors ${!success ? 'bg-primary/15 text-primary border border-primary/25' : 'bg-muted text-muted-foreground border border-muted'}`}>
-              <span className={`flex items-center justify-center w-4 h-4 rounded-full text-[9px] ${!success ? 'bg-primary text-primary-foreground' : 'bg-muted-foreground/20 text-muted-foreground'}`}>1</span>
+            <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-semibold transition-colors ${step === 1 && !success ? 'bg-primary/15 text-primary border border-primary/25' : 'bg-muted text-muted-foreground border border-muted'}`}>
+              <span className={`flex items-center justify-center w-4 h-4 rounded-full text-[9px] ${step === 1 && !success ? 'bg-primary text-primary-foreground' : 'bg-muted-foreground/20 text-muted-foreground'}`}>1</span>
               Name &amp; Phone
             </div>
             <div className="flex-1 h-px bg-border" />
-            <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-semibold transition-colors ${success ? 'bg-success/15 text-success border border-success/25' : 'bg-muted text-muted-foreground border border-muted'}`}>
-              <span className={`flex items-center justify-center w-4 h-4 rounded-full text-[9px] ${success ? 'bg-success text-white' : 'bg-muted-foreground/20 text-muted-foreground'}`}>2</span>
+            <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-semibold transition-colors ${step === 2 || success ? (success ? 'bg-success/15 text-success border border-success/25' : 'bg-primary/15 text-primary border border-primary/25') : 'bg-muted text-muted-foreground border border-muted'}`}>
+              <span className={`flex items-center justify-center w-4 h-4 rounded-full text-[9px] ${step === 2 || success ? (success ? 'bg-success text-white' : 'bg-primary text-primary-foreground') : 'bg-muted-foreground/20 text-muted-foreground'}`}>2</span>
               Confirmation
             </div>
           </div>
