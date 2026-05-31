@@ -28,7 +28,7 @@ import {
 } from "./hardRecovery";
 import { checkServerVersion, CURRENT_APP_VERSION, getVersionGateState, isForceUpdateSync } from "./versionGate";
 import { logUpdateFailure } from "./updateTelemetry";
-import { getRecoveryAttempts } from "./hardRecovery";
+import { getRecoveryAttempts, MAX_RECOVERY_ATTEMPTS } from "./hardRecovery";
 import {
   pushUpdateDebug,
   formatUpdateDebugLog,
@@ -44,6 +44,89 @@ const AUTO_TRIGGER_DELAY_MS = 1800;
 // newly-forced build without ever touching a missing chunk.
 const POLL_INTERVAL_MS = 5 * 60_000;
 const MIN_CHECK_INTERVAL_MS = 60_000;
+
+// ---------------------------------------------------------------------------
+// iPhone loop-breaker.
+//
+// Telemetry proved the failure mode: the cache/SW purge SUCCEEDS, but the
+// programmatic cache-busted reload (location.replace) still re-fetches iOS
+// Safari's HTTP-cached index.html, so the device boots the SAME stale bundle
+// and re-enters recovery forever. A programmatic reload can never win against
+// the document HTTP cache on these devices.
+//
+// The ONLY reliable escape is a navigation initiated from a real user gesture
+// (a tap), which WebKit revalidates against the network. So we allow a small
+// number of automatic reload attempts, and once those are spent we STOP
+// auto-reloading and present a static "Open latest version" button. Tapping it
+// performs the purge + reload inside a user-activation context, which defeats
+// the cached shell.
+// ---------------------------------------------------------------------------
+const FORCED_RELOAD_KEY = "welile_forced_auto_reloads";
+const FORCED_RELOAD_WINDOW_MS = 5 * 60_000;
+const MAX_FORCED_AUTO_RELOADS = 2;
+
+interface ForcedReloadRecord {
+  count: number;
+  first: number;
+}
+
+function readForcedReloads(): ForcedReloadRecord {
+  try {
+    const raw = localStorage.getItem(FORCED_RELOAD_KEY);
+    if (!raw) return { count: 0, first: Date.now() };
+    const parsed = JSON.parse(raw) as ForcedReloadRecord;
+    if (Date.now() - parsed.first > FORCED_RELOAD_WINDOW_MS) {
+      return { count: 0, first: Date.now() };
+    }
+    return parsed;
+  } catch {
+    return { count: 0, first: Date.now() };
+  }
+}
+
+/** How many automatic forced-update reloads have fired in the current window. */
+function forcedAutoReloadCount(): number {
+  return readForcedReloads().count;
+}
+
+function recordForcedAutoReload(): void {
+  try {
+    const current = readForcedReloads();
+    const next: ForcedReloadRecord = {
+      count: current.count + 1,
+      first: current.count === 0 ? Date.now() : current.first,
+    };
+    localStorage.setItem(FORCED_RELOAD_KEY, JSON.stringify(next));
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Clear the forced auto-reload counter. Call ONLY once the app has confirmably
+ * mounted the fresh build (see main.tsx's 45s stability timer) — never on every
+ * reload, or the cap can never be reached.
+ */
+export function clearForcedAutoReloads(): void {
+  try {
+    localStorage.removeItem(FORCED_RELOAD_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * True while it is still safe to attempt an AUTOMATIC reload. Once the auto cap
+ * (or the shared recovery cap) is hit we must hand off to a user-gesture button
+ * instead of reloading again — a programmatic reload cannot beat the iOS HTTP
+ * document cache, so looping is pointless and just burns the user's time.
+ */
+function canAutoReload(): boolean {
+  return (
+    forcedAutoReloadCount() < MAX_FORCED_AUTO_RELOADS &&
+    getRecoveryAttempts() < MAX_RECOVERY_ATTEMPTS
+  );
+}
 
 let forcing = false;
 let installed = false;
@@ -201,9 +284,15 @@ function renderDebugPanel(): void {
   }
 }
 
-function renderBlockingOverlay(): void {
+function renderBlockingOverlay(manual: boolean): void {
   try {
-    if (document.getElementById(OVERLAY_ID)) return;
+    const existing = document.getElementById(OVERLAY_ID);
+    if (existing) {
+      // Already painted (e.g. auto-mode first, now switching to manual). Just
+      // upgrade it to the manual call-to-action instead of stacking overlays.
+      if (manual) applyManualOverlayState();
+      return;
+    }
     const overlay = document.createElement("div");
     overlay.id = OVERLAY_ID;
     overlay.setAttribute("role", "alertdialog");
@@ -215,9 +304,9 @@ function renderBlockingOverlay(): void {
 
     overlay.innerHTML = `
       <img src="/welile-logo.png" alt="Welile" width="56" height="56" style="border-radius:14px" />
-      <div style="width:22px;height:22px;border:2px solid #7c3aed;border-top-color:transparent;border-radius:50%;animation:wfu .6s linear infinite"></div>
-      <h2 style="font-size:20px;font-weight:700;margin:0">Updating Welile</h2>
-      <p style="font-size:14px;color:#6b7280;margin:0;max-width:300px;line-height:1.5">
+      <div id="${OVERLAY_ID}-spin" style="width:22px;height:22px;border:2px solid #7c3aed;border-top-color:transparent;border-radius:50%;animation:wfu .6s linear infinite"></div>
+      <h2 id="${OVERLAY_ID}-h" style="font-size:20px;font-weight:700;margin:0">Updating Welile</h2>
+      <p id="${OVERLAY_ID}-p" style="font-size:14px;color:#6b7280;margin:0;max-width:300px;line-height:1.5">
         A required update is installing automatically. This only takes a moment — please don't close the app.
       </p>
       <button id="${OVERLAY_ID}-btn" style="padding:14px 28px;background:#7c3aed;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;min-height:48px">Update now</button>
@@ -233,10 +322,54 @@ function renderBlockingOverlay(): void {
       btn.onclick = () => {
         btn.disabled = true;
         btn.textContent = "Updating…";
+        // A button tap is a genuine user-activation, so this navigation is
+        // revalidated against the network by WebKit — the one thing that beats
+        // the iOS HTTP-cached shell that programmatic reloads cannot.
         void purgeThenReload();
       };
     }
+    if (manual) applyManualOverlayState();
     renderDebugPanel();
+  } catch {
+    /* overlay must never throw */
+  }
+}
+
+/**
+ * Switch the overlay from the silent "installing automatically" state into the
+ * explicit user-gesture call-to-action. Used after the automatic reload budget
+ * is spent and the device is still serving the stale shell.
+ */
+function applyManualOverlayState(): void {
+  try {
+    const spin = document.getElementById(`${OVERLAY_ID}-spin`);
+    if (spin) spin.style.display = "none";
+    const h = document.getElementById(`${OVERLAY_ID}-h`);
+    if (h) h.textContent = "Almost there — tap to finish";
+    const p = document.getElementById(`${OVERLAY_ID}-p`);
+    if (p) {
+      p.textContent =
+        "Your iPhone is holding onto an old copy of Welile. Tap the button below to load the latest version.";
+    }
+    const btn = document.getElementById(`${OVERLAY_ID}-btn`) as HTMLButtonElement | null;
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Open latest version";
+      // Pulse so the user notices the action is now on them.
+      btn.style.boxShadow = "0 0 0 0 rgba(124,58,237,0.5)";
+      btn.style.animation = "wfu-pulse 1.4s ease-in-out infinite";
+      if (!document.getElementById(`${OVERLAY_ID}-pulse-style`)) {
+        const st = document.createElement("style");
+        st.id = `${OVERLAY_ID}-pulse-style`;
+        st.textContent =
+          "@keyframes wfu-pulse{0%{box-shadow:0 0 0 0 rgba(124,58,237,.45)}70%{box-shadow:0 0 0 12px rgba(124,58,237,0)}100%{box-shadow:0 0 0 0 rgba(124,58,237,0)}}";
+        document.head.appendChild(st);
+      }
+    }
+    pushUpdateDebug("forced: manual mode (auto-reload budget spent)", {
+      forcedAutoReloads: forcedAutoReloadCount(),
+      reload_attempts: getRecoveryAttempts(),
+    });
   } catch {
     /* overlay must never throw */
   }
@@ -249,6 +382,7 @@ function renderBlockingOverlay(): void {
 export function triggerForcedUpdate(reason: string): void {
   if (forcing) return;
   const cached = getVersionGateState();
+  const autoOk = canAutoReload();
   pushUpdateDebug("forced: triggerForcedUpdate", {
     reason,
     forced: cached?.force ?? null,
@@ -256,25 +390,47 @@ export function triggerForcedUpdate(reason: string): void {
     server: cached?.server ?? null,
     stale: cached?.stale ?? null,
     reload_attempts: getRecoveryAttempts(),
+    forcedAutoReloads: forcedAutoReloadCount(),
+    autoOk,
   });
-  if (cached?.current && cached.current !== CURRENT_APP_VERSION) {
+  if (autoOk && cached?.current && cached.current !== CURRENT_APP_VERSION) {
     pushUpdateDebug("forced: cached version mismatch → immediate reload", {
       cachedCurrent: cached.current,
       current: CURRENT_APP_VERSION,
     });
+    recordForcedAutoReload();
     reloadWithCacheBust();
     return;
   }
   forcing = true;
   logUpdateFailure("ios_version_gate", {
     chunk_mismatch: true,
-    details: { forced: true, reason, ui: "forced_update_gate" },
+    details: {
+      forced: true,
+      reason,
+      ui: autoOk ? "forced_update_gate_auto" : "forced_update_gate_manual",
+      forcedAutoReloads: forcedAutoReloadCount(),
+    },
   });
-  renderBlockingOverlay();
-  // Auto-fire the update so the user never has to hunt for the button.
-  setTimeout(() => {
-    void purgeThenReload();
-  }, AUTO_TRIGGER_DELAY_MS);
+  renderBlockingOverlay(!autoOk);
+  if (autoOk) {
+    // Auto-fire the update so the user never has to hunt for the button — but
+    // only while we still have automatic-reload budget left. Mark the attempt
+    // BEFORE reloading so the counter survives the navigation.
+    recordForcedAutoReload();
+    setTimeout(() => {
+      void purgeThenReload();
+    }, AUTO_TRIGGER_DELAY_MS);
+  } else {
+    // Auto-reload budget spent and still stale: stop looping. The static
+    // "Open latest version" button now waits for a user gesture, which is the
+    // only reliable way past the iOS HTTP-cached shell.
+    logUpdateFailure("recovery_exhausted", {
+      chunk_mismatch: true,
+      reload_attempts: getRecoveryAttempts(),
+      details: { ui: "forced_update_gate_manual", reason },
+    });
+  }
 }
 
 async function checkAndForceIfRequired(reason: string): Promise<void> {
