@@ -61,6 +61,8 @@ export default function LandlordRegistrationForm({
   const [showListHouse, setShowListHouse] = useState(false);
   const [activationLink, setActivationLink] = useState('');
   const [locationCaptured, setLocationCaptured] = useState(false);
+  // Optional details are tucked away so the core flow is just Name + Phone.
+  const [showMore, setShowMore] = useState(false);
 
   // Inline validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
