@@ -27,7 +27,13 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess, 
           registeredByRole="agent"
           onSuccess={onSuccess}
           onClose={() => onOpenChange(false)}
-          toastFn={(opts) => toast(opts.title, { description: opts.description })}
+          toastFn={(opts) => {
+            if (opts.variant === 'destructive') {
+              toast.error(opts.title, { description: opts.description });
+            } else {
+              toast.success(opts.title, { description: opts.description });
+            }
+          }}
           minimal={minimal}
         />
       </DialogContent>
