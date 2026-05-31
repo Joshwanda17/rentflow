@@ -7,6 +7,15 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerClose,
+} from '@/components/ui/drawer';
+import {
   Loader2,
   ChevronLeft,
   ChevronRight,
@@ -20,6 +29,11 @@ import {
   Banknote,
   Pencil,
   RefreshCw,
+  Phone,
+  MapPin,
+  ChevronRight as ChevronRightIcon,
+  Hash,
+  Clock,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -173,11 +187,13 @@ function RowCard({
   tone,
   stageLabel,
   rightSlot,
+  onClick,
 }: {
   row: PipelineRow;
   tone: 'amber' | 'emerald' | 'destructive';
   stageLabel: string;
   rightSlot?: React.ReactNode;
+  onClick?: () => void;
 }) {
   const toneClass =
     tone === 'amber'
@@ -188,7 +204,25 @@ function RowCard({
   const badgeVariant: 'secondary' | 'default' | 'destructive' =
     tone === 'destructive' ? 'destructive' : tone === 'emerald' ? 'default' : 'secondary';
   return (
-    <Card className={`border-2 overflow-hidden ${toneClass}`}>
+    <Card
+      className={`border-2 overflow-hidden ${toneClass} ${
+        onClick ? 'cursor-pointer transition-shadow hover:shadow-md active:scale-[0.99]' : ''
+      }`}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+      style={onClick ? { touchAction: 'manipulation' } : undefined}
+    >
       <CardContent className="p-3 space-y-2">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
@@ -229,12 +263,20 @@ function RowCard({
               </div>
             </div>
           </div>
-          <div className="text-right shrink-0">
-            <p className="text-sm font-bold tabular-nums">{formatUGX(row.rent_amount)}</p>
-            <p className="text-[10px] text-muted-foreground">{row.duration_days} days</p>
+          <div className="flex items-center gap-1 shrink-0">
+            <div className="text-right">
+              <p className="text-sm font-bold tabular-nums">{formatUGX(row.rent_amount)}</p>
+              <p className="text-[10px] text-muted-foreground">{row.duration_days} days</p>
+            </div>
+            {onClick && <ChevronRightIcon className="h-4 w-4 text-muted-foreground/60" />}
           </div>
         </div>
         {rightSlot}
+        {onClick && (
+          <p className="text-[10px] text-muted-foreground/70 text-center pt-0.5">
+            Tap to view full details
+          </p>
+        )}
       </CardContent>
     </Card>
   );
@@ -247,6 +289,7 @@ export function AgentRequestPipelineView() {
   const [approvedPage, setApprovedPage] = useState(0);
   const [rejectedPage, setRejectedPage] = useState(0);
   const [editing, setEditing] = useState<AgentRejectedRequest | null>(null);
+  const [detailRow, setDetailRow] = useState<PipelineRow | null>(null);
 
   const submitted = usePipelineRequests(
     SUBMITTED_STATUSES,
@@ -340,6 +383,7 @@ export function AgentRequestPipelineView() {
                   row={r}
                   tone="amber"
                   stageLabel={STAGE_LABEL[r.status] ?? 'In review'}
+                  onClick={() => setDetailRow(r)}
                 />
               ))}
               <Pager
@@ -372,6 +416,7 @@ export function AgentRequestPipelineView() {
                   row={r}
                   tone="emerald"
                   stageLabel={STAGE_LABEL[r.status] ?? 'Approved'}
+                  onClick={() => setDetailRow(r)}
                   rightSlot={
                     <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-emerald-500/20">
                       <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1">
@@ -496,7 +541,141 @@ export function AgentRequestPipelineView() {
           setTab('submitted');
         }}
       />
+
+      <RequestDetailDrawer
+        row={detailRow}
+        stageLabel={detailRow ? STAGE_LABEL[detailRow.status] ?? 'In review' : ''}
+        onClose={() => setDetailRow(null)}
+      />
     </div>
+  );
+}
+
+function DetailRow({
+  icon: Icon,
+  label,
+  value,
+  emphasis,
+}: {
+  icon: typeof User;
+  label: string;
+  value: string;
+  emphasis?: boolean;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-3 py-2.5">
+      <span className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
+        <Icon className="h-3.5 w-3.5" />
+        {label}
+      </span>
+      <span
+        className={`text-right break-words ${
+          emphasis ? 'text-sm font-bold tabular-nums text-foreground' : 'text-sm font-medium text-foreground'
+        }`}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function RequestDetailDrawer({
+  row,
+  stageLabel,
+  onClose,
+}: {
+  row: PipelineRow | null;
+  stageLabel: string;
+  onClose: () => void;
+}) {
+  const dailyRepay =
+    row && row.duration_days > 0 ? Math.round(row.total_repayment / row.duration_days) : 0;
+  return (
+    <Drawer open={!!row} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DrawerContent>
+        {row && (
+          <div className="mx-auto w-full max-w-md">
+            <DrawerHeader className="text-left">
+              <div className="flex items-center justify-between gap-2">
+                <DrawerTitle className="text-base">Request details</DrawerTitle>
+                <Badge variant="secondary" className="text-[10px]">{stageLabel}</Badge>
+              </div>
+              <DrawerDescription>
+                Submitted {format(new Date(row.created_at), 'MMM d, yyyy · h:mm a')}
+              </DrawerDescription>
+            </DrawerHeader>
+
+            <div className="px-4 pb-2 space-y-3 max-h-[60vh] overflow-y-auto">
+              {/* Tenant */}
+              <div className="rounded-xl border bg-muted/30 px-3.5">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground pt-3">
+                  Tenant
+                </p>
+                <div className="divide-y divide-border/60">
+                  <DetailRow icon={User} label="Name" value={row.tenant_name || 'Unknown tenant'} />
+                  {row.tenant_phone && (
+                    <DetailRow icon={Phone} label="Phone" value={row.tenant_phone} />
+                  )}
+                </div>
+              </div>
+
+              {/* Landlord */}
+              <div className="rounded-xl border bg-muted/30 px-3.5">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground pt-3">
+                  Landlord
+                </p>
+                <div className="divide-y divide-border/60">
+                  <DetailRow
+                    icon={Building}
+                    label="Name"
+                    value={row.landlord_name || 'Not provided'}
+                  />
+                  {row.landlord_address && (
+                    <DetailRow icon={MapPin} label="Property" value={row.landlord_address} />
+                  )}
+                </div>
+              </div>
+
+              {/* Amounts */}
+              <div className="rounded-xl border bg-muted/30 px-3.5">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground pt-3">
+                  Amounts
+                </p>
+                <div className="divide-y divide-border/60">
+                  <DetailRow icon={Banknote} label="Rent amount" value={formatUGX(row.rent_amount)} emphasis />
+                  <DetailRow icon={Banknote} label="Total to repay" value={formatUGX(row.total_repayment)} emphasis />
+                  <DetailRow icon={Banknote} label="Daily repayment" value={formatUGX(dailyRepay)} />
+                  {row.amount_repaid > 0 && (
+                    <DetailRow icon={Banknote} label="Repaid so far" value={formatUGX(row.amount_repaid)} />
+                  )}
+                  <DetailRow icon={Clock} label="Duration" value={`${row.duration_days} days`} />
+                </div>
+              </div>
+
+              {/* Reference */}
+              <div className="rounded-xl border bg-muted/30 px-3.5">
+                <div className="divide-y divide-border/60">
+                  <DetailRow icon={Hash} label="Reference" value={row.id.slice(0, 8).toUpperCase()} />
+                  {(row.resubmission_count ?? 0) > 0 && (
+                    <DetailRow
+                      icon={RefreshCw}
+                      label="Resubmissions"
+                      value={`×${row.resubmission_count}`}
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <DrawerFooter>
+              <DrawerClose asChild>
+                <Button variant="outline" className="w-full">Close</Button>
+              </DrawerClose>
+            </DrawerFooter>
+          </div>
+        )}
+      </DrawerContent>
+    </Drawer>
   );
 }
 
