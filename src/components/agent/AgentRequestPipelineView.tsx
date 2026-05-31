@@ -195,6 +195,39 @@ function usePipelineRequests(
   });
 }
 
+interface LandlordRow {
+  id: string;
+  name: string;
+  phone: string | null;
+  property_address: string | null;
+  verified: boolean | null;
+  created_at: string;
+}
+
+/**
+ * Standalone landlords an agent has registered. These do NOT create a
+ * rent_request, so they never appear in the rent-request pipeline above —
+ * which is exactly why agents (and operators) couldn't see freshly
+ * registered landlords. This surfaces them in a dedicated tab.
+ */
+function useRegisteredLandlords(enabled: boolean) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ['agent-registered-landlords', user?.id],
+    enabled: enabled && !!user,
+    queryFn: async (): Promise<LandlordRow[]> => {
+      const { data, error } = await supabase
+        .from('landlords')
+        .select('id, name, phone, property_address, verified, created_at')
+        .eq('registered_by', user!.id)
+        .order('created_at', { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return (data ?? []) as LandlordRow[];
+    },
+  });
+}
+
 function Pager({
   page,
   total,
