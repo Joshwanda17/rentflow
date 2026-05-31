@@ -148,6 +148,18 @@ export type AgentCapacity = {
   /** True iff agent may post a new rent request today. */
   can_post_rent_today: boolean;
   /**
+   * Number of DISTINCT days in the last 7 (from saved eligibility history)
+   * the agent was rated "Good" (green) or better. Drives the weekly
+   * unlimited-posting unlock.
+   */
+  good_days_last_week: number;
+  /**
+   * True when the agent qualified for unlimited posting this week
+   * (>= GOOD_DAYS_UNLOCK_THRESHOLD good days last week). When true the
+   * per-tenant cap and daily block are lifted entirely.
+   */
+  unlimited_posting: boolean;
+  /**
    * True while the agent is still in the new-agent onboarding phase
    * (fewer than NEW_AGENT_TENANT_THRESHOLD active tenants). New agents are
    * capped at NEW_AGENT_RENT_CAP_UGX per tenant and are exempt from daily
