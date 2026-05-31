@@ -17,7 +17,7 @@ import {
 import {
   Building2, Phone, MapPin, Loader2, CheckCircle2,
   Navigation, AlertTriangle, Share2, Eye, EyeOff,
-  RefreshCw, Copy, User, Hash, Zap, Droplets,
+  RefreshCw, Copy, User, Hash, Zap, Droplets, ListChecks,
   Wallet, ShieldCheck, XCircle, Home, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { ListEmptyHouseDialog } from '@/components/agent/ListEmptyHouseDialog';
@@ -617,6 +617,20 @@ export default function LandlordRegistrationForm({
           >
             <Building2 className="h-5 w-5" /> Register Another Landlord
           </Button>
+
+          {registeredByRole === 'agent' && (
+            <Button
+              variant="secondary"
+              onClick={() => {
+                hapticTap();
+                onClose();
+                window.dispatchEvent(new CustomEvent('open-submissions', { detail: { tab: 'landlords' } }));
+              }}
+              className="w-full h-12 gap-2 touch-manipulation select-none transition-transform active:scale-[0.98]"
+            >
+              <ListChecks className="h-5 w-5" /> View my submissions
+            </Button>
+          )}
 
           <Button
             variant="outline"

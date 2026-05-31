@@ -60,7 +60,7 @@ import { useAgentRejectedRequests } from '@/hooks/useAgentRejectedRequests';
 import { AgentEditRentRequestDialog } from './AgentEditRentRequestDialog';
 import type { AgentRejectedRequest } from '@/hooks/useAgentRejectedRequests';
 
-type PipelineTab = 'submitted' | 'approved' | 'rejected';
+type PipelineTab = 'submitted' | 'approved' | 'rejected' | 'landlords';
 
 const PAGE_SIZE = 10;
 
@@ -191,6 +191,39 @@ function usePipelineRequests(
         })),
         total: count ?? rows.length,
       };
+    },
+  });
+}
+
+interface LandlordRow {
+  id: string;
+  name: string;
+  phone: string | null;
+  property_address: string | null;
+  verified: boolean | null;
+  created_at: string;
+}
+
+/**
+ * Standalone landlords an agent has registered. These do NOT create a
+ * rent_request, so they never appear in the rent-request pipeline above —
+ * which is exactly why agents (and operators) couldn't see freshly
+ * registered landlords. This surfaces them in a dedicated tab.
+ */
+function useRegisteredLandlords(enabled: boolean) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ['agent-registered-landlords', user?.id],
+    enabled: enabled && !!user,
+    queryFn: async (): Promise<LandlordRow[]> => {
+      const { data, error } = await supabase
+        .from('landlords')
+        .select('id, name, phone, property_address, verified, created_at')
+        .eq('registered_by', user!.id)
+        .order('created_at', { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return (data ?? []) as LandlordRow[];
     },
   });
 }
@@ -355,9 +388,9 @@ function RowCard({
   );
 }
 
-export function AgentRequestPipelineView() {
+export function AgentRequestPipelineView({ initialTab }: { initialTab?: PipelineTab } = {}) {
   const queryClient = useQueryClient();
-  const [tab, setTab] = useState<PipelineTab>('submitted');
+  const [tab, setTab] = useState<PipelineTab>(initialTab ?? 'submitted');
   const [submittedPage, setSubmittedPage] = useState(0);
   const [approvedPage, setApprovedPage] = useState(0);
   const [rejectedPage, setRejectedPage] = useState(0);
@@ -384,6 +417,7 @@ export function AgentRequestPipelineView() {
   );
   const rejectedQuery = useAgentRejectedRequests();
   const rejectedAll = rejectedQuery.data ?? [];
+  const landlordsQuery = useRegisteredLandlords(tab === 'landlords');
 
   // Client-side filtering helpers
   const filterBySearch = (row: PipelineRow | AgentRejectedRequest) => {
@@ -440,7 +474,26 @@ export function AgentRequestPipelineView() {
     [filteredRejected, rejectedPage],
   );
 
-  const rowsToExport = tab === 'submitted' ? submittedRows : tab === 'approved' ? approvedRows : filteredRejected;
+  const landlordRows = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return (landlordsQuery.data ?? []).filter((l) => {
+      if (!q) return true;
+      return (
+        (l.name ?? '').toLowerCase().includes(q) ||
+        (l.phone ?? '').toLowerCase().includes(q) ||
+        (l.property_address ?? '').toLowerCase().includes(q)
+      );
+    });
+  }, [landlordsQuery.data, searchQuery]);
+
+  const rowsToExport =
+    tab === 'submitted'
+      ? submittedRows
+      : tab === 'approved'
+        ? approvedRows
+        : tab === 'rejected'
+          ? filteredRejected
+          : [];
 
   const exportToCSV = () => {
     if (rowsToExport.length === 0) {
@@ -497,6 +550,13 @@ export function AgentRequestPipelineView() {
       icon: XCircle,
       count: filteredRejected.length,
       tone: 'bg-destructive text-destructive-foreground',
+    },
+    {
+      key: 'landlords',
+      label: 'Landlords',
+      icon: Landmark,
+      count: landlordRows.length,
+      tone: 'bg-indigo-600 text-white',
     },
   ];
 
@@ -586,7 +646,7 @@ export function AgentRequestPipelineView() {
 
         {showFilters && (
         <div className="flex gap-2">
-          {tab !== 'rejected' && (
+          {(tab === 'submitted' || tab === 'approved') && (
             <Select
               value={statusFilter}
               onValueChange={(v) => {
@@ -644,13 +704,19 @@ export function AgentRequestPipelineView() {
 
         <div className="flex items-center justify-between">
           <p className="text-[11px] text-muted-foreground">
-            {activeFiltersCount > 0
-              ? `Showing ${tab === 'submitted' ? submittedRows.length : tab === 'approved' ? approvedRows.length : filteredRejected.length} result${(
-                  (tab === 'submitted' ? submittedRows.length : tab === 'approved' ? approvedRows.length : filteredRejected.length) !== 1 ? 's' : ''
-                )}`
-              : `${tab === 'submitted' ? submittedRows.length : tab === 'approved' ? approvedRows.length : filteredRejected.length} record${(
-                  (tab === 'submitted' ? submittedRows.length : tab === 'approved' ? approvedRows.length : filteredRejected.length) !== 1 ? 's' : ''
-                )}`}
+            {(() => {
+              const n =
+                tab === 'submitted'
+                  ? submittedRows.length
+                  : tab === 'approved'
+                    ? approvedRows.length
+                    : tab === 'landlords'
+                      ? landlordRows.length
+                      : filteredRejected.length;
+              return activeFiltersCount > 0
+                ? `Showing ${n} result${n !== 1 ? 's' : ''}`
+                : `${n} record${n !== 1 ? 's' : ''}`;
+            })()}
           </p>
           <div className="flex items-center gap-1">
             {activeFiltersCount > 0 && (
@@ -846,6 +912,59 @@ export function AgentRequestPipelineView() {
                 loading={rejectedQuery.isFetching}
               />
             </>
+          )}
+        </div>
+      )}
+
+      {/* Landlords (standalone registrations) */}
+      {tab === 'landlords' && (
+        <div className="space-y-2">
+          {landlordsQuery.isLoading ? (
+            <Skeleton className="h-24 w-full rounded-xl" />
+          ) : landlordRows.length === 0 ? (
+            <EmptyState
+              icon={Landmark}
+              title={activeFiltersCount > 0 ? 'No matches found' : 'No landlords yet'}
+              subtitle={activeFiltersCount > 0 ? 'Try adjusting your search.' : 'Landlords you register will appear here right away.'}
+            />
+          ) : (
+            landlordRows.map((l) => (
+              <Card key={l.id} className="border-2 border-indigo-500/30 bg-indigo-500/5 overflow-hidden">
+                <CardContent className="p-3 space-y-1.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <Landmark className="h-4 w-4 text-indigo-600 shrink-0" />
+                        <span className="font-semibold truncate text-sm">{l.name || 'Unnamed landlord'}</span>
+                      </div>
+                      <div className="text-[11px] text-muted-foreground space-y-0.5">
+                        {l.phone && (
+                          <div className="flex items-center gap-1.5">
+                            <Phone className="h-3 w-3" />
+                            <span className="truncate">{l.phone}</span>
+                          </div>
+                        )}
+                        {l.property_address && (
+                          <div className="flex items-center gap-1.5">
+                            <MapPin className="h-3 w-3" />
+                            <span className="truncate">{l.property_address}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1.5">
+                          <Calendar className="h-3 w-3" />
+                          <span>Registered {format(new Date(l.created_at), 'MMM d, yyyy')}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <Badge
+                      className={`text-[10px] shrink-0 ${l.verified ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-white'}`}
+                    >
+                      {l.verified ? 'Verified' : 'Pending verification'}
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
           )}
         </div>
       )}
