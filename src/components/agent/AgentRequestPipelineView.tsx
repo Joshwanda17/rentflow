@@ -417,6 +417,7 @@ export function AgentRequestPipelineView({ initialTab }: { initialTab?: Pipeline
   );
   const rejectedQuery = useAgentRejectedRequests();
   const rejectedAll = rejectedQuery.data ?? [];
+  const landlordsQuery = useRegisteredLandlords(tab === 'landlords');
 
   // Client-side filtering helpers
   const filterBySearch = (row: PipelineRow | AgentRejectedRequest) => {
