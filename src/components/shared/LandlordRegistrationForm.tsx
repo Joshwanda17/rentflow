@@ -328,13 +328,17 @@ export default function LandlordRegistrationForm({
               </div>
               <div className="flex gap-2">
                 <Button
-                  onClick={shareViaWhatsApp}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                  onClick={() => { hapticTap(); shareViaWhatsApp(); }}
+                  className="flex-1 h-12 bg-green-600 hover:bg-green-700 text-white touch-manipulation select-none transition-transform active:scale-[0.98]"
                 >
                   <Share2 className="h-4 w-4 mr-2" />
                   WhatsApp
                 </Button>
-                <Button variant="outline" onClick={copyLink} className="gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => { hapticTap(); copyLink(); }}
+                  className="h-12 gap-2 touch-manipulation select-none transition-transform active:scale-[0.98]"
+                >
                   <Copy className="h-4 w-4" />
                   Copy
                 </Button>
@@ -342,7 +346,11 @@ export default function LandlordRegistrationForm({
             </div>
           )}
 
-          <Button variant="outline" onClick={onClose} className="w-full">
+          <Button
+            variant="outline"
+            onClick={() => { hapticTap(); onClose(); }}
+            className="w-full h-12 touch-manipulation select-none transition-transform active:scale-[0.98]"
+          >
             Done
           </Button>
         </motion.div>
