@@ -109,6 +109,19 @@ export default function LandlordRegistrationForm({
 
   const clearSubmitError = () => setSubmitError('');
 
+  // Scroll to and focus the input inside a given [data-field] wrapper so the
+  // agent is taken straight to the field that needs their attention.
+  const focusField = (name: string) => {
+    requestAnimationFrame(() => {
+      const wrapper = document.querySelector(`[data-field="${name}"]`);
+      wrapper?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const input = wrapper?.querySelector(
+        'input, textarea, select'
+      ) as HTMLElement | null;
+      input?.focus();
+    });
+  };
+
   // Core fields
   const [landlordName, setLandlordName] = useState('');
   const [landlordPhone, setLandlordPhone] = useState('');
