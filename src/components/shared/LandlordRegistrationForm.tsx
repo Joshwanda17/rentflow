@@ -243,7 +243,7 @@ export default function LandlordRegistrationForm({
 
       const insertData: Record<string, unknown> = {
         name: landlordName.trim(),
-        phone: landlordPhone.trim(),
+        phone: landlordPhoneClean,
         property_address: addressToUse,
         registered_by: user.id,
         latitude: location?.latitude || null,
@@ -251,7 +251,7 @@ export default function LandlordRegistrationForm({
         location_captured_at: location ? new Date().toISOString() : null,
         location_captured_by: location ? user.id : null,
         mobile_money_name: momoName.trim() || null,
-        mobile_money_number: momoNumber.trim() || null,
+        mobile_money_number: momoNumberClean || null,
         water_meter_number: nwscMeter.trim() || null,
         electricity_meter_number: uedclMeter.trim() || null,
         number_of_houses: numberOfRentals ? parseInt(numberOfRentals) : null,
