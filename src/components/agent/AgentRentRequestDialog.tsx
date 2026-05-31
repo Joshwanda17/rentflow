@@ -2511,6 +2511,27 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           </p>
                         </>
                       )}
+
+                      {/* Super-simple step-by-step with a concrete example */}
+                      <div className="mt-3 pt-3 border-t border-dashed border-current/20 space-y-2">
+                        <p className="font-bold text-[11px] uppercase tracking-wide opacity-70">
+                          Quick example
+                        </p>
+                        <ol className="list-decimal pl-4 space-y-1.5 text-xs">
+                          <li>
+                            Your current limit is <span className="font-bold">{formatUGX(perTenantMax)}</span> per tenant.
+                          </li>
+                          <li>
+                            If a tenant's rent is <span className="font-bold">{formatUGX(Math.min(amount || 500000, perTenantMax))}</span>, that is okay — it fits inside your limit.
+                          </li>
+                          <li>
+                            If the rent is <span className="font-bold">{formatUGX(perTenantMax + 200000)}</span>, it is <span className="font-bold">{formatUGX(200000)}</span> too much — the system will stop you.
+                          </li>
+                          <li>
+                            To post bigger amounts, collect from more tenants more often so your level goes up.
+                          </li>
+                        </ol>
+                      </div>
                     </div>
                   </div>
                 );
