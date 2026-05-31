@@ -26,6 +26,42 @@ interface AttemptRecord {
   first: number;
 }
 
+/**
+ * Structured outcome of a purge pass. Callers (notably the forced-update
+ * overlay) use this to SURFACE failures to the user instead of silently
+ * reloading onto a still-stale shell. `errors` is a flat list of
+ * human-readable messages safe to render directly.
+ */
+export interface PurgeResult {
+  swUnregistered: number;
+  cachesDeleted: number;
+  swReregistered: boolean;
+  /** Names of caches that survived every delete pass (still present). */
+  survivingCaches: string[];
+  /** Human-readable failure messages collected across all steps. */
+  errors: string[];
+}
+
+/** Path of the static kill-switch service worker we re-register after a purge. */
+const KILL_SWITCH_SW = "/sw.js";
+const CACHE_DELETE_PASSES = 3;
+
+function describeError(prefix: string, err: unknown): string {
+  const msg =
+    err instanceof Error
+      ? err.message
+      : typeof err === "string"
+        ? err
+        : (() => {
+            try {
+              return JSON.stringify(err);
+            } catch {
+              return String(err);
+            }
+          })();
+  return `${prefix}: ${msg || "unknown error"}`;
+}
+
 function readAttempts(): AttemptRecord {
   try {
     const raw = localStorage.getItem(ATTEMPT_KEY);
