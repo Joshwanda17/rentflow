@@ -79,8 +79,8 @@ export default function LandlordRegistrationForm({
       else if (!/^\d{9,10}$/.test(trimmed.replace(/\D/g, ''))) msg = 'Enter a valid phone number';
     }
     if (name === 'propertyAddress') {
-      if (!trimmed) msg = 'Property address is required';
-      else if (trimmed.length < 5) msg = 'Address is too short';
+      // Address is optional now — only validate when something was typed.
+      if (trimmed && trimmed.length < 5) msg = 'Address is too short';
     }
     if (name === 'lc1Name') {
       if (!trimmed) msg = 'LC1 name is required';
