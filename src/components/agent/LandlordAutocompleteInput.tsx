@@ -102,15 +102,15 @@ export function LandlordAutocompleteInput({
         autoComplete="off"
       />
       {showDropdown && (
-        <div className="absolute z-50 mt-1 w-full rounded-lg border bg-popover shadow-lg overflow-hidden">
+        <div className="absolute z-50 mt-1.5 w-full rounded-xl border-2 bg-popover shadow-xl overflow-hidden max-h-72 overflow-y-auto">
           {loading && (
-            <div className="flex items-center justify-center gap-2 py-3 text-xs text-muted-foreground">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching…
+            <div className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Searching…
             </div>
           )}
           {!loading && results.length === 0 && (
-            <div className="px-3 py-3 text-center text-xs text-muted-foreground">
-              No registered landlord matches — fill in the details to add a new one.
+            <div className="px-3 py-4 text-center text-sm text-muted-foreground">
+              Not found — just keep typing to add a new landlord.
             </div>
           )}
           {!loading &&
@@ -125,16 +125,19 @@ export function LandlordAutocompleteInput({
                   onSelect(l);
                   setFocused(false);
                 }}
-                className="w-full flex items-start gap-2 px-3 py-2 text-left hover:bg-accent transition-colors"
+                className="w-full flex items-center gap-3 px-3 py-3 text-left border-b last:border-b-0 hover:bg-accent active:bg-accent transition-colors"
               >
-                <Building2 className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+                <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                  <Building2 className="h-4.5 w-4.5 text-primary" />
+                </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate">{l.name}</p>
+                  <p className="text-sm font-semibold truncate">{l.name}</p>
                   <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
-                    <Phone className="h-3 w-3" /> {l.phone}
+                    <Phone className="h-3 w-3 shrink-0" /> {l.phone}
                     {l.property_address ? ` • ${l.property_address}` : ''}
                   </p>
                 </div>
+                <span className="text-[11px] font-semibold text-primary shrink-0">Tap to use</span>
               </button>
             ))}
         </div>
