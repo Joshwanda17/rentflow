@@ -491,7 +491,7 @@ export default function LandlordRegistrationForm({
               value={landlordPhone}
               onChange={(e) => { setLandlordPhone(e.target.value); clearError('landlordPhone'); }}
               onBlur={(e) => validateField('landlordPhone', e.target.value)}
-              placeholder="0700000000"
+              placeholder="07XX XXX XXX — 10 digits"
               className={`h-10 ${errors.landlordPhone ? 'border-destructive focus-visible:ring-destructive' : ''}`}
               required
             />
@@ -536,7 +536,7 @@ export default function LandlordRegistrationForm({
                     value={lc1Phone}
                     onChange={(e) => { setLc1Phone(e.target.value); clearError('lc1Phone'); }}
                     onBlur={(e) => validateField('lc1Phone', e.target.value)}
-                    placeholder="0700000000"
+                    placeholder="07XX XXX XXX — 10 digits"
                     className={`h-10 ${errors.lc1Phone ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                     required
                   />
