@@ -266,12 +266,12 @@ export default function LandlordRegistrationForm({
       if (error) throw error;
 
       // Persist LC1 chairperson when collected (minimal/outstanding flow).
-      if (minimal && lc1Name.trim() && lc1Phone.trim()) {
+      if (minimal && lc1Name.trim() && lc1PhoneClean) {
         const { error: lc1Err } = await supabase
           .from('lc1_chairpersons')
           .insert({
             name: lc1Name.trim(),
-            phone: lc1Phone.trim(),
+            phone: lc1PhoneClean,
             village: 'To be confirmed',
           } as any);
         if (lc1Err) {
