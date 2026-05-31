@@ -181,29 +181,38 @@ export default function LandlordRegistrationForm({
     e?.preventDefault();
     if (!user) return;
 
+    // Inline validate every required field before submit
+    const fieldsToValidate: { name: string; value: string }[] = [
+      { name: 'landlordName', value: landlordName },
+      { name: 'landlordPhone', value: landlordPhone },
+    ];
     if (minimal) {
-      if (
-        !landlordName.trim() ||
-        !landlordPhone.trim() ||
-        !lc1Name.trim() ||
-        !lc1Phone.trim()
-      ) {
-        toastFn({
-          title: 'Missing Fields',
-          description: 'Landlord name & phone, plus LC1 name & phone, are required.',
-          variant: 'destructive',
-        });
-        return;
-      }
+      fieldsToValidate.push(
+        { name: 'lc1Name', value: lc1Name },
+        { name: 'lc1Phone', value: lc1Phone }
+      );
     } else {
-      if (!landlordName.trim() || !landlordPhone.trim() || !propertyAddress.trim()) {
-        toastFn({ title: 'Missing Fields', description: 'Name, phone and address are required.', variant: 'destructive' });
-        return;
-      }
-      if (!tempPassword) {
-        toastFn({ title: 'Missing Password', description: 'Generate a temporary password.', variant: 'destructive' });
-        return;
-      }
+      fieldsToValidate.push({ name: 'propertyAddress', value: propertyAddress });
+    }
+
+    const newErrors: Record<string, string> = {};
+    for (const { name, value } of fieldsToValidate) {
+      const msg = validateField(name, value);
+      if (msg) newErrors[name] = msg;
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      toastFn({
+        title: 'Please fix the errors',
+        description: 'Some required fields are missing or invalid.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!minimal && !tempPassword) {
+      toastFn({ title: 'Missing Password', description: 'Generate a temporary password.', variant: 'destructive' });
+      return;
     }
 
     // Make sure we always have a password to seed the activation invite.
