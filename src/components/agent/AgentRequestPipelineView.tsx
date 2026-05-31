@@ -592,7 +592,7 @@ export function AgentRequestPipelineView({
   ];
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" ref={containerRef}>
       {/* Tab strip */}
       <div className="flex gap-2">
         {tabs.map((t) => {
