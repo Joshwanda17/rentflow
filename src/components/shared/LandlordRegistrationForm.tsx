@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useCaptureLocation } from '@/hooks/useCaptureLocation';
 import { Button } from '@/components/ui/button';
+import { formatUgandaPhone, cleanPhoneNumber } from '@/lib/phoneUtils';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -223,11 +224,15 @@ export default function LandlordRegistrationForm({
 
     setLoading(true);
 
+    const landlordPhoneClean = cleanPhoneNumber(landlordPhone);
+    const lc1PhoneClean = cleanPhoneNumber(lc1Phone);
+    const momoNumberClean = cleanPhoneNumber(momoNumber);
+
     try {
       const { data: existing } = await supabase
         .from('landlords')
         .select('id')
-        .eq('phone', landlordPhone.trim())
+        .eq('phone', landlordPhoneClean)
         .maybeSingle();
 
       if (existing) {
@@ -238,7 +243,7 @@ export default function LandlordRegistrationForm({
 
       const insertData: Record<string, unknown> = {
         name: landlordName.trim(),
-        phone: landlordPhone.trim(),
+        phone: landlordPhoneClean,
         property_address: addressToUse,
         registered_by: user.id,
         latitude: location?.latitude || null,
@@ -246,7 +251,7 @@ export default function LandlordRegistrationForm({
         location_captured_at: location ? new Date().toISOString() : null,
         location_captured_by: location ? user.id : null,
         mobile_money_name: momoName.trim() || null,
-        mobile_money_number: momoNumber.trim() || null,
+        mobile_money_number: momoNumberClean || null,
         water_meter_number: nwscMeter.trim() || null,
         electricity_meter_number: uedclMeter.trim() || null,
         number_of_houses: numberOfRentals ? parseInt(numberOfRentals) : null,
@@ -261,12 +266,12 @@ export default function LandlordRegistrationForm({
       if (error) throw error;
 
       // Persist LC1 chairperson when collected (minimal/outstanding flow).
-      if (minimal && lc1Name.trim() && lc1Phone.trim()) {
+      if (minimal && lc1Name.trim() && lc1PhoneClean) {
         const { error: lc1Err } = await supabase
           .from('lc1_chairpersons')
           .insert({
             name: lc1Name.trim(),
-            phone: lc1Phone.trim(),
+            phone: lc1PhoneClean,
             village: 'To be confirmed',
           } as any);
         if (lc1Err) {
@@ -295,7 +300,7 @@ export default function LandlordRegistrationForm({
         .insert({
           created_by: user.id,
           full_name: landlordName.trim(),
-          phone: landlordPhone.trim(),
+          phone: landlordPhoneClean,
           email: placeholderEmail,
           temp_password: passwordToUse,
           role: 'landlord',
@@ -488,9 +493,11 @@ export default function LandlordRegistrationForm({
               <Phone className="h-3 w-3" /> Phone Number *
             </Label>
             <Input
+              type="tel"
+              inputMode="tel"
               value={landlordPhone}
-              onChange={(e) => { setLandlordPhone(e.target.value); clearError('landlordPhone'); }}
-              onBlur={(e) => validateField('landlordPhone', e.target.value)}
+              onChange={(e) => { setLandlordPhone(formatUgandaPhone(e.target.value)); clearError('landlordPhone'); }}
+              onBlur={(e) => validateField('landlordPhone', cleanPhoneNumber(e.target.value))}
               placeholder="07XX XXX XXX — 10 digits"
               className={`h-10 ${errors.landlordPhone ? 'border-destructive focus-visible:ring-destructive' : ''}`}
               required
@@ -533,9 +540,11 @@ export default function LandlordRegistrationForm({
                     <Phone className="h-3 w-3" /> LC1 Phone *
                   </Label>
                   <Input
+                    type="tel"
+                    inputMode="tel"
                     value={lc1Phone}
-                    onChange={(e) => { setLc1Phone(e.target.value); clearError('lc1Phone'); }}
-                    onBlur={(e) => validateField('lc1Phone', e.target.value)}
+                    onChange={(e) => { setLc1Phone(formatUgandaPhone(e.target.value)); clearError('lc1Phone'); }}
+                    onBlur={(e) => validateField('lc1Phone', cleanPhoneNumber(e.target.value))}
                     placeholder="07XX XXX XXX — 10 digits"
                     className={`h-10 ${errors.lc1Phone ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                     required
@@ -677,9 +686,11 @@ export default function LandlordRegistrationForm({
               <div className="space-y-1">
                 <Label className="text-[10px] text-muted-foreground">MoMo Number</Label>
                 <Input
+                  type="tel"
+                  inputMode="tel"
                   value={momoNumber}
-                  onChange={(e) => setMomoNumber(e.target.value)}
-                  placeholder="0770000000"
+                  onChange={(e) => setMomoNumber(formatUgandaPhone(e.target.value))}
+                  placeholder="07XX XXX XXX"
                   className="h-9 text-xs"
                 />
               </div>
