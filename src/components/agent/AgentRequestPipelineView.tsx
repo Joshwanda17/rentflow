@@ -743,6 +743,24 @@ export function AgentRequestPipelineView({
               )}
             </div>
           )}
+          {tab === 'submitted' && (
+            <Select
+              value={tenantSort}
+              onValueChange={(v: 'newest' | 'oldest') => {
+                setTenantSort(v);
+                setSubmittedPage(0);
+              }}
+            >
+              <SelectTrigger className="h-11 text-sm flex-1">
+                <ArrowUpDown className="h-3.5 w-3.5 mr-1.5 text-muted-foreground shrink-0" />
+                <SelectValue placeholder="Sort" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">Newest first</SelectItem>
+                <SelectItem value="oldest">Oldest first</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
           {tab === 'landlords' && (
             <div className="flex items-center gap-2 flex-1">
               <Select
