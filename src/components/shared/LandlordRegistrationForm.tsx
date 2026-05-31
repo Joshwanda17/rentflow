@@ -77,7 +77,8 @@ export default function LandlordRegistrationForm({
   const [checkingPhone, setCheckingPhone] = useState(false);
   const [phoneVerified, setPhoneVerified] = useState(false);
 
-  const validateField = (name: string, value: string) => {
+  // Pure validation — no side effects, safe to call during render.
+  const computeFieldError = (name: string, value: string) => {
     const trimmed = value.trim();
     let msg = '';
     if (name === 'landlordName') {
@@ -100,6 +101,12 @@ export default function LandlordRegistrationForm({
       if (!trimmed) msg = 'LC1 phone is required';
       else if (!/^\d{9,10}$/.test(trimmed.replace(/\D/g, ''))) msg = 'Enter a valid phone number';
     }
+    return msg;
+  };
+
+  // Validate + persist to error state. Returns the message.
+  const validateField = (name: string, value: string) => {
+    const msg = computeFieldError(name, value);
     setErrors((prev) => ({ ...prev, [name]: msg }));
     return msg;
   };
