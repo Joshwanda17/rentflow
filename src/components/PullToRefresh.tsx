@@ -36,8 +36,8 @@ export function PullToRefresh({
     <div
       {...handlers}
       data-pull-to-refresh="active"
-      className={cn('relative overflow-auto', className)}
-      style={{ touchAction: 'pan-y' }}
+      className={cn('relative', className)}
+      style={{ touchAction: 'pan-y pinch-zoom' }}
     >
       {/* Pull indicator */}
       <div
