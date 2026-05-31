@@ -340,11 +340,13 @@ export default function LandlordRegistrationForm({
       toastFn({ title: 'Landlord Registered!', description: 'Share the activation link.' });
       onSuccess?.();
     } catch (err: any) {
+      const msg = err?.message || 'Something went wrong while saving. Please try again.';
+      setSubmitError(msg);
+      hapticWarning();
       toastFn({
         title: 'Registration Failed',
-        description: err.message,
+        description: msg,
         variant: 'destructive',
-        action: { label: 'Retry', onClick: () => handleSubmit() },
       });
     } finally {
       setLoading(false);
