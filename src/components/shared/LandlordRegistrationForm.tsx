@@ -61,6 +61,44 @@ export default function LandlordRegistrationForm({
   const [activationLink, setActivationLink] = useState('');
   const [locationCaptured, setLocationCaptured] = useState(false);
 
+  // Inline validation errors
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const validateField = (name: string, value: string) => {
+    const trimmed = value.trim();
+    let msg = '';
+    if (name === 'landlordName') {
+      if (!trimmed) msg = 'Landlord name is required';
+      else if (trimmed.length < 2) msg = 'Name must be at least 2 characters';
+    }
+    if (name === 'landlordPhone') {
+      if (!trimmed) msg = 'Phone number is required';
+      else if (!/^\d{9,10}$/.test(trimmed.replace(/\D/g, ''))) msg = 'Enter a valid phone number';
+    }
+    if (name === 'propertyAddress') {
+      if (!trimmed) msg = 'Property address is required';
+      else if (trimmed.length < 5) msg = 'Address is too short';
+    }
+    if (name === 'lc1Name') {
+      if (!trimmed) msg = 'LC1 name is required';
+      else if (trimmed.length < 2) msg = 'Name must be at least 2 characters';
+    }
+    if (name === 'lc1Phone') {
+      if (!trimmed) msg = 'LC1 phone is required';
+      else if (!/^\d{9,10}$/.test(trimmed.replace(/\D/g, ''))) msg = 'Enter a valid phone number';
+    }
+    setErrors((prev) => ({ ...prev, [name]: msg }));
+    return msg;
+  };
+
+  const clearError = (name: string) => {
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
+  };
+
   // Core fields
   const [landlordName, setLandlordName] = useState('');
   const [landlordPhone, setLandlordPhone] = useState('');
