@@ -2367,41 +2367,90 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 </div>
               )}
 
-              {/* Tier cap explainer — shown when the typed amount exceeds the
-                  agent's per-tenant posting cap so they understand exactly why
-                  the request can't be submitted right now. */}
-              {amount > perTenantMax && (
-                <div className="p-4 rounded-2xl bg-amber-500/10 border-2 border-amber-500/40 space-y-2 scroll-mt-4">
-                  <p className="text-base font-extrabold text-amber-700 dark:text-amber-400 flex items-center gap-2">
-                    <AlertTriangle className="h-5 w-5 flex-shrink-0" />
-                    Over your current posting cap
-                  </p>
-                  <div className="text-sm font-semibold text-foreground space-y-1">
-                    <p>
-                      Your tier:{' '}
-                      <span className="font-extrabold">{myCap?.tier ?? 'Starter'}</span>
-                      {typeof myCap?.response_rate === 'number' && (
-                        <span className="font-normal text-muted-foreground">
-                          {' '}(7-day response rate {Math.round((myCap.response_rate ?? 0) * 100)}%)
-                        </span>
+              {/* Real-time cap breakdown — always visible once an amount is
+                  entered. Shows the agent's tier, per-tenant posting cap and
+                  whether the typed amount passes the threshold, live. */}
+              {amount > 0 && (() => {
+                const overCap = amount > perTenantMax;
+                const pct = perTenantMax > 0
+                  ? Math.min(100, Math.round((amount / perTenantMax) * 100))
+                  : 100;
+                return (
+                  <div
+                    className={`p-4 rounded-2xl border-2 space-y-3 scroll-mt-4 ${
+                      overCap
+                        ? 'bg-amber-500/10 border-amber-500/40'
+                        : 'bg-success/10 border-success/40'
+                    }`}
+                  >
+                    <p
+                      className={`text-base font-extrabold flex items-center gap-2 ${
+                        overCap ? 'text-amber-700 dark:text-amber-400' : 'text-success'
+                      }`}
+                    >
+                      {overCap ? (
+                        <AlertTriangle className="h-5 w-5 flex-shrink-0" />
+                      ) : (
+                        <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
                       )}
+                      {overCap ? 'Over your current posting cap' : 'Within your posting cap'}
                     </p>
-                    <p>
-                      Cap per tenant:{' '}
-                      <span className="font-extrabold">{formatUGX(perTenantMax)}</span>
-                    </p>
-                    <p>
-                      You entered:{' '}
-                      <span className="font-extrabold">{formatUGX(amount)}</span>
+
+                    <div className="text-sm font-semibold text-foreground space-y-1.5">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-muted-foreground">Your tier</span>
+                        <span className="font-extrabold">
+                          {myCap?.tier ?? 'Starter'}
+                          {typeof myCap?.response_rate === 'number' && (
+                            <span className="font-normal text-muted-foreground">
+                              {' '}· {Math.round((myCap.response_rate ?? 0) * 100)}% 7-day
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-muted-foreground">Cap per tenant</span>
+                        <span className="font-extrabold">{formatUGX(perTenantMax)}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-muted-foreground">You entered</span>
+                        <span className={`font-extrabold ${overCap ? 'text-amber-700 dark:text-amber-400' : 'text-success'}`}>
+                          {formatUGX(amount)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Live usage meter against the cap */}
+                    <div className="space-y-1">
+                      <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-300 ${
+                            overCap ? 'bg-amber-500' : 'bg-success'
+                          }`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <p className="text-[11px] font-medium text-muted-foreground text-right">
+                        {perTenantMax > 0 ? `${pct}% of cap used` : 'No posting allowance at this tier'}
+                      </p>
+                    </div>
+
+                    <p
+                      className={`text-xs ${
+                        overCap
+                          ? 'text-amber-700/90 dark:text-amber-400/90'
+                          : 'text-success/90'
+                      }`}
+                    >
+                      {overCap
+                        ? perTenantMax <= 0
+                          ? 'New rent requests are blocked at your current tier. Raise your 7-day collection responsiveness to unlock posting.'
+                          : `Requests above ${formatUGX(perTenantMax)} can't be submitted yet — save this for later, or raise your 7-day collection responsiveness to unlock a higher cap (40% → UGX 3,000,000, 70% → UGX 6,000,000).`
+                        : 'This amount passes your cap check and can be submitted.'}
                     </p>
                   </div>
-                  <p className="text-xs text-amber-700/90 dark:text-amber-400/90">
-                    {perTenantMax <= 0
-                      ? 'New rent requests are blocked at your current tier. Raise your 7-day collection responsiveness to unlock posting.'
-                      : `Requests above ${formatUGX(perTenantMax)} can't be submitted yet — you can save this for later, or raise your 7-day collection responsiveness to unlock a higher cap (40% → UGX 3,000,000, 70% → UGX 6,000,000).`}
-                  </p>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Wizard navigation */}
               <div className="flex gap-3 pt-2">
