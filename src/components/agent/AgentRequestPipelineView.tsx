@@ -646,7 +646,7 @@ export function AgentRequestPipelineView({ initialTab }: { initialTab?: Pipeline
 
         {showFilters && (
         <div className="flex gap-2">
-          {tab !== 'rejected' && (
+          {(tab === 'submitted' || tab === 'approved') && (
             <Select
               value={statusFilter}
               onValueChange={(v) => {
