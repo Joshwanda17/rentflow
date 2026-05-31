@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Loader2, Search, Phone, PhoneCall, FileDown, MessageCircle, Users, RefreshCw, Banknote, MapPin, Home, User, TrendingUp, ArrowLeft, Shield, ArrowUp, ArrowDown, ArrowUpDown, Wallet, DollarSign, AlertCircle, CheckCircle2, CreditCard, Eye, Building2, SlidersHorizontal, Plus, Check, ChevronsUpDown, Map as MapIcon, Navigation, List, X, CalendarClock, Star } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import { PropertyMapView } from './PropertyMapView';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
@@ -1457,9 +1458,74 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
                 <Users className="h-5 w-5 text-primary" />
                 <span className="text-lg font-bold">My Tenants</span>
               </div>
-              <Badge variant="outline" className="text-sm font-mono px-2.5 py-0.5">
-                {stats.total}
-              </Badge>
+              <div className="flex items-center gap-1.5">
+                <Badge variant="outline" className="text-sm font-mono px-2.5 py-0.5">
+                  {stats.total}
+                </Badge>
+                {view === 'tenants' && (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-10 w-10 rounded-xl"
+                        aria-label="View settings"
+                      >
+                        <Settings className="h-5 w-5" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="end" className="w-60 p-3 space-y-3">
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground mb-1.5">View</p>
+                        <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-muted/50">
+                          <button
+                            onClick={() => setSimpleMode(true)}
+                            className={`py-2 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
+                              simpleMode ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'
+                            }`}
+                            style={{ touchAction: 'manipulation', minHeight: '40px' }}
+                            aria-pressed={simpleMode}
+                          >
+                            <Sparkles className="h-4 w-4" />
+                            Simple
+                          </button>
+                          <button
+                            onClick={() => { setSimpleMode(false); exitBulkSelect(); }}
+                            className={`py-2 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
+                              !simpleMode ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'
+                            }`}
+                            style={{ touchAction: 'manipulation', minHeight: '40px' }}
+                            aria-pressed={!simpleMode}
+                          >
+                            <SlidersHorizontal className="h-4 w-4" />
+                            Detailed
+                          </button>
+                        </div>
+                      </div>
+                      {simpleMode && (
+                        <div>
+                          <p className="text-xs font-semibold text-muted-foreground mb-1.5">Language</p>
+                          <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-muted/50">
+                            {(['en', 'lg'] as SimpleLang[]).map((lng) => (
+                              <button
+                                key={lng}
+                                onClick={() => setSimpleLang(lng)}
+                                aria-pressed={simpleLang === lng}
+                                className={`py-2 rounded-lg text-sm font-bold transition-colors ${
+                                  simpleLang === lng ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'
+                                }`}
+                                style={{ minHeight: '40px' }}
+                              >
+                                {lng === 'en' ? 'English' : 'Luganda'}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </PopoverContent>
+                  </Popover>
+                )}
+              </div>
             </SheetTitle>
           </SheetHeader>
 
@@ -1485,54 +1551,9 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
 
           {view === 'tenants' && (
           <>
-          {/* Simple / Detailed view switch — Simple Mode is the easy, photo-first
-              list for agents who don't like reading. */}
-          <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-muted/50">
-            <button
-              onClick={() => setSimpleMode(true)}
-              className={`py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
-                simpleMode ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'
-              }`}
-              style={{ touchAction: 'manipulation', minHeight: '44px' }}
-              aria-pressed={simpleMode}
-            >
-              <Sparkles className="h-4 w-4" />
-              Simple
-            </button>
-            <button
-              onClick={() => { setSimpleMode(false); exitBulkSelect(); }}
-              className={`py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
-                !simpleMode ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'
-              }`}
-              style={{ touchAction: 'manipulation', minHeight: '44px' }}
-              aria-pressed={!simpleMode}
-            >
-              <SlidersHorizontal className="h-4 w-4" />
-              Detailed
-            </button>
-          </div>
-
           {/* Simple Mode search — one big, obvious box, nothing else. */}
           {simpleMode && (
             <>
-              {/* ── Language toggle: English ⇄ Luganda ── */}
-              <div className="flex justify-end">
-                <div className="inline-flex rounded-full bg-muted/50 p-1">
-                  {(['en', 'lg'] as SimpleLang[]).map((lng) => (
-                    <button
-                      key={lng}
-                      onClick={() => setSimpleLang(lng)}
-                      aria-pressed={simpleLang === lng}
-                      className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
-                        simpleLang === lng ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'
-                      }`}
-                      style={{ minHeight: '36px' }}
-                    >
-                      {lng === 'en' ? 'English' : 'Luganda'}
-                    </button>
-                  ))}
-                </div>
-              </div>
               {/* ── Simple Summary: total to collect vs total paid ── */}
               {(() => {
                 let totalToCollect = 0;
