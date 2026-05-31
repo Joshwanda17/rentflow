@@ -392,9 +392,19 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     try { return (sessionStorage.getItem(LL_MODE_KEY) as 'search' | 'register') || 'search'; }
     catch { return 'search'; }
   });
+  const landlordNameInputRef = useRef<HTMLInputElement>(null);
+  const registerBtnRef = useRef<HTMLButtonElement>(null);
   const setLandlordMode = useCallback((mode: 'search' | 'register') => {
     setLandlordModeState(mode);
     try { sessionStorage.setItem(LL_MODE_KEY, mode); } catch { /* ignore */ }
+    // Focus the first input/button so the agent can start typing immediately.
+    requestAnimationFrame(() => {
+      if (mode === 'search') {
+        landlordNameInputRef.current?.focus();
+      } else {
+        registerBtnRef.current?.focus();
+      }
+    });
   }, [LL_MODE_KEY]);
 
   // One-tap auto-fill: when the agent picks a matched landlord from the
@@ -2274,6 +2284,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <div className="space-y-1.5">
                       <Label className="text-sm font-semibold">Landlord name</Label>
                       <LandlordAutocompleteInput
+                        ref={landlordNameInputRef}
                         field="name"
                         value={landlordName}
                         onChange={setLandlordName}
@@ -2311,9 +2322,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 ) : (
                   /* ── Add new landlord ── */
                   <button
+                    ref={registerBtnRef}
                     type="button"
                     onClick={() => setShowRegisterLandlord(true)}
-                    className="w-full flex items-center gap-3 rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 p-4 text-left active:scale-[0.99] transition-transform"
+                    className="w-full flex items-center gap-3 rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 p-4 text-left active:scale-[0.99] transition-transform outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
                   >
                     <div className="h-12 w-12 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
                       <UserPlus className="h-6 w-6 text-primary" />

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, forwardRef, type Ref } from 'react';
 import { Building2, Loader2, Phone } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -23,15 +23,18 @@ interface LandlordAutocompleteInputProps {
  * (name, phone, property address) via `onSelect` so the agent re-uses the
  * registered landlord instead of re-keying — and a duplicate is never created.
  */
-export function LandlordAutocompleteInput({
-  field,
-  value,
-  onChange,
-  onSelect,
-  placeholder,
-  className,
-  maxLength,
-}: LandlordAutocompleteInputProps) {
+export const LandlordAutocompleteInput = forwardRef<HTMLInputElement, LandlordAutocompleteInputProps>(function LandlordAutocompleteInput(
+  {
+    field,
+    value,
+    onChange,
+    onSelect,
+    placeholder,
+    className,
+    maxLength,
+  }: LandlordAutocompleteInputProps,
+  ref: Ref<HTMLInputElement>
+) {
   const [focused, setFocused] = useState(false);
   const [debounced, setDebounced] = useState('');
   const [results, setResults] = useState<LandlordOption[]>([]);
@@ -89,6 +92,7 @@ export function LandlordAutocompleteInput({
   return (
     <div className="relative">
       <Input
+        ref={ref}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onFocus={() => setFocused(true)}
@@ -144,4 +148,4 @@ export function LandlordAutocompleteInput({
       )}
     </div>
   );
-}
+});
