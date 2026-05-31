@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { optimizeImage } from '@/lib/imageOptimizer';
 import { GuarantorConsentCheckbox } from '@/components/agent/GuarantorConsentCheckbox';
 import { LandlordSearchSelect, type LandlordOption } from '@/components/agent/LandlordSearchSelect';
+import { LandlordAutocompleteInput } from '@/components/agent/LandlordAutocompleteInput';
 import RegisterLandlordDialog from '@/components/agent/RegisterLandlordDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useAgentCapacityMap, DAILY_ELIGIBILITY_THRESHOLD, NEW_AGENT_TENANT_THRESHOLD, NEW_AGENT_RENT_CAP_UGX } from '@/hooks/useAgentCapacityMap';
@@ -2146,23 +2147,36 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label >Name *</Label>
-                    <Input
+                    <LandlordAutocompleteInput
+                      field="name"
                       value={landlordName}
-                      onChange={(e) => setLandlordName(e.target.value)}
+                      onChange={setLandlordName}
+                      onSelect={(l) => {
+                        setLandlordName(l.name || '');
+                        setLandlordPhone(formatPhoneInput(l.phone || ''));
+                        if (l.property_address) setPropertyAddress(l.property_address);
+                        setSelectedLandlord(l);
+                        toast.success(`Linked landlord ${l.name}`);
+                      }}
                       placeholder="Landlord name"
-                     
-                      required
                     />
                   </div>
                   <div className="space-y-1">
                     <Label >Phone *</Label>
-                    <Input
+                    <LandlordAutocompleteInput
+                      field="phone"
                       value={landlordPhone}
-                      onChange={(e) => setLandlordPhone(formatPhoneInput(e.target.value))}
+                      onChange={(v) => setLandlordPhone(formatPhoneInput(v))}
+                      onSelect={(l) => {
+                        setLandlordName(l.name || '');
+                        setLandlordPhone(formatPhoneInput(l.phone || ''));
+                        if (l.property_address) setPropertyAddress(l.property_address);
+                        setSelectedLandlord(l);
+                        toast.success(`Linked landlord ${l.name}`);
+                      }}
                       placeholder="0700 123 456"
                       className={`h-10 ${hasFieldError('landlord phone') ? 'border-destructive border-2' : ''}`}
                       maxLength={12}
-                      required
                     />
                     {landlordPhone.replace(/\s/g, '').length >= 10 && !isValidUgPhone(landlordPhone.replace(/\s/g, '')) && (
                       <p className="text-[10px] text-destructive">Invalid Ugandan phone number</p>
