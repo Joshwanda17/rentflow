@@ -250,6 +250,12 @@ const loadApp = async () => {
     }
     if (isChunkError && recoveryExhausted()) {
       logUpdateFailure('recovery_exhausted', { chunk_mismatch: true });
+      // Terminal state: 3 hard-recovery attempts have failed. Show the
+      // definitive "Update Required" gate WITHOUT auto-reloading — the user
+      // must explicitly update, and crucially the attempt counter is NOT reset
+      // so we never bounce back to attempt 1 and re-enter the recovery loop.
+      showUpdateRequiredUI();
+      return;
     }
     showErrorUI();
   }
