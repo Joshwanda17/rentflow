@@ -2208,65 +2208,67 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </div>
                 </div>
 
-                {/* ── Big toggle: Search vs Add ── */}
-                {!selectedLandlord && (
-                  <div className="rounded-2xl border-2 border-muted bg-muted/30 p-1.5 flex gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setLandlordMode('search')}
-                      className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold transition-all active:scale-[0.98] ${
-                        landlordMode === 'search'
-                          ? 'bg-background shadow-sm text-foreground border border-border'
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      <Search className="h-4 w-4" />
-                      Search existing
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setLandlordMode('register')}
-                      className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold transition-all active:scale-[0.98] ${
-                        landlordMode === 'register'
-                          ? 'bg-primary text-primary-foreground shadow-sm'
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      <UserPlus className="h-4 w-4" />
-                      Add new
-                    </button>
-                  </div>
-                )}
-
-                {selectedLandlord ? (
-                  /* ── Landlord linked: one calm confirmation card ── */
-                  <div className="rounded-2xl border-2 border-success/40 bg-success/5 p-3">
-                    <div className="flex items-start gap-3">
-                      <CheckCircle2 className="h-6 w-6 text-success shrink-0 mt-0.5" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-base font-bold text-foreground truncate">{selectedLandlord.name}</p>
-                        <p className="text-sm text-muted-foreground flex items-center gap-1 truncate">
-                          <Phone className="h-3.5 w-3.5 shrink-0" /> {landlordPhone || selectedLandlord.phone}
-                        </p>
-                        <p className="text-xs text-success font-medium mt-1">✓ Already in the system — details filled in for you</p>
-                      </div>
+                {/* ── Sticky quick-switch bar ── */}
+                <div className="sticky top-0 z-20 -mx-1 px-1 py-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+                  {!selectedLandlord ? (
+                    <div className="rounded-2xl border-2 border-muted bg-muted/30 p-1.5 flex gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setLandlordMode('search')}
+                        className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold transition-all active:scale-[0.98] ${
+                          landlordMode === 'search'
+                            ? 'bg-background shadow-sm text-foreground border border-border'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        <Search className="h-4 w-4" />
+                        Search existing
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setLandlordMode('register')}
+                        className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold transition-all active:scale-[0.98] ${
+                          landlordMode === 'register'
+                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        <UserPlus className="h-4 w-4" />
+                        Add new
+                      </button>
                     </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full h-11 mt-3 gap-2 rounded-xl"
-                      onClick={() => {
-                        setSelectedLandlord(null);
-                        setShowLinkedBanner(false);
-                        setLandlordName('');
-                        setLandlordPhone('');
-                        // Keep the agent's preferred search/add mode instead of forcing search.
-                      }}
-                    >
-                      Change landlord
-                    </Button>
-                  </div>
-                ) : landlordMode === 'search' ? (
+                  ) : (
+                    /* ── Landlord linked: sticky confirmation card ── */
+                    <div className="rounded-2xl border-2 border-success/40 bg-success/5 p-3">
+                      <div className="flex items-start gap-3">
+                        <CheckCircle2 className="h-6 w-6 text-success shrink-0 mt-0.5" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-base font-bold text-foreground truncate">{selectedLandlord.name}</p>
+                          <p className="text-sm text-muted-foreground flex items-center gap-1 truncate">
+                            <Phone className="h-3.5 w-3.5 shrink-0" /> {landlordPhone || selectedLandlord.phone}
+                          </p>
+                          <p className="text-xs text-success font-medium mt-1">✓ Already in the system — details filled in for you</p>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full h-11 mt-3 gap-2 rounded-xl"
+                        onClick={() => {
+                          setSelectedLandlord(null);
+                          setShowLinkedBanner(false);
+                          setLandlordName('');
+                          setLandlordPhone('');
+                          // Keep the agent's preferred search/add mode instead of forcing search.
+                        }}
+                      >
+                        Change landlord
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {selectedLandlord ? null : landlordMode === 'search' ? (
                   /* ── Search existing landlord ── */
                   <div className="space-y-3">
                     <div className="space-y-1.5">
