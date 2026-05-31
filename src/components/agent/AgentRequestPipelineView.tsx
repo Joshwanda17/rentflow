@@ -60,7 +60,7 @@ import { useAgentRejectedRequests } from '@/hooks/useAgentRejectedRequests';
 import { AgentEditRentRequestDialog } from './AgentEditRentRequestDialog';
 import type { AgentRejectedRequest } from '@/hooks/useAgentRejectedRequests';
 
-type PipelineTab = 'submitted' | 'approved' | 'rejected';
+type PipelineTab = 'submitted' | 'approved' | 'rejected' | 'landlords';
 
 const PAGE_SIZE = 10;
 
