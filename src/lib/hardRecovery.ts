@@ -240,6 +240,9 @@ export async function purgeCachesAndServiceWorkers(): Promise<PurgeResult> {
 }
 
 export function reloadWithCacheBust(): void {
+  pushUpdateDebug("reloadWithCacheBust", {
+    reload_attempts: getRecoveryAttempts(),
+  });
   try {
     const url = new URL(window.location.href);
     // Cache-bust the document fetch. Use a stable param name so repeated
