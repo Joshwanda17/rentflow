@@ -32,6 +32,8 @@ import {
   Send,
   CheckCircle2,
   XCircle,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AppRole } from '@/hooks/useAuth';
