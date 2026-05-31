@@ -31,7 +31,12 @@ interface LandlordRegistrationFormProps {
   registeredByRole: 'agent' | 'tenant';
   onSuccess?: () => void;
   onClose: () => void;
-  toastFn: (opts: { title: string; description?: string; variant?: 'destructive' | 'default' }) => void;
+  toastFn: (opts: {
+    title: string;
+    description?: string;
+    variant?: 'destructive' | 'default';
+    action?: { label: string; onClick: () => void };
+  }) => void;
   /**
    * Minimal mode (used by the Outstanding Balance tenant flow).
    * Only requires: Landlord Name, Landlord Phone, LC1 Name, LC1 Phone.
@@ -134,8 +139,8 @@ export default function LandlordRegistrationForm({
     setSuccess(false); setActivationLink(''); setLocationCaptured(false);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!user) return;
 
     if (minimal) {
@@ -263,7 +268,12 @@ export default function LandlordRegistrationForm({
       toastFn({ title: 'Landlord Registered!', description: 'Share the activation link.' });
       onSuccess?.();
     } catch (err: any) {
-      toastFn({ title: 'Registration Failed', description: err.message, variant: 'destructive' });
+      toastFn({
+        title: 'Registration Failed',
+        description: err.message,
+        variant: 'destructive',
+        action: { label: 'Retry', onClick: () => handleSubmit() },
+      });
     } finally {
       setLoading(false);
     }

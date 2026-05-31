@@ -1,6 +1,3 @@
-import { useState } from 'react';
-import { useToast } from '@/hooks/use-toast';
-import { useCaptureLocation } from '@/hooks/useCaptureLocation';
 import {
   Dialog,
   DialogContent,
@@ -9,6 +6,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Building2 } from 'lucide-react';
+import { toast } from 'sonner';
 import LandlordRegistrationForm from '@/components/shared/LandlordRegistrationForm';
 
 interface RegisterLandlordDialogProps {
@@ -18,8 +16,6 @@ interface RegisterLandlordDialogProps {
 }
 
 export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }: RegisterLandlordDialogProps) {
-  const { toast } = useToast();
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
@@ -36,7 +32,19 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
           registeredByRole="tenant"
           onSuccess={onSuccess}
           onClose={() => onOpenChange(false)}
-          toastFn={(opts) => toast(opts)}
+          toastFn={(opts) => {
+            if (opts.variant === 'destructive') {
+              toast.error(opts.title, {
+                description: opts.description,
+                action: opts.action,
+              });
+            } else {
+              toast.success(opts.title, {
+                description: opts.description,
+                action: opts.action,
+              });
+            }
+          }}
         />
       </DialogContent>
     </Dialog>
