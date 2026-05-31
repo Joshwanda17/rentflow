@@ -682,9 +682,11 @@ export default function LandlordRegistrationForm({
               <div className="space-y-1">
                 <Label className="text-[10px] text-muted-foreground">MoMo Number</Label>
                 <Input
+                  type="tel"
+                  inputMode="tel"
                   value={momoNumber}
-                  onChange={(e) => setMomoNumber(e.target.value)}
-                  placeholder="0770000000"
+                  onChange={(e) => setMomoNumber(formatUgandaPhone(e.target.value))}
+                  placeholder="07XX XXX XXX"
                   className="h-9 text-xs"
                 />
               </div>
