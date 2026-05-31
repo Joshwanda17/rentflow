@@ -416,6 +416,7 @@ export function AgentRequestPipelineView({
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [landlordStatusFilter, setLandlordStatusFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('all');
+  const [tenantSort, setTenantSort] = useState<'newest' | 'oldest'>('newest');
   const [showFilters, setShowFilters] = useState(false);
 
   const submitted = usePipelineRequests(
