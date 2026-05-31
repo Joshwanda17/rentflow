@@ -263,7 +263,11 @@ export default function LandlordRegistrationForm({
         .maybeSingle();
 
       if (existing) {
-        setErrors((prev) => ({ ...prev, landlordPhone: 'This phone is already registered' }));
+        setErrors((prev) => ({
+          ...prev,
+          landlordPhone:
+            'This phone is already registered. Enter a different number, or this landlord may already be in the system.',
+        }));
         setSubmitError('A landlord with this phone number already exists.');
         hapticWarning();
         focusField('landlordPhone');
@@ -358,15 +362,36 @@ export default function LandlordRegistrationForm({
       const msg = err?.message || 'Something went wrong while saving. Please try again.';
       setSubmitError(msg);
       hapticWarning();
-      // If the failure points at a specific field, take the agent straight to
-      // it (entered values stay intact). Otherwise the Try Again banner shows.
+      // If the failure points at a specific field, drop inline helper text that
+      // says exactly what to fix and take the agent straight to it (entered
+      // values stay intact). Otherwise the Try Again banner shows.
       const lower = msg.toLowerCase();
-      if (err?.code === '23505' || lower.includes('duplicate') || lower.includes('already')) {
-        setErrors((prev) => ({ ...prev, landlordPhone: 'This phone is already registered' }));
+      const isDuplicate =
+        err?.code === '23505' || lower.includes('duplicate') || lower.includes('already');
+      if (isDuplicate && lower.includes('lc1')) {
+        setErrors((prev) => ({
+          ...prev,
+          lc1Phone: 'This LC1 phone is already registered. Enter a different number.',
+        }));
+        focusField('lc1Phone');
+      } else if (isDuplicate) {
+        setErrors((prev) => ({
+          ...prev,
+          landlordPhone:
+            'This phone is already registered. Enter a different number, or this landlord may already be in the system.',
+        }));
         focusField('landlordPhone');
       } else if (lower.includes('phone')) {
+        setErrors((prev) => ({
+          ...prev,
+          landlordPhone: 'Check the phone number — it should be 10 digits like 07XX XXX XXX.',
+        }));
         focusField('landlordPhone');
       } else if (lower.includes('name')) {
+        setErrors((prev) => ({
+          ...prev,
+          landlordName: "Check the landlord's name — use their full name as on the National ID.",
+        }));
         focusField('landlordName');
       }
       toastFn({
