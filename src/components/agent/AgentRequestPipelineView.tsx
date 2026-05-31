@@ -460,6 +460,7 @@ export function AgentRequestPipelineView({
   const activeFiltersCount =
     (searchQuery.trim() ? 1 : 0) +
     (statusFilter !== 'all' ? 1 : 0) +
+    (landlordStatusFilter !== 'all' ? 1 : 0) +
     (dateFilter !== 'all' ? 1 : 0);
 
   const submittedRows = useMemo(
