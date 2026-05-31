@@ -224,11 +224,15 @@ export default function LandlordRegistrationForm({
 
     setLoading(true);
 
+    const landlordPhoneClean = cleanPhoneNumber(landlordPhone);
+    const lc1PhoneClean = cleanPhoneNumber(lc1Phone);
+    const momoNumberClean = cleanPhoneNumber(momoNumber);
+
     try {
       const { data: existing } = await supabase
         .from('landlords')
         .select('id')
-        .eq('phone', landlordPhone.trim())
+        .eq('phone', landlordPhoneClean)
         .maybeSingle();
 
       if (existing) {
