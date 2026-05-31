@@ -392,9 +392,19 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     try { return (sessionStorage.getItem(LL_MODE_KEY) as 'search' | 'register') || 'search'; }
     catch { return 'search'; }
   });
+  const landlordNameInputRef = useRef<HTMLInputElement>(null);
+  const registerBtnRef = useRef<HTMLButtonElement>(null);
   const setLandlordMode = useCallback((mode: 'search' | 'register') => {
     setLandlordModeState(mode);
     try { sessionStorage.setItem(LL_MODE_KEY, mode); } catch { /* ignore */ }
+    // Focus the first input/button so the agent can start typing immediately.
+    requestAnimationFrame(() => {
+      if (mode === 'search') {
+        landlordNameInputRef.current?.focus();
+      } else {
+        registerBtnRef.current?.focus();
+      }
+    });
   }, [LL_MODE_KEY]);
 
   // One-tap auto-fill: when the agent picks a matched landlord from the
