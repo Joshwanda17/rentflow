@@ -2322,9 +2322,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 ) : (
                   /* ── Add new landlord ── */
                   <button
+                    ref={registerBtnRef}
                     type="button"
                     onClick={() => setShowRegisterLandlord(true)}
-                    className="w-full flex items-center gap-3 rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 p-4 text-left active:scale-[0.99] transition-transform"
+                    className="w-full flex items-center gap-3 rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 p-4 text-left active:scale-[0.99] transition-transform outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
                   >
                     <div className="h-12 w-12 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
                       <UserPlus className="h-6 w-6 text-primary" />
