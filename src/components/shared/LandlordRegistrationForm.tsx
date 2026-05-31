@@ -20,6 +20,7 @@ import {
   Wallet, ShieldCheck, XCircle, Home,
 } from 'lucide-react';
 import { ListEmptyHouseDialog } from '@/components/agent/ListEmptyHouseDialog';
+import { hapticTap } from '@/lib/haptics';
 
 const HOUSE_CATEGORIES = [
   'Single Room', 'Double Room', 'Bedsitter', 'One Bedroom',
@@ -327,13 +328,17 @@ export default function LandlordRegistrationForm({
               </div>
               <div className="flex gap-2">
                 <Button
-                  onClick={shareViaWhatsApp}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                  onClick={() => { hapticTap(); shareViaWhatsApp(); }}
+                  className="flex-1 h-12 bg-green-600 hover:bg-green-700 text-white touch-manipulation select-none transition-transform active:scale-[0.98]"
                 >
                   <Share2 className="h-4 w-4 mr-2" />
                   WhatsApp
                 </Button>
-                <Button variant="outline" onClick={copyLink} className="gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => { hapticTap(); copyLink(); }}
+                  className="h-12 gap-2 touch-manipulation select-none transition-transform active:scale-[0.98]"
+                >
                   <Copy className="h-4 w-4" />
                   Copy
                 </Button>
@@ -341,7 +346,11 @@ export default function LandlordRegistrationForm({
             </div>
           )}
 
-          <Button variant="outline" onClick={onClose} className="w-full">
+          <Button
+            variant="outline"
+            onClick={() => { hapticTap(); onClose(); }}
+            className="w-full h-12 touch-manipulation select-none transition-transform active:scale-[0.98]"
+          >
             Done
           </Button>
         </motion.div>
@@ -369,8 +378,8 @@ export default function LandlordRegistrationForm({
               <Button
                 type="button"
                 variant="outline"
-                className="w-full gap-2"
-                onClick={() => setShowListHouse(true)}
+                className="w-full h-12 gap-2 touch-manipulation select-none transition-transform active:scale-[0.98]"
+                onClick={() => { hapticTap(); setShowListHouse(true); }}
               >
                 <Home className="h-4 w-4" />
                 List a house for this landlord
@@ -649,11 +658,16 @@ export default function LandlordRegistrationForm({
           )}
 
           {/* Submit */}
-          <Button type="submit" className="w-full h-11 text-sm gap-2" disabled={loading}>
+          <Button
+            type="submit"
+            onClick={() => hapticTap()}
+            className="w-full h-14 text-base font-semibold gap-2 touch-manipulation select-none transition-transform active:scale-[0.98] disabled:opacity-70"
+            disabled={loading}
+          >
             {loading ? (
-              <><Loader2 className="h-4 w-4 animate-spin" /> Registering...</>
+              <><Loader2 className="h-5 w-5 animate-spin" /> Registering...</>
             ) : (
-              <><Building2 className="h-4 w-4" /> Register Landlord</>
+              <><Building2 className="h-5 w-5" /> Register Landlord</>
             )}
           </Button>
         </motion.form>
