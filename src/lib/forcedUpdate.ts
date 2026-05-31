@@ -28,9 +28,15 @@ import {
 } from "./hardRecovery";
 import { checkServerVersion, CURRENT_APP_VERSION, getVersionGateState, isForceUpdateSync } from "./versionGate";
 import { logUpdateFailure } from "./updateTelemetry";
+import { getRecoveryAttempts } from "./hardRecovery";
+import {
+  pushUpdateDebug,
+  formatUpdateDebugLog,
+} from "./updateDebugLog";
 
 const OVERLAY_ID = "welile-forced-update";
 const ERROR_ID = `${OVERLAY_ID}-error`;
+const DEBUG_ID = `${OVERLAY_ID}-debug`;
 // How long the blocking screen is shown before the update auto-fires. Short
 // enough that the user isn't left waiting, long enough to read the message.
 const AUTO_TRIGGER_DELAY_MS = 1800;
@@ -57,18 +63,34 @@ export function isForcingUpdate(): boolean {
  */
 async function purgeThenReload(): Promise<void> {
   let result: PurgeResult;
+  pushUpdateDebug("forced: purgeThenReload start", {
+    reload_attempts: getRecoveryAttempts(),
+  });
   try {
     result = await purgeCachesAndServiceWorkers();
   } catch (err) {
+    pushUpdateDebug("forced: purge threw", {
+      error: err instanceof Error ? err.message : String(err),
+    });
     showPurgeErrors([
       err instanceof Error ? err.message : "Unexpected error while clearing data",
     ]);
+    renderDebugPanel();
     return;
   }
   if (result.errors.length > 0) {
+    pushUpdateDebug("forced: purge reported errors", {
+      errors: result.errors,
+    });
     showPurgeErrors(result.errors);
+    renderDebugPanel();
     return;
   }
+  pushUpdateDebug("forced: purge ok, reloading", {
+    swUnregistered: result.swUnregistered,
+    cachesDeleted: result.cachesDeleted,
+    swReregistered: result.swReregistered,
+  });
   reloadWithCacheBust();
 }
 
@@ -118,6 +140,62 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
+/**
+ * Render (or refresh) the collapsible debug panel on the blocking overlay so an
+ * iPhone user can read — and copy — the full update-flow trail: forced flag +
+ * versions, purge attempts, and reload count. Survives reloads via
+ * sessionStorage so the history isn't lost between cycles.
+ */
+function renderDebugPanel(): void {
+  try {
+    const overlay = document.getElementById(OVERLAY_ID);
+    if (!overlay) return;
+
+    const cached = getVersionGateState();
+    const header =
+      `current=${CURRENT_APP_VERSION}\n` +
+      `server=${cached?.server ?? "unknown"}\n` +
+      `forced=${cached?.force ?? "unknown"}  stale=${cached?.stale ?? "unknown"}\n` +
+      `reloadCount=${getRecoveryAttempts()}\n` +
+      `ua=${navigator.userAgent}`;
+    const text = `${header}\n\n${formatUpdateDebugLog()}`;
+
+    let box = document.getElementById(DEBUG_ID);
+    if (!box) {
+      box = document.createElement("details");
+      box.id = DEBUG_ID;
+      box.style.cssText =
+        "max-width:340px;width:100%;margin-top:8px;text-align:left;font-size:11px;color:#475569";
+      box.innerHTML =
+        `<summary style="cursor:pointer;font-size:12px;color:#7c3aed;font-weight:600;list-style:none">Show troubleshooting details</summary>` +
+        `<pre id="${DEBUG_ID}-pre" style="margin:8px 0 0;padding:10px;max-height:200px;overflow:auto;white-space:pre-wrap;word-break:break-word;background:rgba(15,23,42,0.05);border:1px solid rgba(15,23,42,0.12);border-radius:8px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;line-height:1.45"></pre>` +
+        `<button id="${DEBUG_ID}-copy" type="button" style="margin-top:6px;padding:8px 14px;background:#e2e8f0;color:#1f2937;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">Copy details</button>`;
+      overlay.appendChild(box);
+      const copyBtn = document.getElementById(`${DEBUG_ID}-copy`);
+      if (copyBtn) {
+        copyBtn.addEventListener("click", () => {
+          const pre = document.getElementById(`${DEBUG_ID}-pre`);
+          const payload = pre?.textContent ?? "";
+          try {
+            void navigator.clipboard?.writeText(payload);
+            copyBtn.textContent = "Copied!";
+            setTimeout(() => {
+              copyBtn.textContent = "Copy details";
+            }, 1500);
+          } catch {
+            /* ignore clipboard failures */
+          }
+        });
+      }
+    }
+
+    const pre = document.getElementById(`${DEBUG_ID}-pre`);
+    if (pre) pre.textContent = text;
+  } catch {
+    /* debug panel must never break the overlay */
+  }
+}
+
 function renderBlockingOverlay(): void {
   try {
     if (document.getElementById(OVERLAY_ID)) return;
@@ -153,6 +231,7 @@ function renderBlockingOverlay(): void {
         void purgeThenReload();
       };
     }
+    renderDebugPanel();
   } catch {
     /* overlay must never throw */
   }
@@ -165,7 +244,19 @@ function renderBlockingOverlay(): void {
 export function triggerForcedUpdate(reason: string): void {
   if (forcing) return;
   const cached = getVersionGateState();
+  pushUpdateDebug("forced: triggerForcedUpdate", {
+    reason,
+    forced: cached?.force ?? null,
+    current: CURRENT_APP_VERSION,
+    server: cached?.server ?? null,
+    stale: cached?.stale ?? null,
+    reload_attempts: getRecoveryAttempts(),
+  });
   if (cached?.current && cached.current !== CURRENT_APP_VERSION) {
+    pushUpdateDebug("forced: cached version mismatch → immediate reload", {
+      cachedCurrent: cached.current,
+      current: CURRENT_APP_VERSION,
+    });
     reloadWithCacheBust();
     return;
   }
