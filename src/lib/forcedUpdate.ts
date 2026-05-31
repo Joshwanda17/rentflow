@@ -371,6 +371,7 @@ function applyManualOverlayState(): void {
       forcedAutoReloads: forcedAutoReloadCount(),
       reload_attempts: getRecoveryAttempts(),
     });
+    renderRecoveryInstructions();
   } catch {
     /* overlay must never throw */
   }
