@@ -249,7 +249,7 @@ export default function LandlordRegistrationForm({
     setMomoName(''); setMomoNumber('');
     setNwscMeter(''); setUedclMeter('');
     setTempPassword(''); setShowPassword(false);
-    setSuccess(false); setActivationLink(''); setLocationCaptured(false);
+    setSuccess(false); setActivationLink(''); setRegisteredLandlordId(null); setLocationCaptured(false);
     setStep(1);
   };
 
