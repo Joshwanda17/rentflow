@@ -58,6 +58,9 @@ export default function LandlordRegistrationForm({
   const { location, loading: locationLoading, error: locationError, captureLocation } = useCaptureLocation();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  // Inline stepped progress message shown while saving so the agent always
+  // sees forward motion, even on a weak connection.
+  const [progressMsg, setProgressMsg] = useState('');
   const [showListHouse, setShowListHouse] = useState(false);
   const [activationLink, setActivationLink] = useState('');
   const [locationCaptured, setLocationCaptured] = useState(false);
