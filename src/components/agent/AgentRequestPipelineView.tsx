@@ -594,7 +594,7 @@ export function AgentRequestPipelineView({
   return (
     <div className="space-y-3" ref={containerRef}>
       {/* Tab strip */}
-      <div className="flex gap-2">
+      <div className="flex gap-1.5">
         {tabs.map((t) => {
           const Icon = t.icon;
           const active = tab === t.key;
@@ -602,20 +602,22 @@ export function AgentRequestPipelineView({
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+              className={`flex-1 flex flex-col items-center justify-center gap-1 px-1 py-2 rounded-xl text-[11px] sm:text-sm font-semibold transition-all ${
                 active ? t.tone + ' shadow-sm' : 'bg-muted/50 text-muted-foreground'
               }`}
-              style={{ touchAction: 'manipulation', minHeight: '44px' }}
+              style={{ touchAction: 'manipulation', minHeight: '52px' }}
             >
-              <Icon className="h-3.5 w-3.5" />
-              {t.label}
-              <span
-                className={`min-w-[20px] h-[20px] rounded-full flex items-center justify-center text-[11px] font-bold ${
-                  active ? 'bg-background/25' : 'bg-background/60'
-                }`}
-              >
-                {t.count}
-              </span>
+              <div className="flex items-center gap-1">
+                <Icon className="h-3.5 w-3.5 shrink-0" />
+                <span
+                  className={`min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                    active ? 'bg-background/25' : 'bg-background/60'
+                  }`}
+                >
+                  {t.count}
+                </span>
+              </div>
+              <span className="leading-none">{t.label}</span>
             </button>
           );
         })}
