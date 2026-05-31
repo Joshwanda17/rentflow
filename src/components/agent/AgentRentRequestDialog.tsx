@@ -2179,13 +2179,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       field="name"
                       value={landlordName}
                       onChange={setLandlordName}
-                      onSelect={(l) => {
-                        setLandlordName(l.name || '');
-                        setLandlordPhone(formatPhoneInput(l.phone || ''));
-                        if (l.property_address) setPropertyAddress(l.property_address);
-                        setSelectedLandlord(l);
-                        toast.success(`Linked landlord ${l.name}`);
-                      }}
+                      onSelect={applySelectedLandlord}
                       placeholder="Landlord name"
                     />
                   </div>
@@ -2195,13 +2189,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       field="phone"
                       value={landlordPhone}
                       onChange={(v) => setLandlordPhone(formatPhoneInput(v))}
-                      onSelect={(l) => {
-                        setLandlordName(l.name || '');
-                        setLandlordPhone(formatPhoneInput(l.phone || ''));
-                        if (l.property_address) setPropertyAddress(l.property_address);
-                        setSelectedLandlord(l);
-                        toast.success(`Linked landlord ${l.name}`);
-                      }}
+                      onSelect={applySelectedLandlord}
                       placeholder="0700 123 456"
                       className={`h-10 ${hasFieldError('landlord phone') ? 'border-destructive border-2' : ''}`}
                       maxLength={12}
