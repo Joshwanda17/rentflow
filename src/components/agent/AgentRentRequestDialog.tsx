@@ -2941,6 +2941,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         minimal={incomeType === 'outstanding'}
         onSuccess={() => {
           setShowRegisterLandlord(false);
+          setLandlordMode('search');
           // Force the search popover to re-fetch fresh results.
           setLandlordPickerKey((k) => k + 1);
           toast.success('Landlord registered. Search to select them now.');
