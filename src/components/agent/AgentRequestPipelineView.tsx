@@ -719,22 +719,35 @@ export function AgentRequestPipelineView({
             </Select>
           )}
           {tab === 'landlords' && (
-            <Select
-              value={landlordStatusFilter}
-              onValueChange={(v) => {
-                setLandlordStatusFilter(v);
-              }}
-            >
-              <SelectTrigger className="h-11 text-sm flex-1">
-                <Filter className="h-3.5 w-3.5 mr-1.5 text-muted-foreground shrink-0" />
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
-                <SelectItem value="pending">Pending verification</SelectItem>
-                <SelectItem value="verified">Verified</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2 flex-1">
+              <Select
+                value={landlordStatusFilter}
+                onValueChange={(v) => {
+                  setLandlordStatusFilter(v);
+                }}
+              >
+                <SelectTrigger className="h-11 text-sm flex-1">
+                  <Filter className="h-3.5 w-3.5 mr-1.5 text-muted-foreground shrink-0" />
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="pending">Pending verification</SelectItem>
+                  <SelectItem value="verified">Verified</SelectItem>
+                </SelectContent>
+              </Select>
+              {landlordStatusFilter !== 'all' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setLandlordStatusFilter('all')}
+                  className="h-11 px-3 shrink-0 gap-1.5 text-xs font-semibold border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  Reset
+                </Button>
+              )}
+            </div>
           )}
           <Select
             value={dateFilter}
