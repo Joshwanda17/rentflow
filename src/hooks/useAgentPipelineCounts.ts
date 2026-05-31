@@ -42,9 +42,10 @@ export function useAgentPipelineCounts() {
     queryFn: async () => {
       const { count, error } = await supabase
         .from('rent_requests')
-        .select('*', { count: 'exact', head: true })
+        .select('*', { count: 'exact' })
         .eq('agent_id', user!.id)
-        .eq('status', 'rejected');
+        .eq('status', 'rejected')
+        .limit(0);
       if (error) throw error;
       return count ?? 0;
     },
