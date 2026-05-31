@@ -383,6 +383,34 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [showRegisterLandlord, setShowRegisterLandlord] = useState(false);
   const [landlordPickerKey, setLandlordPickerKey] = useState(0);
 
+  // One-tap auto-fill: when the agent picks a matched landlord from the
+  // autocomplete dropdown, pull every saved detail we have on file into the
+  // rent request form so they never re-key the address, location, or house
+  // type — and we re-use the existing landlord record instead of duplicating.
+  const applySelectedLandlord = useCallback((l: LandlordOption) => {
+    setLandlordName(l.name || '');
+    setLandlordPhone(formatPhoneInput(l.phone || ''));
+    if (l.property_address) setPropertyAddress(l.property_address);
+    if (l.district) setPropertyDistrict(normalizeDistrict(l.district));
+    // Prefer the most specific saved locality for the town/city field.
+    const savedCity = l.town_council || l.county || l.village || '';
+    if (savedCity) setPropertyCity(savedCity);
+    if (l.village) setLc1Village(l.village);
+    if (l.house_category) {
+      const normalized = l.house_category.replace(/_/g, '-');
+      if (HOUSE_CATEGORIES.some((c) => c.value === normalized)) {
+        setHouseCategory(normalized);
+      }
+    }
+    if (l.latitude != null && l.longitude != null) {
+      setGpsLocation({ lat: Number(l.latitude), lng: Number(l.longitude), accuracy: 0 });
+    }
+    setSelectedLandlord(l);
+    toast.success(`Linked landlord ${l.name}`, {
+      description: 'Saved address and details filled in automatically.',
+    });
+  }, []);
+
   // Pre-fill fields when dialog opens with prefill props
   useEffect(() => {
     if (open) {
