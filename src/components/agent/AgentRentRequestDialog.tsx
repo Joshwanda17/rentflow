@@ -387,7 +387,15 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [landlordPickerKey, setLandlordPickerKey] = useState(0);
   const [showLinkedBanner, setShowLinkedBanner] = useState(false);
   const linkedBannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [landlordMode, setLandlordMode] = useState<'search' | 'register'>('search');
+  const LL_MODE_KEY = `welile:rentReq:landlordMode:${user?.id || 'anon'}`;
+  const [landlordMode, setLandlordModeState] = useState<'search' | 'register'>(() => {
+    try { return (sessionStorage.getItem(LL_MODE_KEY) as 'search' | 'register') || 'search'; }
+    catch { return 'search'; }
+  });
+  const setLandlordMode = useCallback((mode: 'search' | 'register') => {
+    setLandlordModeState(mode);
+    try { sessionStorage.setItem(LL_MODE_KEY, mode); } catch { /* ignore */ }
+  }, [LL_MODE_KEY]);
 
   // One-tap auto-fill: when the agent picks a matched landlord from the
   // autocomplete dropdown, pull every saved detail we have on file into the
@@ -1424,8 +1432,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
       hapticSuccess();
       setSuccess(true);
-      // Submitted successfully — clear the saved draft progress.
+      // Submitted successfully — clear the saved draft progress and landlord mode preference.
       try { localStorage.removeItem(draftStorageKey); } catch { /* ignore */ }
+      try { sessionStorage.removeItem(LL_MODE_KEY); } catch { /* ignore */ }
       toast.success(incomeType === 'outstanding' ? 'Tenant registered with outstanding balance!' : 'Rent request posted successfully!');
       onSuccess?.();
     } catch (error: any) {
@@ -2251,7 +2260,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         setShowLinkedBanner(false);
                         setLandlordName('');
                         setLandlordPhone('');
-                        setLandlordMode('search');
+                        // Keep the agent's preferred search/add mode instead of forcing search.
                       }}
                     >
                       Change landlord
