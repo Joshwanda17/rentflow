@@ -544,6 +544,13 @@ export function AgentRequestPipelineView({ initialTab }: { initialTab?: Pipeline
       count: filteredRejected.length,
       tone: 'bg-destructive text-destructive-foreground',
     },
+    {
+      key: 'landlords',
+      label: 'Landlords',
+      icon: Landmark,
+      count: landlordRows.length,
+      tone: 'bg-indigo-600 text-white',
+    },
   ];
 
   return (
