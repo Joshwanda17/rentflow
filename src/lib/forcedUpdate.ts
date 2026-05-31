@@ -45,6 +45,89 @@ const AUTO_TRIGGER_DELAY_MS = 1800;
 const POLL_INTERVAL_MS = 5 * 60_000;
 const MIN_CHECK_INTERVAL_MS = 60_000;
 
+// ---------------------------------------------------------------------------
+// iPhone loop-breaker.
+//
+// Telemetry proved the failure mode: the cache/SW purge SUCCEEDS, but the
+// programmatic cache-busted reload (location.replace) still re-fetches iOS
+// Safari's HTTP-cached index.html, so the device boots the SAME stale bundle
+// and re-enters recovery forever. A programmatic reload can never win against
+// the document HTTP cache on these devices.
+//
+// The ONLY reliable escape is a navigation initiated from a real user gesture
+// (a tap), which WebKit revalidates against the network. So we allow a small
+// number of automatic reload attempts, and once those are spent we STOP
+// auto-reloading and present a static "Open latest version" button. Tapping it
+// performs the purge + reload inside a user-activation context, which defeats
+// the cached shell.
+// ---------------------------------------------------------------------------
+const FORCED_RELOAD_KEY = "welile_forced_auto_reloads";
+const FORCED_RELOAD_WINDOW_MS = 5 * 60_000;
+const MAX_FORCED_AUTO_RELOADS = 2;
+
+interface ForcedReloadRecord {
+  count: number;
+  first: number;
+}
+
+function readForcedReloads(): ForcedReloadRecord {
+  try {
+    const raw = localStorage.getItem(FORCED_RELOAD_KEY);
+    if (!raw) return { count: 0, first: Date.now() };
+    const parsed = JSON.parse(raw) as ForcedReloadRecord;
+    if (Date.now() - parsed.first > FORCED_RELOAD_WINDOW_MS) {
+      return { count: 0, first: Date.now() };
+    }
+    return parsed;
+  } catch {
+    return { count: 0, first: Date.now() };
+  }
+}
+
+/** How many automatic forced-update reloads have fired in the current window. */
+function forcedAutoReloadCount(): number {
+  return readForcedReloads().count;
+}
+
+function recordForcedAutoReload(): void {
+  try {
+    const current = readForcedReloads();
+    const next: ForcedReloadRecord = {
+      count: current.count + 1,
+      first: current.count === 0 ? Date.now() : current.first,
+    };
+    localStorage.setItem(FORCED_RELOAD_KEY, JSON.stringify(next));
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Clear the forced auto-reload counter. Call ONLY once the app has confirmably
+ * mounted the fresh build (see main.tsx's 45s stability timer) — never on every
+ * reload, or the cap can never be reached.
+ */
+export function clearForcedAutoReloads(): void {
+  try {
+    localStorage.removeItem(FORCED_RELOAD_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * True while it is still safe to attempt an AUTOMATIC reload. Once the auto cap
+ * (or the shared recovery cap) is hit we must hand off to a user-gesture button
+ * instead of reloading again — a programmatic reload cannot beat the iOS HTTP
+ * document cache, so looping is pointless and just burns the user's time.
+ */
+function canAutoReload(): boolean {
+  return (
+    forcedAutoReloadCount() < MAX_FORCED_AUTO_RELOADS &&
+    getRecoveryAttempts() < MAX_RECOVERY_ATTEMPTS
+  );
+}
+
 let forcing = false;
 let installed = false;
 let lastCheckAt = 0;
