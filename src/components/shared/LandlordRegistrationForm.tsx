@@ -358,6 +358,17 @@ export default function LandlordRegistrationForm({
       const msg = err?.message || 'Something went wrong while saving. Please try again.';
       setSubmitError(msg);
       hapticWarning();
+      // If the failure points at a specific field, take the agent straight to
+      // it (entered values stay intact). Otherwise the Try Again banner shows.
+      const lower = msg.toLowerCase();
+      if (err?.code === '23505' || lower.includes('duplicate') || lower.includes('already')) {
+        setErrors((prev) => ({ ...prev, landlordPhone: 'This phone is already registered' }));
+        focusField('landlordPhone');
+      } else if (lower.includes('phone')) {
+        focusField('landlordPhone');
+      } else if (lower.includes('name')) {
+        focusField('landlordName');
+      }
       toastFn({
         title: 'Registration Failed',
         description: msg,
