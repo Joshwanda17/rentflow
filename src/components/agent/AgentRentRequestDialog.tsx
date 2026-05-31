@@ -388,6 +388,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [landlordPickerKey, setLandlordPickerKey] = useState(0);
   const [showLinkedBanner, setShowLinkedBanner] = useState(false);
   const linkedBannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [confirmClearLandlord, setConfirmClearLandlord] = useState(false);
   const LL_MODE_KEY = `welile:rentReq:landlordMode:${user?.id || 'anon'}`;
   const [landlordMode, setLandlordModeState] = useState<'search' | 'register'>(() => {
     try { return (sessionStorage.getItem(LL_MODE_KEY) as 'search' | 'register') || 'search'; }
@@ -2325,16 +2326,41 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       )}
                     </div>
 
-                    {/* One-tap clear so the agent can reset and try another landlord without scrolling */}
+                    {/* One-tap clear with inline confirmation so agents don't lose inputs by accident */}
                     {(landlordName.trim() || landlordPhone.trim()) && (
-                      <button
-                        type="button"
-                        onClick={clearLandlordSearch}
-                        className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl border border-destructive/30 bg-destructive/5 text-destructive text-sm font-bold active:scale-[0.98] transition-transform"
-                      >
-                        <X className="h-4 w-4" />
-                        Clear search
-                      </button>
+                      confirmClearLandlord ? (
+                        <div className="w-full rounded-xl border border-destructive/30 bg-destructive/5 p-3 space-y-2">
+                          <p className="text-sm font-semibold text-destructive text-center">Clear landlord search?</p>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                clearLandlordSearch();
+                                setConfirmClearLandlord(false);
+                              }}
+                              className="flex-1 py-2.5 rounded-lg bg-destructive text-destructive-foreground text-sm font-bold active:scale-[0.98] transition-transform"
+                            >
+                              Yes, clear
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmClearLandlord(false)}
+                              className="flex-1 py-2.5 rounded-lg border border-muted-foreground/30 bg-background text-foreground text-sm font-bold active:scale-[0.98] transition-transform"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setConfirmClearLandlord(true)}
+                          className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl border border-destructive/30 bg-destructive/5 text-destructive text-sm font-bold active:scale-[0.98] transition-transform"
+                        >
+                          <X className="h-4 w-4" />
+                          Clear search
+                        </button>
+                      )
                     )}
 
                     {/* Gentle nudge so the agent knows tapping a match fills everything */}
