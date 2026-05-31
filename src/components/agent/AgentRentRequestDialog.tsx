@@ -826,6 +826,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setActivationLink(null);
     setStep('type');
     setDetailStep(0);
+    setAutoDraftId(null);
+    setAutoDraftStatus('idle');
   };
 
   const handleOpenChange = (newOpen: boolean) => {
