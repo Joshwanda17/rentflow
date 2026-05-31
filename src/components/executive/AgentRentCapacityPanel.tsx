@@ -548,6 +548,8 @@ function CapacityRow({
         daily_status: row.daily_status,
         daily_rating: row.daily_rating,
         can_post_rent_today: row.daily_status !== 'blocked',
+        good_days_last_week: (row as any).good_days_last_week ?? 0,
+        unlimited_posting: (row as any).unlimited_posting ?? false,
         is_new_agent: row.active_tenant_count < 10,
         expected_daily: row.expected_daily,
         repayment_rate: row.response_rate,

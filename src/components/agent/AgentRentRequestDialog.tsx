@@ -300,7 +300,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const capIds = useMemo(() => (user?.id ? [user.id] : []), [user?.id]);
   const { data: capMap } = useAgentCapacityMap(capIds);
   const myCap = user?.id ? capMap?.get(user.id) : undefined;
-  const perTenantMax = myCap?.per_tenant_max ?? 500_000;
+  // Weekly Good-Standing unlock: an agent rated "Good" (green) on 2+ days last
+  // week may post any new rent request, for any amount — no cap, no daily block.
+  const unlimitedPosting = !!myCap?.unlimited_posting;
+  const goodDaysLastWeek = myCap?.good_days_last_week ?? 0;
+  const perTenantMax = unlimitedPosting
+    ? Number.MAX_SAFE_INTEGER
+    : (myCap?.per_tenant_max ?? 500_000);
   const [savingDraft, setSavingDraft] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -1801,7 +1807,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     />
                     {amount > 0 && (
                       <p className="text-xs font-semibold">
-                        {amount > perTenantMax ? (
+                        {unlimitedPosting ? (
+                          <span className="text-success">
+                            ✅ Unlimited posting unlocked — you can post <span className="font-extrabold">any amount</span> this week.
+                          </span>
+                        ) : amount > perTenantMax ? (
                           <span className="text-amber-600 dark:text-amber-400">
                             You are <span className="font-extrabold">{formatUGX(amount - perTenantMax)}</span> over your <span className="font-extrabold">{formatUGX(perTenantMax)}</span> posting cap.
                           </span>
@@ -2388,6 +2398,46 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   entered. Shows the agent's tier, per-tenant posting cap and
                   whether the typed amount passes the threshold, live. */}
               {amount > 0 && (() => {
+                // Weekly Good-Standing unlock takes over the whole panel: no
+                // cap, no meter — just a clear "you can post anything" message.
+                if (unlimitedPosting) {
+                  return (
+                    <div className="p-4 rounded-2xl border-2 bg-success/10 border-success/40 space-y-3 scroll-mt-4">
+                      <p className="text-base font-extrabold flex items-center gap-2 text-success">
+                        <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
+                        Unlimited posting unlocked this week
+                      </p>
+                      <div className="text-sm font-semibold text-foreground space-y-1.5">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-muted-foreground">Last week's rating</span>
+                          <span className="font-extrabold text-success">
+                            Good on {goodDaysLastWeek} day{goodDaysLastWeek === 1 ? '' : 's'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-muted-foreground">Cap per tenant</span>
+                          <span className="font-extrabold text-success">No limit</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-muted-foreground">You entered</span>
+                          <span className="font-extrabold text-success">{formatUGX(amount)}</span>
+                        </div>
+                      </div>
+                      <div className="text-xs leading-relaxed text-success/90 space-y-2">
+                        <p>
+                          Because you were rated <span className="font-bold">Good</span> (green) on{' '}
+                          <span className="font-bold">{goodDaysLastWeek} days last week</span>,
+                          you've earned <span className="font-bold">unlimited posting</span> for this week.
+                        </p>
+                        <p>
+                          You can post <span className="font-bold">any new rent request</span> for{' '}
+                          <span className="font-bold">any amount</span> — there is no cap and no daily block.
+                          Keep collecting daily to keep this unlocked next week.
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
                 const overCap = amount > perTenantMax;
                 const pct = perTenantMax > 0
                   ? Math.min(100, Math.round((amount / perTenantMax) * 100))

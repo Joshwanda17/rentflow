@@ -38,6 +38,19 @@ export const NEW_AGENT_TENANT_THRESHOLD = 10;
 export const NEW_AGENT_RENT_CAP_UGX = 2_000_000;
 
 /**
+ * Weekly "Good Standing" unlock:
+ *   If, looking at the last 7 days of saved daily eligibility history, an
+ *   agent was rated "Good" (green) or better on at least
+ *   GOOD_DAYS_UNLOCK_THRESHOLD distinct days, they earn UNLIMITED posting for
+ *   the current week: they may post any new rent request, for any amount,
+ *   with no per-tenant cap and no daily block. This rewards agents who proved
+ *   strong collection behaviour last week. Applies to EVERY agent.
+ */
+export const GOOD_DAYS_UNLOCK_THRESHOLD = 2;
+/** Sentinel per-tenant max used to represent "no cap" (unlimited posting). */
+export const UNLIMITED_PER_TENANT_MAX = Number.MAX_SAFE_INTEGER;
+
+/**
  * Daily rating tiers based on the BEST of yesterday's and today's
  * collection ratios (paid / expected_daily). 20% is the unblock line
  * and is explicitly the start of "Good". Using the best of the two
@@ -134,6 +147,18 @@ export type AgentCapacity = {
   daily_rating: DailyRating;
   /** True iff agent may post a new rent request today. */
   can_post_rent_today: boolean;
+  /**
+   * Number of DISTINCT days in the last 7 (from saved eligibility history)
+   * the agent was rated "Good" (green) or better. Drives the weekly
+   * unlimited-posting unlock.
+   */
+  good_days_last_week: number;
+  /**
+   * True when the agent qualified for unlimited posting this week
+   * (>= GOOD_DAYS_UNLOCK_THRESHOLD good days last week). When true the
+   * per-tenant cap and daily block are lifted entirely.
+   */
+  unlimited_posting: boolean;
   /**
    * True while the agent is still in the new-agent onboarding phase
    * (fewer than NEW_AGENT_TENANT_THRESHOLD active tenants). New agents are
@@ -272,6 +297,32 @@ export function useAgentCapacityMap(agentIds: string[]) {
         });
       });
 
+      // ----- Weekly Good-Standing unlock: count "Good"+ days last week -----
+      // Pull the last 7 days of saved daily eligibility history for every
+      // agent and count DISTINCT days rated "Good" or "Very Good" (green).
+      // Two or more such days unlocks unlimited posting for the week.
+      const goodDaysByAgent = new Map<string, number>();
+      {
+        const weekAgoDay = new Date(Date.now() - 7 * 86_400_000)
+          .toISOString().slice(0, 10);
+        const { data: histRows, error: histErr } = await (supabase as any)
+          .from('agent_daily_eligibility_history')
+          .select('agent_id, day, rating')
+          .in('agent_id', agentIds)
+          .gte('day', weekAgoDay);
+        if (histErr) {
+          console.error('[useAgentCapacityMap] eligibility history failed', histErr);
+        }
+        const seen = new Map<string, Set<string>>(); // agent → distinct good days
+        (histRows || []).forEach((r: any) => {
+          if (r.rating !== 'Good' && r.rating !== 'Very Good') return;
+          let s = seen.get(r.agent_id);
+          if (!s) { s = new Set(); seen.set(r.agent_id, s); }
+          s.add(r.day);
+        });
+        seen.forEach((days, agent) => goodDaysByAgent.set(agent, days.size));
+      }
+
       // 1) Active rent_requests drive both exposure AND expected daily collections
       const { data: active } = await supabase
         .from('rent_requests')
@@ -398,9 +449,16 @@ export function useAgentCapacityMap(agentIds: string[]) {
         // New-agent phase: under the tenant threshold the agent may post up
         // to UGX 2,000,000 per tenant regardless of the response-rate tier.
         const is_new_agent = active_tenant_count < NEW_AGENT_TENANT_THRESHOLD;
-        const per_tenant_max = is_new_agent
+        const base_per_tenant_max = is_new_agent
           ? NEW_AGENT_RENT_CAP_UGX
           : tier_per_tenant_max;
+        // Weekly Good-Standing unlock: 2+ "Good" days last week → unlimited.
+        const good_days_last_week = goodDaysByAgent.get(id) || 0;
+        const unlimited_posting =
+          good_days_last_week >= GOOD_DAYS_UNLOCK_THRESHOLD;
+        const per_tenant_max = unlimited_posting
+          ? UNLIMITED_PER_TENANT_MAX
+          : base_per_tenant_max;
         const headroom = Math.max(AGENT_RENT_CAP_UGX - exp.used, 0);
         const pct = Math.min(100, Math.round((exp.used / AGENT_RENT_CAP_UGX) * 100));
         // Server-side eligibility values (Africa/Kampala TZ, from
@@ -420,7 +478,8 @@ export function useAgentCapacityMap(agentIds: string[]) {
         // Daily performance regulation only kicks in once the agent has
         // graduated (reached the tenant threshold). New agents are governed
         // solely by the per-tenant cap above.
-        const can_post_rent_today = is_new_agent ? true : !daily_blocked;
+        const can_post_rent_today =
+          unlimited_posting || is_new_agent ? true : !daily_blocked;
         const daily_rating = classifyDailyRating(exp.count, effective_daily_pct);
         out.set(id, {
           used: exp.used,
@@ -440,6 +499,8 @@ export function useAgentCapacityMap(agentIds: string[]) {
           daily_status,
           daily_rating,
           can_post_rent_today,
+          good_days_last_week,
+          unlimited_posting,
           is_new_agent,
           expected_daily: dailyExpected,
           repayment_rate: response_rate,
