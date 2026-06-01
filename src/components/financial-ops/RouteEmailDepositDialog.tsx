@@ -16,6 +16,12 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { SOLVENCY_BYPASS_REASONS, type SolvencyBypassReasonCode } from '@/lib/solvencyBypassReasons';
 import { parseSMS } from '@/utils/smsParser';
 import { validateTransactionReference } from '@/lib/transactionReferenceValidator';
+import {
+  extractReferenceWithConfidence,
+  confidenceMeta,
+  buildHighlightSegments,
+  type ReferenceExtraction,
+} from '@/lib/referenceExtractionConfidence';
 
 /**
  * Fetches current wallet bucket balances (cache view) for a user so the
