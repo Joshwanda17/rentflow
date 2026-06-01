@@ -12,12 +12,14 @@ import {
   type MissionSummary, type MissionAgentRow,
 } from '@/hooks/useWelileOpsCounters';
 import { useMissionEmptyHouses, type MissionEmptyHouseRow } from '@/hooks/useWelileOpsCounters';
+import { useLandlordOnboardingTargets, useTargetLandlordForOnboarding } from '@/hooks/useWelileOpsCounters';
+import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { formatUGX } from '@/lib/agentAdvanceCalculations';
 import {
   Target, Home, Users, Handshake, RefreshCw, ChevronRight, Phone,
   Search, Lightbulb, TrendingUp, ArrowRight, Building2, MapPin, ListChecks,
-  ShieldCheck, BedDouble, UserPlus,
+  ShieldCheck, BedDouble, UserPlus, Crosshair, Check, Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
