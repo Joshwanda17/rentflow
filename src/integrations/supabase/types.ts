@@ -19552,6 +19552,17 @@ export type Database = {
           total_agents: number
         }[]
       }
+      welile_mission_driver_entities: {
+        Args: { p_driver: string; p_since?: string }
+        Returns: {
+          created_at: string
+          detail: string
+          entity_id: string
+          entity_type: string
+          name: string
+          phone: string
+        }[]
+      }
       welile_mission_empty_houses: {
         Args: { p_since?: string }
         Returns: {
