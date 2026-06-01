@@ -66,6 +66,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
   const [creditedAmount, setCreditedAmount] = useState(0);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const [canResendAt, setCanResendAt] = useState<number | null>(null);
 
   // Agent phone search
   const [suggestions, setSuggestions] = useState<Array<{ id: string; full_name: string; phone: string }>>([]);
@@ -93,7 +94,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
     setStep('form'); setAmount(''); setAgentPhone(''); setLoading(false);
     setSessionId(null); setAgentName(''); setPin(''); setPinError(''); setCreditedAmount(0); setExpiresAt(null);
     setSuggestions([]); setShowSuggestions(false); setPhoneError(''); setPhoneTouched(false);
-    setSelectedFromList(false);
+    setSelectedFromList(false); setCanResendAt(null);
   };
 
   const searchAgents = useCallback(async (query: string) => {
@@ -180,7 +181,39 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
     setPinError('');
     setSessionId(null);
     setExpiresAt(null);
+    setCanResendAt(null);
   }, [step, expired]);
+
+  const resendCooldownLeft = canResendAt ? Math.max(0, Math.ceil((canResendAt - now) / 1000)) : 0;
+
+  const handleResend = async () => {
+    if (!sessionId || resendCooldownLeft > 0) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('agent-cash-deposit-resend', {
+        body: { session_id: sessionId },
+      });
+      if (error) {
+        const msg = await readEdgeMessage(error, 'Could not resend the code');
+        toast.error(msg);
+        return;
+      }
+      if (!data?.ok) {
+        toast.error(data?.message || 'Could not resend the code');
+        return;
+      }
+      setPin('');
+      setPinError('');
+      setExpiresAt(data.expires_at ?? null);
+      setNow(Date.now());
+      setCanResendAt(Date.now() + 60_000); // 60-second cooldown
+      toast.success('A new confirmation code has been sent to the agent.');
+    } catch (e) {
+      toast.error('Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const countdownLabel =
     secsLeft === null
@@ -490,6 +523,17 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
                   <InputOTPSlot index={3} />
                 </InputOTPGroup>
               </InputOTP>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-muted-foreground hover:text-foreground"
+                disabled={loading || resendCooldownLeft > 0 || expired}
+                onClick={() => void handleResend()}
+              >
+                {resendCooldownLeft > 0
+                  ? `Resend code in ${resendCooldownLeft}s`
+                  : 'Didn\'t get it? Resend code'}
+              </Button>
               {loading && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground pt-1">
                   <Loader2 className="h-4 w-4 animate-spin" /> Crediting your wallet…
@@ -512,7 +556,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
                 </div>
               )}
               {expired && !loading && (
-                <Button variant="outline" size="sm" className="mt-1" onClick={() => { setStep('form'); setPin(''); setExpiresAt(null); }}>
+                <Button variant="outline" size="sm" className="mt-1" onClick={() => { setStep('form'); setPin(''); setExpiresAt(null); setCanResendAt(null); }}>
                   Start a new deposit
                 </Button>
               )}
