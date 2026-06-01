@@ -47,6 +47,13 @@ const EMPTY: ReferenceExtraction = {
 //   "ID=123"   "ID.123"    "ID 123"
 const SEP = String.raw`(?:\s*(?:No\.?|Number|#)?\s*[:.#=\-]*\s*)`;
 
+// Stricter separator for the GENERIC labelled pattern. A genuine labelled
+// reference always has a real marker between label and value — either a
+// delimiter (":", "#", "=", "-", ".") or a keyword ("No", "Number", "Code").
+// Requiring one prevents prose false-positives like "No reference here" or
+// "…confirmed" (which contains "conf").
+const SEP_GENERIC = String.raw`(?:\s*(?:(?:No\.?|Number|Code)\s*[:.#=\-]*|[:.#=\-]+)\s*)`;
+
 interface StrongPattern {
   re: RegExp;
   label: string;
