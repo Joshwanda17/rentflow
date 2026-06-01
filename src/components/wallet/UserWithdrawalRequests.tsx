@@ -268,11 +268,11 @@ export function UserWithdrawalRequests() {
                         <p className="text-sm text-muted-foreground text-center py-2">
                           ⏳ Awaiting approval — you'll be notified once it's processed.
                         </p>
-                        {/* Show payout code for cash withdrawals */}
-                        {request.payout_code && request.payout_method === 'cash' && (
+                        {/* Show payout code whenever one has been issued */}
+                        {request.payout_code && (
                           <div className="mt-3 p-3 rounded-lg bg-primary/5 border-2 border-primary/20 text-center space-y-2">
                             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                              Your Cash Payout Code
+                              Your Withdrawal Code
                             </p>
                             <p className="text-2xl font-mono font-bold text-primary tracking-widest">
                               {request.payout_code}
