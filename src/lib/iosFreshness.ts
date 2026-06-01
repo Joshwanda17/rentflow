@@ -51,8 +51,6 @@ let pollTimer: ReturnType<typeof setInterval> | null = null;
 
 async function checkAndRecoverIfStale(reason: string): Promise<void> {
   if (recovering) return;
-  // A server-mandated forced update takes precedence and owns the UI; never
-  // double-trigger a reload underneath it.
   if (isForcingUpdate()) return;
   if (Date.now() - lastCheckAt < MIN_CHECK_INTERVAL_MS) return;
   lastCheckAt = Date.now();
@@ -77,8 +75,38 @@ async function checkAndRecoverIfStale(reason: string): Promise<void> {
       current: state.current,
     },
   });
-  // Clean cache/SW purge + cache-busted reload onto the current build.
-  await clearAndReload("manual_reload");
+  
+  // Show non-intrusive toast instead of ripping the UI away.
+  showUpdateToast();
+}
+
+function showUpdateToast() {
+  if (document.getElementById('welile-update-toast')) return;
+  
+  const toast = document.createElement('div');
+  toast.id = 'welile-update-toast';
+  toast.style.cssText = 'position:fixed;bottom:32px;left:50%;transform:translateX(-50%);background:#1f2937;color:white;padding:12px 20px;border-radius:999px;font-size:14px;font-weight:600;box-shadow:0 10px 25px -5px rgba(0,0,0,0.3);z-index:2147483647;display:flex;align-items:center;gap:12px;cursor:pointer;animation:welileSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);';
+  
+  toast.innerHTML = `
+    <span style="white-space:nowrap;">New version available</span>
+    <span style="background:#7c3aed;padding:6px 12px;border-radius:999px;font-size:13px;white-space:nowrap;">Tap to Refresh</span>
+  `;
+  
+  toast.onclick = async () => {
+    toast.style.opacity = '0.7';
+    toast.style.pointerEvents = 'none';
+    toast.innerHTML = `<span style="white-space:nowrap;">Refreshing app...</span>`;
+    await clearAndReload("manual_reload");
+  };
+
+  if (!document.getElementById('welile-update-toast-style')) {
+    const style = document.createElement('style');
+    style.id = 'welile-update-toast-style';
+    style.textContent = \`@keyframes welileSlideUp { from { transform: translate(-50%, 150%); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }\`;
+    document.head.appendChild(style);
+  }
+
+  document.body.appendChild(toast);
 }
 
 // Start/stop the foreground poll based on tab visibility so we never burn

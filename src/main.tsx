@@ -26,6 +26,18 @@ const isPreviewHost =
   host.includes('preview--') ||
   host.endsWith('.lovableproject.com');
 
+// Clean up the cache-buster `?_v=...` parameter from the URL so it doesn't stay visible
+// in the address bar after a recovery reload.
+try {
+  const url = new URL(window.location.href);
+  if (url.searchParams.has('_v')) {
+    url.searchParams.delete('_v');
+    window.history.replaceState({}, '', url.toString());
+  }
+} catch {
+  // ignore URL parsing errors
+}
+
 // Refresh the staged-rollout config as early as possible (fire-and-forget) so
 // the cohort decision below uses a fresh value. Falls back to the cached value
 // when offline or still in flight — never blocks startup.

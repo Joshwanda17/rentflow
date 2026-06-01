@@ -26,6 +26,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { roleToSlug } from '@/lib/roleRoutes';
 import { isIOS, checkServerVersion, isVersionStaleSync } from '@/lib/versionGate';
 import { clearAndReload } from '@/lib/hardRecovery';
+import { setCriticalFlowActive } from '@/lib/criticalFlowGuard';
 
 const VALID_SIGNUP_ROLES = ['tenant', 'agent', 'landlord', 'supporter'] as const;
 
@@ -101,6 +102,13 @@ export default function Auth() {
       if (emailParam) setEmail(decodeURIComponent(emailParam));
     }
   }, []); // Run once on mount
+
+  // Protect the entire auth flow from being nuked by the iOS background freshness
+  // checker or the query cache invalidator if the user dips out to read their OTP
+  useEffect(() => {
+    setCriticalFlowActive('auth', true);
+    return () => setCriticalFlowActive('auth', false);
+  }, []);
 
   const hasValidRole = !!preSelectedRole && VALID_SIGNUP_ROLES.includes(preSelectedRole as any);
   const needsRoleSelection = isSignUp && !hasValidRole;

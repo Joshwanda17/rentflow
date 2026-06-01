@@ -556,15 +556,17 @@ const App = () => {
                         <AppRoutes />
                         <MaintenanceLockScreen />
                       </DeferredProviders>
-                      <Suspense fallback={null}>
-                        <DeferredExtras />
-                        <FloatingToolbar />
-                        <AgentNavFAB />
-                        <PWAInstallPrompt />
-                        <Toaster />
-                        <SonnerToaster />
-                        <ProfileCompletionGate />
-                      </Suspense>
+                      <DeferredErrorBoundary>
+                        <Suspense fallback={null}>
+                          <DeferredExtras />
+                          <FloatingToolbar />
+                          <AgentNavFAB />
+                          <PWAInstallPrompt />
+                          <Toaster />
+                          <SonnerToaster />
+                          <ProfileCompletionGate />
+                        </Suspense>
+                      </DeferredErrorBoundary>
                     </CurrencyProvider>
                   </LanguageProvider>
                 </Suspense>
@@ -578,4 +580,4 @@ const App = () => {
   </HelmetProvider>
   );
 };
-export default App;
+export default App;
