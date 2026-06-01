@@ -634,6 +634,28 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
              * "Grow" button via AgentMenuDrawer so no functionality is lost.
              */}
 
+            {/* 0) MERCHANT AGENT — highest prominence, full-bleed gradient CTA */}
+            {isCashoutAgent && (
+              <button
+                onClick={() => { hapticTap(); setCashPayoutsOpen(true); }}
+                className="w-full flex items-center gap-4 p-5 rounded-2xl border border-warning/60 bg-gradient-to-br from-warning to-amber-600 shadow-lg shadow-warning/20 touch-manipulation active:scale-[0.97] transition-all min-h-[72px] relative overflow-hidden"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+              >
+                {/* subtle shimmer strip */}
+                <div className="absolute inset-0 -translate-x-full animate-[shimmer_2.5s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
+                <div className="p-3 rounded-xl bg-white/20 shrink-0 backdrop-blur-sm">
+                  <Banknote className="h-6 w-6 text-white" />
+                </div>
+                <div className="flex-1 text-left min-w-0 relative">
+                  <p className="font-bold text-base text-white truncate">Merchant Payouts</p>
+                  <p className="text-xs text-white/80 truncate">
+                    MoMo · Bank{isCashoutAgent.handles_cash ? ' · Cash' : ''}
+                  </p>
+                </div>
+                <span className="text-base font-bold text-white shrink-0 relative">Open →</span>
+              </button>
+            )}
+
             {/* 1) Priorities first — Wallet · Collect Rent · Add Tenant · List House */}
             <AgentPriorityGrid
               agentId={user.id}
@@ -667,26 +689,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                   </div>
                 </div>
                 <span className="text-xs font-medium text-warning shrink-0">Review →</span>
-              </button>
-            )}
-
-            {/* 3) Urgent: merchant agents only — visible when assigned */}
-            {isCashoutAgent && (
-              <button
-                onClick={() => { hapticTap(); setCashPayoutsOpen(true); }}
-                className="w-full flex items-center gap-3 p-4 rounded-2xl border border-warning/40 bg-warning/10 touch-manipulation active:scale-[0.97] transition-all min-h-[56px]"
-                style={{ WebkitTapHighlightColor: 'transparent' }}
-              >
-                <div className="p-2.5 rounded-xl bg-warning/20 shrink-0">
-                  <Banknote className="h-5 w-5 text-warning" />
-                </div>
-                <div className="flex-1 text-left min-w-0">
-                  <p className="font-bold text-sm text-foreground truncate">Merchant Payouts</p>
-                  <p className="text-[11px] text-muted-foreground truncate">
-                    MoMo · Bank{isCashoutAgent.handles_cash ? ' · Cash' : ''}
-                  </p>
-                </div>
-                <span className="text-base text-warning shrink-0">›</span>
               </button>
             )}
 
