@@ -411,19 +411,20 @@ type EmptySort = 'rent_desc' | 'recent' | 'oldest' | 'area';
 // ===== Agent network card: the driving force across all 3 priorities =====
 
 function AgentNetworkCard({
-  network, loading, onOpenAgent,
+  network, loading, onOpenAgent, onOpenDriver,
 }: {
   network: MissionAgentNetwork | null | undefined;
   loading: boolean;
   onOpenAgent: (id: string) => void;
+  onOpenDriver: (key: MissionDriverKey, label: string) => void;
 }) {
   if (loading || !network) {
     return <Skeleton className="h-28 w-full mt-2" />;
   }
-  const stats: { icon: React.ElementType; label: string; value: number; agents: number; tone: string }[] = [
-    { icon: Home, label: 'Houses listed', value: network.houses_listed, agents: network.listing_agents, tone: 'text-[#9234EA]' },
-    { icon: Users, label: 'Tenants placed', value: network.tenants_placed, agents: network.placement_agents, tone: 'text-emerald-600' },
-    { icon: Handshake, label: 'Funders onboarded', value: network.funders_total, agents: network.funder_agents, tone: 'text-amber-600' },
+  const stats: { key: MissionDriverKey; icon: React.ElementType; label: string; value: number; agents: number; tone: string }[] = [
+    { key: 'list', icon: Home, label: 'Houses listed', value: network.houses_listed, agents: network.listing_agents, tone: 'text-[#9234EA]' },
+    { key: 'place', icon: Users, label: 'Tenants placed', value: network.tenants_placed, agents: network.placement_agents, tone: 'text-emerald-600' },
+    { key: 'fund', icon: Handshake, label: 'Funders onboarded', value: network.funders_total, agents: network.funder_agents, tone: 'text-amber-600' },
   ];
   return (
     <div className="rounded-xl border border-primary/30 bg-primary/[0.03] p-3 mt-2">
@@ -441,12 +442,18 @@ function AgentNetworkCard({
         {stats.map((s) => {
           const Icon = s.icon;
           return (
-            <div key={s.label} className="rounded-lg border border-border bg-card p-2 text-center">
+            <button
+              key={s.label}
+              type="button"
+              onClick={() => onOpenDriver(s.key, s.label)}
+              className="rounded-lg border border-border bg-card p-2 text-center hover:bg-muted/40 hover:ring-1 hover:ring-primary/40 transition"
+              title={`View the agents, tenants & landlords behind ${s.label}`}
+            >
               <Icon className={cn('h-3.5 w-3.5 mx-auto', s.tone)} />
               <p className="text-lg font-bold leading-none mt-1">{s.value.toLocaleString()}</p>
               <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{s.label}</p>
-              <p className="text-[9px] text-muted-foreground/80 mt-0.5">{s.agents.toLocaleString()} agents</p>
-            </div>
+              <p className="text-[9px] text-primary/80 font-medium mt-0.5">{s.agents.toLocaleString()} agents →</p>
+            </button>
           );
         })}
       </div>
