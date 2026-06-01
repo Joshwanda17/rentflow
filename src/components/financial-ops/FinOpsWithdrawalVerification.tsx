@@ -21,6 +21,7 @@ import { toast } from 'sonner';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
 import { extractToPhones, normalizeUgPhone } from '@/components/financial-ops/emailExtraction';
 import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
+import { ReceiptCodeEntry } from '@/components/financial-ops/ReceiptCodeEntry';
 
 interface WithdrawalRequest {
   id: string;
@@ -1055,9 +1056,30 @@ export function FinOpsWithdrawalVerification() {
                     </p>
                   )}
                 </div>
+                {paymentMethod === 'cash' ? (
+                  selected && (
+                    <ReceiptCodeEntry
+                      withdrawalId={selected.id}
+                      amount={selected.amount}
+                      recipientName={selected.user?.full_name}
+                      recipientPhone={selected.user?.phone}
+                      onVerified={() => {
+                        toast.success('Withdrawal approved & completed!');
+                        const id = selected.id;
+                        setPendingRequests(prev => prev.filter(r => r.id !== id));
+                        setRejectedRequests(prev => prev.filter(r => r.id !== id));
+                        setApproveOpen(false);
+                        setSelected(null);
+                        setReference('');
+                        setPaymentMethod('');
+                      }}
+                      onCancel={() => { setApproveOpen(false); }}
+                    />
+                  )
+                ) : (
                 <div>
                   <p className="text-xs font-medium text-muted-foreground mb-1.5">
-                    {paymentMethod === 'cash' ? 'Receipt Number' : paymentMethod === 'bank_transfer' ? 'Bank Reference' : 'Transaction ID (TID)'}
+                    {paymentMethod === 'bank_transfer' ? 'Bank Reference' : 'Transaction ID (TID)'}
                   </p>
                   {(loadingSuggestions || suggestedTids.length > 0) && (
                     <div className="mb-2 p-2 rounded-lg border border-primary/20 bg-primary/5">
@@ -1108,19 +1130,26 @@ export function FinOpsWithdrawalVerification() {
                     </p>
                   )}
                 </div>
+                )}
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <Button
-              type="button"
-              onClick={() => void handleApprove()}
-              disabled={!!processing || reference.trim().length < 3 || !paymentMethod}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
-            >
-              {processing ? 'Processing...' : selected?.status === 'rejected' ? 'Re-Approve & Complete' : 'Approve & Complete'}
-            </Button>
+            {paymentMethod === 'cash' ? (
+              <AlertDialogCancel>Close</AlertDialogCancel>
+            ) : (
+              <>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <Button
+                  type="button"
+                  onClick={() => void handleApprove()}
+                  disabled={!!processing || reference.trim().length < 3 || !paymentMethod}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  {processing ? 'Processing...' : selected?.status === 'rejected' ? 'Re-Approve & Complete' : 'Approve & Complete'}
+                </Button>
+              </>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
