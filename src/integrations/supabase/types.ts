@@ -19495,6 +19495,35 @@ export type Database = {
       welile_default_agent_vouch_floor_ugx:
         | { Args: never; Returns: number }
         | { Args: { p_agent_id: string }; Returns: number }
+      welile_mission_leaderboard: {
+        Args: { p_since?: string }
+        Returns: {
+          agent_id: string
+          agent_name: string
+          agent_phone: string
+          empty_listings: number
+          last_activity: string
+          listings_count: number
+          placements_count: number
+          promissory_amount: number
+          promissory_count: number
+        }[]
+      }
+      welile_mission_summary: {
+        Args: { p_since?: string }
+        Returns: {
+          empty_houses_total: number
+          listing_agents: number
+          listings_new: number
+          placement_agents: number
+          placements_new: number
+          placements_total: number
+          promissory_activated: number
+          promissory_amount: number
+          promissory_new: number
+          promissory_total: number
+        }[]
+      }
       welile_ops_counter_breakdown: {
         Args: {
           p_city?: string
