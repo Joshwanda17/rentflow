@@ -127,6 +127,7 @@ interface NearingPayoutPortfolio {
   dueToday: boolean;
   durationMonths: number;
   nextRoiDate: string | null;
+  status?: string | null;
   paymentMethod?: 'mobile_money' | 'bank_transfer' | 'cash' | null;
   mobileNetwork?: string | null;
   mobileMoneyNumber?: string | null;
