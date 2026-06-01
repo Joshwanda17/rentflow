@@ -264,6 +264,9 @@ export function WelileOpsCounterBand() {
               list.map((row) => {
                 const RowIcon = LEVEL_ICON[level];
                 const isAgent = level === 'agent';
+                const rowFundedPct = pct(row.rent_funded_count ?? 0, row.rent_count ?? 0);
+                const rowHealth = healthTone(rowFundedPct, (row.rent_count ?? 0) > 0);
+                const rowActivePct = pct(row.active_agents ?? 0, row.distinct_agents ?? 0);
                 return (
                   <div
                     key={row.bucket_key}
@@ -276,9 +279,36 @@ export function WelileOpsCounterBand() {
                     <div className="flex items-center gap-2">
                       <RowIcon className="h-4 w-4 text-muted-foreground shrink-0" />
                       <span className="font-semibold text-sm truncate flex-1">{row.bucket_label}</span>
+                      {(row.rent_count ?? 0) > 0 && (
+                        <Badge className={cn('shrink-0 text-[10px]', rowHealth.cls)}>{rowHealth.label}</Badge>
+                      )}
                       <Badge className="shrink-0">{row.total_count.toLocaleString()}</Badge>
                       {!isAgent && <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
                     </div>
+                    {((row.rent_count ?? 0) > 0 || (row.distinct_agents ?? 0) > 0) && (
+                      <div className="flex items-center gap-3 mt-2">
+                        {(row.rent_count ?? 0) > 0 && (
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-0.5">
+                              <span>Funded {rowFundedPct}%</span>
+                              <span>{(row.rent_funded_count ?? 0).toLocaleString()}/{(row.rent_count ?? 0).toLocaleString()}</span>
+                            </div>
+                            <div className="h-1 rounded-full bg-muted overflow-hidden">
+                              <div className={cn('h-full rounded-full', rowHealth.bar)} style={{ width: `${rowFundedPct}%` }} />
+                            </div>
+                          </div>
+                        )}
+                        {(row.distinct_agents ?? 0) > 0 && (
+                          <div className="shrink-0 text-right">
+                            <p className="text-[10px] text-muted-foreground leading-none mb-0.5">Producing</p>
+                            <p className="text-[11px] font-semibold leading-none">
+                              {(row.active_agents ?? 0).toLocaleString()}/{(row.distinct_agents ?? 0).toLocaleString()}
+                              <span className="text-muted-foreground font-normal"> · {rowActivePct}%</span>
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     <div className="flex flex-wrap gap-1.5 mt-2">
                       {KINDS.map((k) => {
                         const v = (row[k.field] as number) ?? 0;
