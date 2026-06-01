@@ -8,6 +8,7 @@ import { GuarantorConsentCheckbox } from '@/components/agent/GuarantorConsentChe
 import { LandlordSearchSelect, type LandlordOption } from '@/components/agent/LandlordSearchSelect';
 import { LandlordAutocompleteInput } from '@/components/agent/LandlordAutocompleteInput';
 import RegisterLandlordDialog from '@/components/agent/RegisterLandlordDialog';
+import { ListEmptyHouseDialog } from '@/components/agent/ListEmptyHouseDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useAgentCapacityMap, DAILY_ELIGIBILITY_THRESHOLD, NEW_AGENT_TENANT_THRESHOLD, NEW_AGENT_RENT_CAP_UGX } from '@/hooks/useAgentCapacityMap';
 import { DailyRatingThresholdPopover } from '@/components/shared/DailyRatingThresholdPopover';
@@ -374,6 +375,187 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [gpsLoading, setGpsLoading] = useState(false);
   const [housePhotos, setHousePhotos] = useState<{ file: File; preview: string }[]>([]);
   const [tenantPhoto, setTenantPhoto] = useState<{ file: File; preview: string } | null>(null);
+
+  // ===== House-search-first (standard flow) =====
+  // The agent first searches for an available empty house (by landlord name,
+  // region, or any house description) and selects it. Picking a house auto-fills
+  // the landlord + property details so they never re-key them. If nothing
+  // matches they can list a new house inline — it becomes available instantly
+  // (no verification needed) and they can then link the tenant to it.
+  type AvailableHouse = {
+    id: string;
+    title: string;
+    address: string | null;
+    region: string | null;
+    district: string | null;
+    house_category: string | null;
+    monthly_rent: number | null;
+    short_code: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    landlord_id: string | null;
+    landlord_name: string | null;
+    landlord_phone: string | null;
+  };
+  const [houseQuery, setHouseQuery] = useState('');
+  const [houseResults, setHouseResults] = useState<AvailableHouse[]>([]);
+  const [houseSearching, setHouseSearching] = useState(false);
+  const [houseSearchedOnce, setHouseSearchedOnce] = useState(false);
+  const [selectedHouse, setSelectedHouse] = useState<AvailableHouse | null>(null);
+  const [showListHouse, setShowListHouse] = useState(false);
+
+  // Map a house_listings category (underscored) to this form's category values.
+  const mapHouseCategory = (cat: string | null): string => {
+    switch ((cat || '').toLowerCase()) {
+      case 'single_room':
+      case 'studio':
+      case 'bedsitter':
+        return 'single-room';
+      case 'double_room':
+        return 'double-room';
+      case 'one_bedroom':
+        return '1-bed';
+      case 'two_bedroom':
+        return '2-bed';
+      case 'three_bedroom':
+        return '3-bed';
+      case 'shop':
+      case 'commercial':
+        return 'commercial';
+      default:
+        return '';
+    }
+  };
+
+  const HOUSE_SELECT =
+    'id, title, address, region, district, house_category, monthly_rent, short_code, latitude, longitude, landlord_id';
+
+  const searchAvailableHouses = useCallback(async () => {
+    const q = houseQuery.trim();
+    setHouseSearching(true);
+    setHouseSearchedOnce(true);
+    try {
+      let base = supabase
+        .from('house_listings')
+        .select(HOUSE_SELECT)
+        .eq('status', 'available')
+        .is('tenant_id', null)
+        .is('reserved_at', null)
+        .eq('is_hidden', false)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (q.length >= 2) {
+        base = base.or(
+          `title.ilike.%${q}%,address.ilike.%${q}%,region.ilike.%${q}%,description.ilike.%${q}%,short_code.ilike.%${q}%`,
+        );
+      }
+      const { data, error } = await base;
+      if (error) throw error;
+      let rows = (data || []) as any[];
+
+      // Also match by landlord name / phone (separate lookup, merged + de-duped).
+      if (q.length >= 2) {
+        const { data: lls } = await supabase
+          .from('landlords')
+          .select('id')
+          .or(`name.ilike.%${q}%,phone.ilike.%${q}%`)
+          .limit(20);
+        const llIds = (lls || []).map((l: any) => l.id);
+        if (llIds.length) {
+          const { data: byLl } = await supabase
+            .from('house_listings')
+            .select(HOUSE_SELECT)
+            .eq('status', 'available')
+            .is('tenant_id', null)
+            .is('reserved_at', null)
+            .eq('is_hidden', false)
+            .in('landlord_id', llIds)
+            .limit(50);
+          rows = [...rows, ...((byLl || []) as any[])];
+        }
+      }
+
+      const seen = new Set<string>();
+      const unique: any[] = [];
+      for (const r of rows) {
+        if (seen.has(r.id)) continue;
+        seen.add(r.id);
+        unique.push(r);
+      }
+
+      // Resolve landlord names/phones in one batch (no FK relationship to embed).
+      const landlordIds = Array.from(
+        new Set(unique.map((r) => r.landlord_id).filter(Boolean)),
+      );
+      const llMap: Record<string, { name: string | null; phone: string | null }> = {};
+      if (landlordIds.length) {
+        const { data: llRows } = await supabase
+          .from('landlords')
+          .select('id, name, phone')
+          .in('id', landlordIds);
+        for (const l of llRows || []) {
+          llMap[(l as any).id] = { name: (l as any).name ?? null, phone: (l as any).phone ?? null };
+        }
+      }
+
+      const mapped: AvailableHouse[] = unique.map((r) => ({
+        id: r.id,
+        title: r.title,
+        address: r.address,
+        region: r.region,
+        district: r.district,
+        house_category: r.house_category,
+        monthly_rent: r.monthly_rent,
+        short_code: r.short_code,
+        latitude: r.latitude,
+        longitude: r.longitude,
+        landlord_id: r.landlord_id,
+        landlord_name: r.landlord_id ? llMap[r.landlord_id]?.name ?? null : null,
+        landlord_phone: r.landlord_id ? llMap[r.landlord_id]?.phone ?? null : null,
+      }));
+      setHouseResults(mapped);
+    } catch (e) {
+      console.error('[AgentRentRequestDialog] house search failed', e);
+      toast.error('Could not search houses');
+    } finally {
+      setHouseSearching(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [houseQuery]);
+
+  const selectHouse = useCallback(
+    (h: AvailableHouse) => {
+      setSelectedHouse(h);
+      if (h.monthly_rent) setRentAmount(String(h.monthly_rent));
+      if (h.landlord_name) setLandlordName(h.landlord_name);
+      if (h.landlord_phone) setLandlordPhone(formatPhoneInput(h.landlord_phone));
+      if (h.address) setPropertyAddress(h.address);
+      if (h.district) setPropertyDistrict(normalizeDistrict(h.district));
+      if (h.region) setPropertyCity((c) => c || h.region || '');
+      const mappedCat = mapHouseCategory(h.house_category);
+      if (mappedCat) setHouseCategory(mappedCat);
+      if (h.latitude != null && h.longitude != null) {
+        setGpsLocation({ lat: Number(h.latitude), lng: Number(h.longitude), accuracy: 0 });
+      }
+      toast.success('House selected', {
+        description: 'Landlord and property details filled in automatically.',
+      });
+    },
+    [],
+  );
+
+  const clearSelectedHouse = useCallback(() => {
+    setSelectedHouse(null);
+  }, []);
+
+  // Auto-load available houses the first time the agent reaches the details
+  // step in the standard flow, so the picker is ready immediately.
+  useEffect(() => {
+    if (open && step === 'details' && incomeType !== 'outstanding' && !houseSearchedOnce) {
+      searchAvailableHouses();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, step, incomeType, houseSearchedOnce]);
   
   // Existing tenants this agent has already registered — used for the
   // one-tap auto-fill so agents don't re-key phone/National ID/photo.
@@ -907,6 +1089,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setDetailStep(0);
     setAutoDraftId(null);
     setAutoDraftStatus('idle');
+    setSelectedHouse(null);
+    setHouseResults([]);
+    setHouseQuery('');
+    setHouseSearchedOnce(false);
   };
 
   const handleOpenChange = (newOpen: boolean) => {
@@ -1183,61 +1369,68 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       const cleanLandlordPhone = landlordPhone.replace(/\s/g, '');
       let landlordId: string;
 
-      // ===== Gate: landlord must already exist WITH a verified house =====
-      // Resolve the candidate landlord (without creating one) and confirm they
-      // own at least one verified house before allowing the rent request.
-      const gateLandlordId = (isOutstanding && selectedLandlord)
-        ? selectedLandlord.id
-        : (await supabase
+      if (!isOutstanding && selectedHouse?.landlord_id) {
+        // The agent selected an available house from the search. Its landlord is
+        // already on file and the house is usable immediately — no verification
+        // gate required (houses are available the moment they're listed).
+        landlordId = selectedHouse.landlord_id;
+      } else {
+        // ===== Gate: landlord must already exist WITH a verified house =====
+        // Resolve the candidate landlord (without creating one) and confirm they
+        // own at least one verified house before allowing the rent request.
+        const gateLandlordId = (isOutstanding && selectedLandlord)
+          ? selectedLandlord.id
+          : (await supabase
+              .from('landlords')
+              .select('id')
+              .eq('phone', cleanLandlordPhone)
+              .limit(1)
+              .maybeSingle()).data?.id ?? null;
+
+        const { count: verifiedHouseCount } = gateLandlordId
+          ? await supabase
+              .from('house_listings')
+              .select('id', { count: 'exact', head: true })
+              .eq('landlord_id', gateLandlordId)
+              .eq('verified', true)
+          : { count: 0 };
+
+        if (!gateLandlordId || !verifiedHouseCount || verifiedHouseCount < 1) {
+          toast.error('This landlord needs a listed house first', {
+            description: 'Search and select an available house above, or list a new one — it becomes available instantly.',
+          });
+          setShowRegisterLandlord(true);
+          setLoading(false);
+          return;
+        }
+
+        if (isOutstanding && selectedLandlord) {
+          landlordId = selectedLandlord.id;
+        } else {
+          const { data: existingLandlord } = await supabase
             .from('landlords')
             .select('id')
             .eq('phone', cleanLandlordPhone)
             .limit(1)
-            .maybeSingle()).data?.id ?? null;
+            .maybeSingle();
 
-      const { count: verifiedHouseCount } = gateLandlordId
-        ? await supabase
-            .from('house_listings')
-            .select('id', { count: 'exact', head: true })
-            .eq('landlord_id', gateLandlordId)
-            .eq('verified', true)
-        : { count: 0 };
+          if (existingLandlord) {
+            landlordId = existingLandlord.id;
+          } else {
+            const { data: landlord, error: landlordError } = await supabase
+              .from('landlords')
+              .insert({
+                name: landlordName.trim(),
+                phone: cleanLandlordPhone,
+                property_address: propertyAddress.trim(),
+                registered_by: user?.id,
+              })
+              .select('id')
+              .single();
 
-      if (!gateLandlordId || !verifiedHouseCount || verifiedHouseCount < 1) {
-        toast.error('This landlord needs a verified house first', {
-          description: 'Register the landlord and list a house — you can post this rent request once Landlord Ops verifies it.',
-        });
-        setShowRegisterLandlord(true);
-        setLoading(false);
-        return;
-      }
-
-      if (isOutstanding && selectedLandlord) {
-        landlordId = selectedLandlord.id;
-      } else {
-        const { data: existingLandlord } = await supabase
-          .from('landlords')
-          .select('id')
-          .eq('phone', cleanLandlordPhone)
-          .limit(1)
-          .maybeSingle();
-
-        if (existingLandlord) {
-          landlordId = existingLandlord.id;
-        } else {
-          const { data: landlord, error: landlordError } = await supabase
-            .from('landlords')
-            .insert({
-              name: landlordName.trim(),
-              phone: cleanLandlordPhone,
-              property_address: propertyAddress.trim(),
-              registered_by: user?.id,
-            })
-            .select('id')
-            .single();
-
-          if (landlordError) throw landlordError;
-          landlordId = landlord.id;
+            if (landlordError) throw landlordError;
+            landlordId = landlord.id;
+          }
         }
       }
 
@@ -1386,6 +1579,27 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         .single();
 
       if (requestError) throw requestError;
+
+      // ===== Link the selected available house to this tenant + request =====
+      // Marks the house taken (so two agents can't grab the same one) and stores
+      // the house on the rent request for traceability. The `is('tenant_id', null)`
+      // guard makes this a no-op if another agent claimed it first. Best-effort —
+      // never blocks the rent request.
+      if (!isOutstanding && selectedHouse?.id && rentReq?.id) {
+        try {
+          await supabase
+            .from('house_listings')
+            .update({ tenant_id: tenantId, status: 'occupied' } as any)
+            .eq('id', selectedHouse.id)
+            .is('tenant_id', null);
+          await supabase
+            .from('rent_requests')
+            .update({ house_listing_id: selectedHouse.id } as any)
+            .eq('id', rentReq.id);
+        } catch (e) {
+          console.warn('Failed to link selected house to rent request', e);
+        }
+      }
 
       // If this submission resolved a saved draft, mark it submitted.
       if (draftId && rentReq?.id) {
@@ -1980,6 +2194,146 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </div>
                 </>
               ) : detailStep === 0 ? (
+              <>
+              {/* ===== 0. FIND THE HOUSE (search-first) ===== */}
+              <div className="space-y-3 p-4 rounded-2xl bg-emerald-500/10 border-2 border-emerald-500/40">
+                <h4 className="text-base font-extrabold text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-emerald-500/20">
+                    <Home className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  🏠 Find the House
+                </h4>
+                <p className="text-xs text-muted-foreground -mt-1">
+                  Search an available house by landlord name, region, or any description, then select it.
+                </p>
+
+                {selectedHouse ? (
+                  <div className="rounded-xl border-2 border-emerald-500/50 bg-emerald-500/10 p-3 space-y-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-bold text-sm truncate">{selectedHouse.title}</p>
+                        {selectedHouse.address && (
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <MapPin className="h-3 w-3 flex-shrink-0" />
+                            <span className="truncate">
+                              {selectedHouse.address}
+                              {selectedHouse.region ? `, ${selectedHouse.region}` : ''}
+                            </span>
+                          </p>
+                        )}
+                        <p className="text-xs mt-1">
+                          {selectedHouse.landlord_name && (
+                            <span className="font-semibold">{selectedHouse.landlord_name}</span>
+                          )}
+                          {selectedHouse.monthly_rent ? (
+                            <span className="text-emerald-700 dark:text-emerald-400 font-bold ml-2">
+                              {formatUGX(selectedHouse.monthly_rent)}/mo
+                            </span>
+                          ) : null}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 px-2 text-xs flex-shrink-0"
+                        onClick={clearSelectedHouse}
+                      >
+                        <X className="h-3.5 w-3.5 mr-1" /> Change
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex gap-2">
+                      <Input
+                        value={houseQuery}
+                        onChange={(e) => setHouseQuery(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            searchAvailableHouses();
+                          }
+                        }}
+                        placeholder="Landlord name, region, or description"
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        onClick={searchAvailableHouses}
+                        disabled={houseSearching}
+                        className="flex-shrink-0"
+                      >
+                        {houseSearching ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Search className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+
+                    <div className="max-h-64 overflow-y-auto space-y-2">
+                      {houseSearching ? (
+                        <div className="flex items-center justify-center py-6 text-sm text-muted-foreground">
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" /> Searching…
+                        </div>
+                      ) : houseResults.length > 0 ? (
+                        houseResults.map((h) => (
+                          <button
+                            type="button"
+                            key={h.id}
+                            onClick={() => selectHouse(h)}
+                            className="w-full text-left rounded-xl border border-border bg-card hover:border-emerald-500/60 hover:bg-emerald-500/5 transition-colors p-3"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="font-semibold text-sm truncate">{h.title}</p>
+                                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                  <MapPin className="h-3 w-3 flex-shrink-0" />
+                                  <span className="truncate">
+                                    {h.address || 'No address'}
+                                    {h.region ? `, ${h.region}` : ''}
+                                  </span>
+                                </p>
+                                {h.landlord_name && (
+                                  <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                                    Landlord: {h.landlord_name}
+                                  </p>
+                                )}
+                              </div>
+                              {h.monthly_rent ? (
+                                <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 flex-shrink-0">
+                                  {formatUGX(h.monthly_rent)}/mo
+                                </span>
+                              ) : null}
+                            </div>
+                          </button>
+                        ))
+                      ) : houseSearchedOnce ? (
+                        <div className="text-center py-4 text-sm text-muted-foreground">
+                          No available house found.
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-emerald-500/20">
+                      <p className="text-[11px] text-muted-foreground">
+                        Can&apos;t find it? List the house — it&apos;s available instantly.
+                      </p>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs flex-shrink-0"
+                        onClick={() => setShowListHouse(true)}
+                      >
+                        <Home className="h-3.5 w-3.5 mr-1" /> List a house
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+
               <div className="space-y-3 p-4 rounded-2xl bg-primary/10 border-2 border-primary/40">
                 <h4 className="text-base font-extrabold text-primary flex items-center gap-2">
                   <div className="p-2 rounded-xl bg-primary/20">
@@ -2076,6 +2430,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </div>
                 )}
               </div>
+              </>
               ) : null}
 
               {incomeType !== 'outstanding' && (
@@ -3039,6 +3394,20 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           // Force the search popover to re-fetch fresh results.
           setLandlordPickerKey((k) => k + 1);
           toast.success('Landlord registered. Search to select them now.');
+        }}
+      />
+      <ListEmptyHouseDialog
+        open={showListHouse}
+        onOpenChange={setShowListHouse}
+        initialLandlordName={landlordName || undefined}
+        initialLandlordPhone={landlordPhone || undefined}
+        onSuccess={() => {
+          setShowListHouse(false);
+          // The new house is available instantly — refresh the picker so the
+          // agent can select it and link the tenant they're registering.
+          setHouseSearchedOnce(false);
+          searchAvailableHouses();
+          toast.success('House listed and available — search to select it now.');
         }}
       />
       <AlertDialog open={confirmCloseDialog} onOpenChange={setConfirmCloseDialog}>
