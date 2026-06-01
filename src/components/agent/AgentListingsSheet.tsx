@@ -166,6 +166,32 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
     }
   };
 
+  // Move the current tenant out of a house, freeing it so the agent can place a
+  // new tenant. Clears tenant_id and flips the listing back to "available" — the
+  // rent request flow's house search then finds it again for re-assignment.
+  const handleVacate = async () => {
+    if (!vacateTarget || !user?.id) return;
+    setVacating(true);
+    try {
+      const { error } = await supabase
+        .from('house_listings')
+        .update({ tenant_id: null, status: 'available' })
+        .eq('id', vacateTarget.id)
+        .eq('agent_id', user.id);
+      if (error) throw error;
+      toast({
+        title: 'Tenant moved out',
+        description: `${vacateTarget.title} is now available — post a new rent request to link a new tenant.`,
+      });
+      setVacateTarget(null);
+      refresh();
+    } catch (err: any) {
+      toast({ title: 'Could not move tenant out', description: err.message, variant: 'destructive' });
+    } finally {
+      setVacating(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!deleteTarget) return;
     if (deleteTarget.tenant_id) {
