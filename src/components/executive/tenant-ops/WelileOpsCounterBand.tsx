@@ -100,6 +100,34 @@ export function WelileOpsCounterBand() {
           </p>
         </div>
         <div className="flex items-center gap-1.5">
+          {autoRefresh && (
+            <div className="flex items-center gap-1">
+              {REFRESH_OPTIONS.map((sec) => (
+                <button
+                  key={sec}
+                  onClick={() => setRefreshSec(sec)}
+                  className={cn(
+                    'px-1.5 py-0.5 rounded text-[10px] font-semibold border transition',
+                    refreshSec === sec
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-card text-muted-foreground border-border hover:bg-muted/40',
+                  )}
+                >
+                  {sec}s
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="flex items-center gap-1.5 rounded-lg border border-border px-2 py-0.5 bg-card">
+            <span className={cn('text-[10px] font-semibold', autoRefresh ? 'text-emerald-600' : 'text-muted-foreground')}>
+              {autoRefresh ? 'Live' : 'Auto'}
+            </span>
+            <Switch
+              checked={autoRefresh}
+              onCheckedChange={setAutoRefresh}
+              className="scale-75"
+            />
+          </div>
           <div className="flex rounded-lg border border-border overflow-hidden">
             {WINDOWS.map((w) => (
               <button
@@ -115,7 +143,7 @@ export function WelileOpsCounterBand() {
             ))}
           </div>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => refetch()}>
-            <RefreshCw className={cn('h-4 w-4', isFetching && 'animate-spin')} />
+            <RefreshCw className={cn('h-4 w-4', (isFetching || isLoading) && 'animate-spin')} />
           </Button>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCollapsed((c) => !c)}>
             {collapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
