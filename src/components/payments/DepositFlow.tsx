@@ -1623,6 +1623,10 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                 <button
                   key={idx}
                   onClick={() => {
+                    if (ch.id === 'agent_cash') {
+                      setShowAgentPinDeposit(true);
+                      return;
+                    }
                     setChannel(ch.id);
                     if (ch.provider) setMomoProvider(ch.provider);
                     setStep('form');
