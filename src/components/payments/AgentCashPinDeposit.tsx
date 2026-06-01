@@ -61,8 +61,20 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
   const [searching, setSearching] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [phoneError, setPhoneError] = useState('');
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const phoneWrapRef = useRef<HTMLDivElement>(null);
+
+  const validatePhone = (value: string): string => {
+    const digits = value.replace(/\D/g, '');
+    if (digits.length === 0) return '';
+    if (digits.length < 9) return 'Phone number is too short — needs at least 9 digits.';
+    if (digits.length > 15) return 'Phone number is too long.';
+    // Uganda check: if it starts with 0 it must be 10 digits; if 256 it should be 12
+    if (digits.startsWith('0') && digits.length !== 10) return 'Uganda numbers starting with 0 must be exactly 10 digits (e.g. 0772 123 456).';
+    if (digits.startsWith('256') && digits.length !== 12) return 'Numbers with 256 country code must be exactly 12 digits (e.g. 256772123456).';
+    return '';
+  };
 
   const reset = () => {
     setStep('form'); setAmount(''); setAgentPhone(''); setLoading(false);
