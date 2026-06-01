@@ -715,3 +715,296 @@ function EmptyHousesDialog({
     </Dialog>
   );
 }
+
+// ===== Placed tenants (occupied houses) dialog =====
+
+type PlacedSort = 'recent' | 'rent_desc' | 'name';
+
+function PlacedTenantsDialog({
+  open, win, refetchIntervalMs, onClose, onOpenLandlord, onOpenAgent,
+}: {
+  open: boolean;
+  win: CounterWindow;
+  refetchIntervalMs?: number | false;
+  onClose: () => void;
+  onOpenLandlord: (id: string) => void;
+  onOpenAgent: (id: string) => void;
+}) {
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<PlacedSort>('recent');
+  const { data, isLoading } = useMissionPlacements(win, open, refetchIntervalMs);
+  const rows: MissionPlacementRow[] = data ?? [];
+
+  const searchLower = search.trim().toLowerCase();
+  const filtered = useMemo(() => {
+    let r = [...rows];
+    if (searchLower) {
+      r = r.filter((p) =>
+        (p.landlord_name?.toLowerCase().includes(searchLower) ?? false) ||
+        (p.landlord_phone?.toLowerCase().includes(searchLower) ?? false) ||
+        (p.tenant_name?.toLowerCase().includes(searchLower) ?? false) ||
+        (p.tenant_phone?.toLowerCase().includes(searchLower) ?? false) ||
+        (p.property_address?.toLowerCase().includes(searchLower) ?? false) ||
+        (p.agent_name?.toLowerCase().includes(searchLower) ?? false));
+    }
+    r.sort((a, b) => {
+      switch (sort) {
+        case 'rent_desc': return (b.monthly_rent || 0) - (a.monthly_rent || 0);
+        case 'name': return (a.landlord_name || '~').localeCompare(b.landlord_name || '~');
+        case 'recent':
+        default: return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+      }
+    });
+    return r;
+  }, [rows, searchLower, sort]);
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-2xl p-0 gap-0">
+        <DialogHeader className="p-4 pb-2">
+          <DialogTitle className="text-base flex items-center gap-2">
+            <Users className="h-4 w-4 text-emerald-600" /> Placed tenants — occupied houses
+          </DialogTitle>
+          <p className="text-[11px] text-muted-foreground">
+            Each landlord linked to a tenant is an occupied house. Tap a landlord, tenant or agent to open their profile.
+          </p>
+        </DialogHeader>
+
+        <div className="px-4 pb-2 flex items-center gap-2 flex-wrap">
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search landlord, tenant, agent…"
+              className="pl-7 h-8 text-xs"
+            />
+          </div>
+          <div className="flex rounded-lg border border-border overflow-hidden shrink-0">
+            {([
+              { key: 'recent', label: 'Recent' },
+              { key: 'rent_desc', label: 'Rent' },
+              { key: 'name', label: 'Name' },
+            ] as { key: PlacedSort; label: string }[]).map((s) => (
+              <button
+                key={s.key}
+                onClick={() => setSort(s.key)}
+                className={cn('px-2 py-1 text-[10px] font-semibold transition whitespace-nowrap',
+                  sort === s.key ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted/40')}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {!isLoading && rows.length > 0 && (
+          <div className="px-4 pb-2">
+            <Badge variant="outline" className="text-[10px]">{filtered.length} of {rows.length} occupied houses</Badge>
+          </div>
+        )}
+
+        <ScrollArea className="max-h-[60vh] px-4 pb-4">
+          {isLoading ? (
+            <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}</div>
+          ) : filtered.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              {rows.length === 0 ? 'No placed tenants in this window.' : 'No placements match your search.'}
+            </p>
+          ) : (
+            <ul className="space-y-1.5">
+              {filtered.map((p) => (
+                <li key={p.landlord_id} className="rounded-lg border border-border bg-card p-3">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-sm truncate flex-1">{p.property_address || p.landlord_name || 'Occupied house'}</span>
+                    {p.verified && <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 shrink-0" />}
+                    {p.monthly_rent ? <Badge className="text-[10px] shrink-0 text-foreground bg-muted">{formatUGX(p.monthly_rent)}/mo</Badge> : null}
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[10px] text-muted-foreground">
+                    <span>Placed {fmtDate(p.created_at)}</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                    <button
+                      onClick={() => onOpenLandlord(p.landlord_id)}
+                      className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium border border-border text-[#9234EA] bg-[#9234EA]/10 hover:ring-1 hover:ring-primary"
+                    >
+                      <Home className="h-3 w-3" /> {p.landlord_name || 'Landlord'}
+                      {p.landlord_phone && <span className="text-muted-foreground font-normal">· {p.landlord_phone}</span>}
+                    </button>
+                    <span className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium border border-border text-emerald-600 bg-emerald-500/10">
+                      <Users className="h-3 w-3" /> {p.tenant_name || 'Tenant'}
+                      {p.tenant_phone && <span className="text-muted-foreground font-normal">· {p.tenant_phone}</span>}
+                    </span>
+                    {p.agent_id && (
+                      <button
+                        onClick={() => onOpenAgent(p.agent_id!)}
+                        className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium border border-border text-blue-600 bg-blue-500/10 hover:ring-1 hover:ring-primary"
+                      >
+                        <UserPlus className="h-3 w-3" /> {p.agent_name || 'Agent'}
+                      </button>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ===== Funders dialog (Partner Ops portfolios + promissory notes) =====
+
+type FunderSort = 'recent' | 'amount_desc' | 'name';
+
+function FundersDialog({
+  open, win, refetchIntervalMs, onClose, onOpenAgent,
+}: {
+  open: boolean;
+  win: CounterWindow;
+  refetchIntervalMs?: number | false;
+  onClose: () => void;
+  onOpenAgent: (id: string) => void;
+}) {
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<FunderSort>('recent');
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'portfolio' | 'promissory'>('all');
+  const { data, isLoading } = useMissionFunders(win, open, refetchIntervalMs);
+  const rows: MissionFunderRow[] = data ?? [];
+
+  const searchLower = search.trim().toLowerCase();
+  const filtered = useMemo(() => {
+    let r = [...rows];
+    if (sourceFilter !== 'all') r = r.filter((f) => f.source === sourceFilter);
+    if (searchLower) {
+      r = r.filter((f) =>
+        (f.name?.toLowerCase().includes(searchLower) ?? false) ||
+        (f.phone?.toLowerCase().includes(searchLower) ?? false) ||
+        (f.reference?.toLowerCase().includes(searchLower) ?? false) ||
+        (f.agent_name?.toLowerCase().includes(searchLower) ?? false));
+    }
+    r.sort((a, b) => {
+      switch (sort) {
+        case 'amount_desc': return (b.amount || 0) - (a.amount || 0);
+        case 'name': return (a.name || '~').localeCompare(b.name || '~');
+        case 'recent':
+        default: return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+      }
+    });
+    return r;
+  }, [rows, searchLower, sort, sourceFilter]);
+
+  const activatedCount = rows.filter((f) => f.activated).length;
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-2xl p-0 gap-0">
+        <DialogHeader className="p-4 pb-2">
+          <DialogTitle className="text-base flex items-center gap-2">
+            <Handshake className="h-4 w-4 text-amber-600" /> Onboarded funders
+          </DialogTitle>
+          <p className="text-[11px] text-muted-foreground">
+            Funders from Partner Ops portfolios and promissory notes, with their committed amount and activation status.
+          </p>
+        </DialogHeader>
+
+        <div className="px-4 pb-2 flex items-center gap-2 flex-wrap">
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search funder, agent, reference…"
+              className="pl-7 h-8 text-xs"
+            />
+          </div>
+          <div className="flex rounded-lg border border-border overflow-hidden shrink-0">
+            {([
+              { key: 'recent', label: 'Recent' },
+              { key: 'amount_desc', label: 'Amount' },
+              { key: 'name', label: 'Name' },
+            ] as { key: FunderSort; label: string }[]).map((s) => (
+              <button
+                key={s.key}
+                onClick={() => setSort(s.key)}
+                className={cn('px-2 py-1 text-[10px] font-semibold transition whitespace-nowrap',
+                  sort === s.key ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted/40')}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex rounded-lg border border-border overflow-hidden shrink-0">
+            {([
+              { key: 'all', label: 'All' },
+              { key: 'portfolio', label: 'Portfolios' },
+              { key: 'promissory', label: 'Notes' },
+            ] as { key: 'all' | 'portfolio' | 'promissory'; label: string }[]).map((f) => (
+              <button
+                key={f.key}
+                onClick={() => setSourceFilter(f.key)}
+                className={cn('px-2 py-1 text-[10px] font-semibold transition whitespace-nowrap',
+                  sourceFilter === f.key ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted/40')}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {!isLoading && rows.length > 0 && (
+          <div className="px-4 pb-2 flex flex-wrap items-center gap-1.5">
+            <Badge variant="outline" className="text-[10px]">{filtered.length} of {rows.length} funders</Badge>
+            {activatedCount > 0 && (
+              <Badge className="text-[10px] text-emerald-600 bg-emerald-500/10">{activatedCount} activated</Badge>
+            )}
+          </div>
+        )}
+
+        <ScrollArea className="max-h-[60vh] px-4 pb-4">
+          {isLoading ? (
+            <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}</div>
+          ) : filtered.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              {rows.length === 0 ? 'No funders in this window.' : 'No funders match your search.'}
+            </p>
+          ) : (
+            <ul className="space-y-1.5">
+              {filtered.map((f) => (
+                <li key={f.funder_key} className="rounded-lg border border-border bg-card p-3">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-sm truncate flex-1">{f.name || 'Funder'}</span>
+                    <Badge className={cn('text-[10px] shrink-0',
+                      f.source === 'portfolio' ? 'text-blue-600 bg-blue-500/10' : 'text-amber-600 bg-amber-500/10')}>
+                      {f.source === 'portfolio' ? 'Portfolio' : 'Note'}
+                    </Badge>
+                    {f.activated
+                      ? <Badge className="text-[10px] shrink-0 text-emerald-600 bg-emerald-500/10">Active</Badge>
+                      : <Badge className="text-[10px] shrink-0 text-muted-foreground bg-muted">Pending</Badge>}
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[10px] text-muted-foreground">
+                    {f.amount ? <span className="text-foreground font-semibold">{formatUGX(f.amount)} committed</span> : null}
+                    {f.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {f.phone}</span>}
+                    {f.reference && <span>Ref {f.reference}</span>}
+                    <span>Onboarded {fmtDate(f.created_at)}</span>
+                  </div>
+                  {f.agent_id && (
+                    <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                      <button
+                        onClick={() => onOpenAgent(f.agent_id!)}
+                        className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium border border-border text-blue-600 bg-blue-500/10 hover:ring-1 hover:ring-primary"
+                      >
+                        <UserPlus className="h-3 w-3" /> {f.agent_name || 'Agent'}
+                      </button>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
+}
