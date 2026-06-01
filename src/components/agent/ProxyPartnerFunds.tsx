@@ -3,12 +3,13 @@ import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Users, ArrowUpRight, Clock, CheckCircle2, XCircle, AlertCircle, Info, Hourglass, Download, X, CheckSquare, Eye, RotateCcw, Trash2 } from 'lucide-react';
+import { Loader2, Users, ArrowUpRight, Clock, CheckCircle2, XCircle, AlertCircle, Info, Hourglass, Download, X, CheckSquare, Eye, RotateCcw, Trash2, Share2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useWallet } from '@/hooks/useWallet';
 import { useCurrency } from '@/hooks/useCurrency';
 import { WithdrawRequestDialog } from '@/components/wallet/WithdrawRequestDialog';
+import { sharePayoutCardViaWhatsApp, type PayoutCardData } from '@/lib/payoutShareCard';
 import { toast } from 'sonner';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -847,6 +848,63 @@ export function ProxyPartnerFunds() {
       });
   }, [approvedOps, completedWithdrawals, activeWithdrawalsByPartner, strictWithdrawableByPartner, agentStrictWithdrawable, managedPartnerIds, profiles, portfolioMap, dismissalMap, user?.id]);
 
+  // Share a branded WhatsApp payout card for a single partner so the proxy
+  // agent can confirm name / mobile-money number / amount with the partner.
+  const [sharingCardId, setSharingCardId] = useState<string | null>(null);
+  const handleShareCard = async (partner: PartnerBalance) => {
+    if (sharingCardId) return;
+    setSharingCardId(partner.partnerId);
+    try {
+      const pInfo = partner.portfolioId ? portfolioMap[partner.portfolioId] : null;
+      let cardData: PayoutCardData = {
+        partnerName: partner.partnerName,
+        portfolioName: partner.accountName || partner.portfolioCode || undefined,
+        payoutDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+        amount: partner.available,
+        reference: (partner.portfolioId || partner.partnerId).slice(0, 8).toUpperCase(),
+      };
+      if (pInfo?.payment_method === 'mobile_money') {
+        cardData = {
+          ...cardData, mode: 'mobile_money', provider: pInfo.mobile_network || 'MoMo',
+          momoName: pInfo.bank_account_name || pInfo.account_name || partner.partnerName,
+          momoNumber: pInfo.mobile_money_number || '',
+        };
+      } else if (pInfo?.payment_method === 'bank_transfer') {
+        cardData = {
+          ...cardData, mode: 'bank_transfer', bankName: pInfo.bank_name,
+          bankAccountName: pInfo.bank_account_name || partner.partnerName, bankAccountNumber: pInfo.account_number,
+        };
+      } else if (pInfo?.payment_method === 'cash') {
+        cardData = { ...cardData, mode: 'cash' };
+      } else {
+        const { data: saved } = await supabase
+          .from('saved_payout_methods' as never)
+          .select('*')
+          .eq('user_id', partner.partnerId)
+          .order('is_default', { ascending: false })
+          .order('last_used_at', { ascending: false, nullsFirst: false })
+          .limit(1);
+        const s: any = (saved ?? [])[0];
+        if (s?.payout_mode === 'mobile_money') {
+          cardData = { ...cardData, mode: 'mobile_money', provider: s.momo_provider, momoName: s.momo_name || partner.partnerName, momoNumber: s.momo_number };
+        } else if (s?.payout_mode === 'bank_transfer') {
+          cardData = { ...cardData, mode: 'bank_transfer', bankName: s.bank_name, bankAccountName: s.bank_account_name || partner.partnerName, bankAccountNumber: s.bank_account_number };
+        } else {
+          cardData = { ...cardData, mode: 'mobile_money', momoName: partner.partnerName };
+        }
+      }
+      const res = await sharePayoutCardViaWhatsApp(cardData);
+      if (res.method === 'downloaded') {
+        toast.success('Payout card ready', { description: 'Image downloaded — attach it in the WhatsApp chat that just opened.' });
+      }
+    } catch (err: any) {
+      console.error('Share payout card error:', err);
+      toast.error('Could not create card', { description: err?.message || 'Please try again.' });
+    } finally {
+      setSharingCardId(null);
+    }
+  };
+
   const handleWithdraw = async (partner: PartnerBalance) => {
     setSelectedPartnerId(partner.partnerId);
     setPrefillAmount(partner.available);
@@ -1497,6 +1555,16 @@ export function ProxyPartnerFunds() {
                   {hasPending ? 'Withdrawal In Progress' : `Withdraw ${formatAmount(partner.available)}`}
                 </Button>
               )}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="w-full gap-1 text-muted-foreground hover:text-primary"
+                onClick={() => handleShareCard(partner)}
+                disabled={sharingCardId === partner.partnerId}
+              >
+                {sharingCardId === partner.partnerId ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Share2 className="h-3.5 w-3.5" />}
+                Share payout card
+              </Button>
             </CardContent>
           </Card>
         );

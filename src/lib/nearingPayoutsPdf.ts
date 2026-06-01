@@ -77,6 +77,8 @@ interface PayoutDetail {
   mode: 'mobile_money' | 'bank_transfer' | 'cash';
   line1: string;
   line2: string;
+  /** Registered account / mobile-money holder name. */
+  name?: string;
 }
 
 async function fetchPayoutMethodsMap(userIds: string[]): Promise<Map<string, PayoutDetail>> {
@@ -109,12 +111,14 @@ async function fetchPayoutMethodsMap(userIds: string[]): Promise<Map<string, Pay
         mode: 'bank_transfer',
         line1: `BANK: ${r.bank_name || '—'}`,
         line2: `${r.bank_account_name || '—'}\nA/C ${r.bank_account_number || '—'}`,
+        name: r.bank_account_name || undefined,
       });
     } else if (r.payout_mode === 'mobile_money') {
       map.set(uid, {
         mode: 'mobile_money',
         line1: `${(r.momo_provider || 'MoMo').toUpperCase()} MOBILE MONEY`,
         line2: `${r.momo_name || '—'}\n${r.momo_number || '—'}`,
+        name: r.momo_name || undefined,
       });
     } else {
       map.set(uid, { mode: 'cash', line1: 'CASH PICKUP', line2: '—' });
@@ -268,7 +272,11 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
     if (det?.payment_method === 'bank_transfer') {
       paymentCell = `BANK: ${det.bank_name || '—'}\n${det.bank_account_name || '—'}\nA/C ${det.account_number || '—'}`;
     } else if (det?.payment_method === 'mobile_money') {
-      paymentCell = `${(det.mobile_network || 'MoMo').toUpperCase()} MOBILE MONEY\n${det.mobile_money_number || '—'}`;
+      // The "name the mobile money shows" is stored on the portfolio's
+      // bank_account_name field (reused as the registered account name for
+      // both modes); fall back to the saved payout method's MoMo name.
+      const momoName = det.bank_account_name || pm?.name || 'Name not set';
+      paymentCell = `${(det.mobile_network || 'MoMo').toUpperCase()} MOBILE MONEY\n${momoName}\n${det.mobile_money_number || '—'}`;
     } else if (det?.payment_method === 'cash') {
       paymentCell = 'CASH PICKUP\n—';
     } else if (pm) {
