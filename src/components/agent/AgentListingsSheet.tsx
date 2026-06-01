@@ -48,6 +48,8 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
   const [editingListing, setEditingListing] = useState<HouseListing | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<HouseListing | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [vacateTarget, setVacateTarget] = useState<HouseListing | null>(null);
+  const [vacating, setVacating] = useState(false);
   const [chipsCollapsed, setChipsCollapsed] = useState(false);
   const [reassignTarget, setReassignTarget] = useState<{
     rentRequestId: string; tenantName: string; currentAgentId: string;
