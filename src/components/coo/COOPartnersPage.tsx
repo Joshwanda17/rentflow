@@ -724,6 +724,12 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           dueToday,
           durationMonths: Number((p as any).duration_months || 12),
           nextRoiDate: p.next_roi_date,
+          paymentMethod: (p as any).payment_method ?? null,
+          mobileNetwork: (p as any).mobile_network ?? null,
+          mobileMoneyNumber: (p as any).mobile_money_number ?? null,
+          bankName: (p as any).bank_name ?? null,
+          bankAccountName: (p as any).bank_account_name ?? null,
+          accountNumber: (p as any).account_number ?? null,
         });
       });
       nearingList.sort((a, b) => a.daysUntil - b.daysUntil);
