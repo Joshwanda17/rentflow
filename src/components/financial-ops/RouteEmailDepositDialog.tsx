@@ -38,6 +38,51 @@ function useWalletBuckets(userId: string | null | undefined) {
   });
 }
 
+/**
+ * Automatic wallet matching: inspects a user's historical wallet-scope
+ * deposits (money-in legs) and works out which bucket they most often
+ * receive money into — so Financial Ops can pre-select the most likely
+ * "Route as" choice instead of guessing on every inbound email.
+ *
+ * Signal: last 50 user-facing `cash_in` wallet ledger legs grouped by
+ * `wallet_bucket`. Respects the user-facing ledger filter (no
+ * admin_correction / system_balance_correction). Returns null when the
+ * user has no deposit history to learn from.
+ */
+function useSuggestedWallet(userId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['route-email-suggested-wallet', userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from('general_ledger') as any)
+        .select('wallet_bucket, amount, created_at')
+        .eq('user_id', userId)
+        .eq('ledger_scope', 'wallet')
+        .eq('direction', 'cash_in')
+        .in('wallet_bucket', ['withdrawable', 'float'])
+        .neq('classification', 'admin_correction')
+        .neq('category', 'system_balance_correction')
+        .gt('amount', 0)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      const rows = (data ?? []) as Array<{ wallet_bucket: 'withdrawable' | 'float' }>;
+      if (!rows.length) return null;
+      let withdrawableCount = 0;
+      let floatCount = 0;
+      for (const r of rows) {
+        if (r.wallet_bucket === 'float') floatCount += 1;
+        else withdrawableCount += 1;
+      }
+      const suggested: Route = floatCount > withdrawableCount ? 'operational_float' : 'personal_deposit';
+      const dominant = Math.max(withdrawableCount, floatCount);
+      const confidence = Math.round((dominant / rows.length) * 100);
+      return { suggested, withdrawableCount, floatCount, total: rows.length, confidence };
+    },
+    staleTime: 30_000,
+  });
+}
+
 function BucketDelta({ label, before, after, sign }: { label: string; before: number; after: number; sign: '+' | '−' }) {
   const tone = sign === '+' ? 'text-emerald-600' : 'text-destructive';
   return (
