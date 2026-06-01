@@ -224,10 +224,11 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
       ? ''
       : `${Math.floor(secsLeft / 60)}:${String(secsLeft % 60).padStart(2, '0')}`;
 
+  const TZ = 'Africa/Kampala';
   const expiryTimeLabel = (() => {
     if (!expiresAt) return '';
     const d = new Date(expiresAt);
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZone: TZ });
   })();
 
   const handleCreate = async () => {
