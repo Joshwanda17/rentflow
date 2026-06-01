@@ -21,6 +21,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { downloadRepaymentPdf, shareRepaymentPdfWhatsApp } from '@/lib/repaymentSchedulePdf';
 import { useToast } from '@/hooks/use-toast';
 import { AgentRejectedRequestsSection } from './AgentRejectedRequestsSection';
+import { RentRewardChips } from './RentRewardChips';
 
 interface AgentRentRequest {
   id: string;
@@ -33,6 +34,7 @@ interface AgentRentRequest {
   created_at: string;
   tenant_id: string;
   landlord_id: string;
+  house_listing_id?: string | null;
   registration_type?: string | null;
   initial_outstanding_balance?: number | null;
   outstanding_grace_days?: number | null;
@@ -94,7 +96,7 @@ export function AgentMyRentRequestsSheet({ open, onOpenChange }: AgentMyRentRequ
 
     const { data, error } = await supabase
       .from('rent_requests')
-      .select('id, rent_amount, total_repayment, amount_repaid, duration_days, daily_repayment, status, created_at, tenant_id, landlord_id, registration_type, initial_outstanding_balance, outstanding_grace_days, agent_verified, manager_verified, request_latitude, request_longitude, request_city, request_country')
+      .select('id, rent_amount, total_repayment, amount_repaid, duration_days, daily_repayment, status, created_at, tenant_id, landlord_id, house_listing_id, registration_type, initial_outstanding_balance, outstanding_grace_days, agent_verified, manager_verified, request_latitude, request_longitude, request_city, request_country')
       .or(`agent_id.eq.${user.id},agent_verified_by.eq.${user.id}`)
       .neq('status', 'deleted_by_agent')
       .order('created_at', { ascending: false });
@@ -287,6 +289,13 @@ export function AgentMyRentRequestsSheet({ open, onOpenChange }: AgentMyRentRequ
                             <span className="font-medium">Landlord verification pending</span>
                           </div>
                         )}
+
+                        {/* Agent reward progress (1k → 4k → 5k) for listed-house requests */}
+                        <RentRewardChips
+                          isListed={!!req.house_listing_id}
+                          landlordVerified={!!req.landlord?.verified}
+                          status={req.status}
+                        />
 
                         {/* Details */}
                         <div className="px-4 pb-3 space-y-1 text-sm text-muted-foreground">
