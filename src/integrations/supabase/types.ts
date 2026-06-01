@@ -14373,6 +14373,7 @@ export type Database = {
           district_city: string | null
           email: string
           full_name: string
+          house_listing_id: string | null
           id: string
           latitude: number | null
           location_accuracy: number | null
@@ -14404,6 +14405,7 @@ export type Database = {
           district_city?: string | null
           email: string
           full_name: string
+          house_listing_id?: string | null
           id?: string
           latitude?: number | null
           location_accuracy?: number | null
@@ -14435,6 +14437,7 @@ export type Database = {
           district_city?: string | null
           email?: string
           full_name?: string
+          house_listing_id?: string | null
           id?: string
           latitude?: number | null
           location_accuracy?: number | null
@@ -14453,7 +14456,15 @@ export type Database = {
           status?: string
           temp_password?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "supporter_invites_house_listing_id_fkey"
+            columns: ["house_listing_id"]
+            isOneToOne: false
+            referencedRelation: "house_listings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       supporter_referrals: {
         Row: {
