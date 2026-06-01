@@ -459,7 +459,10 @@ export function ApprovalQueue() {
       return;
     }
 
-    if (cashCodeMissingBlocked) {
+    const missingCashCode = items.some(
+      i => selected.has(i.id) && i.payoutDetails?.method === 'cash' && !i.payoutDetails?.payoutCode,
+    );
+    if (activeQueue === 'wallet_withdrawals' && bulkAction === 'approve' && missingCashCode) {
       toast.error('Cash payout is missing its WPO pickup code — cannot approve until the user resubmits.');
       return;
     }
