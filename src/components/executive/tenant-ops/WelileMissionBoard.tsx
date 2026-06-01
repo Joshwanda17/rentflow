@@ -11,10 +11,13 @@ import {
   useMissionSummary, useMissionLeaderboard, type CounterWindow,
   type MissionSummary, type MissionAgentRow,
 } from '@/hooks/useWelileOpsCounters';
+import { useMissionEmptyHouses, type MissionEmptyHouseRow } from '@/hooks/useWelileOpsCounters';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { formatUGX } from '@/lib/agentAdvanceCalculations';
 import {
   Target, Home, Users, Handshake, RefreshCw, ChevronRight, Phone,
-  Search, Lightbulb, TrendingUp, ArrowRight,
+  Search, Lightbulb, TrendingUp, ArrowRight, Building2, MapPin, ListChecks,
+  ShieldCheck, BedDouble, UserPlus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
