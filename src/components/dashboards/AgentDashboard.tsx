@@ -34,6 +34,7 @@ import {
   XCircle,
   ChevronDown,
   ChevronUp,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AppRole } from '@/hooks/useAuth';
@@ -648,6 +649,37 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
              */}
 
             {/* 0) MERCHANT AGENT — highest prominence, full-bleed gradient CTA */}
+            {isCashoutAgent && showMerchantOnboard && (
+              <div className="w-full rounded-2xl border border-primary/30 bg-primary/5 p-4 relative animate-fade-in">
+                <button
+                  onClick={dismissMerchantOnboard}
+                  aria-label="Dismiss"
+                  className="absolute top-3 right-3 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors touch-manipulation"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+                <div className="flex items-start gap-3 pr-6">
+                  <div className="p-2 rounded-lg bg-primary/10 shrink-0">
+                    <Sparkles className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-sm text-foreground">You're now a Merchant Agent!</p>
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                      Use the highlighted <span className="font-medium text-foreground">Merchant Payouts</span> button
+                      below to process MoMo, bank{isCashoutAgent.handles_cash ? ', and cash' : ''} payouts for customers.
+                      Tap it any time to get started.
+                    </p>
+                    <button
+                      onClick={() => { hapticTap(); dismissMerchantOnboard(); setCashPayoutsOpen(true); }}
+                      className="mt-3 text-xs font-semibold text-primary hover:underline"
+                    >
+                      Open Merchant Payouts →
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {isCashoutAgent && (
               <button
                 onClick={() => { hapticTap(); setCashPayoutsOpen(true); }}
