@@ -4425,6 +4425,23 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                   const isProcessing = processing[p.portfolioId];
                   const isDone = completed[p.portfolioId];
                   const refPreview = `${p.portfolioId.slice(0, 8)}`;
+                  // Labelled payout destination (registered name + number).
+                  const destLabel =
+                    p.paymentMethod === 'bank_transfer' ? 'Account name'
+                    : p.paymentMethod === 'cash' ? 'Payout'
+                    : 'MoMo name';
+                  const destName =
+                    p.paymentMethod === 'bank_transfer'
+                      ? (p.bankAccountName || p.name)
+                      : p.paymentMethod === 'cash'
+                      ? 'Cash pickup'
+                      : (p.bankAccountName || p.portfolioName || p.name || 'Name not set');
+                  const destExtra =
+                    p.paymentMethod === 'bank_transfer'
+                      ? [p.bankName, p.accountNumber].filter(Boolean).join(' · ')
+                      : p.paymentMethod === 'cash'
+                      ? ''
+                      : [p.mobileNetwork, p.mobileMoneyNumber].filter(Boolean).join(' · ');
                   return (
                     <div key={p.portfolioId + idx} className={cn("rounded-xl border border-border/60 bg-card p-3 sm:p-4 space-y-2", isDone === 'compounded' && "opacity-60 border-green-500/40 bg-green-500/5", isDone === 'pending' && "opacity-80 border-amber-500/40 bg-amber-500/5", isDone === 'split' && "opacity-70 border-violet-500/40 bg-violet-500/5")}>
                       <div className="flex items-start justify-between gap-2">
