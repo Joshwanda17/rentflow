@@ -8,7 +8,22 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Loader2, Banknote, Phone, CheckCircle2, ShieldCheck, ChevronLeft } from 'lucide-react';
-import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
+
+// Read the friendly `message` field our edge functions return on non-2xx.
+async function readEdgeMessage(error: any, fallback: string): Promise<string> {
+  try {
+    const ctx = error?.context;
+    if (ctx && typeof ctx.json === 'function') {
+      const body = await ctx.json();
+      return body?.message || body?.error || fallback;
+    }
+    if (ctx?.body) {
+      const body = typeof ctx.body === 'string' ? JSON.parse(ctx.body) : ctx.body;
+      return body?.message || body?.error || fallback;
+    }
+  } catch { /* ignore */ }
+  return error?.message || fallback;
+}
 
 interface AgentCashPinDepositProps {
   open: boolean;
@@ -63,8 +78,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
         body: { amount: amountNum, agent_phone: agentPhone.trim() },
       });
       if (error) {
-        const msg = await extractEdgeFunctionError(error);
-        toast.error(msg || 'Could not start the deposit');
+        toast.error(await readEdgeMessage(error, 'Could not start the deposit'));
         return;
       }
       if (!data?.ok) {
@@ -89,8 +103,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
         body: { session_id: sessionId, pin: code },
       });
       if (error) {
-        const msg = await extractEdgeFunctionError(error);
-        toast.error(msg || 'Could not confirm the code');
+        toast.error(await readEdgeMessage(error, 'Could not confirm the code'));
         setPin('');
         return;
       }
