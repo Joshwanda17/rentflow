@@ -371,7 +371,7 @@ export function WelileMissionBoard() {
       <UserDrilldownDrawer
         open={!!drawer}
         onOpenChange={(v) => { if (!v) setDrawer(null); }}
-        tenantId={null}
+        tenantId={drawer?.tenantId ?? null}
         agentId={drawer?.agentId ?? null}
         landlordId={drawer?.landlordId ?? null}
         defaultTab={drawer?.tab ?? 'agent'}
@@ -401,6 +401,18 @@ export function WelileMissionBoard() {
         refetchIntervalMs={intervalMs}
         onClose={() => setFundersOpen(false)}
         onOpenAgent={(id) => { setFundersOpen(false); setDrawer({ agentId: id, tab: 'agent' }); }}
+      />
+
+      <AgentNetworkDriverDialog
+        driver={driverOpen?.key ?? null}
+        label={driverOpen?.label ?? ''}
+        win={win}
+        refetchIntervalMs={intervalMs}
+        open={!!driverOpen}
+        onClose={() => setDriverOpen(null)}
+        onOpenAgent={(id) => { setDriverOpen(null); setDrawer({ agentId: id, tab: 'agent' }); }}
+        onOpenTenant={(id) => { setDriverOpen(null); setDrawer({ tenantId: id, tab: 'tenant' }); }}
+        onOpenLandlord={(id) => { setDriverOpen(null); setDrawer({ landlordId: id, tab: 'landlord' }); }}
       />
     </Card>
   );
