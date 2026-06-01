@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -16,6 +17,7 @@ import {
 import {
   FileText, Home, UserCheck, Handshake, Globe, MapPin, ChevronRight,
   ChevronLeft, RefreshCw, User, ChevronDown, ChevronUp, Phone,
+  Search, ArrowUpDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useOpsZoneAgents, useOpsZoneLandlords, type ZoneAgentRow, type ZoneLandlordRow } from '@/hooks/useWelileOpsCounters';
@@ -470,11 +472,40 @@ function ZoneFunnelDialog({
   onOpenLandlord: (landlordId: string) => void;
 }) {
   const [tab, setTab] = useState<'agents' | 'landlords'>('agents');
+  const [landlordSearch, setLandlordSearch] = useState('');
+  type LandlordSort = 'name_asc' | 'name_desc' | 'activity_desc' | 'activity_asc' | 'producing' | 'rent_desc';
+  const [landlordSort, setLandlordSort] = useState<LandlordSort>('activity_desc');
   const { data: agentData, isLoading: agentsLoading } = useOpsZoneAgents(target?.path ?? null, win, !!target, refetchIntervalMs);
   const { data: landlordData, isLoading: landlordsLoading } =
     useOpsZoneLandlords(target?.path ?? null, win, !!target && tab === 'landlords', refetchIntervalMs);
   const agents: ZoneAgentRow[] = agentData ?? [];
   const landlords: ZoneLandlordRow[] = landlordData ?? [];
+
+  const searchLower = landlordSearch.trim().toLowerCase();
+  const filteredLandlords = useMemo(() => {
+    let result = [...landlords];
+    if (searchLower) {
+      result = result.filter((l) =>
+        (l.landlord_name?.toLowerCase().includes(searchLower) ?? false) ||
+        (l.landlord_phone?.toLowerCase().includes(searchLower) ?? false) ||
+        (l.agent_name?.toLowerCase().includes(searchLower) ?? false) ||
+        (l.is_producing && searchLower === 'producing') ||
+        (!l.is_producing && searchLower === 'dormant')
+      );
+    }
+    result.sort((a, b) => {
+      switch (landlordSort) {
+        case 'name_asc': return (a.landlord_name || '').localeCompare(b.landlord_name || '');
+        case 'name_desc': return (b.landlord_name || '').localeCompare(a.landlord_name || '');
+        case 'activity_desc': return new Date(b.last_activity || 0).getTime() - new Date(a.last_activity || 0).getTime();
+        case 'activity_asc': return new Date(a.last_activity || 0).getTime() - new Date(b.last_activity || 0).getTime();
+        case 'producing': return (b.is_producing ? 1 : 0) - (a.is_producing ? 1 : 0);
+        case 'rent_desc': return (b.rent_count || 0) - (a.rent_count || 0);
+        default: return 0;
+      }
+    });
+    return result;
+  }, [landlords, searchLower, landlordSort]);
 
   const agg = agents.reduce(
     (a, r) => {
@@ -606,16 +637,52 @@ function ZoneFunnelDialog({
               </>
               ) : (
               <>
+              {/* Search + sort controls */}
+              <div className="flex items-center gap-2 mb-2">
+                <div className="relative flex-1 min-w-0">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                  <Input
+                    value={landlordSearch}
+                    onChange={(e) => setLandlordSearch(e.target.value)}
+                    placeholder="Search landlords, agents…"
+                    className="pl-7 h-8 text-xs"
+                  />
+                </div>
+                <div className="flex rounded-lg border border-border overflow-hidden shrink-0">
+                  {([
+                    { key: 'activity_desc', label: 'Recent' },
+                    { key: 'name_asc', label: 'A–Z' },
+                    { key: 'rent_desc', label: 'Rent' },
+                    { key: 'producing', label: 'Active' },
+                  ] as { key: LandlordSort; label: string }[]).map((s) => (
+                    <button
+                      key={s.key}
+                      onClick={() => setLandlordSort(s.key)}
+                      className={cn(
+                        'px-2 py-1 text-[10px] font-semibold transition whitespace-nowrap',
+                        landlordSort === s.key ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted/40'
+                      )}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
-                Producing landlords {landlords.length > 0 ? `(${producingLandlords}/${landlords.length})` : ''}
+                Landlords {filteredLandlords.length > 0 ? `(${filteredLandlords.filter((l) => l.is_producing).length}/${filteredLandlords.length})` : ''}
+                {landlordSearch && filteredLandlords.length !== landlords.length && (
+                  <span className="font-normal normal-case ml-1">· {landlords.length} total</span>
+                )}
               </p>
               {landlordsLoading ? (
                 <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
-              ) : landlords.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">No landlords in this window.</p>
+              ) : filteredLandlords.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">
+                  {landlords.length === 0 ? 'No landlords in this window.' : 'No landlords match your search.'}
+                </p>
               ) : (
                 <ul className="space-y-1.5">
-                  {landlords.map((l) => {
+                  {filteredLandlords.map((l) => {
                     const lFundedPct = pct(l.rent_funded_count, l.rent_count);
                     return (
                       <li
