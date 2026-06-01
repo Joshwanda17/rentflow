@@ -869,7 +869,17 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
       setSourceUser(null);
       setTransferFromUser(false);
       setTransferFromBucket('withdrawable');
-      setManualReference('');
+      // Auto-extract a reference from the email body when the email itself
+      // carries no parsed transaction_id, so operators don't have to type it.
+      if (!row.transaction_id) {
+        const parsed = parseSMS(`${row.subject ?? ''} ${row.snippet ?? ''}`);
+        const auto = parsed.transactionId?.trim() ?? '';
+        setManualReference(auto);
+        setAutoExtractedRef(auto.length >= 4);
+      } else {
+        setManualReference('');
+        setAutoExtractedRef(false);
+      }
       setAwaitingConfirm(false);
       setPendingAutoSubmit(null);
       const tid = row.transaction_id ? ` TID ${row.transaction_id}` : '';
