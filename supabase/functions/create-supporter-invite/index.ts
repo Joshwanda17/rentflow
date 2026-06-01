@@ -333,6 +333,14 @@ Deno.serve(async (req) => {
       console.error("Invite error:", inviteError);
       
       if (inviteError.code === '23505') {
+        // Two agents racing for the same empty house — only one pending invite
+        // can hold a house (uniq_pending_invite_house_listing partial index).
+        if (inviteError.message?.includes('uniq_pending_invite_house_listing')) {
+          return new Response(JSON.stringify({ error: "That house was just reserved by another agent. Pick another empty house." }), {
+            status: 409,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
         const isPhoneDuplicate = inviteError.message?.includes('phone') || 
                                   inviteError.message?.includes('idx_supporter_invites_phone_normalized');
         if (isPhoneDuplicate) {
