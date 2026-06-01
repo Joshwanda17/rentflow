@@ -196,6 +196,26 @@ export function WelileMissionBoard() {
                       <ListChecks className="h-3.5 w-3.5" /> View empty houses to fill
                     </Button>
                   )}
+                  {p.key === 'place' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 w-full mt-2 text-[11px] gap-1"
+                      onClick={() => setPlacedOpen(true)}
+                    >
+                      <Users className="h-3.5 w-3.5" /> View placed tenants
+                    </Button>
+                  )}
+                  {p.key === 'fund' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 w-full mt-2 text-[11px] gap-1"
+                      onClick={() => setFundersOpen(true)}
+                    >
+                      <Handshake className="h-3.5 w-3.5" /> View onboarded funders
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
@@ -228,10 +248,15 @@ export function WelileMissionBoard() {
               <p className="text-[10px] text-muted-foreground mt-0.5">Still empty →</p>
             </button>
             <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
-            <div className="flex-1 rounded-lg bg-emerald-500/10 py-2">
+            <button
+              type="button"
+              onClick={() => setPlacedOpen(true)}
+              className="flex-1 rounded-lg bg-emerald-500/10 py-2 hover:bg-emerald-500/20 transition cursor-pointer"
+              title="View the placed tenants / occupied houses"
+            >
               <p className="text-lg font-bold leading-none text-emerald-600">{summary.placements_total.toLocaleString()}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Tenants placed</p>
-            </div>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Tenants placed →</p>
+            </button>
           </div>
         </div>
       )}
