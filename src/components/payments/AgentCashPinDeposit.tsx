@@ -224,6 +224,12 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
       ? ''
       : `${Math.floor(secsLeft / 60)}:${String(secsLeft % 60).padStart(2, '0')}`;
 
+  const expiryTimeLabel = (() => {
+    if (!expiresAt) return '';
+    const d = new Date(expiresAt);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  })();
+
   const handleCreate = async () => {
     if (!Number.isFinite(amountNum) || amountNum < 500) {
       toast.error('Enter a valid amount (minimum UGX 500)');
