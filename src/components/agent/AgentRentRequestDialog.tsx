@@ -345,6 +345,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [savingDraft, setSavingDraft] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  // Whether the landlord linked to this request was already verified at submit
+  // time. Drives the "Landlord verification pending" status on the success screen.
+  const [landlordVerifiedAtSubmit, setLandlordVerifiedAtSubmit] = useState(false);
   // Auto-capture: the moment tenant name + rent amount exist, the request is
   // persisted as a server draft so the agent gets instant confirmation it was
   // captured and can keep filling the rest without fear of losing it.
