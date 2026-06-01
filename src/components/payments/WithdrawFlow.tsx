@@ -214,6 +214,7 @@ export default function WithdrawFlow({
           .from('user_roles')
           .select('role')
           .eq('user_id', user.id),
+        // (ledger compute is the 3rd entry below)
         // Inline ledger compute — get_user_available_balance RPC is unreliable
         // (historically returned 0 because of a direction-value mismatch).
         // We compute the same numbers client-side so the WITHDRAW max always
@@ -226,6 +227,15 @@ export default function WithdrawFlow({
       setUserRoles((rolesRes.data ?? []).map((r: any) => r.role));
       if (ledger) setLedgerAvailable(ledger.available);
       if (ledger) setLedgerCheckedAt(Date.now());
+
+      // Fetch the registered phone for the OTP gate.
+      const { data: profileRow } = await supabase
+        .from('profiles')
+        .select('phone')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      setProfilePhone((profileRow?.phone as string | null) ?? null);
     })();
     return () => { cancelled = true; };
   }, [open, user]);
