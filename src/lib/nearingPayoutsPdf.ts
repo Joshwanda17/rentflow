@@ -164,10 +164,13 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 12;
 
+  // Exclude compounding partners — they do not receive cash payouts.
+  const rows = input.rows.filter((r) => r.roiMode !== 'monthly_compounding');
+
   // Fetch payment methods + fresh portfolio details in parallel with logo.
   // (Edit history / appendix removed — the export is the nearing-payout list only.)
-  const investorIds = input.rows.map((r) => r.investorId).filter((v): v is string => !!v);
-  const portfolioIds = input.rows.map((r) => r.portfolioId).filter((v): v is string => !!v);
+  const investorIds = rows.map((r) => r.investorId).filter((v): v is string => !!v);
+  const portfolioIds = rows.map((r) => r.portfolioId).filter((v): v is string => !!v);
   const [logoBase64, payoutMap, detailsMap] = await Promise.all([
     loadLogoBase64(),
     fetchPayoutMethodsMap(investorIds),
@@ -197,7 +200,7 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
-  doc.text('Portfolios Nearing Payout & Compounding', pageWidth - margin, 11, { align: 'right' });
+  doc.text('Portfolios Nearing Payout', pageWidth - margin, 11, { align: 'right' });
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.text(`Generated: ${generatedAt.toLocaleString('en-GB')}`, pageWidth - margin, 16, { align: 'right' });
@@ -214,19 +217,19 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
   y += 5;
   doc.setTextColor(71, 85, 105);
   const parts = [
-    `${input.rows.length} of ${input.totalCount} portfolios`,
+    `${rows.length} of ${input.totalCount} portfolios`,
     input.searchQuery ? `Search: "${input.searchQuery}"` : null,
   ].filter(Boolean) as string[];
   doc.text(parts.join('   ·   '), margin, y);
 
   // Aggregate totals
-  const totalPrincipal = input.rows.reduce((s, r) => s + (r.investmentAmount || 0), 0);
-  const totalReturns = input.rows.reduce(
+  const totalPrincipal = rows.reduce((s, r) => s + (r.investmentAmount || 0), 0);
+  const totalReturns = rows.reduce(
     (s, r) => s + Math.round((r.investmentAmount || 0) * (r.roiPercentage || 0) / 100),
     0,
   );
-  const overdueCount = input.rows.filter((r) => r.daysUntil < 0).length;
-  const todayCount = input.rows.filter((r) => r.daysUntil === 0).length;
+  const overdueCount = rows.filter((r) => r.daysUntil < 0).length;
+  const todayCount = rows.filter((r) => r.daysUntil === 0).length;
 
   y += 6;
   doc.setTextColor(15, 23, 42);
@@ -239,7 +242,7 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
   );
 
   // Empty-state guard
-  if (input.rows.length === 0) {
+  if (rows.length === 0) {
     y += 14;
     doc.setFont('helvetica', 'italic');
     doc.setTextColor(100, 116, 139);
@@ -248,7 +251,7 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
   }
 
   // Sort: Due today first → upcoming ascending → overdue (newest first, oldest last)
-  const sortedRows = [...input.rows].sort((a, b) => {
+  const sortedRows = [...rows].sort((a, b) => {
     const bucket = (d: number) => (d === 0 ? 0 : d > 0 ? 1 : 2);
     const ba = bucket(a.daysUntil), bb = bucket(b.daysUntil);
     if (ba !== bb) return ba - bb;
