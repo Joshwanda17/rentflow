@@ -437,7 +437,7 @@ function EmptyHousesDialog({
           </p>
         </DialogHeader>
 
-        <div className="px-4 pb-2 flex items-center gap-2">
+        <div className="px-4 pb-2 flex items-center gap-2 flex-wrap">
           <div className="relative flex-1 min-w-0">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
             <Input
@@ -461,6 +461,22 @@ function EmptyHousesDialog({
                   sort === s.key ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted/40')}
               >
                 {s.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex rounded-lg border border-border overflow-hidden shrink-0">
+            {([
+              { key: 'all', label: 'All' },
+              { key: 'targeted', label: 'Targeted' },
+              { key: 'untargeted', label: 'Not targeted' },
+            ] as { key: 'all' | 'targeted' | 'untargeted'; label: string }[]).map((f) => (
+              <button
+                key={f.key}
+                onClick={() => setTargetFilter(f.key)}
+                className={cn('px-2 py-1 text-[10px] font-semibold transition whitespace-nowrap',
+                  targetFilter === f.key ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted/40')}
+              >
+                {f.label}
               </button>
             ))}
           </div>
