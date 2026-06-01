@@ -1034,6 +1034,109 @@ Password: ${createdInvite?.password}`;
           </div>
         </div>
       )}
+
+      {/* House Assignment Preview */}
+      {selectedType === 'tenant' && (
+        <Dialog open={housePreviewOpen} onOpenChange={(open) => {
+          setHousePreviewOpen(open);
+          if (!open) setPreviewHouseId('');
+        }}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Home className="h-5 w-5 text-blue-500" />
+                Review House Assignment
+              </DialogTitle>
+              <DialogDescription>
+                Confirm this house before assigning it to the tenant
+              </DialogDescription>
+            </DialogHeader>
+            {previewHouse ? (
+              <div className="space-y-4 py-2">
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4">
+                  <h3 className="font-bold text-lg">{previewHouse.title}</h3>
+                  {previewHouse.short_code && (
+                    <p className="text-xs text-muted-foreground font-mono mt-1">
+                      Code: {previewHouse.short_code}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <MapPin className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Location</p>
+                      <p className="text-sm font-medium">
+                        {[previewHouse.address, previewHouse.region].filter(Boolean).join(', ') || '—'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Home className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Rent Unit Type</p>
+                      <p className="text-sm font-medium">{previewHouse.house_category || '—'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Wallet className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Monthly Rent</p>
+                      <p className="text-sm font-medium">
+                        {previewHouse.monthly_rent != null
+                          ? `UGX ${previewHouse.monthly_rent.toLocaleString('en-UG')}`
+                          : '—'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Check className="h-5 w-5 text-green-500 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Availability</p>
+                      <p className="text-sm font-medium text-green-600">Available now</p>
+                    </div>
+                  </div>
+                </div>
+                {selectedHouseId && selectedHouseId !== previewHouseId && selectedHouse && (
+                  <p className="text-xs text-amber-600 bg-amber-500/10 rounded-lg p-2.5 flex items-start gap-1.5">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                    This will replace the currently selected house: {selectedHouse.title}
+                  </p>
+                )}
+                <div className="pt-2 space-y-2">
+                  <Button
+                    type="button"
+                    className="w-full h-12 rounded-xl font-semibold"
+                    onClick={() => {
+                      setSelectedHouseId(previewHouseId);
+                      setHousePreviewOpen(false);
+                      setPreviewHouseId('');
+                    }}
+                  >
+                    <Check className="h-4 w-4 mr-2" />
+                    Confirm Assignment
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full h-12 rounded-xl"
+                    onClick={() => {
+                      setHousePreviewOpen(false);
+                      setPreviewHouseId('');
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="py-8 text-center text-muted-foreground text-sm">
+                No house selected for preview
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
     </form>
   );
 
