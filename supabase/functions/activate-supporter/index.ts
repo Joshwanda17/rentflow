@@ -374,6 +374,44 @@ Deno.serve(async (req) => {
       } else {
         console.log("[activate-supporter] Linked house to tenant:", invite.house_listing_id);
       }
+
+      // Audit trail: record who assigned the house, when, and the placement
+      // bonus trigger status. Best-effort — never blocks activation.
+      try {
+        const { data: listingAfter } = await adminClient
+          .from("house_listings")
+          .select("agent_id, tenant_id, placement_bonus_paid_at")
+          .eq("id", invite.house_listing_id)
+          .single();
+
+        let bonusStatus = "unknown";
+        if (houseLinkError) {
+          bonusStatus = "assignment_failed";
+        } else if (listingAfter?.tenant_id !== userId) {
+          // House was already occupied — this activation did not fill it.
+          bonusStatus = "not_assigned";
+        } else if (!listingAfter?.agent_id) {
+          bonusStatus = "no_listing_agent";
+        } else if (listingAfter?.placement_bonus_paid_at) {
+          bonusStatus = "paid";
+        } else {
+          bonusStatus = "not_paid";
+        }
+
+        await adminClient.from("house_assignment_audit").insert({
+          house_listing_id: invite.house_listing_id,
+          tenant_id: userId,
+          invite_id: invite.id,
+          assigned_by_user_id: invite.created_by ?? null,
+          assigned_by_role: userRole ?? null,
+          listing_agent_id: listingAfter?.agent_id ?? null,
+          placement_bonus_status: bonusStatus,
+          placement_bonus_paid_at: listingAfter?.placement_bonus_paid_at ?? null,
+        });
+        console.log("[activate-supporter] House assignment audit recorded:", bonusStatus);
+      } catch (auditErr) {
+        console.error("[activate-supporter] House assignment audit error:", auditErr);
+      }
     }
 
     // Link investor portfolios created for this invite to the new user
