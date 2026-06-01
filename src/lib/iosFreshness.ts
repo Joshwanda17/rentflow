@@ -101,7 +101,7 @@ function showUpdateToast() {
   if (!document.getElementById('welile-update-toast-style')) {
     const style = document.createElement('style');
     style.id = 'welile-update-toast-style';
-    style.textContent = \`@keyframes welileSlideUp { from { transform: translate(-50%, 150%); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }\`;
+    style.textContent = `@keyframes welileSlideUp { from { transform: translate(-50%, 150%); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }`;
     document.head.appendChild(style);
   }
 
