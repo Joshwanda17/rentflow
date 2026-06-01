@@ -34,6 +34,21 @@ export interface CounterItemRow {
   drawer_tab: 'tenant' | 'agent' | 'landlord';
 }
 
+export interface ZoneAgentRow {
+  agent_id: string;
+  agent_name: string | null;
+  agent_phone: string | null;
+  rent_count: number;
+  rent_funded_count: number;
+  landlord_count: number;
+  agent_count: number;
+  promissory_count: number;
+  total_count: number;
+  first_activity: string | null;
+  last_activity: string | null;
+  is_producing: boolean;
+}
+
 export function counterLevel(path: CounterPath): CounterLevel {
   if (!path.continent) return 'continent';
   if (!path.country) return 'country';
@@ -83,6 +98,26 @@ export function useOpsCounterItems(agentId: string | null, kind: CounterKind | n
       });
       if (error) throw error;
       return (data ?? []) as CounterItemRow[];
+    },
+  });
+}
+
+export function useOpsZoneAgents(path: CounterPath | null, win: CounterWindow, enabled: boolean, refetchIntervalMs?: number | false) {
+  const since = windowToISO(win);
+  return useQuery({
+    enabled: enabled && !!path,
+    queryKey: ['welile-ops-zone-agents', path?.continent ?? null, path?.country ?? null, path?.city ?? null, win],
+    staleTime: 30_000,
+    refetchInterval: refetchIntervalMs || false,
+    queryFn: async (): Promise<ZoneAgentRow[]> => {
+      const { data, error } = await supabase.rpc('welile_ops_zone_agents' as any, {
+        p_continent: path?.continent ?? null,
+        p_country: path?.country ?? null,
+        p_city: path?.city ?? null,
+        p_since: since,
+      });
+      if (error) throw error;
+      return (data ?? []) as ZoneAgentRow[];
     },
   });
 }

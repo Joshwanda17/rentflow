@@ -11,10 +11,13 @@ Geo source: ALL four counters are attributed to the registering/listing AGENT an
 RPCs (SECURITY DEFINER, search_path=public, gated by `is_ops_role(auth.uid())`):
 - `welile_ops_counter_breakdown(p_level, p_continent, p_country, p_city, p_since)` — pivots counts per next bucket. raw union: rent_requests.agent_id (rent), landlords.registered_by (landlord), profiles.referrer_id where both child & referrer are agents (agent), promissory_notes.agent_id (promissory). Also returns funnel/activation health: `rent_funded_count` (rent requests where funded_at not null OR status in funded/repaying/completed), `distinct_agents` (distinct contributing agents in bucket), `active_agents` (distinct contributing agents with ≥1 funded rent request).
 - `welile_ops_counter_items(p_agent_id, p_kind, p_since)` — source list per agent+kind, returns profile_id + drawer_tab (rent→tenant, landlord→landlord, agent→agent, promissory→tenant). limit 500.
+- `welile_ops_zone_agents(p_continent, p_country, p_city, p_since)` — per-agent funnel contribution within a zone: agent_id/name/phone, rent_count, rent_funded_count, landlord_count, agent_count, promissory_count, total_count, first_activity, last_activity, is_producing (bool_or funded). Ordered producing-first. limit 500.
 
 Health layer (Booking funded% + Airbnb activation), computed client-side in the band:
 - Funded% = rent_funded_count / rent_count. healthTone: ≥70% Healthy (emerald), ≥40% Watch (amber), <40% Stalled (red), no demand = muted.
 - Activation% = active_agents / distinct_agents ("agents producing").
 - Surfaced as two aggregate cards under the summary tiles, plus per-zone funded% bar + producing ratio + health badge on every breakdown row.
+
+Zone funnel drill-down (`ZoneFunnelDialog` in the band, opened via the Activity icon button on each geographic breakdown row — not at agent level): shows the aggregate funnel (Requests → Funded → Producing agents bars + funded%/activation% badges) and a producing-first list of every contributing agent with name/phone, rent funded/total + %, landlord/agent/note counts, and first/last activity dates. Clicking an agent opens `UserDrilldownDrawer` (agent tab). Hook `useOpsZoneAgents`.
 
 Frontend: hook `src/hooks/useWelileOpsCounters.ts`, component `src/components/executive/tenant-ops/WelileOpsCounterBand.tsx`. Profiles open via shared `UserDrilldownDrawer`.
