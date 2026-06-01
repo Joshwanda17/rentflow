@@ -344,3 +344,161 @@ export function WelileMissionBoard() {
     </Card>
   );
 }
+
+type EmptySort = 'rent_desc' | 'recent' | 'oldest' | 'area';
+
+function statusTone(status: string | null): string {
+  switch ((status || '').toLowerCase()) {
+    case 'available': return 'text-emerald-600 bg-emerald-500/10';
+    case 'pending': return 'text-amber-600 bg-amber-500/10';
+    case 'reserved': return 'text-blue-600 bg-blue-500/10';
+    default: return 'text-muted-foreground bg-muted';
+  }
+}
+
+function EmptyHousesDialog({
+  open, win, refetchIntervalMs, onClose, onOpenLandlord, onOpenAgent,
+}: {
+  open: boolean;
+  win: CounterWindow;
+  refetchIntervalMs?: number | false;
+  onClose: () => void;
+  onOpenLandlord: (id: string) => void;
+  onOpenAgent: (id: string) => void;
+}) {
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<EmptySort>('rent_desc');
+  const { data, isLoading } = useMissionEmptyHouses(win, open, refetchIntervalMs);
+  const houses: MissionEmptyHouseRow[] = data ?? [];
+
+  const searchLower = search.trim().toLowerCase();
+  const filtered = useMemo(() => {
+    let r = [...houses];
+    if (searchLower) {
+      r = r.filter((h) =>
+        (h.title?.toLowerCase().includes(searchLower) ?? false) ||
+        (h.area?.toLowerCase().includes(searchLower) ?? false) ||
+        (h.region?.toLowerCase().includes(searchLower) ?? false) ||
+        (h.district?.toLowerCase().includes(searchLower) ?? false) ||
+        (h.landlord_name?.toLowerCase().includes(searchLower) ?? false) ||
+        (h.landlord_phone?.toLowerCase().includes(searchLower) ?? false) ||
+        (h.agent_name?.toLowerCase().includes(searchLower) ?? false));
+    }
+    r.sort((a, b) => {
+      switch (sort) {
+        case 'rent_desc': return (b.monthly_rent || 0) - (a.monthly_rent || 0);
+        case 'recent': return new Date(b.last_activity || 0).getTime() - new Date(a.last_activity || 0).getTime();
+        case 'oldest': return new Date(a.last_activity || 0).getTime() - new Date(b.last_activity || 0).getTime();
+        case 'area': return (a.area || '~').localeCompare(b.area || '~');
+        default: return 0;
+      }
+    });
+    return r;
+  }, [houses, searchLower, sort]);
+
+  const unregistered = houses.filter((h) => !h.landlord_id).length;
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-2xl p-0 gap-0">
+        <DialogHeader className="p-4 pb-2">
+          <DialogTitle className="text-base flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-primary" /> Empty houses to fill
+          </DialogTitle>
+          <p className="text-[11px] text-muted-foreground">
+            Vacant listings ranked by impact — target the landlords behind the highest-rent, longest-empty units.
+          </p>
+        </DialogHeader>
+
+        <div className="px-4 pb-2 flex items-center gap-2">
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search area, landlord, agent…"
+              className="pl-7 h-8 text-xs"
+            />
+          </div>
+          <div className="flex rounded-lg border border-border overflow-hidden shrink-0">
+            {([
+              { key: 'rent_desc', label: 'Rent' },
+              { key: 'recent', label: 'Recent' },
+              { key: 'oldest', label: 'Oldest' },
+              { key: 'area', label: 'Area' },
+            ] as { key: EmptySort; label: string }[]).map((s) => (
+              <button
+                key={s.key}
+                onClick={() => setSort(s.key)}
+                className={cn('px-2 py-1 text-[10px] font-semibold transition whitespace-nowrap',
+                  sort === s.key ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted/40')}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {!isLoading && houses.length > 0 && (
+          <div className="px-4 pb-2 flex flex-wrap gap-1.5 text-[10px]">
+            <Badge variant="outline" className="text-[10px]">{filtered.length} of {houses.length} shown</Badge>
+            {unregistered > 0 && (
+              <Badge className="text-[10px] text-amber-600 bg-amber-500/10">{unregistered} need landlord onboarding</Badge>
+            )}
+          </div>
+        )}
+
+        <ScrollArea className="max-h-[60vh] px-4 pb-4">
+          {isLoading ? (
+            <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}</div>
+          ) : filtered.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              {houses.length === 0 ? 'No empty houses in this window.' : 'No houses match your search.'}
+            </p>
+          ) : (
+            <ul className="space-y-1.5">
+              {filtered.map((h) => (
+                <li key={h.listing_id} className="rounded-lg border border-border bg-card p-3">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-sm truncate flex-1">{h.title || 'Untitled house'}</span>
+                    {h.verified && <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 shrink-0" />}
+                    <Badge className={cn('text-[10px] shrink-0', statusTone(h.status))}>{h.status || 'unknown'}</Badge>
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5 text-[10px] text-muted-foreground">
+                    <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {h.area || 'Unspecified area'}</span>
+                    {h.monthly_rent ? <span className="text-foreground font-semibold">{formatUGX(h.monthly_rent)}/mo</span> : null}
+                    {h.number_of_rooms ? <span className="flex items-center gap-1"><BedDouble className="h-3 w-3" /> {h.number_of_rooms} rm</span> : null}
+                    <span>Last activity {fmtDate(h.last_activity)}</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                    {h.landlord_id ? (
+                      <button
+                        onClick={() => onOpenLandlord(h.landlord_id!)}
+                        className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium border border-border text-[#9234EA] bg-[#9234EA]/10 hover:ring-1 hover:ring-primary"
+                      >
+                        <Home className="h-3 w-3" /> {h.landlord_name || 'Landlord'}
+                        {h.landlord_phone && <span className="text-muted-foreground font-normal">· {h.landlord_phone}</span>}
+                      </button>
+                    ) : (
+                      <span className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium border border-amber-500/40 text-amber-600 bg-amber-500/10">
+                        <UserPlus className="h-3 w-3" /> Landlord not onboarded
+                      </span>
+                    )}
+                    {h.agent_id && (
+                      <button
+                        onClick={() => onOpenAgent(h.agent_id!)}
+                        className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium border border-border text-blue-600 bg-blue-500/10 hover:ring-1 hover:ring-primary"
+                      >
+                        <Users className="h-3 w-3" /> {h.agent_name || 'Agent'}
+                      </button>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
+}
