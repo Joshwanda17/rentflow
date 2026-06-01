@@ -626,6 +626,7 @@ export function ApprovalQueue() {
       setProcessing(false);
     }
   }, [bulkAction, selected, activeQueue, user, reason, payoutProof, queryClient, items]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
 
   const urgencyBg = { green: 'border-l-emerald-500', amber: 'border-l-amber-500', red: 'border-l-destructive' };
   const queueIcon: Record<QueueType, typeof Banknote> = { wallet_withdrawals: Banknote, wallet_ops: Wallet };
