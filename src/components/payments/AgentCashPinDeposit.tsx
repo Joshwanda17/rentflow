@@ -62,6 +62,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [phoneError, setPhoneError] = useState('');
+  const [phoneTouched, setPhoneTouched] = useState(false);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const phoneWrapRef = useRef<HTMLDivElement>(null);
 
