@@ -840,6 +840,11 @@ export default function WithdrawFlow({
       return; // let the stepper advance to step 2
     }
     if (currentStep === 4) {
+      // Hard OTP gate — never submit a withdrawal that wasn't phone-verified.
+      if (!otpVerified) {
+        toast.error('Enter the verification code sent to your phone before confirming.');
+        return false;
+      }
       // If our ledger snapshot is stale (or actively refreshing), don't
       // silently no-op — refresh first, then continue with the freshest
       // numbers. This makes Confirm "always work" from the user's POV.
