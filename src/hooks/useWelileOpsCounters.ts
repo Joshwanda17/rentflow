@@ -256,6 +256,7 @@ export interface MissionDriverEntity {
   phone: string | null;
   detail: string | null;
   created_at: string;
+  agent_id: string | null;
 }
 
 export function useMissionDriverEntities(driver: MissionDriverKey | null, win: CounterWindow, enabled: boolean, refetchIntervalMs?: number | false) {
