@@ -11,7 +11,6 @@ import {
 import { logUpdateFailure } from './lib/updateTelemetry';
 import { refreshRolloutConfig, isRolloutEnabledForDevice } from './lib/rollout';
 import { checkServerVersion, isVersionStaleSync, isForceUpdateSync } from './lib/versionGate';
-import { installIOSFreshnessWatch } from './lib/iosFreshness';
 import {
   installForcedUpdateWatch,
   triggerForcedUpdate,
@@ -33,9 +32,9 @@ if (!isPreviewHost) {
   void refreshRolloutConfig();
 }
 
-// Kick off the hard iOS version check as early as possible (fire-and-forget) so
-// the recovery path below can make a definitive "is this device stale?" decision
-// instead of cycling the generic recovery screen forever.
+// Kick off the universal version check as early as possible (fire-and-forget) so
+// the recovery path below can make a definitive stale-build decision without
+// relying on device-specific cache logic.
 if (!isPreviewHost) {
   void checkServerVersion();
 }
@@ -74,19 +73,11 @@ try {
 const isInIframe = (() => {
   try { return window.self !== window.top; } catch { return true; }
 })();
-const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent || '') && !(window as any).MSStream;
 
 if (isPreviewHost || isInIframe) {
   navigator.serviceWorker?.getRegistrations().then((regs) => {
     regs.forEach((r) => r.unregister());
   });
-}
-
-// Proactively catch iPhones returning from background / bfcache onto a stale
-// app shell, and refresh them BEFORE they hit a missing-chunk retry splash.
-// iOS-only and no-op in preview/iframe.
-if (!isPreviewHost && !isInIframe) {
-  installIOSFreshnessWatch();
 }
 
 // Cross-platform, server-controlled forced-update gate. Runs everywhere (not
@@ -230,21 +221,17 @@ const loadApp = async () => {
     // the automatic cache cleanup recovery. Devices outside the cohort fall
     // through to the manual recovery UI, so the fix is verified on a small
     // percentage before full deployment.
-    const emergencyIOSRecovery = isIOSDevice;
-    const inRolloutCohort = emergencyIOSRecovery || isRolloutEnabledForDevice();
-    // HARD iOS VERSION GATE: a stale iPhone must not keep cycling the recovery
-    // screen. When this device is provably running an outdated bundle, replace
-    // the recovery loop with a definitive "Update Required" gate that forces a
-    // clean refresh onto the current build. We confirm staleness against the
-    // network (no-store) before gating so we never trap an up-to-date device.
-    if (isChunkError && isIOSDevice) {
+    const inRolloutCohort = isRolloutEnabledForDevice();
+    // Universal hard version gate: when this device is provably running an
+    // outdated bundle, replace retry loops with the forced update path.
+    if (isChunkError) {
       const version = isVersionStaleSync()
         ? { stale: true }
         : await checkServerVersion();
       if (version.stale) {
-        logUpdateFailure('ios_version_gate', {
+        logUpdateFailure('version_gate', {
           chunk_mismatch: true,
-          details: { reason: 'stale bundle — hard update gate shown' },
+          details: { reason: 'stale bundle — forced update gate shown' },
         });
         triggerForcedUpdate('stale_chunk_error');
         return;
@@ -262,7 +249,7 @@ const loadApp = async () => {
     if (isChunkError && !inRolloutCohort) {
       logUpdateFailure('chunk_error_detected', {
         chunk_mismatch: true,
-        details: { rolloutCohort: false, emergencyIOSRecovery, message: 'outside rollout cohort — manual recovery UI' },
+        details: { rolloutCohort: false, message: 'outside rollout cohort — manual recovery UI' },
       });
     }
     if (isChunkError && recoveryExhausted()) {
