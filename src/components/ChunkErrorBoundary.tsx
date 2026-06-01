@@ -1,11 +1,7 @@
 import React, { Component, ReactNode } from "react";
 import { RefreshCw, Loader2, Home } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  clearAndReload,
-  hardRecover,
-  recoveryExhausted,
-} from "@/lib/hardRecovery";
+import { clearAndReload, hardRecover, recoveryExhausted } from "@/lib/hardRecovery";
 
 interface Props {
   children: ReactNode;
@@ -82,32 +78,25 @@ class ChunkErrorBoundary extends Component<Props, State> {
     // Best-effort remote log — never throw from here
     try {
       const payload = {
-        pathname:
-          typeof window !== "undefined"
-            ? window.location.pathname + window.location.search
-            : null,
-        user_agent:
-          typeof navigator !== "undefined" ? navigator.userAgent : null,
+        pathname: typeof window !== "undefined" ? window.location.pathname + window.location.search : null,
+        user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
         error_message: error?.message ?? "Unknown error",
-        error_stack:
-          (error?.stack || "") +
-          "\n--- componentStack ---\n" +
-          (info?.componentStack || ""),
+        error_stack: (error?.stack || "") + "\n--- componentStack ---\n" + (info?.componentStack || ""),
         metadata: {
           source: "ChunkErrorBoundary",
           isChunkError: classifyChunkError(error),
           href: typeof window !== "undefined" ? window.location.href : null,
           online: typeof navigator !== "undefined" ? navigator.onLine : null,
-          viewport:
-            typeof window !== "undefined"
-              ? { w: window.innerWidth, h: window.innerHeight }
-              : null,
+          viewport: typeof window !== "undefined" ? { w: window.innerWidth, h: window.innerHeight } : null,
         },
       };
       supabase
         .from("public_error_logs")
         .insert(payload as any)
-        .then(() => {}, () => {});
+        .then(
+          () => {},
+          () => {},
+        );
     } catch {
       // ignore
     }
@@ -173,8 +162,8 @@ class ChunkErrorBoundary extends Component<Props, State> {
               <div className="space-y-2">
                 <h1 className="text-xl font-semibold">Let's clear the cache</h1>
                 <p className="text-muted-foreground text-sm">
-                  The app found an old installed version. Tap below to clear the
-                  old app files and load the latest Welile version.
+                  The app found an old installed version. Tap below to clear the old app files and load the latest
+                  Welile version.
                 </p>
               </div>
               <button
@@ -193,8 +182,8 @@ class ChunkErrorBoundary extends Component<Props, State> {
                 )}
               </button>
               <p className="text-xs text-muted-foreground/60">
-                Still stuck? Close the tab completely and reopen welilereceipts.com,
-                or remove the app from your Home Screen and add it again.
+                Still stuck? Close the tab completely and reopen welilereceipts.com, or remove the app from your Home
+                Screen and add it again.
               </p>
             </div>
           </div>
@@ -270,17 +259,13 @@ class ChunkErrorBoundary extends Component<Props, State> {
             </div>
             {this.state.errorMessage && (
               <details className="w-full text-left">
-                <summary className="text-xs text-muted-foreground/60 cursor-pointer">
-                  Technical details
-                </summary>
+                <summary className="text-xs text-muted-foreground/60 cursor-pointer">Technical details</summary>
                 <p className="mt-2 text-xs text-muted-foreground/70 break-words font-mono bg-muted/40 p-2 rounded">
                   {this.state.errorMessage}
                 </p>
               </details>
             )}
-            <p className="text-xs text-muted-foreground/60">
-              If this keeps happening, contact support.
-            </p>
+            <p className="text-xs text-muted-foreground/60">If this keeps happening, contact support.</p>
           </div>
         </div>
       );
