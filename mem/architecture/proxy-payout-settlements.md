@@ -21,6 +21,7 @@ type: feature
 **Frontend `ProxyPartnerFunds.tsx`.**
 - One card per partner (NOT per approval). Amount = `v_user_wallet_strict.available`.
 - Settlement-aware filter is the SOLE source of truth — drop any approval whose `id` exists in `proxy_payout_settlements`.
+- **Managed-proxy visibility (2026-06-01 fix).** For `is_managed_account=true` partners, ROI lives in the AGENT's wallet so the partner's own strict withdrawable is always 0. The per-card visibility ceiling MUST be the approved (historical-open) ROI amount the partner is OWED — NOT the agent's current wallet balance and NOT a shared agent-wallet FIFO budget. The previous shared-budget clamp silently hid every CFO/COO-approved partner once the owed total exceeded what the agent currently held (e.g. 81.6M owed across 37 partners vs 5.6M agent withdrawable → only the newest few appeared). The agent-wallet limit is real but is enforced at withdrawal time by the strict ledger gate / `approve-withdrawal`, never by dropping an approved partner from the list.
 - Hide partners with strict available ≤ UGX 50 (dust threshold).
 - Optimistic submit lock via `submittingPartnerIds` set populated on `handleWithdrawSuccess`, cleared after 5s — button disabled + spinner.
 - Realtime channel on `proxy_payout_settlements` INSERT (scoped to agent_id) → refetch.
