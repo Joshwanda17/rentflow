@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Phone, MessageCircle, User, ArrowLeft, MapPin, FileSearch, Pencil, Save, X, Loader2, ArrowRightLeft } from 'lucide-react';
+import { Phone, MessageCircle, User, ArrowLeft, MapPin, FileSearch, Pencil, Save, X, Loader2, ArrowRightLeft, Banknote, Wallet } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -56,6 +57,11 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
 
   // Transfer agent dialog state
   const [transferReq, setTransferReq] = useState<{ id: string; agent_id: string | null } | null>(null);
+
+  // Rent collection state — collect outstanding from the tenant's wallet first,
+  // then fall back to a linked agent's wallet (for tenants without a smartphone).
+  const [collectingReqId, setCollectingReqId] = useState<string | null>(null);
+  const [collectReason, setCollectReason] = useState('');
 
   const { data, isLoading } = useQuery({
     queryKey: ['tenant-detail', tenantId],
@@ -385,6 +391,40 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
     }
   };
 
+  // --- Rent collection handler ---
+  // Collects the outstanding (capped at the daily charge) from the tenant's
+  // wallet, then from the linked agent's wallet for any shortfall.
+  const collectMutation = useMutation({
+    mutationFn: async ({ rentRequestId, reason }: { rentRequestId: string; reason: string }) => {
+      const { data, error } = await supabase.functions.invoke('manual-collect-rent', {
+        body: { rent_request_id: rentRequestId, reason },
+      });
+      if (error) {
+        const msg = await extractFromErrorObject(error, 'Collection failed. Please try again.');
+        throw new Error(msg);
+      }
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: (data: any) => {
+      toast.success(
+        `Collected UGX ${Number(data.total_collected).toLocaleString()} — tenant UGX ${Number(data.tenant_deducted).toLocaleString()}, agent UGX ${Number(data.agent_deducted).toLocaleString()}`
+      );
+      setCollectingReqId(null);
+      setCollectReason('');
+      queryClient.invalidateQueries({ queryKey: ['tenant-detail', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['exec-tenant-ops'] });
+      queryClient.invalidateQueries({ queryKey: ['coo-tenant-balances'] });
+    },
+    onError: (e: any) => toast.error(e.message || 'Collection failed'),
+  });
+
+  const handleCollect = (rentRequestId: string) => {
+    const reason = collectReason.trim();
+    if (reason.length < 10) { toast.error('Reason must be at least 10 characters'); return; }
+    collectMutation.mutate({ rentRequestId, reason });
+  };
+
   return (
     <div className="space-y-3">
       <Button variant="ghost" onClick={onBack} className="h-10 px-3 gap-2 text-sm font-semibold -ml-1">
@@ -653,6 +693,64 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                               {req.daily_repayment && <span>Daily: UGX {Number(req.daily_repayment).toLocaleString()}</span>}
                               {req.duration_days && <span>{req.duration_days}d</span>}
                             </div>
+                            {(() => {
+                              const status = String((req as any).status || '').toLowerCase();
+                              const isActive = !['completed', 'closed', 'cancelled', 'rejected', 'fully_repaid'].includes(status);
+                              const reqOutstanding = Number((req as any).total_repayment || 0) - Number(req.amount_repaid || 0);
+                              if (!isActive || reqOutstanding <= 0) return null;
+                              const chargeAmt = Math.min(reqOutstanding, Number(req.daily_repayment || 0) || reqOutstanding);
+                              const isOpen = collectingReqId === req.id;
+                              return (
+                                <div className="pt-1">
+                                  {!isOpen ? (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-8 w-full text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+                                      onClick={() => { setCollectingReqId(req.id); setCollectReason(''); }}
+                                    >
+                                      <Banknote className="h-3.5 w-3.5" />
+                                      Collect UGX {chargeAmt.toLocaleString()} from wallet
+                                    </Button>
+                                  ) : (
+                                    <div className="space-y-2 rounded-md border border-primary/20 bg-primary/5 p-2">
+                                      <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                        <Wallet className="h-3 w-3" />
+                                        Charges the tenant's wallet first, then the linked agent's wallet for any shortfall.
+                                      </p>
+                                      <Textarea
+                                        value={collectReason}
+                                        onChange={e => setCollectReason(e.target.value)}
+                                        rows={2}
+                                        className="text-sm"
+                                        placeholder="Reason for collection (min 10 chars)…"
+                                        maxLength={500}
+                                      />
+                                      <div className="flex gap-2 justify-end">
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="h-7 text-xs"
+                                          onClick={() => { setCollectingReqId(null); setCollectReason(''); }}
+                                          disabled={collectMutation.isPending}
+                                        >
+                                          Cancel
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          className="h-7 text-xs gap-1"
+                                          onClick={() => handleCollect(req.id)}
+                                          disabled={collectMutation.isPending || collectReason.trim().length < 10}
+                                        >
+                                          {collectMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Banknote className="h-3 w-3" />}
+                                          Collect UGX {chargeAmt.toLocaleString()}
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </>
                         )}
                       </div>
