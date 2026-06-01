@@ -370,6 +370,7 @@ function EmptyHousesDialog({
 }) {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<EmptySort>('rent_desc');
+  const [targetFilter, setTargetFilter] = useState<'all' | 'targeted' | 'untargeted'>('all');
   const { data, isLoading } = useMissionEmptyHouses(win, open, refetchIntervalMs);
   const houses: MissionEmptyHouseRow[] = data ?? [];
   const { data: targets } = useLandlordOnboardingTargets(open);
@@ -404,6 +405,11 @@ function EmptyHousesDialog({
         (h.landlord_phone?.toLowerCase().includes(searchLower) ?? false) ||
         (h.agent_name?.toLowerCase().includes(searchLower) ?? false));
     }
+    if (targetFilter === 'targeted') {
+      r = r.filter((h) => !!h.landlord_id && !!targets?.[h.landlord_id]);
+    } else if (targetFilter === 'untargeted') {
+      r = r.filter((h) => !h.landlord_id || !targets?.[h.landlord_id]);
+    }
     r.sort((a, b) => {
       switch (sort) {
         case 'rent_desc': return (b.monthly_rent || 0) - (a.monthly_rent || 0);
@@ -414,7 +420,7 @@ function EmptyHousesDialog({
       }
     });
     return r;
-  }, [houses, searchLower, sort]);
+  }, [houses, searchLower, sort, targetFilter, targets]);
 
   const unregistered = houses.filter((h) => !h.landlord_id).length;
   const targetedCount = houses.filter((h) => h.landlord_id && targets?.[h.landlord_id]).length;
@@ -431,7 +437,7 @@ function EmptyHousesDialog({
           </p>
         </DialogHeader>
 
-        <div className="px-4 pb-2 flex items-center gap-2">
+        <div className="px-4 pb-2 flex items-center gap-2 flex-wrap">
           <div className="relative flex-1 min-w-0">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
             <Input
@@ -455,6 +461,22 @@ function EmptyHousesDialog({
                   sort === s.key ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted/40')}
               >
                 {s.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex rounded-lg border border-border overflow-hidden shrink-0">
+            {([
+              { key: 'all', label: 'All' },
+              { key: 'targeted', label: 'Targeted' },
+              { key: 'untargeted', label: 'Not targeted' },
+            ] as { key: 'all' | 'targeted' | 'untargeted'; label: string }[]).map((f) => (
+              <button
+                key={f.key}
+                onClick={() => setTargetFilter(f.key)}
+                className={cn('px-2 py-1 text-[10px] font-semibold transition whitespace-nowrap',
+                  targetFilter === f.key ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted/40')}
+              >
+                {f.label}
               </button>
             ))}
           </div>
