@@ -10,7 +10,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import ChunkErrorBoundary from "@/components/ChunkErrorBoundary";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { lazyWithRetry, optionalLazyWithRetry } from "@/lib/lazyWithRetry";
-import { clearAndReload } from "@/lib/hardRecovery";
 // Route every page chunk through the concurrency-limited queue so slow
 // networks never see more than N parallel chunk requests at once.
 const lazy = lazyWithRetry;
@@ -87,7 +86,6 @@ const ManagerAccess = lazy(() => import('./pages/ManagerAccess'));
 const BecomeSupporter = lazy(() => import('./pages/BecomeSupporter'));
 const DepositsManagement = lazy(() => import('./pages/DepositsManagement'));
 const Install = lazy(() => import('./pages/Install'));
-const Diagnostics = lazy(() => import('./pages/Diagnostics'));
 const SupportReport = lazy(() => import('./pages/SupportReport'));
 const ActivateSupporter = lazy(() => import('./pages/ActivateSupporter'));
 // Chat feature removed
@@ -253,7 +251,7 @@ const PageLoader = memo(() => {
       <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       {showRetry && (
         <button
-          onClick={() => { sessionStorage.removeItem('chunk_retry'); void clearAndReload('manual_reload'); }}
+          onClick={() => { sessionStorage.removeItem('chunk_retry'); window.location.reload(); }}
           className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm"
           style={{ minHeight: '44px' }}
         >
@@ -275,7 +273,7 @@ function AppRoutes() {
   );
 
   const handlePullRefresh = async () => {
-    await clearAndReload('manual_reload');
+    window.location.reload();
   };
 
   const routeContent = (
@@ -346,7 +344,6 @@ function AppRoutes() {
           <Route path="/vendor-portal" element={<VendorPortal />} />
           <Route path="/deposits-management" element={<DepositsManagement />} />
           <Route path="/install" element={<Install />} />
-          <Route path="/diagnostics" element={<Diagnostics />} />
           <Route path="/support-report/:token" element={<SupportReport />} />
           <Route path="/activate-supporter" element={<ActivateSupporter />} />
           {/* Chat feature removed */}
