@@ -1508,6 +1508,12 @@ export function ProxyPartnerFunds() {
                 </div>
               </div>
 
+              <div className="rounded-lg border border-border/60 bg-muted/30 px-2.5 py-1.5">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{destLabel}</p>
+                <p className="text-xs font-semibold text-foreground">{destName}</p>
+                {destExtra && <p className="text-[10px] text-muted-foreground">{destExtra}</p>}
+              </div>
+
               {!statusBadge && classification.kind === 'reattempt' && (
                 <div className="flex items-start gap-1.5 rounded-md bg-destructive/5 border border-destructive/20 px-2 py-1.5">
                   <Info className="h-3 w-3 text-destructive shrink-0 mt-0.5" />
