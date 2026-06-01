@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { User } from '@supabase/supabase-js';
@@ -427,6 +427,16 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     setShowMerchantOnboard(false);
   };
 
+  // Guided click: scroll to and briefly highlight the Merchant Payouts button
+  const merchantBtnRef = useRef<HTMLButtonElement>(null);
+  const [highlightMerchant, setHighlightMerchant] = useState(false);
+  const guideToMerchantButton = () => {
+    hapticTap();
+    merchantBtnRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setHighlightMerchant(true);
+    window.setTimeout(() => setHighlightMerchant(false), 2200);
+  };
+
   const handleShareLandlordSignup = () => {
     hapticTap();
     setShareLandlordOpen(true);
@@ -670,10 +680,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                       Tap it any time to get started.
                     </p>
                     <button
-                      onClick={() => { hapticTap(); dismissMerchantOnboard(); setCashPayoutsOpen(true); }}
+                      onClick={guideToMerchantButton}
                       className="mt-3 text-xs font-semibold text-primary hover:underline"
                     >
-                      Open Merchant Payouts →
+                      Show me where →
                     </button>
                   </div>
                 </div>
@@ -682,8 +692,12 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
             {isCashoutAgent && (
               <button
+                ref={merchantBtnRef}
                 onClick={() => { hapticTap(); setCashPayoutsOpen(true); }}
-                className="w-full flex items-center gap-4 p-5 rounded-2xl border border-warning/60 bg-gradient-to-br from-warning to-amber-600 shadow-lg shadow-warning/20 touch-manipulation active:scale-[0.97] transition-all min-h-[72px] relative overflow-hidden"
+                className={cn(
+                  "w-full flex items-center gap-4 p-5 rounded-2xl border border-warning/60 bg-gradient-to-br from-warning to-amber-600 shadow-lg shadow-warning/20 touch-manipulation active:scale-[0.97] transition-all min-h-[72px] relative overflow-hidden",
+                  highlightMerchant && "ring-4 ring-primary ring-offset-2 ring-offset-background animate-pulse scale-[1.02]"
+                )}
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
                 {/* subtle shimmer strip */}
