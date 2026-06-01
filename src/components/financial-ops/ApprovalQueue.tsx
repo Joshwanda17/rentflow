@@ -436,6 +436,17 @@ export function ApprovalQueue() {
   const proofConfig = getProofLabel();
   const walletWithdrawalApproveBlocked = activeQueue === 'wallet_withdrawals' && bulkAction === 'approve' && !payoutProof.trim();
 
+  // Cash payouts are gated by a one-time WPO-XXXXX pickup code (issued at
+  // submission, stored in `payout_codes`). Block approval entirely when any
+  // selected cash withdrawal has no code on file — the backend would reject it
+  // with CASH_CODE_REQUIRED anyway, so we fail fast in the UI.
+  const selectedCashMissingCode =
+    activeQueue === 'wallet_withdrawals' && bulkAction === 'approve'
+      ? items.filter(i => selected.has(i.id) && i.payoutDetails?.method === 'cash' && !i.payoutDetails?.payoutCode)
+      : [];
+  const cashCodeMissingBlocked = selectedCashMissingCode.length > 0;
+  const approveBlocked = walletWithdrawalApproveBlocked || cashCodeMissingBlocked;
+
   const handleBulkAction = useCallback(async () => {
     if (!bulkAction || selected.size === 0 || !user) return;
     if (bulkAction === 'reject' && reason.length < 10) {
