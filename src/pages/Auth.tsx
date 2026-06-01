@@ -681,25 +681,6 @@ export default function Auth() {
                       <p className="text-base font-semibold text-foreground">Enter your phone number</p>
                       <p className="text-sm text-muted-foreground mt-0.5">We will send you a 6-digit code</p>
                     </div>
-                    {otpVersionBlocked && (
-                      <div className="flex flex-col items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-center">
-                        <AlertCircle className="h-7 w-7 text-amber-600" />
-                        <div>
-                          <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">Update required</p>
-                          <p className="text-xs text-amber-600/90 dark:text-amber-400/80 mt-1">
-                            Your app is out of date, which is why codes were not working. Update now to receive a fresh, working code.
-                          </p>
-                        </div>
-                        <Button
-                          type="button"
-                          onClick={() => void clearAndReload('manual_reload')}
-                          className="w-full h-12 rounded-xl font-bold"
-                          style={{ fontSize: '16px', WebkitTapHighlightColor: 'transparent' }}
-                        >
-                          Update App
-                        </Button>
-                      </div>
-                    )}
                     <div className="flex items-center gap-2">
                       <Phone className="h-6 w-6 text-muted-foreground shrink-0" />
                       <div className="relative flex flex-1">
@@ -720,7 +701,7 @@ export default function Auth() {
                     <Button
                       type="button"
                       onClick={handleSendOtpForLogin}
-                      disabled={otpVersionBlocked || otpLoginLoading || otpLoginPhone.replace(/\D/g, '').length < 7}
+                      disabled={otpLoginLoading || otpLoginPhone.replace(/\D/g, '').length < 7}
                       className="w-full h-16 text-lg rounded-xl font-bold shadow-md touch-manipulation active:scale-[0.98] transition-transform"
                       style={{ fontSize: '16px', WebkitTapHighlightColor: 'transparent' }}
                     >
