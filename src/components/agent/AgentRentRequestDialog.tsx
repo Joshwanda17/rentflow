@@ -1074,6 +1074,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setDetailStep(0);
     setAutoDraftId(null);
     setAutoDraftStatus('idle');
+    setSelectedHouse(null);
+    setHouseResults([]);
+    setHouseQuery('');
+    setHouseSearchedOnce(false);
   };
 
   const handleOpenChange = (newOpen: boolean) => {
